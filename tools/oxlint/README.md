@@ -11,7 +11,10 @@ lint gate beside Biome.
 
 - **Read by:** the root [`oxlint.config.ts`](../../oxlint.config.ts), which loads
   `anti-slop/index.ts` as a JS plugin, turns every built-in Oxlint category off
-  and sets each `anti-slop/*` rule to `error`.
+  and sets each `anti-slop/*` rule to `error`. The same config also loads the
+  `@gdp-ts/core` lint that bans forging an authorization proof
+  ([ADR 0178](../../docs/adr/0178-authorization-checks-are-proofs-the-compiler-can-see.md)),
+  so `pnpm lint:anti-slop` enforces both.
 - **Run by:** `pnpm lint:anti-slop`, `.githooks/pre-commit` (staged files),
   `.githooks/pre-push`, and `pnpm verify`.
 - **Mirrored in:** [`skills/install-anti-slop/assets/anti-slop`](../../skills/install-anti-slop/assets/anti-slop),

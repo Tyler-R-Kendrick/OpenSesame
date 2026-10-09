@@ -147,7 +147,14 @@ async function presentClaim(init: RequestInit): Promise<Response> {
   } catch (error) {
     if (error instanceof LocalDropClaimError) {
       // The Identity API's code for the same refusal, read by one wording.
-      return json({ error: error.wire, hint: error.message }, 401);
+      return json(
+        {
+          error: error.wire,
+          hint: error.message,
+          attemptsLeft: error.attemptsLeft ?? null,
+        },
+        401,
+      );
     }
     return json({ error: "unreachable" }, 503);
   }
@@ -237,16 +244,17 @@ async function handleCoreRoute(
 type Matched = ReturnType<typeof matchCorePath>;
 
 /**
- * Claims hold what a vault sealed, whichever session asks: while a vault is
- * on this device and shut, no claim is created, polled or presented. A
- * session minted before any vault existed gets no exemption.
+ * `POST /v1/claims` stays gated on a locked vault (ADR 0160 §7). Sealing is
+ * an act of the open vault, and a session minted before any vault existed
+ * gets no exemption. Poll and present only touch the origin claim store, so
+ * they run while this vault is locked.
  */
-function claimsWhileLocked(matched: Matched): boolean {
-  const claim =
-    matched.kind === "poll" ||
-    (matched.kind === "exact" &&
-      (matched.route === "claims" || matched.route === "present"));
-  return claim && deviceVaultView().kind === "locked";
+function createClaimWhileLocked(matched: Matched): boolean {
+  return (
+    matched.kind === "exact" &&
+    matched.route === "claims" &&
+    deviceVaultView().kind === "locked"
+  );
 }
 
 /** A capability's route, or what the host answers for it itself. */
@@ -279,7 +287,7 @@ export async function deviceIdentityFetch(
 ): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   const matched = matchCorePath(path);
-  if (claimsWhileLocked(matched)) return lockedResponse();
+  if (createClaimWhileLocked(matched)) return lockedResponse();
   if (matched.kind === "poll") {
     if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
     return pollClaim(matched.claimId, init);

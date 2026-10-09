@@ -1,0 +1,193 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "visit": "settings/general"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "connections/linear"
+        },
+        {
+          "report": "main label, main h2, main h3, main summary"
+        },
+        {
+          "measure": "main input:visible, main select:visible, main button:visible, main summary:visible"
+        },
+        {
+          "shot": "desktop-linear"
+        },
+        {
+          "tap": "summary[aria-label=\"App Scopes\"]",
+          "only": "after"
+        },
+        {
+          "tap": ".cx-selection__choices label:last-child",
+          "only": "after"
+        },
+        {
+          "tap": ".cx-selection__choices label:last-child",
+          "only": "after"
+        },
+        {
+          "measure": ".cx-selection__choices label:visible"
+        },
+        {
+          "shot": "desktop-linear-scopes"
+        },
+        {
+          "tap": "summary[aria-label=\"App Scopes\"]",
+          "only": "after"
+        },
+        {
+          "chooseOptional": "Bring Your Own"
+        },
+        {
+          "tap": ".cx-application[open] .f__input",
+          "only": "after"
+        },
+        {
+          "report": ".cx-application[open] label"
+        },
+        {
+          "measure": ".cx-application[open] input:visible"
+        },
+        {
+          "shot": "desktop-linear-byo"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "visit": "settings/general"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "connections/linear"
+        },
+        {
+          "report": "main label, main h2, main h3, main summary"
+        },
+        {
+          "measure": "main input:visible, main select:visible, main button:visible, main summary:visible"
+        },
+        {
+          "shot": "phone-linear"
+        },
+        {
+          "tap": "summary[aria-label=\"App Scopes\"]",
+          "only": "after"
+        },
+        {
+          "tap": ".cx-selection__choices label:last-child",
+          "only": "after"
+        },
+        {
+          "tap": ".cx-selection__choices label:last-child",
+          "only": "after"
+        },
+        {
+          "measure": ".cx-selection__choices label:visible"
+        },
+        {
+          "shot": "phone-linear-scopes"
+        },
+        {
+          "tap": "summary[aria-label=\"App Scopes\"]",
+          "only": "after"
+        },
+        {
+          "chooseOptional": "Bring Your Own"
+        },
+        {
+          "tap": ".cx-application[open] .f__input",
+          "only": "after"
+        },
+        {
+          "report": ".cx-application[open] label"
+        },
+        {
+          "measure": ".cx-application[open] input:visible"
+        },
+        {
+          "shot": "phone-linear-byo"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-linear",
+      "width": 1280,
+      "title": "Linear — Managed defaults — 1280 × 900",
+      "caption": "Night theme is selected through Settings. Linear now offers its own workspace, connector name, scope and webhook settings without Vercel credentials.",
+      "before": "3 Vercel credential fields; 0 scope controls",
+      "after": "0 Vercel credential fields; 3 scope controls"
+    },
+    {
+      "shot": "desktop-linear-scopes",
+      "width": 1280,
+      "title": "Linear — Expanded App Scopes — 1280 × 900",
+      "caption": "A native disclosure exposes Linear permissions, with four selected by default. Checkbox rows remain usable with a finger or keyboard.",
+      "before": "0 Linear scope choices",
+      "after": "6 native Linear scope choices; 44px rows"
+    },
+    {
+      "shot": "desktop-linear-byo",
+      "width": 1280,
+      "title": "Linear — Bring Your Own application — 1280 × 900",
+      "caption": "Bring Your Own opens the provider application configuration. Client credentials belong to Linear; the connector is saved locally before provider authorization.",
+      "before": "3 Vercel credential fields",
+      "after": "2 Linear OAuth application credential fields"
+    },
+    {
+      "shot": "phone-linear",
+      "width": 390,
+      "title": "Linear — Managed defaults — 390 × 844",
+      "caption": "Night theme is selected through Settings. Linear now offers its own workspace, connector name, scope and webhook settings without Vercel credentials.",
+      "before": "3 Vercel credential fields; 0 scope controls",
+      "after": "0 Vercel credential fields; 3 scope controls"
+    },
+    {
+      "shot": "phone-linear-scopes",
+      "width": 390,
+      "title": "Linear — Expanded App Scopes — 390 × 844",
+      "caption": "A native disclosure exposes Linear permissions, with four selected by default. Checkbox rows remain usable with a finger or keyboard.",
+      "before": "0 Linear scope choices",
+      "after": "6 native Linear scope choices; 44px rows"
+    },
+    {
+      "shot": "phone-linear-byo",
+      "width": 390,
+      "title": "Linear — Bring Your Own application — 390 × 844",
+      "caption": "Bring Your Own opens the provider application configuration. Client credentials belong to Linear; the connector is saved locally before provider authorization.",
+      "before": "3 Vercel credential fields",
+      "after": "2 Linear OAuth application credential fields"
+    }
+  ]
+}

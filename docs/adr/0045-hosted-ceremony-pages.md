@@ -3,6 +3,9 @@
 Status: Proposed; decision 1 and the 2026-08-19 amendment superseded by [ADR 0140](0140-pages-hosts-every-ceremony.md)
 Date: 2026-08-19
 Amends: ADR 0044 (decision 10, claim-ceremony host)
+Implementation: `apps/ceremonies` and the other hosted ceremony apps do not
+exist in this checkout (deleted 2026-09-26 under [ADR 0140](0140-pages-hosts-every-ceremony.md));
+the ceremonies are Pages routes over `packages/ceremony-kit`.
 
 ## Context
 

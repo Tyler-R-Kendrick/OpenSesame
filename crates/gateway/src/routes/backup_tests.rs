@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 async fn state() -> AppState {
-    let mut state = app_state::build_test(Args {
+    let mut state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),

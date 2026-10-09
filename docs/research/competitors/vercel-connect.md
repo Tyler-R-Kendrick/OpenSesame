@@ -10,11 +10,12 @@ Connect is credential brokerage; Marketplace is not OpenSesame’s IdP.
 
 ## Overview
 
-[Vercel Connect](https://vercel.com/docs/connect) (beta) lets teams register
-connectors to third-party APIs (OAuth or API key), attach them to projects /
-environments, and request short-lived tokens at runtime via `@vercel/connect`
-(`getToken`). Goal: agents and services act on Slack, GitHub, Linear, etc.
-without storing long-lived provider secrets in env vars.
+[Vercel Connect](https://vercel.com/docs/connect) (generally available, billed
+per token request) lets teams register connectors to third-party APIs (OAuth or
+API key), attach them to projects / environments, and request short-lived
+tokens at runtime via `@vercel/connect` (`getToken`). Goal: agents and services
+act on Slack, GitHub, Linear, etc. without storing long-lived provider secrets
+in env vars.
 
 | Dimension | Vercel Connect |
 |-----------|----------------|
@@ -30,7 +31,9 @@ without storing long-lived provider secrets in env vars.
 - Vercel-managed vs customer-managed OAuth clients.
 - Dedicated connectors (GitHub, Slack, Linear, …) + generic OAuth / API key.
 - `getToken` / authorization helpers in `@vercel/connect`.
-- Audit of authorization and token usage; webhook forwarding (limited beta).
+- Observability of token requests, authorizations, trigger deliveries and
+  revocations; trigger forwarding of verified provider webhooks to project
+  destinations.
 
 ## Differentiators (why operators still pick Vercel Connect)
 
@@ -44,17 +47,18 @@ without storing long-lived provider secrets in env vars.
 - ConnectionRef → authorize → invoke → receipt; not only “hand me a provider
   token” (still powerful, but OpenSesame prefers capability invocation).
 - Works offline/local (daemon, Pages, sealed store) without Vercel OIDC.
-- ADR 0004: Marketplace auth is not core; Connect is studied as connector UX,
-  not as OpenSesame’s identity provider.
+- ADR 0004: Marketplace auth is not core; Connect is not OpenSesame’s identity
+  provider. Pages can use it as a connector transport (see the mapping).
 
 ## OpenSesame mapping
 
 | Vercel Connect concept | OpenSesame |
 |------------------------|------------|
 | Connector | Host connection + catalog provider |
-| `getToken` | Prefer invoke via ConnectionRef; tokens stay in Host |
+| `getToken` | Prefer invoke via ConnectionRef. The page never calls `getToken` (`packages/app-core/src/lib/vercel-connect.ts`); the relay's token proof asks Connect for the token, fingerprints it, calls the service's verify endpoint and answers with metadata, never the token ([ADR 0147](../../adr/0147-connector-plans-and-user-token-proof.md)) |
 | Project/env attach | Connection grants / capability bindings |
-| OAuth consent | Host `authorizeConnection` + consent popup (Pages) |
+| OAuth consent | Host `authorizeConnection` + consent popup (Pages); for a Connect connector, `startAuthorization` from `@vercel/connect` in a popup, closed by the callback relay ([ADR 0127](../../adr/0127-connect-callback-backend.md)) |
+| Connect as a transport | Connections creates, edits, authorizes and revokes Connect connectors through the relay at `/api/connect/*` on a Vercel deployment of `apps/pages`, or with a sealed Vercel token and team where there is no relay; Connections › Import connectors brings the team's connectors into Connected ([runbook](../../operators/connect-connectors.md)) |
 | GitHub connector | History capability default + Sites/connections |
 
 Related: [ADR 0004](../../adr/0004-no-vercel-marketplace-for-core.md),

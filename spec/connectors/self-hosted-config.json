@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "providers": {
+    "linear": {
+      "fields": [
+        {
+          "name": "workspace",
+          "label": "Linear workspace",
+          "placeholder": "Your Linear workspace name or ID",
+          "required": true
+        }
+      ],
+      "appScopeDefaults": ["read", "write", "issues:create", "comments:create"],
+      "userScopeDefaults": ["read", "write"],
+      "webhookResourceTypes": [
+        { "name": "Issue", "description": "Issues", "default": true },
+        { "name": "Comment", "description": "Issue comments", "default": true },
+        {
+          "name": "IssueLabel",
+          "description": "Issue labels",
+          "default": false
+        },
+        { "name": "Project", "description": "Projects", "default": false },
+        { "name": "Cycle", "description": "Cycles", "default": false },
+        {
+          "name": "Reaction",
+          "description": "Comment reactions",
+          "default": false
+        }
+      ],
+      "sources": [
+        "https://linear.app/developers/oauth-2-0-authentication",
+        "https://linear.app/developers/webhooks"
+      ]
+    }
+  }
+}

@@ -1,7 +1,13 @@
 # ADR 0070 — Code signing: signers, the Sign API, and scoped approvals
 
-Status: Accepted
+Status: Accepted (not implemented beyond storage; see Implementation)
 Date: 2026-08-30
+Implementation: the `signers`, `signer_members`, approval and `signing_events`
+tables and their storage accessors exist (`crates/storage/src/signing.rs`,
+`approval_policies.rs`, `approval_requests.rs`, `signing_access.rs`) and
+`crates/pki-core` has a PKCS#7 module; there is no Sign API route
+(`routes/certmgr_signers.rs`), no `crates/pkcs11-provider`, no
+`crates/windows-ksp` and no capability-registry entry in this checkout.
 Supplements: ADR 0005
 ([authority handles / ConnectionRef](0005-authority-handle-connectionref.md),
 which names `SignerRef`), ADR 0017 (host/client topology),

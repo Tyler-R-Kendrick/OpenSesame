@@ -130,9 +130,15 @@ mod tests {
         if std::io::IsTerminal::is_terminal(&std::io::stdin()) {
             return; // A terminal is allowed to see it; the refusal is for pipes.
         }
-        // Refused before any unlock prompt or store read.
+        // Refused before any unlock prompt or store read. Off a terminal the
+        // human reveal gate names the terminal; a terminal without --reveal
+        // names the flag. Either way the URI is not printed.
         let missing = std::path::Path::new("/nonexistent/opensesame-otp-test");
         let err = store::cmd_otp_uri("Dev/otp", false, Some(missing), None).unwrap_err();
-        assert!(err.to_string().contains("--reveal"), "{err}");
+        let message = err.to_string();
+        assert!(
+            message.contains("--reveal") || message.contains("interactive terminals"),
+            "{message}"
+        );
     }
 }

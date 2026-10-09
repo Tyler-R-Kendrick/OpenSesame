@@ -55,6 +55,7 @@ machine secrets and crypto services.
 | Policy / ACL | AuthZEN / OpenFGA + connection grants |
 | Vault Agent inject | Rejected as primary agent API — no secret dump |
 | Catalog | Providers `vault`, `openbao` |
+| KV v2 HTTP API (External Secrets Operator, Terraform Vault provider) | Vault KV v2 **read** facade on the Host (`OPENSESAME_KV_FACADE=1`, off by default, `crates/gateway/src/routes/kv_facade.rs`): ops plane, a receipt per read, reference-first views rather than secret dumps |
 
 Related: [docs/reference/reuse.md](../../reference/reuse.md) Authority row, provider crates
 `opensesame-provider-openbao`.

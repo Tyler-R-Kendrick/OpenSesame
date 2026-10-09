@@ -58,11 +58,21 @@ export type StatusNoticeInput = {
 };
 
 type Listener = () => void;
+type ArrivalListener = (notice: Notice) => void;
+type PersistListener = (notices: Notice[]) => void;
+
 const listeners = new Set<Listener>();
+const arrivalListeners = new Set<ArrivalListener>();
+let persistListener: PersistListener | undefined;
+
 let notices: Notice[] = [];
 
-function emit(): void {
+function emit(arrived?: Notice, skipPersist = false): void {
   for (const listener of listeners) listener();
+  if (!skipPersist) persistListener?.(notices);
+  if (arrived) {
+    for (const listener of arrivalListeners) listener(arrived);
+  }
 }
 
 function listNoticesDefault(): Notice[] {
@@ -86,7 +96,7 @@ function pushNoticeDefault(
     createdAt: new Date().toISOString(),
   };
   notices = [...notices, notice];
-  emit();
+  emit(notice);
   return notice;
 }
 
@@ -119,7 +129,26 @@ function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
     createdAt: existing?.createdAt ?? new Date().toISOString(),
   };
   notices = [...notices.filter((item) => item.id !== input.id), notice];
+  // Standing page conditions update the badge. They are not arrivals: opening
+  // the bell sheet here covers the page the person is already using.
   emit();
+  return notice;
+}
+
+export type AppendStatusNoticeInput = Omit<StatusNoticeInput, "id"> & {
+  id?: string;
+};
+
+/** A new tray row — claim and live outcomes keep their own history. */
+function appendStatusNoticeDefault(input: AppendStatusNoticeInput): Notice {
+  const notice: Notice = {
+    ...input,
+    id: input.id ?? crypto.randomUUID(),
+    kind: "status",
+    createdAt: new Date().toISOString(),
+  };
+  notices = [...notices, notice];
+  emit(notice);
   return notice;
 }
 
@@ -133,6 +162,36 @@ function dismissNoticeDefault(id: string): void {
 function clearNoticesDefault(): void {
   if (notices.length === 0) return;
   notices = [];
+  emit(undefined, true);
+}
+
+function subscribeNoticeArrivalsDefault(listener: ArrivalListener): () => void {
+  arrivalListeners.add(listener);
+  return () => {
+    arrivalListeners.delete(listener);
+  };
+}
+
+function installNoticePersistenceDefault(listener: PersistListener): void {
+  persistListener = listener;
+}
+
+function restorePersistedTrayNoticesDefault(restored: Notice[]): void {
+  const ephemeral = notices.filter(
+    (notice) =>
+      notice.kind !== "status" || notice.claimToken || notice.userCode,
+  );
+  const byId = new Map<string, Notice>();
+  for (const notice of restored) byId.set(notice.id, notice);
+  for (const notice of notices) {
+    if (notice.kind === "status" && !notice.claimToken && !notice.userCode) {
+      byId.set(notice.id, notice);
+    }
+  }
+  for (const notice of ephemeral) byId.set(notice.id, notice);
+  notices = [...byId.values()].sort(
+    (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
+  );
   emit();
 }
 
@@ -141,8 +200,12 @@ export const noticeSeams = {
   subscribeNotices: subscribeNoticesDefault,
   pushNotice: pushNoticeDefault,
   setStatusNotice: setStatusNoticeDefault,
+  appendStatusNotice: appendStatusNoticeDefault,
   dismissNotice: dismissNoticeDefault,
   clearNotices: clearNoticesDefault,
+  subscribeNoticeArrivals: subscribeNoticeArrivalsDefault,
+  installNoticePersistence: installNoticePersistenceDefault,
+  restorePersistedTrayNotices: restorePersistedTrayNoticesDefault,
 };
 
 export function listNotices(): Notice[] {
@@ -161,6 +224,22 @@ export function pushNotice(
 
 export function setStatusNotice(input: StatusNoticeInput): Notice {
   return noticeSeams.setStatusNotice(input);
+}
+
+export function appendStatusNotice(input: AppendStatusNoticeInput): Notice {
+  return noticeSeams.appendStatusNotice(input);
+}
+
+export function subscribeNoticeArrivals(listener: ArrivalListener): () => void {
+  return noticeSeams.subscribeNoticeArrivals(listener);
+}
+
+export function installNoticePersistence(listener: PersistListener): void {
+  noticeSeams.installNoticePersistence(listener);
+}
+
+export function restorePersistedTrayNotices(restored: Notice[]): void {
+  noticeSeams.restorePersistedTrayNotices(restored);
 }
 
 export function dismissNotice(id: string): void {

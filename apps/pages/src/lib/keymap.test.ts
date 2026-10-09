@@ -313,9 +313,9 @@ describe("application keymap", () => {
       showHelp: vi.fn(),
     });
     press(handler, "g");
-    press(handler, "j");
+    press(handler, "k");
     expect(tree.first).not.toHaveBeenCalled();
-    expect(tree.next).toHaveBeenCalledWith(1);
+    expect(tree.previous).toHaveBeenCalledWith(1);
     release();
   });
 
@@ -343,9 +343,9 @@ describe("application keymap", () => {
     });
     press(handler, "g");
     vi.advanceTimersByTime(600);
-    press(handler, "j");
+    press(handler, "k");
     expect(tree.first).not.toHaveBeenCalled();
-    expect(tree.next).toHaveBeenCalledWith(1);
+    expect(tree.previous).toHaveBeenCalledWith(1);
     release();
     vi.useRealTimers();
   });

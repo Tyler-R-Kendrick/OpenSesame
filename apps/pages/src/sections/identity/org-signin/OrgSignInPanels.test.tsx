@@ -251,3 +251,29 @@ describe("email domains", () => {
     expect(server.domains()).toEqual([]);
   });
 });
+
+it("scopes a record editor to the selected organization instead of the first owner", async () => {
+  install(
+    orgSignInServer({
+      organizations: [
+        ACME,
+        { ...ACME, id: "org_2", slug: "second", displayName: "Second" },
+      ],
+    }),
+  );
+  render(<OrgSignInPanels online known={[ACME]} selectedOrg="org_2" />);
+  await screen.findByRole("region", { name: "Email domains" });
+  await waitFor(() =>
+    expect(
+      server.seen.some(
+        (call) => call.path === "/v1/organizations/org_2/domains",
+      ),
+    ).toBe(true),
+  );
+  expect(
+    server.seen.some((call) =>
+      call.path.startsWith("/v1/organizations/org_1/"),
+    ),
+  ).toBe(false);
+  expect(screen.queryByLabelText("Organization")).toBeNull();
+});

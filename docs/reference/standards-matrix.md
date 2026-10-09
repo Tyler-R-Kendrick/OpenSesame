@@ -2,57 +2,57 @@
 
 | Standard | Status | Support stance | Location |
 |----------|--------|----------------|----------|
-| RFC 8628 Device Authorization | Final | First-class CLI | `crates/authn`, `apps/cli` |
-| RFC 8252 Native Apps | Final | Loopback + PKCE S256 | `crates/authn` |
-| RFC 9700 OAuth BCP | BCP | Applied to AS client config | `crates/authn`, docs |
-| RFC 8414 AS Metadata | Final | Discovery | gateway discovery |
-| RFC 9728 Protected Resource Metadata | Final | `/.well-known/oauth-protected-resource` | `crates/gateway` |
-| RFC 8707 Resource Indicators | Final | Audience validation | `crates/authn` |
-| RFC 8693 Token Exchange | Final | When issuer supports | provider adapter |
-| RFC 9068 JWT Access Token Profile | Final | When JWT AT used | `crates/authn` |
-| RFC 9396 RAR | Final | authorization_details when supported | grants compiler |
-| RFC 9449 DPoP | Final | Browser/CLI proof-of-possession baseline; unchanged by ADR 0132, never stripped in favor of a certificate | `packages/oauth-provider`, `crates/gateway/src/middleware/auth.rs`, `crates/authn`, credential-agent |
-| RFC 8705 mTLS client auth + certificate-bound tokens | Final | Client authentication (`tls_client_auth`) for explicitly registered certificate-capable clients, and `cnf.x5t#S256` access-token binding, on Identity's optional TLS listener; resource-side check in Identity's protected routes and in Host caller resolution, bound to the originating leaf (never the ingress's, never a JWK thumbprint). Public PKCE/DPoP clients unaffected. No self-service trust-root registration (ADR 0132 §7–8) | `packages/oauth-provider`, `packages/control-plane/src/transport`, `crates/gateway/src/middleware/auth.rs` |
-| RFC 9470 Step-up | Final | Structured challenge | gateway PEP |
+| RFC 8628 Device Authorization | Final | First-class CLI (`opensesame login --flow device`, polling per the RFC's `authorization_pending` / `slow_down` / `access_denied` / `expired_token` states); the Identity API's authorization server enables the device flow | `crates/authn`, `apps/cli`, `packages/oauth-provider` |
+| RFC 8252 Native Apps | Final | **Partial.** The client CLI implements the loopback redirect: `opensesame-id login --loopback` binds `127.0.0.1` on an ephemeral port, checks `state` and sends an S256 code challenge. The native `opensesame login --flow loopback` runs no listener and falls back to device login; `crates/authn` only selects the flow and generates S256 PKCE material. The authorization server requires PKCE on every authorization-code request | `packages/sdk-cli/src/loopback.ts`, `packages/cli`, `crates/authn`, `apps/cli`, `packages/oauth-provider` |
+| RFC 9700 OAuth BCP | BCP | Followed in part, not a conformance claim: PKCE required for authorization-code requests with S256 the only advertised method, DPoP replay refused. `crates/authn` also holds fail-closed discovery/issuer, audience and verification-URI helpers; only tests and the fuzz harness call them today | `packages/oauth-provider`, `crates/authn` |
+| RFC 8414 AS Metadata | Final | The Identity API serves `/.well-known/oauth-authorization-server` (with an `agent_auth` extension) and `oidc-provider` serves `/.well-known/openid-configuration`; `crates/authn`'s fail-closed discovery parser is called only by tests and the fuzz harness | `packages/control-plane/src/routes/discovery.ts`, `packages/oauth-provider`, `crates/authn` |
+| RFC 9728 Protected Resource Metadata | Final | `/.well-known/oauth-protected-resource` on both the Host and the Identity API | `crates/gateway/src/routes/protected_resource.rs`, `packages/control-plane/src/routes/discovery.ts` |
+| RFC 8707 Resource Indicators | Final | The authorization server mints a resource-audienced JWT access token only for resources on `OPENSESAME_ALLOWED_RESOURCES` (default: the issuer itself) and answers `invalid_target` otherwise; audience helpers in `crates/authn` and `crates/protocol-mcp` are library code with no request-path caller | `packages/oauth-provider/src/resource-indicators.ts`, `crates/authn`, `crates/protocol-mcp` |
+| RFC 8693 Token Exchange | Final | **No token-exchange endpoint or client.** Only the subject/actor vocabulary is used, recorded on a derived-token mint and carried into invoke-through receipts | `crates/connection-broker/src/model.rs`, `crates/invoke-through` |
+| RFC 9068 JWT Access Token Profile | Final | Partial: the authorization server issues JWT access tokens for allowed resource indicators; the server SDK verifier can require the `at+jwt` `typ` header (off by default) | `packages/oauth-provider`, `packages/sdk-server/src/verifier.ts` |
+| RFC 9396 RAR | Final | `authorization_details` is the data model for delegation constraints, approval prompts and enforcement; the Identity API's authorization endpoint does not enable the RAR request parameter | `crates/domain/src/permission`, `packages/os-domain/src/authorization-details.ts` |
+| RFC 9449 DPoP | Final | Browser/CLI proof-of-possession baseline; unchanged by ADR 0132, never stripped in favor of a certificate | `packages/oauth-provider` (`dPoP` feature, replay refused), `crates/proof` (proof validator and replay cache), `crates/gateway/src/middleware/auth.rs` (DPoP-bound Host sessions) |
+| RFC 8705 mTLS client auth + certificate-bound tokens | Final | Client authentication (`tls_client_auth`) for explicitly registered certificate-capable clients, and `cnf.x5t#S256` access-token binding, on Identity's optional TLS listener; resource-side check in Identity's protected routes and in the Host's host-authorization exchange, bound to the originating leaf (never the ingress's, never a JWK thumbprint). Public PKCE/DPoP clients unaffected. No self-service trust-root registration (ADR 0132 §7–8) | `packages/oauth-provider`, `packages/control-plane/src/transport`, `crates/gateway/src/transport/proof.rs`, `crates/gateway/src/host_authorization.rs` |
+| RFC 9470 Step-up | Final | **Not implemented as specified.** The Host refuses with its own `step_up_required` error (ADR 0146): the agent-hooks policy guard needs a native session with `phishing_resistant` WebAuthn evidence from the last five minutes, and a run-control handoff needs a host-authorization elevation. No `insufficient_user_authentication` challenge is emitted anywhere in the tree | `crates/gateway/src/routes/agent_hooks/step_up.rs`, `crates/gateway/src/routes/agent_runs/lease.rs` |
 | RFC 9440 Client-Cert HTTP fields | Final | Origin accepts `Client-Cert` (singleton) and `Client-Cert-Chain` (list, may span physical headers) only on a `trusted_ingress` listener from a peer bound with purpose `trusted_ingress`; bounded decode; caller-supplied fields stripped at the edge; evidence labelled `trusted_ingress_assertion` and request-local. Reference ingress is Caddy (ADR 0132 §8) | `crates/ingress-evidence`, `packages/ingress-evidence`, `ops/ingress/` |
 | RFC 9525 Service identity | Final | DNS reference identity for `webpki_dns` profiles: lowercase exact match, no wildcard selectors; SPIFFE profiles substitute the URI-SAN reference identity and keep chain and signature validation | `crates/transport-security` (rustls/webpki), `crates/domain/src/transport/selector.rs` |
 | RFC 9325 TLS BCP | BCP | Product profile, not a conformance claim: TLS 1.3 default, TLS 1.2 only by explicit `*_MIN_VERSION=1.2` with rustls safe defaults, nothing older; resumption, tickets and 0-RTT disabled on `mtls_required` / `trusted_ingress` server profiles (ADR 0132 §10) | `crates/transport-security` |
 | NATS auth callout (native, ADR-26) | Ecosystem | `$SYS.REQ.USER.AUTH` request/response with NKey/JWT verification, one-time user key, server context and response binding; Host verifies the user's upstream token itself. `opensesame.callout.>` is an unrelated internal namespace. Client mTLS (`verify: true`) and certificate mapping (`verify_and_map: true`) are distinct server profiles; client connections only (ADR 0132 §8) | `crates/nats-callout`, `crates/gateway/src/routes/nats_callout*.rs`, `ops/nats/` |
-| RFC 9126 PAR | Final | When required by provider | connectors |
-| RFC 7009 / 7662 Revocation/Introspection | Final | Session lifecycle | authn |
-| OIDC Core / Discovery | Final | IdP integration | `crates/authn`, `crates/gateway` |
-| OIDC CIBA | Final | Optional provider capability | CLI flow resolver |
-| WebAuthn L3 + PRF | Final | Vault unlock (PRF when reported) | `crates/human-vault`, `apps/pages` |
-| FIDO CXF | Draft/experimental | Proposed Standard, still stabilizing; passkey import/export | `apps/pages` |
-| SCIM 2.0 | Final | When directory sync enabled | future IdP sync path |
-| AuthZEN 1.0 | Final | External PDP contract | `crates/authz` |
+| RFC 9126 PAR | Final | Server side only: the Identity API's authorization server accepts pushed authorization requests. No connector pushes requests to a provider | `packages/oauth-provider` |
+| RFC 7009 / 7662 Revocation/Introspection | Final | Served by the Identity API's authorization server, each behind a policy gate | `packages/oauth-provider` |
+| OIDC Core / Discovery | Final | Identity API is an OIDC provider; upstream IdPs are consumed through `openid-client` legs | `packages/oauth-provider`, `packages/control-plane`, `crates/authn` |
+| OIDC CIBA | Final | **Not implemented.** The CLI flow resolver has a `ciba` selector, but `ciba_available` is always false and `opensesame login --flow ciba` exits with "CIBA not enabled by issuer profile"; the authorization server leaves CIBA off (the approval inbox's `AuthorizationRequest` is only CIBA-shaped, ADR 0046) | `crates/authn/src/flow.rs`, `apps/cli` |
+| WebAuthn L3 + PRF | Final | Vault unlock (PRF when reported): the passkey wrap is derived from the PRF output, and the Rust reader unwraps it | `packages/vault-core`, `packages/app-core`, `crates/human-vault`, `apps/pages` |
+| FIDO CXF | Draft/experimental | Proposed Standard, still stabilizing; import and export. CXP transport is not implemented | `packages/app-core/src/lib/vault/import/formats/cxf.ts`, `packages/app-core/src/lib/vault/export/cxf.ts` |
+| SCIM 2.0 | Final | Server subset, per organization at `/v1/organizations/{id}/scim/v2`: Users (create, list with `userName eq` filter, read, patch, delete) and Groups patch, behind a provisioning bearer. Deactivation drops membership and sessions. No ServiceProviderConfig, Schemas or Bulk endpoints | `packages/control-plane/src/routes/scim.ts` |
+| AuthZEN 1.0 | Final | Request and decision shapes (subject, action, resource, context to decision and obligations) are the in-process policy-engine contract; there is no AuthZEN HTTP client or server | `crates/authz/src/authzen.rs` |
 | SPIFFE X.509-SVID + Workload API | Final | X.509-SVID consumption via the Workload API (`spiffe` crate): exact configured SPIFFE ID, per-trust-domain bundles (no union), snapshot replacement, `workload_api_delivered` custody stated as software custody. SPIRE is an optional issuer, never a baseline dependency; no SPIRE server or attestation is implemented (ADR 0132 §2–3) | `crates/spiffe-source`, `crates/transport-security` (SPIFFE verifier), `crates/domain/src/transport` |
-| RFC 5280 X.509 / CRL | Final | Issuance + CRL v2 with `CRLReason`, CDP/AIA extensions; documented subset, not certified. Transport-side path validation is rustls/webpki (ADR 0132 §3) | `crates/pki-core`, `crates/pki-core/src/revocation.rs`, `crates/storage/src/revocation.rs`, `crates/transport-security` |
+| RFC 5280 X.509 / CRL | Final | Issuance (CA, leaf, CSR) and CRL v2 build, parse and verify with `CRLReason` and a monotonic CRL number; CDP and AIA extensions are embedded at issuance. CRL construction is library-level: no gateway route generates or serves a CRL at this baseline. Documented subset, not certified. Transport-side path validation is rustls/webpki (ADR 0132 §3) | `crates/pki-core`, `crates/pki-core/src/revocation.rs`, `crates/storage/src/revocation.rs`, `crates/transport-security` |
 | RFC 8555 ACME (client) | Final | DNS-01 only; HTTP-01 and TLS-ALPN-01 refused (ADR 0068 §6) | `crates/gateway/src/cert_issuers/acme.rs` |
 | RFC 8555 ACME (server) | Final | **Not served.** ADR 0068 §1 design; account/order/nonce persistence exists but no route module (`crates/gateway/src/routes/acme_server.rs` does not exist) | `crates/storage/src/acme.rs` (persistence only) |
-| RFC 7030 EST | Final | **Served**, profile-scoped at `/.well-known/est/{profileId}/*` (ADR 0068 §4): `cacerts` (the profile CA's chain as `certs-only` PKCS#7), `simpleenroll` and `simplereenroll` (PKCS#10 in — DER or base64 — issued chain out). Authentication is the profile's sealed passphrase (HTTP Basic, constant-time) or a verified client certificate (bootstrap, pinned to the operator-uploaded chain by trust-anchor match; or the certificate being replaced at re-enrollment); `require_bootstrap` makes a certificate mandatory. A policy-violating CSR is refused whole (`policy_denied`), never narrowed. Operator surface: `GET|PUT /api/v1/certmgr/profiles/{id}/est-config`. No EST **client** exists in the tree | `crates/gateway/src/routes/est_server.rs`, `est_wire.rs`, `est_enrollment.rs`, `crates/pki-core/src/pkcs7.rs` |
-| RFC 8894 SCEP | Final | **Absent — unsupported.** ADR 0068 §4 design; neither `crates/gateway/src/routes/scep_server.rs` nor `crates/scep` exists | — |
-| RFC 6960 OCSP | Final | Request/response build, parse and verify; CA-direct or `id-kp-OCSPSigning` delegate (ADR 0067). Library level: no `/ocsp/{caId}` route is mounted in the gateway at this baseline | `crates/pki-core/src/revocation.rs` |
+| RFC 7030 EST | Final | **Served**, profile-scoped at `/.well-known/est/{profileId}/*` (ADR 0068 §4): `cacerts` (the profile CA's chain as `certs-only` PKCS#7), `simpleenroll` and `simplereenroll` (PKCS#10 in — DER or base64 — issued chain out). Authentication is the profile's sealed passphrase (HTTP Basic, constant-time) or a verified client certificate (bootstrap, pinned to the operator-uploaded chain by trust-anchor match; or the certificate being replaced at re-enrollment); `require_bootstrap` makes a certificate mandatory. A policy-violating CSR is refused whole (`policy_denied`), never narrowed. Operator surface: `GET` and `PUT /api/v1/certmgr/profiles/{id}/est-config`. No EST **client** exists in the tree | `crates/gateway/src/routes/est_server.rs`, `est_wire.rs`, `est_enrollment.rs`, `crates/pki-core/src/pkcs7.rs` |
+| RFC 8894 SCEP | Final | **Absent — unsupported.** ADR 0068 §4 design; neither `crates/gateway/src/routes/scep_server.rs` nor `crates/scep` exists. Only SCEP configuration and challenge persistence is in the tree; no endpoint speaks the protocol | `crates/storage/src/est_scep.rs` (persistence only) |
+| RFC 6960 OCSP | Final | Request/response build, parse and verify; the responder is the CA key (`byName`) or a delegate key (`byKey`), and the library does not itself check a delegate's `id-kp-OCSPSigning` usage (ADR 0067). Library level: no `/ocsp/{caId}` route is mounted in the gateway at this baseline | `crates/pki-core/src/revocation.rs` |
 | RFC 7468 PEM encodings | Final | Certificate / chain / CSR textual encoding | `crates/pki-core` |
 | RFC 7292 PKCS#12 | Final | Password-encrypted build; multi-entry parse for import | `crates/pki-core` |
 | PKCS#11 v2.40 | Final | **Absent — unsupported.** ADR 0071 design; no `cryptoki` dependency and neither `crates/hsm-client` nor `crates/pkcs11-provider` exists. No HSM or KMS signer implements TLS signing; transport identities are software custody only (ADR 0132 §2) | — |
 | ACME | Final | Superseded by the two RFC 8555 rows above | `crates/gateway/src/cert_issuers` |
 | OpenAPI 3.1 | Final | Host contract + generated Identity contract | `spec/openapi/host-api.yaml`, `packages/control-plane/openapi.json` |
-| CloudEvents | Final | Lifecycle events | `api/events` |
-| WASI Component Model / WIT | Final | Connector boundary | `spec/wit/` |
-| MCP authorization (2026-07-28) | Ecosystem | Adapter over PRM | gateway MCP surface |
+| CloudEvents | Final | `BusEvent` is a CloudEvents 1.0-shaped envelope (`id`, `specversion`, `source`, `type`, `time`, `data`) for TaskBus events | `crates/task-bus` |
+| WASI Component Model / WIT | Final | Connector boundary: the `connector` world is bound with Wasmtime behind the default-off `wasm-connectors` feature; the task, proof and mediation worlds are contracts checked structurally, with no component host | `spec/wit/`, `crates/connector-host/src/wasm.rs` |
+| MCP authorization (2026-07-28) | Ecosystem | Bearer-only. The MCP host's HTTP transport authenticates with a static bearer (`OPENSESAME_MCP_HTTP_TOKEN`) and points clients at the Host's protected-resource metadata in `WWW-Authenticate`; `crates/protocol-mcp` holds Bearer, audience/resource and no-passthrough checks but is linked only by the fuzz harness. No DPoP profile for MCP | `packages/mcp-host`, `crates/protocol-mcp` |
 | auth.md | Ecosystem | Generated from typed config; AgentAuth adapter (ADR 0092) | `packages/control-plane`, `packages/agent-protocols` |
 | RFC 7523 JWT bearer | Final | AgentAuth service-assertion exchange | `packages/control-plane` `/oauth2/token` |
-| draft-ietf-oauth-identity-assertion-authz-grant-04 | IETF draft | Sealed behind feature flag; not advertised | `packages/agent-protocols` |
-| A2A Agent Card | Ecosystem | Namespaced metadata | gateway |
-| AT Protocol OAuth / DID | Ecosystem | Connector + identity adapter | connectors/atproto |
-| Nostr NIP-46/47/98 | Ecosystem | Signer connector | connectors/nostr-signer |
+| draft-ietf-oauth-identity-assertion-authz-grant-04 | IETF draft | Provider ID-JAG registration at `/agent/identity` is accepted only when `OPENSESAME_AGENT_AUTH_PROVIDER_ASSERTION_ENABLED` is on and an enabled trusted provider is configured; advertised in AS metadata only then | `packages/agent-protocols/src/id-jag.ts`, `packages/control-plane/src/services/agent-auth-id-jag*.ts` |
+| A2A Agent Card | Ecosystem | Namespaced metadata | `crates/gateway/src/routes/protected_resource.rs`, `packages/control-plane/src/routes/discovery.ts` |
+| AT Protocol OAuth / DID | Ecosystem | **Not implemented.** `atproto` is only a reserved `ExternalIdentityKind` value; no connector or adapter exists | `packages/os-domain/src/types.ts` |
+| Nostr NIP-46/47/98 | Ecosystem | **Not implemented.** `nostr` is only a reserved `ExternalIdentityKind` value. (A Nostr relay can carry live-session frames as plain NIP-01 events, an unrelated use) | `packages/os-domain/src/types.ts`, `apps/pages/src/modules/sharing.live/carriers/nostr.ts` |
 | OpenID4VP 1.0 (verifier) | Final (2025-07-09) | `direct_post` + DC API, DCQL, `dc+sd-jwt`; mdoc and encrypted response modes refused by name (ADR 0086) | `packages/openid4vp` |
 | OpenID4VCI 1.0 (issuer) | Final (2025-09-16) | Pre-authorized code + JWT proof only; no batch, deferred, status list or key attestation (ADR 0086) | `packages/openid4vci` |
 | RFC 9901 SD-JWT | Final | Disclosure digests and key binding, used by both roles above | `packages/openid4vp`, `packages/openid4vci` |
 | SD-JWT VC (`dc+sd-jwt`) | Draft/experimental | draft-ietf-oauth-sd-jwt-vc; isolated behind the issuer's format profile, revision pinned in `SUPPORT_MATRIX` | `packages/openid4vci` |
 | Google Wallet Generic Pass | Vendor | Presentation adapter only; a pass carries an opaque interaction reference and never a credential (ADR 0086) | `packages/wallet` |
-| OAuth 2.1 / ID-JAG / Txn Tokens / WIMSE / WIT-SVID | Draft/experimental | Adapter only; no schema lock-in | evidence envelopes |
+| OAuth 2.1 / Txn Tokens / WIMSE / WIT-SVID | Draft/experimental | No adapter in this tree (ID-JAG has its own row). Identity evidence is stored as `IdentityEvidence` digests with a closed `source` set, so no draft schema is locked in | `packages/os-domain/src/trust.ts` |
 
 Draft claim names are never first-class DB columns; store `IdentityEvidence` digests.
 
@@ -61,16 +61,20 @@ Draft claim names are never first-class DB columns; store `IdentityEvidence` dig
 establishes an implementation profile only — it is never a conformance
 certification, and none is claimed. The certificate-plane locations
 named by ADR 0066–0072 are only partly present at this baseline: `crates/pki-core`,
-the `certmgr_*` route modules and the ACME/revocation persistence exist;
-`crates/scep`, `crates/hsm-client`, `crates/pkcs11-provider` and the ACME/EST/SCEP
-route modules do not, and the rows above say so rather than naming a file that
-is not there. Validation depth per area is in
+the `certmgr_*` and `est_*` route modules, and the ACME, revocation and
+EST/SCEP-configuration persistence exist; `crates/scep`, `crates/hsm-client`,
+`crates/pkcs11-provider`, the ACME-server and SCEP route modules, CRL/OCSP
+endpoints, any route or runner for certificate syncs, discovery or code signing
+(`crates/storage` holds their tables) and the Kubernetes external issuer
+(ADR 0072) do not, and the rows above say so rather than naming a file
+that is not there. Validation depth per area is in
 [docs/validation/certificate-manager.md](../validation/certificate-manager.md);
 transport-security evidence is in
 [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
 ([ADR 0132](../adr/0132-optional-mtls-and-workload-identity.md)). The ADR 0132
-rows name the owning locations from its implementation contract; at the
-2026-09-22 reconciliation `crates/nats-callout`, `ops/nats/`,
-`crates/gateway/src/transport` and the Host-side `cnf` check in
-`crates/gateway/src/middleware/auth.rs` were not yet in the tree — ADR 0132
-§ Evidence records which locations were present and which suites ran.
+rows name the owning locations: `crates/nats-callout`, `ops/nats/`,
+`crates/gateway/src/transport` and the Host-side `cnf` check
+(`crates/gateway/src/transport/proof.rs`, called from
+`crates/gateway/src/host_authorization.rs`) are all in the tree. ADR 0132
+§ Evidence records which locations were present at its 2026-09-22
+reconciliation and which suites ran.

@@ -109,8 +109,8 @@ CXF matters more than any vendor export format because it is **the only
 interchange format that carries passkeys faithfully**. A KDBX or CSV
 export of a modern vault silently drops the credentials people increasingly
 depend on; CXF does not. OpenSesame implements CXF **import and export** in
-Pages. CXP — the transport half — targets 2026 and is a roadmap row, not a
-build (ADR 0052 §4).
+Pages. CXP — the transport half — is still a FIDO working draft as of
+October 2026 and is a roadmap row here, not a build (ADR 0052 §4).
 
 ## Differentiators (why teams still pick 1Password)
 

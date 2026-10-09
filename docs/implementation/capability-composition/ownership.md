@@ -1,8 +1,17 @@
 # Capability composition — ownership and interface contract
 
+> Status (2026-10-08): landed. [ADR 0130](../../adr/0130-operator-controlled-capability-composition.md)
+> is Accepted and the contracts below are implemented; 12 of the 103 contracts in
+> `docs/evidence/capability-composition/contract-test-matrix.json` are recorded
+> `pending` (no landed test names them). Section 1 is the
+> 2026-09-22 baseline and stays as history. Sections 2 to 7 were checked against
+> this tree on 2026-10-08: paths are repository-relative (much of what was
+> written as `apps/pages/src/lib/...` now lives in `packages/app-core/src/lib/`,
+> ADR 0133), and the core and optional counts in section 5 are today's.
+
 This is the coordination record for operator-controlled capability
-composition (see the ADR in `docs/adr/` once numbered, and the evidence under
-`docs/evidence/capability-composition/`). Every runtime, editor, build step
+composition ([ADR 0130](../../adr/0130-operator-controlled-capability-composition.md),
+and the evidence under `docs/evidence/capability-composition/`). Every runtime, editor, build step
 and test codes against the contracts named here. Where this file and a code
 comment disagree, fix the code or this file — never add a second resolver,
 loader, registry or vocabulary.
@@ -57,21 +66,21 @@ and are the only definitions.
 | Owner | Paths | Publishes |
 |---|---|---|
 | **S01** pure semantics | `packages/capability-composition/**` | `resolveComposition`, `explainCapability`, `reviewCompositionChange`, document parsers/validators, `exposureDigest`, `planDigest`, `receiptDigest`, `canonicalize`, reason codes, fixtures |
-| **S02** inventory | `packages/app-core/src/lib/capabilities/catalog.ts`, `ownership.ts`, `presets.ts`, `apps/pages/capability-profiles/*.json`, `packages/capability-registry/src/capability-map.ts` | descriptors, module ownership map, presets, profile fixtures, operation→capability map |
+| **S02** inventory | `packages/app-core/src/lib/capabilities/catalog.ts` (with the `catalog-*.ts` files it assembles) and `presets.ts`, `apps/pages/src/lib/capabilities/ownership.ts`, `apps/pages/capability-profiles/*.json`, `packages/capability-registry/src/capability-map.ts` | descriptors, module ownership map, presets, profile fixtures, operation→capability map |
 | **S03** trust | `packages/app-core/src/lib/capabilities/trust/**` | policy envelope verification, provenance, join/import review, revision/rollback checks |
 | **S04** configuration resources | `packages/app-core/src/lib/configuration/capabilities-*.ts` | instance-policy / installation-selection / vault-restriction resources, file round trips, export |
-| **S05** bootstrap | `apps/pages/src/main.tsx`, `src/bootstrap/**`, `src/lib/runtime-config.ts`, `src/app-root.tsx` (the former `App.tsx` body) | core-only boot, parsed runtime config, core routes, unavailable/denied route |
+| **S05** bootstrap | `apps/pages/src/main.tsx`, `apps/pages/src/bootstrap/**`, `packages/app-core/src/lib/runtime-config.ts`, `apps/pages/src/app-root.tsx` (the former `App.tsx` body) | core-only boot, parsed runtime config, core routes, unavailable/denied route |
 | **S06** loader/runtime | `packages/app-core/src/lib/capabilities/{store,loader,registry,authority,lease}.ts` | store, `loadApprovedModule`, `activateApprovedCapability`, registrars, `assertCurrentOperationAuthority`, `admitOperation` |
-| **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `scripts/build-profile.mjs`, `scripts/verify-capability-graph.mjs`, `vite.config.ts` (plugin wiring only), `tools/quality/bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
-| **S08** workers | `apps/pages/src/sw.ts`, `src/sw-push.ts`, `src/sw/**`, `src/lib/capabilities/worker-controller.ts`, `scripts/build-workers.mjs` | core-only worker, push variant, owned caches, asset-plan messages, registration controller |
-| **S09** setup/consent UI | `apps/pages/src/screens/capabilities/**`, `src/screens/SetupScreen.tsx`, `src/screens/FrontDoor.tsx` (requirements panel patch), `src/sections/settings/CapabilitiesPanel*.tsx` | purpose cards, capability cards, draft/review/apply, Settings › Capabilities |
-| **S10** shell | `src/components/AppShell.tsx`, `RailRows.tsx`, `NavDrawer.tsx`, `Crumbs.tsx`, `SettingsTree.tsx`, `KeymapSheet.tsx`, `src/lib/keymap.ts`, `src/lib/command-bar/types.ts`, `src/webmcp/navigation.ts` | contribution-driven navigation, commands, shortcuts, help |
-| **S11–S16** module owners | `apps/pages/src/modules/<capability-id>/runtime.ts` (+ moved feature code) | one `capabilityRuntime` per optional capability |
+| **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `apps/pages/scripts/build-profile.mjs`, `apps/pages/scripts/verify-capability-graph.mjs`, `apps/pages/vite.config.ts` (plugin wiring only), `tools/quality/bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
+| **S08** workers | `apps/pages/src/sw.ts`, `apps/pages/src/sw-push.ts`, `apps/pages/src/sw/**`, `packages/app-core/src/lib/capabilities/worker-controller.ts`, `apps/pages/scripts/build-workers.mjs` | core-only worker, push variant, owned caches, asset-plan messages, registration controller |
+| **S09** setup/consent UI | `apps/pages/src/screens/capabilities/**`, `apps/pages/src/screens/SetupScreen.tsx`, `apps/pages/src/screens/FrontDoor.tsx` (requirements panel patch), `apps/pages/src/sections/settings/CapabilitiesPanel*.tsx` | purpose cards, capability cards, draft/review/apply, Settings › Capabilities |
+| **S10** shell | `apps/pages/src/components/{AppShell,RailRows,NavDrawer,Crumbs,SettingsTree,KeymapSheet}.tsx`, `apps/pages/src/lib/keymap.ts`, `packages/app-core/src/lib/command-bar/types.ts`, `packages/app-core/src/webmcp/navigation.ts` | contribution-driven navigation, commands, shortcuts, help |
+| **S11–S16** module owners | `apps/pages/src/modules/<capability-id>/runtime.ts` (+ moved feature code; 37 modules today) | one `capabilityRuntime` per optional capability |
 | **S17** OpenFeature | `packages/app-core/src/lib/capabilities/openfeature.ts` | local read-only provider over the store snapshot |
-| **S18** network | `packages/app-core/src/lib/capabilities/egress.ts`, `scripts/security-headers.mjs` | egress adapter, capability-derived CSP/header templates |
+| **S18** network | `packages/app-core/src/lib/capabilities/egress.ts`, `apps/pages/scripts/security-headers.mjs` | egress adapter, capability-derived CSP/header templates |
 | **S19** lifecycle | `packages/app-core/src/lib/capabilities/{change,migration,invalidation}.ts` | change coordinator, `setup.v1` migration review, cross-tab invalidation |
 | **S20** registry parity | `packages/capability-registry/src/capability-map.ts` + parity tests | operation→capability prerequisites, profile projections |
-| **S21–S24** verification, docs | `apps/pages/scripts/verify-capabilities*.mjs`, `docs/**`, `docs/evidence/capability-composition/**` | property/fuzz suites, browser journeys, red-team fixtures, ADR, operator docs, evidence |
+| **S21–S24** verification, docs | `apps/pages/scripts/verify-capability-graph.mjs`, `docs/**`, `docs/evidence/capability-composition/**` | property/fuzz suites, browser journeys, red-team fixtures, ADR, operator docs, evidence |
 
 Shared-hotspot rule: only the owner rewrites a file; everyone else sends a
 narrowly scoped patch (a new export, a hook call, a filtered list). Files
@@ -79,7 +88,7 @@ stay under 400 lines (`pnpm quality:gate`). New files start at zero debt.
 
 ## 4. Runtime contracts (Pages)
 
-### 4.1 Store (`lib/capabilities/store.ts`, S06)
+### 4.1 Store (`packages/app-core/src/lib/capabilities/store.ts`, S06)
 
 ```ts
 type CompositionSnapshot = Readonly<{
@@ -112,19 +121,22 @@ export function useComposition(): CompositionSnapshot;      // useSyncExternalSt
 export function useCapability(id: CapabilityId): CapabilityState | null;
 ```
 
-### 4.2 Loader and registrars (`loader.ts`, `registry.ts`, S06)
+The two hooks are React bindings in `apps/pages/src/bindings/capabilities.ts`; the
+store itself (`compositionStore`, which also has `preview(draft)`) is framework-free.
+
+### 4.2 Loader and registrars (`packages/app-core/src/lib/capabilities/{loader,registry,authority}.ts`, S06)
 
 ```ts
 export async function loadApprovedModule(id: ModuleId, lease: ActivationLease): Promise<CapabilityModule>;
 export async function activateApprovedCapability(id: CapabilityId, lease: ActivationLease): Promise<RuntimeHandle[]>;
 export function registerContribution<K extends ContributionKind>(kind: K, entry: ContributionEntry<K>, lease: ActivationLease): RegistrationHandle;
-export function useContributions<K extends ContributionKind>(kind: K): readonly ContributionEntry<K>[];  // generation-fenced, sorted by `order` then id
+export function useContributions<K extends ContributionKind>(kind: K): readonly ContributionEntry<K>[];  // generation-fenced, sorted by `order` then id (the hook is in apps/pages/src/bindings/contributions.ts; registry.ts exports the same read as `contributions(kind)`)
 export function assertCurrentOperationAuthority(op: OperationId, lease: ActivationLease): void;  // throws CapabilityDenied before any handler import
 export function assertCurrentCapabilityAuthority(id: CapabilityId, lease: ActivationLease): void;  // the same, for a destination (no operation)
 export async function admitOperation<T>(op: OperationId, lease: ActivationLease, operation: () => T | Promise<T>): Promise<AdmissionOutcome<T>>;  // Web Locks + durable generation compare; the lock is held through the operation
 ```
 
-**Dispatch gates** (`lib/capabilities/dispatch.ts`). Listing an entry is not
+**Dispatch gates** (`packages/app-core/src/lib/capabilities/dispatch.ts`). Listing an entry is not
 authority to use it: each surface re-resolves the entry's live registration
 (current generation, the registering lease) at the moment it acts, and throws
 `CapabilityDenied` before the handler runs.
@@ -132,32 +144,34 @@ authority to use it: each surface re-resolves the entry's live registration
 | Surface | Where | Check |
 |---|---|---|
 | WebMCP tool call | `apps/pages/src/modules/agents.webmcp/registrar.ts` execute wrapper → `authority.ts` `authorizeToolCall` | `assertCurrentOperationAuthority(owner op, registering lease)`; a tool not declared `readOnly` is **sensitive** and is then admitted with `admitOperation` (refused on a newer durable generation, a stale lease, an unapproved op, or no Web Locks) |
-| Command path | `lib/command-bar/execute.ts` section command; `webmcp/navigation.ts` (`commandPathAuthorized`) | `assertCurrentCapabilityAuthority(registering capability, lease)` — a destination names no operation (`activity.log` owns none and still owns `/activity`) |
+| Command path | `packages/app-core/src/lib/command-bar/execute.ts` section command; `packages/app-core/src/webmcp/navigation.ts` (`commandPathAuthorized`) | `assertCurrentCapabilityAuthority(registering capability, lease)` — a destination names no operation (`activity.log` owns none and still owns `/activity`) |
 | Keymap jump | `apps/pages/src/lib/keymap-jumps.ts` `sectionJumpPath` | the same; a refused jump is swallowed like an unbound letter |
 
 No live registration is `NOT_REGISTERED`. Core destinations (`/vault`,
 `/settings`) are core tier and not gated. An entry on the jsdom test channel
-(`registerContributionForTest`) stands in for a lease; `dispatch.test.ts`
+(`registerContributionForTest`, `packages/app-core/src/lib/contributions.ts`) stands in for a lease; `dispatch.test.ts`
 fails if any non-test source writes that channel.
 
 `ContributionEntry<K>` shapes (all serializable except component/handler
 fields, which the module supplies already-imported):
 
 - `section`: `{ id, to, label, segment, jump, icon: IconName, order, Tree?: ComponentType<TreeProps> }`
-- `route`: `{ id, path, element: ComponentType, framed: boolean, order }`
-- `settings-category`: `{ id, label, guideId, Panel: ComponentType, order }`
+- `route`: `{ id, path, element: ComponentType, framed: boolean, order, gate?: "unlocked" | "any" }`
+- `settings-category`: `{ id, label, guideId, Panel: ComponentType, order, panels?, files? }`
+- `settings-panel`: `{ id, label, category, Panel: ComponentType, order, files? }` — a block a capability draws inside a category the core already has
+- `shell-wrapper`: `{ id, Wrapper: ComponentType<{ children? }>, Gate?: ComponentType, order }` — a provider the shell body is wrapped in (guided help, the agent-tool registrar), and its part of the gate screens
 - `setup-panel`: `{ id, tab, rail, Panel: ComponentType, order }`
 - `command-path`: `{ path, label }`
 - `keymap-jump`: `{ key, path }`
 - `tutorial-target` / `tutorial-goal` / `tutorial-route`: the existing descriptor types
-- `item-kind`: `{ kind, label, segment, Icon?: ComponentType, order, Record?: ComponentType<{ item }>, Create?: ComponentType<ItemCreateProps> }` — the record view and creation form of a contributed kind (a drop's, `sharing.drops`)
+- `item-kind`: `{ kind, label, segment, Icon?: ComponentType, order, creatable?: boolean, Record?: ComponentType<{ item }>, Create?: ComponentType<ItemCreateProps> }` — the record view and creation form of a contributed kind (a drop's, `sharing.drops`)
 - `webmcp-tool`: `WebMcpToolSpec` tagged with `operationIds` (`tagWebMcpTool`; already fenced by the core). A tool is registered by the capability that owns its operations, so it exists exactly while that capability is active; the `agents.webmcp` surface registers the contributed set with the browser, keeping a tool only while the plan approves the operation it is owned by (its first id), and never an untagged one
 - `background-job`: `{ id, start(signal): void }`
 - `unlock-effect`: `{ id, run(ctx: { tomb: string; guest: boolean; signal: AbortSignal }): Promise<void> }`
-- `secret-share`: `{ id, order, Panel: ComponentType<{ item: SecretItem; initialOpen? }> }` — an offer to share a stored secret (a drop)
+- `secret-share`: `{ id, order, Panel: ComponentType<{ item: VaultItem; open: boolean; onClose: () => void }> }` — an offer to share a stored secret (a drop)
 - `item-draft-assist`: `{ id, order, Suggestions: ComponentType<{ typeId, website?, onApply }>, suggest(context, signal): Promise<DraftLabels> }` — labels for a new item from a model, beside the editor and for the WebMCP draft tools
 - `command-assist`: `{ id, order, interpret(utterance, { itemNames }): Promise<InterpretResult>, Voice?: ComponentType }` — what the command bar asks when its own parser finds no command, and its voice input
-- `vault-command`: `{ id, order, Command: ComponentType }` — an icon key in the vault path strip's command group, after New item (Import, `vault.interop-formats`)
+- `vault-command`: `{ id, order, Command: ComponentType, Entry?: ComponentType }` — an icon key in the vault path strip's command group, after New item (Import, `vault.interop-formats`), and `Entry` the same flow as a way to add on a phone
 
 ### 4.3 Module entry contract (S11–S16)
 
@@ -177,6 +191,7 @@ type ApprovedCapabilityContext = Readonly<{
   hydrate: (keys: readonly string[]) => Promise<void>;  // kvHydrate for the module's own keys
   vault: { tomb: string | null; guest: boolean };
   egress: EgressPort;                      // destination-validated fetch (S18)
+  navigate: (to: string) => void;          // the shell's router; throws `router_unavailable` until it is mounted
 }>;
 ```
 
@@ -190,7 +205,7 @@ Module ids: `<capability-id>/runtime` is the entry; a capability with a
 service-worker part also lists `<capability-id>/worker` (satisfied by a worker
 variant, never loaded by the page).
 
-### 4.4 Parsed runtime config (`lib/runtime-config.ts`, S05)
+### 4.4 Parsed runtime config (`packages/app-core/src/lib/runtime-config.ts`, S05)
 
 ```ts
 type ParsedRuntimeConfig = Readonly<{
@@ -215,7 +230,7 @@ An invalid `capabilityComposition` section is `status: "invalid"` →
 explanation, no optional loads). An absent section is a personal-local
 installation.
 
-### 4.5 Persistence keys (plaintext boundary, bounded, non-secret)
+### 4.5 Persistence keys (beside the vault, not under its key; bounded, non-secret; written through `kv`, so sealed under the device's at-rest key, ADR 0149)
 
 | Key | Content | Owner |
 |---|---|---|
@@ -250,43 +265,61 @@ installation, hydrated by the core boot.
 ### 4.7 Workers (S08)
 
 - `src/sw.ts` → `sw.js`: core-only. Shell + approved asset-plan caching, no
-  push, no protocol handlers. Cache name `opensesame-pages:<scopePath>:<releaseId>:core`.
+  push, no protocol handlers. Cache name `opensesame-pages:<scopePath>:<releaseId>:core-only`.
 - `src/sw-push.ts` → `sw-push.js`: core + Web Push handlers; only emitted when
   `notifications.web-push` is distributed; only registered when it is in the
   plan and the installation accepted it.
-- Page → worker messages: `{ type: "PLAN_ASSETS", releaseId, moduleIds }` —
-  the worker maps module ids to assets via same-origin
-  `capability-graph.json`; never accepts URLs. Any other type is ignored.
+- Page → worker messages: `{ type: "WORKER_HELLO" }` and `{ type: "PLAN_ASSETS",
+  releaseId, planDigest, moduleIds }` — the worker maps module ids to assets via
+  same-origin `capability-graph.json`; never accepts URLs. Any other type is
+  ignored (`apps/pages/src/sw/messages.ts`).
 - Cleanup deletes only `opensesame-pages:<same scopePath>:*` names that are
   neither current nor retained for active clients.
 
-## 5. Core versus optional (as landed: 7 core, 24 optional)
+## 5. Core versus optional (as landed: 15 core-tier, 29 optional)
 
-Core (`tier: "core"`, always present), 7: `shell.navigation` (the rail,
-routes, crumbs, command bar, keymap and statusline every other capability
-contributes into), `vault.passwords` (items, editor, account/note/card/secret
-kinds, health), `vault.local-unlock` (password, PIN, passkey-PRF protectors
-and the second-step ceremony), `backup.local-encrypted` (encrypted file
-export/import/recovery), `identity.brokered-signin` (compiled-in broker +
-guest + local-only seal — the ADR 0090 front door), `settings.core` (General,
-Security, Vaults, Danger, Capabilities), `install.pwa` (install offer +
+The counts are the ones `catalog-core.ts`, `catalog-always-on.ts`,
+`catalog-always-on-local.ts` and the four `catalog-optional-*.ts` files actually
+declare (44 descriptors); `apps/pages/src/lib/capabilities/catalog.test.ts`
+asserts the catalog and `OPERATION_CAPABILITY` agree, so a later catalog change
+that leaves this paragraph behind is visible to a reader rather than silent.
+
+Core (`core(...)`, `tier: "core"`, statically linked, always present), 7:
+`shell.navigation` (the rail, routes, crumbs, command bar, keymap and statusline
+every other capability contributes into), `vault.passwords` (the base secret and
+the file: item list, editor, TOTP codes, website matching and the health report;
+other item types are optional), `vault.local-unlock` (password, PIN and passkey
+protectors, the enrolled second step, recovery codes, the device's vault list,
+travel mode, the duress code, resetting this browser), `backup.local-encrypted`
+(one encrypted file: export, import, recover on a new device),
+`identity.brokered-signin` (the ADR 0090 front door: compiled-in broker road,
+guest, local-only seal, sign out), `settings.core` (General, Security, Vaults,
+Danger, Capabilities, the setup record and the runtime endpoint file),
+`install.pwa` (install offer, persistent storage, update checks and the
 core-only worker).
 
-Optional (default off), 24: `access.authority`, `identity.federation`,
-`identity.ambient-sso`, `identity.local-iam`, `identity.siop`,
-`identity.site-broker`, `enterprise.directory-provisioning`,
-`enterprise.ca-administration`, `connectors.external`, `agents.webmcp`,
-`support.guided-help`, `support.local-ai`, `support.remote-ai`,
-`wallet.spending`, `activity.log`, `notifications.web-push`,
-`telemetry.external`, `vault.passkey-records`, `vault.certificate-records`,
-`vault.interop-formats`, `sharing.drops`, `sharing.household` (alternatives
-slot `transport` → `sharing.drops`), `backup.git-remote`,
-`backup.cloud-secrets`.
+Always on (`alwaysOn(...)`, also `tier: "core"`: in every plan, no switch, but
+the code is a module loaded after boot, ADR 0135 and ADR 0142; a verified
+instance policy may still withdraw one), 8: `identity.site-broker`,
+`backup.git-remote`, `sharing.drops`, `vault.interop-formats`,
+`backup.cloud-secrets`, `identity.ceremonies`, `activity.log`,
+`support.guided-help`.
 
-The two counts are the ones `catalog-core.ts` and the three
-`catalog-optional-*.ts` files actually declare; `catalog.test.ts` asserts the
-catalog and `OPERATION_CAPABILITY` agree, so a later catalog change that
-leaves this paragraph behind is visible to a reader rather than silent.
+Optional (`optional(...)`, default off), 29: `identity.local-iam`,
+`identity.siop`, `vault.passkey-records`, `vault.certificate-records`,
+`connectors.external`, `access.authority`, `identity.federation`,
+`identity.ambient-sso`, `enterprise.directory-provisioning`,
+`enterprise.ca-administration`, `agents.surrogate-credentials`,
+`vault.browser-autofill`, `agents.webmcp`, `support.local-ai`,
+`ai.password-reset`, `support.remote-ai`, `wallet.spending`,
+`notifications.local`, `notifications.web-push`, `notifications.routing`,
+`telemetry.external`, `networking.tailnet`, `networking.tailnet-devices`,
+`vault.derived-records`, `sharing.live`, `vault.environments`,
+`storage.encrypted-search`, `vault.security-checks`, `sharing.household`
+(alternatives slot `transport` → `sharing.drops`).
+
+Every always-on and optional capability has a module,
+`apps/pages/src/modules/<capability-id>/runtime.ts` (37 today).
 
 The prompt's example IDs (`vault.passwords`, `backup.local-encrypted`,
 `vault.passkey-records`, `sharing.household`, `connectors.external`,
@@ -296,12 +329,14 @@ the example documents validate.
 
 ## 6. Test fixtures for legacy suites
 
-Legacy Playwright verifiers walk every section. They keep their coverage by
-running under the explicit `rich-explicit` profile: the static-origin harness
-serves that profile's `os-runtime-config.json` when
-`PAGES_CAPABILITY_FIXTURE=rich-explicit` and the journey accepts the
-installation's declared capabilities on the front door (`acceptInstallation`
-helper). Minimal-profile journeys run with no fixture and assert absence.
+Legacy Playwright verifiers walk every section. A device that has approved
+nothing has no rail row for an optional capability's section (ADR 0130), so a
+journey that needs one switches it on the way a person does:
+`addCapabilities(page, titles)` in `apps/pages/scripts/lib/pages-journey.mjs`
+opens Settings › Capabilities, presses each capability's switch and waits for the
+review to commit; an always-on capability is skipped, since it has no switch.
+`rich-explicit` remains a profile (`apps/pages/capability-profiles/rich-explicit.json`)
+built by `build:profile`, and the build's default when no profile is named.
 
 ## 7. `@opensesame/capability-composition` exports (S01; consumers rely on these exact names)
 
@@ -351,8 +386,11 @@ export const FIXTURE_POLICIES: { personalLocal: null; family: InstanceCapability
 export const FIXTURE_FACTS: RuntimeFacts;
 ```
 
-Resolution semantics (binding): core-tier capabilities are always approved
-(`reasons: ["CORE"]`) and never appear in policy sets. `permitted` for an
+Resolution semantics (binding): core-tier capabilities are approved
+(`reasons: ["CORE"]`) and never appear in policy sets, except that a verified
+instance policy may withdraw an always-on one (a core-tier capability that owns a
+module) by listing it in `prohibited`, and with it every always-on capability that
+depends on it (`resolve-withdraw.ts`, ADR 0142). `permitted` for an
 optional capability = distributed ∧ (instancePolicy null ∨ id ∈ required ∪
 optional) ∧ id ∉ prohibited ∧ (workspace.allow null ∨ id ∈ allow) ∧ id ∉
 workspace.prohibited. `selected` = id ∈ acceptedRequired ∪ selectedOptional.

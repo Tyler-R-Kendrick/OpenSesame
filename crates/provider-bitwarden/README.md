@@ -9,7 +9,8 @@ it. It belongs to the human plane only.
 ## Where it fits
 
 - **Used by:** [`apps/cli`](../../apps/cli) (`src/providers_native.rs`, the
-  `bitwarden` / `vaultwarden` providers) and the fuzz crate
+  `bitwarden` / `vaultwarden` providers), [`opensesame-bitwarden-server`](../bitwarden-server)
+  (its `import` of live accounts and account files) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`bitwarden_encstring`).
 - **Builds on:** no workspace crates. `reqwest`, `argon2`, `pbkdf2`, `hkdf`,
   `aes`/`cbc`, `secrecy`, `zeroize`.
@@ -33,7 +34,7 @@ it. It belongs to the human plane only.
 | `BitwardenClient::unlock` | Prelogin, KDF, login and key unwrap into a `Session` |
 | `BitwardenClient::read`, `list`, `vault`, `server_config` | Read one item's secret, list names, sync the decrypted vault |
 | `api` (`Client`, `Endpoints`, `SyncResponse`, `DeviceIdentity`) | The HTTP API client |
-| `crypto`, `kdf` | EncString parsing, key derivation within a policy range |
+| `crypto` | `EncString` parsing, `Kdf`, `MasterKey`, `SymmetricKey`; key derivation within a policy range (the private `kdf` module) |
 | `vault` (`Vault`, `Item`, `ItemKind`, `Login`, `Folder`, `UnreadableItem`, …) | The decrypted model |
 | `Session`, `DEFAULT_SESSION_TTL`, `Error` | In-memory session and the error type |
 

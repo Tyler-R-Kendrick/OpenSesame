@@ -62,7 +62,8 @@ export async function checkFrontDoor(page, check, text, base) {
  * contributions their capabilities register, so a household that never
  * chose external connectors is never asked for a directory endpoint —
  * which is the product requirement this walk exists to hold. Skip all still
- * retires the door: sign-in, then plain sign-in (setup behind unlock).
+ * retires the door: plain sign-in, and setup lives behind unlock. Join stays
+ * on that sign-in, because a setup record does not take the road away.
  */
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
@@ -148,7 +149,8 @@ export async function walkSetupCeremony(page, check, snap) {
   check(
     /^Sign in$/m.test(back) &&
       (await count(page, "button", "Deployment setup")) === 0 &&
-      (await count(page, "button", "Join a session")) === 0,
-    "skip all retires the front door: plain sign-in (setup lives behind unlock)",
+      (await count(page, "button", "Set up your own")) === 0 &&
+      (await count(page, "button", "Join a session")) === 1,
+    "skip all retires the front door: plain sign-in keeps join (setup lives behind unlock)",
   );
 }

@@ -6,12 +6,12 @@ this page applies to the static PWA: `apps/pages` boots, unlocks and runs with
 no certificate, no environment variable and no backend, and a misconfigured
 remote target here breaks that one target and nothing else.
 
-Status at the time of writing (2026-09-22): the Identity listener, the
-Rust transport crate, the SPIFFE source, the RFC 9440 parsers, the Caddy
-reference and the Pages status panel are in the tree; the Host transport
-runtime, worker profile, NATS client options, native callout bridge, OpenBao
-certificate login and `ops/nats/` were not yet landed when this page was
-reconciled. The ADR's Evidence section and
+Status (2026-10-08): every component this page configures is in the tree —
+the Identity listener, the Rust transport crate, the SPIFFE source, the RFC
+9440 parsers, the Caddy reference, the Host transport runtime, the worker
+profile, the NATS client options, the native callout bridge, OpenBao
+certificate login and `ops/nats/`. Pages draws no transport panel (see
+[Diagnostics](#diagnostics)). The ADR's Evidence section and
 [docs/validation/mtls-implementation.md](../validation/mtls-implementation.md)
 say which of the sections below is executed, not this page.
 
@@ -28,8 +28,9 @@ Every native TLS consumer reads the same variable names under its own prefix
 `OPENSESAME_MAPPING_TLS` (Host → Identity client), `OPENSESAME_NATS_TLS`
 (task-bus client), `OPENSESAME_WORKER_TLS` (worker listener),
 `OPENSESAME_CALLOUT_TLS` (auth bridge → Host client) and
-`OPENSESAME_CONNECTOR_TLS` (default upstream trust for a private HTTPS
-integration). The loader is `opensesame_transport_security::env`. Identity
+`OPENSESAME_PROBE_TLS` (the client identity of the enforcement probe, under
+[Diagnostics](#diagnostics)). The loader is
+`opensesame_transport_security::env`. Identity
 (Node, `packages/control-plane/src/transport/config.ts`) reads a smaller,
 PEM-only set of `OPENSESAME_TLS_*` names described under
 [Host → Identity mapping](#host--identity-mapping).
@@ -52,8 +53,9 @@ Common, un-prefixed:
 | Variable | Meaning | When it is wrong |
 |---|---|---|
 | `OPENSESAME_SPIFFE_ENDPOINT_SOCKET` | Unix socket of the Workload API. Deployment-plane only; no API body or tenant form may name one. | Unreachable: a `spiffe` consumer keeps its last valid generation until that generation's own `not_after` or the freshness bound, then `identity_missing`. |
-| `OPENSESAME_TLS_LISTEN` | Address of the Host secure listener. The plain listener keeps serving on `--listen`. | Bind failure: `main` returns `Err`. |
-| `OPENSESAME_TLS_POLICY` | `server_tls` \| `mtls_required` \| `trusted_ingress` for that listener. | `existing_local` here is refused (`policy_downgrade_refused`); a missing client CA under `mtls_required`: `trust_unknown`. |
+| `OPENSESAME_TLS_LISTEN` | Address of the Host secure listener. The plain listener keeps serving on `--listen`. Set together with `OPENSESAME_TLS_POLICY`. | One without the other: `malformed_configuration`. Bind failure: `main` returns `Err`. |
+| `OPENSESAME_TLS_POLICY` | `server_tls` \| `mtls_required` \| `trusted_ingress` for that listener. | Any other word, `existing_local` included: `malformed_configuration`, refuse to start. A missing client CA under `mtls_required` / `trusted_ingress`: `trust_unknown`. `OPENSESAME_TLS_TRUST_*` under `server_tls`, or `webpki_dns` trust on a listener that authenticates clients: `malformed_configuration`. |
+| `OPENSESAME_TLS_CLIENT_TRUST_PROFILE`, `OPENSESAME_WORKER_TLS_CLIENT_TRUST_PROFILE` | The name a binding's `trust_profile.name` must carry for peers of the Host listener, or of the worker listener. Default `client_ca`. A SPIFFE Host listener uses its trust domain as the name. | A binding filed under another name never matches: `peer_not_bound`. |
 | `OPENSESAME_SERVICE_BINDINGS_FILE` | JSON `ServiceBindingSet`. Overrides the stored `host_kv` key `transport.service_bindings`; the override is visible in status. | Invalid ids, duplicate ids, empty `allowed_operations`, wildcard or CN selectors: `malformed_configuration`; refuse to start. |
 | `OPENSESAME_INGRESS_ORIGINATING_TRUST_FILE` | Bundle used to re-validate the forwarded originating-client chain on a `trusted_ingress` listener. | Absent under `trusted_ingress`: refuse to start. Re-validation constrains acceptance; it cannot recreate the original handshake. |
 | `OPENSESAME_WORKER_LISTEN` | Worker bind address (existing). | — |
@@ -65,8 +67,8 @@ Common, un-prefixed:
 | `OPENSESAME_NATS_REQUIRE_TLS` | `1` refuses any plaintext server, including one learned from INFO on reconnect. | Unset on a networked deployment: the client will accept whatever the server offers. Set it. |
 | `OPENSESAME_NATS_TLS_FIRST` | `1` performs the TLS handshake before the INFO line where server and client both support it. | Server without `tls.handshake_first`: connect fails; do not remove the flag, fix the server. |
 
-The Host's existing knobs keep their meaning: `OPENSESAME_IDENTITY_API` /
-`OPENSESAME_IDENTITY_API`, `OPENSESAME_MAPPING_PRIVATE_ENDPOINT`,
+The Host's existing knobs keep their meaning: `OPENSESAME_IDENTITY_API`,
+`OPENSESAME_MAPPING_PRIVATE_ENDPOINT`,
 `OPENSESAME_MAPPING_RESOLVE_TOKEN` (only under `shared_secret`),
 `OPENSESAME_NATS_CALLOUT_SECRET` (only under `shared_secret`),
 `OPENSESAME_NATS_CALLOUT_ISSUERS`, `NATS_URL`, `OPENSESAME_TASKBUS`.
@@ -114,8 +116,8 @@ A bindings file:
   "bindings": [
     {
       "id": "nats-bridge-1", "revision": 1, "enabled": true, "revoked": false,
-      "scope": { "deployment": null },
-      "trust_profile": { "name": "service-ca" },
+      "scope": "deployment",
+      "trust_profile": { "name": "client_ca" },
       "peer": { "dns_name": "nats-auth-bridge.svc.example" },
       "service_principal": "svc:nats-auth-bridge",
       "purpose": "nats_auth_bridge",
@@ -128,11 +130,14 @@ A bindings file:
 }
 ```
 
-Selectors are `spiffe_id`, `dns_name`, `uri_san` or
-`leaf_thumbprint_sha256`, exact. There is no wildcard, CN, email or IP form,
-and a file that tries one is refused whole. Exactly one live binding must
-match a peer for a purpose; two is `ambiguous_binding`, none is
-`peer_not_bound`. Both are denials.
+`trust_profile.name` is the listener's client trust profile (`client_ca`
+unless `OPENSESAME_TLS_CLIENT_TRUST_PROFILE` names another). `purpose` is one
+of `nats_auth_bridge`, `worker_client`, `identity_mapping_client`,
+`trusted_ingress` or `upstream_connector`. Selectors are `spiffe_id`,
+`dns_name`, `uri_san` or `leaf_thumbprint_sha256`, exact. There is no
+wildcard, CN, email or IP form, and a file that tries one is refused whole.
+Exactly one live binding must match a peer for a purpose; two is
+`ambiguous_binding`, none is `peer_not_bound`. Both are denials.
 
 ### Worker
 
@@ -147,8 +152,11 @@ export OPENSESAME_WORKER_TLS_TRUST_KIND=private_root
 export OPENSESAME_WORKER_BINDINGS_FILE=/etc/opensesame/worker-bindings.json
 ```
 
-The worker's bindings name the calling service's identity with purpose
-`worker_client` and operations `worker.providers.list` and
+The worker's identity and client CA are PEM files only; `managed` and
+`spiffe` sources are refused (`source_unsupported`) on the worker. Its bindings
+name the calling service's identity with purpose `worker_client`, under the
+trust profile `OPENSESAME_WORKER_TLS_CLIENT_TRUST_PROFILE` names (default
+`client_ca`), and operations `worker.providers.list` and
 `worker.health.ready`. Nothing in the tree dials the worker's HTTP endpoints
 today; the listener is secured so that whatever an operator does point at it
 is admitted by binding, not by a shared token. In this
@@ -179,6 +187,7 @@ CA):
 ```bash
 export OPENSESAME_MAPPING_AUTH=mtls
 export OPENSESAME_TLS_LISTEN=0.0.0.0:8789
+export OPENSESAME_ALLOW_NONLOCAL=1                                      # Identity refuses a non-loopback listener without it
 export OPENSESAME_TLS_POLICY=mtls_required
 export OPENSESAME_TLS_CERT_FILE=/etc/opensesame/identity.chain.pem
 export OPENSESAME_TLS_KEY_FILE=/etc/opensesame/identity.key.pem
@@ -252,7 +261,9 @@ that is not in that directory is not supported by this document. The
 server-to-server topology that ships is named there, with the command that
 proves it.
 
-The auth callout is native: `opensesame-nats-auth-bridge` subscribes to
+The auth callout is native: `opensesame-nats-auth-bridge` (its own binary,
+`crates/nats-callout`; its variables are tabulated at the top of
+`src/config.rs`) subscribes to
 `$SYS.REQ.USER.AUTH` in the auth account, verifies the request JWT's signature,
 kind, time window and server context, and then asks the Host to decide over
 `OPENSESAME_CALLOUT_TLS_*` as a bound `nats_auth_bridge` peer. The Host
@@ -280,10 +291,6 @@ brokered call. OpenBao's `auth/cert` login is the concrete consumer:
 - the resulting OpenBao token is cached per connection and executor, expires
   on its own TTL, and is revoked with OpenBao's revoke endpoint. Revoking the
   certificate does not revoke a token already issued.
-
-`OPENSESAME_CONNECTOR_TLS_TRUST_*` supplies the default trust for a private
-HTTPS integration that has no connection-level trust reference. It never
-supplies an identity.
 
 Token and AppRole authentication remain explicit modes on the connection.
 None of the three is a fallback for another.
@@ -426,11 +433,15 @@ chains is a refusal.
 
 ## Rotation
 
-- **Files:** replace both files, then signal the process (SIGHUP on the Host
-  and worker). The candidate is validated whole — key matches leaf, chain
-  builds, leaf not expired — and swapped atomically as a new credential
+- **Files:** replace both files. The Host's secure listener checks its `pem`
+  certificate and key every 30 seconds (size and modification time) and, when
+  either changed, validates the candidate whole — key matches leaf, chain
+  builds, leaf not expired — and swaps it atomically in as a new credential
   generation. A bad candidate is reported (`reload_failed` with its code) and
-  the previous generation keeps serving inside its own validity only.
+  the previous generation keeps serving inside its own validity only. No
+  signal triggers this, and no other consumer watches its files: the worker,
+  the Identity listener and the Host's client identities read theirs when they
+  start, so restart them to rotate.
 - **Managed:** ADR 0075 renewal produces the successor; the transport runtime
   observes `lifecycle.renewal.succeeded` and loads it as a new generation with
   the same validation. Renewal success is recorded separately from
@@ -510,7 +521,13 @@ results against the generation in force. Only the pair counts: an accepted
 certificate proves acceptance, a rejected bare connection proves enforcement.
 The probe targets are the deployment's own configured peers; the route takes
 no host, URL or path from the caller, performs no business operation and signs
-nothing on request.
+nothing on request. The request names one of three words, `host-tls`, `worker`
+or `identity-mapping`. Where it dials is deployment configuration
+(`OPENSESAME_TLS_LISTEN` for `host-tls`, `OPENSESAME_WORKER_PROBE_ADDR` and
+`OPENSESAME_MAPPING_PROBE_ADDR` for the others), and the client identity it
+presents comes from `OPENSESAME_PROBE_TLS_*` — PEM files, a trust bundle and a
+server name. With any of that absent the route answers `503
+enforcement_unsupported`.
 
 Error codes (`TransportError::code()`), stable and non-secret:
 
@@ -531,7 +548,7 @@ Error codes (`TransportError::code()`), stable and non-secret:
 | `listener_policy_mismatch` | The purpose is `mtls_required` but the request came over the plain listener | Client dialed the wrong port |
 | `binding_disabled` | The matching binding is disabled, revoked or outside its window | Operator action |
 | `enforcement_unsupported` | The receiving side cannot enforce the requested policy | Topology not shipped; refuse rather than pretend |
-| `policy_downgrade_refused` | A required policy would have been weakened | `existing_local` on a TLS listener, reconnect to plaintext |
+| `policy_downgrade_refused` | A required policy would have been weakened | A NATS identity, credentials or `TLS_FIRST` on a plaintext profile; a `nats://` host beside a `tls://` one |
 | `malformed_configuration` | Anything unparseable, with a non-secret detail | Typos, wildcard selectors, both server-name forms |
 
 ## Commands
@@ -542,7 +559,7 @@ pnpm test:mtls               # scripts/mtls/mtls-test.sh — fast native + TS su
 pnpm test:mtls:integration   # scripts/mtls/mtls-integration-test.sh — real nats-server, OpenBao,
                              #   SPIRE and the Caddy ingress from pinned fixtures
 pnpm test:mtls:browser       # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates
-                             #   against the ingress reference, plus the static app with none;
+                             #   against the Identity plane's own TLS listener, plus the static app with none;
                              #   PLAYWRIGHT_CHROMIUM must point at a real Chromium binary
                              #   (a missing browser is red, never skipped)
 pnpm test:mtls:fixtures      # scripts/mtls/mtls-fixtures.sh fetch all && verify — pinned binaries to

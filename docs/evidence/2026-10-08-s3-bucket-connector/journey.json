@@ -1,0 +1,101 @@
+{
+  "out": ".",
+  "clock": "2026-10-08T10:00:00.000Z",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "count": ["a[href*='/settings/connections/']"]
+        },
+        {
+          "centerOptional": "Local storage"
+        },
+        {
+          "shot": "1280-local-storage"
+        },
+        {
+          "open": "S3-compatible bucket"
+        },
+        {
+          "shot": "1280-form"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "count": ["a[href*='/settings/connections/']"]
+        },
+        {
+          "centerOptional": "Local storage"
+        },
+        {
+          "shot": "390-local-storage"
+        },
+        {
+          "open": "S3-compatible bucket"
+        },
+        {
+          "shot": "390-form"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-local-storage",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities \u203a Local storage \u2014 1280 \u00d7 900",
+      "caption": "Before, Local storage held OS Keychain and KeePass. After, an S3-compatible bucket sits beside them as a tile like its neighbours.",
+      "before": "Local storage: 2 tiles (44 connector tiles on the page)",
+      "after": "Local storage: 3 tiles, S3-compatible bucket added (45 on the page)"
+    },
+    {
+      "shot": "390-local-storage",
+      "width": 390,
+      "title": "The same section on a phone \u2014 390 \u00d7 844",
+      "caption": "Before, Local storage held OS Keychain and KeePass. After, an S3-compatible bucket sits beside them as a tile like its neighbours. At the touch sizes the section already uses.",
+      "before": "Local storage: 2 tiles (44 connector tiles on the page)",
+      "after": "Local storage: 3 tiles, S3-compatible bucket added (45 on the page)"
+    },
+    {
+      "shot": "1280-form",
+      "width": 1280,
+      "title": "The tile opens the configuration form \u2014 1280 \u00d7 900",
+      "caption": "Choosing the bucket opens the same form every configuration connector has. The access key and session token are secret fields, sealed on this device apart from the public ones.",
+      "before": "no S3 connector page (section unchanged)",
+      "after": "S3-compatible bucket configuration form"
+    },
+    {
+      "shot": "390-form",
+      "width": 390,
+      "title": "The same form on a phone \u2014 390 \u00d7 844",
+      "caption": "Same form at the touch sizes the connector pages already use.",
+      "before": "no S3 connector page (section unchanged)",
+      "after": "S3-compatible bucket configuration form"
+    }
+  ]
+}

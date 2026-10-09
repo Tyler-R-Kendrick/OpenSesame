@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import type { PasswordMethod } from "@opensesame/vault-core";
 import { useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
@@ -42,6 +43,7 @@ export function PasswordControl({
         type={reveal ? "text" : "password"}
         autoComplete="new-password"
         spellCheck={false}
+        maxLength={FIELD_LIMITS.secret}
         value={shownPassword(method)}
         onChange={(event) => onEdit(holdValue(method, event.target.value))}
       />

@@ -4,7 +4,11 @@
  */
 
 import { liveSearchOf } from "./parse.js";
-import type { CommandField } from "./types.js";
+import {
+  CLAIM_COMMAND_PATH,
+  type CommandField,
+  JOIN_COMMAND_PATH,
+} from "./types.js";
 
 export type SlashSuggestion = {
   id: string;
@@ -22,6 +26,8 @@ const LIMIT = 8;
 const CORE_SECTIONS: readonly SlashSection[] = [
   { path: "/vault", label: "Vault" },
   { path: "/settings", label: "Settings" },
+  { path: CLAIM_COMMAND_PATH, label: "Claim" },
+  { path: JOIN_COMMAND_PATH, label: "Join" },
 ];
 
 const VERBS: readonly SlashSuggestion[] = [
@@ -45,7 +51,11 @@ const VERBS: readonly SlashSuggestion[] = [
 ];
 
 /** A short name a verb answers to, typed after the slash: `/?` for search. */
-const ALIASES: ReadonlyMap<string, string> = new Map([["search", "/?"]]);
+const ALIASES: ReadonlyMap<string, string> = new Map([
+  ["search", "/?"],
+  // A drop link opens on the claim ceremony.
+  [`go:${CLAIM_COMMAND_PATH}`, "/drop"],
+]);
 
 const LEAD_VERBS = new Set(["help", "search", "open", "copy-password"]);
 

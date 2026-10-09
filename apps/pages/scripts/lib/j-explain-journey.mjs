@@ -2,21 +2,10 @@
  * J-EXPLAIN: Application Diagnostics uses the same evaluator as admission;
  * a saved failing policy test blocks candidate publication.
  */
-import { addCapabilities, openSection, sealWithPin } from "./pages-journey.mjs";
+import { addCapabilities, sealWithPin } from "./pages-journey.mjs";
 import { expectInTray } from "./tray-contract.mjs";
 
-async function openApplications(page) {
-  const region = page.getByRole("region", {
-    name: "Local applications",
-    exact: true,
-  });
-  if (!(await region.isVisible().catch(() => false))) {
-    await openSection(page, "identity/");
-    await page.getByRole("tab", { name: "Applications", exact: true }).click();
-    await region.waitFor({ timeout: 15000 });
-  }
-  return region;
-}
+import { createApplication, openApplications } from "./j-local-application.mjs";
 
 export async function walkJExplain({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
@@ -28,22 +17,8 @@ export async function walkJExplain({ page, origin, base, check, snap }) {
     "Browser-local IAM",
     "Directory provisioning",
   ]);
-  const panel = await openApplications(page);
-  await panel
-    .getByRole("button", { name: "New application", exact: true })
-    .click();
-  const nameField = panel.getByRole("textbox", { name: "Name", exact: true });
-  await nameField.waitFor({ timeout: 8000 });
-  await nameField.click();
-  await page.keyboard.type("Explain relying party", { delay: 15 });
-  // The name field commits on Enter: there is no separate Create button.
-  await page.keyboard.press("Enter");
-  await nameField.waitFor({ state: "hidden", timeout: 10000 });
-  const row = panel
-    .getByRole("listitem")
-    .filter({ hasText: "Explain relying party" });
-  await row.waitFor({ timeout: 10000 });
-  await row.locator("summary", { hasText: "Application registration" }).click();
+  await openApplications(page);
+  const row = await createApplication(page, "Explain relying party");
   await row.getByRole("heading", { name: "Diagnostics" }).waitFor({
     timeout: 10000,
   });

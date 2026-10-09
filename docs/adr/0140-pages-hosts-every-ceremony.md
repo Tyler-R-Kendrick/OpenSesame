@@ -1,6 +1,8 @@
 # ADR 0140 — Pages hosts every ceremony
 
 - Status: Accepted — implemented (2026-09-26: the three apps are deleted)
+- Amended by: [ADR 0146](0146-account-factor-removal-step-up.md) (D10: the
+  account's factors are rows in Settings › Security)
 - Date: 2026-09-24
 - Supersedes: [ADR 0045](0045-hosted-ceremony-pages.md) decision 1 and its
   2026-08-19 amendment (ceremonies stay off the Pages origin)

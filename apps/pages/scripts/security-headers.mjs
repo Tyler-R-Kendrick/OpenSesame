@@ -23,6 +23,7 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { googleGisSources } from "./google-gis-security.mjs";
 import { securityProfile } from "./security-profile.mjs";
 
 /** Ownership §5: always present, never in a policy set. */
@@ -283,10 +284,11 @@ export function generateSecurityHeaders(input) {
   if (!brokers.every(isOrigin)) throw new Error("Invalid broker origin");
   const notes = [];
   const approved = approvedCapabilities(profile);
+  const google = googleGisSources(profile, approved, headerSecurity);
   const https = canonicalOrigin.startsWith("https://");
   const directives = {
     "default-src": ["'self'"],
-    "script-src": ["'self'", "'wasm-unsafe-eval'"],
+    "script-src": ["'self'", "'wasm-unsafe-eval'", ...google.script],
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "data:", "blob:"],
     "font-src": ["'self'"],
@@ -296,7 +298,7 @@ export function generateSecurityHeaders(input) {
     "object-src": ["'none'"],
     "base-uri": ["'none'"],
     "form-action": formActionSources(approved),
-    "frame-src": ["'none'"],
+    "frame-src": google.frame.length ? google.frame : ["'none'"],
     "frame-ancestors": ["'none'"],
   };
   // Only meaningful on an https origin; a browser ignores it elsewhere.

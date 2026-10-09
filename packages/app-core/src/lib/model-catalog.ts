@@ -97,6 +97,15 @@ export const INFERENCE_MODEL_CATALOG: readonly ModelCatalogEntry[] = [
     models: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "o3-mini"],
   },
   {
+    id: "gemini",
+    kind: "hosted",
+    name: "Google Gemini",
+    kindLabel: "api key",
+    endpoint: "https://generativelanguage.googleapis.com/v1beta",
+    model: "gemini-2.5-flash",
+    models: ["gemini-2.5-flash", "gemini-2.5-pro"],
+  },
+  {
     id: "azure-openai",
     kind: "hosted",
     name: "Azure OpenAI",

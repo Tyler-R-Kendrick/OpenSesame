@@ -9,9 +9,11 @@ import { useEffect, useState } from "react";
  *   once nothing can open the drop again.
  *
  * In every flow the plaintext is never shown again after sealing: the drop
- * card carries only the link, the user code, the QR, and the expiry.
+ * card carries the link, the user code, the window that was sealed, the time
+ * it lapses, and the QR. A seal that fails is a tray notice, never a box.
  */
 
+import { isDeviceIdentityMode } from "@opensesame/app-core/lib/device-identity.js";
 import {
   type SharedOnce,
   shareOnce,
@@ -35,12 +37,38 @@ import { IconKey } from "../../components/IconKey.js";
 import { IconDownload } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import { DROP_TTL_OPTIONS } from "./DropTtl.js";
+import { DROP_TTL_OPTIONS, dropTtlLabel } from "./DropTtl.js";
 import { ShareForm } from "./ShareForm.js";
 import { formatExpiry } from "./expiry.js";
 
-/** What a finished ceremony shows: link, code, QR, expiry — never the payload. */
-export function DropCard({ drop }: { drop: SharedOnce }) {
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return now;
+}
+
+/** When `expiresAt` lapses, plus what is left while it is still ahead. */
+export function clockExpiry(expiresAt: string, now: number): string {
+  const remaining = Date.parse(expiresAt) - now;
+  const when = formatExpiry(expiresAt);
+  if (!Number.isFinite(remaining) || remaining <= 0) return when;
+  return `${when} · ${formatRemaining(remaining)}`;
+}
+
+/** What a finished ceremony shows: link, code, the sealed expiry, QR — never the payload. */
+export function DropCard({
+  drop,
+  opensFor,
+  now,
+}: {
+  drop: SharedOnce;
+  /** The TTL the person sealed, from the choices the form offers. */
+  opensFor: string;
+  now: number;
+}) {
   const { copied, failed, copy } = useCopyFeedback();
   return (
     <section className="detail__group" aria-label="Drop ready">
@@ -77,15 +105,22 @@ export function DropCard({ drop }: { drop: SharedOnce }) {
       >
         <span className="frow__value frow__value--mono">{drop.userCode}</span>
       </FieldRow>
+      {opensFor !== "" ? (
+        <FieldRow label="Opens for">
+          <span className="frow__value">{opensFor}</span>
+        </FieldRow>
+      ) : null}
+      {isDeviceIdentityMode() ? (
+        <FieldRow label="Opens on">
+          <span className="frow__value">This browser</span>
+        </FieldRow>
+      ) : null}
+      <FieldRow label="Expires">
+        <span className="frow__value">{clockExpiry(drop.expiresAt, now)}</span>
+      </FieldRow>
       <div className="drop-card__qr">
-        <QrCode
-          value={drop.link}
-          label="Scan to open this drop"
-          shortcode={drop.userCode}
-          size={144}
-        />
+        <QrCode value={drop.link} label="Scan to open this drop" size={144} />
       </div>
-      <p className="hint">Expires {formatExpiry(drop.expiresAt)}.</p>
     </section>
   );
 }
@@ -105,6 +140,7 @@ export function ShareSecretDrop({
   onClose: () => void;
 }) {
   const text = shareText(item);
+  const now = useNow();
   const [ttlMs, setTtlMs] = useState<number>(DROP_TTL_OPTIONS[1].ms);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +158,7 @@ export function ShareSecretDrop({
     setError(null);
     try {
       const name = item.name || "Shared item";
-      setDrop(await shareOnce({ name, text, ttlMs }));
+      setDrop(await shareOnce({ name, text, ttlMs, sourceItemId: item.id }));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -137,11 +173,7 @@ export function ShareSecretDrop({
   if (text === null || !open) return null;
 
   if (drop) {
-    return (
-      <section className="detail__group">
-        <DropCard drop={drop} />
-      </section>
-    );
+    return <DropCard drop={drop} opensFor={dropTtlLabel(ttlMs)} now={now} />;
   }
 
   return (
@@ -154,6 +186,7 @@ export function ShareSecretDrop({
       <ShareForm
         ttlMs={ttlMs}
         onTtl={setTtlMs}
+        expiry={clockExpiry(new Date(now + ttlMs).toISOString(), now)}
         busy={busy}
         onSeal={() => void share()}
         onCancel={onClose}
@@ -196,7 +229,7 @@ export function DropRecord({ item }: { item: VaultItem }) {
 
 export function DropRecordFields({ item }: { item: DropItem }) {
   const store = useVaultStore();
-  const [now, setNow] = useState(() => Date.now());
+  const now = useNow();
   const [revealed, setRevealed] = useState(false);
   const { copied, failed, copy } = useCopyFeedback();
   const kept = item.keptCopy;
@@ -206,11 +239,6 @@ export function DropRecordFields({ item }: { item: DropItem }) {
   useEffect(() => {
     void sweepDrop(item, () => store.purgeItem(item.id));
   }, [item, store]);
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const remaining = Date.parse(item.expiresAt) - now;
   const stateLabel =

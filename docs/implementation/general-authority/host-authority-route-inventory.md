@@ -21,8 +21,9 @@ cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::acc
 cargo +1.88.0 test -p opensesame-gateway --bin opensesame-gateway -- routes::grant_offers::tests
 ```
 
-Router merge: `crates/gateway/src/routes/mod.rs` merges `access_domains` and
-`grant_offers`; `contract.rs` includes both sources so undocumented routes fail CI.
+Router merge: `crates/gateway/src/routes/local_authority_routes.rs` merges
+`access_domains`, `authority_grants` and `grant_offers` (and `mod.rs` merges that
+router); `contract.rs` includes all three sources so undocumented routes fail CI.
 
 ## Grant issue HTTP
 
@@ -34,7 +35,9 @@ Records sidecar authority on an existing `grants` row (`issue_authority`). Does 
 
 ## Deliberately not on this inventory
 
-- Live OpenFGA write from these routes — projectors only (GA-F-04 dry-run).
+- Live OpenFGA writes from the access-domain and offer routes — none. Only the
+  grant-issue route projects tuples, after its commit and when OpenFGA is
+  configured (`crates/gateway/src/openfga_project.rs`, GA-F-04).
 - Identity `/v1/authority/*` — Identity plane (GA-I-01).
 - Offer create/list/get HTTP — storage-ready (`create_grant_offer`); activate/revoke only today.
 

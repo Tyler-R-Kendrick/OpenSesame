@@ -45,10 +45,6 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   },
   { id: "/vault", title: "Vault — every item this deployment holds" },
   { id: "/vault/health", title: "Vault health — weak, reused and aging items" },
-  {
-    id: "/vault/password-workflows",
-    title: "Password workflows — reference and private credential operations",
-  },
   { id: "/vault/item", title: "An item — the pane of one item in the vault" },
   {
     id: "/vault/trash",
@@ -204,8 +200,6 @@ export function guideRouteForLocation(
   const section = guideRouteForPath(pathname);
   if (section !== "/vault") return section;
   if (pathname === "/vault" || pathname === "/vault/") {
-    if (new URLSearchParams(search).get("workflow") === "password")
-      return "/vault/password-workflows";
     return new URLSearchParams(search).get("f") === "trash"
       ? "/vault/trash"
       : "/vault";

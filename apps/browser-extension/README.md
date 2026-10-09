@@ -9,12 +9,6 @@ page it is armed for, performs the candidate custody steps in its own sealed
 store, and settles what it did. It never exposes a secret or a `getSecret()`
 affordance to a web page, and no credential ever travels to the Host.
 
-The popup also opens the PWA's password workflow sheet for reference search,
-inventory, organization audits, templates and private credential operations.
-The person unlocks the PWA vault there; the extension does not read it or
-grant origin access. Native provider operations remain on the native CLI
-([ADR 0177](../../docs/adr/0177-password-workflow-surface-boundaries.md)).
-
 ## Where it fits
 
 - **Used by:** nothing in the workspace depends on it; it is loaded into a
@@ -23,7 +17,9 @@ grant origin access. Native provider operations remain on the native CLI
 - **Builds on:** [`@opensesame/api-client`](../../packages/api-client)
   (`createApiClient`, `normalizeLoopbackBaseUrl`),
   [`@opensesame/client-core`](../../packages/client-core) (`createCursor`,
-  `persistSealedStore`), [`@opensesame/os-domain`](../../packages/os-domain).
+  `persistSealedStore`),
+  [`@opensesame/browser-at-rest`](../../packages/browser-at-rest) (`sealForRest`,
+  `openFromRest`), [`@opensesame/os-domain`](../../packages/os-domain).
 - The Host API base is loopback only. The popup refuses a non-loopback URL
   before it is stored, and the background ignores a stored value that no
   longer normalizes to loopback and falls back to `http://127.0.0.1:8787`.
@@ -81,7 +77,7 @@ plugin's registry rows to the companion's own parity test.
 | `opensesame.sync_cursor` message | Returns `{ cursor }` |
 | `opensesame.runner.status` / `.arm` / `.disarm` messages | What the runner has ready; arm one origin (once the browser has granted it) or give it back. From this extension's own pages only |
 | `entrypoints/options/` | The runner's setup: session, recovery key, credentials, the site to drive, held candidates and their recovery |
-| `entrypoints/popup/` | Status list (Host API, daemon, sync cursor) and the Host API base field, stored as `hostApiBase` in `chrome.storage.local` |
+| `entrypoints/popup/` | Status list (Host API, daemon, sync cursor) and the Host API base field, stored sealed at rest (ADR 0149) as `hostApiBase` in `chrome.storage.local` |
 | `wxt.config.ts` | Manifest: `storage` and `alarms` permissions and loopback hosts (standing); `scripting` and `https://*/*` as **optional** only; no content script; extension-page CSP `script-src 'self'`; build target `chrome111`/`firefox115` |
 
 ## Develop
@@ -108,9 +104,12 @@ change-password recipe walk over jsdom pages, and the negative cases (a run
 that is not the person's, an unarmed or ungranted origin, a person holding the
 page, an unknown step, an off-origin navigation, an unprovable backup, a
 rejected or indeterminate login, a settle that never arrived). The
-Playwright suite in `tests/auth-surface.spec.ts` is skipped unless
-`PLAYWRIGHT_BASE_URL` points at a running gateway; it reads
-`OPENSESAME_OPERATOR_TOKEN` for the operator header.
+Playwright suites run under `test:e2e` (which runs `wxt build` first):
+`tests/runner-storage.spec.ts` loads the built extension into Chromium and
+checks that credentials are sealed and cross-origin ciphertext replay is
+refused; `tests/auth-surface.spec.ts` is skipped unless `PLAYWRIGHT_BASE_URL`
+points at a running gateway, and reads `OPENSESAME_OPERATOR_TOKEN` for the
+operator header.
 
 ## Related
 
@@ -118,5 +117,3 @@ Playwright suite in `tests/auth-surface.spec.ts` is skipped unless
 - [ADR 0017](../../docs/adr/0017-host-client-product-topology.md) — host/client topology
 - [ADR 0082](../../docs/adr/0082-agent-run-registration-ceremonies.md) — the extension as a second ceremony runner
 - [Audit: extension Host API loopback fence](../../docs/security/audits/2026-08-08-extension-host-fence.md)
-
-The popup offers create, compare, update, private-read and environment-resolution handoffs that focus the matching human control in the PWA. Access Requests opens the existing local/Identity inbox. Task links carry only fixed action selectors, never the active site, credentials or native approval handles.

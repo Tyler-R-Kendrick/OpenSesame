@@ -56,6 +56,7 @@ function BindSelect({
  * Bind one connector to one identity: who, under which policy, until when.
  * The connector is already decided by the row this opens under, so the form
  * is three native selects and a commit — the PAM decision, nothing else.
+ * An agent is requested, not bound, until someone approves the grant.
  */
 export function ConnectorBindForm({
   connector,
@@ -89,6 +90,9 @@ export function ConnectorBindForm({
     first.current?.focus();
   }, []);
 
+  const selected = identities.find((entry) => entry.id === principalId);
+  const commitLabel = selected?.kind === "agent" ? "Request approval" : "Bind";
+
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!principalId) return;
@@ -99,7 +103,10 @@ export function ConnectorBindForm({
     return (
       <fieldset className="access-bind" disabled={busy}>
         <legend>Bind {connector}</legend>
-        <p>No person or agent in this vault yet. Create one under Identity.</p>
+        <p>
+          No person, agent, or application in this vault yet. Create one under
+          Identity.
+        </p>
         <div className="actions">
           <button
             type="button"
@@ -149,7 +156,7 @@ export function ConnectorBindForm({
             onChange={(value) => setDuration(Number(value))}
           />
         </div>
-        <FormCommit label="Bind">
+        <FormCommit label={commitLabel}>
           <button
             type="button"
             className="icon-btn icon-btn--sm"

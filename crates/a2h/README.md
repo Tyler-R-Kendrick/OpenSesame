@@ -17,8 +17,10 @@ intents, and verifies what the gateway posts back.
 - A2H is one subscriber to the `agent.*` feed, beside Standard Webhooks — not a
   private path from the runner to a phone.
 - An A2H reply may only *narrow* authority. `ResponseAuthority` has two values,
-  `Acknowledge` and `Cancel`; a reply that would grant control or resume
-  autonomy is `AuthorityError::WouldWiden`, whatever the assurance level.
+  `Acknowledge` and `Cancel`, so no reply can grant control or resume autonomy,
+  whatever the assurance level. `authority_for` returns
+  `AuthorityError::NotADecision` for an intent that asked nothing; the
+  `AuthorityError::WouldWiden` variant is declared but nothing constructs it.
 - `ERR.QUIET_HOURS` and `ERR.RATE_LIMITED` are `DeliveryOutcome::Suppressed`,
   never "delivered".
 - Nothing the gateway sends back is trusted: callback HMAC in constant time,
@@ -48,7 +50,8 @@ suppressed message recorded as delivered.
 
 ## Related
 
-- [ADR 0081](../../docs/adr/0081-live-session-observation.md) §10 — A2H as a
-  delivery mode for blocked runs
+- [ADR 0081](../../docs/adr/0081-live-session-observation.md) §§6, 9 — why a
+  phone reply cannot resume a run or take the page (re-asserted preconditions,
+  the owner's viewer key); the ADR does not mention A2H itself
 - [ADR 0080](../../docs/adr/0080-security-event-hooks.md) — the security-event
   feed `agent.*` publishes on

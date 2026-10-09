@@ -62,14 +62,11 @@ describe("switches — the reviewed change, from a section or a tile", () => {
 
   it("switching a capability on commits in place with the root added — a choice is not one-way", async () => {
     renderPanel();
-    fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Federated sign-in" }));
     expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     expect(double.commits[0]?.draft.selectedOptional).toContain(
-      "sharing.household",
-    );
-    expect(double.commits[0]?.draft.selectedOptional).not.toContain(
-      "sharing.drops",
+      "identity.federation",
     );
     // Adding is not disabling: nothing was force-stopped on the way.
     expect(double.disabled).toHaveLength(0);
@@ -82,11 +79,11 @@ describe("switches — the reviewed change, from a section or a tile", () => {
       .spyOn(capabilityPorts.compositionStore, "commit")
       .mockResolvedValueOnce(refused);
     renderPanel();
-    fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Federated sign-in" }));
     await expectInTray("refused · policy");
     expect(screen.getByRole("img", { name: "refused · policy" })).toBeTruthy();
     commit.mockRestore();
-    fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Federated sign-in" }));
     await waitFor(() =>
       expect(
         screen.queryByRole("img", { name: "refused · policy" }),
@@ -103,7 +100,7 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     // chosen one capability could never choose a second.
     capabilitiesPanelSeams.now = () => "2026-09-10T00:00:00.000Z";
     renderPanel();
-    fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Federated sign-in" }));
     await waitFor(() => expect(double.commits).toHaveLength(1));
     fireEvent.click(
       await screen.findByRole("switch", { name: "Agent tools (WebMCP)" }),

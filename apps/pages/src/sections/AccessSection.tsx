@@ -1,26 +1,18 @@
-import {
-  accessPath,
-  accessViewFromLocation,
-} from "@opensesame/app-core/lib/access-routes.js";
+import { accessViewFromLocation } from "@opensesame/app-core/lib/access-routes.js";
 import { Suspense, lazy } from "react";
 import { useLocation } from "react-router";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { AccessBookPanel } from "./access/AccessBookPanel.js";
-import { AccessPathbar } from "./access/AccessPathbar.js";
-import { ACCESS_TABS, AccessTabLink } from "./access/AccessTabs.js";
 import { ConnectorsPanel } from "./access/ConnectorsPanel.js";
 import { LocalAuthorityPanel } from "./access/LocalAuthorityPanel.js";
 import { LocalPoliciesPanel } from "./access/LocalPoliciesPanel.js";
 import { LocalRequestsPanel } from "./access/LocalRequestsPanel.js";
 import { LocalResourcesPanel } from "./access/LocalResourcesPanel.js";
 import { LocalSharePanel } from "./access/LocalSharePanel.js";
-import { PrivateRequestPanel } from "./access/PrivateRequestPanel.js";
 import { SessionsPanel } from "./access/SessionsPanel.js";
-import { useInboxCount } from "./access/use-inbox.js";
 import "./access.css";
-import { useHashTarget } from "../lib/hash-target.js";
 
 // The requests addressed to an Identity session load only where an Identity
 // API is configured (ADR 0090); a deployment without one never fetches them.
@@ -43,51 +35,66 @@ export function AccessSection() {
   const location = useLocation();
   const tab = accessViewFromLocation(location.pathname, location.search);
   const identityConfigured = useIdentityConfigured();
-  const waiting = useInboxCount(tomb);
-  useHashTarget();
-
+  const panel = accessPanel(tab, location.hash, location.pathname);
   return (
-    <div className="section__inner">
-      <header className="section__head access-head">
-        <h1>Access</h1>
-        <AccessPathbar />
-      </header>
-
-      <nav className="access-tabs" role="tablist" aria-label="Access views">
-        {ACCESS_TABS.map(({ id, label, guideId }) => (
-          <AccessTabLink
-            key={id}
-            guideId={guideId}
-            label={label}
-            to={accessPath(id)}
-            current={tab === id}
-            waiting={id === "requests" ? waiting : 0}
-          />
-        ))}
-      </nav>
-
-      {tab === "grants" ? (
-        <>
-          <AccessBookPanel />
-          <LocalAuthorityPanel key={tomb} tomb={tomb} records="grant" />
-          <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
-        </>
+    <>
+      {panel === "access-book" ? <AccessBookPanel /> : null}
+      {panel === "local-grants" ? (
+        <LocalAuthorityPanel key={tomb} tomb={tomb} records="grant" />
       ) : null}
-      {tab === "requests" ? (
-        <>
-          {identityConfigured ? (
-            <Suspense fallback={null}>
-              <HostedRequestsPanel />
-            </Suspense>
-          ) : null}
-          <LocalRequestsPanel tomb={tomb} />
-          <PrivateRequestPanel />
-        </>
+      {panel === "identity-shares" ? (
+        <LocalSharePanel key={`${tomb}-shares`} tomb={tomb} />
       ) : null}
-      {tab === "sessions" ? <SessionsPanel key={tomb} online={online} /> : null}
+      {panel === "hosted-requests" && identityConfigured ? (
+        <Suspense fallback={null}>
+          <HostedRequestsPanel />
+        </Suspense>
+      ) : null}
+      {panel === "local-requests" ||
+      (panel === "hosted-requests" && !identityConfigured) ? (
+        <LocalRequestsPanel tomb={tomb} />
+      ) : null}
+      {tab === "sessions" ? (
+        <SessionsPanel key={tomb} online={online} panel={panel} />
+      ) : null}
       {tab === "connectors" ? <ConnectorsPanel key={tomb} tomb={tomb} /> : null}
       {tab === "resources" ? <LocalResourcesPanel /> : null}
       {tab === "policies" ? <LocalPoliciesPanel /> : null}
-    </div>
+    </>
   );
+}
+
+function accessFragment(hash: string, pathname: string): string {
+  if (hash) return hash;
+  return pathname === "/access/shares" ? "#identity-shares" : "";
+}
+
+export function accessPanel(
+  view: string,
+  hash: string,
+  pathname = "/access",
+): string {
+  const target = accessFragment(hash, pathname).slice(1).split("/")[0];
+  const panels = {
+    grants: ["local-grants", "identity-shares", "access-book"],
+    requests: ["local-requests", "hosted-requests"],
+    sessions: [
+      "local-sessions",
+      "local-authority-templates",
+      "vault-share-sessions",
+      "access-receipts",
+    ],
+    connectors: ["local-connectors"],
+    resources: ["local-resources"],
+    policies: ["local-policies"],
+  };
+  const choices = Object.entries(panels).find(([id]) => id === view)?.[1];
+  if (
+    view === "grants" &&
+    (target?.startsWith("share-") || target?.startsWith("pending-"))
+  )
+    return "identity-shares";
+  if (view === "sessions" && target?.startsWith("vault-session-"))
+    return "vault-share-sessions";
+  return choices?.find((id) => id === target) ?? choices?.[0] ?? "local-grants";
 }

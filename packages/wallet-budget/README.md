@@ -31,7 +31,7 @@ network, no EVM.
 pnpm --filter @opensesame/wallet-budget test
 pnpm --filter @opensesame/wallet-budget typecheck
 pnpm wallet:test:domain     # os-domain wallet + wallet-budget + wallet-policy
-pnpm wallet:test:security   # domain targets, including this package, plus mainnet deny
+pnpm wallet:test:security   # domain targets (this package included), the mainnet-deny test, then wallet-evm, wallet-consent and wallet-x402
 ```
 
 `conservation.test.ts` is a fast-check property over the conservation

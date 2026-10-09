@@ -15,8 +15,15 @@ import {
 } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
-import { type WebStorage, maybeLocalStore, maybePage } from "../../ports.js";
-import { kvDelete, kvGet, kvSet } from "../kv.js";
+import { type WebStorage, maybePage } from "../../ports.js";
+import { noteDropOpened } from "../sharing-receipts.js";
+import {
+  claimIdFromBearer,
+  mintUserCode,
+  sha256Url,
+  timingSafeEqual,
+} from "./local-drop-codec.js";
+import { originKvSlot } from "./origin-kv-slot.js";
 
 const STORAGE_KEY = "opensesame.local-drop-claims.v1";
 const PEPPER_KEY = "opensesame.local-drop-pepper.v1";
@@ -26,11 +33,20 @@ const PEPPER_KEY = "opensesame.local-drop-pepper.v1";
  * hydrates them in `activate`; the core boot does not (ownership.md §4.3),
  * so nothing about drops is pulled into an installation that has none.
  */
+export const LOCAL_DROP_CLAIM_STORAGE_KEY = STORAGE_KEY;
+
 export const LOCAL_DROP_CLAIM_KEYS: readonly string[] = [
   STORAGE_KEY,
   PEPPER_KEY,
 ];
 const MAX_ATTEMPTS = 5;
+
+function wrongCodeWords(triesLeft: number): string {
+  const base = "That code does not match this drop.";
+  if (triesLeft > 1) return `${base} ${triesLeft} tries left.`;
+  if (triesLeft === 1) return `${base} This is your last try.`;
+  return `${base} No tries left.`;
+}
 
 export class LocalDropClaimError extends Error {
   readonly code: "unreachable" | "refused";
@@ -43,6 +59,7 @@ export class LocalDropClaimError extends Error {
     code: "unreachable" | "refused",
     message: string,
     wire: string = code,
+    readonly attemptsLeft?: number,
   ) {
     super(message);
     this.name = "LocalDropClaimError";
@@ -76,52 +93,14 @@ export type LocalDropSession = {
 
 export type LocalDropPollState = "pending" | "consumed" | "expired";
 
-let legacyMigrated = false;
+/** What a sender's revoke did to the claim on this device. */
+export type LocalDropRevocation = "revoked" | "already_consumed" | "missing";
 
-function legacyStorage(): WebStorage | null {
-  try {
-    return maybeLocalStore() ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** Move a pepper or claim store off localStorage, then delete the old copy. */
-function migrateLegacyDropState(): void {
-  if (legacyMigrated) return;
-  legacyMigrated = true;
-  const slot = legacyStorage();
-  if (!slot) return;
-  for (const key of [STORAGE_KEY, PEPPER_KEY]) {
-    const existing = slot.getItem(key);
-    if (existing !== null && kvGet(key) === null) kvSet(key, existing);
-    slot.removeItem(key);
-  }
-}
-
-const kvBackedStorage: WebStorage = {
-  get length(): number {
-    return 0;
-  },
-  getItem(key: string): string | null {
-    migrateLegacyDropState();
-    return kvGet(key);
-  },
-  key(): string | null {
-    return null;
-  },
-  removeItem(key: string): void {
-    kvDelete(key);
-  },
-  setItem(key: string, value: string): void {
-    migrateLegacyDropState();
-    kvSet(key, value);
-  },
-};
+const claimSlot = originKvSlot([STORAGE_KEY, PEPPER_KEY]);
 
 export const localDropClaimSeams = {
   storage(): WebStorage {
-    return kvBackedStorage;
+    return claimSlot.storage;
   },
   claimBase(): string {
     return pagesClaimBase();
@@ -162,39 +141,41 @@ async function devicePepper(): Promise<string> {
   return next;
 }
 
-async function sha256Url(parts: string[]): Promise<string> {
-  const joined = new TextEncoder().encode(parts.join("\0"));
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", joined));
-  return bytesToB64url(digest);
+function manifestNeedsWipe(record: LocalClaimRecord): boolean {
+  const manifest = record.targetManifest;
+  if (!isTypeofObject(manifest) || Array.isArray(manifest)) return true;
+  return Object.keys(manifest).length > 0;
 }
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i += 1) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return diff === 0;
-}
-
-function mintUserCode(): string {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  let out = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    // SAFETY: bytes[i] is defined for i < length.
-    const b = bytes[i] ?? 0;
-    out += alphabet[b % alphabet.length] ?? "A";
-    if (i === 3) out += "-";
-  }
-  return out;
-}
-
+/**
+ * A lapsed pending claim, and any terminal claim still holding a manifest,
+ * drops the ciphertext. The same object comes back when nothing changed, so
+ * callers can persist only a real edit.
+ */
 function freshen(record: LocalClaimRecord, now: number): LocalClaimRecord {
-  if (record.state === "pending" && record.expiresAtMs <= now) {
-    return { ...record, state: "expired", version: record.version + 1 };
+  const lapsed = record.state === "pending" && record.expiresAtMs <= now;
+  if (!lapsed && (record.state === "pending" || !manifestNeedsWipe(record))) {
+    return record;
   }
-  return record;
+  return {
+    ...record,
+    state: lapsed ? "expired" : record.state,
+    targetManifest: {},
+    version: record.version + 1,
+  };
+}
+
+/** Wipe ciphertext on claims that can no longer be opened. */
+export function disposeExpiredLocalDropClaims(now = Date.now()): void {
+  const store = readStore();
+  let changed = false;
+  for (const [id, raw] of Object.entries(store.claims)) {
+    const next = freshen(raw, now);
+    if (next === raw) continue;
+    store.claims[id] = next;
+    changed = true;
+  }
+  if (changed) writeStore(store);
 }
 
 function toPollState(state: LocalClaimRecord["state"]): LocalDropPollState {
@@ -208,19 +189,16 @@ export function pagesClaimBase(
   origin = maybePage()?.location.origin ?? "",
   base = env().BASE_URL || "/",
 ): string {
-  if (!isString(origin) || origin.length === 0) {
-    throw new LocalDropClaimError(
+  const noOrigin = () =>
+    new LocalDropClaimError(
       "unreachable",
       "This page has no origin, so a drop link cannot be minted here.",
     );
-  }
+  if (!isString(origin) || origin.length === 0) throw noOrigin();
   try {
     return new URL(base, origin).href.replace(/\/$/, "");
   } catch {
-    throw new LocalDropClaimError(
-      "unreachable",
-      "This page has no origin, so a drop link cannot be minted here.",
-    );
+    throw noOrigin();
   }
 }
 
@@ -269,6 +247,7 @@ export async function pollLocalDropClaim(
   bearerToken: string,
 ): Promise<LocalDropPollState> {
   const pepper = await devicePepper();
+  const digest = await sha256Url([pepper, "token", bearerToken]);
   const store = readStore();
   const raw = store.claims[claimId];
   if (!raw) {
@@ -278,16 +257,15 @@ export async function pollLocalDropClaim(
     );
   }
   const record = freshen(raw, Date.now());
-  if (record !== raw) {
-    store.claims[claimId] = record;
-    writeStore(store);
-  }
-  const digest = await sha256Url([pepper, "token", bearerToken]);
   if (!timingSafeEqual(digest, record.tokenDigest)) {
     throw new LocalDropClaimError(
       "refused",
       "This drop's claim token was refused.",
     );
+  }
+  if (record !== raw) {
+    store.claims[claimId] = record;
+    writeStore(store);
   }
   return toPollState(record.state);
 }
@@ -302,16 +280,21 @@ export async function presentLocalDropClaim(
   bearerToken: string,
   userCode: string,
 ): Promise<PresentedLocalDrop> {
-  const pepper = await devicePepper();
-  const refuse = (wire: string, message: string) =>
-    new LocalDropClaimError("refused", message, wire);
+  const refuse = (wire: string, message: string, attemptsLeft?: number) =>
+    new LocalDropClaimError("refused", message, wire, attemptsLeft);
   const malformed = "This drop link's claim token is not well formed.";
-  const parts = bearerToken.split(".");
-  if (parts.length !== 2 || !parts[0]?.startsWith("osc_clm_")) {
-    throw refuse("invalid_token", malformed);
-  }
-  const claimId = parts[0].slice("osc_clm_".length);
+  const claimId = claimIdFromBearer(bearerToken);
   if (!claimId) throw refuse("invalid_token", malformed);
+  const pepper = await devicePepper();
+  const tokenDigest = await sha256Url([pepper, "token", bearerToken]);
+  const codeDigest = await sha256Url([
+    pepper,
+    "code",
+    claimId,
+    userCode.trim(),
+  ]);
+  // Digests are done. Read and write with no await between them, so a revoke
+  // cannot land in the middle and have this present put the ciphertext back.
   const store = readStore();
   const raw = store.claims[claimId];
   if (!raw) {
@@ -320,19 +303,21 @@ export async function presentLocalDropClaim(
       "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
     );
   }
-  let record = freshen(raw, Date.now());
-  if (record.state === "expired") {
-    store.claims[claimId] = record;
+  const record = freshen(raw, Date.now());
+  const persist = (next: LocalClaimRecord) => {
+    store.claims[claimId] = next;
     writeStore(store);
-    throw refuse("EXPIRED", "This drop has expired.");
-  }
-  if (record.state === "presented") {
+  };
+  if (record.state !== "pending") {
+    if (record !== raw) persist(record);
+    if (record.state === "expired") {
+      throw refuse("EXPIRED", "This drop has expired.");
+    }
     throw refuse(
       "INVALID_TRANSITION",
       "This drop was already opened and cannot be opened again.",
     );
   }
-  const tokenDigest = await sha256Url([pepper, "token", bearerToken]);
   if (!timingSafeEqual(tokenDigest, record.tokenDigest)) {
     throw refuse("invalid_token", "This drop's claim token was refused.");
   }
@@ -342,44 +327,74 @@ export async function presentLocalDropClaim(
       "Too many wrong codes for this drop. Seal a new one.",
     );
   }
-  const codeDigest = await sha256Url([
-    pepper,
-    "code",
-    claimId,
-    userCode.trim(),
-  ]);
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
-    record = {
-      ...record,
-      attempts: record.attempts + 1,
-      version: record.version + 1,
-    };
-    store.claims[claimId] = record;
-    writeStore(store);
-    throw refuse("invalid_user_code", "That code does not match this drop.");
+    const attempts = record.attempts + 1;
+    const triesLeft = MAX_ATTEMPTS - attempts;
+    persist({ ...record, attempts, version: record.version + 1 });
+    throw refuse("invalid_user_code", wrongCodeWords(triesLeft), triesLeft);
   }
-  record = {
+  const targetManifest = structuredClone(record.targetManifest);
+  persist({
     ...record,
     state: "presented",
+    targetManifest: {},
     attempts: 0,
     version: record.version + 1,
-  };
-  store.claims[claimId] = record;
-  writeStore(store);
+  });
+  noteDropOpened(claimId);
   return {
     claimId,
-    state: toPollState(record.state),
-    targetManifest: record.targetManifest,
+    state: "consumed",
+    targetManifest,
   };
+}
+
+/**
+ * Kill a pending claim and wipe its ciphertext. An already-opened claim stays
+ * consumed (the secret already left) and only loses leftover ciphertext. A
+ * claim this device does not hold is `missing` — callers must not treat that
+ * as a revoke, because the sealing device may still have it. A wrong bearer
+ * throws and changes nothing.
+ */
+export async function revokeLocalDropClaim(
+  claimId: string,
+  bearerToken: string,
+): Promise<LocalDropRevocation> {
+  const pepper = await devicePepper();
+  const digest = await sha256Url([pepper, "token", bearerToken]);
+  const store = readStore();
+  const raw = store.claims[claimId];
+  if (!raw) return "missing";
+  const record = freshen(raw, Date.now());
+  if (!timingSafeEqual(digest, record.tokenDigest)) {
+    throw new LocalDropClaimError(
+      "refused",
+      "This drop's claim token was refused.",
+    );
+  }
+  if (record.state === "presented") {
+    if (record !== raw) {
+      store.claims[claimId] = record;
+      writeStore(store);
+    }
+    return "already_consumed";
+  }
+  if (record.state === "expired" && record === raw) return "revoked";
+  const next: LocalClaimRecord =
+    record.state === "expired"
+      ? record
+      : {
+          ...record,
+          state: "expired",
+          targetManifest: {},
+          version: record.version + 1,
+        };
+  store.claims[claimId] = next;
+  writeStore(store);
+  return "revoked";
 }
 
 /** Test seam — wipe local drop claims and pepper. */
 export function resetLocalDropClaimsForTests(): void {
-  legacyMigrated = false;
-  kvDelete(STORAGE_KEY);
-  kvDelete(PEPPER_KEY);
-  const slot = legacyStorage();
-  if (!slot) return;
-  slot.removeItem(STORAGE_KEY);
-  slot.removeItem(PEPPER_KEY);
+  claimSlot.reset();
 }

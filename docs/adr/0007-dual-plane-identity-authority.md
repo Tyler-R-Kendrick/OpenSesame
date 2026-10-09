@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; the Identity API stops being
+a required plane).
+
 ## Context
 The repository already contains a Rust authority/credential fabric (ConnectionRef, broker, OpenBao/OpenFGA adapters, ADR 0005–0006). A subsequent implementation brief requires a Shoo/Lakebed-style identity broker on Node.js 24 with Better Auth (upstream) and panva/oidc-provider (downstream).
 

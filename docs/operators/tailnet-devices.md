@@ -138,7 +138,9 @@ The same changes are available from the terminal. Each is logged as
 
 ```bash
 opensesame daemon tailnet devices
+opensesame daemon tailnet device <id>
 opensesame daemon tailnet approve <id>
+opensesame daemon tailnet deauthorize <id>
 opensesame daemon tailnet rename <id> web-01
 opensesame daemon tailnet tag <id> tag:web tag:ci
 opensesame daemon tailnet key-expiry <id> off

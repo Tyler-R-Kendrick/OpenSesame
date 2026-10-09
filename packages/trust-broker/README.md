@@ -11,7 +11,7 @@ through it.
 
 - **Used by:** [`packages/control-plane`](../../packages/control-plane) (`routes/authorization-requests.ts`, `routes/notification-callbacks.ts`).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) — `evaluateDirectSettlement`, `evaluateActivation`, `channelAuthenticationCeiling`, `normalizeApprovalPolicy` and the assurance types all live there.
-- `evaluateApprovalCeremony` requires all three of: the channel may carry a decision (settlement), the person met the bar (assurance), and the proof is bound to this transaction and unspent (activation). None stands in for another, and absent evidence is a refusal.
+- `evaluateApprovalCeremony` composes three checks: the channel may carry a decision (`evaluateDirectSettlement` on the `external_direct` path; on the in-app path, the request is pending, its digest unchanged and any required comparison met), the person met the bar (assurance), and, when the policy sets `requireTransactionBoundActivation`, the proof is bound to this transaction and unspent (activation). None stands in for another, and absent evidence is a refusal.
 - A channel is credited with its capability ceiling, never with what a provider callback asserts about itself; only an in-app activation supplies its own authentication facts.
 - The approver must be the principal the request is addressed to (`approver_mismatch`).
 

@@ -38,7 +38,7 @@ function planeSentence(plane: ResolvedModelPlane): string {
         ? "Running on this device, in this browser. Nothing leaves the page."
         : plane.kind === "local"
           ? "Running on this machine. Nothing crosses your network."
-          : "Running at the provider you named. Redacted frames cross to them.";
+          : "Hosted model selected. Answers require a verified connector and active Remote AI support and External connectors capabilities.";
     case "fell-back-to-browser":
       return "No provider set, so this device's own model is doing it. Nothing leaves the page — this is the narrowest arrangement available.";
     case "browser-not-ready":

@@ -2,7 +2,8 @@
 //! binary: after a rotation the store still opens with its passphrase, and the
 //! key file as git history keeps it no longer opens anything in the store.
 
-use std::io::Write;
+use std::io::{Read, Write};
+use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -79,20 +80,68 @@ fn given_a_store_with_an_entry_and_a_document() -> Fixture {
     Fixture { dir, store }
 }
 
+/// A person at a terminal: stdin and stdout are both the slave side of a pty.
+/// Piped `Command` output is the agent shape, and the reveal gate refuses it.
+fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
+    let mut master_fd: libc::c_int = -1;
+    let mut slave_fd: libc::c_int = -1;
+    let opened = unsafe {
+        libc::openpty(
+            &raw mut master_fd,
+            &raw mut slave_fd,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(opened, 0, "openpty");
+    let master = unsafe { std::fs::File::from_raw_fd(master_fd) };
+    let slave = unsafe { std::fs::File::from_raw_fd(slave_fd) };
+    let slave_in = slave.try_clone().expect("dup slave for stdin");
+    let slave_out = slave.try_clone().expect("dup slave for stdout");
+    drop(slave);
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
+        .args(args)
+        .arg("--path")
+        .arg(store)
+        .env("OPENSESAME_STORE_PASSWORD", password)
+        .stdin(Stdio::from(slave_in))
+        .stdout(Stdio::from(slave_out))
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to run the opensesame binary");
+    let stdout_thread = std::thread::spawn(move || {
+        let mut master = master;
+        let mut buf = Vec::new();
+        let _ = master.read_to_end(&mut buf);
+        buf
+    });
+    let mut stderr_pipe = child.stderr.take().expect("stderr");
+    let stderr_thread = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut buf);
+        buf
+    });
+    let status = child.wait().expect("wait for opensesame");
+    Output {
+        status,
+        stdout: stdout_thread.join().expect("stdout thread"),
+        stderr: stderr_thread.join().expect("stderr thread"),
+    }
+}
+
 fn shows(store: &Path, password: &str) -> Option<String> {
-    let out = run_with(
-        store,
-        password,
-        &["pass", "show", "Dev/token", "--reveal"],
-        "",
-    );
-    out.status
-        .success()
-        .then(|| String::from_utf8_lossy(&out.stdout).into_owned())
+    let out = run_as_person(store, password, &["pass", "show", "Dev/token", "--reveal"]);
+    out.status.success().then(|| {
+        String::from_utf8_lossy(&out.stdout)
+            .replace("\r\n", "\n")
+            .replace('\r', "")
+    })
 }
 
 fn document(store: &Path, password: &str, out: &Path) -> Option<Vec<u8>> {
-    let got = run_with(
+    let got = run_as_person(
         store,
         password,
         &[
@@ -104,7 +153,6 @@ fn document(store: &Path, password: &str, out: &Path) -> Option<Vec<u8>> {
             "--out",
             out.to_str().unwrap(),
         ],
-        "",
     );
     got.status.success().then(|| std::fs::read(out).unwrap())
 }

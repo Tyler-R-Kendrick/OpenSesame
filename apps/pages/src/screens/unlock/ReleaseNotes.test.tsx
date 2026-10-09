@@ -6,22 +6,59 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import { version } from "../../../package.json";
 import { ReleaseNotes } from "./ReleaseNotes.js";
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
-it("starts collapsed, toggles releases, and keeps at most one row expanded", () => {
+function stubViewport(stacked: boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    (query: string): MediaQueryList => ({
+      matches: stacked && query === "(max-width: 1099px)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }),
+  );
+}
+
+it("opens the newest release on arrival beside the card on a wide screen", () => {
+  stubViewport(false);
+  render(<ReleaseNotes />);
+  // "Release notes" is the column's title above the rows, not a row label.
+  expect(
+    screen.getByRole("heading", { level: 2, name: "Release notes" }),
+  ).toBeTruthy();
+  expect(
+    screen.getByRole("complementary", { name: "Release notes" }),
+  ).toBeTruthy();
+  const newestBtn = screen.getByRole("button", { name: version });
+  const priorBtn = screen.getByRole("button", { name: "0.0.1" });
+  expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
+  expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.getByRole("heading", { name: "Works" })).toBeTruthy();
+
+  fireEvent.click(priorBtn);
+  expect(priorBtn.getAttribute("aria-expanded")).toBe("true");
+  expect(newestBtn.getAttribute("aria-expanded")).toBe("false");
+});
+
+it("starts collapsed on a stacked gate, toggles releases, and keeps at most one row expanded", () => {
+  stubViewport(true);
   render(<ReleaseNotes />);
   expect(
     screen.getByRole("complementary", { name: "Release notes" }),
   ).toBeTruthy();
-  const newestBtn = screen.getByRole("button", {
-    name: `Release notes · ${version}`,
-  });
+  const newestBtn = screen.getByRole("button", { name: version });
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
   expect(newestBtn.getAttribute("aria-expanded")).toBe("false");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");

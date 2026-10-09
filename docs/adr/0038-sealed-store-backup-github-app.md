@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted (§6's client-side-only backup posture partly superseded by
+[ADR 0039](0039-event-driven-github-backup.md) for the hosted path)
 
 ## Context
 

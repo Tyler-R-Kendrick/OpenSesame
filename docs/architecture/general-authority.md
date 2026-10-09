@@ -1,23 +1,25 @@
 # General authority
 
-**Stub. Nothing described here is implemented.** This page exists so the
-invariants have a home that is not a work item, and so a reader who finds the
-term "general authority" in a branch or a work ID can find out what it is
-supposed to mean. Decisions and rationale are in
+**Partly implemented.** This page keeps the invariants in one place that is
+not a work item, and says what "general authority" means. Decisions and
+rationale are in
 [ADR 0120](../adr/0120-generalized-hierarchical-authority.md) (status:
-Proposed). Implementation status is in
-[`docs/implementation/general-authority/`](../implementation/general-authority/completion-matrix.json)
-and every item there is unresolved.
+Accepted, implementation in progress). Per-item implementation status is in
+[`docs/implementation/general-authority/`](../implementation/general-authority/completion-matrix.json);
+the code that exists is listed under "Where the pieces live" below.
 
 ## The idea
 
-Today authority is expressed once per resource family. A project has
+Authority has been expressed once per resource family. A project has
 memberships with `owner | admin | member` (ADR 0038); a connector binding is a
 local share grant of kind `connection` (ADR 0115); a row-level vault grant is
 an OpenFGA tuple on `vault_item`; a connection's users are a relation on
 `connection`. Each is correct in isolation, and none of them can answer "this
 authority, but narrower, for this agent, until Friday" in a way the other
 surfaces understand.
+
+ADR 0120 extends the `Grant` lineage that already exists in
+`crates/domain/src/grant.rs` rather than adding a second lease store.
 
 General authority is one record that names a subject, a resource scope, a set
 of verbs, a parent it derives from, and a deadline — and that can only ever
@@ -44,7 +46,7 @@ Summarised:
 | `INV-GA-11` | Guest and anonymous access are untouched. |
 | `INV-GA-12` | Every new capability is registered or ADR-excluded (ADR 0065). |
 
-## What is deliberately not being proposed
+## What it deliberately is not
 
 - **Not a second authority model.** A cross-device question stays an
   `Interaction`, and an approval counts only when the proof's `boundDigest`
@@ -59,22 +61,20 @@ Summarised:
   means authority has a representation on each side and one shared contract,
   not one service.
 
-## Where the pieces would live
+## Where the pieces live
 
-Prospective, unbuilt, and listed only so two swarms do not pick the same file:
-
-| Plane | Prospective home |
+| Plane | Home |
 |---|---|
-| Domain | `packages/os-domain` — the record, the narrowing algebra, the invariant assertions |
-| Policy | `spec/openfga/model.fga` (additive delta), `packages/policy` |
-| Host | `crates/host-core` (evaluation), `crates/storage` (a new module, per ADR 0093), `crates/lifecycle` (expiry) |
-| Identity | `packages/control-plane`, `packages/database`, `packages/audit` |
+| Domain | `packages/os-domain` (`authority-grant.ts`, `authority-invariants.ts`, `authority-templates/`), mirroring `crates/domain/src/grant.rs` |
+| Policy | `spec/openfga/model.fga` (for example `access_domain`, `cohort`), `packages/policy` (`authority-tuples.ts`, `authority-tuple-backfill.ts`) |
+| Host | `crates/domain/src/grant.rs`, `crates/storage/src/authority.rs` (migration `0034_general_authority.sql`), `crates/gateway/src/routes/authority_grants.rs`, `crates/lifecycle/src/authority_grant_expiry.rs` |
+| Identity | `packages/database/src/schema/authority.ts` (membership provenance and projection rows only; grants live in the Host store), `packages/control-plane/src/services/project-membership-reconcile.ts` |
 | Client | `packages/app-core/src/lib/local-share-grants.ts` and the Access surfaces |
-| Parity | `packages/capability-registry` plus the per-surface sweeps |
+| Parity | `packages/capability-registry/src/general-authority.ts` plus the per-surface sweeps |
 
 ## Related
 
-- [ADR 0120](../adr/0120-generalized-hierarchical-authority.md) — Proposed
+- [ADR 0120](../adr/0120-generalized-hierarchical-authority.md) — Accepted, implementation in progress
 - [ADR 0038](../adr/0038-project-hierarchy-sharing.md) — projects as the top-level container
 - [ADR 0005](../adr/0005-authority-handle-connectionref.md), [ADR 0017](../adr/0017-host-client-product-topology.md), [ADR 0065](../adr/0065-agent-surface-parity.md), [ADR 0074](../adr/0074-expiry-lifecycle-hooks.md), [ADR 0084](../adr/0084-external-authorization-notifications.md), [ADR 0086](../adr/0086-wallet-native-interaction-layer.md), [ADR 0115](../adr/0115-front-door-and-connector-directory.md)
 - [`connection-broker.md`](connection-broker.md), [`identity-plane.md`](identity-plane.md), [`host-client-topology.md`](host-client-topology.md)

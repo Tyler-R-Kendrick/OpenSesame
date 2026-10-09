@@ -6,7 +6,7 @@ This directory holds every definition this repository publishes:
 
 | Directory | What it holds | How a vault gets it |
 |---|---|---|
-| [`item-types/builtin/`](item-types/builtin) | The types every vault has. Both planes embed these files at build time: `crates/vault-item-types` with `include_str!`, `packages/vault-item-types` through a generated module. | Always present. |
+| [`item-types/builtin/`](item-types/builtin) | The built-in types (28 files). Both planes embed these files at build time. `crates/vault-item-types` embeds 23 with `include_str!`; the five credential types of [ADR 0179](../docs/adr/0179-credentials-are-entries-bound-to-accounts.md) (`password`, `api-key`, `token`, `oauth-client`, `authenticator`) are in this directory but not embedded there. `packages/vault-item-types` generates modules: the five core types (`secret`, `file`, `passkey`, `certificate`, `drop`) in the bundle and every other file as a pack ([ADR 0165](../docs/adr/0165-item-type-packs-on-demand.md)). | The core types are always present; the other types are packs a person switches on in Settings › Vaults › Item types. |
 | [`item-types/optional/`](item-types/optional) | Types published alongside OpenSesame but not built in. [`.opensesame/marketplace.json`](../.opensesame/marketplace.json) indexes them, which makes this repository a marketplace ([ADR 0134](../docs/adr/0134-item-type-marketplaces-and-settings-files.md)) — the one every device lists by default. | A person installs one from Settings › Vaults › Item types › Marketplace; it then syncs with their vault like any installed type. |
 
 Both sets use the same format and pass the same parser. How to write a
@@ -19,7 +19,7 @@ definition — field types, concealed fields, subtitles, search — is in
 2. Regenerate the TypeScript embedding:
    `pnpm --filter @opensesame/vault-item-types generate`.
 3. Add the file to `BUILTIN_DEFINITIONS` in `crates/vault-item-types/src/lib.rs`
-   if it is new.
+   if it is new and the host plane should know the type.
 4. `pnpm --filter @opensesame/vault-item-types test` and
    `cargo +1.88.0 test -p opensesame-vault-item-types` must both pass — the
    generated module is checked against the JSON.

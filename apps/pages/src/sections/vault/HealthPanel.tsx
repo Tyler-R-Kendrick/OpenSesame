@@ -1,9 +1,13 @@
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import {
+  type BreachWatch,
   ISSUE_EXPLANATION,
   ISSUE_LABEL,
+  breachWatchSnapshot,
   buildHealthReport,
+  subscribeBreachWatch,
 } from "@opensesame/app-core/lib/vault/health.js";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
@@ -20,9 +24,49 @@ const ISSUE_TONE = {
   "no-2fa": "chip--warn",
 };
 
+function BreachWatchBlock({
+  watch,
+}: {
+  watch: Exclude<BreachWatch, { phase: "off" }>;
+}) {
+  return (
+    <section className="detail__group" aria-label="Breach and two-step checks">
+      <h2 className="detail__grouphead">Breach and two-step checks</h2>
+      <p className="health__line">{watch.label}</p>
+      {watch.phase === "checked"
+        ? watch.lines.map((line) => (
+            <article className="health__finding" key={line.id}>
+              <div className="health__findinghead">
+                <Link to={`/vault/${line.id}`}>
+                  <strong>{line.name || line.site || "Untitled"}</strong>
+                </Link>
+                {line.site ? <span className="hint">{line.site}</span> : null}
+              </div>
+              {line.sentences.map((sentence) => (
+                <p className="health__why" key={sentence}>
+                  {sentence}
+                </p>
+              ))}
+            </article>
+          ))
+        : null}
+      <p>
+        <Link to={settingsPath("capabilities", "feature-security-checks")}>
+          Open breach and two-step checks
+        </Link>
+      </p>
+    </section>
+  );
+}
+
 export function HealthPanel() {
   const { items } = useVault();
   const report = useMemo(() => buildHealthReport(items), [items]);
+  const watch = useSyncExternalStore(
+    subscribeBreachWatch,
+    breachWatchSnapshot,
+    breachWatchSnapshot,
+  );
   const summaryRef = useGuideTarget<HTMLElement>("vault.health.summary");
   const findingsRef = useGuideTarget<HTMLElement>("vault.health.findings");
 
@@ -127,6 +171,7 @@ export function HealthPanel() {
           )}
         </div>
       )}
+      {watch.phase === "off" ? null : <BreachWatchBlock watch={watch} />}
       <OrganizationAudit />
     </div>
   );

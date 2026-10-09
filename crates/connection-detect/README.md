@@ -15,9 +15,10 @@ or seals a credential.
   (`config.rs` reads provider fields through the same aliases), and the fuzz
   harness in [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`ini_parse`,
   `mcp_config`, `promote_request`).
-- **Builds on:** no workspace crates. The whole dependency tree is `serde`,
-  `serde_json`, `thiserror` and std — the budget ADR 0048 §5 sets for code that
-  ships onto a loopback agent. `pnpm audit:daemon-deps` fails if the tree grows.
+- **Builds on:** no workspace crates. Its only direct dependencies are `serde`,
+  `serde_json` and `thiserror` (plus std) — the budget ADR 0048 §5 sets for code
+  that ships onto a loopback agent. `pnpm audit:daemon-deps` fails if the
+  transitive tree grows beyond its allowlist.
 - Environment, filesystem, keychain and command access are injected by the
   caller, so a scan runs the same against a real process, another process's
   environment or a fixture. Probes have no socket, HTTP client or URL anywhere
@@ -39,6 +40,10 @@ or seals a credential.
 cargo +1.88.0 test -p opensesame-connection-detect
 pnpm audit:daemon-deps   # pins this crate's dependency closure
 ```
+
+`tests/one_catalog.rs` fails if a provider discovery names is not a row of
+[`spec/connectors/catalog.json`](../../spec/connectors/catalog.json), by id or
+alias.
 
 Adding a dependency here means updating the allowlist in
 [`scripts/audit/daemon-deps-gate.sh`](../../scripts/audit/daemon-deps-gate.sh),

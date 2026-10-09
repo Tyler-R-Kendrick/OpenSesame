@@ -2,8 +2,10 @@
  * Standing shares from this vault to local identities.
  *
  * Application OIDC grants stay in identity-grants. These records answer the
- * PAM question: which person or agent may open which vault, or use which
- * connector, under which policy, until when.
+ * PAM question: which person, application, or agent may open which vault,
+ * folder, or item, or use which connector, under which policy, until when.
+ * A grant to an agent is pending until a person approves it.
+ * Renewals and that approval inbox live in local-share-grants-approvals.
  */
 
 import { type Named, name } from "@gdp-ts/core";
@@ -13,24 +15,22 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import { getBundledProviders } from "./embedded-catalog.js";
 import { kvRefresh } from "./kv.js";
 import { recordAccessAuditEvent } from "./local-access-audit.js";
-import { LocalDirectoryError } from "./local-directory.js";
+import { LocalDirectoryError, readLocalDirectory } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import {
   type ShareWriteAuthority,
   requireManageGrants,
-  systemShareWrite,
 } from "./proofs/share-write.js";
-import { listDeviceVaults } from "./vaults.js";
+import { noteLocalShare } from "./sharing-receipts.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 const PATH = "config/identity-shares";
-const MAX_BYTES = 256_000;
-const MAX_SHARES = 256;
+export const MAX_BYTES = 256_000;
+export const MAX_SHARES = 256;
 
-export const SHARE_KINDS = ["vault", "connection", "item"] as const;
+export const SHARE_KINDS = ["vault", "connection", "folder", "item"] as const;
 export type ShareKind = (typeof SHARE_KINDS)[number];
 
 export const SHARE_POLICIES = {
@@ -41,6 +41,10 @@ export const SHARE_POLICIES = {
   connection: [
     { id: "use", label: "Use" },
     { id: "invoke", label: "Invoke" },
+  ],
+  folder: [
+    { id: "read", label: "Read" },
+    { id: "use", label: "Use" },
   ],
   item: [
     { id: "read", label: "Read" },
@@ -77,15 +81,55 @@ export type ShareTarget = {
   label: string;
 };
 
-function text(value: BoundaryValue, max: number): value is string {
+/** Items and folders the open vault can be granted one at a time. */
+export type ShareScopeLists = {
+  items?: readonly { id: string; label: string }[];
+  folders?: readonly { id: string; label: string }[];
+};
+
+export type GrantIdentity = {
+  id: string;
+  name: string;
+  kind: "person" | "agent" | "application";
+};
+
+/** People, agents, and applications a grant form can name. Organizations are not principals. */
+export function grantIdentities(
+  entries: readonly {
+    id: string;
+    name: string;
+    kind: string;
+    enabled: boolean;
+  }[],
+): GrantIdentity[] {
+  const identities: GrantIdentity[] = [];
+  for (const entry of entries) {
+    if (!entry.enabled) continue;
+    if (
+      entry.kind !== "person" &&
+      entry.kind !== "agent" &&
+      entry.kind !== "application"
+    )
+      continue;
+    identities.push({ id: entry.id, name: entry.name, kind: entry.kind });
+  }
+  return identities;
+}
+
+export function text(value: BoundaryValue, max: number): value is string {
   return isString(value) && value.length > 0 && value.length <= max;
 }
 
-function isKind(value: BoundaryValue): value is ShareKind {
-  return value === "vault" || value === "connection" || value === "item";
+export function isKind(value: BoundaryValue): value is ShareKind {
+  return (
+    value === "vault" ||
+    value === "connection" ||
+    value === "folder" ||
+    value === "item"
+  );
 }
 
-function allowedPolicy(kind: ShareKind, policy: string): boolean {
+export function allowedPolicy(kind: ShareKind, policy: string): boolean {
   return SHARE_POLICIES[kind].some((entry) => entry.id === policy);
 }
 
@@ -108,7 +152,7 @@ function isShare(value: BoundaryValue): value is LocalShare {
   );
 }
 
-async function readAll(tomb: string): Promise<LocalShare[]> {
+export async function readAll(tomb: string): Promise<LocalShare[]> {
   await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
   try {
     const bytes = await readFile(tomb, PATH);
@@ -130,7 +174,10 @@ async function readAll(tomb: string): Promise<LocalShare[]> {
   }
 }
 
-async function writeAll(tomb: string, shares: LocalShare[]): Promise<void> {
+export async function writeAll(
+  tomb: string,
+  shares: LocalShare[],
+): Promise<void> {
   const bytes = new TextEncoder().encode(
     JSON.stringify({ version: 1, shares }),
   );
@@ -176,15 +223,52 @@ function durationAllowed(
   );
 }
 
-/** A person writing a share: the `manage_grants` check, then the write. */
+export function validateShareInput(
+  input: CreateLocalShareInput,
+  freeDuration: boolean | undefined,
+): void {
+  if (!text(input.principalId, 64))
+    throw new LocalDirectoryError("Choose an identity.");
+  if (
+    !isKind(input.resourceKind) ||
+    !allowedPolicy(input.resourceKind, input.policy)
+  )
+    throw new LocalDirectoryError("Choose a policy this resource allows.");
+  if (!text(input.resourceId, 128) || !text(input.resourceLabel, 128))
+    throw new LocalDirectoryError(
+      "Choose a vault, folder, item, or connector.",
+    );
+  if (!durationAllowed(input.durationSeconds, freeDuration))
+    throw new LocalDirectoryError("Choose a duration.");
+}
+
+/**
+ * A person writing a share: the `manage_grants` check, then the write.
+ * An agent is refused here. `submitLocalShare` records a pending approval,
+ * and `approvePendingShare` is what writes that share.
+ */
 export function createLocalShare(
   tomb: string,
   input: CreateLocalShareInput,
   options?: ShareWriteOptions,
 ): Promise<LocalShare[]> {
-  return name(tomb, async (named) =>
-    createLocalShareAs(named, input, await requireManageGrants(named), options),
-  );
+  return name(tomb, async (named) => {
+    const authority = await requireManageGrants(named);
+    await refuseUnapprovedAgent(named.value, input.principalId);
+    return createLocalShareAs(named, input, authority, options);
+  });
+}
+
+async function refuseUnapprovedAgent(
+  tomb: string,
+  principalId: string,
+): Promise<void> {
+  const directory = await readLocalDirectory(tomb);
+  const entry = directory.entries.find((row) => row.id === principalId);
+  if (entry?.kind === "agent")
+    throw new LocalDirectoryError(
+      "Approve the agent grant before it takes effect.",
+    );
 }
 
 /**
@@ -199,17 +283,7 @@ export async function createLocalShareAs<T>(
   options?: ShareWriteOptions,
 ): Promise<LocalShare[]> {
   const tomb = named.value;
-  if (!text(input.principalId, 64))
-    throw new LocalDirectoryError("Choose an identity.");
-  if (
-    !isKind(input.resourceKind) ||
-    !allowedPolicy(input.resourceKind, input.policy)
-  )
-    throw new LocalDirectoryError("Choose a policy this resource allows.");
-  if (!text(input.resourceId, 128) || !text(input.resourceLabel, 128))
-    throw new LocalDirectoryError("Choose a vault or connector.");
-  if (!durationAllowed(input.durationSeconds, options?.freeDuration))
-    throw new LocalDirectoryError("Choose a duration.");
+  validateShareInput(input, options?.freeDuration);
   const issuedAt = Date.now();
   const share: LocalShare = {
     id: crypto.randomUUID(),
@@ -241,6 +315,7 @@ export async function createLocalShareAs<T>(
       "access.connection.granted",
       share,
     ).catch(() => undefined);
+  if (authority.kind === "ManageGrants") noteLocalShare(tomb, "granted", share);
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
@@ -283,13 +358,6 @@ export async function revokeSharesForSession<T>(
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
-/** The share, if it is there — a renewal replacing it, not a revocation. */
-async function dropShare(tomb: string, id: string): Promise<void> {
-  const current = await readAll(tomb);
-  const next = current.filter((row) => row.id !== id);
-  if (next.length !== current.length) await writeAll(tomb, next);
-}
-
 /**
  * A person revokes a share. Revoking a connector share is audited on the
  * sealed Access trail (ADR 0015), which is also how a connector page knows
@@ -319,72 +387,6 @@ export async function revokeLocalShare(
     tomb,
     current.filter((row) => row.id !== id),
   );
+  noteLocalShare(tomb, "revoked", removed);
   return listLocalShares(tomb);
-}
-
-/** Standing dogfood duration — renewed by ensureLocalShare before it runs out. */
-export const STANDING_SHARE_SECONDS =
-  SHARE_DURATIONS[SHARE_DURATIONS.length - 1].seconds;
-
-const RENEW_WITHIN_MS = 2 * 86400 * 1000;
-
-/**
- * Ensure one share exists for this principal/resource/policy. Idempotent: a
- * still-fresh share is left alone; one nearing expiry is replaced.
- */
-export async function ensureLocalShare(
-  tomb: string,
-  input: Omit<CreateLocalShareInput, "durationSeconds"> & {
-    durationSeconds?: number;
-    sessionId?: string;
-  },
-): Promise<LocalShare[]> {
-  const durationSeconds = input.durationSeconds ?? STANDING_SHARE_SECONDS;
-  const now = Date.now();
-  const current = await listLocalShares(tomb);
-  const existing = current.find(
-    (row) =>
-      row.principalId === input.principalId &&
-      row.resourceKind === input.resourceKind &&
-      row.resourceId === input.resourceId &&
-      row.policy === input.policy,
-  );
-  if (existing && existing.expiresAt - now > RENEW_WITHIN_MS) {
-    return current;
-  }
-  // A renewal replaces the share; it is not a revocation.
-  if (existing) await dropShare(tomb, existing.id);
-  const share: CreateLocalShareInput = {
-    principalId: input.principalId,
-    resourceKind: input.resourceKind,
-    resourceId: input.resourceId,
-    resourceLabel: input.resourceLabel,
-    policy: input.policy,
-    durationSeconds,
-  };
-  if (input.sessionId) share.sessionId = input.sessionId;
-  // The standing share is the vault's own: system code, no person's grant.
-  return name(tomb, (named) =>
-    createLocalShareAs(named, share, systemShareWrite(named)),
-  );
-}
-
-export function listShareTargets(): ShareTarget[] {
-  const vaults = listDeviceVaults().map((vault) => ({
-    kind: "vault" as const,
-    id: vault.id,
-    label: vault.label,
-  }));
-  const connectors = getBundledProviders().map((provider) => ({
-    kind: "connection" as const,
-    id: provider.id,
-    label: provider.displayName,
-  }));
-  return [...vaults, ...connectors];
-}
-
-export function policyLabel(kind: ShareKind, policy: string): string {
-  return (
-    SHARE_POLICIES[kind].find((entry) => entry.id === policy)?.label ?? policy
-  );
 }

@@ -83,9 +83,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     title: "Your vault",
     goals: [
       "vault.item.create",
-      "vault.password-workflows",
-      "vault.password-workflows.open",
-      "vault.item.credentials",
       "vault.item.find",
       "vault.item.accounts",
       "vault.item.favorite",
@@ -157,7 +154,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "access.review",
       "access.connectors",
       "access.relay",
-      "access.private-request",
       "access.requests.hosted",
       "access.sessions.review",
       "agent.control",

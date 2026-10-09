@@ -22,10 +22,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.command_bar": "shell.navigation",
 
     // --- core: vault items -----------------------------------------------
-    "password_provider.request": "access.authority",
-    "password_provider.lease_approve": "access.authority",
-    "password_provider.lease_status": "access.authority",
-    "password_provider.lease_revoke": "access.authority",
     "password_provider.read": "vault.passwords",
     "password_provider.env_resolve": "vault.passwords",
     "vault.workflow.find_references": "vault.passwords",

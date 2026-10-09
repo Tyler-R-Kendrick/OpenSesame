@@ -89,9 +89,10 @@ Verified against the public format documentation; this is the shape
 
 **KDBX 4.1** adds fields without changing the container: group and entry
 tags, custom-icon names and modification times, an entry password-quality
-check flag, and `PreviousParentGroup` (so a move can be undone). A 4.0
-reader tolerates a 4.1 file's unknown elements; a 4.0 *writer* is the
-conservative choice, which is what OpenSesame writes.
+check flag, and `PreviousParentGroup` (so a move can be undone). KeePass
+2.48 introduced 4.1 and writes it only when a database uses a feature that
+needs it (a previous-parent reference alone does not); OpenSesame's writer
+always emits 4.1 (`EXPORT_KDBX_MINOR_VERSION` in `crates/kdbx-bridge`).
 
 ### Sync, such as it is
 
@@ -170,17 +171,17 @@ None of these needs a server. All of them open a correct KDBX 4.x file, 4.1 incl
 | KDBX entry `Password` | Sealed-store `Entry.secret` (line 1) |
 | KDBX `UserName` / `URL` / `Notes` | Trailer lines `login:` / `url:` / `notes:` |
 | Other KDBX string fields | Trailer `<sanitized-key>: <value>`, preserved verbatim |
-| KDBX TOTP (`otp`, `TimeOtp-*`) | `otpauth://` trailer via `crates/sealed-store/src/otp.rs` (pass-otp parity) |
+| KDBX TOTP (`otp`, `TimeOtp-*`) | `otpauth://` trailer, parsed by `crates/authenticator-core/src/otp.rs` (pass-otp parity) |
 | Group path + entry `Title` | Store logical path `Group/Sub/Title`, sanitized deterministically |
 | `Protected="True"` | Applied on write to line 1 and to trailer keys matching `pass`/`token`/`secret`/`key` |
 | Import a database | `opensesame pass import-kdbx` (merge-by-path, idempotent) |
 | Export a database | `opensesame pass export-kdbx` — plaintext-equivalent output, so gated by the same TTY/`--reveal` ceremony as `pass show` |
 | Open a `.kdbx` in the browser | Pages KDBX import adapter (kdbxweb + hash-wasm for Argon2, lazily imported) |
 | KeePassXC CSV exports | Already handled — `keepassxcCsv` / `keepassCsv` adapters in the Pages import chain |
-| keepassxc-protocol | `crates/pm-bridges` keepassxc bin: stdio native-messaging mode (recommended) or opt-in UDS mode, both default off |
+| keepassxc-protocol | `crates/pm-bridges` `keepassxc` cargo feature of `opensesame` (answers as `opensesame-keepassxc-bridge`): stdio native-messaging mode (recommended) or opt-in UDS mode (`serve`); the feature is off by default |
 | `associate` approval in the app | `opensesame bridge keepassxc pair` — a bounded window printing the incoming key fingerprint (ADR 0052 §2 ceremony) |
 | `org.keepassxc.KeePassXC.BrowserServer` singleton | Conflict-detected: a live KeePassXC is named and the bridge refuses; only a verified-dead socket may be taken over |
-| KeePassXC Secret Service provider | `crates/pm-bridges` secret-service bin (Linux, stretch, default off) — the same singleton policy applies against gnome-keyring/kwallet |
+| KeePassXC Secret Service provider | Not implemented — `crates/pm-bridges` declares a `secret-service` feature but nothing is gated on it yet; ADR 0052 §5's singleton policy would apply against gnome-keyring/kwallet |
 | KeeShare `.kdbx.share` | Not implemented — signature proves origin, not freshness; the sealed store's git history is the freshness story |
 | `File > Synchronize > With URL` (WebDAV) | Stretch / likely cut — entry-level merge, not GET/PUT, is the real requirement |
 | KeePassXC SSH agent | Not implemented |

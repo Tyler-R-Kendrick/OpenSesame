@@ -39,6 +39,11 @@ ENV GROK_BIN_DIR=/usr/local/bin
 RUN curl -fsSL https://x.ai/cli/install.sh | bash \
   && /usr/local/bin/grok --version
 
+ENV KIMI_INSTALL_DIR=/usr/local
+RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh \
+  | env KIMI_INSTALL_DIR=/usr/local KIMI_NO_MODIFY_PATH=1 bash \
+  && /usr/local/bin/kimi --version
+
 RUN rustup component add rustfmt clippy \
   && rustup target add wasm32-unknown-unknown
 

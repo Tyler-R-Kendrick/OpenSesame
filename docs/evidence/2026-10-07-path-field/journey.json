@@ -1,0 +1,173 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new"
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "1280-row"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "./Work/Taxes/statement"
+          }
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "1280-path"
+        },
+        {
+          "fillOptional": {
+            "label": "Folder",
+            "text": "wo"
+          }
+        },
+        {
+          "shot": "1280-folder-list"
+        },
+        {
+          "escape": null
+        },
+        {
+          "fillOptional": {
+            "label": "Type",
+            "text": ".s"
+          }
+        },
+        {
+          "shot": "1280-type-list"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new"
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "390-row"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "./Work/Taxes/statement"
+          }
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "390-path"
+        },
+        {
+          "fillOptional": {
+            "label": "Folder",
+            "text": "wo"
+          }
+        },
+        {
+          "shot": "390-folder-list"
+        },
+        {
+          "escape": null
+        },
+        {
+          "fillOptional": {
+            "label": "Type",
+            "text": ".s"
+          }
+        },
+        {
+          "shot": "390-type-list"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-row",
+      "width": 1280,
+      "title": "The title row \u2014 1280 \u00d7 800",
+      "caption": "Folder, name and type were three controls in one grey. They are now one row under one rule, with the folder first and the type last in the accent ink.",
+      "before": "folder 44px, name 431px, type 104px: three controls",
+      "after": "folder 44px, name 459px, type 87px: one row"
+    },
+    {
+      "shot": "1280-path",
+      "width": 1280,
+      "title": "A path typed in the name \u2014 1280 \u00d7 800",
+      "caption": "The slash finishes a folder: `./Work/Taxes/` typed at the start of the name moves into the folder segment as it is typed, and only the leaf stays in the name.",
+      "before": "name 431px holds the raw text `./Work/Taxes/statement`",
+      "after": "folder `Work/Taxes/` 126px, name 378px holds `statement`"
+    },
+    {
+      "shot": "1280-folder-list",
+      "width": 1280,
+      "title": "The folder list \u2014 1280 \u00d7 800",
+      "caption": "Typing `wo` in the folder narrows its list to the folder that matches, with the best match highlighted. The last row, `+ wo/`, makes a new folder and is never what Enter takes by default.",
+      "before": "native select: a platform menu that cannot be typed into",
+      "after": "typeahead list: `Work/Taxes/` first, `+ wo/` last"
+    },
+    {
+      "shot": "1280-type-list",
+      "width": 1280,
+      "title": "The type list \u2014 1280 \u00d7 800",
+      "caption": "The type is chosen from the types this installation offers and nothing else. `.s` narrows the list to `.secret`; text that matches no row is put back when the field is left.",
+      "before": "native select sized to its widest option, 104px",
+      "after": "combobox sized to its text, 87px, listing only real types"
+    },
+    {
+      "shot": "390-row",
+      "width": 390,
+      "title": "The title row \u2014 390 \u00d7 844",
+      "caption": "Folder, name and type were three controls in one grey. They are now one row under one rule, with the folder first and the type last in the accent ink.",
+      "before": "folder 44px, name 149px, type 104px: three controls",
+      "after": "folder 44px, name 177px, type 87px: one row"
+    },
+    {
+      "shot": "390-path",
+      "width": 390,
+      "title": "A path typed in the name \u2014 390 \u00d7 844",
+      "caption": "The slash finishes a folder: `./Work/Taxes/` typed at the start of the name moves into the folder segment as it is typed, and only the leaf stays in the name.",
+      "before": "name 149px holds the raw text `./Work/Taxes/statement`",
+      "after": "folder `Work/Taxes/` 93px, name 129px holds `statement`"
+    },
+    {
+      "shot": "390-folder-list",
+      "width": 390,
+      "title": "The folder list \u2014 390 \u00d7 844",
+      "caption": "Typing `wo` in the folder narrows its list to the folder that matches, with the best match highlighted. The last row, `+ wo/`, makes a new folder and is never what Enter takes by default.",
+      "before": "native select: a platform menu that cannot be typed into",
+      "after": "typeahead list: `Work/Taxes/` first, `+ wo/` last"
+    },
+    {
+      "shot": "390-type-list",
+      "width": 390,
+      "title": "The type list \u2014 390 \u00d7 844",
+      "caption": "The type is chosen from the types this installation offers and nothing else. `.s` narrows the list to `.secret`; text that matches no row is put back when the field is left.",
+      "before": "native select sized to its widest option, 104px",
+      "after": "combobox sized to its text, 87px, listing only real types"
+    }
+  ]
+}

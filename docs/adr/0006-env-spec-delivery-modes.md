@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) (the
+"MITM proxy is non-goal" line becomes §6.1 there, a per-run surrogate proxy).
+
 ## Context
 Varlock / `@env-spec` provide a durable, MIT-licensed developer config surface (`.env.schema`) with schema/value separation, shaped placeholders, and a credential-proxy preview. OpenSesame already centers agent authority on ConnectionRef + Intent (ADR 0005). Reinventing a custom env DSL would violate anti-NIH; cloning Varlock’s HTTPS MITM as the primary broker would inherit protocol limits and a weak same-UID security boundary.
 

@@ -35,7 +35,7 @@ it, and attaches it to that one request, never to the pooled connection.
 
 | Directive | Why |
 |---|---|
-| `https://:{$PORT}` + `bind {$BIND}` | A bare port. A hostname in the site address becomes an SNI matcher and Caddy then adds a fallback connection policy *without* client authentication for any other SNI. With a bare port there is exactly one policy. Verified with `caddy adapt`. |
+| `https://:{$OPENSESAME_INGRESS_PORT}` + `bind {$OPENSESAME_INGRESS_BIND}` | A bare port. A hostname in the site address becomes an SNI matcher and Caddy then adds a fallback connection policy *without* client authentication for any other SNI. With a bare port there is exactly one policy. Verified with `caddy adapt`. |
 | `tls <cert> <key> { client_auth { mode require_and_verify; trust_pool file <ca> } }` | Every handshake on this listener presents a certificate that chains to the originating-client bundle. Decided at the handshake, before any path exists. |
 | `header_up Client-Cert ":{http.request.tls.client.certificate_der_base64}:"` | RFC 9440 §2.2: a Structured Field Byte Sequence of the DER leaf. `header_up name value` is a *set* and replaces every incoming value, which is §2.4 rule 3 for the leaf. |
 | `header_up -Client-Cert-Chain` | Caddy has no placeholder for the verified chain, so the field is never emitted and any client-supplied one is deleted. The origin must therefore hold the full originating chain (root and intermediates) in its trust file. |
@@ -52,8 +52,9 @@ the origin with only the ingress-written leaf.
 TLS client authentication cannot be waived for a path — the handshake is over
 before the path is known, and asking a browser to renegotiate per path is
 not something this reference relies on. The exception is therefore a
-**separate plaintext listener** (`http://:{$HEALTH_PORT}`) that answers
-`/healthz` for the proxy process itself and never forwards to the origin.
+**separate plaintext listener** (`http://:{$OPENSESAME_INGRESS_HEALTH_PORT}`)
+that answers `/healthz` for the proxy process itself and never forwards to the
+origin.
 The origin's own `/health/live` stays on its plain listener, which yields no
 protected operation (`ListenerProvenance::Plain`).
 

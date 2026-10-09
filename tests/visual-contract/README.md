@@ -20,7 +20,7 @@ The six baselines it enforces:
 | Baseline | What it captures |
 | --- | --- |
 | `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, Join a session, and the guest road as the corner Skip (ADR 0150) |
-| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only seal form behind "Use without an account" — Set up your own, Skip all, then sign-in (`#master`, `#confirm`, the no-recovery checkbox) |
+| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only device-PIN seal form behind "Use without an account" — Set up your own, Skip all, then sign-in (Device PIN, Confirm PIN, the no-recovery checkbox) |
 | `vault-list-desktop.png` / `vault-list-mobile.png` | The empty vault, right after sealing |
 
 ## Running it locally
@@ -29,7 +29,9 @@ Run it explicitly — pixel baselines are deliberately *not* part of `pnpm test`
 or of `.github/workflows/ci.yml`. Screenshots depend on the host's fonts and
 renderer, so a hosted CI runner would fail them for reasons that have nothing
 to do with the diff under review. `pnpm test` in this package runs the unit
-suite (`src/compare.*.test.ts`) only.
+suite (`src/*.test.ts`) only. The package's `test:integration` script is the
+same `playwright test` as `test:visual`, so the root `pnpm test:integration`
+(and therefore `pnpm test:all` and `pnpm verify`) does run the pixel contract.
 
 ```bash
 # from the repo root, after `pnpm install`
@@ -48,19 +50,25 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    Vite previews this isolated output on strict loopback port `5182`;
    `reuseExistingServer: false` prevents reuse of an unrelated developer
    server. Root-base navigation matches Playwright's leading-`/` URLs.
+   `PAGES_VISUAL_PREBUILT=1` skips the build and previews an existing
+   `work/visual-contract-dist` instead; the config throws unless that
+   directory's `index.html` loads `/assets/` (a `VITE_BASE=/` build).
 2. Runs `tests/vault-visual-contract.spec.ts` under two projects —
    `desktop` (1440×900, matching the checked-in baselines) and `mobile`
    (390×844, `devices["iPhone 13"]` with
    `isMobile`/`hasTouch`) — walking the first run a visitor walks today:
    the front door (`apps/pages/src/screens/FrontDoor.tsx`, `.door`), the
    "Use without an account" road to the seal form
-   (`apps/pages/src/screens/UnlockScreen.tsx`: `#master`, `#confirm`,
-   the `"Seal this device"` button), and the vault
+   (`apps/pages/src/screens/UnlockScreen.tsx`: Device PIN, Confirm PIN,
+   the `"Seal with PIN"` button), and the vault
    (`apps/pages/src/sections/VaultSection.tsx`, `.vault`). Desktop shows
    the empty `"Nothing here"` list; phone opens its Sections tree with Vault
    expanded and all selected, retaining the empty list behind it. Both verify
    the unlocked vault and its empty state before capture. Every test gets a fresh browser context, so every run
-   is a true first run. Nothing is mocked: Pages calls no backend by default
+   is a true first run. The IP-address preview origin cannot host a WebAuthn
+   relying party, so enrollment offers PIN; the spec asserts it is selected and
+   master-password enrollment is absent (ADR 0180). The vault journey fills a
+   valid PIN and actually seals the device. Nothing is mocked: Pages calls no backend by default
    (ADR 0090), so a request that leaves the preview origin, or an uncaught
    page error, fails the test. Service workers are blocked
    (`serviceWorkers: "block"`, as in the other Pages harnesses): a fresh
@@ -70,10 +78,13 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
    filenames to diff against the pre-existing `.impeccable/screenshots/*.png`
    baselines ourselves) and pixel-compares it via `src/compare.ts`
-   (`pixelmatch` + `pngjs`, `threshold: 0.1`, failing past a **1.5%** pixel
-   mismatch budget).
-4. On failure, writes `output/<name>-diff.png` (the pixelmatch visual diff)
-   and `output/<name>-actual.png` (the raw capture) for a human to look at.
+   (`pixelmatch` + `pngjs`, `threshold: 0.1`). A screen fails past a **1.5%**
+   mismatch budget measured against all pixels, or past a **5%** budget
+   measured against its content pixels (those that are not the baseline's
+   dominant background colour in either image), whichever trips first.
+4. Always writes `output/<name>-captured.png`; on failure also writes
+   `output/<name>-diff.png` (the pixelmatch visual diff) and
+   `output/<name>-actual.png` (the raw capture) for a human to look at.
    `output/` is git-ignored — see `.gitignore` — and is never committed.
 
 Browser selection prefers an explicit `PLAYWRIGHT_CHROMIUM` executable,
@@ -112,11 +123,13 @@ they're correct. In practice that means:
 
 ## Known caveats (read before trusting a "pass")
 
-- **A mostly-empty screen is cheap to match.** The budget is a share of all
-  pixels, and these screens are mostly paper: a capture of a blank frame once
-  passed `pages-mobile` inside 1.5%. Each capture therefore asserts its
-  landmark (the door's card, `#master`, `.vault`) is visible immediately
-  before and after the screenshot. Keep that when adding a screen.
+- **A mostly-empty screen is cheap to match.** The first budget is a share of
+  all pixels, and these screens are mostly paper: a capture of a blank frame
+  once passed `pages-mobile` inside 1.5%. `src/compare.ts` therefore also
+  measures the diff against the content pixels alone (the 5% budget above),
+  and each capture asserts its landmark (the door's card, Device PIN, `.vault`)
+  is visible immediately before and after the screenshot. Keep that when
+  adding a screen.
 - **Motion is frozen for capture.** An init script sets `animation: none` and
   `transition: none`, so the `.unlock__card` settle and the wordmark's slot
   reel stand on their final frame (the reel's letters are its static state,
@@ -159,9 +172,8 @@ pass (`VISUAL_UPDATE=1`, see git history) after the very first real run
 against a live build. Every original baseline predated changes visible in
 the diff — most strikingly, `pages-desktop.png`/`pages-mobile.png` were
 screenshots of an entirely different, since-abandoned dark navy/yellow
-"NEXT DECISION" surface (the exact "yellow airport depth-band world"
-`DESIGN.md`'s Do/Don't list calls out by name), not a rendering of the
-then-current teal unlock screen at all; the `vault-unlock-*`
+"NEXT DECISION" surface, not a rendering of the then-current teal unlock
+screen at all; the `vault-unlock-*`
 and `vault-list-*` baselines were stale by smaller, genuine content/copy
 changes (e.g. the unlock screen's security-transparency copy grew a
 "PIN ≥ 6 chars, salted PBKDF2" clause after those baselines were captured).
@@ -213,6 +225,21 @@ Pixel and content thresholds, font handling, dimensions, and screenshot
 comparison logic were not changed. The harness now binds its preview to the
 same IPv4 address it probes, and opens the phone's All items list from its
 section tree before capturing that list.
+
+**2026-10-08.** A fresh, separate production build of main at `3b2729f73`
+reproduced five pixel failures with the corrected enrollment journey. Each
+baseline and actual capture was opened and reviewed before copying only those
+five captures: front door and seal form at desktop/phone, plus the phone vault
+list. Main had already removed master-password enrollment (`8b6499cb4`, #763),
+changed gate alignment and collapsed stacked release notes (`9c0eca722`, #769),
+kept wide release notes open (`2fe44676b`, #778), and added the seal screen's
+Join entry (`6ddaad5a1`, #798). The phone vault header and square controls also
+matched that untouched base build. The desktop vault-list baseline passed and
+was retained. The spec now follows the real PIN seal instead of waiting for
+removed master-password fields. A normal comparison against the connector
+branch then passed all six screens with Chrome for Testing 153.0.8010.12,
+`VISUAL_UPDATE` unset. Pixel/content thresholds, dimensions, fonts and
+comparison code remain unchanged.
 
 ## What the orchestrator should do next
 

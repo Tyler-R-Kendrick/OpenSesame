@@ -221,7 +221,15 @@ mod tests {
             reveal: true,
         };
         assert!(check_rotate_args(shown, true).is_err());
-        assert!(check_rotate_args(shown, false).is_ok());
+        // Flag combination is valid. A non-terminal still refuses the reveal,
+        // which is the human gate rather than a bad flag pair.
+        match check_rotate_args(shown, false) {
+            Ok(()) => {}
+            Err(err) => {
+                let message = err.to_string();
+                assert!(message.contains("interactive terminals"), "{message}");
+            }
+        }
     }
 
     #[test]

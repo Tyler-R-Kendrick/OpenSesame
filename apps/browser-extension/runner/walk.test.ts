@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { backupId, openBackup } from "./backup";
 import { RECIPE, changePassword } from "./test-support/executor";
 import { CURRENT, rig } from "./test-support/rig";
@@ -14,8 +14,15 @@ async function walkRun(r: Awaited<ReturnType<typeof rig>>, runId = "run:1") {
 }
 
 describe("a full change-password recipe walk through the runner", () => {
+  let preparedRig: Awaited<ReturnType<typeof rig>>;
+  beforeAll(async () => {
+    // Provision the real 3072-bit recovery key and sealed vault as setup.
+    // The recipe still performs real encryption, backup and promotion.
+    preparedRig = await rig();
+  });
+
   it("rotates the site's password end to end", async () => {
-    const r = await rig();
+    const r = preparedRig;
     const { walk, report } = await walkRun(r);
 
     expect(walk.ended).toEqual({ kind: "completed" });

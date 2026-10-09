@@ -10,10 +10,10 @@ You are Claude Code, in a copy-on-write worktree of
 `https://github.com/Tyler-R-Kendrick/OpenSesame`, branch `main`. OpenSesame is
 a polyglot Rust (`crates/*`, Rust `apps/*`) + TypeScript (`apps/*`,
 `packages/*`) credential-broker / auth system. There is an existing,
-extensive audit series at `docs/security/audits/2026-08-*.md` (roughly 90
-files as of writing) — each one documents a single pass over one surface,
-looking for real bugs and fixing the small, low-risk ones on the spot. You
-are running the next pass in that same series.
+extensive audit series at `docs/security/audits/YYYY-MM-DD-*.md` (147 files,
+2026-08 to 2026-10, as of 2026-10-08) — each one documents a single pass over
+one surface, looking for real bugs and fixing the small, low-risk ones on the
+spot. You are running the next pass in that same series.
 
 Read first, for orientation: `docs/security/security-boundaries.md`,
 `docs/security/threat-model.md`, `docs/security/identity-threat-model.md`,
@@ -48,9 +48,10 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 ## Hard rules (apply on every firing, no exceptions)
 
 - **This routine never becomes a GitHub Actions job.** `.github/workflows/`
-  holds exactly two workflows — `ci.yml` (the merge-queue gate) and
-  `deploy-pages.yml` — and the audit gates below are not to be moved into
-  them. You are an ordinary Claude Code session running `git`/`gh` yourself.
+  holds four workflows — `ci.yml` (the required pull-request checks),
+  `deploy-pages.yml`, `full-suite.yml` and `password-parity.yml` — and the
+  audit gates below are not to be moved into them. You are an ordinary Claude
+  Code session running `git`/`gh` yourself.
 - **No new paid dependencies or services.**
 - **Never commit secrets.** Describe a finding's location, never its value.
 - **Do not touch Rust/`Cargo.*` files** unless the finding you are fixing is
@@ -86,9 +87,9 @@ ls apps packages crates
 Each audit doc's title and first paragraph names the surface it scoped to
 (e.g. "Scope: `packages/oauth-provider`", "Tick 55. Scope: the destination
 fences — `crates/connector-host`..."). Build a rough map of which app/
-package/crate has an audit doc naming it, and how recently (the `2026-08-07`
-vs `2026-08-08` dates, plus the tick/pass numbers many docs mention in their
-first line, are your recency signal — a higher tick number is a later pass).
+package/crate has an audit doc naming it, and how recently (the date in the
+file name, plus the tick/pass numbers many docs mention in their first line,
+are your recency signal — a higher tick number is a later pass).
 Cross-reference against the full surface list from `apps/`, `packages/`,
 `crates/` above. Pick whichever real, non-trivial surface (a package with
 actual source files, not a config-only or generated directory) has either no
@@ -186,6 +187,11 @@ git push -u origin HEAD
 gh pr create --title "fix(<scope>): <plain-language summary>" \
   --body "Weekly security audit pass. Findings + verification: docs/security/audits/<date>-<topic>.md"
 ```
+
+The default-branch ruleset requires signed commits
+(`ops/github/default-branch.json`), and a local `git commit` is unsigned: land
+the commit with `createCommitOnBranch` as described above and use the commands
+here for the branch and the pull request.
 
 If the pass found nothing worth fixing (a clean surface), still commit and
 open a PR for the audit doc alone — a documented clean pass is a real

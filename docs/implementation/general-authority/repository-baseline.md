@@ -1,5 +1,11 @@
 # Repository baseline — general authority
 
+> Status (2026-10-08): a record of the baseline the programme started from
+> (2026-09-14) and of its stack. The stack landed, as the last section lists;
+> the `feat/ga-0*` branches and the "Working branch" line are not live, and
+> `completion-matrix.json` holds the current state (47 of 48 work items
+> `verified`).
+
 - **GA-1 stack start SHA:** `4358f7feacee97468b17abdd9b5ccc02c81ee68d` (`origin/main` at GA-1 branch creation)
 - **Inspected baseline (spec):** `4358f7feacee97468b17abdd9b5ccc02c81ee68d` (2026-09-14T16:33:13Z)
 - **Working branch:** `feat/ga-01-contracts-docs` (docs/contracts only; no wallet or Rust authority implementation)

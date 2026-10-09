@@ -9,6 +9,23 @@
 ## Run gateway
 
 ```bash
+pnpm dev:host   # scripts/dev/dev-host.sh: sources scripts/dev/local-env.sh, then
+                # cargo +1.88.0 run -p opensesame-cli -- host run --listen 127.0.0.1:8787
+```
+
+The Host refuses to start from a bare `host run`: it needs `OPENSESAME_ENV`
+(or `OPENSESAME_ALLOW_DEV_DEFAULTS=1`, which also refuses any endpoint that is
+not loopback), loopback `OPENSESAME_RESOURCE` and `OPENSESAME_ISSUER` for a
+local-only run (their defaults are not loopback), and
+`OPENSESAME_OPERATOR_TOKEN` and `OPENSESAME_CLAIM_PEPPER`, each at least 32
+printable, non-space ASCII bytes with at least 8 distinct ones
+(`crates/gateway/src/config.rs`, `required_secret`). `source
+scripts/dev/local-env.sh` sets all of that, generating the secrets once as 0600
+files under `~/.local/state/opensesame/development/`, so run the binary
+directly after sourcing it:
+
+```bash
+source scripts/dev/local-env.sh
 cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787
 ```
 
@@ -17,6 +34,8 @@ With live providers:
 ```bash
 ./scripts/dev/start-native-deps.sh
 source .tools/run/env.sh
+export OPENSESAME_PUBLIC_URL=http://127.0.0.1:18787   # the resource and Host API follow it
+source scripts/dev/local-env.sh
 cargo run -p opensesame-cli -- host run \
   --listen 127.0.0.1:18787
 ```
@@ -27,8 +46,8 @@ Health on the full Host:
 
 - `/health/live` — process up
 - `/health/ready` — accepts traffic only when authority quorum OK
-- `/health/authority` — quorum status
-- `/health/degraded` — structured degradation (A0 still available)
+- `/health/authority` — quorum status (`{"ok": bool}`)
+- `/health/degraded` — the same `{"ok": bool}` quorum answer
 - `/health/providers` — OpenFGA/OpenBao wiring (operator bearer / `X-OpenSesame-Operator`); confirms agent API is `connection_ref`
 - `/api/v1/connections` — agent-facing ConnectionRef list (never SecretRef)
 
@@ -109,9 +128,13 @@ Run the broker:
 ```bash
 OPENSESAME_ORIGIN_CLIENTS_ENABLED=true \
 OPENSESAME_PUBLIC_URL=http://127.0.0.1:8788 \
-OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=true \
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 \
 pnpm --filter @opensesame/control-plane start
 ```
+
+`OPENSESAME_ALLOW_DEV_DEFAULTS` must be exactly `1` (or `0`), and
+`OPENSESAME_ENV=development` alone is refused without an
+`OPENSESAME_CLAIM_PEPPER`.
 
 `OPENSESAME_PUBLIC_URL` must be the URL the **browser** really reaches: it is the
 origin inside the origin-profile client id and the base of the one redirect URI
@@ -125,10 +148,16 @@ tailscale serve --bg 8788      # https://<host>.<tailnet>.ts.net
 
 ### The deployed Pages vault over Tailscale Serve
 
-`https://tyler-r-kendrick.github.io` is on both planes' CORS allowlists by
-default, and stays there when `OPENSESAME_CORS_ORIGINS` is overridden — the
-Identity API (`packages/control-plane/src/config.ts`) and the Host API
-(`crates/host-core`, `parse_cors_origins`) both append it. A browser console
+Neither plane puts `https://tyler-r-kendrick.github.io` on a CORS allowlist for
+you. The Identity API (`packages/control-plane/src/config.ts`) allows exactly the
+origins in `OPENSESAME_CORS_ORIGINS`, and none when it is unset; list the Pages
+origin there for the deployed vault to call it. The Host API validates the same
+variable at start-up (exact HTTPS or loopback origins) but sets no CORS headers
+from it (`crates/host-core/src/http_security.rs`, `apply_http_security`): a
+browser reaches the Host only as a paired origin, and
+`OPENSESAME_BROWSER_PAIRABLE_ORIGINS` refuses the shared GitHub origin
+([Pages origin](pages-origin.md),
+[local authority migration](local-authority-migration.md)). A browser console
 full of
 
 ```
@@ -137,7 +166,8 @@ from origin 'https://tyler-r-kendrick.github.io' has been blocked by CORS
 policy: No 'Access-Control-Allow-Origin' header is present
 ```
 
-is therefore almost never the allowlist. Look at the status on the same line:
+is the allowlist when the origin is missing from `OPENSESAME_CORS_ORIGINS`, and
+the service being down otherwise. Look at the status on the same line:
 `net::ERR_FAILED 502 (Bad Gateway)` means Tailscale Serve answered because the
 process behind it was not listening, and Serve's own 502 carries no CORS
 headers — the browser reports the missing header, the cause is the service
@@ -146,19 +176,20 @@ being down. Check from the machine that runs it:
 ```bash
 curl -si http://127.0.0.1:8788/v1/health/live \
   -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
-curl -si http://127.0.0.1:8787/api/v1/health \
-  -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
+curl -si http://127.0.0.1:8787/health/live | grep -i 'HTTP/'
 tailscale serve status
 ```
 
 A `200` with `access-control-allow-origin: https://tyler-r-kendrick.github.io`
 on loopback and a `502` through Serve is a Serve target pointing at the wrong
 port or a service that has exited; a `200` on loopback with no
-`access-control-allow-origin` is an `OPENSESAME_CORS_ORIGINS` set to `*` or
-`null`, which production refuses to start with and which suppresses the
-appended Pages origin. The vault polls every plane on a 30-second cadence
-(5 seconds while one is down), so the console repeats the same failure until
-the service is back; the statusline shows the same fact once.
+`access-control-allow-origin` is an origin missing from
+`OPENSESAME_CORS_ORIGINS` (an entry of `*` or `null` never matches, and both
+planes refuse to start with one). The Host answers `/health/live` with no CORS
+headers at all. The vault checks the Identity API about every 30 seconds (every
+5 seconds, backing off toward 30, while it is down; a hidden or offline tab does
+not probe), so the console repeats the same failure until the service is back;
+the statusline shows the same fact once.
 
 Point a static site at it. Nothing is registered in advance — the broker admits
 an origin on its first `/auth`:
@@ -199,18 +230,21 @@ curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
 
 Device approval and claim completion require the native operator header (or `Authorization: Bearer operator:<token>`). Every deployment requires an explicitly generated operator secret. Browsers cannot present operator authority; use the native pairing ceremony instead.
 
-Set `OPENSESAME_CLAIM_PEPPER` in production too. User codes are eight characters
-from a twenty-letter alphabet — roughly 2^35 possibilities — so their stored
-digests are only out of reach while they are keyed by a server-held pepper. The
-Host logs an error and runs without one if it is unset in production.
+`OPENSESAME_CLAIM_PEPPER` is required in every environment, like
+`OPENSESAME_OPERATOR_TOKEN`: the Host refuses to start without it. User codes
+are eight characters from a twenty-letter alphabet — roughly 2^35 possibilities
+— so their stored digests are only out of reach while they are keyed by a
+server-held pepper.
 
 ### Receipt signing key
 
 Receipts are the non-repudiation record and the receipt store outlives the process,
 so the signing key must too. Set `OPENSESAME_RECEIPT_SIGNING_KEY` to a base64
-32-byte ed25519 seed; the gateway refuses to start without it when
-`OPENSESAME_ENV=production`, because an ephemeral key makes every receipt written
-before a restart verify as `valid: false` — indistinguishable from tampering.
+32-byte ed25519 seed; the gateway refuses to start without it in production
+(`OPENSESAME_ENV=production`) or on a networked deployment (a listener or
+endpoint that is not loopback), because an ephemeral key makes every receipt
+written before a restart verify as `valid: false` — indistinguishable from
+tampering.
 
 ```bash
 export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
@@ -219,15 +253,15 @@ export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
 Locally the key may be omitted; the gateway logs a warning and generates one per run.
 
 To rotate, move the old key's *public* half into
-`OPENSESAME_RECEIPT_VERIFY_KEYS` (comma-separated base64 32-byte ed25519 public
-keys) and set a new `OPENSESAME_RECEIPT_SIGNING_KEY`. Verification needs no secret,
+`OPENSESAME_RECEIPT_VERIFY_KEYS` (comma- or whitespace-separated base64 32-byte
+ed25519 public keys) and set a new `OPENSESAME_RECEIPT_SIGNING_KEY`. Verification needs no secret,
 so the retired seed can be destroyed while the receipts it signed stay verifiable.
 `GET /api/v1/receipts/keys` publishes the accepted keys so a receipt holder can
 check one without taking the gateway's word for it.
 
 ## Compose (when Docker available)
 
-See `ops/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.
+See `ops/compose/docker-compose.yml` for Postgres, OpenFGA, OpenBao, Keycloak, NATS and the gateway (`opensesame host run`); the worker (`opensesame worker run`) is under the `workload` profile. Signed provider callbacks are Host routes, not a separate service.
 
 If Docker Engine cannot be installed (no elevated privileges), use the native binary path above — it exercises the same OpenFGA/OpenBao HTTP adapters.
 
@@ -247,7 +281,8 @@ creds in git). Defaults stay in-memory for unit tests.
 # <!-- TASKBUS_ENV -->
 export NATS_URL="nats://127.0.0.1:4222"          # or nats://nats:4222 in Compose
 export OPENSESAME_TASKBUS="${OPENSESAME_TASKBUS:-nats}"  # memory | nats
-# Stream / consumer names (configurable; defaults):
+# Stream / consumer names (fixed defaults, no environment variable):
+#   stream:   OPENSESAME_EVENTS
 #   subjects: opensesame.events.>
 #   durable:  opensesame-worker
 # Callout namespace reserved: opensesame.callout.>
@@ -278,9 +313,10 @@ cargo run -p opensesame-cli -- dev --agent run --schema tests/fixtures/demo.env.
 
 OpenSesame is a **resolver/broker**, not exclusive shell magic — mise/direnv/devcontainers can activate the same schema by calling `opensesame dev resolve` or the env-spec bridge.
 
-The host daemon (`opensesame-daemon`, `OPENSESAME_DAEMON_API`, default
-`127.0.0.1:18790`) issues short-lived session capabilities into
-WSL/devcontainers; containers never receive refresh tokens or WebAuthn
-material. The legacy `opensesame-credential-agent` binary that used to do this
-has been removed; `OPENSESAME_DAEMON_LISTEN` remains an alias for
-`OPENSESAME_DAEMON_LISTEN`.
+The host daemon (`opensesame daemon run`, crate `opensesame-daemon`; clients
+find it at `OPENSESAME_DAEMON_API`, default `http://127.0.0.1:18790`, and it
+binds `OPENSESAME_DAEMON_LISTEN`, default `127.0.0.1:18790`) issues short-lived
+session capabilities into WSL/devcontainers; containers never receive refresh
+tokens or WebAuthn material. The legacy `opensesame-credential-agent` binary
+that used to do this has no source in this checkout; `OPENSESAME_AGENT_LISTEN`
+remains an alias for `OPENSESAME_DAEMON_LISTEN`.

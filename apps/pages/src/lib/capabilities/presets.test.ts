@@ -85,6 +85,18 @@ describe("MODULE_OWNERSHIP", () => {
     expect(HTML_ENTRY_OWNERSHIP["auth/redirect.html"]).toBe(
       "identity.ambient-sso",
     );
+    expect(HTML_ENTRY_OWNERSHIP["auth/native-connector.html"]).toBe(
+      "connectors.external",
+    );
+    expect(existsSync(join(pagesRoot, "auth/native-connector.html"))).toBe(
+      true,
+    );
+    expect(PUBLIC_FILE_OWNERSHIP["auth/native-client.json"]).toBe(
+      "connectors.external",
+    );
+    expect(GENERATED_PUBLIC_FILES["auth/native-client.json"]).toBe(
+      "scripts/native-client-metadata-plugin.mjs",
+    );
     for (const owner of Object.values(HTML_ENTRY_OWNERSHIP)) {
       expect(isKnownCapability(owner)).toBe(true);
     }

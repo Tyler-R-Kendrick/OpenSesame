@@ -1,6 +1,6 @@
 # ADR 0095: Strict deployment mode and durable Identity state
 
-Status: accepted
+Status: Accepted
 
 ## Context
 

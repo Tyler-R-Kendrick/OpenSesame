@@ -60,6 +60,7 @@ import {
   savedPasswordManagerOperation,
 } from "../../lib/local-connector-features.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
+import { StorageStep } from "../../screens/setup/steps/StorageStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
 import {
   connectorMarkLookup,
@@ -69,6 +70,7 @@ import { connectorMark } from "../../sections/connections/connector-marks.js";
 import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
+import { bindProviderRuntime } from "./native-runtime.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 
 export const CAPABILITY = "connectors.external";
@@ -138,6 +140,8 @@ export const capabilityRuntime: CapabilityRuntime = {
     applyConnectCallbackBase(ctx.runtimeConfig.endpoints.connectCallbackBase);
     activation.onDispose(() => applyConnectCallbackBase(undefined));
 
+    bindProviderRuntime(ctx, activation);
+
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
     const releaseManagers = registerCategorySend(
@@ -181,6 +185,15 @@ export const capabilityRuntime: CapabilityRuntime = {
       rail: "Connectors",
       Panel: ConnectorsStep,
       order: 10,
+    });
+    // Where the vault lives: the S3-compatible bucket, the same form as
+    // Settings › Capabilities › Local storage (ADR 0182).
+    activation.register("setup-panel", {
+      id: "storage",
+      tab: "storage",
+      rail: "Storage",
+      Panel: StorageStep,
+      order: 15,
     });
     activation.register("command-path", {
       path: "/connections",

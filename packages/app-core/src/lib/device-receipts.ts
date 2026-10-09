@@ -5,7 +5,8 @@
  * trail Access › Receipts reads is the vault's own: one line per decision this
  * device made for a person — a request raised, approved, denied or withdrawn;
  * an application signed in, refused or ended; a session ended; a Self-Issued
- * sign-in approved or refused. The trail is its own sealed file
+ * sign-in approved or refused; a drop opened; a live session granted; a local
+ * share granted or revoked. The trail is its own sealed file
  * (`device-receipts-store.ts`), newest first, written ahead and never edited,
  * sealed under the vault (ADR 0149), and value-blind: a receipt names ids and a
  * closed enum, never a scope list, a reason, a callback address or a credential.
@@ -55,6 +56,12 @@ export const RECEIPT_KINDS = {
   "session.ended": ["access.session.revoked", "succeeded"],
   "siop.approved": ["access.siop.approved", "succeeded"],
   "siop.denied": ["access.siop.denied", "denied"],
+  "drop.opened": ["access.drop.opened", "succeeded"],
+  "drop.expired": ["access.drop.expired", "succeeded"],
+  "drop.revoked": ["access.drop.revoked", "succeeded"],
+  "live.granted": ["access.live.granted", "succeeded"],
+  "share.granted": ["access.share.granted", "succeeded"],
+  "share.revoked": ["access.share.revoked", "succeeded"],
 } as const satisfies Record<string, readonly [string, AuditOutcome]>;
 
 export type ReceiptKind = keyof typeof RECEIPT_KINDS;
@@ -70,8 +77,41 @@ export const RECEIPT_EVENT_TYPES: readonly string[] = [
  * without a second lookup, or the person whose session ended.
  */
 type ReceiptSubject =
-  | { applicationId: string; sessionOf?: never }
-  | { sessionOf: string; applicationId?: never };
+  | {
+      applicationId: string;
+      sessionOf?: never;
+      claimId?: never;
+      shareId?: never;
+      liveSessionId?: never;
+    }
+  | {
+      sessionOf: string;
+      applicationId?: never;
+      claimId?: never;
+      shareId?: never;
+      liveSessionId?: never;
+    }
+  | {
+      claimId: string;
+      applicationId?: never;
+      sessionOf?: never;
+      shareId?: never;
+      liveSessionId?: never;
+    }
+  | {
+      shareId: string;
+      applicationId?: never;
+      sessionOf?: never;
+      claimId?: never;
+      liveSessionId?: never;
+    }
+  | {
+      liveSessionId: string;
+      applicationId?: never;
+      sessionOf?: never;
+      claimId?: never;
+      shareId?: never;
+    };
 
 /** What a receipt names: ids only. */
 export type ReceiptRef = ReceiptSubject &
@@ -83,6 +123,8 @@ export type ReceiptRef = ReceiptSubject &
     /** The person who decided, when somebody other than the subject did. */
     actor?: string;
     organizationId?: string;
+    /** The resource a share names. An id, never its label. */
+    resourceId?: string;
   }>;
 
 /** Receipts decided, not yet in the trail, held for this tab's vault. */
@@ -116,6 +158,8 @@ function metadataOf(ref: ReceiptRef): JsonObject {
   if (ref.subject) metadata.subject = ref.subject;
   if (ref.actor) metadata.actor = ref.actor;
   if (ref.organizationId) metadata.organizationId = ref.organizationId;
+  if (ref.claimId) metadata.claimId = ref.claimId;
+  if (ref.resourceId) metadata.resourceId = ref.resourceId;
   return metadata;
 }
 
@@ -182,13 +226,32 @@ async function keep(tomb: string, receipt: StoredReceipt): Promise<void> {
   }
 }
 
+type ReceiptTarget = Readonly<{
+  targetType: "claim" | "share" | "live_session" | "principal" | "application";
+  targetId: string;
+}>;
+
+function targetOf(ref: ReceiptRef): ReceiptTarget {
+  if (ref.claimId !== undefined)
+    return { targetType: "claim", targetId: ref.claimId };
+  if (ref.shareId !== undefined)
+    return { targetType: "share", targetId: ref.shareId };
+  if (ref.liveSessionId !== undefined)
+    return { targetType: "live_session", targetId: ref.liveSessionId };
+  if (ref.sessionOf !== undefined)
+    return { targetType: "principal", targetId: ref.sessionOf };
+  return {
+    targetType: "application",
+    targetId: ref.applicationId,
+  };
+}
+
 function receiptFor(kind: ReceiptKind, ref: ReceiptRef): StoredReceipt {
   const [eventType, outcome] = RECEIPT_KINDS[kind];
-  const target =
-    ref.sessionOf === undefined
-      ? { targetType: "application", targetId: ref.applicationId }
-      : { targetType: "principal", targetId: ref.sessionOf };
-  return buildReceipt({ eventType, outcome, ...target }, metadataOf(ref));
+  return buildReceipt(
+    { eventType, outcome, ...targetOf(ref) },
+    metadataOf(ref),
+  );
 }
 
 /**

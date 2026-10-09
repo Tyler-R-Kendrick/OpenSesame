@@ -29,9 +29,9 @@ so there is nothing for a prompt injection to exfiltrate
 
 | For | OpenSesame provides |
 |-----|---------------------|
-| **Agents** | ConnectionRef + intent → authorize → invoke → receipt. Task-scoped grants that can only narrow, JIT access with approval, MCP and WebMCP servers, CLI credential helpers for git, Docker, AWS and kubectl. |
+| **Agents** | ConnectionRef + intent → authorize → invoke → receipt. Task-scoped grants that can only narrow, JIT access with approval, MCP servers and WebMCP tools, CLI credential helpers for git, Docker, AWS and kubectl. |
 | **Operators** | An authority console: connectors, grants, approvals, device login, certificates (private CA, ACME), rotation, security alerting, audit receipts. |
-| **People** | An end-to-end-encrypted vault that lives on the device (passkey, PIN or password unlock), a git-native sealed store with `pass` parity, and bridges to KeePass, Bitwarden, `pass`/gopass and browserpass so existing tools keep working. |
+| **People** | An end-to-end-encrypted vault that lives on the device (passkey or PIN unlock; a password wrap from an older vault still opens), a git-native sealed store with `pass` parity, and bridges to KeePass, Bitwarden, `pass`/gopass and browserpass so existing tools keep working. |
 | **Websites** | OIDC sign-in for static sites with no backend: an origin-derived public client, PKCE, pairwise subjects. |
 
 ## How it fits together
@@ -53,7 +53,7 @@ flowchart LR
     D["Daemon :18790<br/>local session capabilities"]
   end
   UP[("Upstream services<br/>GitHub, clouds, databases")]
-  PWA --> IDAPI
+  PWA -. optional .-> IDAPI
   PWA -. optional .-> HOST
   CLI --> HOST
   CLI --> IDAPI
@@ -71,8 +71,9 @@ flowchart LR
   keeps a vault with no Host, no Identity API and no server at all; each
   backend it can use is optional, per feature
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
-- **One client core.** The PWA, the client CLI and Android share
-  `packages/app-core` and the vault-format kernel `packages/vault-core`
+- **One client core.** The PWA and the client CLI share `packages/app-core`
+  and the vault-format kernel `packages/vault-core`; app-core's sandbox host is
+  proven in a bare V8 isolate, the runtime Android's JavaScriptSandbox offers
   ([ADR 0133](docs/adr/0133-shared-app-core.md)).
 
 The full picture is in [docs/architecture](docs/architecture/README.md).
@@ -91,6 +92,7 @@ pnpm setup:hooks                             # lint + secret-scan hooks
 pnpm --filter @opensesame/pages dev:web
 
 # The app with a local Host, Identity API and mock IdP behind it
+# (runs the Host with `cargo run --offline`: run `cargo +1.88.0 fetch` once first)
 pnpm --filter @opensesame/pages dev
 ```
 
@@ -99,22 +101,22 @@ Or start the backends one at a time:
 ```bash
 # Identity plane (Identity API on :8788, mock upstream IdP on :9090)
 pnpm --filter @opensesame/mock-upstream-idp dev &
-OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
+OPENSESAME_ALLOW_DEV_DEFAULTS=1 pnpm --filter @opensesame/control-plane start
 
-# Host plane (Host API on :8787, daemon on :18790)
-cargo build -p opensesame-cli
-./target/debug/opensesame host run --listen 127.0.0.1:8787
-./target/debug/opensesame daemon run --listen 127.0.0.1:18790
-./target/debug/opensesame login --flow device --server http://127.0.0.1:8787
+# Host plane (Host API on :8787, daemon on :18790), one terminal each. The
+# scripts generate the development secrets the binaries refuse to start without.
+pnpm dev:host
+pnpm dev:daemon
+pnpm dev:cli -- login --flow device --no-browser
 ```
 
 ## Repository layout
 
 | Path | What lives there |
 |------|------------------|
-| [`apps/`](apps/README.md) | Deployable products: the Host API, daemon and CLI (Rust); the Identity API, Pages PWA, console, MCP servers and extension (TypeScript). |
-| [`crates/`](crates/README.md) | Rust libraries for the Host / authority plane. |
-| [`packages/`](packages/README.md) | TypeScript libraries: domain model, client core, SDKs, protocols. |
+| [`apps/`](apps/README.md) | Deployable products: the native `opensesame` binary (`apps/cli`; the Host API, daemon and worker are its roles), the Pages PWA, the browser extensions and the Android app. |
+| [`crates/`](crates/README.md) | Rust libraries: the Host / authority plane, plus the Wasm client core. |
+| [`packages/`](packages/README.md) | TypeScript libraries and services: domain model, client core, SDKs, protocols, the Identity API, the client CLI and the MCP servers. |
 | [`examples/`](examples/README.md) | Runnable integrations: relying parties, agents, a headless device-login client. |
 | [`marketplace/`](marketplace/README.md) | Vault item-type definitions — the built-in set and the installable catalogue. |
 | [`spec/`](spec/README.md) | Language-neutral contracts: WIT worlds, the Host OpenAPI, the OpenFGA model, connector manifests. |

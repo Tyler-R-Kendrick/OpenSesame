@@ -9,6 +9,15 @@ and an authenticator-code enrollment that can no longer brick a vault.
 Published canvas:
 <https://claude.ai/code/artifact/c1b6217c-62d1-4ba9-8d0d-af5d83ed2b66>
 
+> Status (2026-10-08): built, and walked by `pnpm --filter @opensesame/pages
+> verify:auth`. Two things the artboards still draw differ from the build.
+> They name a master password beside the PIN and passkey, which
+> [ADR 0180](../../../adr/0180-vaults-are-sealed-by-passkey-not-password.md)
+> removed from new vaults and from Settings › Security (an existing password
+> wrap keeps its Password tab at unlock and offers Remove only). And they draw
+> a row's action as a `.btn.btn--sm`, where the build uses an icon key
+> ([`controls.md`](../../controls.md)).
+
 ## Artboards
 
 Three pages. The first is the second draft of the configuration surface: the
@@ -39,7 +48,7 @@ Nothing on the Security page is new vocabulary:
   switch row, with a `.chip` for state and one `.btn.btn--sm` for the action.
 - **The sheet** is `.sheet-layer` / `.scrim` / `.sheet` / `.sheet__head` /
   `.sheet__mark` / `.sheet__grow` / `.sheet__body` / `.sheet__foot` — the
-  side sheet `ConnectivityBar` opens for a connection ceremony.
+  side sheet a connection ceremony opens (`components/ConnectionCeremony.tsx`).
 - **The card** is `CeremonyShell` (`.found`, `.found__top`, `.found__name`,
   `dl`, `.found__do`) with `.or` and `.alt` for the alternatives, which
   expand or swap in place and never navigate.

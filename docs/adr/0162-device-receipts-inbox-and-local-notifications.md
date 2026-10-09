@@ -59,7 +59,7 @@ Access audit tolerates an event name it does not know, keeps it in place when
 it rewrites the file, and never hands it to logic that does not know what it
 means; and where the audit cannot be read at all, those two readers answer as
 if the grant had been revoked and issue nothing (fail closed), where they once
-answered as if there were no history. Ten event names, written by one table
+answered as if there were no history. Fourteen event names, written by one table
 (`RECEIPT_KINDS`) and nowhere else:
 
 | Event | When | Outcome |
@@ -72,6 +72,9 @@ answered as if there were no history. Ten event names, written by one table
 | `access.sign_in.revoked` | the grant ends: the application ended it, or the person did in Access › Sessions | succeeded |
 | `access.session.revoked` | a session is ended, by its holder signing out or by a custodian | succeeded |
 | `access.siop.approved` / `.denied` | a Self-Issued sign-in is approved or refused | succeeded / denied |
+| `access.drop.opened` | a drop's claim is presented | succeeded |
+| `access.live.granted` | the owner lets a guest into a live session | succeeded |
+| `access.share.granted` / `.revoked` | a person grants or revokes a local share | succeeded |
 
 - **Newest first, never edited, sealed, bounded.** Receipts are ordered by when
   each was decided, wherever it was held in the meantime, and none is edited:
@@ -88,10 +91,13 @@ answered as if there were no history. Ten event names, written by one table
   every standing connector grant withheld as if revoked.
 - **Value-blind.** An event names ids and a closed enum: the application (its
   id is the event's target), the local principal, the approver, the
-  organization and the request id (`authReqId`). Never a scope, a reason, a
-  callback address, a state, a nonce, a code, a grant id or a credential. The
-  audit's allowlist drops any other key (ADR 0015) and the tests assert what
-  the metadata may and may not hold. Names are looked up from the same sealed
+  organization and the request id (`authReqId`). A drop names its claim id, a
+  live grant names the session and the guest's request id, and a share names
+  the share, the principal and the resource — never the resource's label. Never
+  a scope, a reason, a callback address, a state, a nonce, a code, a bearer, a
+  link, a guest's name, a grant id or a credential. The audit's allowlist drops
+  any other key (ADR 0015) and the tests assert what the metadata may and may
+  not hold. Names are looked up from the same sealed
   directory when a receipt is *shown*, so a renamed application reads under
   its new name and the ledger holds no free text.
 - **After the decision, never in its way, and not silently late.** A receipt
@@ -329,10 +335,13 @@ with no Identity API, and only while the browser holds one.
 
 ## Verification
 
-- `device-receipts.test.ts` pins the ten kinds, what a receipt may name, that
+- `device-receipts.test.ts` pins the fourteen kinds, what a receipt may name, that
   the Access audit is never touched (byte for byte), that a receipt which could
   not be written is held, counted, sealed, survives a reload and is written
-  once, and that nothing waits in memory for a shut vault. The receipt cases in
+  once, and that nothing waits in memory for a shut vault.
+  `sharing-receipts.test.ts` and `live/grant-receipt.test.ts` pin that a drop
+  open, a live grant and a person's share name ids only.
+  The receipt cases in
   `local-access-requests.receipts.test.ts`, `local-authorization.receipts.test.ts`
   (an application's revoke and the person's, and a session ended),
   `local-grant-admin.test.ts`, `siop-authority.test.ts` and

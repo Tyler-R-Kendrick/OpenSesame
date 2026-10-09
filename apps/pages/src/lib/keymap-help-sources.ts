@@ -21,6 +21,8 @@ export type HelpSource = Readonly<{
 }>;
 
 export const HELP_SOURCES: readonly HelpSource[] = [
+  // On `/claim`, Ctrl-l is left to the browser address bar (`keymap.ts`).
+  // `:` still opens the command bar. The sheet keeps this authored row.
   { keys: "Ctrl-l / :", action: "Command bar", commands: ["command.palette"] },
   { keys: "m", action: "Push to speak", commands: ["voice.toggle"] },
   {

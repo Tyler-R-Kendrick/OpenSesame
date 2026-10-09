@@ -9,16 +9,26 @@ evaluated the WebMCP module" are not things a feature test can assert by
 exercising a feature. They are measured from artifacts and from recorded runs,
 by something other than the thing that produced them.
 
+> Status (2026-10-08): the "Observed" counts below were recorded on 2026-09-22
+> and were not re-measured. Two things have moved since. The capability runtime
+> (loader, store, authority, dispatch, egress, OpenFeature, trust) is now in
+> `packages/app-core/src/lib/capabilities/`, run by
+> `pnpm --filter @opensesame/app-core test`; `apps/pages/src/lib/capabilities/`
+> keeps the classification, catalog, presets and profile suites. And
+> `packages/capability-composition` has 22 test files, not 10. The build scripts
+> `capability-compose-plugin.mjs`, `verify-capability-graph.mjs` and
+> `build-profile.mjs` live in `apps/pages/scripts/`.
+
 ## 1. Six layers, each answering a different question
 
 | Layer | Question | Method | Where |
 |---|---|---|---|
-| 1. Source and imports | Can this code even reach that code? | classification rules over every source file; import-boundary assertions | `apps/pages/src/lib/capabilities/classification*.ts` + `classification.test.ts`, `openfeature-defaults.test.ts` |
-| 2. Emitted output | Is the implementation in the artifact at all? | the build's own graph, then an independent re-derivation from `dist/` on disk | `scripts/capability-compose-plugin.mjs`, `scripts/verify-capability-graph.mjs` |
-| 3. Network and cache | Did anything get fetched or stored that should not have been? | destination classification before the socket; cache-name ownership; recorded requests | `lib/capabilities/egress.ts` + `egress.test.ts`, `src/sw/cleanup.test.ts` |
-| 4. Execution and registration | Did the module evaluate, and did its contributions appear? | lease and generation fencing; evaluated-module facts; registry reads | `loader.test.ts`, `registry.test.ts`, `store.test.ts`, `authority.test.ts` |
+| 1. Source and imports | Can this code even reach that code? | classification rules over every source file; import-boundary assertions | `apps/pages/src/lib/capabilities/classification*.ts` + `classification.test.ts`; `packages/app-core/src/lib/capabilities/openfeature-defaults.test.ts` |
+| 2. Emitted output | Is the implementation in the artifact at all? | the build's own graph, then an independent re-derivation from `dist/` on disk | `apps/pages/scripts/capability-compose-plugin.mjs`, `apps/pages/scripts/verify-capability-graph.mjs` |
+| 3. Network and cache | Did anything get fetched or stored that should not have been? | destination classification before the socket; cache-name ownership; recorded requests | `packages/app-core/src/lib/capabilities/egress.ts` + `egress.test.ts`; `apps/pages/src/sw/cleanup.test.ts` |
+| 4. Execution and registration | Did the module evaluate, and did its contributions appear? | lease and generation fencing; evaluated-module facts; registry reads | `loader.test.ts`, `registry.test.ts`, `store.test.ts`, `authority.test.ts` (all in `packages/app-core/src/lib/capabilities/`) |
 | 5. Functional preservation | Does the full surface still work when everything is selected? | the legacy Playwright journeys under the `rich-explicit` profile | `verify:static`, `verify:keyboard`, `verify:mobile`, `verify:auth`, `verify:local-iam` |
-| 6. Independent challenge | Would a hostile document, provider or tab get through? | red-team fixtures and rejection profiles; fail-closed assertions | `trust/*.test.ts`, `profiles.test.ts`, the four `managed-invalid-*` profiles |
+| 6. Independent challenge | Would a hostile document, provider or tab get through? | red-team fixtures and rejection profiles; fail-closed assertions | `packages/app-core/src/lib/capabilities/trust/*.test.ts`; `apps/pages/src/lib/capabilities/profiles.test.ts` and the four invalid-managed profiles (`managed-invalid-instance`, `-revision`, `-signature`, `managed-missing-required`) |
 
 A claim is only as good as the layer that can see it. "No rail row appears" is
 layer 4 and says nothing about layer 2; "the chunk is not in `dist/`" is layer
@@ -56,7 +66,11 @@ testable as arithmetic.
 
 Observed 2026-09-22: **10 test files, 60 tests, all passing.**
 
-### Pages runtime — `pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities`
+### Pages runtime — `pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities` and `pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities`
+
+The loader, store, authority, dispatch, trust, egress and OpenFeature suites are
+in `packages/app-core/src/lib/capabilities/`; the profile, preset, catalog and
+classification suites are in `apps/pages/src/lib/capabilities/`.
 
 - **Loader (LOAD-06, LOAD-07, LOAD-09)** — an undistributed id is refused
   before the module table is touched; an unapproved distributed module is
@@ -71,13 +85,15 @@ Observed 2026-09-22: **10 test files, 60 tests, all passing.**
 - **Authority (LIFE-04)** — `admitOperation` refuses on a newer durable
   generation, a stale lease, an unapproved operation, and the absence of Web
   Locks. When it admits, the operation runs while that lock is still held.
-  Four of its five cases are refusals; that ratio is the point. The
+  Seven of its eleven cases are refusals; that ratio is the point. The
   checks are enforced where they are used (`dispatch.ts`): the WebMCP execute
   wrapper (`agents.webmcp/authority.test.ts` — a tool the browser still holds
   after its capability is disabled, a locked realm, an unapproved or untagged
   owner, and a mutating tool without Web Locks are refused before the handler;
-  these fail with the wrapper's check removed), the command bar and WebMCP
-  navigation (`lib/capabilities/dispatch.test.ts`) and the `g` jumps
+  these fail with the wrapper's check removed; the file is
+  `apps/pages/src/modules/agents.webmcp/authority.test.ts`), the command bar and
+  WebMCP navigation (`packages/app-core/src/lib/capabilities/dispatch.test.ts`)
+  and the `g` jumps
   (`apps/pages/src/lib/keymap-jumps.test.ts`).
 - **Trust (TRUST-02..TRUST-10)** — algorithm confusion, key substitution,
   tampered payload and header, wrong instance and wrong origin, rollback
@@ -92,11 +108,15 @@ Observed 2026-09-22: **10 test files, 60 tests, all passing.**
   malicious provider can lie to the UI but never to the loader; a release flag
   can only restrict; only the projection and its facade import the SDK, and
   the loader, authority, store, registry and lease never read a flag.
-- **Profiles (11 fixtures)** — each resolves to the approved count it claims:
-  `minimal-local` 0 optional, `family-local` 0, `family-sharing-selected` 2,
-  `single-provider-selected` 2, `enterprise-selected` 6, `rich-explicit` 24,
-  `managed-prohibited` 1, and the four `managed-invalid-*` fixtures approve
-  nothing optional for four different reasons.
+- **Profiles (11 fixtures in `apps/pages/capability-profiles/`)** — each
+  resolves to the approved count it claims (`profiles.test.ts`, 2026-10-08):
+  `minimal-local` 0 optional, `family-local` 0, `family-sharing-selected` 1,
+  `single-provider-selected` 0 (git backup is always on, ADR 0142),
+  `enterprise-selected` 5, `rich-explicit` 29 (every optional capability),
+  `managed-prohibited` 0, and the four invalid-managed fixtures
+  (`managed-invalid-instance`, `managed-invalid-revision`,
+  `managed-invalid-signature`, `managed-missing-required`) approve nothing
+  optional for four different reasons.
 
 Observed 2026-09-22: **20 test files, 167 tests, 166 passing, 1 failing.** The
 failure is `classification.test.ts > matches every source module the build
@@ -104,7 +124,7 @@ sees`, naming three helper files written minutes earlier by concurrent
 module-owner work that have no classification rule yet. It is recorded rather
 than glossed; the check is doing exactly its job.
 
-### Boot — `pnpm --filter @opensesame/pages exec vitest run src/lib/runtime-config.test.ts src/App.test.tsx`
+### Boot — `pnpm --filter @opensesame/app-core exec vitest run src/lib/runtime-config.test.ts` and `pnpm --filter @opensesame/pages exec vitest run src/App.test.tsx`
 
 - The shipped `os-runtime-config.json` is an empty object, so the boot fetch is
   a 200 and not a 404.
@@ -119,11 +139,11 @@ Observed 2026-09-22: **2 test files, 24 tests, all passing.**
 
 ### Build — `node apps/pages/scripts/build-profile.mjs`
 
-- `capability-compose-plugin.mjs` generates the module table from
+- `apps/pages/scripts/capability-compose-plugin.mjs` generates the module table from
   compile-time-known specifiers only, emits `capability-distribution.json` and
   `capability-graph.json`, and **fails the build** on reachability of an
   excluded module from any entry (BUILD-05, BUILD-06, BUILD-08, LOAD-04).
-- `verify-capability-graph.mjs` then re-derives the same closure from `dist/`
+- `apps/pages/scripts/verify-capability-graph.mjs` then re-derives the same closure from `dist/`
   on disk — enumerating every file, parsing each HTML entry for module scripts
   and modulepreloads, lexing every JS chunk with `es-module-lexer` — and checks
   that the emitted graph agrees with disk (EVID-02). `--expect-absent <module-id>`
@@ -153,9 +173,9 @@ its own output proves nothing; the separation is the evidence.
 ### Browser journeys
 
 The legacy full-surface suites keep their coverage by running under the
-explicit `rich-explicit` profile (`PAGES_CAPABILITY_FIXTURE=rich-explicit`),
-with the journey accepting the installation's declared capabilities on the
-front door. Minimal-profile journeys run with no fixture and assert **absence**.
+explicit `rich-explicit` profile (the build's default when
+`OPENSESAME_CAPABILITY_PROFILE` is unset), with the journey accepting the
+installation's declared capabilities on the front door. Minimal-profile journeys run with no fixture and assert **absence**.
 Neither family is deleted — that is the functional-preservation layer, and
 deleting a full-surface test to make a minimal build pass would be the exact
 failure this feature is supposed to prevent.
@@ -171,8 +191,9 @@ export NODE_OPTIONS="--max-old-space-size=8192"
 
 # Layer 1 + 4 + 6, fastest signal
 cd packages/capability-composition && pnpm exec vitest run
+pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities src/lib/configuration src/lib/runtime-config.test.ts
 pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities
-pnpm --filter @opensesame/pages exec vitest run src/lib/configuration src/screens/capabilities src/sections/settings/CapabilitiesPanel.test.tsx
+pnpm --filter @opensesame/pages exec vitest run src/screens/capabilities src/sections/settings/CapabilitiesPanel.test.tsx
 pnpm --filter @opensesame/pages exec vitest run src/sw scripts/capability-compose-plugin.test.mjs scripts/verify-capability-graph.test.mjs
 
 # Layer 2, the one that costs a build
@@ -227,12 +248,13 @@ design. Absence evidence only means what it says in a `hardened` build.
 one run in one browser did. It is strong evidence and it is not a universal
 quantifier.
 
-**A pending contract is not a passing one.** Sixteen contracts in
-`contract-test-matrix.json` carry `"status": "pending"` with an owner area —
-including the whole `SURFACE-08`/`SURFACE-09` shell cluster, the `VAULT-*`
-family (which has no assigned contract id anywhere in the checkout), and
-`BUILD-07`. Absence of a test is recorded as absence of evidence, never as a
-green row.
+**A pending contract is not a passing one.** Twelve of the 103 contracts in
+`contract-test-matrix.json` carry `"status": "pending"` with an owner area:
+`TRUST-01`, `LOAD-01`, `LOAD-02`, `LOAD-05`, `LOAD-08`, `LIFE-05`, `LIFE-07`,
+`LIFE-08`, `SURFACE-05`, `SURFACE-08`, `SURFACE-09` and `BUILD-01`. Absence of a
+test is recorded as absence of evidence, never as a green row. (The matrix's
+`tests[].file` paths for the runtime suites predate their move to
+`packages/app-core/src/lib/capabilities/`.)
 
 ## Related
 

@@ -1,7 +1,18 @@
 # ADR 0067 — Revocation: CRL generation and an OCSP responder
 
-Status: Accepted
+Status: Accepted (partly implemented; see Implementation)
 Date: 2026-08-30
+Implementation: partly built. `crates/pki-core/src/revocation.rs` builds and
+parses CRLs and OCSP requests and responses, and storage has the
+`certificate_revocations` and `crl_state` tables and accessors
+(`crates/storage/src/revocation.rs`). Not built: any Host CRL, OCSP or
+revocation route (there is no `routes/revocation.rs`, and nothing outside
+`pki-core` calls `build_crl` or `build_ocsp_response`) and the capability
+surfaces. §2 says the CRL is signed through the custody-agnostic `Signer` trait
+(ADR 0071 §4 says the same of OCSP); `build_crl` and the leaf builders take a
+`&KeyPair` instead, and only `build_ocsp_response` signs through a `Signer` (it
+wraps the key in `SealedKeySigner` itself), so an HSM-held key cannot sign
+through them today.
 Supplements: ADR 0052-cert
 ([automatic certificate authority selection](0052-automatic-certificate-authority-selection.md)),
 ADR 0066 (Certificate Manager domain model), ADR 0071 (HSM connectors)

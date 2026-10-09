@@ -36,9 +36,14 @@ process. It never falls back to a plaintext file or to stdout.
 ## Where it fits
 
 - **Used by:** [`opensesame-cli`](../../apps/cli) (`src/log_sink.rs`: `OPENSESAME_LOG_FILE`
-  for the Host, worker and daemon; `daemon start` and `daemon logs`).
+  for the Host, worker and daemon; `daemon start` and `daemon logs`) and
+  [`opensesame-tailnet-admin`](../tailnet-admin) (its sealed audit lines
+  through `seal_line` and `open_line`, and its stored Tailscale credential
+  through `LogKey::seal_value`).
 - **Builds on:** [`opensesame-redaction`](../redaction) (a plaintext line read
-  back is scrubbed rather than trusted).
+  back is scrubbed rather than trusted) and
+  [`opensesame-event-seal`](../event-seal) (the `osl2.` envelope is its envelope
+  under the `sealed-log.line` purpose).
 
 ## Surface
 

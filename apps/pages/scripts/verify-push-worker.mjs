@@ -23,6 +23,7 @@
 //
 // Build first, with the base this serves:
 //   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+
 import assert from "node:assert/strict";
 import path from "node:path";
 import { chromium } from "@playwright/test";
@@ -37,15 +38,15 @@ import {
   openSettingsCategory,
   waitOpen,
 } from "./lib/pages-journey.mjs";
-import { openGuestAgain } from "./lib/push-worker-guest.mjs";
 import {
   notificationsOf as notificationsFrom,
+  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,
   until,
   untilBornControlled,
-  untilHeld,
+  untilWorkerHeld,
 } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
@@ -53,16 +54,6 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
-
-/**
- * The same worker script: origin and path. A replacement the controller had to
- * ask for again carries `?r=<n>` in its URL and is still the variant's script.
- */
-const same = (a, b) =>
-  a !== null &&
-  b !== null &&
-  new URL(a).origin === new URL(b).origin &&
-  new URL(a).pathname === new URL(b).pathname;
 
 const failures = [];
 const check = (condition, what) => {
@@ -141,6 +132,9 @@ try {
     });
   };
 
+  /** Wait for `script` to hold this scope for the page, with no help. */
+  const untilHeld = (script, what) => untilWorkerHeld(page, base, script, what);
+
   /**
    * Deliver until `ok` holds of what the registration shows, as a push service
    * redelivers what a worker that was starting up missed. Returns what it
@@ -200,7 +194,7 @@ try {
     (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
-  await openGuestAgain(other);
+  await other.getByRole("button", { name: "Continue as guest" }).click();
   await waitOpen(other);
   await other.waitForTimeout(500);
   const otherBefore = await other.evaluate(() => performance.timeOrigin);
@@ -222,8 +216,6 @@ try {
   // Approve Push notifications the way a person does.
   await addCapabilities(page, [TITLE]);
   state = await untilHeld(
-    page,
-    base,
     `${scope}sw-push.js`,
     "approving Push notifications should install and hand the page to sw-push.js",
   );
@@ -320,7 +312,7 @@ try {
 
   // Taking the capability away reverts to the core worker. A load locks the
   // vault, so come back in as the guest the walk began as.
-  await openGuestAgain(page);
+  await page.getByRole("button", { name: "Continue as guest" }).click();
   await waitOpen(page);
   await openSettingsCategory(page, "Capabilities");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });
@@ -337,8 +329,6 @@ try {
     .waitFor({ state: "detached", timeout: 15_000 });
   await capabilityOffSwitch(page, TITLE).waitFor({ timeout: 15_000 });
   state = await untilHeld(
-    page,
-    base,
     core,
     "removing Push notifications should return the scope to the core worker",
   );

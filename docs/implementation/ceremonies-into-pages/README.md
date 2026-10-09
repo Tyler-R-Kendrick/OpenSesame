@@ -1,5 +1,14 @@
 # Ceremonies into Pages
 
+> Status (2026-10-08): fully landed. [ADR 0140](../../adr/0140-pages-hosts-every-ceremony.md)
+> is Accepted and implemented: `apps/ceremonies`, `apps/mobile-mfa` and
+> `apps/console` are not in this checkout (`apps/` holds `android`,
+> `browser-extension`, `browser-extension-autofill`, `cli`, `pages`), and each
+> flow below is a route or panel of `apps/pages` over `@opensesame/ceremony-kit`
+> and `@opensesame/app-core`. Kept as the record of the inventory and the
+> fourteen steps; the app names in the left column and in the present-tense
+> sentences below are the apps that were deleted.
+
 The plan behind [ADR 0140](../../adr/0140-pages-hosts-every-ceremony.md):
 every ceremony `apps/ceremonies`, `apps/mobile-mfa` and `apps/console` served
 becomes a Pages route over one implementation in `@opensesame/ceremony-kit`

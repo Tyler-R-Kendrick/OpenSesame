@@ -20,7 +20,8 @@ bundle. Everywhere else the fields are stripped.
   `EvidenceSource::TrustedIngressAssertion` and carries the ingress's own
   verified identity beside it.
 - Chain building and signature checks are `rustls-webpki`'s job (`verify`);
-  `x509-parser` only confirms a byte sequence is one whole DER certificate.
+  `x509-parser` only confirms a byte sequence is one whole DER certificate and
+  reads its CA flag.
 - The parser is mirrored line for line by
   [`@opensesame/ingress-evidence`](../../packages/ingress-evidence); both run the
   JSON corpus in [`fixtures/`](fixtures).

@@ -6403,7 +6403,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame-id find",
-      "pwa": "lib/vault/password-workflows.ts:passwordWorkflowFind",
+      "pwa": "route:/vault",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_vault_find_references"
@@ -6418,7 +6418,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6449,7 +6449,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6480,7 +6480,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6496,7 +6496,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame-id env write",
-      "pwa": "route:/vault",
+      "pwa": "lib/vault/item-references.ts:itemEnvTemplate",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_vault_env_template"
@@ -6511,7 +6511,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6527,7 +6527,7 @@
     "kind": "act",
     "surfaces": {
       "cli": "opensesame-id create api-credential",
-      "pwa": "lib/vault/password-workflows.ts:createPrivateCredential",
+      "pwa": "route:/vault",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_open_password_workflow"
@@ -6542,7 +6542,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6573,7 +6573,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6604,7 +6604,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6674,7 +6674,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6744,7 +6744,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7028,31 +7028,35 @@
   },
   {
     "id": "password_provider.request",
-    "title": "Send a bound native request (PWA command handoff)",
+    "title": "Send a bound native request",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
       "cli": "opensesame-id request",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7063,31 +7067,35 @@
   },
   {
     "id": "password_provider.lease_approve",
-    "title": "Approve a bounded native lease (PWA command handoff)",
+    "title": "Approve a bounded native lease",
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame-id lease approve",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7098,31 +7106,35 @@
   },
   {
     "id": "password_provider.lease_status",
-    "title": "Inspect native lease metadata (PWA command handoff)",
+    "title": "Inspect native lease metadata",
     "plane": "client_local",
     "kind": "read",
     "surfaces": {
       "cli": "opensesame-id lease status",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7133,31 +7145,35 @@
   },
   {
     "id": "password_provider.lease_revoke",
-    "title": "Revoke a native lease (PWA command handoff)",
+    "title": "Revoke a native lease",
     "plane": "client_local",
     "kind": "admin",
     "surfaces": {
       "cli": "opensesame-id lease revoke",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {

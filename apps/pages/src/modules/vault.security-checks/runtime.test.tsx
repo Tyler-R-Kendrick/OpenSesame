@@ -1,11 +1,15 @@
 /** @vitest-environment jsdom */
 import {
   PWNED_PURPOSE,
+  SECURITY_CHECKS_SUMMARY,
   TWO_FACTOR_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
+import { breachWatchSnapshot } from "@opensesame/app-core/lib/vault/health.js";
 import {
   PWNED_RANGE_URL,
+  SECURITY_CHECKS_IDLE,
   TWO_FACTOR_LIST_URL,
+  clearSecurityWatch,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
@@ -67,6 +71,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   Object.assign(vaultHooksSeams, originalHooks);
+  clearSecurityWatch();
 });
 
 async function mountedPanel() {
@@ -106,18 +111,34 @@ describe("vault.security-checks runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers only its Settings › Vaults panel", async () => {
+  it("registers the check on Settings › Vaults and in its Capabilities section", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.security-checks",
       kinds: ["settings-panel"],
-      count: 1,
+      count: 2,
     });
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    expect(breachWatchSnapshot()).toMatchObject({
+      phase: "idle",
+      label: SECURITY_CHECKS_IDLE,
+    });
+    expect(
+      t
+        .entries("settings-panel")
+        .map((panel) => panel.category)
+        .sort(),
+    ).toEqual(["capabilities.feature-security-checks", "vaults"]);
+    await handle.dispose();
+    expect(breachWatchSnapshot().phase).toBe("off");
   });
 
   it("sends nothing until the key is pressed, then only what it declared", async () => {
     const { t, handle } = await mountedPanel();
     expect(t.egressCalls).toEqual([]);
     expect(screen.getByText("Not checked")).toBeTruthy();
+    expect(screen.getByText(SECURITY_CHECKS_SUMMARY)).toBeTruthy();
+    expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -127,6 +148,17 @@ describe("vault.security-checks runtime", () => {
     await waitFor(() =>
       expect(screen.getByText("2 logins checked")).toBeTruthy(),
     );
+    expect(
+      screen.getByText(
+        "1 of 2 passwords found in known breaches. 1 login could add an authenticator code.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Found in breaches 42 times: change this password"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("This site takes an authenticator code; none is stored"),
+    ).toBeTruthy();
     expect(t.egressCalls).toEqual([
       {
         input: `${PWNED_RANGE_URL}5BAA6`,

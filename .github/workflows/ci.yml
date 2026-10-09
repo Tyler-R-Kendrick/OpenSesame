@@ -234,6 +234,12 @@ jobs:
         run: |
           google-chrome --version
           pnpm --filter @opensesame/pages verify:webmcp
+      - name: Self-hosted provider configuration without hosted Connect
+        if: matrix.shard == 'budgets'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:
@@ -313,6 +319,18 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: pnpm verify:customer-vault-browser
+      - name: Native provider configuration and encrypted reloads
+        if: matrix.shard == 'native-connectors'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:native-connectors
+      - name: Public OAuth and MCP authorization protocols
+        if: matrix.shard == 'native-public-protocol'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:native-public-protocol
       - name: Experience journeys
         # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
         if: startsWith(matrix.shard, 'journeys')

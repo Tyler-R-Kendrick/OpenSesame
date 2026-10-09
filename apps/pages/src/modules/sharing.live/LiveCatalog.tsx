@@ -6,8 +6,9 @@
  * session ends. An `edit` session can also ask the owner to replace a shared
  * field in the open vault.
  *
- * `use` sessions copy without drawing: the owner refuses `reveal`, and the
- * reveal key is not drawn.
+ * `use` (Copy only) does not draw a reveal key and does not place the
+ * concealed plaintext on this clipboard. The owner refuses both `reveal`
+ * and `copy`, so the value never arrives to be written.
  */
 
 import type {
@@ -41,6 +42,7 @@ function ConcealedField({
   item,
   field,
   canReveal,
+  canCopy,
   canEdit,
   request,
   save,
@@ -48,6 +50,8 @@ function ConcealedField({
   item: SharedItem;
   field: SharedField;
   canReveal: boolean;
+  /** False for Copy only: the secret must not be written to this clipboard. */
+  canCopy: boolean;
   canEdit: boolean;
   request: RequestField;
   save?: SaveField;
@@ -69,6 +73,8 @@ function ConcealedField({
   }
 
   async function copyIt(): Promise<void> {
+    // Copy only never asks for the plaintext and never writes it here.
+    if (!canCopy) return;
     const value = await request("copy", item.id, field.key);
     setDenied(value === null);
     if (value !== null) await copy(key, value);
@@ -85,26 +91,36 @@ function ConcealedField({
         setShown(value);
       }}
       actions={
-        <>
-          {canReveal ? (
-            <RevealButton
-              revealed={shown !== null}
-              label={label}
-              onToggle={() => void toggle()}
-            />
-          ) : null}
-          <button
-            type="button"
-            className={`icon-btn${copied === key ? " is-on" : ""}`}
-            aria-label={
-              failed === key ? `Could not copy ${label}` : `Copy ${label}`
-            }
-            title={failed === key ? `Could not copy ${label}` : `Copy ${label}`}
-            onClick={() => void copyIt()}
-          >
-            {copied === key ? <IconCheck size={17} /> : <IconCopy size={17} />}
-          </button>
-        </>
+        canReveal || canCopy ? (
+          <>
+            {canReveal ? (
+              <RevealButton
+                revealed={shown !== null}
+                label={label}
+                onToggle={() => void toggle()}
+              />
+            ) : null}
+            {canCopy ? (
+              <button
+                type="button"
+                className={`icon-btn${copied === key ? " is-on" : ""}`}
+                aria-label={
+                  failed === key ? `Could not copy ${label}` : `Copy ${label}`
+                }
+                title={
+                  failed === key ? `Could not copy ${label}` : `Copy ${label}`
+                }
+                onClick={() => void copyIt()}
+              >
+                {copied === key ? (
+                  <IconCheck size={17} />
+                ) : (
+                  <IconCopy size={17} />
+                )}
+              </button>
+            ) : null}
+          </>
+        ) : undefined
       }
     >
       <ConcealedValue
@@ -145,12 +161,14 @@ function OpenField({
 function LiveItem({
   item,
   canReveal,
+  canCopy,
   canEdit,
   request,
   save,
 }: {
   item: SharedItem;
   canReveal: boolean;
+  canCopy: boolean;
   canEdit: boolean;
   request: RequestField;
   save?: SaveField;
@@ -169,6 +187,7 @@ function LiveItem({
               item={item}
               field={field}
               canReveal={canReveal}
+              canCopy={canCopy}
               canEdit={canEdit}
               request={request}
               save={save}
@@ -200,6 +219,8 @@ export function LiveCatalog({
   if (catalog.items.length === 0)
     return <StatusMark tone="idle" label="Nothing is shared yet" />;
   const canEdit = catalog.policy === "edit" && save !== undefined;
+  // Copy only (`use`) must not place concealed plaintext on this clipboard.
+  const canCopy = catalog.policy !== "use";
   return (
     <ul className="live-items" aria-label={catalog.title}>
       {catalog.items.map((item) => (
@@ -207,6 +228,7 @@ export function LiveCatalog({
           key={item.id}
           item={item}
           canReveal={catalog.policy === "read" || catalog.policy === "edit"}
+          canCopy={canCopy}
           canEdit={canEdit}
           request={request}
           save={save}

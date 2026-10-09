@@ -3721,6 +3721,7 @@ dependencies = [
  "hyper-util",
  "insta",
  "jsonwebtoken",
+ "libc",
  "opensesame-agent-hooks",
  "opensesame-authn",
  "opensesame-bitwarden-server",
@@ -3759,6 +3760,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
  "zeroize",
 ]

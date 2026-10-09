@@ -36,7 +36,7 @@ typography:
     fontWeight: 400
     lineHeight: 1.5
   body:
-    fontFamily: "system-ui"
+    fontFamily: "system sans stack (-apple-system, BlinkMacSystemFont, Segoe UI, …)"
     fontSize: "0.9375rem"
     fontWeight: 400
     lineHeight: 1.5
@@ -45,8 +45,8 @@ typography:
     fontSize: "0.75rem"
     fontWeight: 600
   mono:
-    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-    fontSize: "0.8125rem"
+    fontFamily: "ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace"
+    fontSize: "0.875em"
 rounded:
   md: "0"
   lg: "0"
@@ -59,19 +59,19 @@ components:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.canvas}"
     rounded: "{rounded.md}"
-    padding: "0.45rem 0.85rem"
+    padding: "0 0.85rem"
   button-secondary:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
     rounded: "{rounded.md}"
-    padding: "0.45rem 0.85rem"
+    padding: "0 0.85rem"
   panel:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "transparent"
     rounded: "{rounded.lg}"
   item-row:
     backgroundColor: "transparent"
     rounded: "{rounded.md}"
-    padding: "0.55rem 0.6rem"
+    padding: "0 0.75rem"
 ---
 
 # Design System: OpenSesame
@@ -92,18 +92,21 @@ because users already know it, executed with Scandinavian restraint: a neutral
 black-and-white foundation, teal as the single accent, and nothing decorative.
 
 **Key characteristics:**
-- Master-password gate, no PIN theater, no recovery path
+- A new vault is sealed by a passkey, or a PIN where WebAuthn cannot run
+  ([ADR 0180](docs/adr/0180-vaults-are-sealed-by-passkey-not-password.md)):
+  no master password to create, no PIN theater, no recovery promised
 - One paper surface: the whole workspace is a light, hairline-divided
   terminal — mono filesystem rail, content buffer, statusline. Dark mode
   inverts the same system onto near-black paper.
-- Teal is the single accent, and it means state and identity: the cursor,
-  the active row, focus, links, and the brand mark. Primary actions are ink.
+- Teal is the single accent, and it means state and identity: focus, links,
+  the brand mark. Primary actions are ink, and the cursor is inverse video.
 - Scandinavian restraint: zero-spread neutrals, sentence case everywhere,
-  hairline rules and chapters instead of boxed cards, 6/10px radii, no
-  decorative gradients or shadows
+  hairline rules and chapters instead of boxed cards, square corners (no
+  radii), no decorative gradients or shadows
 - List-and-detail spine for the vault; flowing chapter documents for the
   plane-backed sections
-- System font stack — no webfont request, no flash, no third-party origin
+- System font stacks for the interface — no third-party origin; the wordmark
+  alone sets in a bundled, self-hosted face (Share Tech Mono)
 
 ## Mark
 
@@ -124,23 +127,25 @@ Reduced motion shows the completed word immediately. All front doors and the
 desktop rail use the same `Wordmark` component, and the reel runs once per
 session: the gate a person arrives on owns the moment, and every wordmark
 mounted after it — the setup ceremony, the rail — stands still on its letters.
+The unlock screen's wordmark replays it on each mount.
 
 ## Colors
 
 Neutrals carry the interface. Teal is scarce enough to mean something.
 
 ### Primary
-- **Accent** (#0d7268): state and identity only — the tree cursor, active
-  navigation, focus rings, links, the brand mark, and the strongest step of
-  the strength meter. Primary buttons are ink, not accent. In dark mode the
-  accent lifts to #2fb3a3.
+- **Accent** (#0d7268): state and identity only — focus rings, links, the
+  connector cursor's outline, the brand mark, and the strongest step of the
+  strength meter. Primary buttons are ink, not accent, and a tree cursor is
+  inverse video. In dark mode the accent lifts to #2fb3a3.
 
 ### Neutral
 All neutrals are zero-spread grays — no warm or cool casts anywhere in chrome.
 - **Rail** (#fafafa): the navigation plane shares the canvas — one paper
   surface, separated from the buffer by a hairline, not a color change.
 - **Canvas** (#fafafa): the ground everything sits on.
-- **Surface** (#ffffff): panels and cards.
+- **Surface** (#ffffff): the lifted layer — sheets, menus, the drawer, the top
+  bar, notice cards and secondary buttons. A `.panel` is unboxed.
 - **Ink / Ink-2 / Ink-3** (#171717 / #5c5c5c / #6f6f6f): the ink ladder —
   primary, supporting, and metadata text, stepped like alpha-black on white
   (roughly 100% / 64% / 56%). The lowest rung stays above 4.5:1 on white.
@@ -160,8 +165,9 @@ health report is computed locally and contacts no breach service, and TOTP codes
 are derived in the page.
 
 **The No-Recovery Rule.** The absence of a recovery path is stated before the
-vault is created, acknowledged with a checkbox, and repeated where it matters.
-Never soften it.
+vault is created (the first-run seal form says "There is no recovery" for the
+passkey or the PIN it is sealing with), acknowledged with a checkbox, and
+repeated where it matters. Never soften it.
 
 ## Typography
 
@@ -173,7 +179,7 @@ scanning.
 
 ### Hierarchy
 - The front door's title is the wordmark at display scale —
-  `clamp(1.75rem, 8vw, 2.6rem)`, the one display step, used nowhere else
+  `clamp(1.05rem, 6cqi, 2.6rem)`, the one display step, used nowhere else
 - Page and detail titles ~1.4rem, weight 600, tight tracking
 - Panel headings ~1.0625rem
 - Body 15px / 1.5
@@ -187,16 +193,18 @@ scanning.
 Desktop is a 15.5rem rail plus content over a full-width statusline — the
 terminal frame: tree on the left, buffer in the middle, one mono strip
 (support, the command, notifications) at the foot. The strip is
-keys only. The command bar under the crumbs is the chrome's one typed field:
-a command runs, and a sentence it cannot parse goes to Support as a question,
-so nothing else in the frame asks to be typed into. The vault adds
-a 21rem list column between rail and detail, giving ranger's three panes;
-the other sections read as a single 60rem flowing document of chapters.
+keys and the command bar. The command bar in the statusline is the chrome's
+one typed field: a command runs, and a sentence it cannot parse goes to
+Support as a question, so nothing else in the frame asks to be typed into.
+The vault, Identity, Access and Wallet add a 21rem list column between rail and
+detail, giving ranger's three panes. Their records share the compact file rows,
+pathbar commands, ruled details and explicit create/edit buffer. Connections
+keeps its existing document layout.
 
 Below 900px the rail gives way to a slim top bar: Sections, the current section
 name, Lock, and More. The Sections drawer groups account and vault switching
 with navigation; More holds appearance, installation, and secondary utilities.
-The statusline keeps the command, and the vault collapses to one pane at a
+The statusline keeps the command, and record sections collapse to one pane at a
 time, each with a back key and
 a back swipe: the **section tree** (the rail's own `NavTree`, drawn in the
 buffer where a finger can reach it, and the screen the vault opens on), the
@@ -244,9 +252,10 @@ status line. Enter keeps the words in the field, hands the keyboard to the
 listing (or brings up the vault's list when nothing on screen is searching),
 and opens no notice over the prompt; Esc, in the field or the list, empties it.
 Words typed for one section are dropped when a person goes to another by any
-other road. There is no search key and no search field in any pane; the `/`
-key writes `/? ` into the prompt and focuses it. A bare `/?` is still help.
-`verify:mobile` counts the text inputs on the screen and fails on a second.
+other road. There is no search key and no search field in any listing pane
+(Settings › Vaults › Item types draws its own); the `/` key writes `/? ` into
+the prompt and focuses it. A bare `/?` is still help. `verify:mobile` counts
+the text inputs on the vault's list screen and fails on a second.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -260,14 +269,17 @@ items are files with kind pseudo-extensions (`GitHub.login`, `Deploy
 webhook.secret`), and the vault list renders as a compact first-party mono
 file tree (ADR 0073), never as a card wall. The navigation rail is the same
 tree one level up: sections are directories off the tomb root (`vault/`,
-`connections/`, `access/`, `identity/`, `wallet/`, `settings/`), each advertising its
-`g`-jump key; the active section starts open but its parent row toggles
+`connections/`, `access/`, `identity/`, `wallet/`, `activity/`, `settings/`;
+all but `vault/` and `settings/` are contributed by capabilities), each
+advertising its `g`-jump key; the active section starts open but its parent
+row toggles
 expand/collapse without changing the selected child. Arrow Left/Right use the
 same behavior. Rows without children remain navigation links. The vault's
-filter views, folders, and `health` — and the settings categories — appear
-under their parent as entries with live counts. A path strip pins the tomb
-root at the top of the vault pane; on a phone the same sections are named
-rows of a drawer behind one key in the top bar.
+filter views and folders — and the settings categories — appear under their
+parent as entries with live counts. The vault pane's path strip holds the crumb
+trail and the pane's command keys, and the pane's status line carries the tomb
+path; on a phone the same sections are named rows of a drawer behind one key
+in the top bar.
 
 A visible cursor row owns focus — inverse video, always rendered — and
 moving it with the keyboard previews that item in the buffer, ranger's own
@@ -280,10 +292,10 @@ dives (and from the rail, into the vault listing), `h`/`←`/`Backspace`
 climbs (and from a vault root row, onto the rail). `F6` switches the two
 listings when one of them holds the keyboard. `Tab`/`Shift-Tab` always follow
 native control order and can leave either listing. `Enter` activates the
-focused control; the tree keymap must never swallow a link or button. `/` opens
-a vim-style command line at the foot of the pane, backed by a real input so
-typed keys never leak into the keymap; matches highlight, non-matches hide,
-`Esc` closes it and returns the keyboard to the tree. Item verbs are single
+focused control; the tree keymap must never swallow a link or button. `/`
+writes `/? ` into the statusline's command bar and focuses it, a real input
+so typed keys never leak into the keymap; matches highlight, non-matches hide,
+`Esc` empties it and returns the keyboard to the tree. Item verbs are single
 keys: `y` copies the secret, `u` the username, `e` edits, `x` trashes, `n`
 creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/w/y/s`
 jumps between sections (`g` times out like vim so a stray `g` does not
@@ -301,8 +313,8 @@ were typed in. It is a segment of the row, drawn only while
 something is pending, and a phone shows the caps and the recording mark
 without the list.
 Pointer access remains complete: rows click, directories toggle, a `⋯` menu
-on the cursor or hovered row carries the verbs, and the `/` and `?` key
-chips in the path strip are buttons.
+on the cursor or hovered row carries the verbs, and the `?` key in the path
+strip is a button.
 
 The page owns its right-click (`components/context-menu/`). A right button,
 a long press (a finger or a stylus held still — recognised by the page, since
@@ -369,8 +381,11 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   `(max-width: 900px)` — a foldable's cover screen, a split-screen tablet and
   a narrow desktop window draw the same small keys, and WCAG 2.5.8 does not
   ask what is pointing at them. A control that opts out of the height floor to
-  sit inline in a sentence (`.sent select`, `.editor__ext`) takes the shape of
-  a chip at that width instead, so its rule never detaches from its own word.
+  sit inline in a sentence (`.sent select`) takes the shape of a chip at that
+  width instead, so its rule never detaches from its own word. The editor's
+  title row is one path control (`.pathfield`, [ADR 0181](docs/adr/0181-the-title-row-is-one-path-control.md)):
+  folder first, name, type last, the two special parts in the accent ink and
+  each a combobox that holds only a value from its list, every part 44px.
   The mono density survives the change: the row grows, the type does not.
 - **A field's type is the one thing that does grow.** iOS Safari zooms the page
   when a focused `input`, `select` or `textarea` is set below 16px, and it does
@@ -462,8 +477,8 @@ verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
 coarse-pointer context and measures every rule above — and, at every stop and on
 the tablets' Settings, that no key stands alone on a row
 (`KEY-ALONE-ON-A-ROW`) and no field outgrows its measure
-(`FIELD-WIDER-THAN-ITS-MEASURE`, `scripts/lib/layout-contract.mjs`); it also opens
-the Settings files (`scripts/lib/settings-file-contract.mjs`) and holds the
+(`FIELD-WIDER-THAN-ITS-MEASURE`, `apps/pages/scripts/lib/layout-contract.mjs`); it also opens
+the Settings files (`apps/pages/scripts/lib/settings-file-contract.mjs`) and holds the
 list above the open file, 44px rows and a 16px editor. It
 refuses to report a pass from a context that lost its touch emulation, because a check that
 measures the mouse stylesheet passes for free.
@@ -472,8 +487,9 @@ measures the mouse stylesheet passes for free.
 
 Hairline borders carry structure; shadows exist only where elevation
 communicates behavior (menus, popovers, the unlock card), and even there they
-are neutral and barely visible. Panels are bordered, not floated. Rows are
-flat with hairline separators.
+are neutral and barely visible. Panels are neither boxed nor floated: a
+hairline under the head carries the structure. Rows are flat with hairline
+separators.
 
 ## Shapes
 
@@ -749,40 +765,46 @@ The rail renders as a mono filesystem tree (see "VFS interaction model")
 rooted at the prompt line `guest@personal:/`: directory rows with counts
 and g-jump key chips. Selection is inverse video (see "Selection"). The
 phone section drawer lists every rail section and nothing else.
-Password health is a notifications-only review, never a tree entry or vault filter chip.
+Password health is a review page. The vault tree lists it as `health`,
+after favorites and before the type directories, on a wide screen and on
+a phone's first pane. Choosing it opens `/vault/health`. It is not a
+vault filter chip: the filter sheet does not link it, and it does not
+narrow the list. When the report has findings, the notifications sheet
+still carries Review passwords.
 
 Identity's children and its content tabs share the URL's `view` selection;
 the rail and tabs always name the same view. Connections has separate
-Connected and Add a Connection branches. Moving the connector cursor previews
+Connected and Add a connection branches. Moving the connector cursor previews
 the corresponding service or catalog entry in the buffer, scrolls it into view,
 and outlines it in teal; the rail cursor remains inverse video. Enter or a
 click opens the connector. Directional movement never starts its ceremony.
-The searchable catalog grows twelve entries at a time. Load more is the final
+The searchable catalog grows twelve entries at a time. `Load n more` is the final
 indexed tree row, reachable by the same motions as a connector; activation
 selects the first newly added entry. New rows enter over 180ms with a small
 upward settle; reduced motion removes the animation.
 
 ### Tabs
-Flat underline tabs on a hairline: text with a 2px accent underline for the
+Flat underline tabs on a hairline: text with a 2px ink underline for the
 selected view — never boxed segmented controls.
 
 ### Local directory records
-People, agents, applications, and organizations use the existing bordered
-panel, identity rows, status chips, and record form. The name and stable
+People, agents, applications, and organizations use the existing
+panel, identity rows, status marks, and record form. The name and stable
 reference lead each row; editing opens one Name field with Save and Cancel
 after it. While a draft is open, New and other row mutations are disabled.
 Failed saves retain the draft and return focus to its field; closing the
 form restores its initiating control when focus has not moved elsewhere.
-Deletion requires an explicit confirmation. The panel states that these
-records are local to the encrypted vault; creating a record alone grants
-no resource access. Broader identity and access management remains incomplete.
+Deletion requires an explicit confirmation. These records are local to the
+encrypted vault; creating a record alone grants no resource access. Broader
+identity and access management remains incomplete.
 
 ### Local identity passkeys
 Each People row has a native Passkeys disclosure. Opening it loads that
 person's credentials; Enroll passkey and Sign in locally load the human
 ceremony only when pressed. Credential rows stay flat inside the person row,
 separated by hairlines, with a short credential suffix and enrollment date.
-Pending results use inline outputs and errors use alerts. Disabled people
+Pending results use inline outputs; a failure is a `StatusMark` with a
+visually hidden alert, not a box. Disabled people
 cannot enroll or sign in, but their credentials can still be revoked.
 
 Revoke passkey becomes Confirm revocation beside Keep passkey. Keeping it
@@ -823,23 +845,19 @@ only when focus fell to the body. Focus moved elsewhere is preserved. This
 pattern documents local agent authentication, not local application delegation
 or completion of browser IAM; it introduces no raster imagery or new tokens.
 
-### Local authenticators in Devices
-Without a configured Identity API, Identity → Devices presents Authenticators
-with the existing Reload directory icon. A short scope notice explains that
-synced passkeys may span devices; the list describes this vault's sign-in keys,
-not physical hardware. People and agents retain their name, wrapped public
-reference and enabled state in the incumbent bordered identity rows. Their
-native Passkeys and Agent keys disclosures reuse the enrollment, local sign-in
-and confirmed revocation controls documented above. Credential rows remain
-hairline-separated; actions wrap on mobile with visible teal keyboard focus.
-
-Loading and read errors remain distinct from emptiness; an empty directory
-links to Create a person. A failed directory read disables credential mutations
-until recovery. Directory changes refresh the list. If a whole principal is
-removed, Reload receives focus only when the previously focused control was
-disconnected and focus fell to the body; deliberate focus elsewhere survives.
-This extension introduces no tokens or imagery and does not establish completion
-of broader browser IAM.
+### Local browsers in Devices
+Identity → Devices lists the browsers that have opened this vault in a
+Browsers panel with a Reload browsers icon key in its head. Each browser lists
+itself when it unlocks the vault; a row names the browser and its reference,
+its platform, when it was added and when it was last seen, and a `StatusMark`
+says whether it is this device. The pencil renames a browser through one Name
+field with Save changes and Cancel after it; a trash key removes one, armed by
+the first press with a keep beside it, and this browser's own row has no
+remove key. Loading, an empty list, unavailable browser storage and a read
+failure are `StatusMark`s on the head, distinct from one another, never a box.
+The tailnet's machines (when device management is on) lead the tab above it,
+and the directory's Approve a device card, where an Identity API is configured
+and a session exists, follows it.
 
 ### Local organization members
 Each organization row has a native Members disclosure. Existing members appear
@@ -878,8 +896,8 @@ Each Applications row has a native Application registration disclosure. Its
 record form uses a labeled Organization select, a bordered, vertically
 resizable Redirect URIs textarea (one exact callback per line), and an
 Allowed scopes input (space separated, including `openid`). Organizations
-must be enabled and have an owner; when none qualify, the hint directs the
-custodian to create an organization and assign its first owner. The controls
+must be enabled and have an owner; when none qualify, the hint reads `No
+organizations yet.` The controls
 reuse the existing mono labels, ruled fields, hairlines, and focus treatment.
 
 Roles allowed per scope follows the scope names, before Save registration.
@@ -914,8 +932,8 @@ agent and disclose its identity and enrolled public key reference, followed
 by requested scopes. The native Approving person selector lists enabled owners
 and admins in the application's organization. Verify with passkey precedes a
 separate Allow agent access action beside Deny. Person requests retain Person
-and Allow application. Inline outputs report connection state, alerts carry
-failures, and active connections offer End application session. Controls reuse
+and Allow application. Inline outputs report connection state, failures go to the
+tray, and active connections offer End application session. Controls reuse
 the existing record layout, ink action and teal focus; long references wrap.
 This pattern records the consent surface, not completion of broader browser IAM.
 
@@ -925,7 +943,7 @@ flat ruled rows, a truthful count, and wrapped public request references.
 One inline fieldset opens at a time. Creation reuses local person/agent
 authentication and labeled native fields for application, exact registered
 callback, scopes and reason; failures retain the draft. Status is an inline
-output and read failures remain alerts, distinct from an empty list.
+output and read failures go to the tray, distinct from an empty list.
 
 Review names the requester, application, organization, reason, scopes and
 callback. Only pending requests offer an authorized-person selector and
@@ -948,10 +966,9 @@ enforcement. This describes the connected popup flow, not completion of broader
 IAM or its full validation gates.
 
 ### Local sessions and grants
-Access → Grants reuses this panel in a grant-only variant, showing encrypted
-application grants without requiring Host. Access → Sessions retains the combined
-sessions-and-grants ledger. Host delegation controls remain independently
-available when configured. Flat, hairline-separated rows name the principal and application, with
+Access → Grants shows the encrypted application grants and Access → Sessions
+the sign-in sessions, one record kind per tab from the same panel, neither
+requiring Host. Flat, hairline-separated rows name the principal and application, with
 scope, expiry and exact public record references. Counts describe recorded,
 unexpired sessions and grants, never live connections; empty counts use a dash.
 Loading and read failures remain distinct from an empty ledger.
@@ -960,13 +977,14 @@ Both variants use the same confirmed revocation. An inline fieldset names the ex
 with Confirm revocation and Cancel revocation. Cancel receives initial focus;
 closing returns focus to the source control, or Reload if the row was removed,
 only when focus is idle. Moved focus is preserved. Success uses inline output;
-failures remain alerts with reload/retry recovery. Long references and mobile
+failures go to the tray, with reload/retry recovery. Long references and mobile
 action rows wrap within the existing panel, using the incumbent ink buttons,
 hairlines and teal focus treatment. Native focus scrolling brings confirmation
 and restored controls into view; introductory prose keeps the readable measure.
 
 ### Callouts
-`note` with `--ok`, `--warn`, `--err` variants for a stated condition. Live
+`note` with `--ok` and `--warn` variants for a stated condition; there is no
+`--err` variant, because a failure is a `StatusMark` and a tray notice. Live
 regions are `<output>`, control groups are `<fieldset>`, so the accessibility
 role comes from the element rather than an attribute.
 
@@ -988,10 +1006,14 @@ the global notifications panel so they remain visible from every section.
 - **Do** treat a reload re-locking the vault as correct behavior and say so.
 
 ### Don't:
-- **Don't** add a shortcut around the master password. A passkey or PIN may
-  unlock the vault, but each is an alternate wrap of the same vault key,
-  entered every time — never a remembered device and never a recovery path.
-- **Don't** put a secret, or a hash of one, on the network.
+- **Don't** add a shortcut around the vault's key. A passkey, a PIN or (on a
+  vault that already holds one) a master password is a wrap of the same vault
+  key, entered every time — never a remembered device and never a recovery
+  path.
+- **Don't** put a secret, or a hash of one, on the network. (The one
+  exception is the opt-in `vault.security-checks` capability, which sends the
+  first five hex characters of a password's SHA-1 to the Pwned Passwords range
+  API, [ADR 0080](docs/adr/0080-security-event-hooks.md) §5.)
 - **Don't** let prose run the full width of a panel.
 - **Don't** leave a key alone on a row under the field it commits; give it a
   home (§ Keys have a home).

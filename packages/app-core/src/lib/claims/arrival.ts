@@ -15,10 +15,13 @@
  *     refused, never presented.
  *
  * The route that takes it never touches the vault (ADR 0140 §2), so nothing
- * here waits on an unlock. Signing out forgets all of it (`session-exit.ts`),
- * and so does every vault lock (D6, `bindClaimLockReset`, bound by the core
- * boot): the stash exists only to carry a bearer across a federated sign-in
- * redirect, not to outlive the sitting it arrived in.
+ * here waits on an unlock. Signing out forgets all of it (`session-exit.ts`).
+ * A vault lock purges an ownership claim and its stash (D6,
+ * `bindClaimLockReset`): the stash exists only to carry a bearer across a
+ * federated sign-in redirect, not to outlive the sitting it arrived in. A
+ * drop stays in memory across that lock — present and poll run while the
+ * vault is locked, and the key is never written down — until sign-out or
+ * until the drop is spent.
  */
 
 import { ceremonyPath } from "@opensesame/ceremony-kit";
@@ -64,6 +67,15 @@ export function captureClaimArrivalFromPage(): ClaimArrival {
   return arrival;
 }
 
+/**
+ * Keep what the person pasted, the same way a link that arrived is kept.
+ * A claim's bearer also goes to the stash; a drop's key stays in memory.
+ */
+export function rememberClaimArrival(arrival: ClaimArrival): void {
+  if (arrival.kind === "none") return;
+  hold(arrival);
+}
+
 /** Look without taking: the route's first render. */
 export function peekClaimArrival(): ClaimArrival {
   return held;
@@ -76,19 +88,32 @@ export function takeClaimArrival(): ClaimArrival {
   return taken;
 }
 
-/** Forget the arrival and the stashed bearer: sign-out, lock, a spent claim. */
+/** Forget the arrival and the stashed bearer: sign-out ends the sitting. */
 export function forgetClaim(): void {
   held = NONE;
   clearClaimStash();
 }
 
 /**
- * Purge on every vault lock (ADR 0140 D6). Bound once, by the core boot, on
- * the store's lock bus — not by a component, because the ceremony routes
- * render without the shell and a lock must purge whatever is on screen.
+ * An ownership claim does not survive a lock (ADR 0140 D6). A drop does:
+ * its present and poll only touch the origin claim store, so they keep
+ * working while the vault is locked, and the key stays in this sitting's
+ * memory rather than being thrown away with the claim stash.
+ */
+function releaseClaimOnLock(): void {
+  clearClaimStash();
+  if (held.kind === "drop") return;
+  held = NONE;
+}
+
+/**
+ * Purge an ownership claim on every vault lock (ADR 0140 D6). Bound once, by
+ * the core boot, on the store's lock bus — not by a component, because the
+ * ceremony routes render without the shell and a lock must purge a claim
+ * bearer whatever is on screen. A drop in memory is left for that sitting.
  */
 export function bindClaimLockReset(): () => void {
-  unbindLock ??= onVaultLock(forgetClaim);
+  unbindLock ??= onVaultLock(releaseClaimOnLock);
   return () => {
     unbindLock?.();
     unbindLock = null;

@@ -1,5 +1,12 @@
 # Password workflows
 
+> **Superseded 2026-10-07.** The standalone "Password workflows" dialog pictured
+> here, its toolbar and phone Add entries, the Access request-command form and
+> the extension popup links were a misreading of the request for workflows in
+> the natural item-detail and organization-health contexts. They were removed;
+> see [`2026-10-07-password-workflows-in-place/`](../2026-10-07-password-workflows-in-place/README.md).
+> This gallery is kept as the record of what shipped.
+
 Two real production builds, the unchanged base and this branch, at 1280 × 900
 and 390 × 844. The same guest journey opens the vault workflow deep link.
 

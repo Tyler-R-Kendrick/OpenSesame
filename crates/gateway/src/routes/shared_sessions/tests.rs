@@ -21,7 +21,7 @@ pub(crate) struct Actor {
 }
 
 pub(crate) async fn state() -> AppState {
-    app_state::build_test(Args {
+    app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),

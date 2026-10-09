@@ -27,17 +27,28 @@ export OPENSESAME_HOST_API=http://127.0.0.1:8787       # both CLIs (--server / -
 export OPENSESAME_DAEMON_API=http://127.0.0.1:18790    # opensesame daemon … (--url)
 export OPENSESAME_IDENTITY_API=http://127.0.0.1:8788   # client CLI (--api)
 export OPENSESAME_ISSUER=http://127.0.0.1:8788         # OIDC issuer (client CLI, --issuer)
-export OPENSESAME_OPERATOR_TOKEN=…                     # daemon operator routes; keep it out of argv
-export OPENSESAME_ENV=development                      # Identity API dev defaults (or OPENSESAME_CLAIM_PEPPER)
+export OPENSESAME_OPERATOR_TOKEN=…                     # 32+ characters; daemon operator routes, and `daemon run` / `host run` refuse to start without it; keep it out of argv
+export OPENSESAME_ENV=development                      # deployment mode (development | test | production); `daemon run` / `host run` refuse to start without one
 ```
+
+`source scripts/dev/local-env.sh` sets the mode and loopback URLs and generates the
+operator token, claim pepper and signing keys (under
+`~/.local/state/opensesame/development/`, never printed); `pnpm dev:host`,
+`dev:daemon` and `dev:cli` source it. The Host also needs `OPENSESAME_CLAIM_PEPPER`
+and a loopback `OPENSESAME_RESOURCE` / `OPENSESAME_ISSUER` for a local run. The
+Identity API needs a mode and `OPENSESAME_CLAIM_PEPPER`, or
+`OPENSESAME_ALLOW_DEV_DEFAULTS=1` (exactly `1`).
 
 ## Init
 
 ```bash
+source scripts/dev/local-env.sh
 ./target/debug/opensesame daemon start
 ./target/debug/opensesame daemon status
-pnpm --filter @opensesame/control-plane start   # :8788
-./target/debug/opensesame host run --listen 127.0.0.1:8787
+./target/debug/opensesame host run --listen 127.0.0.1:8787   # or `pnpm dev:host`
+# In a shell that has not sourced local-env.sh:
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 \
+  pnpm --filter @opensesame/control-plane start               # :8788
 ```
 
 ## Use

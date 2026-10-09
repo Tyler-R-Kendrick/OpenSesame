@@ -20,7 +20,7 @@ Pages / CLI / Agents / Workloads
 ┌──────────────────────────────────────────┐
 │ Host (:8787)                             │
 │  projects, sync targets, changelog       │
-│  rotation scheduler (TaskBus publish)    │
+│  rotation jobs (TaskBus publish)         │
 │  NATS auth callout (authz / OpenFGA)     │
 │  connection broker (sealed creds)        │
 └───────────┬───────────────────┬──────────┘
@@ -170,7 +170,7 @@ Non-exhaustive; frozen names used by projects / sync / rotation:
 ```text
 project.personal.ensured
 secret.config.created | secret.config.updated | secret.config.deleted
-secret.value.changed
+secret.value.changed | secret.value.rolled_back
 sync.target.created | sync.target.synced | sync.target.failed
 credential.rotation.requested | credential.rotation.succeeded | credential.rotation.failed
 ```
@@ -180,7 +180,7 @@ Payloads carry metadata (ids, key **names**, versions) — never secret values.
 ## Operator pointers
 
 Compose runs JetStream (`nats:2.11.4` with `-js` on `:4222`) and points the
-gateway and worker at it. Reference server profiles are in `ops/nats/`
+gateway at it (`OPENSESAME_TASKBUS=nats`, `NATS_URL`). Reference server profiles are in `ops/nats/`
 (plaintext loopback, client mTLS, certificate mapping, callout, routes); see
 [docs/operators/local.md](../operators/local.md) and
 [docs/operators/mtls.md](../operators/mtls.md).

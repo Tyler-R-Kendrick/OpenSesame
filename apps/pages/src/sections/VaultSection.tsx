@@ -7,7 +7,6 @@ import {
   useParams,
   useSearchParams,
 } from "react-router";
-import { canPreviewVaultPath } from "./vault/preview-path.js";
 
 import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
@@ -17,9 +16,9 @@ import {
   type VaultItem,
   itemTypeId,
   itemTypeRegistry,
+  listedItems,
   sortItems,
 } from "@opensesame/vault-core";
-import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
 import { UpLink } from "../components/UpLink.js";
@@ -35,7 +34,7 @@ import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
-import { WelcomeKeys } from "./vault/WelcomeKeys.js";
+import { VaultWelcome } from "./vault/VaultWelcome.js";
 import { accountSecretToCopy } from "./vault/account-copy.js";
 import { credentialChoices } from "./vault/account-credentials.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
@@ -59,14 +58,17 @@ export function VaultSection() {
   const filter = resolveFilterSlug(params.get("f") ?? "all");
   const inTrash = filter === "trash";
   const [armedPurgeId, setArmedPurgeId] = useState<string | null>(null);
+  const [armedTrashId, setArmedTrashId] = useState<string | null>(null);
   const folderId = params.get("folder");
+  // A bound credential is the account's method, not a second row.
+  const listed = useMemo(() => listedItems(items), [items]);
 
   // Drop disposal (ADR 0062): every vault read sweeps the drop records, so a
   // drop that was opened or lapsed while away purges itself here.
 
   const visible = useMemo(() => {
     return sortItems(
-      items.filter((item) => {
+      listed.filter((item) => {
         if (inTrash ? item.deletedAt === null : item.deletedAt !== null)
           return false;
         if (folderId && item.folderId !== folderId) return false;
@@ -82,7 +84,7 @@ export function VaultSection() {
         return true;
       }),
     );
-  }, [items, filter, folderId, inTrash]);
+  }, [listed, filter, folderId, inTrash]);
 
   const narrow = useNarrow();
   // A phone draws one pane at a time, the first being the section tree.
@@ -106,21 +108,19 @@ export function VaultSection() {
     if (folderId) return [];
     if (
       filter === "all" &&
-      visible.length === items.filter((item) => item.deletedAt === null).length
+      visible.length === listed.filter((item) => item.deletedAt === null).length
     ) {
       return folders;
     }
     const used = new Set(visible.map((item) => item.folderId).filter(Boolean));
     return folders.filter((folder) => used.has(folder.id));
-  }, [filter, folderId, folders, items, visible]);
+  }, [filter, folderId, folders, listed, visible]);
   // Moving the cursor with the keyboard previews that item in the buffer,
   // ranger-style — but never while an editor, the health report, or a new-item
   // ceremony owns the pane.
-  const previewable = canPreviewVaultPath(
-    location.pathname,
-    itemId,
-    params.get("workflow"),
-  );
+  const previewable =
+    location.pathname === "/vault" ||
+    (itemId !== undefined && !location.pathname.endsWith("/edit"));
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) => {
@@ -167,7 +167,18 @@ export function VaultSection() {
         if (value) void copySecret(value);
       },
       edit: (item: VaultItem) => navigate(`/vault/${item.id}/edit`),
-      trash: (item: VaultItem) => void store.trashItem(item.id),
+      trash: (item: VaultItem) => {
+        if (armedTrashId !== item.id) {
+          setArmedTrashId(item.id);
+          return;
+        }
+        setArmedTrashId(null);
+        void store.trashItem(item.id);
+      },
+      commitTrash: (item: VaultItem) => {
+        setArmedTrashId(null);
+        void store.trashItem(item.id);
+      },
       ...trashItemActions(store, armedPurgeId, setArmedPurgeId),
       favorite: (item: VaultItem) => void store.toggleFavorite(item.id),
       share: (item: VaultItem) => {
@@ -182,6 +193,7 @@ export function VaultSection() {
     }),
     [
       armedPurgeId,
+      armedTrashId,
       copySecret,
       createPath,
       inTrash,
@@ -196,7 +208,7 @@ export function VaultSection() {
   useEffect(() => {
     if (!inTrash) setArmedPurgeId(null);
   }, [inTrash]);
-  const total = items.filter((item) =>
+  const total = listed.filter((item) =>
     filter === "trash" ? item.deletedAt !== null : item.deletedAt === null,
   ).length;
 
@@ -300,10 +312,10 @@ export function VaultSection() {
                   <IconChevronLeft size={15} />
                 </UpLink>
                 <VaultFilterMenu
-                  items={items}
+                  items={listed}
                   folders={folders}
                   typeIds={chipTypeIds(
-                    items.filter((item) => item.deletedAt === null),
+                    listed.filter((item) => item.deletedAt === null),
                   )}
                   filter={filter}
                   folderId={folderId}
@@ -346,53 +358,4 @@ export function VaultSection() {
   );
 }
 
-/**
- * The buffer before the cursor lands on a file. No dashboard: moving the
- * cursor previews items, so this pane only states what the list beside it
- * holds and hands over the keys for the filter the list is showing.
- */
-export function VaultWelcome() {
-  const { items } = useVault();
-  const [params] = useSearchParams();
-  const filter = resolveFilterSlug(params.get("f") ?? "all");
-  const inTrash = filter === "trash";
-  const shown = items.filter((item) => {
-    if (inTrash) return item.deletedAt !== null;
-    if (item.deletedAt !== null) return false;
-    if (filter === "favorites") return item.favorite;
-    return filter === "all" || itemTypeId(item) === filter;
-  });
-  const what =
-    filter === "all"
-      ? null
-      : (vaultFilterLabel(filter) ?? filter).toLowerCase();
-
-  if (shown.length === 0) {
-    // The list pane states the empty list and carries the actions that fill
-    // it. The buffer says what is there and hands over the keys — the same
-    // two mono lines it shows a full vault (DESIGN.md § Empty states).
-    return (
-      <div className="buffer">
-        <p className="buffer__line">
-          {inTrash
-            ? "trash is empty"
-            : what
-              ? `no ${what} yet`
-              : "nothing sealed yet"}
-        </p>
-        <WelcomeKeys inTrash={inTrash} empty />
-      </div>
-    );
-  }
-
-  return (
-    <div className="buffer">
-      <p className="buffer__line">
-        {shown.length} {shown.length === 1 ? "item" : "items"}
-        {what ? ` · ${what}` : ""}
-      </p>
-      <EmptyTip tip="vaultMove" />
-      <WelcomeKeys inTrash={inTrash} empty={false} />
-    </div>
-  );
-}
+export { VaultWelcome };

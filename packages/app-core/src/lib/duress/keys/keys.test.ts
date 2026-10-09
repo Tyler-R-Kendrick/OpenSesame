@@ -29,7 +29,9 @@ import {
 describe("duress PIN floors (KEYS-D)", () => {
   it("matches unlock-methods floors", () => {
     expect(DURESS_PIN_MIN).toBe(MIN_PIN_LENGTH);
-    expect(DURESS_PIN_MAX).toBe(MAX_PIN_LENGTH);
+    // ADR 0155 keeps duress at 12 digits. The vault PIN ceiling is higher.
+    expect(DURESS_PIN_MAX).toBe(12);
+    expect(MAX_PIN_LENGTH).toBeGreaterThan(DURESS_PIN_MAX);
     expect(DURESS_PIN_PBKDF2_ITERATIONS).toBe(PIN_PBKDF2_ITERATIONS);
     expect(DURESS_PIN_PBKDF2_ITERATIONS).toBe(1_200_000);
   });

@@ -3,7 +3,9 @@ import { lookupConfigResource } from "../configuration/registry.js";
 import { isSettingsCategory, settingsConfigRoute } from "../crumbs.js";
 import {
   type AppCommand,
+  CLAIM_COMMAND_PATH,
   type InterpretResult,
+  JOIN_COMMAND_PATH,
   commandSections,
 } from "./types.js";
 
@@ -22,6 +24,14 @@ const SECTION_ALIASES: ReadonlyArray<{
   { path: "/access", words: ["access", "grants", "approvals", "sessions"] },
   { path: "/identity", words: ["identity", "account", "sign in", "signin"] },
   { path: "/settings", words: ["settings", "prefs", "preferences"] },
+  {
+    path: CLAIM_COMMAND_PATH,
+    words: ["claim", "claims", "drop", "drops"],
+  },
+  {
+    path: JOIN_COMMAND_PATH,
+    words: ["join", "join a session"],
+  },
 ];
 
 const FIELD_ALIASES: ReadonlyArray<{
@@ -42,6 +52,7 @@ function parseNavigate(lower: string): AppCommand | null {
         lower === word ||
         lower === `go to ${word}` ||
         lower === `open ${word}` ||
+        lower === `open a ${word}` ||
         lower === `show ${word}`
       ) {
         return { action: "navigate", path: section.path };

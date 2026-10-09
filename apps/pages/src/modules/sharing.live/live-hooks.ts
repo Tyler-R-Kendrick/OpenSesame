@@ -22,8 +22,20 @@ import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
 
-/** A glyph's tone and the sentence it stands for. */
-export type Standing = Readonly<{ tone: StatusTone; label: string }>;
+/** A glyph's tone, its short page label, and the tray sentence. */
+export type Standing = Readonly<{
+  tone: StatusTone;
+  label: string;
+  tray: string;
+}>;
+
+export function standingMark(
+  tone: StatusTone,
+  label: string,
+  tray = label,
+): Standing {
+  return { tone, label, tray };
+}
 
 /** The session this tab joined, and where it stands. */
 export type LiveGuestView = Readonly<{

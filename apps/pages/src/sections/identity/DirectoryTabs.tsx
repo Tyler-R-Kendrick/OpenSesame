@@ -5,8 +5,9 @@
  */
 
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
+import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
+import { DevicesWorkspace } from "./DevicesWorkspace.js";
 import { useDirectoryPanels } from "./directory-panel-slot.js";
 import { useTailnetDevices } from "./tailnet-devices-slot.js";
 
@@ -22,16 +23,20 @@ export function DevicesTab({
   session: IdentitySession | null;
 }) {
   const directory = useDirectoryPanels();
+  const configured = useIdentityConfigured();
   const Tailnet = useTailnetDevices();
   const { tomb } = useVault();
   return (
-    <>
-      {Tailnet ? <Tailnet /> : null}
-      <LocalDevicesPanel key={tomb} tomb={tomb} />
-      {directory ? (
-        <directory.Devices online={online} session={session} />
-      ) : null}
-    </>
+    <DevicesWorkspace
+      key={tomb}
+      tomb={tomb}
+      tailnet={Tailnet ? <Tailnet /> : undefined}
+      approval={
+        configured && directory ? (
+          <directory.Devices online={online} session={session} />
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -49,12 +54,18 @@ export function DirectoryPeople({ online }: { online: boolean }) {
 export function DirectoryOrgSignIn({
   online,
   known,
+  selectedOrg,
 }: {
   online: boolean;
   known: unknown;
+  selectedOrg?: string;
 }) {
   const directory = useDirectoryPanels();
   return directory ? (
-    <directory.OrgSignIn online={online} known={known} />
+    <directory.OrgSignIn
+      online={online}
+      known={known}
+      selectedOrg={selectedOrg}
+    />
   ) : null;
 }

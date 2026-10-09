@@ -19,9 +19,12 @@ import {
   clearDeviceConnectorStore,
   readDeviceRows,
   readDeviceSecrets,
+  removeDeviceConfigurationDurable,
+  writeDeviceConfigurationDurable,
   writeDeviceRows,
   writeDeviceSecrets,
 } from "./device-connector-records.js";
+import { deviceConnectorView } from "./device-connector-view.js";
 import type { GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import {
@@ -31,6 +34,10 @@ import {
 import { bindHistoryConnection } from "./history-backups.js";
 
 const ID_PREFIX = "conn_local_";
+export const deviceProviderRevokers: Record<
+  string,
+  ((id: string) => Promise<void>) | undefined
+> = {};
 
 export type RenderedConnector = {
   connection: Connection;
@@ -76,9 +83,14 @@ function findId(id: string): PublicRow | undefined {
   return readDeviceRows().find((row) => row.connectionId === id);
 }
 
-function latestFor(providerId: string): PublicRow | undefined {
+function latestNativeFor(providerId: string): PublicRow | undefined {
   return readDeviceRows()
-    .filter((row) => row.providerId === providerId)
+    .filter(
+      (row) =>
+        row.providerId === providerId &&
+        (row.fields.self_hosted_configuration === undefined ||
+          (row.providerId === "linear" && row.fields.linear_verified === "1")),
+    )
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     .at(-1);
 }
@@ -101,35 +113,10 @@ function secretNames(providerId: string): Set<string> {
   return names;
 }
 
-function toConnection(row: PublicRow): Connection {
-  return {
-    connectionId: row.connectionId,
-    connectionRef: `local/connector/${row.connectionId}`,
-    logicalName: row.connectionId,
-    displayName: row.displayName,
-    providerId: row.providerId,
-    integrationId: null,
-    status: "active",
-    statusDetail: null,
-    organizationId: "local",
-    projectId: null,
-    ownerKind: "user",
-    shareability: "private",
-    requestedScopes: row.scopes,
-    grantedScopes: row.scopes,
-    accountLabel: null,
-    expiresAt: null,
-    refreshable: false,
-    lastRefreshedAt: null,
-    maxInvokeLevel: 0,
-    egress: { scheme: "none", authorities: [], pathPrefixes: [] },
-    bindings: [],
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
-
 function upsert(row: PublicRow, secrets: StringFields): void {
+  if (row.fields.self_hosted_configuration !== undefined) {
+    throw new Error("Self-hosted configuration requires an awaited save");
+  }
   const rows = readDeviceRows().filter(
     (item) => item.connectionId !== row.connectionId,
   );
@@ -144,13 +131,13 @@ function upsert(row: PublicRow, secrets: StringFields): void {
 export function deviceConnection(id: string): Connection | null {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
-  return toConnection(row);
+  return deviceConnectorView(row);
 }
 
 export function listDeviceConnections(): Connection[] {
   return readDeviceRows()
     .filter((row) => !isLocalGitRemoteId(row.connectionId))
-    .map(toConnection);
+    .map(deviceConnectorView);
 }
 
 export function mergeOfflineConnections(rows: Connection[]): Connection[] {
@@ -192,7 +179,50 @@ export function createDeviceConnection(body: SaveBody): Connection {
     updatedAt: stamp,
   };
   upsert(row, {});
-  return toConnection(row);
+  return deviceConnectorView(row);
+}
+
+export type DeviceConnectorConfiguration = {
+  providerId: string;
+  displayName: string;
+  scopes: string[];
+  fields: StringFields;
+  secrets: StringFields;
+};
+
+function configurationRow(
+  input: DeviceConnectorConfiguration,
+  existingId?: string,
+): PublicRow {
+  const previous = existingId ? findId(existingId) : undefined;
+  if (existingId && (!previous || isLocalGitRemoteId(existingId))) {
+    throw new Error("Saved connector not found on this device");
+  }
+  if (previous && previous.providerId !== input.providerId) {
+    throw new Error("A saved connector cannot change its provider");
+  }
+  const stamp = nowIso();
+  return {
+    connectionId: previous?.connectionId ?? randomId(),
+    providerId: input.providerId,
+    displayName: input.displayName,
+    scopes: input.scopes,
+    fields: input.fields,
+    createdAt: previous?.createdAt ?? stamp,
+    updatedAt: stamp,
+  };
+}
+
+/** Wait for encrypted storage before reporting that a configuration was saved. */
+export async function saveDeviceConnectorConfigurationDurable(
+  makeInput: () => DeviceConnectorConfiguration,
+  existingId?: string,
+): Promise<Connection> {
+  const row = await writeDeviceConfigurationDurable(() => {
+    const input = makeInput();
+    return { row: configurationRow(input, existingId), secrets: input.secrets };
+  });
+  return deviceConnectorView(row);
 }
 
 export function sealDeviceCredential(
@@ -200,11 +230,16 @@ export function sealDeviceCredential(
   value: string,
 ): Connection | null {
   const row = findId(id);
-  if (!row || isLocalGitRemoteId(id)) return null;
+  if (
+    !row ||
+    isLocalGitRemoteId(id) ||
+    row.fields.self_hosted_configuration !== undefined
+  )
+    return null;
   const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
   secrets.credential = value;
   upsert({ ...row, updatedAt: nowIso() }, secrets);
-  return toConnection({ ...row, updatedAt: nowIso() });
+  return deviceConnectorView({ ...row, updatedAt: nowIso() });
 }
 
 export function sealDeviceConfiguration(
@@ -212,7 +247,7 @@ export function sealDeviceConfiguration(
   values: Record<string, string>,
 ): Connection | null {
   const row = findId(id);
-  if (!row) return null;
+  if (!row || row.fields.self_hosted_configuration !== undefined) return null;
   const hidden = secretNames(row.providerId);
   const fields: StringFields = { ...row.fields };
   const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
@@ -222,14 +257,36 @@ export function sealDeviceConfiguration(
   }
   const next = { ...row, fields, updatedAt: nowIso() };
   upsert(next, secrets);
-  return isLocalGitRemoteId(id) ? null : toConnection(next);
+  return isLocalGitRemoteId(id) ? null : deviceConnectorView(next);
 }
 
-export function revokeDeviceConnection(id: string): {
+export async function revokeDeviceConnection(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok";
-} | null {
-  if (!findId(id) || isLocalGitRemoteId(id)) return null;
+} | null> {
+  const row = findId(id);
+  if (!row || isLocalGitRemoteId(id)) return null;
+  if (row.fields.native_configuration !== undefined) {
+    const revoke = deviceProviderRevokers[row.providerId];
+    if (!revoke)
+      throw new Error("Enable External connectors to disconnect this provider");
+    await revoke(id);
+    return { revoked: true, providerRevocation: "ok" };
+  }
+  if (
+    row.providerId === "linear" &&
+    row.fields.linear_authorization !== undefined
+  ) {
+    const revoke = deviceProviderRevokers.linear;
+    if (!revoke)
+      throw new Error("Enable External connectors to disconnect Linear");
+    await revoke(id);
+    return { revoked: true, providerRevocation: "ok" };
+  }
+  if (row.fields.self_hosted_configuration !== undefined) {
+    const removed = await removeDeviceConfigurationDurable(id);
+    return removed ? { revoked: true, providerRevocation: "ok" } : null;
+  }
   writeDeviceRows(readDeviceRows().filter((row) => row.connectionId !== id));
   const map = readDeviceSecrets();
   delete map[id];
@@ -287,10 +344,18 @@ export async function saveForgeConnector(
 
 /** The catalog operation the owning feature runs from the saved configuration. */
 export function runFeatureConnector(provider: Provider): ConnectorRun {
-  const row = latestFor(provider.id);
-  if (!row) return { ok: false, providerId: provider.id };
+  const row = latestNativeFor(provider.id);
+  if (!row) {
+    return { ok: false, providerId: provider.id };
+  }
   const fields: StringFields = { ...row.fields };
   if (row.scopes.length > 0) fields.scopes = row.scopes.join(" ");
+  // Linear operations are awaited by their provider driver; generic sends must refuse.
+  if (
+    row.providerId === "linear" &&
+    row.fields.linear_authorization !== undefined
+  )
+    return { ok: false, providerId: provider.id };
   const secrets: StringFields = {
     ...(readDeviceSecrets()[row.connectionId] ?? {}),
   };

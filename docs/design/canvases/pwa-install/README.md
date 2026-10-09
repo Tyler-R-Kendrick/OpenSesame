@@ -7,7 +7,9 @@ hides in the address bar and the three taps buried in Safari's Share sheet.
 Published canvas:
 <https://claude.ai/code/artifact/3580e5f0-6573-48b8-83fc-13cf4772d2f9>
 
-Shipped as ADR 0085 ([PWA install offer](../../../adr/0085-pwa-install-offer.md)),
+Shipped as ADR 0085 ([PWA install offer](../../../adr/0085-pwa-install-offer.md);
+the offer is `apps/pages/src/components/InstallOffer.tsx`, and Settings ›
+General › Install is `apps/pages/src/sections/settings/InstallPanel.tsx`),
 on top of ADR 0077 ([first-run setup ceremony](../../../adr/0077-first-run-setup-ceremony.md))
 and ADR 0078 ([an external IdP is the identity service](../../../adr/0078-external-idp-is-the-identity-service.md)),
 which cut that ceremony to one screen and one question.
@@ -25,7 +27,7 @@ which cut that ceremony to one screen and one question.
 | `canvas.json` | Two pages (Keep it, Placement model), layout, sticky notes, launch view. |
 
 Copy and states are grounded in the real code: the five `InstallState` values
-and their ordering from `lib/install.ts`, the card anatomy from
+and their ordering from `apps/pages/src/lib/install.ts`, the card anatomy from
 `components/CeremonyShell.tsx`'s `.found` / `.found__do` pair, the `ways__*`
 section voice and thumb bar from `screens/setup.css` and `screens/setup/
 WaysIn.tsx`, and the storage claim from `lib/kv.ts` — the vault is held in
@@ -62,9 +64,10 @@ installed app.
   installed — and deliberately not a moment earlier, because Chromium refuses
   a plain tab and the one attempt per page load would be spent on that
   refusal. So the claim is one the code keeps.
-- **The commit is still the ceremony's.** The install is a `.btn--primary`
-  inside the `.found` card, beside the facts that justify it; the foot bar
-  keeps its `.go` square reading "Finish setup". See
+- **The commit is still the ceremony's.** The install sits inside the `.found`
+  card, beside the facts that justify it (the artboards draw it as a
+  `.btn--primary`; the build uses an `icon-btn`); the foot bar keeps its `.go`
+  square reading "Finish setup". See
   [`docs/design/controls.md`](../../controls.md), enforced by `pnpm lint:design`.
 
 ## Building and re-seeding
@@ -105,9 +108,10 @@ constraints of its own.
 
 ## Open questions
 
-- Whether `apps/pwa`, the thin client shell, should become installable too. It
-  ships a manifest but no service worker, so no browser currently offers it —
-  and none of this reaches it.
+- Whether a thin client shell beside `apps/pages` should become installable
+  too. When this was written `apps/pwa` shipped a manifest but no service
+  worker, so no browser offered it; no `apps/pwa` exists in this checkout, so
+  this question is moot.
 - Whether the installed app should ever say so on the unlock screen. Drawn as
   not: the unlock screen is the vault gate, and ADR 0077 spent its budget
   clearing that screen of things the reader cannot act on.

@@ -25,6 +25,10 @@ const item = (goal: string, says: string): KeymapTutorial => ({ goal, says });
 export const KEYMAP_TUTORIALS = {
   "section.vault": { goal: "shell.sections", says: "Press g then v" },
   "section.settings": { goal: "shell.sections", says: "opened with g then s" },
+  "session.join": {
+    goal: "shell.sections",
+    says: "Press g then j to join a session",
+  },
   "listing.next": move("j or the down arrow moves to the next row"),
   "listing.previous": move("k or the up arrow, to the previous"),
   "listing.first": move("gg, Home or 0 goes to the first row"),

@@ -3,11 +3,9 @@
  * Where the keyboard is after each swap in a live session (AGENTS.md §5).
  *
  * Asking, Connect, Start, End, Start over, Let in and Turn away each take the
- * control that held the keyboard out of the document, or disable it, and the
- * next Tab would begin at the top of the page. Every test focuses the control
- * a keyboard user pressed, drives the change, and reads `activeElement` — and
- * for each there is a person who moved on by mouse or touch, whose focus must
- * stay where they put it.
+ * focused control out of the document or disable it, so the next Tab would
+ * start at the top. Each test focuses that control, drives the change, and
+ * reads `activeElement`. A person who moved on by mouse keeps their focus.
  *
  * A browser drops the focus of a control that is disabled while it holds it;
  * jsdom does not, so `browserFocusFixup` says so, as Chromium does.
@@ -138,12 +136,16 @@ async function landsOn(element: Element | null | undefined) {
   await waitFor(() => expect(held()).toBe(element));
 }
 
-async function host(admission: "invite" | "open" = "invite") {
+async function host(
+  admission: "invite" | "open" = "invite",
+  values: "read" | "use" | "edit" = "use",
+) {
   const rendered = render(<LiveHostPanel />);
   const panel = within(rendered.container);
   await panel.findByRole("img", { name: "Direct only" });
   type(panel.getByLabelText("Session name"), "Team");
   fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+  if (values !== "use") type(panel.getByLabelText("Values"), values);
   type(panel.getByLabelText("Who gets in"), admission);
   return panel;
 }
@@ -158,8 +160,8 @@ function openJoin() {
 }
 
 /** A live session, hosted and its link held: the joiner's screen is open. */
-async function hosted() {
-  const panel = await host();
+async function hosted(values: "read" | "use" | "edit" = "use") {
+  const panel = await host("invite", values);
   press(panel.getByRole("button", { name: "Start the live session" }));
   await panel.findByRole("img", { name: "Live" });
   const session = currentHost();
@@ -177,8 +179,8 @@ async function asked(joiner: ReturnType<typeof within>, code: string) {
 }
 
 /** Owner and joiner paired by hand, the joiner in the session. */
-async function pairedJoiner() {
-  const { panel, session } = await hosted();
+async function pairedJoiner(values: "read" | "use" | "edit" = "use") {
+  const { panel, session } = await hosted(values);
   const joiner = openJoin();
   const request = await asked(joiner, session?.code ?? "");
   type(panel.getByLabelText("A request code"), request);
@@ -355,7 +357,8 @@ describe("the keyboard after the joiner's swaps", () => {
   });
 
   it("lands on Start over when the session ends under a removed control, and on the form after it", async () => {
-    const joiner = await pairedJoiner();
+    // Show values draws the copy key. Copy only does not.
+    const joiner = await pairedJoiner("read");
     act(() =>
       joiner.getByRole("button", { name: "Copy GitHub Password" }).focus(),
     );

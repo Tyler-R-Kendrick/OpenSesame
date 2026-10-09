@@ -10,8 +10,15 @@ says otherwise. Start that first:
 
 ```bash
 pnpm --filter @opensesame/mock-upstream-idp dev &
-OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 \
+  pnpm --filter @opensesame/control-plane start
 ```
+
+`OPENSESAME_ENV=development` alone does not start it: without an
+`OPENSESAME_CLAIM_PEPPER` the Identity API refuses to boot unless
+`OPENSESAME_ALLOW_DEV_DEFAULTS=1` (exactly `1`; local-only) opts into the
+development defaults. [`static-rp`](static-rp) also needs
+`OPENSESAME_ORIGIN_CLIENTS_ENABLED=true` on the Identity API.
 
 ## Relying parties — "Sign in with OpenSesame"
 
@@ -25,7 +32,7 @@ OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
 
 | Example | What it shows | Run |
 |---|---|---|
-| [`agent`](agent) | An agent registering anonymously, publishing `auth.md` and an agent card, then polling while a person claims it. | `MOCK_AGENT_FLOW=1 pnpm --filter @opensesame/example-agent start` |
+| [`agent`](agent) | An agent registering anonymously and polling its claim while a person completes it, then rendering an `auth.md` and an agent card. | `MOCK_AGENT_FLOW=1 pnpm --filter @opensesame/example-agent start` |
 | [`static-agent`](static-agent) | A static origin that advertises OpenSesame as its authorization server through `/auth.md` and `/.well-known/oauth-protected-resource` ([ADR 0092](../docs/adr/0092-auth-md-agent-registration.md)). | `pnpm --filter @opensesame/example-static-agent dev` (`:4103`) |
 
 ## Headless clients
@@ -43,8 +50,9 @@ headless examples run with no Identity API at all.
 ## Rules for examples
 
 - Depend only on SDK and contract packages (`sdk-*`, `static-auth`,
-  `agent-protocols`, `contracts`, `os-domain`, `siop-v2`) — never on an app or
-  on `app-core`. If an example needs something the SDKs do not offer, that is
+  `agent-protocols`, `contracts`, `os-domain`, `siop-v2`, plus the leaf
+  libraries `log-scrub` and `browser-at-rest`) — never on an app or on
+  `app-core`. If an example needs something the SDKs do not offer, that is
   an SDK gap.
 - Ship no secrets. Static examples are public clients.
 - Keep a `README.md` that says what the example demonstrates and how to run it.

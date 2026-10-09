@@ -1,4 +1,8 @@
 import { expect } from "@playwright/test";
+import {
+  openIdentityRecord,
+  openIdentityView,
+} from "./local-directory-navigation.mjs";
 
 // Identity › Devices lists the browsers that opened this vault, driven from
 // the keyboard alone: this browser is listed and never removable, it is
@@ -6,22 +10,27 @@ import { expect } from "@playwright/test";
 // (ADR 0169 — the tailnet's real machines are the optional device manager's,
 // above this list).
 export async function localDeviceContract(page, tabTo) {
-  await tabTo(page, page.getByRole("tab", { name: "Devices", exact: true }));
-  await page.keyboard.press("Enter");
-  const panel = page.getByRole("region", {
-    name: "This vault's browsers",
-    exact: true,
-  });
-  const mine = panel
-    .getByRole("listitem")
-    .filter({ has: page.getByRole("img", { name: "This device" }) });
+  await openIdentityView(page, tabTo, "Devices");
+  const panel = page.locator('.record-workspace[data-section="Identity"]');
+  const device = panel
+    .locator(".vtree__rows")
+    .getByRole("treeitem")
+    .filter({ has: page.locator(".vtree__dim", { hasText: /^\.device$/ }) })
+    .first();
+  await expect(device).toBeVisible();
+  const label = (await device.locator(".vtree__name").innerText()).replace(
+    /\.device$/,
+    "",
+  );
+  await openIdentityRecord(page, tabTo, label);
+  const mine = panel.locator(".vault__detail");
+  await expect(mine.locator(".detail__meta")).toContainText("This device");
   await expect(mine).toHaveCount(1);
   await expect(mine.getByRole("button", { name: /^Remove / })).toHaveCount(0);
   await expect(
     panel.getByRole("button", { name: /New device|Register/ }),
   ).toHaveCount(0);
 
-  const label = await mine.getByRole("heading").innerText();
   const edit = mine.getByRole("button", { name: `Edit ${label}`, exact: true });
   await tabTo(page, edit);
   await page.keyboard.press("Enter");

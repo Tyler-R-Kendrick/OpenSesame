@@ -6,8 +6,10 @@ unlock screen with a **setup ceremony** that treats the anonymous first visitor
 as the deployment's operator, and withhold the Unlock tab while there is nothing
 on the device to unlock.
 
-The ceremony grew into **a tab per concern** (ADR 0114: backups, ai, identity,
-mfa, sync — each skippable, with a skip-all). The identity tab is the question
+The ceremony grew into **a tab per concern** (ADR 0114, each skippable; its
+original six tabs were cut to four — connectors, ai, identity, mfa — and ADR
+0130 now derives the list from the installation's plan, capability selection
+first). The identity tab is the question
 this canvas settled, and its answer is a **list**: the operator adds as many
 ways in as the deployment wants, and the sign-in screen offers exactly those
 and nothing else. An external IdP configured here *is* the identity service
@@ -28,10 +30,11 @@ Published canvas:
 | `ModelChecklist.dc.html` | Model B: one scrolling checklist of expand-in-place rows — the connectivity bar's existing vocabulary, and why it loses on a phone. |
 | `canvas.json` | Two pages (Ceremony, Navigation model), layout, sticky notes, launch view. |
 
-Copy is grounded in the real code: the `idp` record and endpoint defaults from
-`lib/settings.ts`, provider presets and their field copy verbatim from
-`lib/idp-presets.ts` and `screens/setup/providers.ts`, and the field shell from
-`components/FieldShell.tsx`.
+Copy was grounded in the code as it stood: the `idp` record and endpoint
+defaults from `lib/settings.ts`, provider presets and their field copy
+verbatim from `lib/idp-presets.ts` and `screens/setup/providers.ts` (both now
+in `packages/app-core/src`), and the field shell from
+`apps/pages/src/components/FieldShell.tsx`.
 
 ## Building and re-seeding
 

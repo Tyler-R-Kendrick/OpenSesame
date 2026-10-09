@@ -11,6 +11,7 @@ import {
   createCredential,
   credentialTypeId,
   isCredentialTypeId,
+  listedItems,
   loginMethodTypeOf,
   resolveAccounts,
 } from "./credential.js";
@@ -63,6 +64,43 @@ describe("credential types", () => {
     expect(itemTypeId(createCredential(password("c2"), "P", null, T0))).toBe(
       "password",
     );
+  });
+});
+
+describe("listedItems", () => {
+  it("does not draw a bound password beside its account", () => {
+    const items = splitAccount(
+      [],
+      { ...account("a"), methods: [password("a:p")] },
+      T1,
+    );
+    expect(items.some((item) => item.kind === "credential")).toBe(true);
+    expect(listedItems(items).map((item) => item.id)).toEqual(["a"]);
+  });
+
+  it("keeps an unbound password and a method removed into the trash", () => {
+    const spare = createCredential(password("own"), "Spare", null, T0);
+    const bound = splitAccount(
+      [],
+      { ...account("a"), methods: [password("a:p"), apiKey("a:k")] },
+      T1,
+    );
+    const resolved = resolveAccounts(bound);
+    const editing = resolved.find((item) => item.id === "a");
+    if (editing?.kind !== "account") throw new Error("fixture");
+    const removed = splitAccount(
+      bound,
+      {
+        ...editing,
+        methods: editing.methods.filter((method) => method.id !== "a:k"),
+      },
+      T2,
+    );
+    expect(listedItems([...removed, spare]).map((item) => item.id)).toEqual([
+      "a",
+      "a:k",
+      "own",
+    ]);
   });
 });
 

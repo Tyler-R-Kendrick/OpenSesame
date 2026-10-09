@@ -62,4 +62,3 @@ export * from "./request.js";
 export * from "./lease.js";
 export * from "./lease-grant.js";
 export * from "./request-leased.js";
-export * from "./native-handoff.js";

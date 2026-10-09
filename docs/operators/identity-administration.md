@@ -6,8 +6,9 @@ registering an upstream provider is optional, not a prerequisite to opening it.
 
 ## Connect
 
-Configure the Identity API under **Settings → Connectivity**, then connect from
-Identity. Administrative requests use the signed-in Identity session, never a
+Enter the Identity API address in the **Sign-in service** field of the
+**Connect a sign-in service** panel on the Identity screen; once an address
+is saved the panel offers **Connect**. Administrative requests use the signed-in Identity session, never a
 Host operator credential. Production owners must authenticate using the
 deployment's approved sign-in methods; connecting anonymously does not grant
 organization ownership or verified assurance.

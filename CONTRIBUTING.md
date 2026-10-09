@@ -28,9 +28,11 @@ pnpm lint && pnpm quality && pnpm typecheck && pnpm test
 cargo +1.88.0 test --workspace --all-targets     # when Rust changed
 ```
 
-`pnpm verify` runs everything, including the security audits and the battle
-test; run it before anything security-sensitive lands. The pre-push hook runs
-typecheck and tests by default (`OPENSESAME_PREPUSH=off|fast|full`).
+`pnpm verify` is the full local gate: lint, anti-slop, quality, Clippy, every
+test suite and the battle test. The `pnpm audit:*` security gates are separate;
+run the ones that match what you touched, and `pnpm verify`, before anything
+security-sensitive lands. The pre-push hook runs the anti-slop lint and plugin
+tests, typecheck and tests by default (`OPENSESAME_PREPUSH=off|fast|full`).
 
 Browser gates run against a fresh Pages build and are required when you touch
 what they cover — boot, sign-in, the shell, controls, keyboard handling, touch
@@ -38,8 +40,9 @@ layout: `pnpm --filter @opensesame/pages verify:<keyboard|mobile|static|auth|loc
 
 ## Your pull request
 
-- **Commits are signed** (`git commit -S`). CI rejects unsigned commits and the
-  default-branch ruleset will not merge them.
+- **Commits carry a GitHub-verified signature** (`git commit -S` with a signing
+  key registered on your GitHub account, or commits GitHub itself creates). CI
+  rejects any other commit and the default-branch ruleset will not merge it.
 - **A user-visible change carries before/after evidence** from two real
   builds, committed under `docs/evidence/<yyyy-mm-dd>-<topic>/` and linked
   from the PR ([how](skills/visual-evidence/SKILL.md)).

@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "migrationHint": "Use `opensesame-id run` (or `os run`) with `--env NAME=op://vault/item/field` or `os://vault/item/field`, or `env run <file> -- <cmd>`, instead of read or env resolve. Secret references stay in the 1Password-style scheme://vault/item/field form.",
+  "agentContextEnv": [
+    {
+      "name": "OPENSESAME_AGENT_LAUNCH_HANDLE",
+      "match": "nonEmpty",
+      "verifiedIn": "packages/agent-client/src/index.ts"
+    },
+    {
+      "name": "OPENSESAME_AGENT_CLIENT_ID",
+      "match": "nonEmpty",
+      "verifiedIn": "packages/agent-client/src/index.ts"
+    },
+    {
+      "name": "CLAUDECODE",
+      "match": "equals",
+      "value": "1",
+      "verifiedIn": ".claude/hooks/session-start.sh"
+    }
+  ],
+  "cases": [
+    {
+      "id": "refuse-piped-stdout",
+      "stdinTty": true,
+      "stdoutTty": false,
+      "reveal": true,
+      "desktop": true,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-agent-launch-handle",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": true,
+      "agentContext": true,
+      "agentMarker": "OPENSESAME_AGENT_LAUNCH_HANDLE",
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-without-reveal-flag",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": false,
+      "desktop": true,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-op-without-desktop",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": false,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "allow-human-op-reveal",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": true,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "allow"
+    },
+    {
+      "id": "allow-pass-reveal-no-desktop",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": false,
+      "agentContext": false,
+      "reference": null,
+      "expect": "allow"
+    }
+  ]
+}

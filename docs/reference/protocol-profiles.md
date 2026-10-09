@@ -11,16 +11,16 @@ OpenSesame maps external authorization standards to internal [`ProtocolProfile`]
 | `mcp-authorization-2026-07-28-bearer` | MCP | **Draft** | Bearer | No | No | `opensesame-protocol-mcp` | MCP spec still evolving; Bearer-only in this repo |
 | `oauth-token-exchange-rfc8693-semantics-v1` | OAuth | Stable | Bearer | No | No | — | Semantic mapping only; no token-exchange server in this slice |
 | `http-message-signatures-rfc9421-v1` | HTTP sig | Stable | HTTP message signature | No | Yes | `opensesame-proof` | Ed25519 subset: `content-digest`, `@method`, `@target-uri` only |
-| `aauth-draft-10-experimental` | Experimental | **Experimental** | DPoP-bound | Yes | Yes | `opensesame-protocol-aauth` (feature `experimental-aauth`) | Draft-10; disabled by default |
+| `aauth-draft-10-experimental` | Experimental | **Experimental** | DPoP-bound | Yes | Yes | `opensesame-protocol-aauth` (feature `experimental-aauth`) | Draft-10; disabled by default (gateway routes answer 404 `aauth_profile_disabled` unless `OPENSESAME_AAUTH_EXPERIMENTAL=true`) |
 
 ## Downgrade policy
 
-All built-in profiles use `DowngradePolicy::FailClosed`. Presenting Bearer where DPoP is required returns `TokenPresentationDowngrade`. MCP Bearer must not be confused with OpenSesame task DPoP profiles (see ADR 0023).
+All built-in profiles use `DowngradePolicy::FailClosed`. Presenting Bearer where DPoP is required returns `TokenPresentationDowngrade`. MCP Bearer must not be confused with OpenSesame task DPoP profiles (see ADR 0023). The gateway lists three of the slugs (`oauth-bearer-rfc6750-v1`, `mcp-authorization-2026-07-28-bearer`, `opensesame-task-dpop-rfc9449-v1`) in its protected-resource metadata but does not call `assert_presentation_allowed` per request; its callers are `opensesame-proof` and `opensesame-protocol-mcp`.
 
 ## Honesty about draft and experimental features
 
-- **MCP Authorization (2026-07-28)** — Implemented as Bearer validation only. No DPoP profile for MCP in this repository. Audience/resource helpers exist; full MCP authorization server is out of scope.
-- **AAuth draft-10** — Feature-gated experimental adapter. Person, agent, and mission mappings are exposed only under `/experimental/aauth/v1`; scope authorization waits for a stable resource grammar. Spec changes may break the adapter without a major version bump.
+- **MCP Authorization (2026-07-28)** — Implemented as Bearer validation only. No DPoP profile for MCP in this repository. Audience/resource helpers exist; full MCP authorization server is out of scope. `opensesame-protocol-mcp` is not linked by the gateway (only the fuzz harness depends on it); `packages/mcp-host`'s HTTP transport authenticates with a static bearer (`OPENSESAME_MCP_HTTP_TOKEN`).
+- **AAuth draft-10** — Feature-gated experimental adapter. Person, agent, and mission mappings are exposed only under `/experimental/aauth/v1`, and only to a session or operator caller when `OPENSESAME_AAUTH_EXPERIMENTAL=true`; scope authorization waits for a stable resource grammar. Spec changes may break the adapter without a major version bump.
 - **HTTP message signatures** — `LocalHttpMessageSignatureValidator` in `opensesame-proof` implements the OpenSesame subset (Ed25519 over `content-digest`, `@method`, `@target-uri`). Not full RFC 9421 component interoperability; see limitations below.
 - **Token exchange semantics** — Profile id for documentation; no RFC 8693 endpoint.
 
@@ -28,9 +28,9 @@ All built-in profiles use `DowngradePolicy::FailClosed`. Presenting Bearer where
 
 OpenSesame validates only:
 
-- Covered components: `content-digest`, `@method`, `@target-uri`
+- Covered components: `content-digest`, `@method`, `@target-uri` (a signature must cover all three)
 - Algorithm: Ed25519 (`alg="ed25519"`)
-- Signature label: `sig`
+- One signature label per request (the signer emits `sig`)
 
 Not supported in this slice:
 
@@ -43,7 +43,7 @@ Profile id: `http-message-signatures-rfc9421-v1` (`PROFILE_HTTP_MESSAGE_SIGNATUR
 
 ## Token passthrough
 
-OpenSesame **never** forwards an inbound presented token as a downstream credential. MCP adapter exposes an explicit rejection path for passthrough attempts. Task-scoped credentials are minted by the credential-agent with digest-only persistence.
+OpenSesame **never** forwards an inbound presented token as a downstream credential. MCP adapter exposes an explicit rejection path for passthrough attempts. The task-access engine (`opensesame-task-access`) persists a task-scoped credential as a digest only (`TaskCredentialRecord.credential_digest`).
 
 ## Related ADRs
 

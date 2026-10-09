@@ -31,7 +31,7 @@ import { firstControl, landFocus } from "../lib/focus.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { AccountRow } from "./unlock/AccountRow.js";
-import { ResetBrowser } from "./unlock/ResetBrowser.js";
+import { LockFoot } from "./unlock/LockFoot.js";
 import { ResetLeftNotice } from "./unlock/ResetLeftNotice.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 
@@ -218,7 +218,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
         )}
 
         <div className="unlock__foot">
-          <ResetBrowser />
+          <LockFoot />
         </div>
       </div>
     </div>

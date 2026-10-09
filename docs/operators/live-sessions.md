@@ -196,9 +196,8 @@ single session's credentials expire with it.
 
 Browsers may ask the person before a public page reaches a carrier on a
 tailnet or LAN address. Chrome calls this Local Network Access, and the
-prompt reads "Look for and connect to any device on your local network". Chrome
-gates `fetch` from version 142 and WebSocket from 147. Allowing it is
-the browser's consent, on top of the join screen's.
+prompt reads "Look for and connect to any device on your local network".
+Allowing it is the browser's consent, on top of the join screen's.
 
 ## What the joiner sees
 
@@ -244,12 +243,13 @@ like any optional capability, and a carrier is external service egress:
   `allowedServiceOrigins` do not govern. The joiner still sees every host
   before any is contacted, but a policy cannot narrow them; to keep them out,
   prohibit `sharing.live`, or leave Routes without ICE servers.
-- **The shipped page's own `<meta>` policy allows every `https:` and `wss:`
-  connection** (`index.html`), so on GitHub Pages the plan and allowlist are
-  the gate. The policy `scripts/security-headers.mjs` generates from a profile
-  (the header, or its `metaCsp` on a host that cannot send headers) is
-  stricter, and lists each `wss://` origin in `connect-src` only while
-  external services are allowed.
+- **The shipped page's own `<meta>` policy allows every `http:`, `https:`,
+  `ws:` and `wss:` connection** (`connect-src` in `apps/pages/index.html`), so
+  on GitHub Pages the plan and allowlist are the gate. The policy
+  `apps/pages/scripts/security-headers.mjs` generates from a profile (the
+  header, or its `metaCsp` on a host that cannot send headers) is stricter,
+  and lists each `wss://` origin in `connect-src` only while external services
+  are allowed.
 
 ## Checking a setup
 

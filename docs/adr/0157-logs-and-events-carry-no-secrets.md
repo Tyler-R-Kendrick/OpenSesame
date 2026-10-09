@@ -2,6 +2,12 @@
 
 - Status: Accepted
 - Date: 2026-09-28
+- Implementation: the body names the first formats. New event values are now
+  `osev2.` envelopes (a random data key per value, wrapped under a purpose- and
+  customer-derived key; `crates/event-seal`,
+  `packages/database/src/event-seal.ts`) and log lines are `osl2.`
+  wrapped-key envelopes (`crates/sealed-log`); `osev1.` and `osl1.` are the
+  legacy formats, kept for migration and compatibility reads.
 - Builds on: [ADR 0080](0080-security-event-hooks.md) (every security fact is
   a `SecurityNotice`), [ADR 0139](0139-one-definition-every-target.md) (one
   definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md)
