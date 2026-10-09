@@ -26,7 +26,7 @@ pub(crate) enum VaultArea {
     /// Password-store management (`pass` parity): init, insert, show, ls, …
     Pass {
         #[command(subcommand)]
-        cmd: super::PassCmd,
+        cmd: super::pass_commands::BoundedPassCmd,
     },
     /// Explicit human-only provider reads. Never exposed through MCP or agent APIs.
     Secret {
@@ -60,7 +60,9 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
             memory_kib,
             passes,
         } => crate::vault_migration::migrate(&input, &output, memory_kib, passes)?,
-        VaultArea::Pass { cmd } => command_future(move || run_pass(server, cmd)).await?,
+        VaultArea::Pass { cmd } => {
+            command_future(move || run_pass(server, cmd.into_inner())).await?
+        }
         VaultArea::Secret { cmd } => {
             command_future(move || super::secret_cmd(server, cmd)).await?;
         }
