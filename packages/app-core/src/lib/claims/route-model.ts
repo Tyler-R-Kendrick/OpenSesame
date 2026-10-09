@@ -25,6 +25,8 @@ export const CLAIM_NOTICE = "identity.claim";
 /** Status glyph on the page — the tray carries the full sentence (ADR 0163). */
 export const CLAIM_FAILURE_MARK = "Claim could not continue";
 export const DROP_FAILURE_MARK = "Drop could not open";
+/** Glyph label when a drop fails; the tray holds the full refusal (ADR 0163). */
+export const DROP_FAILURE_MARK_WITH_TRAY = `${DROP_FAILURE_MARK}. Full message in the bell`;
 
 /** The label the done mark carries. */
 export const CLAIM_ACCEPTED = "Claim accepted";
