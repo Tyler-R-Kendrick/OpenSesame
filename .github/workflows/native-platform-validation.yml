@@ -206,6 +206,10 @@ jobs:
         run: |
           set -euo pipefail
           cargo +1.88.0 fmt --all -- --check 2>&1 | tee "$NATIVE_AUDIT_DIR/format.log"
+      - name: Exercise actual CLI startup before command journeys
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 test --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --test entry_startup -- --nocapture 2>&1 | tee "$NATIVE_AUDIT_DIR/startup.log"
       - name: Execute actual cli tests on this host
         run: |
           set -euo pipefail

@@ -88,7 +88,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
 
 /// Keep child construction in its selected poll function, outside shared dispatch.
 #[inline(never)]
-fn command_future<'a, F, Fut>(
+pub(super) fn command_future<'a, F, Fut>(
     make: F,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<()>> + 'a>>
 where
