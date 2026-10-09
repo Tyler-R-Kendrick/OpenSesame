@@ -112,15 +112,17 @@ export function particleField(
   return 0.14 + 0.86 * band * flake ** 1.8;
 }
 
-function measureFont(
-  ctx: CanvasRenderingContext2D,
-): { adv: number; asc: number } {
+function measureFont(ctx: CanvasRenderingContext2D): {
+  adv: number;
+  asc: number;
+} {
   ctx.font = `100px ${FONT_FAMILY}`;
   const adv = ctx.measureText("0").width / 100;
-  const asc = Math.max(
-    ctx.measureText("0PEN").actualBoundingBoxAscent,
-    ctx.measureText("F").actualBoundingBoxAscent,
-  ) / 100;
+  const asc =
+    Math.max(
+      ctx.measureText("0PEN").actualBoundingBoxAscent,
+      ctx.measureText("F").actualBoundingBoxAscent,
+    ) / 100;
   return { adv, asc };
 }
 
@@ -155,13 +157,13 @@ export function layoutWordmark(
   let wMax = 0;
   for (const ch of new Set(letters.join("").replace(/ /g, ""))) {
     const t = m.measureText(ch);
-    wMax = Math.max(wMax, (t.actualBoundingBoxLeft + t.actualBoundingBoxRight) / 100);
+    wMax = Math.max(
+      wMax,
+      (t.actualBoundingBoxLeft + t.actualBoundingBoxRight) / 100,
+    );
   }
   const padPx = 1.6 * gs;
-  const fpx = Math.min(
-    (cellW - 2 * padPx) / wMax,
-    (cellH - 2 * padPx) / asc,
-  );
+  const fpx = Math.min((cellW - 2 * padPx) / wMax, (cellH - 2 * padPx) / asc);
 
   const rand = lcg(PARTICLE_SEED);
   const cols = Math.round((W - leading) / gs) + 1;
@@ -183,7 +185,9 @@ export function layoutWordmark(
       const u0 = rand();
       const size = big
         ? gs * (0.86 + 0.1 * u0)
-        : gs * (DRAW_CALIBRATION.dmin + (DRAW_CALIBRATION.dmax - DRAW_CALIBRATION.dmin) * u0);
+        : gs *
+          (DRAW_CALIBRATION.dmin +
+            (DRAW_CALIBRATION.dmax - DRAW_CALIBRATION.dmin) * u0);
       rand();
       rand();
       const off = rand();
@@ -299,7 +303,7 @@ function plateMask(
       }
     }
     const cov = n ? sum / n / 255 : 0;
-    out[i] = Math.pow(Math.max(0, 1 - cov * 1.15), 0.8);
+    out[i] = Math.max(0, 1 - cov * 1.15) ** 0.8;
   });
   return out;
 }
@@ -364,7 +368,7 @@ export function drawWordmark(
     );
     for (let i = 0; i < q.P.length; i += 1) {
       const p = q.P[i];
-      let mk = M[i] ?? 0;
+      const mk = M[i] ?? 0;
       if (mk <= 0.45) continue;
       let a = particleField(p.nx, p.ny, p.off, t);
       a = calibration.floor + (1 - calibration.floor) * a;
@@ -374,10 +378,7 @@ export function drawWordmark(
         a = a * (1 - 0.55 * fl) + 0.55 * fl * (h < 0.5 ? 0.15 : 1) * mk;
       }
       a *= p.pa * calibration.alpha * cursorBoost;
-      const lv = Math.min(
-        ALPHA_LEVELS - 1,
-        Math.round(a * (ALPHA_LEVELS - 1)),
-      );
+      const lv = Math.min(ALPHA_LEVELS - 1, Math.round(a * (ALPHA_LEVELS - 1)));
       if (lv > 0) bins[lv].push(p);
     }
   });

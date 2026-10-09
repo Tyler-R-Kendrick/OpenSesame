@@ -12,7 +12,11 @@ export const DISPLAY_WORD = "0PEN SESAME";
  * Deterministic mixed scramble + target (lock-v5). Knuth seed, NR LCG, output
  * mix so adjacent slots do not march 012345… on the high nibble alone.
  */
-export function cipherReel(index: number, target: string, steps: number): string {
+export function cipherReel(
+  index: number,
+  target: string,
+  steps: number,
+): string {
   let seed = ((index + 1) * 2_654_435_761) >>> 0;
   let out = "";
   for (let step = 0; step < steps; step += 1) {
@@ -44,8 +48,8 @@ export function createSlotRuns(
     const advance =
       letter === " "
         ? 0
-        : fixedSteps ??
-          MIN_STEPS + Math.floor(random() * (MAX_STEPS - MIN_STEPS + 1));
+        : (fixedSteps ??
+          MIN_STEPS + Math.floor(random() * (MAX_STEPS - MIN_STEPS + 1)));
     const steps = locked + advance;
     const run: SlotRun = {
       index,
@@ -101,8 +105,6 @@ export function pruneRuns(runs: DecryptRun[], timeMs: number): DecryptRun[] {
 export function isSettled(runs: DecryptRun[], timeMs: number): boolean {
   if (runs.length === 0) return true;
   return runs.every((run) =>
-    run.slots.every(
-      (s) => timeMs - run.t0 >= s.steps * FRAME_MS,
-    ),
+    run.slots.every((s) => timeMs - run.t0 >= s.steps * FRAME_MS),
   );
 }

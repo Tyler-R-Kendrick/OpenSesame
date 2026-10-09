@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CipherWordmark } from "./CipherWordmark.js";
 import {
   CIPHER,
   FRAME_MS,
@@ -10,7 +11,6 @@ import {
   createSlotRuns,
   slotState,
 } from "./cipher.js";
-import { CipherWordmark } from "./CipherWordmark.js";
 import { DRAW_CALIBRATION, cursorBoostFor } from "./particles.js";
 
 afterEach(() => {
@@ -84,8 +84,18 @@ describe("CipherWordmark", () => {
   });
 
   it("exposes replay on the ref", () => {
-    const ref = { current: null as import("./CipherWordmark.js").CipherWordmarkHandle | null };
-    render(<CipherWordmark ref={(h) => { ref.current = h; }} />);
+    const ref = {
+      current: null as
+        | import("./CipherWordmark.js").CipherWordmarkHandle
+        | null,
+    };
+    render(
+      <CipherWordmark
+        ref={(h) => {
+          ref.current = h;
+        }}
+      />,
+    );
     expect(ref.current?.replay).toBeTypeOf("function");
     ref.current?.replay();
   });

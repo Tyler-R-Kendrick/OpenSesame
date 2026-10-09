@@ -7,23 +7,23 @@ import {
   useRef,
   useState,
 } from "react";
+import { readCanvas2d } from "./canvas-context.js";
 import {
   DISPLAY_WORD,
-  FRAME_MS,
   type DecryptRun,
+  FRAME_MS,
   createSlotRuns,
   isSettled,
   pruneRuns,
 } from "./cipher.js";
 import {
-  type Layout,
   DRAW_CALIBRATION,
+  type Layout,
   drawWordmark,
   layoutWordmark,
   readAccent,
   readInkRgb,
 } from "./particles.js";
-import { readCanvas2d } from "./canvas-context.js";
 import "./cipher-wordmark.css";
 
 export type CipherWordmarkTone = "default" | "rail";
@@ -106,21 +106,20 @@ export const CipherWordmark = forwardRef<
     () => staticSnapshot || !animateOnMount,
   );
 
-  const letters = [...text];
   const motionOff =
     staticSnapshot ||
     reducedMotion === true ||
     (reducedMotion === undefined && prefersReducedMotion());
 
   const startRun = useCallback(() => {
-    const slots = createSlotRuns(letters, Math.random);
+    const slots = createSlotRuns([...text], Math.random);
     runsRef.current = [{ t0: nowMs(), slots }];
     settledRef.current = false;
     setSettled(false);
     if (rootRef.current) {
       rootRef.current.dataset.cipherTimings = slotTimingsJson(runsRef.current);
     }
-  }, [letters]);
+  }, [text]);
 
   useImperativeHandle(ref, () => ({
     replay: () => {
@@ -143,11 +142,10 @@ export const CipherWordmark = forwardRef<
       return;
     }
     const emPx =
-      size ??
-      (Number.parseFloat(getComputedStyle(root).fontSize) || 16);
+      size ?? (Number.parseFloat(getComputedStyle(root).fontSize) || 16);
     const layout = layoutWordmark(
       ctx,
-      letters,
+      [...text],
       emPx,
       GAP_EM,
       PAD,
@@ -160,7 +158,7 @@ export const CipherWordmark = forwardRef<
     canvas.style.width = `${layout.W + PAD * 2}px`;
     canvas.style.height = `${layout.H + PAD * 2}px`;
     root.dataset.cipherTimings = slotTimingsJson(runsRef.current);
-  }, [letters, size, includeMark]);
+  }, [text, size, includeMark]);
 
   const paint = useCallback(
     (timeMs: number) => {
@@ -233,6 +231,7 @@ export const CipherWordmark = forwardRef<
   }, [
     animateOnMount,
     motionOff,
+    paint,
     replayProp,
     resize,
     scheduleFrame,

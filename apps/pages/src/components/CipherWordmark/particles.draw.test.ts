@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from "vitest";
-import { createSlotRuns, DISPLAY_WORD, FRAME_MS } from "./cipher.js";
+import { DISPLAY_WORD, FRAME_MS, createSlotRuns } from "./cipher.js";
 import { DRAW_CALIBRATION, drawWordmark, layoutWordmark } from "./particles.js";
 
 describe("drawWordmark", () => {
@@ -15,8 +15,7 @@ describe("drawWordmark", () => {
     const slots = createSlotRuns(letters, Math.random);
     const runs = [{ t0: 0, slots }];
     const midMs =
-      slots[0].delay * FRAME_MS +
-      Math.floor(slots[0].duration / 2) * FRAME_MS;
+      slots[0].delay * FRAME_MS + Math.floor(slots[0].duration / 2) * FRAME_MS;
     drawWordmark(
       ctx,
       layout,

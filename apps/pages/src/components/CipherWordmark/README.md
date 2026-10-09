@@ -58,7 +58,7 @@ node apps/pages/scripts/generate-cipher-icons.mjs
 ## Dev gallery
 
 In local Vite only, the lock-v5 component gallery lives at
-`http://localhost:5180/dev/lock-v5` (see `apps/pages/src/dev/LockV5Demo.tsx` on
+`http://localhost:5180/OpenSesame/dev/lock-v5` (see `apps/pages/src/dev/LockV5Demo.tsx` on
 the unlock branch).
 
 ## Usage

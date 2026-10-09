@@ -62,9 +62,9 @@ describe("Wordmark", () => {
   it("publishes staggered slot timings for verify", () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValue(0.999);
     const { container } = render(<Wordmark />);
-    const timings = container.querySelector(".cipher-wordmark")?.getAttribute(
-      "data-cipher-timings",
-    );
+    const timings = container
+      .querySelector(".cipher-wordmark")
+      ?.getAttribute("data-cipher-timings");
     expect(timings).toBeTruthy();
     const parsed = JSON.parse(timings ?? "[]") as Array<{
       delay: number;
@@ -92,6 +92,8 @@ describe("Wordmark", () => {
     expect(
       document.querySelector(".wordmark__slots")?.getAttribute("aria-hidden"),
     ).toBe("true");
-    expect(document.querySelector("canvas.cipher-wordmark__canvas")).toBeTruthy();
+    expect(
+      document.querySelector("canvas.cipher-wordmark__canvas"),
+    ).toBeTruthy();
   });
 });

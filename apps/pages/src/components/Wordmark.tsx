@@ -25,7 +25,12 @@ export const WORDMARK = "open-sesame";
 /** @deprecated Use {@link CIPHER} from CipherWordmark — uppercase on canvas. */
 export const WORDMARK_CIPHER = "0123456789ABCDEF";
 
-export { cipherReel, FRAME_MS as WORDMARK_FRAME_MS, MIN_STEPS as WORDMARK_MIN_STEPS, MAX_STEPS as WORDMARK_MAX_STEPS };
+export {
+  cipherReel,
+  FRAME_MS as WORDMARK_FRAME_MS,
+  MIN_STEPS as WORDMARK_MIN_STEPS,
+  MAX_STEPS as WORDMARK_MAX_STEPS,
+};
 
 /**
  * Brand wordmark: IconMark + lock-v5 particle-plate CipherWordmark. Visual
