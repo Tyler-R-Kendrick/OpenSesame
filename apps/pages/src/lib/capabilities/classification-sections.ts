@@ -38,6 +38,21 @@ export const SECTION_RULES = [
     "backup.local-encrypted",
     "the vault's Export key and encrypted-backup sheet",
   ),
+  core(
+    "src/sections/vault/ShareGrantForm",
+    "vault.passwords",
+    "standing grant form shared by vault share sheet and Access",
+  ),
+  core(
+    "src/sections/vault/ShareGrantFields",
+    "vault.passwords",
+    "share grant field rows",
+  ),
+  core(
+    "src/sections/vault/VaultShareSheet",
+    "vault.passwords",
+    "vault share grant sheet",
+  ),
 
   // --- connections -----------------------------------------------------------
   optional(

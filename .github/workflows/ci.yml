@@ -321,6 +321,14 @@ jobs:
           VITE_BASE: /OpenSesame/
           EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
+      - name: Vault Share PAM and secret drops
+        # S5/S6 restore: vault/folder/item grants, revoke, device-native drop.
+        # One leg only so the walk runs once against the Pages build.
+        if: matrix.shard == 'journeys-1'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:share-pam
       # Rust 1.88, same action and toolchain as the Rust tests job. Only this
       # shard builds the CLI the live relay walk spawns.
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)

@@ -87,7 +87,11 @@ describe("NoticeCorner", () => {
       <button type="button" aria-label="Notifications" />
     );
     try {
-      const { container } = render(<NoticeCorner />);
+      const { container } = render(
+        <MemoryRouter>
+          <NoticeCorner />
+        </MemoryRouter>,
+      );
       act(() => {
         setStatusNotice({
           id: "unlock:error",
@@ -104,5 +108,58 @@ describe("NoticeCorner", () => {
     } finally {
       notificationsBarSeams.NotificationsBar = original;
     }
+  });
+
+  it("shows a fresh failure's card beside the bell, so a shellless screen never reads as a no-op", () => {
+    render(
+      <MemoryRouter>
+        <NoticeCorner />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    act(() => {
+      setStatusNotice({
+        id: "unlock:error",
+        tone: "err",
+        title: "Unlock",
+        body: "This authenticator did not return a WebAuthn PRF result.",
+      });
+    });
+    // The card is on screen without the sheet being opened — the caret stays
+    // where the ceremony left it.
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /did not return a WebAuthn PRF result/,
+    );
+    act(() => {
+      setStatusNotice({
+        id: "unlock:error",
+        tone: "err",
+        title: "Unlock",
+        body: "Still did not work.",
+      });
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/Still did not work/);
+  });
+
+  it("keeps warn notices behind the bell", () => {
+    render(
+      <MemoryRouter>
+        <NoticeCorner />
+      </MemoryRouter>,
+    );
+    act(() => {
+      setStatusNotice({
+        id: "host-down",
+        tone: "warn",
+        title: "Service unavailable",
+        body: "Authorization needs a connection.",
+      });
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Authorization needs a connection.")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Notifications — 1 pending" }),
+    ).toBeTruthy();
   });
 });

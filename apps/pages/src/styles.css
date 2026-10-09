@@ -831,14 +831,12 @@ input[type="radio"] {
   padding: 0.7rem 0.85rem 0.5rem;
 }
 
-/* Same LED face as the lock screen. A second family, weight, or line-height
-   shifts each glyph off the cell — Share Tech Mono is the only face that
-   sits in these tiles. */
+/* Cipher plates share the lock-v5 OS Logo face with the unlock title. */
 .wordmark.rail__wordmark {
   margin: 0;
-  font-family: "Share Tech Mono", var(--mono);
+  font-family: "OS Logo", var(--mono);
   font-size: 0.75rem;
-  font-weight: 400;
+  font-weight: 800;
   letter-spacing: 0;
   line-height: 1;
   color: var(--rail-fg);
@@ -3605,15 +3603,23 @@ details[open] > summary::before {
    an unframed popup). Present only while the tray holds a notice. It is a
    block in the document flow, right-aligned above the screen — never an
    overlay, so it cannot rest on a control. The rail's tokens are re-pointed at
-   the page's own so the key reads on the canvas. */
+   the page's own so the key reads on the canvas. A fresh failure's card sits
+   above the bell, so a failed ceremony never reads as a no-op. */
 .notice-corner {
   --rail-fg: var(--ink);
   --rail-2: var(--surface-2);
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
   justify-content: flex-end;
   padding: max(0.5rem, env(safe-area-inset-top))
     max(0.5rem, env(safe-area-inset-right)) 0
     max(0.5rem, env(safe-area-inset-left));
+}
+
+.notice-corner .notice-card {
+  max-width: min(24rem, 100%);
 }
 
 @media (pointer: coarse) {

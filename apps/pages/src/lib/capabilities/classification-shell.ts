@@ -16,6 +16,11 @@ export const SHELL_RULES = [
     null,
     "bootstrap (S05): hydrate, boot, render, register SW",
   ),
+  core(
+    "src/dev/",
+    null,
+    "DEV-only component gallery routes (not shipped in prod)",
+  ),
   core("src/App", SHELL, "re-export of app-root for the historical path"),
   shared("src/modules/activation", "handle bookkeeping every runtime shares"),
   shared("src/modules/signals", "lease-fenced abort union for module effects"),
