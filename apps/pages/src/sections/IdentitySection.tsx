@@ -62,9 +62,9 @@ import {
 import { HostedConnectWorkspace } from "./identity/HostedRecordParts.js";
 import type { IdentityTab } from "./identity/IdentityTabs.js";
 import { LocalDirectoryWorkspace } from "./identity/LocalDirectoryWorkspace.js";
-import { providersListRoute } from "./identity/providers-list-route.js";
 import { ProvidersWorkspace } from "./identity/ProvidersWorkspace.js";
 import { useEnabledIdentityViews } from "./identity/identity-views.js";
+import { providersListRoute } from "./identity/providers-list-route.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";
