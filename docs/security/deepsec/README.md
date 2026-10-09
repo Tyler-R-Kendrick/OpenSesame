@@ -5,7 +5,7 @@ re-run export after rescan/triage.
 
 | Field | Value |
 | --- | --- |
-| Exported (UTC) | 2026-10-09T00:36:03.078Z |
+| Exported (UTC) | 2026-10-09T00:48:25.639Z |
 | Agent | `kimi` |
 | Model | `kimi-code/k3` |
 | Queue | 0 findings |
