@@ -12,9 +12,9 @@ import {
   revokeOutboundDropById,
 } from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import {
+  type AuditEvent,
   outcomeChip,
   receiptLabel,
-  type AuditEvent,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { useCallback, useEffect, useState } from "react";
 import { useCapabilityGate } from "../../app-root.js";
@@ -24,7 +24,10 @@ import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { formatTime } from "./format.js";
 
-const STATUS: Record<OutboundDropState, { tone: "idle" | "ok" | "warn" | "err"; label: string }> = {
+const STATUS: Record<
+  OutboundDropState,
+  { tone: "idle" | "ok" | "warn" | "err"; label: string }
+> = {
   pending: { tone: "idle", label: "Pending" },
   consumed: { tone: "ok", label: "Opened" },
   expired: { tone: "warn", label: "Expired" },
@@ -95,11 +98,18 @@ function SentDropRow({
         {formatTime(drop.createdAt)} · until {formatTime(drop.expiresAt)}
       </span>
       {trail.length > 0 ? (
-        <ul className="access-trail access-sent-drop__trail" aria-label="Send receipts">
+        <ul
+          className="access-trail access-sent-drop__trail"
+          aria-label="Send receipts"
+        >
           {trail.map((event) => (
             <li key={event.id}>
-              <span className="access-trail__when">{formatTime(event.occurredAt)}</span>
-              <span className="access-trail__type">{receiptLabel(event.eventType)}</span>
+              <span className="access-trail__when">
+                {formatTime(event.occurredAt)}
+              </span>
+              <span className="access-trail__type">
+                {receiptLabel(event.eventType)}
+              </span>
               <StatusMark
                 tone={statusTone(outcomeChip(event.outcome))}
                 label={event.outcome}
@@ -144,7 +154,10 @@ export function SentDropsPanel() {
   if (!approved) return null;
 
   return (
-    <section className="access-sent-drops" aria-labelledby="access-sent-drops-head">
+    <section
+      className="access-sent-drops"
+      aria-labelledby="access-sent-drops-head"
+    >
       <div className="section__subhead">
         <h2 id="access-sent-drops-head">Sent</h2>
         <button
@@ -165,7 +178,9 @@ export function SentDropsPanel() {
         />
       ) : null}
       {sends.length === 0 ? (
-        <p className="hint">No sends yet. Share once from a secret to list it here.</p>
+        <p className="hint">
+          No sends yet. Share once from a secret to list it here.
+        </p>
       ) : (
         <ul className="access-sent-drops__list">
           {sends.map((drop) => (
