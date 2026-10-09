@@ -272,3 +272,6 @@ export async function openAgeWebauthn(input: {
   }
   return parsePayload(plaintext, input.context);
 }
+
+/** Pure existing capsule context decoder; no primary or authority claim. */
+export const parseAgeWebauthnCapsuleData = parsePayload;

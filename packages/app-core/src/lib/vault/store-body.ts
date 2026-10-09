@@ -13,6 +13,7 @@ import {
   emptyBody,
   normalizeVaultBody,
   openJson,
+  openJsonForRebind,
   vaultSealBinding,
 } from "@opensesame/vault-core";
 import { BODY_PATH, readSealedFile, vfsSeams } from "../vfs.js";
@@ -50,10 +51,11 @@ function syncedFields(body: VaultBody): Partial<VaultBody> {
  * only while the header records no write: once `bodyRev` says a body landed,
  * its absence is a deletion or a rollback, never a fresh start.
  */
-export async function loadVaultBody(
+async function readBody(
   tomb: string,
   vaultKey: CryptoKey,
   header: VaultHeader | null,
+  acceptLegacy = false,
 ): Promise<VaultBody> {
   const recorded = header?.bodyRev ?? 0;
   // A store that keeps each secret as its own file puts the body together now.
@@ -68,11 +70,10 @@ export async function loadVaultBody(
     return emptyBody();
   }
   try {
-    const body = await openJson<VaultBody>(
-      vaultKey,
-      sealed,
-      vaultSealBinding(tomb, BODY_PATH),
-    );
+    const binding = vaultSealBinding(tomb, BODY_PATH);
+    const body = acceptLegacy
+      ? (await openJsonForRebind<VaultBody>(vaultKey, sealed, binding)).value
+      : await openJson<VaultBody>(vaultKey, sealed, binding);
     const rev = body.rev ?? 0;
     if (rev < recorded) throw new VaultCorruptError(ROLLED_BACK);
     const opened: VaultBody = {
@@ -95,4 +96,20 @@ export async function loadVaultBody(
       ? error
       : new VaultCorruptError("unreadable body");
   }
+}
+
+export function loadVaultBody(
+  tomb: string,
+  key: CryptoKey,
+  header: VaultHeader | null,
+) {
+  return readBody(tomb, key, header);
+}
+/** Read-only compatibility proof; sealing migration remains after configured factors. */
+export function proveVaultBodyBeforeFactors(
+  tomb: string,
+  key: CryptoKey,
+  header: VaultHeader | null,
+) {
+  return readBody(tomb, key, header, true);
 }
