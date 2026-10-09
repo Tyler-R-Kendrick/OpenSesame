@@ -53,4 +53,3 @@ export function bindGuestSessionStore<
 export function guestSessionActive(): boolean {
   return readGuestSession();
 }
-
