@@ -136,3 +136,7 @@ fn no_rotation(root: &PrivateDirectory) -> io::Result<()> {
         _ => Err(security::refused()),
     }
 }
+
+#[cfg(test)]
+#[path = "store_lock_tests.rs"]
+mod store_lock_tests;
