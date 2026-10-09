@@ -13,7 +13,13 @@ export const MIME = {
   ".woff2": "font/woff2",
 };
 
-export function createAuthFlowHarness({ DIST, ORIGIN, BASE, OUT, record }) {
+export function createAuthFlowHarness({
+  DIST,
+  ORIGIN,
+  BASE,
+  OUT,
+  record,
+}) {
   async function newPage(browser) {
     const context = await browser.newContext({
       viewport: { width: 1280, height: 900 },
