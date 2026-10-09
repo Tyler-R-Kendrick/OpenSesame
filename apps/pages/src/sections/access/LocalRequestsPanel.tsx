@@ -1,85 +1,84 @@
+import { useState } from "react";
 import "./local-authority.css";
+import "./access-record-choices.css";
 import type { InboxStatusFilter } from "@opensesame/app-core/lib/configuration/inbox-triage.js";
-import { IconKey } from "../../components/IconKey.js";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
-import { useRequestSelection } from "./local-access-request-inbox.js";
-import { LocalRequestsBody } from "./local-requests-body.js";
-import { useLocalRequestsInboxUi } from "./use-local-requests-inbox-ui.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
+import { AccessRecords } from "./AccessRecords.js";
+import { LocalRequestsCommands } from "./local-requests-commands.js";
+import { LocalRequestsPanelBody } from "./local-requests-panel-body.js";
+import { useLocalRequestSelection } from "./local-requests-selection.js";
+import {
+  requestWorkspaceRows,
+  visiblePendingGrants,
+  visibleRequests,
+} from "./local-requests-visible.js";
 import { useLocalRequests } from "./useLocalRequests.js";
 
 export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const model = useLocalRequests(tomb);
-  const {
-    creating,
-    setCreating,
-    selected,
-    setSelected,
-    root,
-    trigger,
-    reload,
-    close,
-  } = useRequestSelection(model.data?.requests);
-  const ui = useLocalRequestsInboxUi(model, {
-    creating,
-    selected,
-    setCreating,
-    setSelected,
-    trigger,
-  });
+  const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>("all");
+  const selectionState = useLocalRequestSelection(
+    model.data?.requests,
+    model.data?.pendingGrants,
+  );
+  const disabled = model.busy || Boolean(model.error);
+  const requestRows = visibleRequests(model.data?.requests, statusFilter);
+  const grantRows = visiblePendingGrants(
+    model.data?.pendingGrants,
+    model.data?.directory,
+    statusFilter,
+    selectionState.selection.path,
+  );
+  const rows = [
+    ...grantRows,
+    ...requestWorkspaceRows(
+      requestRows,
+      model.data?.directory,
+      selectionState.selection.path,
+    ),
+  ];
   return (
-    <section
-      className="panel"
-      id="local-requests"
-      aria-label="Local requests"
-      ref={root}
+    <AccessRecords
+      title="Local requests"
+      selection={selectionState.selection}
+      rows={rows}
+      commands={
+        <LocalRequestsCommands
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          disabled={disabled}
+          loaded={Boolean(model.data)}
+          creating={selectionState.creating}
+          busy={model.busy}
+          reloadRef={selectionState.reload}
+          onReload={() => void model.reload()}
+          onCreate={(button) => {
+            selectionState.trigger.current = button;
+            selectionState.setCreating(true);
+          }}
+        />
+      }
+      status={
+        <>
+          <FailureNotice
+            id="access:requests"
+            title="Requests"
+            message={model.error}
+          />
+          <output>{model.message}</output>
+        </>
+      }
     >
-      <div className="panel__head">
-        <h2>Local requests</h2>
-        <div className="actions">
-          <select
-            className="head-filter"
-            aria-label="Local request status filter"
-            value={ui.statusFilter}
-            onChange={(event) =>
-              // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
-              ui.setStatusFilter(event.target.value as InboxStatusFilter)
-            }
-          >
-            <option value="pending">pending</option>
-            <option value="expired">expired</option>
-            <option value="decided">decided</option>
-            <option value="all">all</option>
-          </select>
-          <IconKey
-            small
-            label="New local request"
-            disabled={ui.disabled || !model.data || ui.listDisabled}
-            onClick={(event) => {
-              trigger.current = event.currentTarget;
-              setCreating(true);
-            }}
-          >
-            <IconPlus size={15} />
-          </IconKey>
-          <IconKey
-            small
-            label="Reload local requests"
-            keyRef={reload}
-            disabled={model.busy}
-            onClick={() => void model.reload()}
-          >
-            <IconRefresh size={15} />
-          </IconKey>
-        </div>
-      </div>
-      <LocalRequestsBody
+      <LocalRequestsPanelBody
+        root={selectionState.root}
         tomb={tomb}
         model={model}
-        ui={ui}
-        creating={creating}
-        selected={selected}
-        close={close}
+        disabled={disabled}
+        creating={selectionState.creating}
+        selected={selectionState.selected}
+        selectedGrant={selectionState.selectedGrant}
+        close={selectionState.close}
       />
-    </section>
+    </AccessRecords>
   );
 }
