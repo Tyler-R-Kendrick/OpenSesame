@@ -270,9 +270,13 @@
           "2026-09-25: 165 -> 168 for ADR 0147: the connector pages' method",
           "picker, OAuth client/server grids, facts and access rows add one",
           "stylesheet (connect.css, ~1.4 KiB minified). Measured 165.9 KiB; the",
-          "budget keeps ~1% headroom."
+          "budget keeps ~1% headroom.",
+          "2026-10-09: 168 -> 170 for lock-v5 CipherWordmark (PR A): the",
+          "particle-plate wordmark stylesheet and OS Logo @font-face join the",
+          "always-loaded Pages graph. CI measured 169 KiB css against 168; the",
+          "ceiling keeps 1 KiB of headroom."
         ],
-        "css": 168,
+        "css": 170,
         "largestAsset": 12800
       }
     }
