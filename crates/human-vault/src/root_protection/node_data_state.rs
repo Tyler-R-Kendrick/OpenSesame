@@ -227,6 +227,37 @@ impl NativeNodeDataWriter {
         let _operation = gate(&self.credential.state.operations)?;
         self.check()
     }
+    /// Compare exact bytes and publish/delete through retained Unix roots under actual ordered leases.
+    /// A bounded dedicated stage directory lies outside protected origin/vault inventories.
+    /// # Errors
+    /// Refuses stale/closed state, byte mismatches, unsafe profiles and IO failures.
+    /// An error after a successful namespace effect does not imply rollback.
+    #[cfg(unix)]
+    pub fn compare_publish(
+        &self,
+        scope: NativeNodeDataScope,
+        leaf: &Path,
+        expected: Option<&[u8]>,
+        next: Option<&[u8]>,
+    ) -> io::Result<()> {
+        file_name(leaf)?;
+        let _operation = gate(&self.credential.state.operations)?;
+        self.check()?;
+        let stages = Arc::new(
+            self.credential
+                .state
+                .root
+                .create_child(Path::new("vault-native-stages-v1"))?,
+        );
+        super::unix_private_files::compare_publish(
+            self.directory(scope),
+            &stages,
+            leaf,
+            expected,
+            next,
+            || self.check(),
+        )
+    }
     /// Return one bounded original private file's physical bytes. DATA, not AEAD/owner proof.
     /// # Errors
     /// Refuses unsafe names, absent files, exceeded limits, stale/closed state and IO errors.

@@ -309,3 +309,7 @@ pub use writer_lease::HeldPrivateWriterLease;
 mod child;
 #[path = "unix_private_files/directory_inventory.rs"]
 mod directory_inventory;
+
+#[path = "unix_private_files/compare_publish.rs"]
+mod compare_publish;
+pub(crate) use compare_publish::compare_publish;
