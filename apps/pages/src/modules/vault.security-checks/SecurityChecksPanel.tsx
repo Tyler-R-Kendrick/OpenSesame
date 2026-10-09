@@ -1,16 +1,23 @@
 /**
- * Settings › Vaults › Breach and two-step checks (`vault.security-checks`):
- * one key runs both checks over the open vault's logins, and each login it
- * found something on is a row, its findings as glyphs. Nothing is checked
- * until the key is pressed, and nothing found is kept past the tab.
+ * Breach and two-step checks (`vault.security-checks`): one key runs both
+ * checks over the open vault's logins. The outcome is a sentence on this
+ * panel and the same sentence on Password health. Nothing is fetched until
+ * the key is pressed. Results stay until the capability turns off or the
+ * tab closes.
  */
+import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
+import type { BreachWatch } from "@opensesame/app-core/lib/vault/health.js";
+import {
+  breachWatchSnapshot,
+  subscribeBreachWatch,
+} from "@opensesame/app-core/lib/vault/health.js";
 import type { CheckFetch } from "@opensesame/app-core/lib/vault/security-checks.js";
 import {
-  type SecurityReport,
+  SECURITY_CHECKS_IDLE,
+  noteSecurityWatch,
   runSecurityChecks,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
-import { hostOf } from "@opensesame/vault-core";
-import { type ComponentType, useState } from "react";
+import { type ComponentType, useSyncExternalStore } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconShield } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
@@ -22,36 +29,22 @@ export type SecurityCheckFetches = {
   twoFactor: CheckFetch;
 };
 
-type Standing = { tone: StatusTone; label: string };
-
-function standingOf(
-  report: SecurityReport | null,
-  error: string | null,
-  busy: boolean,
-): Standing | null {
-  if (busy) return { tone: "idle", label: "Checking" };
-  if (error) return { tone: "err", label: error };
-  if (!report) return null;
-  const breached = report.findings.filter((f) => f.breaches > 0).length;
-  const time = new Date(report.checkedAt).toLocaleTimeString();
-  if (breached > 0)
-    return {
-      tone: "err",
-      label: `${breached} of ${report.checked} passwords found in breaches, checked at ${time}`,
-    };
-  if (report.findings.length > 0)
-    return {
-      tone: "warn",
-      label: `${report.findings.length} logins could add an authenticator code, checked at ${time}`,
-    };
-  return {
-    tone: "ok",
-    label: `${report.checked} logins checked at ${time}: nothing found`,
-  };
-}
-
 function plural(count: number, one: string, many: string): string {
   return `${count.toLocaleString()} ${count === 1 ? one : many}`;
+}
+
+function toneOf(watch: BreachWatch): StatusTone {
+  if (watch.phase === "error") return "err";
+  if (watch.phase !== "checked") return "idle";
+  if (watch.breached > 0) return "err";
+  if (watch.twoStep > 0) return "warn";
+  return "ok";
+}
+
+function statusLabel(watch: BreachWatch): string {
+  if (watch.phase === "off" || watch.phase === "idle")
+    return SECURITY_CHECKS_IDLE;
+  return watch.label;
 }
 
 export function securityChecksPanel(
@@ -59,43 +52,53 @@ export function securityChecksPanel(
 ): ComponentType {
   return function SecurityChecksPanel() {
     const vault = useVault();
-    const [report, setReport] = useState<SecurityReport | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [busy, setBusy] = useState(false);
+    const watch = useSyncExternalStore(
+      subscribeBreachWatch,
+      breachWatchSnapshot,
+      breachWatchSnapshot,
+    );
     const open = vault.status === "unlocked";
+    const busy = watch.phase === "checking";
+    const label = statusLabel(watch);
+    const showMark =
+      watch.phase === "checking" ||
+      watch.phase === "error" ||
+      watch.phase === "checked";
 
     const check = () => {
       if (busy || !open) return;
-      setBusy(true);
-      setError(null);
-      runSecurityChecks(vault.items, fetches.range, fetches.twoFactor)
-        .then(setReport, (caught) =>
-          setError(
-            caught instanceof Error ? caught.message : "The check failed.",
-          ),
-        )
-        .finally(() => setBusy(false));
+      noteSecurityWatch({ phase: "checking" });
+      runSecurityChecks(vault.items, fetches.range, fetches.twoFactor).then(
+        (report) => noteSecurityWatch({ phase: "checked", report }),
+        (caught) =>
+          noteSecurityWatch({
+            phase: "error",
+            message:
+              caught instanceof Error ? caught.message : "The check failed.",
+          }),
+      );
     };
 
-    const standing = standingOf(report, error, busy);
     return (
       <section className="panel set__security" id="security-checks">
         <div className="panel__head">
           <div>
             <h2>Breach and two-step checks</h2>
           </div>
-          {standing ? (
-            <StatusMark tone={standing.tone} label={standing.label} />
-          ) : null}
+          {showMark ? <StatusMark tone={toneOf(watch)} label={label} /> : null}
         </div>
         <div className="panel__body">
+          <p className="hint set__lead">{SECURITY_CHECKS_SUMMARY}</p>
+          <p className="set__status">{label}</p>
           <CeremonyRow
             icon={<IconShield size={16} />}
             label="Logins in this vault"
             sub={
-              report
-                ? plural(report.checked, "login checked", "logins checked")
-                : "Not checked"
+              watch.phase === "checked"
+                ? plural(watch.checked, "login checked", "logins checked")
+                : watch.phase === "checking"
+                  ? "Checking"
+                  : "Not checked"
             }
             action={
               <IconKey
@@ -108,36 +111,36 @@ export function securityChecksPanel(
               </IconKey>
             }
           />
-          {report?.findings.map((finding) => {
-            const site =
-              finding.item.kind === "account"
-                ? hostOf(finding.item.uris[0]?.uri)
-                : "";
-            return (
-              <div className="vault-row" key={finding.item.id}>
-                <div className="vault-row__body">
-                  <span className="vault-row__text">
-                    <span className="vault-row__name">
-                      {finding.item.name || site}
+          {watch.phase === "checked"
+            ? watch.lines.map((line) => (
+                <div className="vault-row" key={line.id}>
+                  <div className="vault-row__body">
+                    <span className="vault-row__text">
+                      <span className="vault-row__name">
+                        {line.name || line.site || "Untitled"}
+                      </span>
+                      {line.site ? (
+                        <span className="vault-row__meta">{line.site}</span>
+                      ) : null}
+                      {line.sentences.map((sentence) => (
+                        <span className="set__finding" key={sentence}>
+                          {sentence}
+                        </span>
+                      ))}
                     </span>
-                    <span className="vault-row__meta">{site}</span>
-                  </span>
+                  </div>
+                  {line.breaches > 0 ? (
+                    <StatusMark tone="err" label={line.sentences[0] ?? ""} />
+                  ) : null}
+                  {line.twoFactorAvailable ? (
+                    <StatusMark
+                      tone="warn"
+                      label={line.sentences[line.breaches > 0 ? 1 : 0] ?? ""}
+                    />
+                  ) : null}
                 </div>
-                {finding.breaches > 0 ? (
-                  <StatusMark
-                    tone="err"
-                    label={`Found in breaches ${plural(finding.breaches, "time", "times")}: change this password`}
-                  />
-                ) : null}
-                {finding.twoFactorAvailable ? (
-                  <StatusMark
-                    tone="warn"
-                    label="This site takes an authenticator code; none is stored"
-                  />
-                ) : null}
-              </div>
-            );
-          })}
+              ))
+            : null}
         </div>
       </section>
     );
