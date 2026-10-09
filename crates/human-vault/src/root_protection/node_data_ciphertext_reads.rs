@@ -232,3 +232,6 @@ impl NativeNodeDeviceInventory {
 #[cfg(test)]
 #[path = "node_data_ciphertext_reads_tests.rs"]
 mod tests;
+
+#[path = "node_data_ciphertext_publications.rs"]
+mod publications;
