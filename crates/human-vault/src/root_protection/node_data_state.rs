@@ -227,12 +227,11 @@ impl NativeNodeDataWriter {
         let _operation = gate(&self.credential.state.operations)?;
         self.check()
     }
-    /// Compare exact bytes and publish/delete through retained Unix roots under actual ordered leases.
+    /// Compare exact bytes and publish/delete through retained platform roots under actual ordered leases.
     /// A bounded dedicated stage directory lies outside protected origin/vault inventories.
     /// # Errors
     /// Refuses stale/closed state, byte mismatches, unsafe profiles and IO failures.
     /// An error after a successful namespace effect does not imply rollback.
-    #[cfg(unix)]
     pub fn compare_publish(
         &self,
         scope: NativeNodeDataScope,
@@ -249,7 +248,17 @@ impl NativeNodeDataWriter {
                 .root
                 .create_child(Path::new("vault-native-stages-v1"))?,
         );
-        super::unix_private_files::compare_publish(
+        #[cfg(unix)]
+        return super::unix_private_files::compare_publish(
+            self.directory(scope),
+            &stages,
+            leaf,
+            expected,
+            next,
+            || self.check(),
+        );
+        #[cfg(windows)]
+        super::windows_private_files::compare_publish(
             self.directory(scope),
             &stages,
             leaf,

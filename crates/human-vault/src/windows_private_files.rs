@@ -236,3 +236,7 @@ mod create_new_tests;
 #[path = "windows_private_files/writer_lease.rs"]
 mod writer_lease;
 pub use writer_lease::HeldPrivateWriterLease;
+
+#[path = "windows_private_files/compare_publish.rs"]
+mod compare_publish;
+pub(crate) use compare_publish::compare_publish;
