@@ -32,13 +32,35 @@ impl StreamAuthority {
         }
         let current = match self.claims.credential_kind {
             CredentialKind::BrowserGrant => {
-                if let Some(claims) =
-                    refreshed_browser_observe_claims(st, &self.digest, now.timestamp()).await
+                let Ok(Some(grant)) = st.db.browser_grant(&self.digest, now.timestamp()).await
+                else {
+                    return false;
+                };
+                let Ok(claims) = super::super::browser_pairings::session_claims(&grant) else {
+                    return false;
+                };
+                if claims.assurance != Assurance::PhishingResistant
+                    || claims.amr != ["webauthn"]
+                    || !claims
+                        .capability_ceiling
+                        .iter()
+                        .any(|cap| cap == "host.agent.observe")
                 {
-                    claims
-                } else {
                     return false;
                 }
+                let Ok(Some(policy)) = opensesame_connection_broker::config_access::role_policy(
+                    st.db.pool(),
+                    &claims.organization_id,
+                    &claims.principal_id,
+                )
+                .await
+                else {
+                    return false;
+                };
+                if policy.role.is_none() || claims.auth_time.timestamp() <= policy.evidence_after {
+                    return false;
+                }
+                claims
             }
             CredentialKind::NativeSession => {
                 let Ok(sessions) = st.sessions.lock() else {
@@ -72,9 +94,8 @@ impl StreamAuthority {
     }
 }
 
-/// One-shot observe reads (`log`, `hook-records`, `get_run`) must meet the same
-/// native membership and role-evidence floor as a live tail.
-pub(super) async fn ensure_view_authority(
+/// Browser observe tails and one-shot reads share the same membership ceiling.
+pub(super) async fn ensure_browser_observe_ceiling(
     st: &AppState,
     headers: &HeaderMap,
 ) -> Result<(), Response> {
@@ -84,18 +105,27 @@ pub(super) async fn ensure_view_authority(
     }
     let now = Utc::now();
     if !claims.valid_for(&st.resource, now) {
-        return Err(view_refused());
+        return Err(observe_ceiling_refused());
     }
     if refreshed_browser_observe_claims(st, &digest, now.timestamp())
         .await
         .is_none()
     {
-        return Err(view_refused());
+        return Err(observe_ceiling_refused());
     }
     Ok(())
 }
 
-fn view_refused() -> Response {
+/// One-shot observe reads (`log`, `hook-records`, `get_run`) must meet the same
+/// native membership and role-evidence floor as a live tail.
+pub(super) async fn ensure_view_authority(
+    st: &AppState,
+    headers: &HeaderMap,
+) -> Result<(), Response> {
+    ensure_browser_observe_ceiling(st, headers).await
+}
+
+fn observe_ceiling_refused() -> Response {
     (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"}))).into_response()
 }
 
