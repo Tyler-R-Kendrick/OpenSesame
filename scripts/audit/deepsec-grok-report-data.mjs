@@ -84,6 +84,7 @@ for (const fp of walk(filesRoot)) {
   if (st === "analyzed") stats[area].analyzed += 1;
   else if (st === "pending") stats[area].pending += 1;
   else if (st === "error") stats[area].error += 1;
+  else if (st === "processing") stats[area].pending += 1;
   else stats[area].skipped += 1;
   const candN = (rec.candidates ?? []).length;
   const findN = (rec.findings ?? []).length;
