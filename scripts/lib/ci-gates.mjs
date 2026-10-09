@@ -86,6 +86,8 @@ export const DRIVER_GATES = {
   "verify-encrypted-search.mjs": ["static"],
   "verify-auth-flow.mjs": ["auth"],
   "verify-experience-journeys.mjs": ["journeys"],
+  // Vault Share PAM + secret drops (static PWA; restores S5/S6).
+  "verify-share-pam.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],
   "verify-push-worker.mjs": ["budgets"],
   "verify-capability-graph.mjs": ["budgets"],
