@@ -16,6 +16,7 @@ import {
   outcomeChip,
   receiptLabel,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
+import { isString } from "@opensesame/os-domain";
 import { useCallback, useEffect, useState } from "react";
 import { useCapabilityGate } from "../../app-root.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
@@ -25,15 +26,15 @@ import { useFailureNotice } from "../../components/use-failure-notice.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { formatTime } from "./format.js";
 
-const STATUS: Record<
-  OutboundDropState,
-  { tone: "idle" | "ok" | "warn" | "err"; label: string }
-> = {
+const STATUS = {
   pending: { tone: "idle", label: "Pending" },
   consumed: { tone: "ok", label: "Opened" },
   expired: { tone: "warn", label: "Expired" },
   revoked: { tone: "err", label: "Revoked" },
-};
+} satisfies Record<
+  OutboundDropState,
+  { tone: "idle" | "ok" | "warn" | "err"; label: string }
+>;
 
 const DROP_RECEIPTS = new Set([
   "access.drop.opened",
@@ -43,9 +44,8 @@ const DROP_RECEIPTS = new Set([
 ]);
 
 function claimIdOf(event: AuditEvent): string | null {
-  const meta = event.metadata;
-  if (!meta || typeof meta.claimId !== "string") return null;
-  return meta.claimId;
+  const claimId = event.metadata?.claimId;
+  return isString(claimId) ? claimId : null;
 }
 
 function receiptsForClaim(events: readonly AuditEvent[], claimId: string) {

@@ -1,3 +1,4 @@
+import { assertNativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import type { NativeRecovery } from "./native-connector-schema.js";
 /** Journal the old pair before refresh, then seal its replacement before verification. */
 import type { NativeConnectorRecord } from "./native-connector-store.js";
@@ -26,6 +27,8 @@ export async function refreshNativeMcpAuthorization(
   initial: NativeConnectorRecord,
   transport: NativeProviderTransport,
 ) {
+  transport.assertCurrent();
+  assertNativeBrowserMcpPolicy(initial.configuration.providerId);
   const old = initial.privateState.grants.user;
   if (
     !old?.refreshToken ||

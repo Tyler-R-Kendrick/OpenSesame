@@ -28,8 +28,10 @@ export async function saveLinearConsent(
   id: string,
   transaction: PendingLinear,
   grant: LinearGrant,
+  assertCurrent?: () => void,
 ): Promise<void> {
   try {
+    assertCurrent?.();
     if (!grant.refreshToken)
       throw new Error(
         "Linear did not provide a refresh token; reconnect this account",
@@ -42,11 +44,13 @@ export async function saveLinearConsent(
       kind: "oauth",
       token: grant.accessToken,
     });
+    assertCurrent?.();
     checkLinearWorkspace(
       linearConfiguration(id).options.workspace,
       identity.organization,
     );
     await updateLinearRecord(id, async (record, runtime) => {
+      assertCurrent?.();
       const latest = linearConfiguration(id);
       if (
         transaction.actor === "app" &&

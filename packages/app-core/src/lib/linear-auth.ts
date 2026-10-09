@@ -4,7 +4,17 @@ import { page } from "../ports.js";
 import { readDeviceSecrets } from "./device-connector-records.js";
 import { kvDurability } from "./kv.js";
 import { exchangeLinearCode } from "./linear-api.js";
+import {
+  clearLinearAuthorizationRequest,
+  createLinearAuthorizationRequest,
+  linearPopupCallback,
+} from "./linear-auth-request.js";
+import {
+  type LinearAuthorizationReservation,
+  reserveLinearAuthorizationWindow,
+} from "./linear-auth-reservation.js";
 import { saveLinearConsent } from "./linear-consent-save.js";
+import { optionalNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
 export { checkLinearWorkspace } from "./linear-consent-save.js";
 import { removeLinearActor } from "./linear-revoke.js";
 import {
@@ -31,24 +41,6 @@ export function linearRedirectUri(): string {
   return new URL(`${env().BASE_URL}auth/linear.html`, page().location.origin)
     .href;
 }
-function random(): string {
-  return [...crypto.getRandomValues(new Uint8Array(32))]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-function requested(actor: LinearActor, id: string): string[] {
-  const options = linearConfiguration(id).options;
-  return [
-    ...new Set([
-      "read",
-      ...options[actor === "app" ? "appScopes" : "userScopes"],
-      ...(actor === "app" &&
-      readLinearConnector(id)?.recovery?.phase === "cleanup"
-        ? ["admin"]
-        : []),
-    ]),
-  ];
-}
 async function finishCleanupOnly(
   id: string,
   actor: LinearActor,
@@ -67,18 +59,15 @@ async function finishCleanupOnly(
   }
   return false;
 }
-export async function beginLinearAuthorization(
-  id: string,
-  actor: LinearActor,
-): Promise<void> {
+async function prepareLinearAuthorization(id: string, actor: LinearActor) {
   if (kvDurability() === "memory")
     throw new Error(
-      "Linear OAuth requires browser storage that survives the consent redirect; enable browser storage or use an API key",
+      "Linear OAuth requires durable browser storage; enable browser storage or use an API key",
     );
   const saved = linearConfiguration(id);
   if (saved.state.method !== "oauth" || !saved.state.oauth.clientId.trim())
     throw new Error("Enter the registered Linear OAuth client ID first");
-  if (await finishCleanupOnly(id, actor)) return;
+  if (await finishCleanupOnly(id, actor)) return null;
   const deferred = actor === "app" && (await deferLinearWebhookCleanup(id));
   if (
     readLinearConnector(id)?.[actor] ||
@@ -87,49 +76,48 @@ export async function beginLinearAuthorization(
     if (actor === "app" && !deferred) await removeLinearWebhook(id);
     await removeLinearActor(id, actor);
   }
-  const verifier = random();
-  const hash = new Uint8Array(
-    await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)),
-  );
-  const challenge = btoa(String.fromCharCode(...hash))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-  const pending: PendingLinear = {
-    state: random(),
-    verifier,
-    clientId: saved.state.oauth.clientId,
-    redirectUri: linearRedirectUri(),
-    actor,
-    scopes: requested(actor, id),
-    createdAt: Date.now(),
-    fingerprint: linearFingerprint(saved.state, saved.options),
-  };
-  await updateLinearRecord(id, async (record) => {
-    const current = linearConfiguration(id);
-    if (
-      linearFingerprint(current.state, current.options) !== pending.fingerprint
-    )
-      throw new Error("Linear configuration changed; restart consent");
-    return {
-      ...record,
-      secrets: { ...record.secrets, [LINEAR_PENDING]: JSON.stringify(pending) },
-    };
-  });
-  const url = new URL("https://linear.app/oauth/authorize");
-  for (const [name, value] of Object.entries({
-    response_type: "code",
-    client_id: pending.clientId,
-    redirect_uri: pending.redirectUri,
-    state: pending.state,
-    scope: pending.scopes.join(","),
-    actor,
-    prompt: "consent",
-    code_challenge: challenge,
-    code_challenge_method: "S256",
-  }))
-    url.searchParams.set(name, value);
-  page().location.assign(url.href);
+  return createLinearAuthorizationRequest(id, actor, linearRedirectUri());
+}
+const authorizing = new Set<string>();
+export async function beginLinearAuthorization(
+  id: string,
+  actor: LinearActor,
+  held?: LinearAuthorizationReservation,
+): Promise<void> {
+  if (authorizing.has(id))
+    throw new Error("Finish the current Linear sign-in first");
+  authorizing.add(id);
+  let reservation = held;
+  let browser = held?.browser ?? null;
+  let state: string | null = null;
+  try {
+    // This runs in the originating click, before durable writes or provider requests.
+    reservation ??= reserveLinearAuthorizationWindow();
+    browser = reservation.browser;
+    const request = await prepareLinearAuthorization(id, actor);
+    if (!request) return;
+    state = request.pending.state;
+    if (!browser?.authorize) {
+      page().location.assign(request.url);
+      return;
+    }
+    const callback = await browser.authorize(request.url, {
+      state,
+      expiresAt: request.pending.createdAt + MAX_AGE,
+      redirectUri: request.pending.redirectUri,
+    });
+    await finishLinearAuthorization(linearPopupCallback(callback, state));
+  } catch (error) {
+    if (state && browser?.authorize)
+      await clearLinearAuthorizationRequest(id, state);
+    throw error;
+  } finally {
+    try {
+      reservation?.release();
+    } finally {
+      authorizing.delete(id);
+    }
+  }
 }
 function parsePending(raw?: string): PendingLinear | null {
   try {
@@ -190,9 +178,13 @@ async function claimTransaction(state: string | null) {
     );
   return { id, transaction };
 }
-async function finish(search: string) {
+function popupConsentAvailable(): boolean {
+  return Boolean(optionalNativeOAuthBrowserPort()?.authorize);
+}
+async function finish(search: string, assertCurrent?: () => void) {
   const params = callbackParameters(search);
   if (!params) return null;
+  assertCurrent?.();
   const { id, transaction } = await claimTransaction(
     params.get("linear_state"),
   );
@@ -203,17 +195,24 @@ async function finish(search: string) {
   const code = params.get("linear_code");
   if (!code || code.length > 8192)
     throw new Error("Linear did not return an authorization code");
+  assertCurrent?.();
   const grant = await exchangeLinearCode({
     clientId: transaction.clientId,
     code,
     verifier: transaction.verifier,
     redirectUri: transaction.redirectUri,
   });
-  await saveLinearConsent(id, transaction, grant);
+  await saveLinearConsent(id, transaction, grant, assertCurrent);
+  assertCurrent?.();
+  return finishLinearSetup(id, transaction);
+}
+async function finishLinearSetup(id: string, transaction: PendingLinear) {
   const next = transaction.actor === "app" ? "user" : "app";
   const latest = linearConfiguration(id);
   const runtime = readLinearConnector(id);
   if (linearActorNeedsConsent(runtime, latest.options, next)) {
+    // A second actor needs a fresh user click to open another consent window.
+    if (popupConsentAvailable()) return requireLinearConnection(id);
     await beginLinearAuthorization(id, next);
     return null;
   }
@@ -222,6 +221,7 @@ async function finish(search: string) {
     readLinearConnector(id)?.recovery &&
     readLinearConnector(id)?.app?.needsReauth
   ) {
+    if (popupConsentAvailable()) return requireLinearConnection(id);
     await beginLinearAuthorization(id, "app");
     return latest.options.appScopes.length === 0
       ? requireLinearConnection(id)
@@ -235,7 +235,8 @@ export function finishLinearAuthorization(
 ): ReturnType<typeof finish> {
   const held = completing.get(search);
   if (held) return held;
-  const result = finish(search);
+  const guard = optionalNativeOAuthBrowserPort()?.captureAuthorizationGuard?.();
+  const result = finish(search, guard);
   completing.set(search, result);
   void result.finally(() => completing.delete(search)).catch(() => undefined);
   return result;

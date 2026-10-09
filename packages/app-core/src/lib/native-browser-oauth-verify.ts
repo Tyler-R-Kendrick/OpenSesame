@@ -7,6 +7,7 @@ import {
 import { z } from "zod";
 import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
 import { safeProviderText } from "./native-api-verify.js";
+import { verifyApprovedNativeOAuth } from "./native-approved-oauth-verify.js";
 import type { IssuedNativeOAuthToken } from "./native-browser-oauth-token.js";
 import type {
   NativeConfiguration,
@@ -211,7 +212,15 @@ async function providerIdentity(
   ]);
   let result: Identity;
   try {
-    if (["microsoft", "microsoft-teams"].includes(provider)) {
+    const approved = await verifyApprovedNativeOAuth(
+      configuration,
+      pending,
+      grant,
+      transport,
+      previousIdentity,
+    );
+    if (approved) result = approved;
+    else if (["microsoft", "microsoft-teams"].includes(provider)) {
       if (previousIdentity) {
         const account = z
           .object({ id: guid, displayName: text })
@@ -287,7 +296,7 @@ export async function verifyNativeBrowserOAuth(
   safeProviderText(result.label, secrets);
   for (const scope of scopes ?? []) safeProviderText(scope, secrets);
   if (
-    provider !== "openrouter" &&
+    !["openrouter", "codeberg", "crowdin"].includes(provider) &&
     (!scopes || pending.scopes.some((scope) => !scopes.includes(scope)))
   )
     throw new NativeOAuthError("scope");

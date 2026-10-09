@@ -12,6 +12,7 @@ import {
   readNativeConnector,
   updateNativeConnector,
 } from "@opensesame/app-core/lib/native-connector-store.js";
+import { bindNativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { nativeConnectorController } from "./native-connector-controller.js";
 
@@ -21,6 +22,59 @@ const classification = {
   privateCredentials: ["api_key"],
 };
 const disposers: (() => void)[] = [];
+
+function browserReservationFixture() {
+  let held = false;
+  const release = vi.fn(() => {
+    expect(held).toBe(true);
+    held = false;
+  });
+  const prepareAuthorization = vi.fn(() => {
+    expect(held).toBe(false);
+    held = true;
+    return release;
+  });
+  disposers.push(
+    bindNativeOAuthBrowserPort({
+      redirectUri: "https://app.example.org/auth/native-connector.html",
+      navigate: vi.fn(),
+      scrubCallback: vi.fn(),
+      prepareAuthorization,
+    }),
+  );
+  return { held: () => held, prepareAuthorization, release };
+}
+
+async function proveAuthorizationReservation(
+  controller: ReturnType<typeof nativeConnectorController>,
+  authorize: ReturnType<typeof vi.fn>,
+  method: NativeMethod,
+  connectionId: string,
+) {
+  const reservation = browserReservationFixture();
+  const approve = vi.fn<() => void>();
+  const consent = new Promise<void>((resolve) => {
+    approve.mockImplementation(resolve);
+  });
+  authorize.mockImplementation(async () => {
+    expect(reservation.held()).toBe(method !== "api-key");
+    expect(reservation.release).not.toHaveBeenCalled();
+    await consent;
+  });
+  const authorization = controller.authorize?.("app");
+  expect(authorize).toHaveBeenCalledWith(connectionId, "app");
+  expect(reservation.held()).toBe(method !== "api-key");
+  expect(reservation.release).not.toHaveBeenCalled();
+  approve();
+  await authorization;
+  expect(reservation.held()).toBe(false);
+  expect(reservation.prepareAuthorization).toHaveBeenCalledTimes(
+    method === "api-key" ? 0 : 1,
+  );
+  expect(reservation.release).toHaveBeenCalledTimes(
+    method === "api-key" ? 0 : 1,
+  );
+}
 async function fixture(method: NativeMethod) {
   const id = await saveModelFixture(providerId);
   const initial = readNativeConnector(id);
@@ -105,12 +159,54 @@ it.each(["api-key", "oauth", "mcp"] as const)(
     expect(controller.load()).toEqual(saved);
     await controller.verify();
     expect(verify).toHaveBeenCalledWith(saved.connectionId);
-    await controller.authorize?.("app");
-    expect(authorize).toHaveBeenCalledWith(saved.connectionId, "app");
+    await proveAuthorizationReservation(
+      controller,
+      authorize,
+      method,
+      saved.connectionId,
+    );
     await controller.invoke("provider.read", { limit: "3" });
     expect(invoke).toHaveBeenCalledWith(saved.connectionId, "provider.read", {
       limit: "3",
     });
+  },
+);
+
+it.each(["oauth", "mcp"] as const)(
+  "releases reserved %s consent when its saved-binding driver rejects",
+  async (method) => {
+    const saved = await fixture(method);
+    const reservation = browserReservationFixture();
+    const failure = new Error("Provider refused authorization");
+    const authorize = vi.fn(async () => {
+      expect(reservation.held()).toBe(true);
+      expect(reservation.release).not.toHaveBeenCalled();
+      throw failure;
+    });
+    disposers.push(
+      registerNativeConnectorDriver(method, {
+        supports: (id) => id === providerId,
+        configure: async () => saved,
+        verify: async () => saved,
+        authorize,
+        invoke: async () => ({ label: "Safe", items: [] }),
+        cleanup: {
+          classification: () => classification,
+          cleanup: async () => "local-credential-forgotten",
+        },
+      }),
+    );
+    const controller = nativeConnectorController(
+      { id: providerId, refused: false },
+      saved.connectionId,
+    );
+    controller.load();
+    await expect(controller.authorize?.("app")).rejects.toBe(failure);
+    expect(authorize).toHaveBeenCalledWith(saved.connectionId, "app");
+    expect(reservation.prepareAuthorization).toHaveBeenCalledOnce();
+    expect(reservation.release).toHaveBeenCalledOnce();
+    expect(reservation.held()).toBe(false);
+    expect(controller.load()?.connectionId).toBe(saved.connectionId);
   },
 );
 

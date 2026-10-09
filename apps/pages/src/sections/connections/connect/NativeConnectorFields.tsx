@@ -106,33 +106,45 @@ export function NativeConnectorFields({
     const url = nativePublicUrl(link.url);
     return url ? [new URL(url).origin] : [];
   });
+  const fields = method.fields.filter(
+    (field) => (field.required || field.secret) && !field.displayOnly,
+  );
+  const options = method.fields.filter(
+    (field) => (!field.required && !field.secret) || field.displayOnly,
+  );
   return (
     <>
+      <NativeInputFields fields={fields} values={values} onChange={onValue} />
+      {options.length || method.scopeGroups.length ? (
+        <details className="cx-application">
+          <summary>Sign-in options</summary>
+          <NativeInputFields
+            fields={options}
+            values={values}
+            onChange={onValue}
+          />
+          {method.scopeGroups.map((group) => (
+            <div className="cx-form" key={group.actor} title={group.help}>
+              <ConfigSelections
+                label={group.label}
+                choices={group.choices}
+                selected={scopes[group.actor] ?? []}
+                requiredChoices={group.requiredScopes}
+                onChange={(selected) => onScopes(group.actor, selected)}
+              />
+            </div>
+          ))}
+        </details>
+      ) : null}
       {method.instructions ? (
         <details className="cx-application">
-          <summary>Provider setup guide</summary>
+          <summary>Sign-in help</summary>
           <NativeProviderInstructions
             text={method.instructions}
             origins={instructionOrigins}
           />
         </details>
       ) : null}
-      <NativeInputFields
-        fields={method.fields}
-        values={values}
-        onChange={onValue}
-      />
-      {method.scopeGroups.map((group) => (
-        <div className="cx-form" key={group.actor} title={group.help}>
-          <ConfigSelections
-            label={group.label}
-            choices={group.choices}
-            selected={scopes[group.actor] ?? []}
-            requiredChoices={group.requiredScopes}
-            onChange={(selected) => onScopes(group.actor, selected)}
-          />
-        </div>
-      ))}
       <div className="cx-links">
         {method.links?.map((link) => {
           const url = nativePublicUrl(link.url);

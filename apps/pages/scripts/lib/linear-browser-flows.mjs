@@ -1,10 +1,7 @@
 import { isString } from "../../../../scripts/lib/json-boundary.mjs";
-import {
-  LINEAR_TEST_CLIENT,
-  LINEAR_TEST_KEY,
-} from "./linear-provider-contract.mjs";
+import { LINEAR_TEST_KEY } from "./linear-provider-contract.mjs";
 /** Real controls exercise provider HTTP authorization and operations in a sealed PIN vault. */
-import { PIN, unlockWithPin } from "./pages-journey.mjs";
+import { unlockWithPin } from "./pages-journey.mjs";
 async function connected(page) {
   await page
     .getByRole("img", { name: "Linear connected", exact: true })
@@ -290,95 +287,4 @@ export async function apiKeyFlow(dependencies, page, label, authority) {
     fields.submit,
   );
 }
-export async function oauthFlow(harness, page, label, authority) {
-  const { check } = harness;
-  harness.setStep(`${label}-oauth-authorization`);
-  await page
-    .getByLabel("Connector Name", { exact: true })
-    .fill(`${label}-oauth-contract`);
-  check(
-    (await page
-      .getByLabel("Linear OAuth client ID", { exact: true })
-      .inputValue()) === LINEAR_TEST_CLIENT,
-    `${label}: managed mode reads the deployment OAuth client ID`,
-  );
-  check(
-    (await page
-      .getByLabel("Linear OAuth client ID", { exact: true })
-      .getAttribute("readonly")) !== null,
-    `${label}: managed application client ID is not editable`,
-  );
-  await page
-    .getByRole("button", { name: "Create and authorize Linear", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
-  check(
-    new URL(page.url()).searchParams.get("actor") === "app",
-    `${label}: app consent begins first`,
-  );
-  const deniedState = new URL(page.url()).searchParams.get("state");
-  await authority.deny(page);
-  await unlockWithPin(page);
-  await page
-    .getByRole("img", { name: "Linear authorization incomplete", exact: true })
-    .waitFor();
-  check(
-    (await page
-      .getByRole("img", { name: "Linear connected", exact: true })
-      .count()) === 0,
-    `${label}: declined OAuth consent never activates the connector`,
-  );
-  await page
-    .getByRole("button", { name: "Authorize application", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
-  check(
-    new URL(page.url()).searchParams.get("state") !== deniedState,
-    `${label}: retry after decline creates a fresh authorization transaction`,
-  );
-  await authority.consent(page, "browser-app-code");
-  await page.getByLabel("PIN", { exact: true }).fill(PIN);
-  await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
-  check(
-    new URL(page.url()).searchParams.get("actor") === "user",
-    `${label}: user scopes require independent user consent`,
-  );
-  await authority.consent(page, "browser-user-code");
-  await unlockWithPin(page);
-  await connected(page);
-  check(
-    !/[?&](linear_code|linear_state|code|state)=/.test(page.url()),
-    `${label}: authorization codes and state are removed from the address bar`,
-  );
-  const layout = await page.evaluate(() => ({
-    width: innerWidth,
-    content: document.documentElement.scrollWidth,
-  }));
-  check(
-    layout.content <= layout.width,
-    `${label}: distinct granted actors and scopes do not overflow horizontally`,
-  );
-  await page.getByLabel("Act as", { exact: true }).selectOption("user");
-  await page
-    .getByRole("button", { name: "Read Linear issues", exact: true })
-    .click();
-  await page
-    .getByRole("region", { name: "Linear issues", exact: true })
-    .waitFor();
-  check(
-    authority.calls.at(-1)?.authorization === "Bearer contract-oauth-user",
-    `${label}: operations use the explicitly selected user grant`,
-  );
-  await page.getByLabel("Act as", { exact: true }).selectOption("app");
-  await page
-    .getByRole("button", { name: "Read Linear projects", exact: true })
-    .click();
-  await page
-    .getByRole("region", { name: "Linear projects", exact: true })
-    .waitFor();
-  check(
-    authority.calls.at(-1)?.authorization === "Bearer contract-oauth-app",
-    `${label}: application operations use the distinct application grant`,
-  );
-}
+export { oauthFlow } from "./linear-oauth-browser-flows.mjs";

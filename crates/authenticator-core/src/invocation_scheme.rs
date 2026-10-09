@@ -37,7 +37,11 @@ impl InvocationPolicy {
         if !matches!(url.scheme(), "openid4vp" | "haip-vp" | "mdoc") {
             return Err(AuthenticatorError::UnsupportedInvocation);
         }
-        self.validate_scheme_request_uri_only(&url, "request_uri", &["openid4vp", "haip-vp", "mdoc"])?;
+        self.validate_scheme_request_uri_only(
+            &url,
+            "request_uri",
+            &["openid4vp", "haip-vp", "mdoc"],
+        )?;
         Ok(raw.to_owned())
     }
 

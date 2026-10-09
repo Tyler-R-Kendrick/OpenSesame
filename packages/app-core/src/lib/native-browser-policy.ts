@@ -5,7 +5,8 @@ import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js
 
 const ruleSchema = z.object({
   provider_id: z.string(),
-  method: z.enum(["api-key", "oauth"]),
+  method: z.enum(["api-key", "oauth", "mcp", "oidc"]),
+  origins: z.array(z.string().url()).min(1).optional(),
   parameters: z.record(z.string(), z.string()),
   reason: z.string().min(1),
   evidence_urls: z.array(z.string().url()).min(1),
@@ -19,6 +20,25 @@ const policy = z
     rules: z.array(ruleSchema),
   })
   .parse(JSON.parse(NATIVE_BROWSER_POLICY_JSON));
+
+const originBindings: { origin: () => string }[] = [];
+
+function policyOrigin(): string {
+  return originBindings.at(-1)?.origin() ?? policy.audited_origin;
+}
+
+/** Origin-scoped evidence cannot deny an operator's separately configured origin. */
+export function bindNativeBrowserPolicyOrigin(
+  origin: () => string,
+): () => void {
+  const binding = { origin };
+  originBindings.push(binding);
+  return () => {
+    const index = originBindings.indexOf(binding);
+    if (index >= 0) originBindings.splice(index, 1);
+  };
+}
+
 export type NativeBrowserPolicyDecision = {
   available: boolean;
   reason: string | null;
@@ -57,6 +77,7 @@ export function nativeBrowserMethodPolicy(
     (entry) =>
       entry.provider_id === providerId &&
       entry.method === method &&
+      (!entry.origins || entry.origins.includes(policyOrigin())) &&
       Object.entries(entry.parameters).every(
         ([name, value]) => selected[name] === value,
       ),
@@ -79,6 +100,16 @@ export function nativeBrowserOAuthPolicy(
   providerId: string,
 ): NativeBrowserPolicyDecision {
   return nativeBrowserMethodPolicy(providerId, "oauth");
+}
+export function nativeBrowserMcpPolicy(
+  providerId: string,
+): NativeBrowserPolicyDecision {
+  return nativeBrowserMethodPolicy(providerId, "mcp");
+}
+export function assertNativeBrowserMcpPolicy(providerId: string): void {
+  const decision = nativeBrowserMcpPolicy(providerId);
+  if (!decision.available)
+    throw new Error(decision.reason ?? "Browser MCP is unavailable");
 }
 export function assertNativeBrowserOAuthPolicy(providerId: string): void {
   const decision = nativeBrowserOAuthPolicy(providerId);

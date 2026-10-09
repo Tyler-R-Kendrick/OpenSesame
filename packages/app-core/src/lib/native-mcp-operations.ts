@@ -1,4 +1,5 @@
 import type { JsonObject } from "@opensesame/os-domain";
+import { assertNativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import { assertNativeConnectorRevision } from "./native-connector-store.js";
 import { readNativeConnector } from "./native-connector-store.js";
 import {
@@ -28,6 +29,7 @@ async function operation<T>(
     throw new NativeMcpError("authorization");
   transport.assertCurrent();
   const record = requireNativeMcpRecord(id);
+  assertNativeBrowserMcpPolicy(record.configuration.providerId);
   const session = await nativeMcpRecordSession(record, transport);
   try {
     const discovery = await session.connect();
