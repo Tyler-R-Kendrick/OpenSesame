@@ -80,7 +80,7 @@ export function ActiveShareRow({
   const [confirming, setConfirming] = useState(false);
   useEffect(() => {
     if (!busy) setConfirming(false);
-  }, [busy, share.id]);
+  }, [busy]);
   const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
   return (
     <li className="identity-row" id={`share-${share.id}`}>

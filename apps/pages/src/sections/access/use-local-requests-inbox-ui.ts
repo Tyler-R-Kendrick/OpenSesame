@@ -1,5 +1,5 @@
-import { type MutableRefObject, useState } from "react";
 import type { InboxStatusFilter } from "@opensesame/app-core/lib/configuration/inbox-triage.js";
+import { type MutableRefObject, useState } from "react";
 import type { useLocalRequests } from "./useLocalRequests.js";
 
 export function useLocalRequestsInboxUi(
@@ -23,20 +23,14 @@ export function useLocalRequestsInboxUi(
     requestSelection.selected !== null ||
     selectedGrant !== null;
 
-  function selectGrant(
-    rowId: string,
-    button: HTMLButtonElement,
-  ) {
+  function selectGrant(rowId: string, button: HTMLButtonElement) {
     requestSelection.trigger.current = button;
     setSelectedGrantId(rowId);
     requestSelection.setSelected(null);
     requestSelection.setCreating(false);
   }
 
-  function selectRequest(
-    rowId: string,
-    button: HTMLButtonElement,
-  ) {
+  function selectRequest(rowId: string, button: HTMLButtonElement) {
     requestSelection.trigger.current = button;
     requestSelection.setSelected(rowId);
     setSelectedGrantId(null);

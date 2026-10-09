@@ -266,9 +266,7 @@ async function refuseUnapprovedPrincipal(
   const directory = await readLocalDirectory(tomb);
   const entry = directory.entries.find((row) => row.id === principalId);
   if (entry?.kind === "agent" || entry?.kind === "application")
-    throw new LocalDirectoryError(
-      "Approve the grant before it takes effect.",
-    );
+    throw new LocalDirectoryError("Approve the grant before it takes effect.");
 }
 
 /**

@@ -150,9 +150,9 @@ it("holds an application grant until it is approved", async () => {
   ).toBe(false);
   if (submitted.outcome !== "pending") return;
   const shares = await approvePendingShare(fixture.tomb, submitted.pending.id);
-  expect(shares.some((share) => share.principalId === fixture.applicationId)).toBe(
-    true,
-  );
+  expect(
+    shares.some((share) => share.principalId === fixture.applicationId),
+  ).toBe(true);
   expect(await listPendingShares(fixture.tomb)).toEqual([]);
   expect(
     await shareAllows(
