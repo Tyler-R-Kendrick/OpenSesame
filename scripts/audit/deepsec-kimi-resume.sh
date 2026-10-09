@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # Resume deepsec AI investigation after quota or batch failures (no full rescan).
 # Processes pending files, then retries status=error paths from the error manifest.
+#
+# Throughput (Kimi K3 subscription, batch-size 5):
+#   ~7 min per batch is expected (one agent call per batch, medium thinking).
+#   Keep DEEPSEC_CONCURRENCY=1 while the 5-hour quota is tight; after quota resets,
+#   rerun with DEEPSEC_CONCURRENCY=2 (same script) to overlap batches — finish.sh
+#   already defaults to concurrency 2 for error rerun / revalidate.
+#   Optional: DEEPSEC_BATCH_SIZE=5 (default) — raising batch size saves CLI overhead
+#   but increases timeout risk per batch.
+# Skipping generated / test-only sources is not enabled for this repo scan: every
+# tracked file already has regex candidates from `deepsec scan`. Use
+#   deepsec process --skip-slugs <csv>
+# only when a file's candidates are exclusively low-value matcher slugs (see
+# `deepsec process --help`). Direct-mode `--no-ignore` bypasses test/dist filters;
+# we do not use direct mode for the full opensesame project.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WS="${ROOT}/.deepsec"
