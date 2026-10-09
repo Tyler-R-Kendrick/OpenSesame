@@ -1,3 +1,4 @@
+import { endpointBelongsToIssuer } from "./federation-endpoint-origin.js";
 import { FederationError } from "./federation-error.js";
 import type { PendingAuth } from "./federation-pending.js";
 
@@ -34,17 +35,7 @@ function compiledUpstream(
   return upstreams.find((upstream) => trimSlashes(upstream.issuer) === trimmed);
 }
 
-/** True when `endpoint` is a URL on the same origin as `issuer`. */
-export function endpointBelongsToIssuer(
-  endpoint: string,
-  issuer: string,
-): boolean {
-  try {
-    return new URL(endpoint).origin === new URL(issuer).origin;
-  } catch {
-    return false;
-  }
-}
+export { endpointBelongsToIssuer } from "./federation-endpoint-origin.js";
 
 function refuseForeignEndpoint(kind: string): never {
   throw new FederationError("untrusted_issuer", `${kind} is not the issuer.`);

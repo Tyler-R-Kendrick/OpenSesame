@@ -10,7 +10,7 @@ import { page, pageOrigin } from "../ports.js";
  */
 
 import type { UpstreamIdentity } from "./federation.js";
-import { originClientId } from "./federation.js";
+import { originClientId } from "./federation-origin.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
 import { scopedKey } from "./projects.js";
 import {

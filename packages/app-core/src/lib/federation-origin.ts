@@ -1,8 +1,17 @@
-import { env } from "../host.js";
-import { pageOrigin } from "../ports.js";
+import { env, host } from "../host.js";
+
+function pageOriginForFederation(): string {
+  const page = host().page;
+  if (!page) {
+    throw new Error("app-core: this host has no page");
+  }
+  return page.location.origin;
+}
 
 /** The client id this origin has at any origin-profile broker. */
-export function originClientId(origin: string = pageOrigin()): string {
+export function originClientId(
+  origin: string = pageOriginForFederation(),
+): string {
   return `origin:${origin}`;
 }
 
@@ -13,7 +22,7 @@ export function originClientId(origin: string = pageOrigin()): string {
  */
 export function redirectUri(): string {
   const base = env().BASE_URL || "/";
-  return `${pageOrigin()}${base}`;
+  return `${pageOriginForFederation()}${base}`;
 }
 
 /**
@@ -28,5 +37,5 @@ export function redirectUri(): string {
  * screen, which never cared what path it renders at.
  */
 export function originCallbackUri(): string {
-  return `${pageOrigin()}/opensesame/callback`;
+  return `${pageOriginForFederation()}/opensesame/callback`;
 }

@@ -11,7 +11,7 @@ import {
   randomString,
   verifyBrowserIdTokenClaims,
 } from "@opensesame/sdk-browser";
-import { endpointBelongsToIssuer } from "../federation-endpoint-pin.js";
+import { endpointBelongsToIssuer } from "../federation-endpoint-origin.js";
 import { FederationError, type UpstreamIdentity } from "../federation.js";
 import { currentAuthGeneration } from "./generation.js";
 import {
