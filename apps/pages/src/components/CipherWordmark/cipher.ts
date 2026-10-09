@@ -97,13 +97,9 @@ export function slotState(
 }
 
 export function pruneRuns(runs: DecryptRun[], timeMs: number): DecryptRun[] {
-  const live = runs.filter((run) =>
+  return runs.filter((run) =>
     run.slots.some((s) => timeMs - run.t0 < s.steps * FRAME_MS + FRAME_MS),
   );
-  if (live.length > 0) return live;
-  // Keep the newest completed run so a settled redraw (theme flip, resize)
-  // still knows each slot's target glyph — otherwise paint clears to mark-only.
-  return runs.length > 0 ? [runs[runs.length - 1]] : [];
 }
 
 export function isSettled(runs: DecryptRun[], timeMs: number): boolean {

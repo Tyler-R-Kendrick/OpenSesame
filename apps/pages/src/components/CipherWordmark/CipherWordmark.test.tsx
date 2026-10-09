@@ -47,20 +47,6 @@ describe("createSlotRuns", () => {
   });
 });
 
-describe("pruneRuns", () => {
-  it("keeps the newest completed run for settled redraws", async () => {
-    const { pruneRuns } = await import("./cipher.js");
-    vi.spyOn(Math, "random").mockReturnValue(0);
-    const slots = createSlotRuns("0P".split(""), Math.random);
-    const runs = [{ t0: 0, slots }];
-    const after = (slots[1].steps + 5) * FRAME_MS;
-    const kept = pruneRuns(runs, after);
-    expect(kept).toHaveLength(1);
-    expect(kept[0].slots[0].letter).toBe("0");
-    expect(kept[0].slots[1].letter).toBe("P");
-  });
-});
-
 describe("brightness cursor (not a border)", () => {
   it("marks exactly one active cell while decrypting, then none when settled", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);

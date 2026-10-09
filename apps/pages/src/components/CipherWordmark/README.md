@@ -57,9 +57,9 @@ node apps/pages/scripts/generate-cipher-icons.mjs
 
 ## Dev gallery
 
-In local Vite only (`import.meta.env.DEV`), open
-`http://localhost:5180/OpenSesame/dev/lock-v5` for `LockV5Demo.tsx`
-(wordmark, dial, doors). Production builds omit that route.
+In local Vite only, the lock-v5 component gallery lives at
+`http://localhost:5180/OpenSesame/dev/lock-v5` (see `apps/pages/src/dev/LockV5Demo.tsx` on
+the unlock branch).
 
 ## Usage
 

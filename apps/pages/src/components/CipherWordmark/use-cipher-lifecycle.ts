@@ -46,22 +46,9 @@ export function useCipherLifecycle({
       if (visibleRef.current) scheduleFrame();
     };
     document.addEventListener("visibilitychange", onVis);
-    // Theme flips change --ink without a resize; re-read ink and repaint.
-    const mo =
-      typeof MutationObserver === "undefined"
-        ? null
-        : new MutationObserver(() => {
-            resize();
-            paint(nowMs());
-          });
-    mo?.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-theme", "class"],
-    });
     return () => {
       ro?.disconnect();
       io?.disconnect();
-      mo?.disconnect();
       document.removeEventListener("visibilitychange", onVis);
       cancelAnimationFrame(rafRef.current);
     };

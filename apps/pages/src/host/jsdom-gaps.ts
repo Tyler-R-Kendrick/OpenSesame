@@ -51,7 +51,6 @@ type StubCanvas2d = {
   lineJoin: CanvasLineJoin;
   globalCompositeOperation: GlobalCompositeOperation;
   setTransform: () => undefined;
-  scale: () => undefined;
   clearRect: () => undefined;
   fillRect: () => undefined;
   fillText: () => undefined;
@@ -94,7 +93,6 @@ function makeStubCanvas2d(canvas: HTMLCanvasElement): StubCanvas2d {
     lineJoin: "round",
     globalCompositeOperation: "source-over",
     setTransform: () => undefined,
-    scale: () => undefined,
     clearRect: () => undefined,
     fillRect: () => undefined,
     fillText: () => undefined,

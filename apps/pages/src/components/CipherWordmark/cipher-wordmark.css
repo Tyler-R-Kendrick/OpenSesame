@@ -38,11 +38,6 @@
   text-transform: uppercase;
 }
 
-/* Mark lives in the canvas at plate height — no IconMark gap. */
-.wordmark--include-mark {
-  gap: 0;
-}
-
 .wordmark > svg {
   flex: none;
 }
