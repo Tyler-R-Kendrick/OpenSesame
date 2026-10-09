@@ -36,7 +36,7 @@ mod tests {
             physical_writer_lease_name("opensesame.retired-credentials").unwrap(),
             physical_writer_lease_name("opensesame:vault-body:main").unwrap()
         );
-        for name in ["".to_owned(), "x\0y".to_owned(), "x".repeat(513)] {
+        for name in [String::new(), "x\0y".to_owned(), "x".repeat(513)] {
             assert!(physical_writer_lease_name(&name).is_err());
         }
         assert!(physical_writer_lease_name(&"x".repeat(512)).is_ok());
