@@ -35,7 +35,18 @@ fn optional_child(
 ) -> io::Result<Option<Arc<PrivateDirectory>>> {
     let names = root.original_bounded_directory_entries(MAX_NAMES)?;
     match names.iter().find(|(actual, _)| actual == name) {
-        None => Ok(None),
+        None => {
+            if !root.original_entry_absent(Path::new(name))? {
+                return Err(refused());
+            }
+            if root.original_bounded_directory_entries(MAX_NAMES)? != names {
+                return Err(refused());
+            }
+            if !root.original_entry_absent(Path::new(name))? {
+                return Err(refused());
+            }
+            Ok(None)
+        }
         Some((_, true)) => Ok(Some(Arc::new(root.open_child(Path::new(name))?))),
         Some(_) => Err(refused()),
     }
@@ -49,7 +60,9 @@ fn validate_optional(
         return snapshot.validate();
     }
     let names = root.original_bounded_directory_entries(MAX_NAMES)?;
-    if names.iter().any(|(actual, _)| actual == name) {
+    if names.iter().any(|(actual, _)| actual == name)
+        || !root.original_entry_absent(Path::new(name))?
+    {
         return Err(refused());
     }
     Ok(())
