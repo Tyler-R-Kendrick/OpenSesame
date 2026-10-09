@@ -11,6 +11,7 @@ import {
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
+import { listPendingShares } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
   createLocalShare,
   listLocalShares,
@@ -188,11 +189,6 @@ it("Add offers the connectors this device knows; choosing one grants it and list
 
 it("offers a new application and binds the connector to it", async () => {
   const fixture = await seeded();
-  await fixture.change({
-    action: "create",
-    kind: "application",
-    name: "Payroll",
-  });
   mount(fixture.tomb);
   await userEvent.click(
     await screen.findByRole("button", { name: "Add connector access" }),
@@ -204,23 +200,37 @@ it("offers a new application and binds the connector to it", async () => {
   const identity = await screen.findByLabelText("Identity");
   await waitFor(() =>
     expect(
-      within(identity).getByRole("option", { name: "Payroll" }),
+      within(identity).getByRole("option", { name: "Test application" }),
     ).toBeTruthy(),
   );
-  await userEvent.selectOptions(identity, "Payroll");
+  await userEvent.selectOptions(identity, "Test application");
   const form = screen.getByRole("group", { name: /^Bind Slack/ });
-  await userEvent.click(within(form).getByRole("button", { name: "Bind" }));
-  await waitFor(() =>
-    expect(screen.getByRole("heading", { name: "Slack" })).toBeTruthy(),
+  await userEvent.click(
+    within(form).getByRole("button", { name: "Request approval" }),
   );
-  const payroll = (await readLocalDirectory(fixture.tomb)).entries.find(
-    (row) => row.name === "Payroll",
+  await waitFor(() => {
+    expect(screen.getByText("Approval requested.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Slack" })).toBeTruthy();
+  });
+  expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
+  await waitFor(async () => {
+    const pending = await listPendingShares(fixture.tomb);
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.principalId).toBe(fixture.applicationId);
+    expect(
+      screen.getByRole("button", { name: "Approve Test application" }),
+    ).toBeTruthy();
+  });
+  await userEvent.click(
+    screen.getByRole("button", { name: "Approve Test application" }),
+  );
+  await waitFor(() =>
+    expect(screen.getByText("Grant approved.")).toBeTruthy(),
   );
   await waitFor(async () => {
     const shares = await listLocalShares(fixture.tomb);
     expect(shares).toHaveLength(1);
-    expect(shares[0]?.principalId).toBe(payroll?.id);
-    expect(screen.getByText("Slack bound.")).toBeTruthy();
+    expect(shares[0]?.principalId).toBe(fixture.applicationId);
   });
 });
 

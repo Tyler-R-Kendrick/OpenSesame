@@ -91,7 +91,10 @@ export function ConnectorBindForm({
   }, []);
 
   const selected = identities.find((entry) => entry.id === principalId);
-  const commitLabel = selected?.kind === "agent" ? "Request approval" : "Bind";
+  const commitLabel =
+    selected?.kind === "agent" || selected?.kind === "application"
+      ? "Request approval"
+      : "Bind";
 
   function submit(event: FormEvent) {
     event.preventDefault();
