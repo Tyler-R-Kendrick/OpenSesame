@@ -68,11 +68,6 @@ function bundleChunk(id: string): string | undefined {
   if (path.includes("/lib/device-identity-host.ts")) {
     return "device-identity-host";
   }
-  // Optional tailnet pairing helpers must not be folded into `main` when a
-  // neighbour chunk is merged under `experimentalMinChunkSize` (ADR 0130 §4).
-  if (path.includes("/lib/tailnet-sync/plugin-pairing.ts")) {
-    return "tailnet-plugin-pairing";
-  }
   return undefined;
 }
 
