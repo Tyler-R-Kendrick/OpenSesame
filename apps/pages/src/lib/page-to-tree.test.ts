@@ -26,6 +26,20 @@ const passwords = {
 };
 
 describe("pageToTree", () => {
+  it("keeps tutorial targets on navigable category rows", () => {
+    const [node] = pageToTree([
+      {
+        id: "agents",
+        label: "Agents",
+        href: "/identity?view=agents",
+        guide: "identity.agents",
+        keepEmpty: true,
+      },
+    ]);
+    expect(node?.guide).toBe("identity.agents");
+    expect(node?.href).toBe("/identity?view=agents");
+  });
+
   it("keeps page order and turns subheaders into nested subtrees", () => {
     const tree = pageToTree([
       { id: "inbox", label: "Inbox", href: "/page#inbox", keepEmpty: true },

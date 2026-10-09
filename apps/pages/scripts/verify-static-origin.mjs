@@ -10,7 +10,7 @@
 // missing asset, or any failed check below.
 //   A. first screen: the front door — the two roads, the compiled broker +
 //      guest, no setup wall (ADR 0115)
-//   B. guest → inside the app → every section, and every tab within Access,
+//   B. guest → inside the app → every section, and every subtree within Access,
 //      by in-app navigation
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
@@ -33,7 +33,10 @@ import {
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
+import { tabToAccessControl } from "./lib/local-access-journey.mjs";
+import { openIdentityView } from "./lib/local-directory-navigation.mjs";
 import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
+import { checkStaticAccess } from "./lib/static-access-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
@@ -144,53 +147,8 @@ const browser = await launch();
       `${name} shows no alert`,
     );
 
-    // Sections with tabs hide their regressions one click in: the whole of
-    // Access was once gated on a Host, which hid the Sites — Identity-plane
-    // clients plus wholly local snippets, domain rules and consents. A walk
-    // that only ever saw each section's first tab could not see it.
-    if (name === "B-access") {
-      for (const tab of [
-        "Grants",
-        "Requests",
-        "Sessions",
-        "Connectors",
-        "Resources",
-        "Policies",
-      ]) {
-        setStep(`${name}-${tab}`);
-        await page.getByRole("tab", { name: tab }).click();
-        await page.waitForTimeout(700);
-        const tabText = await snap(page, `${name}-${tab}`);
-        check(
-          !/Something went wrong|Uncaught/i.test(tabText),
-          `Access › ${tab} rendered`,
-        );
-        check(
-          (await page.locator('[role="alert"]').count()) === 0,
-          `Access › ${tab} shows no alert`,
-        );
-      }
-      // Connectors is wholly local and lists access, never a directory form:
-      // its one key adds access, with no Host and no failure (ADR 0115).
-      await page.getByRole("tab", { name: "Connectors" }).click();
-      await page.waitForTimeout(700);
-      check(
-        (await page.getByLabel("Directory endpoint").count()) === 0 &&
-          (await page
-            .getByRole("button", { name: "Add connector access" })
-            .count()) === 1 &&
-          (await page.getByRole("heading", { name: "Connectors" }).count()) > 0,
-        "Access › Connectors lists access without a Host",
-      );
-      // Resources is served by the Identity API and this browser, never the
-      // Host, so it must render its own panel rather than a Host note.
-      await page.getByRole("tab", { name: "Resources" }).click();
-      await page.waitForTimeout(700);
-      check(
-        (await page.getByRole("heading", { name: "Resources" }).count()) > 0,
-        "Access › Resources renders without a Host",
-      );
-    }
+    if (name === "B-access")
+      await checkStaticAccess(page, check, snap, setStep);
   }
   for (const category of [
     "general",
@@ -296,7 +254,7 @@ const browser = await launch();
   await addCapability(page, check, snap, "Operator identity providers");
   setStep("C-provider-registration");
   await openSection(page, "identity/");
-  await page.getByRole("tab", { name: "Providers", exact: true }).click();
+  await openIdentityView(page, tabToAccessControl, "Providers");
   await page
     .getByRole("button", { name: "Register an IdP", exact: true })
     .first()

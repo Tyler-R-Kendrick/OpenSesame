@@ -4,13 +4,7 @@ import { listLocalShares } from "@opensesame/app-core/lib/local-share-grants.js"
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 /** @vitest-environment jsdom */
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   afterAll,
@@ -22,6 +16,7 @@ import {
   vi,
 } from "vitest";
 import { LocalSharePanel } from "./LocalSharePanel.js";
+import { renderAccess as render } from "./workspace-test-support.js";
 
 // The share + and its form are the Access walkthrough's targets, which the
 // access capability declares when it activates.
@@ -44,7 +39,10 @@ afterEach(() => {
 
 it("shares a vault with a person from the grants command", async () => {
   const fixture = await localRequestFixture();
-  render(<LocalSharePanel tomb={fixture.tomb} />);
+  render(
+    <LocalSharePanel tomb={fixture.tomb} />,
+    "/access?view=grants#identity-shares",
+  );
   const grant = screen.getByRole("button", { name: "Grant identity share" });
   await waitFor(() => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
@@ -62,7 +60,10 @@ it("shares a vault with a person from the grants command", async () => {
 
 it("offers a new application and grants it a vault", async () => {
   const fixture = await localRequestFixture();
-  render(<LocalSharePanel tomb={fixture.tomb} />);
+  render(
+    <LocalSharePanel tomb={fixture.tomb} />,
+    "/access?view=grants#identity-shares",
+  );
   const grant = screen.getByRole("button", { name: "Grant identity share" });
   await waitFor(() => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);
@@ -108,7 +109,10 @@ it("offers a new application and grants it a vault", async () => {
 it("asks for approval before an agent share is active", async () => {
   const fixture = await localRequestFixture();
   await fixture.change({ action: "create", kind: "agent", name: "Helper" });
-  render(<LocalSharePanel tomb={fixture.tomb} />);
+  render(
+    <LocalSharePanel tomb={fixture.tomb} />,
+    "/access?view=grants#identity-shares",
+  );
   const grant = screen.getByRole("button", { name: "Grant identity share" });
   await waitFor(() => {
     expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true);

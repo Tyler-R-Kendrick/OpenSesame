@@ -9,7 +9,7 @@ import {
   listOrgMemberships,
 } from "@opensesame/app-core/lib/orgs.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
@@ -19,12 +19,21 @@ import {
   IconRefresh,
   IconX,
 } from "../../components/Icons.js";
+import { RecordWorkspace } from "../../components/RecordWorkspace.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import {
+  HostedDetailHead,
+  HostedFact,
+  useHostedRecord,
+} from "./HostedRecordParts.js";
 
 /** Provisioning reserves a directory identity; sign-in must still verify it. */
 function useUsers() {
   const [organizations, setOrganizations] = useState<OrgMembership[]>([]);
-  const [organization, setOrganization] = useState("");
+  const location = useLocation();
+  const [organization, setOrganization] = useState(
+    () => new URLSearchParams(location.search).get("org") ?? "",
+  );
   const [users, setUsers] = useState<DirectoryUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -66,15 +75,16 @@ function useUsers() {
     setBusy(true);
     setError("");
     try {
-      if (user.id) await updateDirectoryUser(organization, user);
-      else
-        await createDirectoryUser(
-          organization,
-          user.userName.trim(),
-          user.displayName.trim(),
-        );
+      const saved = user.id
+        ? await updateDirectoryUser(organization, user)
+        : await createDirectoryUser(
+            organization,
+            user.userName.trim(),
+            user.displayName.trim(),
+          );
       setDraft(null);
       await load();
+      return saved.id;
     } catch {
       setError(
         "Could not save this user; check ownership and whether the username already exists.",
@@ -101,30 +111,47 @@ function useUsers() {
 
 export function UsersPanel({ online }: { online: boolean }) {
   const model = useUsers();
-  const {
-    organizations,
-    organization,
-    setOrganization,
-    users,
-    loading,
-    error,
-    draft,
-    setDraft,
-    busy,
-    load,
-  } = model;
+  const route = useHostedRecord(
+    "people",
+    `&directory=1&org=${encodeURIComponent(model.organization)}`,
+  );
+  const { organization, users, loading, error, draft, setDraft, busy, load } =
+    model;
+  const selected = users.find((user) => user.id === route.selectedId);
+  useEffect(() => {
+    if (route.creating && organization)
+      setDraft({ id: "", userName: "", displayName: "", active: true });
+    else if (route.editing && selected) setDraft(selected);
+    else setDraft(null);
+  }, [route.creating, route.editing, organization, selected, setDraft]);
   return (
-    <section className="panel">
-      <div className="panel__head">
-        <h2>Users</h2>
-        <fieldset className="vtree__keys" aria-label="User commands">
+    <RecordWorkspace
+      section="Identity"
+      title="Directory users"
+      rootPath="/identity"
+      listPath={route.listPath}
+      rows={users.map((user) => ({
+        id: user.id,
+        label: user.displayName || user.userName,
+        extension: "person",
+        to: `${route.listPath}#${encodeURIComponent(user.id)}`,
+      }))}
+      selectedId={route.selectedId}
+      detailOpen={route.creating || Boolean(selected)}
+      listHeader={<DirectoryOrganization model={model} online={online} />}
+      status={
+        <>
+          <FailureNotice id="identity:users" title="Users" message={error} />
+          {loading ? <output>Loading directory…</output> : null}
+        </>
+      }
+      commands={
+        <>
           <IconKey
             label="New user"
             small
-            disabled={!online || busy || !organization || draft !== null}
-            onClick={() =>
-              setDraft({ id: "", userName: "", displayName: "", active: true })
-            }
+            disabled={!online || busy || !organization}
+            onClick={route.create}
           >
             <IconPlus size={15} />
           </IconKey>
@@ -136,59 +163,57 @@ export function UsersPanel({ online }: { online: boolean }) {
           >
             <IconRefresh size={15} />
           </IconKey>
-        </fieldset>
-      </div>
-      <div className="panel__body">
-        <FailureNotice id="identity:users" title="Users" message={error} />
-        {loading ? <output>Loading directory…</output> : null}
-        {!loading && organizations.length === 0 ? (
-          <p className="hint">
-            <Link to="/identity?view=organization">Create an organization</Link>
-          </p>
-        ) : null}
-        <div className="field">
-          <label className="label" htmlFor="identity-directory-org">
-            Organization
-          </label>
-          <select
-            id="identity-directory-org"
-            value={organization}
-            disabled={busy || !online}
-            onChange={(event) => setOrganization(event.target.value)}
-          >
-            <option value="">Choose an organization</option>
-            {organizations.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.displayName}
-              </option>
-            ))}
-          </select>
-        </div>
-        {organization ? (
-          <>
-            {!loading && !error && users.length === 0 ? (
-              <p className="hint">No directory users yet.</p>
-            ) : null}
-            <UsersRows model={model} online={online} />
-          </>
-        ) : null}
-        <UsersForm model={model} online={online} />
-      </div>
-    </section>
+        </>
+      }
+    >
+      {draft ? (
+        <>
+          <HostedDetailHead
+            title={
+              draft.id
+                ? `Edit ${draft.displayName || draft.userName}`
+                : "New user"
+            }
+          />
+          <UsersForm
+            model={model}
+            online={online}
+            onCancel={route.close}
+            onSaved={(id) => route.open(id)}
+          />
+        </>
+      ) : selected ? (
+        <UserDetail
+          selected={selected}
+          busy={busy}
+          route={route}
+          online={online}
+        />
+      ) : null}
+    </RecordWorkspace>
   );
 }
 
 function UsersForm({
   model,
   online,
-}: { model: ReturnType<typeof useUsers>; online: boolean }) {
+  onCancel,
+  onSaved,
+}: {
+  model: ReturnType<typeof useUsers>;
+  online: boolean;
+  onCancel: () => void;
+  onSaved: (id: string) => void;
+}) {
   const { draft, setDraft, busy, save } = model;
   if (!draft) return null;
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        void save(draft);
+        void save(draft).then((id) => {
+          if (id) onSaved(id);
+        });
       }}
     >
       <div className="field">
@@ -238,7 +263,7 @@ function UsersForm({
         label="Save user"
         disabled={busy || !online || !draft.userName.trim()}
       >
-        <IconKey label="Cancel" disabled={busy} onClick={() => setDraft(null)}>
+        <IconKey label="Cancel" disabled={busy} onClick={onCancel}>
           <IconX size={16} />
         </IconKey>
       </FormCommit>
@@ -246,35 +271,84 @@ function UsersForm({
   );
 }
 
-function UsersRows({
+function UserDetail({
+  selected,
+  busy,
+  route,
+  online,
+}: {
+  selected: DirectoryUser;
+  busy: boolean;
+  route: ReturnType<typeof useHostedRecord>;
+  online: boolean;
+}) {
+  return (
+    <>
+      <HostedDetailHead
+        title={selected.displayName || selected.userName}
+        tools={
+          <IconKey
+            label={`Edit ${selected.userName}`}
+            disabled={busy || !online}
+            onClick={() => route.edit(selected.id)}
+          >
+            <IconEdit size={16} />
+          </IconKey>
+        }
+      />
+      <HostedFact label="Username / sign-in subject">
+        {selected.userName}
+      </HostedFact>
+      <HostedFact label="User ID">{selected.id}</HostedFact>
+      <HostedFact label="State">
+        <StatusMark
+          tone={selected.active ? "ok" : "idle"}
+          label={selected.active ? "Active" : "Inactive"}
+        />
+      </HostedFact>
+    </>
+  );
+}
+
+function DirectoryOrganization({
   model,
   online,
 }: { model: ReturnType<typeof useUsers>; online: boolean }) {
-  const { users, busy, setDraft } = model;
+  const navigate = useNavigate();
+  const { organization, setOrganization, organizations, busy, loading } = model;
   return (
-    <ul className="identity-rows">
-      {users.map((user) => (
-        <li className="identity-row" key={user.id}>
-          <div className="identity-row__main">
-            <div className="identity-row__id">
-              <h3>{user.displayName || user.userName}</h3>
-              <code className="identity-ref">{user.userName}</code>
-            </div>
-            <StatusMark
-              tone={user.active ? "ok" : "idle"}
-              label={user.active ? "Active" : "Inactive"}
-            />
-            <IconKey
-              label={`Edit ${user.userName}`}
-              small
-              disabled={busy || !online}
-              onClick={() => setDraft(user)}
-            >
-              <IconEdit size={16} />
-            </IconKey>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <>
+      {!loading && organizations.length === 0 ? (
+        <p className="hint">
+          <Link to="/identity?view=organization&new=1">
+            Create an organization
+          </Link>
+        </p>
+      ) : null}
+
+      <div className="field">
+        <label className="label" htmlFor="identity-directory-org">
+          Organization
+        </label>
+        <select
+          id="identity-directory-org"
+          value={organization}
+          disabled={busy || !online}
+          onChange={(event) => {
+            setOrganization(event.target.value);
+            navigate(
+              `/identity?view=people&directory=1&org=${encodeURIComponent(event.target.value)}`,
+            );
+          }}
+        >
+          <option value="">Choose an organization</option>
+          {organizations.map((org) => (
+            <option key={org.id} value={org.id}>
+              {org.displayName}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
   );
 }

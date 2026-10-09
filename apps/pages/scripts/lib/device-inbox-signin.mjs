@@ -7,11 +7,14 @@
 
 import {
   PATIENCE,
+  accessCollection,
   bell,
   notified,
+  openInboxRecord,
   press,
   receipts,
 } from "./device-inbox-tabs.mjs";
+import { accessWorkspace } from "./local-access-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
 const SIGNED_IN = "Application signed in · Test application";
@@ -28,8 +31,14 @@ const credentialsOf = async (device) =>
 
 /** The person ends the application's grant in Access › Grants, with the keyboard. */
 async function endGrantAsPerson(main) {
-  await press(main, main.getByRole("tab", { name: /^Grants/ }));
-  const records = main.getByRole("region", { name: "Local access records" });
+  await accessCollection(main, "grants", "local-grants");
+  const records = accessWorkspace(main);
+  await openInboxRecord(
+    main,
+    records.getByRole("treeitem", {
+      name: /^Local test person → Test application/,
+    }),
+  );
   await press(
     main,
     records.getByRole("button", { name: "Revoke grant", exact: true }),
@@ -40,13 +49,18 @@ async function endGrantAsPerson(main) {
   );
   await expect(
     records.getByText("Application grant revoked.", { exact: true }),
-  ).toBeVisible({ timeout: PATIENCE });
+  ).toHaveText("Application grant revoked.", { timeout: PATIENCE });
+  await expect(records.getByRole("treeitem")).toHaveCount(0);
+  await expect(records).toHaveAttribute("data-pane", "list");
+  await expect(records.locator(".vault__list")).toBeVisible();
 }
 
 /** E. An application signs in, ends it, is refused, signs in again, and the person ends that. */
 export async function applicationSignIn(t) {
   const { main, background, rp, context, mainDevice, rig, width } = t;
-  const list = main.locator("#access-receipts");
+  const list = accessWorkspace(main).getByRole("tree", {
+    name: "Receipts items",
+  });
   // The passkey has been used in the front tab: its signature counter has moved
   // on, and a popup that began from the seeded credential would be a replay.
   const first = await rig.openConsent(
@@ -88,12 +102,14 @@ export async function applicationSignIn(t) {
     timeout: PATIENCE,
   });
   await receipts(main, width);
-  await expect(list.locator("li").filter({ hasText: ENDED })).toHaveCount(2, {
+  await expect(
+    list.getByRole("treeitem").filter({ hasText: ENDED }),
+  ).toHaveCount(2, {
     timeout: PATIENCE,
   });
-  await expect(list.locator("li").filter({ hasText: SIGNED_IN })).toHaveCount(
-    2,
-  );
+  await expect(
+    list.getByRole("treeitem").filter({ hasText: SIGNED_IN }),
+  ).toHaveCount(2);
   // None of that was a request that waited, so none of it rang a doorbell: the
   // two rings are the two requests raised, and the title carries no mark.
   expect(

@@ -16,7 +16,7 @@
 //      time two tabs have loaded, and the permission is still "default". The
 //      person turns the system doorbell on with the panel's own key; the
 //      permission is granted at that press, and that press asks once.
-//   C. A request is raised in the front tab. The Requests tab says one waits;
+//   C. A request is raised in the front tab. Its record is visible and the title says one waits;
 //      a second tab, in the background, shows the bell (the phone's More key),
 //      puts `(1)` in its title and rings one system notification whose words
 //      are the same for every request and whose data is `{ kind, action, ref }`
@@ -80,10 +80,14 @@ try {
       capabilities: INBOX_CAPABILITIES,
     });
 } catch (error) {
+  console.error(error);
   for (const [index, context] of rig.browser.contexts().entries()) {
     for (const [tab, page] of context.pages().entries()) {
       await page
-        .screenshot({ path: `/tmp/device-inbox-failure-${index}-${tab}.png` })
+        .screenshot({
+          path: `/tmp/device-inbox-failure-${index}-${tab}.png`,
+          timeout: 10000,
+        })
         .catch(() => console.warn("Failure screenshot unavailable"));
     }
   }

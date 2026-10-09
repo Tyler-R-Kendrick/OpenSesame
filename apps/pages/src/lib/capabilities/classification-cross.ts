@@ -74,6 +74,10 @@ const IDENTITY_PIECES = [
   "ApplicationDiagnostics",
   "ApplicationRecipePanel",
   "ApplicationSetupCard",
+  // Shared record chrome and the directory's publication seam: hosted
+  // provisioning publishes here; the local Identity tree only reads it.
+  "HostedRecordParts",
+  "hosted-identity-rail",
   "LocalAgentAuthentication",
   "LocalAgentEnrollment",
   "LocalAgentKeys",
