@@ -23,8 +23,9 @@
    subheader on both themes. The split is painted on `.unlock` so empty
    column areas match. */
 .unlock {
-  --unlock-notes-pane: color-mix(in srgb, var(--ink) 22%, var(--surface));
-  --unlock-notes-head: color-mix(in srgb, var(--ink) 32%, var(--surface));
+  /* Paper, not a tint of ink: the pane sits a step back from the card, the head sits on the card. */
+  --unlock-notes-pane: var(--surface-2);
+  --unlock-notes-head: var(--surface);
 }
 
 .unlock__notes {

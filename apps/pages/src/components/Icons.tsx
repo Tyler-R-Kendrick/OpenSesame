@@ -87,7 +87,7 @@ export function IconMark({ className, title, size = 20 }: IconProps) {
         y="3.5"
         width="2.3"
         height="17"
-        fill="var(--accent, #0d7268)"
+        fill="var(--mark-slit, #8f8f8f)"
       />
     </svg>
   );
