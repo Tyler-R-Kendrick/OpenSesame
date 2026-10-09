@@ -48,15 +48,24 @@ export async function checkUnlockHero(page, check) {
         let ink = 0;
         let light = 0;
         let dark = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] < 8) continue;
-          ink += 1;
-          const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          if (lum > 160) light += 1;
-          else if (lum < 100) dark += 1;
+        let letterInk = 0;
+        const markEnd = Math.floor(canvas.width * 0.18);
+        for (let y = 0; y < canvas.height; y += 1) {
+          for (let x = 0; x < canvas.width; x += 1) {
+            const i = (y * canvas.width + x) * 4;
+            if (data[i + 3] < 8) continue;
+            ink += 1;
+            if (x > markEnd) letterInk += 1;
+            const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            if (lum > 160) light += 1;
+            else if (lum < 100) dark += 1;
+          }
         }
         const total = canvas.width * canvas.height;
-        if (ink / total < minRatio) return false;
+        // Mark alone must not pass — plates for 0PEN SESAME sit past the mark.
+        if (ink / total < minRatio || letterInk / total < minRatio * 0.5) {
+          return false;
+        }
         // Dark theme → light plates; light theme → dark plates.
         return want === "dark" ? light > dark : dark > light;
       },
@@ -76,10 +85,17 @@ export async function checkUnlockHero(page, check) {
       const pr = pane.getBoundingClientRect();
       const ctx = canvas.getContext("2d");
       let ink = 0;
+      let letterInk = 0;
       if (ctx && canvas instanceof HTMLCanvasElement) {
         const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        for (let i = 3; i < data.length; i += 4) {
-          if (data[i] >= 8) ink += 1;
+        const markEnd = Math.floor(canvas.width * 0.18);
+        for (let y = 0; y < canvas.height; y += 1) {
+          for (let x = 0; x < canvas.width; x += 1) {
+            const i = (y * canvas.width + x) * 4;
+            if (data[i + 3] < 8) continue;
+            ink += 1;
+            if (x > markEnd) letterInk += 1;
+          }
         }
       }
       return {
@@ -88,6 +104,7 @@ export async function checkUnlockHero(page, check) {
         canvasRight: cb.right - pr.left,
         notesLeft: nb ? nb.left - pr.left : null,
         ink,
+        letterInk,
         canvasPx:
           canvas instanceof HTMLCanvasElement
             ? canvas.width * canvas.height
@@ -99,8 +116,10 @@ export async function checkUnlockHero(page, check) {
     if (!geom) continue;
 
     check(
-      geom.ink > 0 && geom.ink / Math.max(1, geom.canvasPx) >= MIN_INK_RATIO,
-      `unlock hero has non-zero ink coverage in ${theme} (ink=${geom.ink}/${geom.canvasPx})`,
+      geom.ink > 0 &&
+        geom.ink / Math.max(1, geom.canvasPx) >= MIN_INK_RATIO &&
+        geom.letterInk / Math.max(1, geom.canvasPx) >= MIN_INK_RATIO * 0.5,
+      `unlock hero has non-zero plate ink in ${theme} (ink=${geom.ink}, letters=${geom.letterInk}/${geom.canvasPx})`,
     );
 
     if (wide && geom.notesLeft !== null) {
