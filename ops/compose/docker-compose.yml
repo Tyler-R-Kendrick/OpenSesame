@@ -54,7 +54,8 @@ services:
   nats:
     image: nats:2.11.4
     command: ["-js", "-m", "8222"]
-    ports: ["4222:4222"]
+    # Loopback-only on the host; containers still reach nats:4222 on the bridge.
+    ports: ["127.0.0.1:4222:4222"]
 
   gateway:
     build:
