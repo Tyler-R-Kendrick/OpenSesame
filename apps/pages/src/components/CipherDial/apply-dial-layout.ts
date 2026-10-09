@@ -43,7 +43,9 @@ function applyRingLayerMask(
   layer.style.maskSize = `${w}px ${h}px`;
   layer.style.webkitMaskSize = `${w}px ${h}px`;
   if (!layout.narrow && notesR) {
-    layer.style.right = `${Math.max(0, w - layout.cx)}px`;
+    // Clip rings at the notes divider (not layout.cx): only the overlay
+    // index column may straddle into the release-notes pane (lock-v5).
+    layer.style.right = `${Math.max(0, w - notesR.x)}px`;
     layer.style.left = "0";
   } else {
     layer.style.right = "0";

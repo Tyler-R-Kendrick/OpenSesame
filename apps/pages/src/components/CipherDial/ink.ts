@@ -4,11 +4,20 @@ function isLightInk(rgb: [number, number, number]): boolean {
 }
 
 /**
+ * Dark-theme lift for dial alphas. Light ink on near-black needs roughly this
+ * much more alpha than dark ink on white for the same subtle-but-visible read
+ * (sRGB; lock-v5 stills). Kept as a named constant so the scale is testable.
+ */
+export const LIGHT_INK_ALPHA_SCALE = 2.6;
+
+/**
  * Ink with alpha. On dark theme (light `--ink`) lift alpha so rings keep the
  * same subtle-but-visible presence as in light stills (lock-v5).
  */
 export function inkAlpha(rgb: [number, number, number], a: number): string {
-  const scaled = isLightInk(rgb) ? Math.min(1, a * 1.55) : a;
+  const scaled = isLightInk(rgb)
+    ? Math.min(1, a * LIGHT_INK_ALPHA_SCALE)
+    : a;
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${scaled})`;
 }
 
