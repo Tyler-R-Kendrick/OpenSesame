@@ -73,3 +73,7 @@ impl SyncSecretSource for CallerSecretSource {
         Ok(entries)
     }
 }
+
+#[cfg(test)]
+#[path = "sync_targets_background_tests.rs"]
+mod background_tests;
