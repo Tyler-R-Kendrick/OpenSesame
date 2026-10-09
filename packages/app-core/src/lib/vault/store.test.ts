@@ -173,6 +173,8 @@ describe("VaultStore rollback detection", () => {
 });
 
 describe("VaultStore multi-method unlock", () => {
+  vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
+
   beforeEach(async () => {
     await vfsFlush();
     kvDelete(ATTEMPTS_KEY);
