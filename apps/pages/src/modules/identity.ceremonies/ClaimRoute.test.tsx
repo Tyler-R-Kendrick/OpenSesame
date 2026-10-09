@@ -1,50 +1,26 @@
+import { configureHost } from "@opensesame/app-core/host.js";
 /** @vitest-environment jsdom */
 /**
- * `/claim`: a claim link is reviewed and accepted over the one claim model; a
- * drop link is opened here too, on every installation (ADR 0140 D2); a
- * leaked bearer is refused; and with nothing arrived, a link can be pasted.
- * Every failure is a mark on the page (and a tray notice where the shell is
- * mounted), never a box.
+ * `/claim` is drop-receive only: a drop link opens the one-time code form;
+ * ownership-claim paste and "Accept a claim" are not a product surface.
  */
 import {
   captureClaimArrivalFromPage,
   peekClaimArrival,
   resetClaimArrivalForTests,
 } from "@opensesame/app-core/lib/claims/arrival.js";
-import {
-  OPEN_CLAIM,
-  TOKEN,
-  claimHarness,
-  json,
-} from "@opensesame/app-core/lib/claims/ceremony.fixture.js";
-import { CLAIM_WORDS } from "@opensesame/app-core/lib/claims/ceremony.js";
+import { TOKEN } from "@opensesame/app-core/lib/claims/ceremony.fixture.js";
 import { dropOpenSeams } from "@opensesame/app-core/lib/claims/drop-open.js";
-import {
-  CLAIM_ACCEPTED,
-  CLAIM_NOTICE,
-} from "@opensesame/app-core/lib/claims/route-model.js";
-import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
+import { CLAIM_NOTICE } from "@opensesame/app-core/lib/claims/route-model.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import { overlapCast } from "@opensesame/os-domain";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { identityHookSeams } from "../../bindings/identity.js";
-import { useOnlineSeams } from "../../lib/use-online.js";
 import { ClaimRoute } from "./ClaimRoute.js";
-import { claimHookSeams } from "./useClaimCeremony.js";
 
 const KEY = "a2V5LW1hdGVyaWFs"; // gitleaks:allow -- synthetic drop key test vector
-const session: { current: IdentitySession | null } = { current: null };
-let harness = claimHarness();
-
-Object.assign(identityHookSeams, {
-  useConnect: () => ({ connect: vi.fn(), connecting: false, error: null }),
-  useIdentitySession: () => session.current,
-});
-Object.assign(useOnlineSeams, { useOnline: () => true });
-Object.assign(claimHookSeams, { ceremony: () => harness.ceremony });
 
 function arrive(address: string) {
   history.replaceState(null, "", address);
@@ -60,180 +36,32 @@ function show() {
 }
 
 function trayed() {
-  return listNotices().find((notice) => notice.id === CLAIM_NOTICE);
+  return listNotices().find((notice) => notice.id.startsWith(CLAIM_NOTICE));
+}
+
+function claimCopyOnScreen(): string[] {
+  const text = document.body.textContent ?? "";
+  return [
+    "Accept a claim",
+    "Open a claim",
+    "Paste a claim",
+    "Claim link",
+    "Accept claim",
+    "Claim accepted",
+    "Claim waiting",
+  ].filter((phrase) => text.includes(phrase));
 }
 
 beforeEach(() => {
-  harness = claimHarness();
-  session.current = overlapCast({ accessToken: "t", principalId: "prn_1" });
-  harness.routes.present.mockResolvedValue(json(OPEN_CLAIM));
-  harness.routes.complete.mockResolvedValue(json({ ok: true }));
+  configureHost(createTestHost());
   clearNotices();
+  resetClaimArrivalForTests();
 });
 
 afterEach(() => {
   cleanup();
   resetClaimArrivalForTests();
-  sessionStorage.clear();
-  history.replaceState(null, "", "/");
-});
-
-describe("a claim link", () => {
-  it("left the address, is reviewed, and is accepted with the code", async () => {
-    arrive(`/claim#token=${TOKEN}`);
-    expect(location.hash).toBe("");
-    show();
-
-    const code = await screen.findByLabelText("Consent code");
-    await waitFor(() => expect(document.activeElement).toBe(code));
-    expect(harness.routes.present).toHaveBeenCalledWith(TOKEN);
-    expect(screen.getByText("agent")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
-    expect(screen.getByText("sha256:abc")).toBeTruthy();
-
-    await userEvent.type(code, "WXYZ-1234{Enter}");
-    expect(
-      await screen.findByRole("img", { name: CLAIM_ACCEPTED }),
-    ).toBeTruthy();
-    const body = JSON.parse(harness.routes.complete.mock.calls[0]?.[1] ?? "");
-    expect(body).toMatchObject({
-      acceptedItemIds: ["item-1", "item-2"],
-      userCode: "WXYZ-1234",
-    });
-    // Spent: nothing is held for the next person.
-    expect(peekClaimArrival()).toEqual({ kind: "none" });
-    expect(document.activeElement).toBe(
-      screen.getByRole("region", { name: "Claim accepted" }),
-    );
-  });
-
-  it("opens the Identity API's complete link: bearer gone before render, then code, then done", async () => {
-    // `verificationUriComplete` as the Identity API returns it
-    // (control-plane `claim-link-origin.test.ts` pins the same shape).
-    const complete = new URL(`${location.origin}/claim#token=${TOKEN}`);
-    arrive(`${complete.pathname}${complete.hash}`);
-    const seen: string[] = [];
-    function Probe() {
-      seen.push(location.href);
-      return null;
-    }
-    render(
-      <MemoryRouter initialEntries={["/claim"]}>
-        <Probe />
-        <ClaimRoute />
-      </MemoryRouter>,
-    );
-    // Presented on arrival: the person is asked only for the user code.
-    await userEvent.type(
-      await screen.findByLabelText("Consent code"),
-      "WXYZ-1234{Enter}",
-    );
-    expect(
-      await screen.findByRole("img", { name: CLAIM_ACCEPTED }),
-    ).toBeTruthy();
-    expect(harness.routes.present).toHaveBeenCalledTimes(1);
-    expect(harness.routes.present).toHaveBeenCalledWith(TOKEN);
-    expect(
-      JSON.parse(harness.routes.complete.mock.calls[0]?.[1] ?? ""),
-    ).toMatchObject({ userCode: "WXYZ-1234" });
-    // No render ever saw the bearer in the address.
-    expect(seen.length).toBeGreaterThan(0);
-    expect(seen.filter((href) => href.includes(TOKEN))).toEqual([]);
-    expect(location.href).toBe(`${location.origin}${complete.pathname}`);
-  });
-
-  it("marks a wrong code and reports it in the tray, never in a box", async () => {
-    harness.routes.complete.mockResolvedValue(
-      json({ error: "invalid_user_code" }, 400),
-    );
-    arrive(`/claim#token=${TOKEN}`);
-    const { container } = show();
-    await userEvent.type(
-      await screen.findByLabelText("Consent code"),
-      "NOPE{Enter}",
-    );
-    await waitFor(() => expect(trayed()?.tone).toBe("err"));
-    expect(
-      screen.getByRole("img", { name: trayed()?.body ?? "" }),
-    ).toBeTruthy();
-    expect(container.querySelector(".note")).toBeNull();
-    expect(screen.getByLabelText("Consent code")).toBeTruthy();
-  });
-
-  it("waits for a principal without presenting, then resumes when one arrives", async () => {
-    session.current = null;
-    harness.signIn(null);
-    arrive(`/claim#token=${TOKEN}`);
-    const view = show();
-    expect(
-      await screen.findByRole("img", { name: CLAIM_WORDS.signInFirst }),
-    ).toBeTruthy();
-    expect(harness.routes.present).not.toHaveBeenCalled();
-    expect(trayed()).toBeUndefined();
-    // The Connect note /device shows, and the guest road the model offers.
-    // Focus lands in the effect that follows the step's commit, so wait for
-    // it rather than read it on the render that drew the mark.
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Continue as guest" })).toBe(
-        document.activeElement,
-      ),
-    );
-
-    harness.signIn("prn_1");
-    session.current = overlapCast({ accessToken: "t", principalId: "prn_1" });
-    view.rerender(
-      <MemoryRouter initialEntries={["/claim"]}>
-        <ClaimRoute />
-      </MemoryRouter>,
-    );
-    await screen.findByLabelText("Consent code");
-    expect(harness.routes.present).toHaveBeenCalledTimes(1);
-  });
-
-  it("takes the guest road through a provisional principal", async () => {
-    session.current = null;
-    harness.signIn(null);
-    arrive(`/claim#token=${TOKEN}`);
-    show();
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Continue as guest" }),
-    );
-    await screen.findByLabelText("Consent code");
-    expect(harness.routes.provisional).toHaveBeenCalledTimes(1);
-  });
-
-  it("refuses a bearer the query string carried, in the tray", async () => {
-    arrive(`/claim?token=${TOKEN}`);
-    expect(location.search).toBe("");
-    show();
-    await waitFor(() => expect(trayed()?.body).toBe(CLAIM_WORDS.leaked));
-    expect(screen.getByRole("img", { name: CLAIM_WORDS.leaked })).toBeTruthy();
-    expect(harness.routes.present).not.toHaveBeenCalled();
-    expect(peekClaimArrival()).toEqual({ kind: "none" });
-  });
-});
-
-describe("no link arrived", () => {
-  it("offers a place to paste one, reads it once and clears it", async () => {
-    show();
-    const field = screen.getByLabelText<HTMLInputElement>("Claim link");
-    await waitFor(() => expect(document.activeElement).toBe(field));
-    await userEvent.type(field, `https://pages.example/claim#token=${TOKEN}`);
-    await userEvent.keyboard("{Enter}");
-    await screen.findByLabelText("Consent code");
-    expect(harness.routes.present).toHaveBeenCalledWith(TOKEN);
-  });
-
-  it("marks an entry that is not a claim", async () => {
-    show();
-    await userEvent.type(screen.getByLabelText("Claim link"), "hello{Enter}");
-    expect(
-      await screen.findByRole("img", { name: CLAIM_WORDS.notAToken }),
-    ).toBeTruthy();
-    expect(screen.getByLabelText<HTMLInputElement>("Claim link").value).toBe(
-      "",
-    );
-  });
+  clearNotices();
 });
 
 describe("a drop link", () => {
@@ -242,7 +70,7 @@ describe("a drop link", () => {
     dropOpenSeams.presentClaim = presentClaim;
   });
 
-  it("opens here, with no capability behind it, and is forgotten once settled", async () => {
+  it("opens the receive view and never shows Accept a claim", async () => {
     const present = vi.fn(async () => {
       throw new Error("offline");
     });
@@ -253,15 +81,55 @@ describe("a drop link", () => {
     expect(screen.getByRole("heading", { name: "Open a drop" })).toBeTruthy();
     const code = await screen.findByLabelText("One-time code");
     await waitFor(() => expect(document.activeElement).toBe(code));
-    // Nothing is presented until the person enters the sender's code.
+    expect(claimCopyOnScreen()).toEqual([]);
+    expect(document.body.textContent).not.toMatch(/osc_clm_/);
     expect(present).not.toHaveBeenCalled();
-    expect(harness.routes.present).not.toHaveBeenCalled();
     await userEvent.type(code, "ABCD{Enter}");
     await waitFor(() => expect(present).toHaveBeenCalledWith(TOKEN, "ABCD"));
-    // Unreachable is worth another try: the link stays, in memory only.
     expect(peekClaimArrival().kind).toBe("drop");
+    expect(claimCopyOnScreen()).toEqual([]);
+  });
+});
+
+describe("non-drop arrivals", () => {
+  it("refuses an ownership token without a key — open-drop shell only", async () => {
+    arrive(`/claim#token=${TOKEN}`);
+    show();
+    expect(screen.getByRole("heading", { name: "Open a drop" })).toBeTruthy();
     expect(
-      JSON.stringify({ ...sessionStorage, ...localStorage }),
-    ).not.toContain(KEY);
+      await screen.findByRole("img", {
+        name: "This drop link is incomplete.",
+      }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(trayed()?.body).toBe("This drop link is incomplete."),
+    );
+    expect(screen.queryByLabelText("Consent code")).toBeNull();
+    expect(screen.queryByLabelText("Claim link")).toBeNull();
+    expect(screen.queryByPlaceholderText(/osc_clm_/)).toBeNull();
+    expect(claimCopyOnScreen()).toEqual([]);
+    expect(peekClaimArrival()).toEqual({ kind: "none" });
+  });
+
+  it("refuses a bearer the query string carried, without claim copy", async () => {
+    arrive(`/claim?token=${TOKEN}`);
+    expect(location.search).toBe("");
+    show();
+    await waitFor(() =>
+      expect(trayed()?.body).toMatch(/drop link carried its token/),
+    );
+    expect(claimCopyOnScreen()).toEqual([]);
+    expect(screen.queryByLabelText("Claim link")).toBeNull();
+    expect(peekClaimArrival()).toEqual({ kind: "none" });
+  });
+
+  it("empty /claim is Open a drop with no paste field and no claim copy", () => {
+    show();
+    expect(screen.getByRole("heading", { name: "Open a drop" })).toBeTruthy();
+    expect(screen.queryByLabelText("Claim link")).toBeNull();
+    expect(screen.queryByPlaceholderText(/osc_clm_/)).toBeNull();
+    expect(screen.queryByLabelText("One-time code")).toBeNull();
+    expect(claimCopyOnScreen()).toEqual([]);
+    expect(document.body.textContent).not.toContain("Accept a claim");
   });
 });

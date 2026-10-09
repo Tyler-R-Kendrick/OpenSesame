@@ -1,5 +1,6 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
+import { LIB_CEREMONY_RULES } from "./classification-lib-ceremonies.js";
 import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
 import { VAULT_RELAY_RULES } from "./classification-vault-relay.js";
@@ -9,15 +10,10 @@ export { VAULT_RELAY_RULES };
 const L = "src/lib/";
 const SHELL = "shell.navigation";
 const SIGNIN = "identity.brokered-signin";
-const CEREMONIES = "identity.ceremonies";
 const CONNECTORS = "connectors.external";
 const GIT = "backup.git-remote";
 const CLOUD = "backup.cloud-secrets";
 const ACCESS = "access.authority";
-const LOCAL_IAM = "identity.local-iam";
-const FEDERATION = "identity.federation";
-const LOCAL_AI = "support.local-ai";
-const WALLET = "wallet.spending";
 
 const CORE_INFRA = [
   "kv",
@@ -69,6 +65,8 @@ const CORE_INFRA = [
   "local-network-fetch",
   "queue",
   "pact",
+  // Harness/`__vt` clock shared by CipherWordmark, CipherDial, VaultDoors.
+  "injected-clock",
   "__tests__/",
   "__snapshots__/",
 ];
@@ -148,41 +146,6 @@ const ACCESS_FILES = [
   "local-grant-admin",
   "local-grant-store",
 ];
-const LOCAL_IAM_FILES = [
-  "local-access-bootstrap",
-  "local-agent-authorization",
-  "local-agent-channel",
-  "local-application-approval",
-  "local-authenticator",
-  "local-authorization",
-  "local-pending-codes",
-  "local-iam-lock-resets",
-  "local-issuer-channel",
-  "local-request",
-  "local-request-authorization",
-  "local-request-issuance",
-  "device-identity-inbox",
-  "device-identity-local",
-];
-const FEDERATION_FILES = [
-  // `orgs-directory` only: `orgs.ts` is the core sign-in vocabulary (the slug
-  // shape, the method routing, the profile this tab is on) and declares the
-  // four Identity-API calls as seams this capability installs.
-  "orgs-directory",
-];
-const LOCAL_AI_FILES = [
-  "model-provider",
-  "hosted-inference",
-  "saved-model-agent",
-  "model-catalog",
-  "model-slugs",
-  "browser-inference",
-  "command-bar/interpret",
-  "command-bar/prompt-model",
-  "command-bar/speech",
-];
-const WALLET_FILES = ["spending-", "wallet-"];
-
 export const LIB_RULES = [
   core(
     `${L}item-type-marketplace/`,
@@ -237,6 +200,11 @@ export const LIB_RULES = [
   ...each(L, ["webauthn", "browser-reset"], (p) =>
     core(p, "vault.local-unlock", "WebAuthn detection; resetting this browser"),
   ),
+  core(
+    `${L}unlock-ceremony-store`,
+    "vault.local-unlock",
+    "holds unlock while lock-v5 doors finish",
+  ),
   core(`${L}guest-connections`, "vault.local-unlock", "tomb"),
   core(`${L}idp-registry`, "vault.local-unlock", "tomb IdPs"),
   shared(
@@ -268,129 +236,5 @@ export const LIB_RULES = [
   ),
   ...NETWORK_RELAY_RULES,
   ...VAULT_RELAY_RULES,
-  core(
-    `${L}join/`,
-    SIGNIN,
-    "join a session: invite or open endpoint, before sign-in (ADR 0136)",
-  ),
-  // The ceremonies a link opens on this origin (ADR 0140): always-on, so
-  // their models ship in every build beside the join road.
-  core(
-    `${L}claims/`,
-    CEREMONIES,
-    "ownership claim: link, stash, present/read/complete (ADR 0140)",
-  ),
-  core(
-    `${L}interactions`,
-    CEREMONIES,
-    "/i/<ref>: approval model, -link (read at boot), -route (screen model) (ADR 0140)",
-  ),
-  // The hosted inbox rows it builds are Access › Requests' (plan step 9).
-  core(
-    `${L}approvals`,
-    CEREMONIES,
-    "/approve/<ref> review, hosted rows, -link (boot), -route (ADR 0084, 0140)",
-  ),
-  // A link's query, read at boot: `/device?user_code=` and the legacy links
-  // normalised to it; `/invoke/<kind>`'s handle and its screen model; the
-  // `/guest` and `/delegate` aliases (ADR 0140).
-  ...each(L, ["device-link", "invoke-", "ceremony-aliases", "directory"], (p) =>
-    core(p, CEREMONIES, "a ceremony link read at boot, and its model"),
-  ),
-  core(
-    `${L}device-approval`,
-    CEREMONIES,
-    "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
-  ),
-  // Settings › Notifications' model (ADR 0140 plan step 11, D9): reached
-  // only through the notifications.routing module and its file provider.
-  optional(
-    `${L}notification-routing/`,
-    "notifications.routing",
-    "notification routing document, channel words, policy narrowing, Identity API routes (ADR 0084)",
-  ),
-  // Where this device tells its person a request is waiting (ADR 0162):
-  // the places, the preference, the notice and the watcher; reached only
-  // through the notifications.local module and its file provider.
-  optional(
-    `${L}local-notifications/`,
-    "notifications.local",
-    "local notification places, preference, notice contract and inbox watcher (ADR 0162)",
-  ),
-  ...each(L, LOCAL_IAM_FILES, (p) =>
-    optional(p, LOCAL_IAM, "browser-local IAM"),
-  ),
-  ...each(L, FEDERATION_FILES, (p) =>
-    optional(p, FEDERATION, "operator IdPs and Identity directory"),
-  ),
-  ...each(L, ["identity-management"], (p) =>
-    optional(
-      p,
-      "enterprise.directory-provisioning",
-      "Identity API agent/user management",
-    ),
-  ),
-  // The plan's placement (ADR 0140 plan step 12): Identity › Organizations'
-  // sign-in panels, under the capability that already owns organizations.
-  optional(
-    `${L}org-signin`,
-    "enterprise.directory-provisioning",
-    "organization upstream, email domains and SCIM tokens (ADR 0140)",
-  ),
-  // Duress (ADR 0131): a duress code is an unlock method, and the fence,
-  // compartments and alerting it drives all hang off unlocking, so the whole
-  // tree belongs to the core unlock capability.
-  core(
-    `${L}duress/`,
-    "vault.local-unlock",
-    "duress slots, fence, compartments and alerting",
-  ),
-  core(
-    `${L}travel/`,
-    "vault.local-unlock",
-    "travel mode: departure bundle and return",
-  ),
-  shared(`${L}local-iam-events`, "change fanout the tomb and identity share"),
-  core(
-    `${L}ambient-auth/entra-instances`,
-    "vault.local-unlock",
-    "browser reset clears ambient sign-in instances",
-  ),
-  ...each(L, ["capabilities/settling", "router-seam"], (p) =>
-    core(p, SHELL, "router inputs: is the plan up, and navigate from outside"),
-  ),
-  ...each(L, ["ambient-auth-seam"], (p) =>
-    core(p, SIGNIN, "the ambient seam core federation calls through"),
-  ),
-  ...each(L, ["ambient-auth/"], (p) =>
-    optional(p, "identity.ambient-sso", "MSAL / OIDC ambient boot"),
-  ),
-  ...each(L, ["siop-authority", "siop-keys"], (p) =>
-    optional(p, "identity.siop", "SIOPv2 authority"),
-  ),
-  optional(
-    `${L}site-broker`,
-    "identity.site-broker",
-    "relying-site broker consents and policy",
-  ),
-  optional(
-    `${L}auth-client`,
-    "identity.site-broker",
-    "pins the shipped static-auth SDK bytes",
-  ),
-  core(`${L}certs`, "vault.passwords", "editor opens an existing certificate"),
-  ...each(L, ["x509/"], (p) =>
-    optional(p, "vault.certificate-records", "self-signed X.509 issuance"),
-  ),
-  optional(
-    `${L}push`,
-    "notifications.web-push",
-    "push enrolment and payload rendering",
-  ),
-  ...each(L, LOCAL_AI_FILES, (p) =>
-    optional(p, LOCAL_AI, "on-device model plane; MIXED — remote"),
-  ),
-  ...each(L, WALLET_FILES, (p) =>
-    optional(p, WALLET, "spending ledger, instruments, brokers"),
-  ),
+  ...LIB_CEREMONY_RULES,
 ];
