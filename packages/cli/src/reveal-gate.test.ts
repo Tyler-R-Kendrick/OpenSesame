@@ -6,6 +6,7 @@ import {
   type HumanRevealRequest,
   assertHumanReveal,
   detectAgentContext,
+  envWithoutAgentContext,
   humanRevealRefusal,
 } from "./reveal-gate.js";
 
@@ -45,9 +46,11 @@ describe("cli reveal gate conformance", () => {
   }
 
   it("detects verified agent markers only (refuse-only)", () => {
-    const launch = process.env.OPENSESAME_AGENT_LAUNCH_HANDLE;
-    const client = process.env.OPENSESAME_AGENT_CLIENT_ID;
-    const claude = process.env.CLAUDECODE;
+    const saved = new Map<string, string | undefined>();
+    for (const rule of gate.agentContextEnv) {
+      saved.set(rule.name, process.env[rule.name]);
+      Reflect.deleteProperty(process.env, rule.name);
+    }
     try {
       process.env.OPENSESAME_AGENT_LAUNCH_HANDLE = "h";
       expect(detectAgentContext()).toBe(true);
@@ -64,11 +67,14 @@ describe("cli reveal gate conformance", () => {
       process.env.CI = "true";
       expect(detectAgentContext()).toBe(true);
       Reflect.deleteProperty(process.env, "CI");
+      process.env.GITHUB_ACTIONS = "true";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "GITHUB_ACTIONS");
       expect(detectAgentContext()).toBe(false);
     } finally {
-      restoreEnv("OPENSESAME_AGENT_LAUNCH_HANDLE", launch);
-      restoreEnv("OPENSESAME_AGENT_CLIENT_ID", client);
-      restoreEnv("CLAUDECODE", claude);
+      for (const [name, previous] of saved) {
+        restoreEnv(name, previous);
+      }
     }
   });
 });
@@ -85,6 +91,7 @@ describe("cli reveal gate subprocess refusal", () => {
         reveal: true,
         desktop: true,
         reference: "op://v/i/f",
+        env: envWithoutAgentContext(process.env),
         stdinIsTty: true,
         stdoutIsTty: false,
       }),

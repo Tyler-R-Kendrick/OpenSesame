@@ -10,16 +10,19 @@ use std::process::{Command, Output, Stdio};
 const PASSPHRASE: &str = "correct horse battery staple";
 
 fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+    command
         .args(args)
         .arg("--path")
         .arg(store)
         .env("OPENSESAME_STORE_PASSWORD", password)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to run the opensesame binary");
+        .stderr(Stdio::piped());
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
+    let mut child = command.spawn().expect("failed to run the opensesame binary");
     child
         .stdin
         .take()
@@ -101,16 +104,19 @@ fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
     let slave_out = slave.try_clone().expect("dup slave for stdout");
     drop(slave);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+    command
         .args(args)
         .arg("--path")
         .arg(store)
         .env("OPENSESAME_STORE_PASSWORD", password)
         .stdin(Stdio::from(slave_in))
         .stdout(Stdio::from(slave_out))
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to run the opensesame binary");
+        .stderr(Stdio::piped());
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
+    let mut child = command.spawn().expect("failed to run the opensesame binary");
     let stdout_thread = std::thread::spawn(move || {
         let mut master = master;
         let mut buf = Vec::new();
