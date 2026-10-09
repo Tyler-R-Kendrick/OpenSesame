@@ -2,6 +2,8 @@ import type { VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { liveItemPickLabels } from "./item-pick-label.js";
 
+const T0 = "2026-01-01T00:00:00.000Z";
+
 function item(id: string, name: string, typeId: string): VaultItem {
   return {
     id,
@@ -10,8 +12,8 @@ function item(id: string, name: string, typeId: string): VaultItem {
     typeId,
     values: {},
     folderId: null,
-    createdAt: 0,
-    updatedAt: 0,
+    createdAt: T0,
+    updatedAt: T0,
     deletedAt: null,
   };
 }
