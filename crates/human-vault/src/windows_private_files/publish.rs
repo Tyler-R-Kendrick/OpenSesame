@@ -199,3 +199,7 @@ pub fn atomic_write_with(
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "publish_tests.rs"]
+mod tests;
