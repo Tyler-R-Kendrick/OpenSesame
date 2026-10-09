@@ -155,6 +155,7 @@ it("lists a provider-wide grant on the connection it covers, and revokes it ther
   expect(bound.getByText("all Slack")).toBeTruthy();
   expect(screen.getByText("1 bound")).toBeTruthy();
   await userEvent.click(bound.getByRole("button", { name: "Revoke" }));
+  await userEvent.click(bound.getByRole("button", { name: "Confirm revoke" }));
   await screen.findByRole("heading", { name: "No connector access" });
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });
@@ -202,7 +203,9 @@ it("lists access whose connector is not listed here, so it can be revoked", asyn
     const rows = within(screen.getByRole("list", { name: "Connector access" }));
     const item = rows.getByRole("heading", { name }).closest("li");
     if (!item) throw new Error(`no row for ${name}`);
-    await userEvent.click(within(item).getByRole("button", { name: "Revoke" }));
+    const revoke = within(item).getByRole("button", { name: "Revoke" });
+    await userEvent.click(revoke);
+    await userEvent.click(within(item).getByRole("button", { name: "Confirm revoke" }));
     await waitFor(() =>
       expect(screen.queryByRole("heading", { name })).toBeNull(),
     );
