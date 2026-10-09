@@ -1,5 +1,6 @@
 //! Stable resource identity read from the retained original Windows directory handle.
-use super::*;
+use super::{handles, security, PrivateDirectory};
+use std::io;
 impl PrivateDirectory {
     /// Original strict NTFS directory volume serial/file index, not owner authentication.
     /// No path is reopened and no password/root/capability is returned.

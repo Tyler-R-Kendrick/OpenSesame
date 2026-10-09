@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::password_wrap::{unwrap_vrk_with_password, wrap_vrk_with_password, PasswordWrapper};
+use crate::password_wrap::{unwrap_vrk_with_password, PasswordWrapper};
 use crate::{ItemDataKey, VaultRootKey};
 
 use super::auth::verify_manifest_auth;
@@ -18,10 +18,8 @@ use super::limits::{
     KEY_FILE_NAME, MANIFEST_SCHEMA_VERSION, MAX_MANIFEST_ENCODED_BYTES, MAX_PROTECTION_RECORDS,
     MAX_RECORD_ENCODED_BYTES,
 };
-use super::native_factor_configuration::{assert_present_binding, seal_for_native_producer};
-use super::types::{
-    ProofStatus, ProtectionPurpose, ProtectionRecord, ProtectorSummary, RootProtectionManifest,
-};
+use super::native_factor_configuration::assert_present_binding;
+use super::types::{ProofStatus, ProtectionRecord, ProtectorSummary, RootProtectionManifest};
 
 /// Contents of `.opensesame-key`.
 #[derive(Debug, Clone)]
@@ -147,31 +145,7 @@ pub fn init_versioned_key_file(
     root: &Path,
     password: &[u8],
 ) -> Result<(ItemDataKey, RootProtectionManifest), ProtectionError> {
-    let vrk = VaultRootKey::generate();
-    let wrapper = wrap_vrk_with_password(password, &vrk)?;
-    let vault_id = uuid::Uuid::new_v4().to_string();
-    let root_key_id = uuid::Uuid::new_v4().to_string();
-    let protector_id = uuid::Uuid::new_v4().to_string();
-    let mut manifest = RootProtectionManifest {
-        schema_version: MANIFEST_SCHEMA_VERSION,
-        vault_id,
-        root_key_id,
-        root_epoch: 1,
-        revision: 1,
-        purpose: ProtectionPurpose::HumanVaultRoot,
-        records: vec![ProtectionRecord::Password {
-            protector_id: protector_id.clone(),
-            legacy: true,
-            wrapper,
-            proof_status: ProofStatus::Verified,
-            last_evidence: None,
-        }],
-        preferred_protector_id: Some(protector_id),
-        legacy_gates: None,
-        auth_b64: None,
-        factor_configuration: None,
-    };
-    seal_for_native_producer(&vrk, &mut manifest)?;
+    let (vrk, manifest) = super::new_password_root::prepare(password)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest.clone()))?;
     Ok((ItemDataKey(vrk.0), manifest))
 }

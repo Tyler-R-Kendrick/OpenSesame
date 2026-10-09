@@ -101,9 +101,85 @@ fn child_depth_limit_refuses_before_creating_an_extra_directory() {
     while directory.parents.len() < 128 {
         directory = directory.create_child(Path::new("next")).unwrap();
     }
+    assert_eq!(directory.parents.len(), 128);
+    assert!(
+        directory
+            .paths
+            .last()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .encode_utf16()
+            .count()
+            > 260
+    );
     let absent = directory.paths.last().unwrap().join("too-deep");
     assert!(directory.create_child(Path::new("too-deep")).is_err());
     assert!(directory.open_child(Path::new("too-deep")).is_err());
     assert!(!absent.exists());
+    assert!(directory
+        .original_directory_entries()
+        .unwrap()
+        .iter()
+        .all(|(name, _)| name != "too-deep"));
+    directory.validate_original().unwrap();
+}
+
+#[test]
+fn actual_long_dos_path_preserves_private_create_read_replace_and_alias_refusal() {
+    let (_temp, _root, mut directory) = private_root();
+    while directory
+        .paths
+        .last()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .encode_utf16()
+        .count()
+        <= 260
+    {
+        directory = directory.create_child(Path::new("long")).unwrap();
+    }
+    let root = directory.paths.last().unwrap().clone();
+    assert!(root.to_str().unwrap().encode_utf16().count() > 260);
+    directory.validate_original().unwrap();
+    let identity = handles::identity(directory.root_handle().unwrap(), true).unwrap();
+    let reopened = PrivateDirectory::open(&root).unwrap();
+    assert_eq!(
+        handles::identity(reopened.root_handle().unwrap(), true).unwrap(),
+        identity
+    );
+    drop(reopened);
+    let directory = Arc::new(directory);
+    write_new(
+        &directory,
+        Path::new("long.bin"),
+        b"actual private long-path bytes",
+    )
+    .unwrap();
+    let mut read =
+        HeldPrivateRead::open(Arc::clone(&directory), Path::new("long.bin"), 128).unwrap();
+    assert_eq!(read.bytes(), b"actual private long-path bytes");
+    read.validate().unwrap();
+    drop(read); // Drop the actual destination read handle before its original replacement.
+    crate::root_protection::windows_private_files::atomic_write(
+        &directory,
+        Path::new("long.bin"),
+        b"actual acknowledged replacement",
+    )
+    .unwrap();
+    let mut read =
+        HeldPrivateRead::open(Arc::clone(&directory), Path::new("long.bin"), 128).unwrap();
+    assert_eq!(read.bytes(), b"actual acknowledged replacement");
+    read.validate().unwrap();
+    assert_eq!(
+        handles::identity(directory.root_handle().unwrap(), true).unwrap(),
+        identity
+    );
+    let external = format!(r"\\?\{}", root.to_str().unwrap());
+    assert!(PrivateDirectory::open(Path::new(&external)).is_err());
+    assert!(handles::wide(Path::new(&external)).is_err());
+    assert!(PrivateDirectory::open(&root.join("..")).is_err());
+    assert!(handles::wide(Path::new(r"\\server\share\node")).is_err());
     directory.validate_original().unwrap();
 }
