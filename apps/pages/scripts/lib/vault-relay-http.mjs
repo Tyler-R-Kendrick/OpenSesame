@@ -7,7 +7,7 @@
  * session. The snapshot this page publishes has no item name.
  *
  * `startVaultRelay({ live: true })` does not use that process. It spawns
- * `opensesame relay run` when one is not already named by
+ * `opensesame host run --profile relay` when one is not already named by
  * `OPENSESAME_RELAY_URL`, and serves the join page beside it.
  */
 

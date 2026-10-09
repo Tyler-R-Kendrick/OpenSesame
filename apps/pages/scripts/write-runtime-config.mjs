@@ -18,10 +18,11 @@ const KEYS = {
   supportAgentUrl: "PAGES_SUPPORT_AGENT_URL",
 };
 
-/** Retired backend stamps (ADR 0090); built without literal env names for the rg gate. */
-const RETIRED_PLANES = ["IDENTITY", "HOST", "DAEMON"];
+/** Refused if someone still exports the old backend stamps in CI. */
 const FORBIDDEN = [
-  ...RETIRED_PLANES.map((plane) => `${"PAGES"}_${plane}_${"API"}`),
+  "PAGES_IDENTITY_API",
+  "PAGES_HOST_API",
+  "PAGES_DAEMON_API",
   "PAGES_CONNECT_CALLBACK_BASE",
 ];
 

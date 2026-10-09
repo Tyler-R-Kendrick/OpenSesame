@@ -1,25 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { runtimeConfig } from "./write-runtime-config.mjs";
 
-const pagesBackendStamp = (plane) => `${"PAGES"}_${plane}_${"API"}`;
-
 describe("runtimeConfig", () => {
   it("refuses the retired Identity/Host/daemon and connect stamps", () => {
     expect(() =>
       runtimeConfig({
-        [pagesBackendStamp("HOST")]: "https://host.example",
+        PAGES_HOST_API: "https://host.example",
       }),
-    ).toThrow(/static app with no Identity\/Host\/daemon backend/);
+    ).toThrow(/PAGES_HOST_API/);
     expect(() =>
       runtimeConfig({
-        [pagesBackendStamp("IDENTITY")]: "https://identity.example",
+        PAGES_IDENTITY_API: "https://identity.example",
       }),
-    ).toThrow(/static app with no Identity\/Host\/daemon backend/);
+    ).toThrow(/PAGES_IDENTITY_API/);
     expect(() =>
       runtimeConfig({
-        [pagesBackendStamp("DAEMON")]: "http://127.0.0.1:18790",
+        PAGES_DAEMON_API: "http://127.0.0.1:18790",
       }),
-    ).toThrow(/static app with no Identity\/Host\/daemon backend/);
+    ).toThrow(/PAGES_DAEMON_API/);
     expect(() =>
       runtimeConfig({
         PAGES_CONNECT_CALLBACK_BASE: "/",

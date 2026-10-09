@@ -24,7 +24,7 @@ fn https_and_loopback_http_are_accepted() {
         "http://[::1]:8788",
         "http://localhost:8788",
     ] {
-        assert!(build(|c| c.interaction_base_url = url.into()).is_ok(), "{url}");
+        assert!(build(|c| c.identity_api_url = url.into()).is_ok(), "{url}");
     }
 }
 
@@ -55,7 +55,7 @@ fn plain_http_elsewhere_and_odd_urls_are_refused() {
         ("not a url", InteractionConfigError::InvalidUrl),
     ];
     for (url, expected) in cases {
-        let refused = build(|c| c.interaction_base_url = url.into()).expect_err(url);
+        let refused = build(|c| c.identity_api_url = url.into()).expect_err(url);
         assert_eq!(refused, expected, "{url}");
         // Errors name the field, never its value.
         assert!(!refused.to_string().contains(url));
@@ -82,7 +82,7 @@ fn an_empty_bearer_is_refused() {
 }
 
 #[test]
-fn the_window_stays_inside_the_interaction_service_bounds() {
+fn the_window_stays_inside_the_identity_apis_bounds() {
     for ttl in [
         Duration::from_secs(29),
         Duration::from_secs(3601),

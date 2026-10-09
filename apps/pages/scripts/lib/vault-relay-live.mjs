@@ -1,6 +1,6 @@
 /**
  * Gateway relay profile. Uses `OPENSESAME_RELAY_URL` when a process is
- * already up. Otherwise spawns `opensesame relay run` and
+ * already up. Otherwise spawns `opensesame host run --profile relay` and
  * serves the join page beside it.
  */
 
@@ -33,7 +33,7 @@ function freePort() {
 }
 
 function relayCommand(root, listenAddr) {
-  const args = ["relay", "run", "--listen", listenAddr];
+  const args = ["host", "run", "--profile", "relay", "--listen", listenAddr];
   const named = process.env.OPENSESAME_RELAY_BIN;
   if (named) return { cmd: named, args };
   const built = path.join(root, "target/debug/opensesame");

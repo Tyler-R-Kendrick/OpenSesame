@@ -1,17 +1,15 @@
 //! The worked example in `docs/operators/web-login-recipes.md`, run line by
-//! line through the real binary (ADR 0076 §4, ADR 0159), against the example
-//! recipe file the document embeds. The example is fully local: `signer
-//! keygen` and `recipe sign` read and write files and talk to no Host.
+//! line through the real binary against a stand-in Host (ADR 0076 §4, ADR
+//! 0159), against the example recipe file the document embeds.
 
 mod hooks_mock;
+mod rotate_recipes_mock;
 
-use hooks_mock::opensesame;
 use opensesame_rotation_web::recipe_doc::{parse_public_key_hex, RecipeDocument};
-use serde_json::Value;
+use rotate_recipes_mock::{host, opensesame, rotate, ENCODED_ORIGIN, EXAMPLE};
+use serde_json::{json, Value};
 
 const DOC: &str = include_str!("../../../docs/operators/web-login-recipes.md");
-const EXAMPLE: &str =
-    include_str!("../../../docs/operators/examples/web-login-recipe.example.json");
 
 /// The commands of the document's worked example, in order.
 fn documented_commands() -> Vec<Vec<String>> {
@@ -56,12 +54,15 @@ fn the_document_embeds_the_example_recipe_it_runs() {
 fn every_command_in_the_document_is_a_real_verb() {
     let dir = tempfile::tempdir().unwrap();
     let mut verbs = 0;
-    for line in DOC.lines().filter(|l| l.starts_with("opensesame rotate ")) {
-        let words: Vec<&str> = line.split_whitespace().skip(2).collect();
+    for line in DOC
+        .lines()
+        .filter(|l| l.starts_with("opensesame access connectors rotate "))
+    {
+        let words: Vec<&str> = line.split_whitespace().skip(4).collect();
         let (noun, verb) = (words[0], words[1]);
         assert!(matches!(noun, "recipe" | "signer"), "{line}");
         let out = opensesame(dir.path())
-            .args(["rotate", noun, verb, "--help"])
+            .args(["access", "connectors", "rotate", noun, verb, "--help"])
             .output()
             .unwrap();
         assert!(
@@ -76,7 +77,7 @@ fn every_command_in_the_document_is_a_real_verb() {
         }
         verbs += 1;
     }
-    assert_eq!(verbs, 2, "the worked example is two commands");
+    assert_eq!(verbs, 6, "the worked example is six commands");
 }
 
 #[test]
@@ -86,6 +87,7 @@ fn the_worked_example_runs_as_written() {
     let recipe = dir.path().join("web-login-recipe.example.json");
     let signed = dir.path().join("signed.json");
     std::fs::write(&recipe, EXAMPLE).unwrap();
+    let (server, seen) = host();
 
     let mut public_key = String::new();
     for words in documented_commands() {
@@ -98,13 +100,16 @@ fn the_worked_example_runs_as_written() {
                     .replace("$SIGNED", &signed.display().to_string())
             })
             .collect();
-        let out = opensesame(dir.path()).args(&args).output().unwrap();
+        let out = rotate(dir.path(), &server)
+            .args(&args[3..])
+            .output()
+            .unwrap();
         assert!(
             out.status.success(),
             "{words:?}: {}",
             String::from_utf8_lossy(&out.stderr)
         );
-        if args[1..].starts_with(&["signer".to_owned(), "keygen".to_owned()]) {
+        if args[3..].starts_with(&["signer".to_owned(), "keygen".to_owned()]) {
             let made: Value = serde_json::from_slice(&out.stdout).unwrap();
             public_key = made["public_key"].as_str().unwrap().to_owned();
             let private = std::fs::read_to_string(&key).unwrap();
@@ -112,11 +117,45 @@ fn the_worked_example_runs_as_written() {
         }
     }
 
-    // What was signed is the example, signed by that key, with a fresh window.
-    let stored = RecipeDocument::parse(std::fs::read(&signed).unwrap().as_slice()).unwrap();
+    let seen = seen.lock().unwrap();
+    let calls: Vec<(&str, &str)> = seen
+        .iter()
+        .map(|r| (r.method.as_str(), r.path.as_str()))
+        .collect();
+    assert_eq!(
+        calls,
+        [
+            ("POST", "/api/v1/web-login/signers"),
+            (
+                "PUT",
+                &format!("/api/v1/web-login/recipes/{ENCODED_ORIGIN}")
+            ),
+            (
+                "POST",
+                &format!("/api/v1/web-login/recipes/{ENCODED_ORIGIN}/canary")
+            ),
+            (
+                "GET",
+                &format!("/api/v1/web-login/recipes/{ENCODED_ORIGIN}")
+            ),
+        ],
+        "keygen and sign are local; the rest name the Host"
+    );
+
+    // The pin names the key's public half, never the private one.
+    let pin: Value = serde_json::from_str(&seen[0].body).unwrap();
+    assert_eq!(
+        pin,
+        json!({"public_key": public_key, "label": "release-signer"})
+    );
+    assert!(seen[0].authorization.starts_with("Bearer operator:"));
+
+    // What was stored is the example, signed by that key, with a fresh window.
+    assert_eq!(seen[1].if_match, "\"0\"");
+    let stored = RecipeDocument::parse(seen[1].body.as_bytes()).unwrap();
     stored
         .verify(&parse_public_key_hex(&public_key).unwrap())
-        .expect("signed by the key keygen made");
+        .expect("signed by the pinned key");
     stored
         .check_window(chrono::Utc::now())
         .expect("inside its window");

@@ -145,6 +145,10 @@ export const PACKAGE_RULES = [
     "vault.local-unlock",
     "duress policy documents, compiler and incident records",
   ),
+  shared(
+    `${NM}@opensesame/api-client`,
+    "origin fence urls.ts uses, and the DPoP key pairing uses",
+  ),
   optional(
     `${NM}@opensesame/audit`,
     "activity.log",
