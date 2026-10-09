@@ -18,11 +18,10 @@ import {
   scopeCapabilityConnectorsForSave,
 } from "./capability-connector-scope.js";
 import { kvGet, kvSet } from "./kv.js";
+import { assertGuestMayNotChangeTrustAnchors } from "./settings-guest-trust.js";
 import { isLoopbackUrl } from "./urls.js";
 
-/** Operator-configured IdP (browser OIDC + PKCE, ADR 0078) — not Identity API. */
 export type OperatorIdp = {
-  /** Preset id that brands the sign-in button ("google", "okta", …). */
   providerId: string;
   /** The OIDC issuer, as published in its discovery document. */
   issuer: string;
@@ -378,6 +377,7 @@ function persistRecord(next: PagesSettings): PersistedSettings {
 }
 
 function saveSettingsDefault(next: PagesSettings): void {
+  assertGuestMayNotChangeTrustAnchors(loadSettings(), next, defaultsForPage());
   kvSet(PERSIST_KEY, JSON.stringify(persistRecord(next)));
   emitSettings();
 }
