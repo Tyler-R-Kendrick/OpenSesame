@@ -13,7 +13,8 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connection_broker::{CreateSyncTarget, KeyFilteredSecretSource, SyncSecretSource};
+use opensesame_connection_broker::{config_access::ResourcePermission, CreateSyncTarget, KeyFilteredSecretSource, SyncSecretSource};
+use crate::routes::secret_config_access;
 use opensesame_task_bus::BusEvent;
 use serde::Deserialize;
 use serde_json::json;
@@ -36,6 +37,12 @@ fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, R
             .into_response());
     }
     Ok(who)
+}
+
+
+#[allow(clippy::result_large_err)]
+async fn require_project(st: &AppState, who: &Caller, org: &opensesame_domain::OrganizationId, project: &str, permission: ResourcePermission) -> Result<(), Response> {
+    secret_config_access::project(st, who, org, project, permission).await
 }
 
 fn caller_organization(
@@ -168,7 +175,13 @@ pub async fn list(
         .await
     {
         Ok(targets) => {
-            let body = json!({ "sync_targets": targets });
+            let mut authorized = Vec::new();
+            for target in targets {
+                if require_project(&st, &who, &organization_id, &target.project_id, ResourcePermission::Manage).await.is_ok() {
+                    authorized.push(target);
+                }
+            }
+            let body = json!({ "sync_targets": authorized });
             if let Err(resp) = assert_no_secret_fields(&body) {
                 return resp;
             }
@@ -189,6 +202,9 @@ pub async fn create(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Err(resp) = require_project(&st, &who, &organization_id, &body.project_id, ResourcePermission::Manage).await {
+        return resp;
+    }
     match st
         .connection_broker
         .create_sync_target(
@@ -235,6 +251,14 @@ pub async fn get(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+        Ok(target) => target,
+        Err(e) => return broker_error(&e),
+    };
+    if let Err(resp) = require_project(&st, &who, &organization_id, &target.project_id, ResourcePermission::Manage).await {
+        return resp;
+    }
+
     match st
         .connection_broker
         .get_sync_target(&organization_id, &id)
@@ -262,6 +286,14 @@ pub async fn delete(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+        Ok(target) => target,
+        Err(e) => return broker_error(&e),
+    };
+    if let Err(resp) = require_project(&st, &who, &organization_id, &target.project_id, ResourcePermission::Manage).await {
+        return resp;
+    }
+
     match st
         .connection_broker
         .delete_sync_target(&organization_id, &id)
@@ -284,6 +316,14 @@ pub async fn sync_one(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+        Ok(target) => target,
+        Err(e) => return broker_error(&e),
+    };
+    if let Err(resp) = require_project(&st, &who, &organization_id, &target.project_id, ResourcePermission::Keys).await {
+        return resp;
+    }
+
     let body = body.map(|Json(b)| b).unwrap_or_default();
     let secrets = match secret_source_from_body(&st, &body) {
         Ok(secrets) => secrets,
@@ -341,6 +381,15 @@ pub async fn sync_all(
             Json(json!({"error":"invalid_request","hint":"config_id is required"})),
         )
             .into_response();
+    }
+    let targets = match st.connection_broker.list_sync_targets(&organization_id, None, Some(config_id)).await {
+        Ok(targets) => targets,
+        Err(e) => return broker_error(&e),
+    };
+    for target in &targets {
+    if let Err(resp) = require_project(&st, &who, &organization_id, &target.project_id, ResourcePermission::Keys).await {
+        return resp;
+    }
     }
     let secrets = match secret_source_from_body(&st, &SyncBody::default()) {
         Ok(secrets) => secrets,
