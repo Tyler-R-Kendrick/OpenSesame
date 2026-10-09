@@ -1,0 +1,187 @@
+{
+  "format": "actual-browser-evidence-index-v1",
+  "date": "2026-10-09",
+  "executable": false,
+  "driver": "apps/pages/scripts/verify-retired-credential-management.mjs",
+  "parentJourney": "../journey.json",
+  "steps": [
+    "Open the retired-password control from actual Security settings.",
+    "Freshly authenticate the real owner with the current PIN.",
+    "Review the actual empty enrolled list; assert monitor/reject default.",
+    "Choose synthetic mode, acknowledge owner warnings, switch away and back, require fresh acknowledgement.",
+    "Enroll one selected test-only retired password; actual encrypted persistence succeeds.",
+    "Attempt current PIN enrollment; await actual completion, then open native Notifications and assert the exact refusal.",
+    "Return to Security, freshly review with the current PIN and verify exactly one trap remains."
+  ],
+  "actualControls": [
+    "real persistent PIN owner",
+    "actual private command fresh review",
+    "default monitor/reject",
+    "synthetic consent reacknowledgement",
+    "actual encrypted record enrollment",
+    "current credential collision refusal"
+  ],
+  "captures": [
+    {
+      "profile": "desktop",
+      "state": "default-reject",
+      "capture": {
+        "image": "desktop-default-reject.png",
+        "sha256": "eb3528736a26fa8b179afa9937b808f337f00eaa63662049a9b08846e6401a1d",
+        "width": 1280,
+        "height": 923
+      },
+      "measurement": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "observed": {
+          "width": 1280,
+          "height": 900,
+          "coarsePointer": false
+        },
+        "nativeContextEmulation": false,
+        "fullPageScreenshot": true
+      }
+    },
+    {
+      "profile": "desktop",
+      "state": "synthetic-consent",
+      "capture": {
+        "image": "desktop-synthetic-consent.png",
+        "sha256": "f7e0bb1278b9b805befcfbe7c74c3ab81fa5b459db3910eef50098bdb9b785e1",
+        "width": 1280,
+        "height": 923
+      },
+      "measurement": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "observed": {
+          "width": 1280,
+          "height": 900,
+          "coarsePointer": false
+        },
+        "nativeContextEmulation": false,
+        "fullPageScreenshot": true
+      }
+    },
+    {
+      "profile": "desktop",
+      "state": "current-credential-refused",
+      "capture": {
+        "image": "desktop-current-credential-refused.png",
+        "sha256": "121ede945afa24fbca63c6b23b894dc8ea2817c1b1d397b92073f3d1acabc33c",
+        "width": 1280,
+        "height": 923
+      },
+      "measurement": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "observed": {
+          "width": 1280,
+          "height": 900,
+          "coarsePointer": false
+        },
+        "nativeContextEmulation": false,
+        "fullPageScreenshot": true
+      }
+    },
+    {
+      "profile": "phone",
+      "state": "default-reject",
+      "capture": {
+        "image": "phone-default-reject.png",
+        "sha256": "2f24475e979d09b2de3997b5ae68aa9360f7033fa9f7d7b5a291a7ac3104a487",
+        "width": 390,
+        "height": 844
+      },
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed": {
+          "width": 390,
+          "height": 844,
+          "coarsePointer": true
+        },
+        "nativeContextEmulation": true,
+        "fullPageScreenshot": false
+      }
+    },
+    {
+      "profile": "phone",
+      "state": "synthetic-consent",
+      "capture": {
+        "image": "phone-synthetic-consent.png",
+        "sha256": "e9ab26dc783efc65bd03010a4dfe2749d15b7aec8f9ba8d45d49b81637e12d24",
+        "width": 390,
+        "height": 844
+      },
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed": {
+          "width": 390,
+          "height": 844,
+          "coarsePointer": true
+        },
+        "nativeContextEmulation": true,
+        "fullPageScreenshot": false
+      }
+    },
+    {
+      "profile": "phone",
+      "state": "current-credential-refused",
+      "capture": {
+        "image": "phone-current-credential-refused.png",
+        "sha256": "6c9a841df91d55df52bdefa546560602700bbdc53979f3014153bd6e0bb18fbb",
+        "width": 390,
+        "height": 844
+      },
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed": {
+          "width": 390,
+          "height": 844,
+          "coarsePointer": true
+        },
+        "nativeContextEmulation": true,
+        "fullPageScreenshot": false
+      }
+    }
+  ],
+  "sourceOnlyRuntimeQualificationIndex": {
+    "path": "/tmp/retired-pwa-corrected-management-evidence-qualification-source-v1.json",
+    "sha256": "7256b17c00435380bfead8c52237e58b5ac01637ce7e292444d2740ad1a61ce0",
+    "bytes": 3470
+  },
+  "ordinaryUnlockQualification": {
+    "path": "/tmp/retired-pwa-original-unlock-policy-three-document-browser-actual-v2/QUALIFICATION-ADDENDUM.json",
+    "sha256": "9e4410b338d3f7632eb8b0de44c20eba97f8a39e3115808959bd16176d1b5ae7",
+    "bytes": 799
+  },
+  "separateCoreQualification": {
+    "path": "/tmp/retired-original-unlock-all-ordinary-policy-compiler-runtime-actual-v3/QUALIFICATION-ADDENDUM.json",
+    "sha256": "8aefac08d9c955eaa0dc9ab928453b992831a82bc8d19a0c382be7f932d9ed7f",
+    "bytes": 628
+  },
+  "qualification": [
+    "Phone context emulates viewport/touch/coarse pointer; no physical phone tested.",
+    "Service workers blocked; install and offline operation untested.",
+    "Static deployed-file transport substituted; external network refused. No authentication, crypto, or browser-storage doubles.",
+    "Retired login, separate synthetic realm, synthetic exit, authority-escape checks, receiver delivery, native SDK and all-client activation untested.",
+    "Before desktop/phone captures passed individually. Their aggregate also ran a failing original multi-document baseline; do not treat that aggregate as fully passing.",
+    "The corrected build passes the original three-document stale-unlock regression; synthetic/global/native/remote and full production readiness remain unproven."
+  ]
+}
