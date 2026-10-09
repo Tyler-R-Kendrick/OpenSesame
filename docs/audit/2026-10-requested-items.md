@@ -36,8 +36,8 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | S2 | Minimal slash-command typeahead | DONE | `CommandBar.test.tsx` | DONE | — |
 | S3 | Remove identity status icon | DONE | `Statusline.tsx` — no identity glyph | DONE | — |
 | S4 | Remove WebCrypto status icon | DONE | `Statusline.tsx` | DONE | — |
-| S5 | Vault Share submenu | DONE | `vault-menu.ts` | DONE | — |
-| S6 | Secret Share submenu (not "share once") | DONE | `secretShare` in `vault-menu.ts` | DONE | — |
+| S5 | Vault Share submenu | DONE | `vault-menu.ts` | DONE | Restored 2026-10-09 (`cursor/restore-share-pam-b359`): the vault header Share key opens the PAM grant sheet (`VaultShareKey.tsx` → `ShareGrantForm`, policy + duration, revocable in Access › Grants), not `/claim`; folders share as `folder:<id>` targets on the same ledger (`listShareTargets`). "Accept a claim" is out of vault chrome — `/claim` stays as drop-recipient plumbing only. Walk: `pnpm --filter @opensesame/pages verify:share-pam` |
+| S6 | Secret Share submenu (not "share once") | DONE | `secretShare` in `vault-menu.ts` | DONE | Restored 2026-10-09: item menu keeps Temporary drop + Person or agent (the grant sheet prefilled for the item); drops work with no Identity API through the device-native claim plane (`drop-device-identity.test.ts`). The checklist walk asserts "Person or agent" and the header Share key on the full profile, and fails on any "Accept/Open a claim" menu entry |
 | S7 | Default name "Secret" not "Login" on minimal | DONE | `ItemEditor` / `new-draft` tests | DONE | — |
 | S8 | Secret single input control | DONE | Item editor tests | DONE | — |
 | S9 | Shared icon on list items | DONE | `VaultRowDecorations.tsx` | DONE | — |
