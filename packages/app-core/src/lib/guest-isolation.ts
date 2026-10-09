@@ -4,11 +4,11 @@
  * tombs and must never be readable or manageable from a guest session.
  */
 
-import { vaultStore } from "./vault/store.js";
+import { guestSessionActive } from "./vault/store-state.js";
 
 /** True while the unlocked session is the isolated guest road. */
 export function isGuestSession(): boolean {
-  return vaultStore.getSnapshot().guest === true;
+  return guestSessionActive();
 }
 
 /**

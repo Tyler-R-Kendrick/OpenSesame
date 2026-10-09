@@ -32,3 +32,24 @@ export type VaultState = {
   /** False when storage is tab-only (no durable OPFS). */
   durable: boolean;
 };
+
+/**
+ * Where the session's guest flag is read from. `vault/store.ts` binds the
+ * session store here as it loads, so readers such as `guest-isolation.ts`
+ * stay leaf modules — importing the store statically closes an import cycle
+ * (ADR 0133). Before the store loads there is no session, and it reads false.
+ */
+let readGuestSession: () => boolean = () => false;
+
+/** Bind the session store's guest flag and return the store, for `export const vaultStore = …`. */
+export function bindGuestSessionStore<
+  T extends { getSnapshot(): { guest?: boolean } },
+>(store: T): T {
+  readGuestSession = () => store.getSnapshot().guest === true;
+  return store;
+}
+
+/** True while the unlocked session is the isolated guest road. */
+export function guestSessionActive(): boolean {
+  return readGuestSession();
+}
