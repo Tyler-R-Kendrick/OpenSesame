@@ -9,6 +9,11 @@ const SIGNIN = "identity.brokered-signin";
 const UNLOCK = "vault.local-unlock";
 
 export const SHELL_RULES = [
+  optional(
+    "src/browser/native-",
+    "connectors.external",
+    "browser-native provider authorization",
+  ),
   // --- executable roots ----------------------------------------------------
   core("index.html", SHELL, "the one primary HTML entry"),
   core(
