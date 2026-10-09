@@ -23,12 +23,13 @@ import {
 import type { VaultItem } from "@opensesame/vault-core";
 import { compositionStore } from "../capabilities/store.js";
 import { persistedRestoreRefuses } from "../document-lifecycle.js";
+import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
-import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
+import type { HostState } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
@@ -52,7 +53,6 @@ import {
   type LiveTransport,
 } from "./transport.js";
 import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
-import type { HostState } from "./host.js";
 
 export const liveSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,

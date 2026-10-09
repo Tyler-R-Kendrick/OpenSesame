@@ -293,8 +293,7 @@ export class LiveGuest {
     if (message.t === "catalog") {
       this.#clearConnectTimeout();
       this.#to({ at: "joined", catalog: message.catalog });
-    }
-    else if (message.t === "end") this.#finish();
+    } else if (message.t === "end") this.#finish();
     else if (message.t === "value" || message.t === "denied") {
       const pending = this.#pending.get(message.req);
       this.#pending.delete(message.req);

@@ -3,7 +3,10 @@
  */
 
 import type { HostState } from "@opensesame/app-core/lib/live/host.js";
-import { dismissNotice, setStatusNotice } from "@opensesame/app-core/lib/notices.js";
+import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 
 const seenAsking = new Set<string>();
 const askingNotice = new Map<string, string>();

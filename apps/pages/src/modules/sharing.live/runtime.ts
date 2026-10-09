@@ -32,23 +32,23 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
 import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import {
   LIVE_GOALS,
   LIVE_ROUTES,
   LIVE_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/live-catalog.js";
-import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
 import { createActivation } from "../activation.js";
-import {
-  clearLiveHostAskingNotices,
-  noteGuestAsking,
-} from "./live-host-tray.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveSettings } from "./LiveSettings.js";
 import { carrierFactory, carriersUnavailable } from "./carriers/index.js";
 import { liveUiSeams } from "./live-hooks.js";
+import {
+  clearLiveHostAskingNotices,
+  noteGuestAsking,
+} from "./live-host-tray.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 export const CAPABILITY = "sharing.live";
