@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inkAlpha, LIGHT_INK_ALPHA_SCALE } from "./ink.js";
+import { LIGHT_INK_ALPHA_SCALE, inkAlpha } from "./ink.js";
 
 describe("inkAlpha", () => {
   it("leaves dark ink alphas unchanged (light theme)", () => {

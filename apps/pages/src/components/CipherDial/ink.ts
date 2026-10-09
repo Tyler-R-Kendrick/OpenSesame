@@ -15,9 +15,7 @@ export const LIGHT_INK_ALPHA_SCALE = 3.2;
  * same subtle-but-visible presence as in light stills (lock-v5).
  */
 export function inkAlpha(rgb: [number, number, number], a: number): string {
-  const scaled = isLightInk(rgb)
-    ? Math.min(1, a * LIGHT_INK_ALPHA_SCALE)
-    : a;
+  const scaled = isLightInk(rgb) ? Math.min(1, a * LIGHT_INK_ALPHA_SCALE) : a;
   return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${scaled})`;
 }
 

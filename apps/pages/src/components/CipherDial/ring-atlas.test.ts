@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
-import { ensureRingAtlas } from "./ring-atlas.js";
 import type { RingSpec } from "./layout-types.js";
+import { ensureRingAtlas } from "./ring-atlas.js";
 
 function stubRing(): RingSpec {
   return {
