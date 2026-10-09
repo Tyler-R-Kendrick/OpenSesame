@@ -1,0 +1,2261 @@
+[
+  {
+    "verdict": "confirmed",
+    "fingerprint": "app-core.federation.storage-selected-token-endpoint",
+    "title": "Shared-origin storage chooses the federation token endpoint and an unsigned ID token is saved",
+    "description": "The checked-in Pages profile is shared_origin_demo on https://tyler-r-kendrick.github.io. Boundary 13 and storage-ownership.ts state that a path is not origin isolation, so another document on that origin can write the OpenSesame localStorage key. completeSignInDefault posts the authorization code, redirect URI, client id, and PKCE verifier to pending.tokenEndpoint and never substitutes the compiled issuer endpoint. readIdentity then decodes the returned JWT and checks iss, aud, and exp, but not the signature, on the assumption that the token came from the issuer token endpoint. decodeJwtEnvelope accepts an alg-none header only when every segment, including the signature, is non-empty base64url; an empty signature segment is rejected, and a non-empty unchecked segment is accepted. requireActiveUpstreamSession calls pending.sessionCheckEndpoint when that field is set, and any result other than HTTP 401 is success, including a missing endpoint. A same-origin writer can therefore rewrite a live pending record so an in-progress code and verifier are sent to an attacker server, and can plant a record that stores an unsigned token with iss https://shoo.dev when the attacker check does not return 401. saveSession writes that identity even when jwksUri is omitted, but loadSession then clears the row because identityFromJwt requires a string jwksUri. With jwksUri set, loadSession returns the forged subject. The compiled mock issuer http://127.0.0.1:9090 has no session check, so the same unsigned-token path saves a mock session after only the attacker token response. Sealing does not stop the write: a value that is not an at-rest seal is returned as plaintext, including after a sealed value is overwritten. Planting opensesame:federation:session directly also makes loadSession return an unsigned Shoo subject with no token POST; that write is the documented shared store. The additional crossing is the callback code, which is not in shared storage, being posted with the verifier to the storage-chosen token endpoint before the session check. The comparable static-auth Shoo passthrough pins https://shoo.dev/session/check and accepts only status active; app-core does not share that fail-closed pin. The ambient exchange has the same unbound tokenEndpoint and jwksUri shape, but ambient SSO returns null unless that capability is installed, and that path was not executed. An orgSlug record skips the issuer allowlist and does not save a federation session.",
+    "root_cause": "The PKCE pending record is trusted for tokenEndpoint and sessionCheckEndpoint at exchange time, and readIdentity skips signature verification because it assumes that stored URL is the trusted issuer endpoint. The session-check backstop uses the stored URL and fails open on every status except 401.",
+    "intended_behavior": "The code and PKCE verifier are posted only to the compiled token endpoint for a trusted issuer, or to an endpoint whose origin is pinned to that issuer. The ID token is accepted only after a signature check against that issuer's keys or after an explicit active result from the compiled session-check URL. Another document on a shared origin cannot choose those URLs or install a federation session.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "packages/app-core/src/lib/federation-pending.ts",
+        "line": 37,
+        "scope": "readRawPending",
+        "description": "Lower-trust entry. The PKCE record is read from origin localStorage key opensesame:federation:pkce, then sessionStorage. On the shared github.io origin that store is writable by every document of the account, not only this app path."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/at-rest/web-storage.ts",
+        "line": 88,
+        "scope": "read",
+        "description": "localStore().getItem goes through sealedWebStorage. A value that is not an at-rest seal is returned as plaintext, so a same-origin writer does not need the at-rest key to plant the pending record. Overwriting a sealed value with plaintext is also returned as plaintext."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/federation-pending.ts",
+        "line": 45,
+        "scope": "parsePending",
+        "description": "The JSON is overlap-cast with no check of tokenEndpoint, sessionCheckEndpoint, or jwksUri. A numeric createdAt older than ten minutes is stale. A missing createdAt is not aged out."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 613,
+        "scope": "completeSignInDefault",
+        "description": "The authorization code, redirect_uri, client_id, and code_verifier are POSTed to pending.tokenEndpoint as application/x-www-form-urlencoded with credentials omitted. The URL is not replaced with the compiled upstream token endpoint."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 746,
+        "scope": "readIdentity",
+        "description": "The ID token is decoded and checked for issuer, audience, expiry, and pairwise_sub or sub. The signature is not verified. Issuer https://shoo.dev and http://127.0.0.1:9090 are both in TRUSTED_UPSTREAMS, so an unchecked payload with one of those iss values passes when the envelope has three non-empty base64url segments."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 506,
+        "scope": "requireActiveUpstreamSession",
+        "description": "The session-check URL is pending.sessionCheckEndpoint or, if absent, the compiled URL. A missing URL, a transport error, or any HTTP status other than 401 returns success. The mock issuer has no compiled check."
+      },
+      {
+        "kind": "sink",
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 852,
+        "scope": "saveSession",
+        "description": "When orgSlug is absent, saveSession writes the identity, including the attacker-supplied pairwise subject and the raw ID token, through writeFederationSessionJson. loadSession later accepts that stored token without a signature check when jwksUri is a string, and clears the row when it is not."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/pages/public/security-profile.json",
+        "line": 3,
+        "description": "The checked-in Pages profile is shared_origin_demo, with canonicalOrigin https://tyler-r-kendrick.github.io and headerSecurity false on the following lines of the same object."
+      },
+      {
+        "file": "docs/security/security-boundaries.md",
+        "line": 26,
+        "description": "Boundary 13: unrelated content on the same origin shares one browser trust boundary, and a path is not origin isolation. The shared-origin demo stays restricted; this is calibration, not a control that pins the token endpoint."
+      },
+      {
+        "file": "packages/app-core/src/lib/storage-ownership.ts",
+        "line": 5,
+        "description": "The app states that a github.io origin belongs to every GitHub Pages project site of the account and that origin storage is not divided by path."
+      },
+      {
+        "file": "packages/app-core/src/lib/deployment-profile.ts",
+        "line": 55,
+        "description": "mayPairLocalAuthority is false when resolveDeploymentProfile returns shared_origin_demo. The sandbox observed that result for the checked-in origin and profile. Shoo sign-in is not removed with pairing."
+      },
+      {
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 102,
+        "description": "The compiled Shoo upstream has token endpoint https://shoo.dev/token and session check https://shoo.dev/session/check. Exchange does not use these when the pending record supplies its own URLs."
+      },
+      {
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 112,
+        "description": "TRUSTED_UPSTREAMS includes the mock issuer http://127.0.0.1:9090 with a token endpoint and JWKS URL and no sessionCheckEndpoint. The comment says tests name it explicitly; the production allowlist still contains it."
+      },
+      {
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 520,
+        "description": "requireActiveUpstreamSession returns success for every HTTP status other than 401. A transport error returns at the catch above, and a missing endpoint returns before the fetch."
+      },
+      {
+        "file": "packages/app-core/src/lib/federation.ts",
+        "line": 738,
+        "description": "The comment above readIdentity says the signature is not re-checked because the token arrived over TLS from the token endpoint, citing OIDC Core 3.1.3.7."
+      },
+      {
+        "file": "packages/app-core/src/lib/federation-restoration.ts",
+        "line": 195,
+        "description": "readStoredSessionSync, used by loadSession, does not check the signature. Its JWT path requires a string jwksUri. The Shoo payload that omits jwksUri was written by saveSession, then loadSession returned null and cleared it. The same payload with a jwksUri string made loadSession return pairwise subject forged-subject."
+      },
+      {
+        "file": "packages/app-core/src/lib/at-rest/idb-key-store.ts",
+        "line": 103,
+        "description": "unwrap decrypts the origin at-rest data key with the IndexedDB wrapping CryptoKey. That database is origin-scoped, so a same-origin script can use the key and rewrite a sealed value as well. The executed path did not need this, because plaintext is accepted."
+      },
+      {
+        "file": "packages/static-auth/src/passthrough.ts",
+        "line": 65,
+        "description": "Calibration only: the static-auth Shoo passthrough posts to the pinned https://shoo.dev/session/check URL and requires status active. app-core federation does not share that control."
+      },
+      {
+        "file": "packages/app-core/src/lib/ambient-auth/oidc.ts",
+        "line": 125,
+        "description": "The ambient variant POSTs the code and verifier to transaction.tokenEndpoint and then verifies with transaction.jwksUri. That path was read in source and was not part of the sandbox execution, because the default ambient seam returns null when ambient SSO is not installed."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "system_configuration",
+        "description": "The deployment uses the checked-in shared_origin_demo profile, or any other origin where a second document can script the same origin. mayPairLocalAuthority is false there. A dedicated origin would require script execution inside the app origin, which this profile does not require."
+      },
+      {
+        "kind": "authorization_role",
+        "description": "The attacker is another page or script on that origin, such as a sibling GitHub Pages project or the account's user-site path. That page can read and write origin localStorage and can open the origin IndexedDB. A page on a different origin cannot."
+      },
+      {
+        "kind": "data_state",
+        "description": "For code theft, beginSignIn has stored a live pending record and the attacker rewrites tokenEndpoint before the callback. For a durable forged session through this exchange, the planted record includes a string jwksUri; omitting it still sends the code, but loadSession then clears the saved row. createdAt must be a recent number or omitted; createdAt 0 is older than ten minutes and was refused."
+      },
+      {
+        "kind": "user_interaction",
+        "description": "The person loads the OpenSesame document on that origin with the callback code and state. Code theft also needs a sign-in to be in progress. Session forgery needs that document to process the callback query the attacker can open."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A same-origin document writes the federation pending record so its issuer is a compiled trusted issuer and its token and session-check URLs are an attacker server. When OpenSesame completes the callback, it sends the code and PKCE verifier to that server and, if the server returns an unchecked token and the session check does not reject with HTTP 401, stores that token as the federation session when jwksUri is a string.",
+      "payloads": [
+        "{\"upstreamId\":\"shoo\",\"issuer\":\"https://shoo.dev\",\"verifier\":\"verifier-from-storage\",\"state\":\"state-1\",\"tokenEndpoint\":\"https://attacker.example/token\",\"sessionCheckEndpoint\":\"https://attacker.example/check\",\"redirectUri\":\"https://tyler-r-kendrick.github.io/OpenSesame/\",\"clientId\":\"origin:https://tyler-r-kendrick.github.io\",\"createdAt\":<Date.now()>}",
+        "{\"upstreamId\":\"shoo\",\"issuer\":\"https://shoo.dev\",\"verifier\":\"verifier-from-storage\",\"state\":\"state-1\",\"tokenEndpoint\":\"https://attacker.example/token\",\"sessionCheckEndpoint\":\"https://attacker.example/check\",\"jwksUri\":\"https://shoo.dev/.well-known/jwks.json\",\"redirectUri\":\"https://tyler-r-kendrick.github.io/OpenSesame/\",\"clientId\":\"origin:https://tyler-r-kendrick.github.io\",\"createdAt\":<Date.now()>}",
+        "JWT header {\"alg\":\"none\",\"typ\":\"JWT\"}, payload {\"iss\":\"https://shoo.dev\",\"aud\":\"origin:https://tyler-r-kendrick.github.io\",\"exp\":4000000000,\"pairwise_sub\":\"forged-subject\",\"email\":\"forged@attacker.example\"}, and a non-empty unchecked signature segment",
+        "{\"upstreamId\":\"mock\",\"issuer\":\"http://127.0.0.1:9090\",\"verifier\":\"verifier-mock\",\"state\":\"state-1\",\"tokenEndpoint\":\"https://attacker.example/token\",\"jwksUri\":\"http://127.0.0.1:9090/jwks\",\"clientId\":\"origin:https://tyler-r-kendrick.github.io\",\"createdAt\":<Date.now()>} with the same unchecked token shape and pairwise_sub mock-forged"
+      ],
+      "instructions": [
+        "Bundle the real completeSignIn, readIdentity, requireActiveUpstreamSession, and sealed web-storage read with esbuild. Do not contact the network. Point fetch at a local stub that records the URL, method, and body and returns an unchecked ID token or an HTTP status.",
+        "Install a host whose securityProfile is the checked-in shared_origin_demo object, whose page origin is https://tyler-r-kendrick.github.io and base path is /OpenSesame/, and whose local storage is an in-memory map. Defaults already leave remote Identity API and operator providers empty.",
+        "Write the Shoo pending payload as plaintext under opensesame:federation:pkce, once without jwksUri and once with a string jwksUri, set the page search to ?code=attacker-code&state=state-1, and call completeSignIn, then loadSession.",
+        "Repeat with the same attacker token endpoint and no sessionCheckEndpoint override so the compiled https://shoo.dev/session/check stub returns HTTP 401. Then repeat with the mock issuer payload and no session check. A Shoo payload with createdAt 0 is a negative check only. Also overwrite a sealed pending value with plaintext, and separately write opensesame:federation:session directly.",
+        "Run that bundle through sandbox-run.sh with node --max-old-space-size=128. The sandbox allows PATH, HOME, TMPDIR, LANG, and LC_ALL, blocks external network, and sets a 1 GiB virtual-memory cap and a 25 second timeout. The script printed its results; process teardown in this sandbox then aborted on a node bundled-root-certificate assertion."
+      ],
+      "observed_result": "shared_origin_demo resolved for https://tyler-r-kendrick.github.io and mayPairLocalAuthority was false. Plaintext under opensesame:federation:pkce was returned by the sealed reader, including after a sealed value was overwritten. The Shoo payload with no jwksUri POSTed to https://attacker.example/token with grant_type, code attacker-code, the redirect URI, client id, and verifier, then POSTed to https://attacker.example/check, and saveSession wrote issuer https://shoo.dev, pairwise subject forged-subject, and email forged@attacker.example. The following loadSession returned null and removed that row. The same payload with jwksUri https://shoo.dev/.well-known/jwks.json left loadSession returning forged-subject. With the compiled Shoo session check left in place, the token POST still went to https://attacker.example/token and HTTP 401 from https://shoo.dev/session/check raised login_required and left no saved session. The mock issuer saved pairwise subject mock-forged after only the attacker token POST, and loadSession returned it. The same Shoo payload with createdAt 0 was refused as an expired sign-in and saved nothing. An empty signature segment was rejected as invalid_token. A direct plaintext write of opensesame:federation:session, with no token POST, made loadSession return pairwise subject direct-plant. Redemption of the code at the real Shoo token endpoint was not attempted."
+    },
+    "remediation": {
+      "strategy": "At exchange time, ignore tokenEndpoint and sessionCheckEndpoint from storage when the issuer has compiled endpoints. Post the code only to that compiled token endpoint, or, for an operator issuer with no compiled endpoint, to a URL whose origin equals the issuer origin. Call only the compiled Shoo session-check URL and accept the sign-in only on an explicit active result. Where no compiled check exists, verify the ID token signature against the compiled JWKS or refuse that issuer outside tests. Do not treat the loopback mock issuer as a production session issuer without one of those checks. Apply the same origin pin in the ambient exchange before verifyBrowserIdTokenClaims; that path was not executed here.",
+      "code_changes": [
+        {
+          "file_name": "packages/app-core/src/lib/federation.ts",
+          "fixed_code": "const compiled = upstreamByIssuer(pending.issuer);\nconst tokenEndpoint = compiled?.tokenEndpoint;\nif (!tokenEndpoint) {\n  const endpoint = new URL(pending.tokenEndpoint);\n  if (endpoint.origin !== new URL(pending.issuer).origin) {\n    throw new FederationError(\"untrusted_issuer\", \"Token endpoint is not the issuer.\");\n  }\n}\nconst response = await fetch(tokenEndpoint ?? pending.tokenEndpoint, { method: \"POST\", headers: { \"content-type\": \"application/x-www-form-urlencoded\" }, body, credentials: \"omit\" });\nconst check = compiled?.sessionCheckEndpoint;\nif (!check) throw new FederationError(\"login_required\", \"No compiled session check.\");\nconst checked = await fetch(check, { method: \"POST\", headers: { authorization: `Bearer ${idToken}` }, credentials: \"omit\" });\nif (checked.status !== 200) throw new FederationError(\"login_required\", \"Sign-in was not confirmed.\");"
+        },
+        {
+          "file_name": "packages/app-core/src/lib/ambient-auth/oidc.ts",
+          "fixed_code": "const tokenEndpoint = new URL(transaction.tokenEndpoint);\nconst jwksUri = new URL(transaction.jwksUri);\nconst issuer = new URL(transaction.issuer);\nif (tokenEndpoint.origin !== issuer.origin || jwksUri.origin !== issuer.origin) {\n  throw new FederationError(\"untrusted_issuer\", \"Discovery endpoints are not the issuer.\");\n}"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "The shipped Pages profile is the shared github.io origin, so another document already on that origin can write the pending record. A page on a different origin cannot. Publishing or scripting that origin still requires a foothold on the account, and stealing a real code also needs a sign-in inside the pending window."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "The app sends the authorization code and PKCE verifier to the attacker URL before the session check runs. That code is not in shared storage. The body is what a redemption at the real token endpoint requires; redemption itself was not observed. With a string jwksUri the app also keeps an attacker-chosen pairwise subject as the Shoo or mock federation session. A direct write of the session key can plant that local subject without the exchange, and the forged token does not decrypt an existing end-to-end vault."
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The real completeSignIn path was executed in the sandbox for the Shoo payload with and without jwksUri, for the compiled Shoo check returning HTTP 401 after the attacker token POST, and for the mock issuer. Issuer trust for those two issuers comes from TRUSTED_UPSTREAMS, and the shared-origin precondition is the app's own storage rule for this profile."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "apps/android/invocation/custom-scheme-skips-validate-platform-invocation",
+    "title": "Exported custom-scheme handlers skip invocation policy before wallet operations",
+    "description": "MainActivity is exported, declares no android:permission, and is BROWSABLE for openid-credential-offer and haip-vci with host *. Its https VIEW branch calls validatePlatformInvocation and forwards only the returned protocolUri into launchOpenID4VCIProvisioning or into OpenId4VpActivity. That policy admits only an associated https link with one of request_id, user_code, or a public https request_uri, and it rejects credential_offer, token, code, password, secret, any other parameter, and private, loopback, or link-local request hosts. The custom-scheme branch never calls it: both issuance schemes pass intent.data.toString() straight to launchOpenID4VCIProvisioning. The function cannot be applied to that raw string, because it requires the https authenticator origin and fails closed as UnverifiedInvocationOrigin before any host check; the missing control is an equivalent check of the offer before the handoff. Exported OpenId4VpActivity is a second permissionless BROWSABLE entry for openid4vp, haip-vp, and mdoc, subclasses UriSchemePresentmentActivity, and never calls validatePlatformInvocation. The https OID4VP branch shows that activity's VIEW data is the presentment protocol URI. usesCleartextTraffic false and the provisioning client's followRedirects false do not inspect the initial host or an inline credential_offer, and requireFreshUserVerification is not called on these paths. The iOS WalletView adapter uses the same https-versus-custom-scheme split; that calibrates the pattern and does not show Multipaz refusing a private or inline offer. ADR 0058 documents both associated https links and these schemes as handoff channels. Whether Multipaz then fetches a private credential_offer_uri or request_uri, or accepts an inline credential_offer, is not in the repository.",
+    "claimed_root_cause": "Custom-scheme VIEW handlers on exported activities pass attacker-controlled intent data into OID4VCI provisioning or OID4VP presentment without the private-URI and forbidden-parameter checks that the https branch applies through validatePlatformInvocation.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/android/android/app/src/main/AndroidManifest.xml",
+        "line": 26,
+        "scope": "MainActivity intent-filter",
+        "description": "MainActivity is exported with no android:permission and this BROWSABLE VIEW filter registers openid-credential-offer with host *; haip-vci is the next data element in the same filter."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 93,
+        "scope": "MainActivity.handleIntent",
+        "description": "openid-credential-offer and haip-vci take uri.toString() with no call to validatePlatformInvocation and no private-host or forbidden-parameter check."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 96,
+        "scope": "MainActivity.handleIntent",
+        "description": "That raw offer string is passed to launchOpenID4VCIProvisioning. The https branch reaches the same call only with invocation.protocolUri after validatePlatformInvocation."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 71,
+        "description": "The https branch calls validatePlatformInvocation with the configured origin and later forwards only invocation.protocolUri."
+      },
+      {
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 92,
+        "description": "The openid-credential-offer and haip-vci branch does not call validatePlatformInvocation before the provisioning handoff."
+      },
+      {
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/OpenId4VpActivity.kt",
+        "line": 6,
+        "description": "OpenId4VpActivity subclasses UriSchemePresentmentActivity, returns WalletRuntime.presentmentSource, and has no invocation-policy call."
+      },
+      {
+        "file": "apps/android/android/app/src/main/AndroidManifest.xml",
+        "line": 33,
+        "description": "OpenId4VpActivity is exported and declares no android:permission."
+      },
+      {
+        "file": "apps/android/android/app/src/main/AndroidManifest.xml",
+        "line": 40,
+        "description": "The OpenId4VpActivity VIEW filter is BROWSABLE and registers openid4vp with host *; haip-vp and mdoc follow on the next lines."
+      },
+      {
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 203,
+        "description": "validate_link accepts only an https URL whose origin is the authenticator origin, so a custom-scheme string never reaches the later parameter or host checks."
+      },
+      {
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 222,
+        "description": "On an https invocation the policy rejects credential_offer, token, code, password, and secret, then rejects any parameter other than request_id, user_code, or request_uri."
+      },
+      {
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 270,
+        "description": "When allow_private_request_uris is false, which new() hardcodes, a private or loopback request URI is rejected before a protocol URI is built."
+      },
+      {
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/WalletRuntime.kt",
+        "line": 61,
+        "description": "The provisioning HTTP client disables redirect following. That does not validate the initial offer host or refuse an inline credential_offer."
+      }
+    ],
+    "blockers": [
+      "This environment has no Android emulator or device, so an explicit or browsable VIEW intent was not delivered to MainActivity or OpenId4VpActivity and no dummy listener was contacted.",
+      "org.multipaz:multipaz:0.100.0 and org.multipaz:multipaz-compose:0.100.0 are not in the repository or a local Gradle cache, so it is not source-visible whether launchOpenID4VCIProvisioning or UriSchemePresentmentActivity fetches a private credential_offer_uri or request_uri, accepts an inline credential_offer, or returns before any network or credential operation. That library behavior is the decisive effect."
+    ],
+    "validation_plan": {
+      "local": "On an emulator, install a debug build with opensesameWalletBackendUrl set to a dummy https origin and opensesameInvocationHost set to a non-production hostname. Use no production backend, store signing key, or real credential. If WalletRuntime.initialize throws before handleIntent, record that and stop; the run is inconclusive. From a second app, send explicit ACTION_VIEW intents and stop at the boundary: MainActivity with data openid-credential-offer://?credential_offer_uri=https%3A%2F%2F127.0.0.1%3A9%2Foffer against a 127.0.0.1:9 TLS listener that only logs the ClientHello; MainActivity with a separate openid-credential-offer://?credential_offer= value that is a short dummy JSON offer containing no secret, token, or real credential; and OpenId4VpActivity with openid4vp://?request_uri=https%3A%2F%2F127.0.0.1%3A9%2Frequest against the same listener. Record whether a TCP connection or TLS ClientHello reaches 127.0.0.1:9 and whether provisioning leaves Idle. Do not complete issuance, approve a presentation, or install a local trust anchor. A failed handshake still counts as contact if the ClientHello is sent.",
+      "deployment": "No production host or store signature is required. If the emulator result is inconclusive, read only the pinned Multipaz 0.100.0 sources for ProvisioningModel.launchOpenID4VCIProvisioning and UriSchemePresentmentActivity, and record whether each requests the supplied URI before consent and whether it rejects a private host or an inline credential_offer. Do not run those entry points against a real issuer, verifier, or credential."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "apps/pages/server/manage.mjs/readRawBody/unbounded-buffer",
+    "title": "Relay body readers retain the full request before authentication",
+    "description": "readRawBody concatenates every chunk until the client ends the stream. createServer awaits it on POST /api/github-app/webhook before handleGithubAppWebhook checks GITHUB_WEBHOOK_SECRET or the HMAC, and awaits readJsonBody, the same reader, on the other POST routes before origin or manage-key checks. Sibling copies readRaw (apps/pages/api/github-app/webhook.mjs, api.bodyParser false) and readBody (apps/pages/scripts/github-app-relay-plugin.mjs) repeat that missing ceiling instead of calling readRawBody. vercel.json sets no body limit. Outbound forge reads in pinned-fetch.mjs stop at 5 MiB; these inbound readers do not. A sandboxed call retained 1048576 bytes from readRawBody with no error. The Vercel handler retained a 1114112-byte stream (Buffer.concat length 1114112) and then returned 503 webhook_secret_unset; the same string on req.body also returned 503; GET returned 405 and did not read. The Vite git-backup route retained 1114112 bytes and then returned 403 origin_not_allowed, while an 8-byte truncated body was concatenated and returned 400 invalid_json. That plugin's webhook route also retained 1114112 bytes and then returned 500 because it passes the handler promise to writeRelayOutcome without awaiting it. Attacker cost is one upload. The process keeps the chunk list, the concatenated buffer, and the UTF-8 string, linear in the body, until the request ends or allocation fails. The raw body is not written to the webhook queue before authentication. The default relay listens on 127.0.0.1. The documented dev proxy listens on 0.0.0.0 and pipes /api/connect/* to this relay and other paths to Vite, still with no body ceiling.",
+    "root_cause": "readRawBody appends every data chunk and concatenates them with no maximum, and createServer awaits that promise before authentication. readRaw and readBody are the same missing ceiling on the Vercel webhook adapter and the Vite dev relay.",
+    "intended_behavior": "Each inbound reader should stop at one finite ceiling, destroy the socket, drop the chunk list, and fail the request with 413 before the bytes are kept and before secret, manage-key, or origin checks. Callers that catch every read error as invalid JSON or an empty body must preserve that 413. A ceiling added only in readRawBody does not cover the two copies.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/pages/server/server.mjs",
+        "line": 77,
+        "scope": "createServer webhook route",
+        "description": "createServer accepts POST /api/github-app/webhook with no credential check before the body is read. Non-POST returns 405 first."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/pages/server/server.mjs",
+        "line": 86,
+        "scope": "createServer webhook route",
+        "description": "The route awaits readRawBody and only then parses JSON and calls handleGithubAppWebhook. A thrown read error is currently swallowed and the handler still runs."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/pages/server/manage.mjs",
+        "line": 357,
+        "scope": "readRawBody",
+        "description": "Every data chunk is appended. Nothing compares the running size to a limit or destroys the request."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/pages/server/manage.mjs",
+        "line": 359,
+        "scope": "readRawBody",
+        "description": "On end, Buffer.concat retains the whole body as one UTF-8 string. The webhook secret check in github-app-webhook.mjs runs only after this returns."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/pages/server/manage.mjs",
+        "line": 357,
+        "description": "The data listener pushes each chunk into an array. readRawBody has no size constant or comparison."
+      },
+      {
+        "file": "apps/pages/server/manage.mjs",
+        "line": 359,
+        "description": "Buffer.concat retains the whole body as one UTF-8 string. The local call produced concat length 1048576 and a resolved string of length 1048576, with no rejection."
+      },
+      {
+        "file": "apps/pages/server/manage.mjs",
+        "line": 367,
+        "description": "readJsonBody is readRawBody plus JSON.parse, so every JSON route uses the same uncapped reader."
+      },
+      {
+        "file": "apps/pages/server/server.mjs",
+        "line": 86,
+        "description": "POST /api/github-app/webhook awaits readRawBody before handleGithubAppWebhook. The secret and HMAC checks are inside that later call."
+      },
+      {
+        "file": "apps/pages/server/server.mjs",
+        "line": 171,
+        "description": "Manage mutations await readJsonBody before handleManage, so the manage-key check runs only after the body is retained."
+      },
+      {
+        "file": "apps/pages/server/server.mjs",
+        "line": 22,
+        "description": "The process listens on HOST or 127.0.0.1 by default, so any local user can open the unauthenticated POST routes."
+      },
+      {
+        "file": "apps/pages/server/github-app-webhook.mjs",
+        "line": 42,
+        "description": "An unset GITHUB_WEBHOOK_SECRET returns 503 webhook_secret_unset only after the caller has already built the body. The HMAC check is below this line."
+      },
+      {
+        "file": "apps/pages/api/github-app/webhook.mjs",
+        "line": 5,
+        "description": "api.bodyParser is false, so this Vercel route does not use a framework parser limit and reads the stream in readRaw."
+      },
+      {
+        "file": "apps/pages/api/github-app/webhook.mjs",
+        "line": 14,
+        "description": "readRaw pushes every streamed chunk and returns a pre-set string or Buffer with no byte-length check."
+      },
+      {
+        "file": "apps/pages/api/github-app/webhook.mjs",
+        "line": 16,
+        "description": "Buffer.concat retains the stream. The local POST produced concat length 1114112 and then 503 webhook_secret_unset. The same string on req.body also returned 503 without a further concat."
+      },
+      {
+        "file": "apps/pages/api/github-app/webhook.mjs",
+        "line": 24,
+        "description": "The handler awaits readRaw only after the POST check. GET returned 405 and did not start the body iterator."
+      },
+      {
+        "file": "apps/pages/vercel.json",
+        "line": 1,
+        "description": "The Vercel config sets install, build, output, headers, and rewrites only. It does not declare a function body size."
+      },
+      {
+        "file": "apps/pages/scripts/github-app-relay-plugin.mjs",
+        "line": 32,
+        "description": "readBody appends every data chunk. It has no size constant and does not call readRawBody."
+      },
+      {
+        "file": "apps/pages/scripts/github-app-relay-plugin.mjs",
+        "line": 34,
+        "description": "Buffer.concat retains the whole body before JSON.parse. The local git-backup POST produced concat length 1114112; the 8-byte truncated body was also concatenated before the parse error."
+      },
+      {
+        "file": "apps/pages/scripts/github-app-relay-plugin.mjs",
+        "line": 82,
+        "description": "handleGitBackupRoute awaits readBody before handleGitBackupPut. The 1114112-byte body then got 403 origin_not_allowed; the truncated body got 400 invalid_json."
+      },
+      {
+        "file": "apps/pages/server/git-backup-put.mjs",
+        "line": 334,
+        "description": "The origin refusal returns 403 origin_not_allowed on the already parsed object. It is not a body-size limit."
+      },
+      {
+        "file": "apps/pages/scripts/github-app-relay-plugin.mjs",
+        "line": 153,
+        "description": "The Vite webhook branch awaits readBody before calling the webhook handler. That call concatenated 1114112 bytes."
+      },
+      {
+        "file": "apps/pages/scripts/github-app-relay-plugin.mjs",
+        "line": 157,
+        "description": "writeRelayOutcome is given the handler promise without await, so after the retain the local webhook call returned 500 Cannot convert undefined or null to object rather than the secret check's status."
+      },
+      {
+        "file": "apps/pages/vite.config.ts",
+        "line": 195,
+        "description": "githubAppRelayPlugin is registered on the Vite dev server, so configureServer attaches readBody to that process."
+      },
+      {
+        "file": "apps/pages/package.json",
+        "line": 9,
+        "description": "dev:web runs vite on port 5180 with --host localhost. Other local users can open that loopback listener while the dev server is up."
+      },
+      {
+        "file": "apps/pages/server/pinned-fetch.mjs",
+        "line": 93,
+        "description": "Outbound forge responses are destroyed once they pass MAX_RESPONSE_BYTES (5 MiB). The inbound body readers do not share that control."
+      },
+      {
+        "file": "scripts/dev/connect-dev-proxy.mjs",
+        "line": 107,
+        "description": "The dev proxy pipes the client request to the upstream with no body-length check."
+      },
+      {
+        "file": "scripts/dev/connect-dev-proxy.mjs",
+        "line": 112,
+        "description": "Paths under /api/connect/ are forwarded to the relay, which reads them with readJsonBody. Every other path, including the Vite relay routes, is forwarded to the app port."
+      },
+      {
+        "file": "scripts/dev/connect-dev-proxy.mjs",
+        "line": 145,
+        "description": "The proxy listens on 0.0.0.0, so when it is running a network client can reach the uncapped readers."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "No credential is checked before the body is retained. The webhook secret and HMAC, the manage key, and the git-backup origin allowlist run only after the reader resolves. The local runs had GITHUB_WEBHOOK_SECRET unset and no Origin."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "The body is read by node server.mjs, the Vite dev middleware, or the Vercel adapter with api.bodyParser false. None of those readers, and not vercel.json, sets a byte ceiling. This result does not depend on an unverified platform edge limit."
+      },
+      {
+        "kind": "network_routing",
+        "description": "The sender can open the listen socket. The default relay host is 127.0.0.1 and dev:web binds localhost, which other local users can open. Remote reachability requires a non-default HOST or the dev proxy listening on 0.0.0.0."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A client that can reach the relay or the Vite dev server sends one large POST body before any secret, manage-key, or origin check.",
+      "payloads": [
+        "four Buffer chunks of 262144 bytes each, emitted as data events to readRawBody",
+        "JSON {\"pad\":\"a...\"} totaling 1114112 bytes, as 64KiB stream chunks with req.body unset, and the same string assigned to req.body",
+        "the same 1114112-byte JSON body as 64KiB chunks POSTed to /api/git-backup/put with no Origin, an 8-byte truncated prefix {\"pad\":\" on that route, and the 1114112-byte body POSTed to /api/github-app/webhook on the Vite middleware"
+      ],
+      "instructions": [
+        "Import readRawBody from apps/pages/server/manage.mjs, emit four 256KiB chunks and then end, and record whether the promise rejects and the resolved string length.",
+        "With GITHUB_WEBHOOK_SECRET unset, call the default handler in apps/pages/api/github-app/webhook.mjs with the 1114112-byte JSON body streamed in 64KiB chunks, again with that string already on req.body, and once as GET with an iterator that throws if pulled.",
+        "Mount githubAppRelayPlugin().configureServer and invoke its middleware for POST /api/git-backup/put with the 1114112-byte body and no Origin, the same route with the 8-byte truncated body, and POST /api/github-app/webhook with the 1114112-byte body. Record status and Buffer.concat lengths."
+      ],
+      "observed_result": "readRawBody resolved with no error to a string of length 1048576 and Buffer.concat length 1048576. The streamed Vercel POST yielded concat length 1114112 and status 503 webhook_secret_unset. The string fast path also returned 503 webhook_secret_unset and did not concatenate. GET returned 405 and did not start the iterator. The Vite git-backup POST was concatenated to length 1114112 and returned 403 {\"error\":\"origin_not_allowed\"}. The 8-byte truncated body was concatenated and returned 400 {\"error\":\"invalid_json\"}. The Vite webhook route concatenated 1114112 bytes and then returned 500 Cannot convert undefined or null to object."
+    },
+    "remediation": {
+      "strategy": "Cap readRawBody, readRaw, and readBody at one shared finite ceiling, on the order of the relay's existing 5 MiB outbound cap and large enough for one legitimate sealed backup. When the running size crosses it, drop the chunk list, destroy the socket, and reject with a 413 before JSON.parse and before secret, manage-key, or origin checks. In createServer, map that error to HTTP 413 on the webhook branch, which today swallows every read error and still calls the handler, and on every readJsonBody catch, which today turns every failure into 400 invalid_json. In the Vercel handler, return 413 before handleGithubAppWebhook. In the Vite plugin, do not map 413 to invalid_json, and do not ignore a read failure on the webhook branch. A cap only in manage.mjs leaves the two copies exposed.",
+      "code_changes": [
+        {
+          "file_name": "apps/pages/server/manage.mjs",
+          "fixed_code": "const MAX_BODY_BYTES = 5 * 1024 * 1024;\n\nexport function readRawBody(req) {\n  return new Promise((resolve, reject) => {\n    const chunks = [];\n    let size = 0;\n    let failed = false;\n    const fail = (error) => {\n      if (failed) return;\n      failed = true;\n      chunks.length = 0;\n      if (typeof req.destroy === \"function\") req.destroy();\n      reject(error);\n    };\n    req.on(\"data\", (chunk) => {\n      const buf = typeof chunk === \"string\" ? Buffer.from(chunk) : chunk;\n      size += buf.length;\n      if (size > MAX_BODY_BYTES) {\n        fail(Object.assign(new Error(\"body_too_large\"), { statusCode: 413 }));\n        return;\n      }\n      chunks.push(buf);\n    });\n    req.on(\"end\", () => {\n      if (!failed) resolve(Buffer.concat(chunks).toString(\"utf8\"));\n    });\n    req.on(\"error\", (error) => {\n      if (!failed) reject(error);\n    });\n  });\n}"
+        },
+        {
+          "file_name": "apps/pages/server/server.mjs",
+          "fixed_code": "function sendBodyTooLarge(res) {\n  res.writeHead(413, { \"content-type\": \"text/plain; charset=utf-8\" });\n  res.end(\"body_too_large\");\n}\n\n// webhook branch, replacing the catch that swallows every read error:\nlet rawBody = \"\";\nlet body = {};\ntry {\n  rawBody = await readRawBody(req);\n  body = rawBody ? JSON.parse(rawBody) : {};\n} catch (error) {\n  if (error && error.statusCode === 413) {\n    sendBodyTooLarge(res);\n    return;\n  }\n  body = {};\n}\n\n// every readJsonBody catch (convert, github-app JSON, git-backup, manage):\ntry {\n  body = await readJsonBody(req);\n} catch (error) {\n  if (error && error.statusCode === 413) {\n    sendBodyTooLarge(res);\n    return;\n  }\n  res.writeHead(400, { \"content-type\": \"application/json\" });\n  res.end(JSON.stringify({ error: \"invalid_json\" }));\n  return;\n}"
+        },
+        {
+          "file_name": "apps/pages/api/github-app/webhook.mjs",
+          "fixed_code": "const MAX_BODY_BYTES = 5 * 1024 * 1024;\n\nfunction bodyTooLarge() {\n  return Object.assign(new Error(\"body_too_large\"), { statusCode: 413 });\n}\n\nasync function readRaw(req) {\n  if (typeof req.body === \"string\") {\n    if (Buffer.byteLength(req.body) > MAX_BODY_BYTES) throw bodyTooLarge();\n    return req.body;\n  }\n  if (Buffer.isBuffer(req.body)) {\n    if (req.body.length > MAX_BODY_BYTES) throw bodyTooLarge();\n    return req.body.toString(\"utf8\");\n  }\n  const chunks = [];\n  let size = 0;\n  for await (const chunk of req) {\n    const buf = typeof chunk === \"string\" ? Buffer.from(chunk) : chunk;\n    size += buf.length;\n    if (size > MAX_BODY_BYTES) {\n      if (typeof req.destroy === \"function\") req.destroy();\n      throw bodyTooLarge();\n    }\n    chunks.push(buf);\n  }\n  return Buffer.concat(chunks).toString(\"utf8\");\n}\n\n// inside handler, after the POST check and before JSON.parse:\nlet rawBody = \"\";\ntry {\n  rawBody = await readRaw(req);\n} catch (error) {\n  if (error && error.statusCode === 413) {\n    res.status(413).send(\"body_too_large\");\n    return;\n  }\n  throw error;\n}"
+        },
+        {
+          "file_name": "apps/pages/scripts/github-app-relay-plugin.mjs",
+          "fixed_code": "const MAX_BODY_BYTES = 5 * 1024 * 1024;\n\nfunction readBody(req) {\n  return new Promise((resolve, reject) => {\n    const chunks = [];\n    let size = 0;\n    let failed = false;\n    const fail = (error) => {\n      if (failed) return;\n      failed = true;\n      chunks.length = 0;\n      if (typeof req.destroy === \"function\") req.destroy();\n      reject(error);\n    };\n    req.on(\"data\", (chunk) => {\n      const buf = typeof chunk === \"string\" ? Buffer.from(chunk) : chunk;\n      size += buf.length;\n      if (size > MAX_BODY_BYTES) {\n        fail(Object.assign(new Error(\"body_too_large\"), { statusCode: 413 }));\n        return;\n      }\n      chunks.push(buf);\n    });\n    req.on(\"end\", () => {\n      if (failed) return;\n      const raw = Buffer.concat(chunks).toString(\"utf8\");\n      if (raw.trim() === \"\") {\n        resolve({});\n        return;\n      }\n      try {\n        resolve(JSON.parse(raw));\n      } catch (error) {\n        reject(error);\n      }\n    });\n    req.on(\"error\", (error) => {\n      if (!failed) reject(error);\n    });\n  });\n}\n\nfunction sendTooLarge(res) {\n  res.statusCode = 413;\n  res.end(\"body_too_large\");\n}\n\n// git-backup and JSON catches must not turn 413 into invalid_json:\ntry {\n  body = await readBody(req);\n} catch (error) {\n  if (error && error.statusCode === 413) {\n    sendTooLarge(res);\n    return;\n  }\n  res.statusCode = 400;\n  res.setHeader(\"content-type\", \"application/json\");\n  res.end(JSON.stringify({ error: \"invalid_json\" }));\n  return;\n}\n\n// webhook branch must await the handler and must not ignore a 413:\nlet body = {};\ntry {\n  body = await readBody(req);\n} catch (error) {\n  if (error && error.statusCode === 413) {\n    sendTooLarge(res);\n    return;\n  }\n  body = {};\n}\nwriteRelayOutcome(res, await handleGithubAppWebhook(body, req.headers));"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "The readers are unauthenticated, but the default relay binds 127.0.0.1 and dev:web binds localhost. Another local user can open those ports. A remote client reaches them only when HOST is changed or the optional dev proxy is listening on 0.0.0.0. The public Vercel route is the readRaw copy; this rating does not assume an absent platform edge limit."
+      },
+      "impact": {
+        "score": "low",
+        "reason": "The demonstrated cost is memory linear in one request body, as the chunk list, concatenated buffer, and UTF-8 string, inside the one relay or dev-server process until the request ends or allocation fails. The raw body is not queued and vault data is not disclosed. If allocation kills the process, the relay script has no supervisor and stays down until restarted."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "None of the three readers compares accumulated size to a ceiling, and their callers await them before the secret, manage-key, or origin checks. A sandboxed local run retained 1048576 bytes from readRawBody and 1114112 bytes from readRaw and readBody before those later responses."
+    }
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "apps/pages/server/webhook-queue.mjs/writeFileQueue/symlink-follow",
+    "title": "Default /tmp webhook queue symlink follow does not cross users",
+    "description": "Off Vercel, with CONNECT_WEBHOOK_QUEUE_PATH and the Redis REST variables unset, enqueueWebhookNudge stores nudges at /tmp/opensesame-github-webhook-queue.json using readFileSync and writeFileSync, which do not pass O_NOFOLLOW. A symlink owned by the relay uid is followed, so a valid webhook HMAC replaces the target with queue JSON. The claimed attacker is a different local user planting that name in sticky /tmp. This host's fs.protected_symlinks and fs.protected_regular policy is the control for that directory, and the executed write never left the relay uid. crates/sealed-store/src/path.rs writes with O_NOFOLLOW; this queue does not share that pattern. That difference is calibration only and does not show another user crossing /tmp.",
+    "claimed_root_cause": "writeFileQueue and readFileQueue open the predictable /tmp queue path with filesystem calls that follow a final symlink and never check that the opened inode is a regular file created by the relay, so another local user can redirect an authorized write onto a file the relay can replace.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/pages/server/server.mjs",
+        "line": 91,
+        "scope": "createServer webhook route",
+        "description": "POST /api/github-app/webhook passes the parsed body, request headers, and raw body to handleGithubAppWebhook."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/pages/server/github-app-webhook.mjs",
+        "line": 60,
+        "scope": "handleGithubAppWebhook",
+        "description": "After verifyGithubWebhookSignature returns null, the handler enqueues a nudge with the delivery id, installation id, and receivedAt."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/pages/server/webhook-queue.mjs",
+        "line": 141,
+        "scope": "enqueueWebhookNudge",
+        "description": "When Redis and VERCEL are unset, enqueueWebhookNudge appends through readFileQueue and writeFileQueue. drainWebhookNudges calls that same writer at line 179."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/pages/server/webhook-queue.mjs",
+        "line": 88,
+        "scope": "writeFileQueue",
+        "description": "writeFileSync writes the queue JSON to queuePath() with no open flags and no inode check, so it does not request O_NOFOLLOW."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/pages/server/webhook-queue.mjs",
+        "line": 28,
+        "description": "queuePath returns /tmp/opensesame-github-webhook-queue.json when CONNECT_WEBHOOK_QUEUE_PATH is empty and VERCEL is unset."
+      },
+      {
+        "file": "apps/pages/server/webhook-queue.mjs",
+        "line": 63,
+        "description": "readFileQueue calls readFileSync on that path with an encoding and no O_NOFOLLOW flag."
+      },
+      {
+        "file": "apps/pages/server/webhook-queue.mjs",
+        "line": 74,
+        "description": "If the read or JSON parse throws, readFileQueue returns an empty array, so a later allowed write replaces the previous bytes."
+      },
+      {
+        "file": "apps/pages/server/webhook-queue.mjs",
+        "line": 88,
+        "description": "writeFileSync is called with the path, JSON text, and encoding only."
+      },
+      {
+        "file": "apps/pages/server/github-app-webhook.mjs",
+        "line": 49,
+        "description": "A failed signature check returns before enqueueWebhookNudge, so an invalid signature does not reach the file writer."
+      }
+    ],
+    "reason": "The executed result stays inside one uid and the claimed other-user overwrite is refused by the observed /tmp policy. In the single-uid sandbox, with VERCEL, CONNECT_WEBHOOK_QUEUE_PATH, KV_REST_API_URL, and KV_REST_API_TOKEN unset, an invalid X-Hub-Signature-256 returned 401 signature_invalid and the symlink target stayed SAFE; HMAC-SHA256 of {\"installation\":{\"id\":9}} with X-GitHub-Delivery delivery-1 returned 204 and replaced the target with [{\"id\":\"delivery-1\",\"installationId\":\"9\",\"receivedAt\":\"2026-10-08T02:22:19.483Z\"}] while lstat still showed a symlink. That process was uid 0 in a user namespace mapped from one host uid. newuidmap is not installed, so a second host uid was not mapped and was not executed. Same-account replacement is not a crossed OS principal. Host /tmp is mode 1777 and owned by root, fs.protected_symlinks is 1, and fs.protected_regular is 2. Under protected_symlinks, a symlink in a sticky world-writable directory is followed only when the follower owns it or the directory owner owns it; protected_regular also denies an O_CREAT open of another user's regular file in that directory. An attacker-owned name in /tmp is the case those sysctls deny, so the sticky bit is not the only control and a same-uid follow does not establish the cross-user write. The missing O_NOFOLLOW used by sealed-store is not this boundary crossing."
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "control-plane.org-join.email-retarget-membership",
+    "title": "Tenant join grants organization membership to the caller after verified-email auto-link binds the identity to another principal",
+    "description": "POST /v1/organizations/tenants/:slug/join authenticates the caller with any live provisional bearer, verifies the organization id_token, and asks attachVerifiedExternalIdentity to bind the subject. When the token carries an email the organization is allowed to treat as verified and another principal already owns that verified email, the new identity row is stored on that other principal. The join handler then calls jitJoinOrganization with the caller's principal id. The caller receives the membership, including owner when an active SCIM row maps the subject to owner, while the identity remains on the email owner. The caller's session is left on the original provisional principal.",
+    "root_cause": "After attachVerifiedExternalIdentity returns, the tenant join handler ignores attached.identity.principalId and passes the authenticated caller principalId into jitJoinOrganization. Verified-email auto-link (ADR 0057 D15) can make those two ids differ. organizationMemberships.upsert then records the caller, and provisionedRoleForSubject supplies the role from the IdP subject rather than from the principal that owns the identity.",
+    "intended_behavior": "The membership principal is the principal that owns the verified identity. attachVerifiedExternalIdentity documents that callers must follow the returned identity.principalId. When that id differs from the caller, the caller is not an organization member and is not given a 201 join response. Hosted SSO, LDAP, and SAML already pass the linked principal into jitJoinOrganization. An id_token whose subject tuple is already owned by someone else continues to return 409 before any membership write.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 585,
+        "scope": "organizationRoutes.post /tenants/:slug/join",
+        "description": "The join route accepts any authenticated principal via requirePrincipal. createHonoApp installs authMiddleware on every path and mounts these routes at /v1/organizations; server.ts listens and dispatches into that app."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/middleware/auth.ts",
+        "line": 66,
+        "scope": "authMiddleware bearer pst_",
+        "description": "A bearer beginning with pst_ resolves through provisionalTokens and an unexpired, unrevoked provisional session, then sets principalId from that session. Join does not require verified assurance."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 611,
+        "scope": "verifyOrgIdToken",
+        "description": "The route verifies the posted id_token for the organization SSO or SAML issuer with origin audiences and a 600 second maximum age before any membership is written."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 627,
+        "scope": "attachVerifiedExternalIdentity",
+        "description": "The verified subject is attached with emailLinkFields for trust source org. A DNS-verified organization domain lets the email act as an account join key."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/services/identity-link.ts",
+        "line": 144,
+        "scope": "ownerPrincipalId",
+        "description": "When the tuple is free and findVerifiedByEmail returns a different principal for the verified normalized email, ownerPrincipalId becomes that principal."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/services/identity-link.ts",
+        "line": 169,
+        "scope": "externalIdentities.create",
+        "description": "The new verified identity is stored with principalId ownerPrincipalId and returned on the success result. A tuple already owned by another principal returns identity_collision instead."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 659,
+        "scope": "jitJoinOrganization principalId",
+        "description": "The handler still passes the caller principalId into jitJoinOrganization and uses provisionedRoleForSubject(org, assertion.sub) for the role."
+      },
+      {
+        "kind": "sink",
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 299,
+        "scope": "organizationMemberships.upsert",
+        "description": "When the caller has no existing membership, the store upsert writes organizationId, the caller principalId, and role input.role or member. The route then returns 201 at line 669 when the row was created."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 659,
+        "description": "jitJoinOrganization is called with principalId taken from the authenticated caller, not from attached.identity.principalId."
+      },
+      {
+        "file": "packages/control-plane/src/services/identity-link.ts",
+        "line": 97,
+        "description": "The function contract says the returned identity.principalId is the authoritative owner and callers that minted a provisional principal must bind to that id."
+      },
+      {
+        "file": "packages/control-plane/src/services/identity-link.ts",
+        "line": 169,
+        "description": "The created ExternalIdentity.principalId is ownerPrincipalId, which is the verified-email owner when that owner is not the caller."
+      },
+      {
+        "file": "packages/control-plane/src/services/identity-link.ts",
+        "line": 256,
+        "description": "The success return includes that identity, so the join handler can read the owner principal and does not."
+      },
+      {
+        "file": "packages/control-plane/src/routes/interactions.ts",
+        "line": 641,
+        "description": "Hosted federated sign-in sets accountId from attached.identity.principalId and later passes accountId to jitJoinOrganization."
+      },
+      {
+        "file": "packages/control-plane/src/routes/interactions-ldap.ts",
+        "line": 324,
+        "description": "The LDAP bind sets accountId from attached.identity.principalId and passes accountId into jitJoinOrganization."
+      },
+      {
+        "file": "packages/control-plane/src/interactions/saml.ts",
+        "line": 912,
+        "description": "SAML completion sets principalId from attached.identity.principalId and passes that principalId into jitJoinOrganization."
+      },
+      {
+        "file": "packages/control-plane/src/services/email-authority.ts",
+        "line": 37,
+        "description": "Organization email claims join accounts only for a domain the organization proved via DNS-TXT. That is the condition that makes the retarget reachable; an unverified domain does not."
+      },
+      {
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 60,
+        "description": "provisionedRoleForSubject returns owner, admin, or member from an active SCIM user raw urn:opensesame:params:scim:2.0:role for the asserted subject, so the caller's new membership can be owner."
+      },
+      {
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 302,
+        "description": "The upsert role is input.role when present and member otherwise. An absent SCIM row therefore still creates a member membership for the caller."
+      },
+      {
+        "file": "packages/control-plane/src/proofs/org-owner.ts",
+        "line": 69,
+        "description": "orgOwner accepts the actor when membership.role is owner and does not read principal assurance. Organization patch and member routes reach that proof through requirePrincipal and asOrgOwner only."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "The caller presents a live pst_ provisional bearer for a principal different from the verified-email owner. Join uses requirePrincipal and accepts provisional assurance."
+      },
+      {
+        "kind": "data_state",
+        "description": "The organization is active, has an SSO or SAML issuer for the requested method, and has a DNS-verified email domain matching the token email, so emailLinkFields marks the address verified."
+      },
+      {
+        "kind": "data_state",
+        "description": "Another principal already has a verified external identity for that normalized email, and the (kind, issuer, subject) tuple is not yet stored. An existing foreign tuple returns 409 identity_collision before membership."
+      },
+      {
+        "kind": "data_state",
+        "description": "The caller has no membership in the organization yet. An existing membership row is returned unchanged, so this path does not raise an existing role."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "The id_token verifies for the organization issuer: allowed RS256 or ES256, issuer origin match, audience origin:<configured CORS origin or publicUrl origin>, and age at most 600 seconds. Private issuer hosts are blocked when allowDevDefaults is false. If provisioningEnabled is set, the subject must also be an active SCIM user or the join returns not_provisioned before upsert."
+      },
+      {
+        "kind": "data_state",
+        "description": "An active SCIM user for the subject whose raw role is owner, admin, or member sets the new membership role. With no active row and provisioning disabled, the role written for the caller is member."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A principal that already holds its own live provisional bearer presents an organization id_token whose verified email is already owned by a different principal.",
+      "payloads": [
+        "POST /v1/organizations/tenants/acme/join",
+        "Authorization: Bearer pst_caller_local_check_token",
+        "{\"method\":\"sso\",\"idToken\":\"verified-id-token\"}"
+      ],
+      "instructions": [
+        "Use an in-memory fixture: active org acme with ssoIssuer https://idp.acme.test, DNS-verified domain acme.test, victim principal prn_victim_existing with a verified external identity for alice@acme.test, an active SCIM user externalId idp-alice whose role attribute is owner, and caller principal prn_caller_guest assurance provisional bound to bearer pst_caller_local_check_token.",
+        "Do not fetch JWKS. Pass the verified assertion object verifyOrgIdToken returns on success: sub idp-alice, email alice@acme.test, emailVerified true. Call the repository emailLinkFields with trust source org, attachVerifiedExternalIdentity with the caller principal id, provisionedRoleForSubject, and jitJoinOrganization with principalId set to that same caller id, which is the argument at organizations.ts:659. Authenticate the bearer with the repository authMiddleware.",
+        "The sandbox cannot load the whole organizationRoutes module: importing oidc-provider, which the oauth-provider barrel pulled in by org-assertion.ts evaluates, aborts under ulimit -v 1048576. The run therefore executes those repository functions rather than the route closure. Signature checks remain the source of verifyOrgIdToken and are not re-executed.",
+        "The bounded run was sandbox-run.sh on this verifier scratch directory executing node join-fns.bundle.mjs, which writes check-output.txt and exits 0."
+      ],
+      "observed_result": "check-output.txt: join=201 role=owner slug=acme; caller prn_caller_guest remained assurance provisional and state provisional; callerMembership=owner; victimMembership=none; callerIdentities=none; victimIdentities were https://accounts.example.test|google-alice and the new https://idp.acme.test|idp-alice, both email alice@acme.test verified true, both principalId prn_victim_existing. Those rows were written by repository attachVerifiedExternalIdentity and jitJoinOrganization. organizations.ts:668 returns 201 when that join reports created. GET /v1/organizations was not re-executed; its handler at organizations.ts:419 lists the caller membership, which is this owner row."
+    },
+    "remediation": {
+      "strategy": "Use attached.identity.principalId as the membership principal. When that id differs from the caller, upsert membership for the identity owner and return 409 identity_collision to the caller. Do not write a membership for the caller and do not replace the caller's session with the other principal.",
+      "code_changes": [
+        {
+          "file_name": "packages/control-plane/src/routes/organizations.ts",
+          "fixed_code": "    if (!attached.ok) {\n      return c.json({ error: attached.error, message: attached.message }, 409);\n    }\n\n    const memberPrincipalId = attached.identity.principalId;\n    const role = await provisionedRoleForSubject(ctx, org.id, assertion.sub);\n    const joined = await jitJoinOrganization(ctx, {\n      organization: org,\n      principalId: memberPrincipalId,\n      subject: assertion.sub,\n      method: parsed.data.method,\n      correlationId: c.get(\"correlationId\"),\n      ...(role !== undefined ? { role } : undefined),\n    });\n    if (!joined.ok) {\n      return c.json({ error: joined.error, message: joined.message }, 403);\n    }\n    if (memberPrincipalId !== principalId) {\n      return c.json(\n        {\n          error: \"identity_collision\",\n          message:\n            \"External identity already bound to another principal; merge requires dual authentication\",\n        },\n        409,\n      );\n    }\n    return joined.created\n      ? c.json(toResponse(org, joined.membership.role), 201)\n      : c.json(toResponse(org, joined.membership.role));"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "The join route accepts any live provisional bearer, and a normal browser join posts a fresh organization id_token. Retarget also needs a DNS-verified organization domain, an existing verified identity for that email, and a token no older than 600 seconds. A returning guest session or a copied fresh id_token meets that bar; an anonymous request with no assertion does not."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "The caller's principal becomes a member of the organization, or an owner when the SCIM row for the subject says owner. orgOwner treats that owner role as organization administration and does not require verified assurance, so the provisional caller can pass the owner gate. The verified identity stays on the other principal, so this is a cross-principal membership grant. The caller's session remains the original provisional principal."
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The route source passes the caller principal id into jitJoinOrganization after attach returns, and the sibling admission paths pass attached.identity.principalId instead. The sandbox run executed the repository auth middleware, emailLinkFields, attachVerifiedExternalIdentity, provisionedRoleForSubject, and jitJoinOrganization on the fixture and observed the new identity on the email owner and the owner membership on the caller. id_token signature verification was not re-executed; it is a precondition in verifyOrgIdToken, not the principal choice."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "control-plane.scim.principalsForSubject.omits-directory-issuer",
+    "title": "SCIM deprovision does not revoke members who signed in through the organization LDAP directory",
+    "description": "PATCH or DELETE that deactivates a SCIM user is supposed to drop that subject's membership and the provisional sessions that membership authorized. principalsForSubject searches kinds oidc, oauth2, saml, ldap, and email, but only under organization.ssoIssuer and organization.samlIssuer. LDAP sign-in stores the external identity as kind ldap with issuer ldapIssuer(config), the directory URL's scheme, host, and port, which is not either of those strings. The handler still returns 200 after deprovision and does not check that anyone was revoked. revokeOrganizationMembership, the only revocation on this path, is therefore not called, so the membership row and provisional sessions stay. The same call does revoke a principal whose oidc identity is stored under ssoIssuer. applyRole uses the same lookup, so a Groups role push misses these members too. When native SAML is configured with metadata and samlIssuer is empty, admission stores the metadata entityID, and that issuer is also absent from this list. Directory sync does not close the gap: it revokes an LDAP member only when a later scan no longer contains that subject.",
+    "root_cause": "principalsForSubject builds its issuer list only from organization.ssoIssuer and organization.samlIssuer, so an identity stored under the org LDAP directory issuer (or a metadata-only SAML entityID) is invisible to deprovision and applyRole.",
+    "intended_behavior": "Deactivating or deleting a SCIM user revokes membership and live provisional sessions for every principal of this organization whose external identity subject is that user's externalId, userName, or a remembered previous subject, including principals admitted by this organization's LDAP directory.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "packages/control-plane/src/routes/scim.ts",
+        "line": 441,
+        "scope": "PATCH /:organizationId/scim/v2/Users/:id",
+        "description": "An authenticated provisioning token or active owner submits a PatchOp that sets active to false. authenticate has already bound the caller to this organization. DELETE of an active user is the same deprovision."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/routes/scim.ts",
+        "line": 487,
+        "scope": "deprovision call",
+        "description": "After the SCIM row is saved inactive, deprovision is the only revocation. The handler then audits success and returns 200 whether or not any principal was found."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 87,
+        "scope": "principalsForSubject",
+        "description": "Issuers are only organization.ssoIssuer and organization.samlIssuer. kind ldap is queried, but with those issuers, not ldapIssuer of the org LDAP config."
+      },
+      {
+        "kind": "sink",
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 140,
+        "scope": "deprovision",
+        "description": "revokeOrganizationMembership runs only for principals returned by that lookup. The LDAP principal is not among them, so the membership row and provisional sessions stay."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 20,
+        "description": "ORG_IDENTITY_KINDS includes ldap, so a directory identity is in scope only if its issuer equals ssoIssuer or samlIssuer."
+      },
+      {
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 87,
+        "description": "The issuer list is organization.ssoIssuer and organization.samlIssuer and nothing else. LDAP config and SAML metadata are not read."
+      },
+      {
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 103,
+        "description": "A found principal is revoked only when it has a membership in this organization. That check is never reached for an identity stored under the directory issuer."
+      },
+      {
+        "file": "packages/control-plane/src/routes/scim-effects.ts",
+        "line": 156,
+        "description": "applyRole resolves principals through the same principalsForUser lookup, so a Groups role push misses the same directory identities."
+      },
+      {
+        "file": "packages/control-plane/src/interactions/ldap.ts",
+        "line": 140,
+        "description": "ldapIssuer returns protocol plus host of the directory URL, dropping path and query, for example ldaps://dir.acme.example:636."
+      },
+      {
+        "file": "packages/control-plane/src/routes/interactions-ldap.ts",
+        "line": 306,
+        "description": "attachVerifiedExternalIdentity persists kind ldap and that ldapIssuer value as the identity used on later sign-in."
+      },
+      {
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 350,
+        "description": "Membership removal happens only inside revokeOrganizationMembership, which deprovision does not call when the lookup misses."
+      },
+      {
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 365,
+        "description": "The same helper deletes provisional sessions for that principal only after the membership row was removed."
+      },
+      {
+        "file": "packages/control-plane/src/routes/scim.ts",
+        "line": 504,
+        "description": "The PATCH responds 200 with the inactive user after deprovision returns, with no check that a membership was removed."
+      },
+      {
+        "file": "packages/control-plane/src/interactions/saml.ts",
+        "line": 972,
+        "description": "If samlIssuer is empty, SAML admission stores the metadata entityID instead, which this issuer list also does not search. A non-empty samlIssuer is stored and is searched."
+      },
+      {
+        "file": "packages/control-plane/src/routes/organizations.ts",
+        "line": 279,
+        "description": "A fresh sign-in consults the inactive SCIM row only when provisioningEnabled is set. That does not remove the membership or provisional session the missed revoke left behind."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "The deactivation is performed by a live SCIM provisioning token for the organization, or by an active owner session, both of which authenticate accepts."
+      },
+      {
+        "kind": "data_state",
+        "description": "The member has an external identity kind ldap, issuer ldapIssuer of this organization's LDAP config, and subject equal to the SCIM user's externalId or userName, plus an organization membership and a live provisional session."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "The organization has an LDAP directory configured. Its ssoIssuer and samlIssuer are not that directory URL. The same miss applies to a native SAML identity only when samlIssuer is empty and the stored issuer is the metadata entityID."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A member who bound through the organization LDAP directory keeps their membership and existing provisional bearer after the directory deactivates the matching SCIM user.",
+      "payloads": [
+        "externalId=carol userName=carol@acme.example identity kind=ldap issuer=ldaps://dir.acme.example:636 subject=carol",
+        "organization.ssoIssuer=https://idp.example samlIssuer unset",
+        "PATCH Operations replace path active value false"
+      ],
+      "instructions": [
+        "Type-strip packages/control-plane/src/routes/scim-effects.ts and the ldapIssuer function from packages/control-plane/src/interactions/ldap.ts. The sandbox virtual-memory limit cannot instantiate the TypeScript stripper.",
+        "Call the stripped ldapIssuer with url ldaps://dir.acme.example:636/dc=acme?x=1.",
+        "Call the stripped deprovision with revokeOrganizationMembership recording its arguments. Offer an external identity only for kind ldap, issuer ldaps://dir.acme.example:636, subject carol, mapped to principal prn_ldap, and a membership for every principal id.",
+        "Use a SCIM user whose externalId is carol and whose userName is carol@acme.example, on an organization whose ssoIssuer is https://idp.example and whose samlIssuer is unset.",
+        "Repeat with an oidc identity for subject ada at issuer https://idp.example mapped to prn_oidc, and with a saml identity offered only at issuer https://idp.example/metadata for subject bea."
+      ],
+      "observed_result": "ldapIssuer returned ldaps://dir.acme.example:636. For carol, findByTuple ran ten times and every issuer was https://idp.example; the directory issuer was never queried and revoke was not called. For ada, revoke was called with prn_oidc and reason scim_deactivated. For bea, https://idp.example/metadata was never queried and revoke was not called."
+    },
+    "remediation": {
+      "strategy": "When resolving a directory subject, also search kind ldap under ldapIssuer of this organization's LDAP config, and search kind saml under the issuer admitSamlSubject stores: organization.samlIssuer when it is non-empty, otherwise the metadata entityID used when native SAML is configured without samlIssuer. Keep the membership check so another tenant's principal is still ignored.",
+      "code_changes": [
+        {
+          "file_name": "packages/control-plane/src/routes/scim-effects.ts",
+          "fixed_code": "const issuers = [organization.ssoIssuer, organization.samlIssuer].filter((issuer): issuer is string => isString(issuer) && issuer.length > 0);\nconst ldap = await ctx.stores.orgFederation.ldapConfigs.get(organization.id);\nif (ldap) {\n  const directoryIssuer = ldapIssuer(ldap);\n  if (!issuers.includes(directoryIssuer)) issuers.push(directoryIssuer);\n}\n"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "LDAP bind and SCIM push are both supported organization features, and the directory issuer is never added to the search list. The failure still needs a member admitted by this org's directory whose LDAP subject matches the SCIM externalId or userName."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "The deactivation is reported successful and the SCIM row is inactive, but the membership is not removed and already issued provisional sessions are not deleted. Those bearers keep membership-gated authority for the session TTL. A fresh sign-in is refused only when provisioningEnabled is set; that check does not clear the leftover membership."
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The shipped issuer list and the LDAP admission tuple are source-visible, and the type-stripped deprovision function was executed with a directory identity offered only at the LDAP issuer. It never queried that issuer and did not revoke, while the same call revoked an oidc identity stored under ssoIssuer."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "crates/authenticator-core/host_is_private/ipv4-mapped-request-uri",
+    "title": "Invocation policy admits IPv4-mapped loopback and private request URIs",
+    "description": "validate_platform_invocation is documented to reject private or loopback request URIs before it builds the protocol URI handed to the wallet. host_is_private applies std's IPv4 special-range helpers and a few IPv6 flags, but never unwraps an IPv4-mapped address. url 2.5.8 keeps a bracketed IPv4-mapped literal as Host::Ipv6 and serializes https://[::ffff:127.0.0.1]/request as https://[::ffff:7f00:1]/request, which the same function rejects when written as dotted 127.0.0.1. Executing that parser together with host_is_private's match accepted the mapped forms of 127.0.0.1, 169.254.169.254, 10.1.2.3, and 192.168.0.1 and would copy them into protocol_uri. MainActivity's https branch forwards that protocol URI into OpenId4VpActivity or launchOpenID4VCIProvisioning. Any sender that can deliver a VIEW intent can put the configured invocation host in the URI string; the origin check does not identify the caller. As calibration only, connector-host::is_blocked_v6 and connection-broker::is_internal already apply the embedded IPv4 checks to mapped addresses; authenticator-core does not.",
+    "root_cause": "host_is_private classifies IPv6 only with is_loopback, is_unspecified, is_unique_local, is_unicast_link_local, and is_multicast. IPv4-mapped addresses in ::ffff:0:0/96 fail those flags, and the function never applies the IPv4 checks to IpAddr::to_ipv4_mapped.",
+    "intended_behavior": "A request_uri whose host is loopback, link-local, or RFC1918 must be rejected as PrivateRequestUri whether it is written as a dotted IPv4 literal or as an IPv4-mapped IPv6 literal, and no protocol URI containing that host may be returned.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/android/android/app/src/main/AndroidManifest.xml",
+        "line": 11,
+        "scope": "MainActivity",
+        "description": "MainActivity is exported with no permission and handles VIEW data. Another app can set an explicit intent whose URI string uses the configured invocation origin; the intent-filter host does not authenticate the caller."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 71,
+        "scope": "MainActivity.handleIntent",
+        "description": "https URIs are admitted solely by the Result of validatePlatformInvocation; a successful return is treated as a safe protocol request."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 346,
+        "scope": "host_is_private",
+        "description": "The IPv6 arm does not unwrap IPv4-mapped addresses, so ::ffff:7f00:1 (127.0.0.1), ::ffff:a9fe:a9fe (169.254.169.254), and mapped RFC1918 hosts are not private."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 80,
+        "scope": "MainActivity.handleIntent",
+        "description": "The accepted protocol_uri, including the mapped request host, is parsed and set as the VIEW data for OpenId4VpActivity. The oid4vci branch passes the same string to launchOpenID4VCIProvisioning."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 270,
+        "description": "Private request URIs are rejected only when host_is_private is true. allow_private_request_uris is false for InvocationPolicy::new, which is what validate_platform_invocation uses."
+      },
+      {
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 346,
+        "description": "IPv6 classification omits to_ipv4_mapped. Bracketed IPv4-mapped hosts stay IPv6, so ::ffff:7f00:1 misses every flag in this match while dotted 127.0.0.1 is rejected."
+      },
+      {
+        "file": "crates/authenticator-core/src/lib.rs",
+        "line": 146,
+        "description": "On success the normalized request URL is copied into payload, and the following match builds an openid4vp or openid-credential-offer protocol URI from that string."
+      },
+      {
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 80,
+        "description": "OID4VP success starts OpenId4VpActivity with setData(Uri.parse(invocation.protocolUri)). There is no second private-host check."
+      },
+      {
+        "file": "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+        "line": 85,
+        "description": "OID4VCI success passes invocation.protocolUri to launchOpenID4VCIProvisioning."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "No authenticator-origin credential is required. The sender only has to place the configured https origin in the invocation URI string."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "MainActivity is exported and its https branch forwards accepted protocol URIs. The default invocation host is a DNS name baked into https://${INVOCATION_HOST}."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "Another app on the device, or any component that can deliver a VIEW intent to the exported wallet activity, supplies an otherwise well-formed invocation whose request_uri host is the IPv4-mapped form of a loopback, link-local, or RFC1918 address.",
+      "payloads": [
+        "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2F%5B%3A%3Affff%3A127.0.0.1%5D%2Frequest",
+        "https://auth.opensesame.example/invoke/oid4vci?request_uri=https%3A%2F%2F%5B%3A%3Affff%3Aa9fe%3Aa9fe%5D%2Flatest",
+        "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2F%5B%3A%3Affff%3A10.1.2.3%5D%2Fx",
+        "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2F127.0.0.1%2Frequest"
+      ],
+      "instructions": [
+        "Build the opensesame-authenticator-core rlib from crates/authenticator-core at this commit with the default features.",
+        "Call validate_platform_invocation with origin https://auth.opensesame.example and each payload.",
+        "For each accepted IPv6 host, call Ipv6Addr::to_ipv4_mapped."
+      ],
+      "observed_result": "Dotted https://127.0.0.1/request and https://[::1]/request were private and rejected. https://[::ffff:127.0.0.1]/request was not: url 2.5.8 parses the bracketed literal as IPv6 and serializes it as payload https://[::ffff:7f00:1]/request with protocol_uri openid4vp://?request_uri=https%3A%2F%2F%5B%3A%3Affff%3A7f00%3A1%5D%2Frequest, and to_ipv4_mapped was 127.0.0.1. Mapped 169.254.169.254 was accepted as an Oid4vci credential_offer_uri https://[::ffff:a9fe:a9fe]/latest. Mapped 10.1.2.3 and 192.168.0.1 were accepted as Oid4vp payloads https://[::ffff:a01:203]/x and https://[::ffff:c0a8:1]/x. Dotted 169.254.169.254 was rejected. host_is_private's IPv6 arm does not call to_ipv4_mapped, and validate_platform_invocation copies the normalized URL into protocol_uri with no further host check."
+    },
+    "remediation": {
+      "strategy": "Classify addresses from url::Url::host instead of a bracket round-trip. For IPv6, if to_ipv4_mapped() is Some, apply the same IPv4 private, loopback, link-local, multicast, broadcast, and unspecified checks. Add a regression that the four accepted mapped payloads above return PrivateRequestUri while a public https request URI still succeeds.",
+      "code_changes": [
+        {
+          "file_name": "crates/authenticator-core/src/lib.rs",
+          "fixed_code": "fn ipv4_is_blocked(ip: std::net::Ipv4Addr) -> bool {\n    ip.is_private()\n        || ip.is_loopback()\n        || ip.is_link_local()\n        || ip.is_multicast()\n        || ip.is_broadcast()\n        || ip.is_unspecified()\n}\n\nfn host_is_private(url: &Url) -> bool {\n    match url.host() {\n        None => true,\n        Some(url::Host::Domain(host)) => {\n            let host = host.trim_end_matches('.');\n            host.eq_ignore_ascii_case(\"localhost\")\n                || host.to_ascii_lowercase().ends_with(\".localhost\")\n        }\n        Some(url::Host::Ipv4(ip)) => ipv4_is_blocked(ip),\n        Some(url::Host::Ipv6(ip)) => ip.to_ipv4_mapped().is_some_and(ipv4_is_blocked)\n            || ip.is_loopback()\n            || ip.is_unspecified()\n            || ip.is_unique_local()\n            || ip.is_unicast_link_local()\n            || ip.is_multicast(),\n    }\n}\n"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "MainActivity is exported with no permission. A second local app can deliver one explicit VIEW intent whose URI string uses the configured origin. No credential or user gesture is required for the policy function to accept the mapped host."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "A loopback, link-local metadata, or RFC1918 URL is labeled safe and placed in the protocol URI that the https handler forwards into presentment or provisioning. That is the admission boundary the private-URI check exists to enforce. This run did not observe a socket or a credential disclosure, so the impact is not device compromise."
+      },
+      "overall_severity": "medium"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "host_is_private's IPv6 match and url 2.5.8's IPv6 parser and serializer were executed together. They rejected dotted 127.0.0.1 and [::1], accepted the mapped equivalents, and std::net::Ipv6Addr::to_ipv4_mapped identified the embedded addresses. MainActivity forwards protocolUri with no second private-host check."
+    }
+  },
+  {
+    "verdict": "rejected",
+    "fingerprint": "crates/breach-intel/src/event.rs/BreachEvent.occurrences/subscriber-count-oracle",
+    "title": "Publishing a breach occurrence count is the documented event boundary",
+    "description": "A positive POST /api/v1/security/breach-check does publish breach.password.compromised with the Pwned Passwords occurrence count joined to the caller-supplied subject, and default logs plus configured sinks keep that integer. That copy is the contract, not a crossed boundary. The BreachEvent module comment says the corpus count is a property of the corpus, not of the secret, and is published because it makes a finding actionable. The value-blind payload test requires the number to remain while secret-shaped keys stay absent. No smaller public-corpus preimage of any count was shown, so the integer was not shown to name a plaintext.",
+    "claimed_root_cause": "BreachEvent::password_compromised stores the corpus frequency as ordinary metadata and the notice path copies it, still bound to the subject, into the default log and every matching sink. No scrub or renderer buckets or removes that integer, which the candidate treats as a disagreement with the value-blind rule if the public corpus maps the count to a small set of plaintexts.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/gateway/src/routes/security.rs",
+        "line": 244,
+        "scope": "run_check",
+        "description": "After authorize has required an owner, admin, or operator, line 244 sets occurrences from password_occurrences of the digest of the caller-supplied candidate. That helper returns only the local suffix-match count. The caller already holds the candidate and is not a lower-trust principal."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/gateway/src/routes/security.rs",
+        "line": 344,
+        "scope": "settle_check",
+        "description": "A non-zero count builds BreachEvent::password_compromised for the caller-supplied subject. The same integer is stored on the finding and returned to that caller. event.notice is published only when the finding row newly opens."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/breach-intel/src/event.rs",
+        "line": 176,
+        "scope": "BreachEvent::summary",
+        "description": "The password-compromised summary names the subject and interpolates the exact occurrence count. payload inserts that same integer as the JSON number occurrences beside subject metadata."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/gateway/src/security/dispatch.rs",
+        "line": 33,
+        "scope": "publish",
+        "description": "publish forwards notice.scrubbed to the notifier, alerter, task bus, and delivery ledger. Scrubbing drops secret-shaped keys and secret-pattern strings and leaves the corpus count for those designed security-event readers."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/breach-intel/src/event.rs",
+        "line": 10,
+        "description": "The module contract says the one corpus number, how many times a password appears, is a property of the corpus rather than of the secret, and is what makes a finding actionable. That is why it is published."
+      },
+      {
+        "file": "crates/breach-intel/src/event.rs",
+        "line": 67,
+        "description": "The occurrences field comment states it is a property of the corpus and says nothing about the secret's content."
+      },
+      {
+        "file": "crates/breach-intel/src/event.rs",
+        "line": 385,
+        "description": "payload_is_value_blind asserts that occurrences remains in the payload while secret-shaped keys are forbidden. The value-blind rule includes this integer."
+      },
+      {
+        "file": "crates/security-events/src/render/pagerduty.rs",
+        "line": 180,
+        "description": "The firing-sink test keeps custom_details.occurrences and asserts a password key and its plaintext do not reach the body. Keeping the count is the checked boundary."
+      },
+      {
+        "file": "docs/adr/0080-security-event-hooks.md",
+        "line": 199,
+        "description": "The ledger refuses a hash or hash prefix because a stored SHA-1 is a crackable artifact. The count is not given that treatment, and a match is still published as breach.password.compromised against the named subject."
+      },
+      {
+        "file": "crates/gateway/src/routes/security.rs",
+        "line": 209,
+        "description": "The breach-check route comment says a positive result is published so the same subscribers, notifier, and alerting see it, rather than leaving the answer only in the HTTP response."
+      },
+      {
+        "file": "crates/gateway/src/routes/security.rs",
+        "line": 365,
+        "description": "The authorized caller who submitted the candidate receives the same occurrence count in the JSON response. Host logs and configured sinks are the additional readers that route and ADR 0080 already name."
+      }
+    ],
+    "reason": "Source shows that publishing the occurrence count is the intended boundary, and no smaller preimage was shown. The module comment at crates/breach-intel/src/event.rs lines 8-10 and the field comment at lines 66-67 define the count as corpus metadata that says nothing about the secret and is published because it makes the finding actionable. The value-blind unit test and the PagerDuty renderer test both require that integer to survive while secret material is removed. ADR 0080 treats a stored SHA-1, not this count, as the crackable copy the product refuses to keep, and it still publishes breach.password.compromised to the security-event feed. The check is limited to an owner, admin, or operator, who is also returned the count. redact_json cloning non-strings matches that contract. The outbound range request still sends only a five-hex prefix. The candidate itself records that the public corpus was not loaded and that plaintext recovery was not shown, so the count was not established as an identifier of the secret."
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "crates/sandbox/spawn/grant-expiry-not-rechecked",
+    "title": "Sandbox broker calls ignore grant expiry after the profile is minted",
+    "description": "SandboxProfile::from_grant_chain stores the chain's earliest expires_at and clamps ResourceBudget.deadline to the remainder at that instant, and never above the 5 second platform ceiling. Sandbox::spawn then accepts untrusted guest bytes after only RevocationFence::check, once before compile and again before the guest entry. fresh_store arms Store::set_epoch_deadline with deadline_ticks of that stored Duration. Wasmtime 36.0.17 (Cargo.lock) implements set_epoch_deadline as current engine epoch plus the delta (store.rs StoreInner::set_epoch_deadline), so the interval is rebased to fresh_store rather than cut off at expires_at. still_authorized, used by emit, http-fetch, sign, and token-acquire, returns fence.check and does not read profile.expires_at or the clock. The expires_at getter has no caller in this crate, and binds_chain does not compare the window. Source therefore links whatever broker imports the profile granted and reaches Broker after only a live fence, including when Utc::now() is already past expires_at, and a spawn that starts with time left can still run until mint-time deadline after expires_at by the delay before fresh_store (compile happens first) or by any later spawn on the same Sandbox. Each spawn gets a fresh interval of at most that mint-time deadline, not an unbounded single run. No workspace crate calls Sandbox::spawn. Gateway finish_dispatch does re-check grant.assert_active(Utc::now()) immediately before its broker side effect; connector-host rebases an epoch deadline the same way but does not carry this grant window. The post-expiry broker invocation itself was not executed.",
+    "claimed_root_cause": "Authority lifetime is enforced only as a Duration clamp inside from_grant_chain. Spawn, fresh_store, and still_authorized treat a live RevocationFence as sufficient authorization and re-base the epoch deadline on the engine epoch at fresh_store instead of the absolute expires_at.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/sandbox/src/runtime/mod.rs",
+        "line": 139,
+        "scope": "Sandbox::spawn",
+        "description": "Untrusted guest bytes enter spawn. The only authorization check here, and the only one repeated at line 163 before the guest runs, is fence.check. Nothing compares Utc::now() with profile.expires_at, so a profile minted inside the window still passes after the window has closed while the generation fence is live."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/sandbox/src/runtime/mod.rs",
+        "line": 224,
+        "scope": "Sandbox::fresh_store",
+        "description": "set_epoch_deadline is given deadline_ticks of the mint-time Duration. That value is not recomputed from profile.expires_at, and wasmtime adds it to the engine's current epoch, so the wall-clock budget starts at fresh_store."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/sandbox/src/runtime/imports.rs",
+        "line": 61,
+        "scope": "still_authorized",
+        "description": "The call-time gate returns fence.check and does not read the cloned profile's expires_at or the clock. GuestState carries the profile, but the shims use it for byte caps only."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/sandbox/src/runtime/imports.rs",
+        "line": 154,
+        "scope": "http_fetch_impl",
+        "description": "After still_authorized, the guest destination is passed to Broker::http_fetch. sign_impl (Broker::sign), token_impl (Broker::token_acquire), and emit_impl (Broker::emit) use the same fence-only check. RunContext carries organization and grant ids, not expires_at."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/sandbox/src/profile.rs",
+        "line": 107,
+        "description": "from_grant_chain takes the earliest grant expires_at, converts expires_at minus now into a Duration, clamps the budget with that remainder, and stores the timestamp. The DateTime is not read again except by its getter."
+      },
+      {
+        "file": "crates/sandbox/src/profile.rs",
+        "line": 176,
+        "description": "expires_at() is the only read of the stored timestamp. No other file in the repository calls SandboxProfile::expires_at."
+      },
+      {
+        "file": "crates/sandbox/src/profile.rs",
+        "line": 186,
+        "description": "binds_chain compares leaf id, root id, organization id, and invalidation generation only. It does not test the validity window."
+      },
+      {
+        "file": "crates/sandbox/src/budget.rs",
+        "line": 64,
+        "description": "ResourceBudget::CEILING.deadline is Duration::from_secs(5), so the mint-time clamp is at most five seconds."
+      },
+      {
+        "file": "crates/sandbox/src/budget.rs",
+        "line": 149,
+        "description": "clamped_to_remaining documents that a run may not outlive the grant, but the body only mins deadline with the Duration the caller already computed at profile construction."
+      },
+      {
+        "file": "crates/sandbox/src/runtime/limits.rs",
+        "line": 137,
+        "description": "deadline_ticks converts a Duration to epoch ticks rounded up, with a floor of one tick. It has no absolute timestamp."
+      },
+      {
+        "file": "crates/sandbox/src/revoke.rs",
+        "line": 128,
+        "description": "RevocationFence::is_live is the kill flag and ledger generation equality. Time passing does not move the ledger, so an unrevoked fence stays live after expires_at. check() only calls is_live."
+      },
+      {
+        "file": "crates/sandbox/tests/revocation.rs",
+        "line": 66,
+        "description": "a_stale_profile_cannot_start_a_run_at_all expects spawn to return Revoked after a generation bump. No sandbox test sleeps past expires_at and expects spawn or a broker call to fail."
+      },
+      {
+        "file": "crates/sandbox/tests/guests.rs",
+        "line": 89,
+        "description": "The same Sandbox value is spawned twice. The public API is built for reuse, so a retained engine is the normal shape, not a one-shot that ends at mint."
+      },
+      {
+        "file": "crates/gateway/src/routes/intents_queue.rs",
+        "line": 124,
+        "description": "Calibration only: finish_dispatch reauthorize calls grant.assert_active(Utc::now()) immediately before the broker side effect. The sandbox path has no equivalent call. This does not dismiss the sandbox gap."
+      }
+    ],
+    "blockers": [
+      "Spawn after expires_at was not executed. sandbox-run.sh with RUSTUP_HOME=/usr/local/rustup and CARGO_HOME=/usr/local/cargo can run rustc 1.88.0, but cargo test -p opensesame-sandbox --offline --locked --manifest-path /workspace/Cargo.toml --features wasm-runtime,fixtures --no-run is killed with signal 25 (SIGXFSZ) while compiling syn, before opensesame-sandbox or wasmtime is built. ulimit -f is 10240 (about 5 MiB), ulimit -v is 1048576 KiB, ulimit -t is 25, and the wrapper timeout is 25s. /workspace/target does not exist and no libwasmtime or libopensesame_sandbox rlib is on disk. Source control flow is unambiguous that the broker call is not gated on expires_at; the missing fact is the observed spawn result against a recording broker."
+    ],
+    "validation_plan": {
+      "local": "On a normal toolchain, offline and locked, with a writable target directory outside the audit sandbox: cargo test -p opensesame-sandbox --offline --locked --features wasm-runtime,fixtures. Use a chain whose ttl is a few seconds and whose actions include sandbox.http, mint the profile, keep the revocation fence live, and sleep until Utc::now() is past profile.expires_at(). Spawn a one-call http-fetch module on the in-crate RecordingBroker (no network, no live credential) and record whether spawn returns Ok and whether fetched() contains the guest destination. Separately, spawn while less than the mint-time deadline remains and record whether that broker call is entered after expires_at. Do not revoke the fence and do not point the broker at a real host.",
+      "deployment": "No deployed service is required. No workspace crate calls Sandbox::spawn. The owner check is the same local cargo test. If an integrator already holds a Sandbox across a grant window, observe only whether their Broker::http_fetch is entered after expires_at with the fence still live, using a recording double rather than a production credential or network fetch."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "daemon.proxy.backslash-canonicalizes-local-session",
+    "title": "Daemon loopback proxy canonicalizes backslash paths into the blocked local session mint",
+    "description": "The daemon router mounts /host/{*path} and /identity/{*path} with any() and no operator gate. proxy_loopback allows only a loopback base, then denies a slash-split rest that percent-decodes to exactly api, v1, session, local, and denies a segment that percent-decodes to a single dot or a double dot. It concatenates that raw rest onto the host base and reqwest 0.12.28 parses the string with url 2.5.8. On an http URL that parser treats a raw backslash as a separator and removes dot segments, so /api/v1/session/.\\local, /api/v1/foo/..\\session/local, and /api/v1/session/.\\.\\local miss both denials while Url::parse yields /api/v1/session/local. Redirects are disabled, so that normalized path is the upstream request-target. The proxy drops X-OpenSesame-Operator and hop or forwarding headers and still copies Authorization. Host token_from_headers accepts Authorization: Bearer operator:<token> or the bearer-lowercase form when Origin is absent. local_mint requires that operator token, returns 403 local_session_forbidden when the host has production_safeguards, and otherwise requires demo bootstrap before its success response sets access_token to opaque-session:<id> for 300 seconds with the demo principal as owner. The local test stopped at URL and HTTP/1 parsing and did not mint a session. Same-machine loopback is not this boundary: the product treats loopback as same-machine authority, and that caller can open the host port. The source-visible off-loopback path is OPENSESAME_DAEMON_NETWORK_BRIDGE=1 binding this same router on the WSL eth address. windows_loopback_reaches_daemon is true only when Windows curl stdout contains opensesame-daemon; GET /health is {\"status\":\"ok\"}, so a successful loopback fetch does not suppress that bind. tailscale serve --bg also publishes the listener; preservation of a raw backslash through that proxy was not executed. Percent-encoded %5C and %2F stay in one segment and do not parse as /api/v1/session/local.",
+    "root_cause": "The proxy denylist and dot-segment check split the raw request-target on '/' and percent-decode each segment once. The outbound http URL parser applies WHATWG special-scheme rules, which turn a raw '\\' into '/' and then collapse '.' and '..'. The checks never see the path that is requested.",
+    "intended_behavior": "A request that the outbound URL parser will turn into /api/v1/session/local must be rejected at the proxy, including raw backslash and dot-segment forms. Other /host routes may still carry Authorization so a tailnet client can call the loopback host. The whois tailnet listener stays limited to health, discovery, and slot-key device routes.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/daemon/src/lib.rs",
+        "line": 540,
+        "scope": "router",
+        "description": "router mounts /host/{*path} with any(proxy_host) and no require_operator layer. The same function also mounts /host, /identity, and /identity/{*path}. secured_router wraps this router and is the app the network bridge serves."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/daemon/src/lib.rs",
+        "line": 309,
+        "scope": "run",
+        "description": "When OPENSESAME_DAEMON_NETWORK_BRIDGE is exactly 1, run calls spawn_wsl_bridge with that app and startup::enable_network_bridge. This block is not the whois listener."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/daemon/src/lib.rs",
+        "line": 370,
+        "scope": "spawn_wsl_bridge",
+        "description": "If wsl_bridge_listen returns an address other than the primary listen, the daemon binds it and axum-serves the same app. That helper returns the WSL eth address when the process is WSL, the resolved tailscale binary is the Windows executable, and hostname -I yields a non-loopback IPv4, unless windows_loopback_reaches_daemon is true. That probe requires curl stdout to contain opensesame-daemon. GET /health returns {\"status\":\"ok\"}, so a successful loopback health fetch does not suppress the eth bind."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/daemon/src/lib.rs",
+        "line": 438,
+        "scope": "proxy_loopback",
+        "description": "After base_url_is_local, the /host prefix returns 403 only when is_local_session_path(rest) is true, then 400 when has_dot_segment(rest) is true. Both helpers see req.uri().path(), which httparse 1.10.1 and http 1.5.0 keep when it contains a raw backslash. hyper 1.11.0 builds that URI from those two parsers and was not executed itself."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/daemon/src/proxy_path.rs",
+        "line": 21,
+        "scope": "has_dot_segment",
+        "description": "has_dot_segment and is_local_session_path split only on '/' and compare one-pass percent-decoded segments. A raw backslash stays inside a segment, so '.\\local' and '..\\session' match neither the local-session tuple nor '.' or '..'."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/daemon/src/lib.rs",
+        "line": 449,
+        "scope": "proxy_loopback",
+        "description": "The outbound URL is the base trimmed of trailing slashes, plus the raw rest, plus the raw query. Client::request parses that string with url 2.5.8. The client was built with redirect Policy::none, so the parsed URL is the request that is sent."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/daemon/src/lib.rs",
+        "line": 460,
+        "scope": "proxy_loopback",
+        "description": "Forwarding skips hop and forwarding headers and the header name x-opensesame-operator. Authorization is copied, including Bearer operator:<token>. The proxy does not add the daemon operator token."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/host-core/src/operator.rs",
+        "line": 26,
+        "scope": "token_from_headers",
+        "description": "When Origin is absent, the host operator check accepts Authorization Bearer operator: or bearer operator:. The stripped X-OpenSesame-Operator form is not required."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/gateway/src/routes/session.rs",
+        "line": 94,
+        "scope": "local_mint",
+        "description": "The success JSON of POST /api/v1/session/local sets access_token to opaque-session:<id> with expires_in 300. The handler reaches this only after require_operator, a production_safeguards 403, and require_demo_bootstrap, and it stores an owner local session for the demo principal. The route is mounted from local_authority_routes. The local test did not call this handler."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/daemon/src/lib.rs",
+        "line": 1125,
+        "description": "proxy_never_forwards_local_session_mint expects 403 for the exact path, a double slash, and %73ession. It does not include a raw backslash."
+      },
+      {
+        "file": "crates/daemon/src/proxy_path.rs",
+        "line": 27,
+        "description": "is_local_session_path requires the decoded non-empty segments to be exactly api, v1, session, local. A failed percent-decode makes the predicate false, so a bad encoding does not deny."
+      },
+      {
+        "file": "Cargo.lock",
+        "line": 7830,
+        "description": "The workspace pins url 2.5.8. Its special-scheme parser rewrites a raw backslash to '/' and shortens '.' and '..' segments. The sandbox parse of the three backslash rests returned /api/v1/session/local."
+      },
+      {
+        "file": "Cargo.lock",
+        "line": 5803,
+        "description": "The workspace pins reqwest 0.12.28. Client::request for &str calls Url::parse."
+      },
+      {
+        "file": "crates/daemon/src/startup.rs",
+        "line": 64,
+        "description": "The daemon reqwest client is built with redirect Policy::none, so a parsed URL is not followed to a second location."
+      },
+      {
+        "file": "Cargo.lock",
+        "line": 2380,
+        "description": "The workspace pins http 1.5.0. Its path class 0x40..=0x5F includes byte 0x5C, and the sandbox Uri::try_from kept /host/api/v1/session/.\\local."
+      },
+      {
+        "file": "Cargo.lock",
+        "line": 2419,
+        "description": "The workspace pins httparse 1.10.1. The sandbox parsed POST /host/api/v1/session/.\\local HTTP/1.1 and httparse returned that path with the backslash."
+      },
+      {
+        "file": "Cargo.lock",
+        "line": 3157,
+        "description": "The workspace pins matchit 0.8.4. Its catch-all consumes the remaining path bytes and splits static segments only on '/'. A sandbox Router with /host and /host/{*path} matched /host/api/v1/session/.\\local, /host/api/v1/foo/..\\session/local, and /host/api/v1/session/.\\.\\local to the catch-all and captured each raw rest, including the backslash."
+      },
+      {
+        "file": "crates/daemon/src/startup.rs",
+        "line": 46,
+        "description": "network_bridge_enabled replaces daemon exposure with Networked before from_env, so production_safeguards is true for the daemon process only. A separate local-only development host is unchanged, and a loopback http host_api still passes the daemon upstream check."
+      },
+      {
+        "file": "crates/daemon/src/tailscale.rs",
+        "line": 339,
+        "description": "enable_serve runs tailscale serve --bg against serve_target. On WSL with Windows tailscale.exe, serve_target is the non-loopback eth URL unless windows_loopback_reaches_daemon is true, and otherwise http://127.0.0.1:<port>. The probe looks for opensesame-daemon in curl stdout, which GET /health does not return. Preservation of a raw backslash through that proxy is not in this repository and was not executed."
+      },
+      {
+        "file": "crates/daemon/src/tailnet.rs",
+        "line": 169,
+        "description": "The optional tailscale-feature listener routes only GET /health, POST /v1/discover, and vault device routes behind whois_gate. It does not mount /host or /identity. Empty allowlists do not bind."
+      },
+      {
+        "file": "crates/daemon/src/toolbar.rs",
+        "line": 20,
+        "description": "When a Tailscale Serve HTTPS URL is known, pairing_view advertises host_api as {url}/host and identity_api as {url}/identity. Publishing those prefixes is intentional. The defect is the session-mint denylist, not the publish itself."
+      },
+      {
+        "file": "crates/gateway/src/routes/local_authority_routes.rs",
+        "line": 39,
+        "description": "local_authority_routes mounts POST /api/v1/session/local on session::local_mint."
+      },
+      {
+        "file": "crates/gateway/src/middleware/auth.rs",
+        "line": 297,
+        "description": "require_demo_bootstrap returns 503 demo_bootstrap_unavailable when no bootstrap state is stored."
+      },
+      {
+        "file": "crates/gateway/src/bootstrap.rs",
+        "line": 26,
+        "description": "maybe_demo_bootstrap seeds the demo principal only when OPENSESAME_DEV_BOOTSTRAP is true or 1 and the host deployment does not have production_safeguards."
+      },
+      {
+        "file": "crates/gateway/src/routes/sync.rs",
+        "line": 47,
+        "description": "Sync push calls require_session and does not accept the operator token. The session the denylist withholds is what this route requires."
+      },
+      {
+        "file": "crates/gateway/src/routes/credential_connections.rs",
+        "line": 64,
+        "description": "session_scope calls require_session only. Listing or creating connections in the session organization needs the opaque session, not the raw operator bearer."
+      },
+      {
+        "file": "crates/host-core/src/deployment_mode.rs",
+        "line": 28,
+        "description": "production_safeguards is true for Production mode or Networked exposure. A host that stays LocalOnly development does not set it, so local_mint stays available on that process."
+      },
+      {
+        "file": "crates/host-core/src/daemon.rs",
+        "line": 55,
+        "description": "base_url_is_local accepts only an http or https base whose host is loopback and which has no userinfo. The proxy is not a general SSRF; the bypass is the one denylisted path on that loopback base."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "network_routing",
+        "description": "The caller can deliver an HTTP/1 request-target containing a raw backslash to the daemon listener and cannot open the host loopback port. Same-machine loopback is outside this boundary because that caller can POST the host directly. The in-repo off-loopback bind is the WSL eth listener under the bridge flag. tailscale serve --bg also publishes the listener; preservation of '\\' through the Tailscale proxy was not executed."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "OPENSESAME_DAEMON_NETWORK_BRIDGE must be exactly 1. The direct off-loopback bind also requires WSL, a resolved Windows tailscale.exe, and a non-loopback IPv4 from hostname -I. windows_loopback_reaches_daemon does not treat a successful curl of http://127.0.0.1:<port>/health as reachability, because the body is {\"status\":\"ok\"} and the probe requires the substring opensesame-daemon. The host process must be development or test and LocalOnly. OPENSESAME_DEV_BOOTSTRAP must be true or 1. The daemon bridge does not flip the host process to Networked."
+      },
+      {
+        "kind": "authentication_level",
+        "description": "The caller presents Authorization: Bearer operator:<the host operator token> or the bearer-lowercase form, and does not send Origin. X-OpenSesame-Operator is stripped by the proxy and does not authorize the mint. Without this bearer, local_mint returns 401."
+      },
+      {
+        "kind": "environmental_dependency",
+        "description": "The host API base must pass base_url_is_local, which http://127.0.0.1:8787 does. If host production_safeguards is on, the forwarded mint returns 403 local_session_forbidden and no session is issued. If demo bootstrap was not seeded, the result is 503."
+      },
+      {
+        "kind": "third_party_dependency",
+        "description": "Outbound parsing is url 2.5.8 via reqwest 0.12.28, and inbound parsing is httparse 1.10.1 plus http 1.5.0, as pinned in Cargo.lock. Those are the versions the sandbox checks ran. Routing uses matchit 0.8.4, which was executed: the three /host backslash request-targets selected the catch-all."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A network client of the daemon HTTP listener who already holds the host operator token in bearer form, and who cannot connect to the host port, sends the local-session path with a raw backslash under the /host prefix.",
+      "payloads": [
+        "/host/api/v1/session/.\\local",
+        "/host/api/v1/foo/..\\session/local",
+        "/host/api/v1/session/.\\.\\local"
+      ],
+      "instructions": [
+        "Copy decoded_path_segment, has_dot_segment, and is_local_session_path verbatim from crates/daemon/src/proxy_path.rs and parse http://127.0.0.1:8787 plus each rest with url 2.5.8.",
+        "Compare the exact local-session path, a slash .. form, a %2e form, the three backslash rests with the /host prefix removed, and the %5C and %2F negative controls.",
+        "Parse the HTTP/1 request POST /host/api/v1/session/.\\local HTTP/1.1 with Host: 127.0.0.1:18790 using httparse 1.10.1 and http 1.5.0, and print Uri::path.",
+        "Do not start the daemon or the host. Stop after the parser result. Do not mint a session.",
+        "Insert /host and /host/{*path} into matchit 0.8.4 and match the three /host backslash request-targets. Do not start the daemon or the host and do not mint a session."
+      ],
+      "observed_result": "url 2.5.8 and the copied predicates printed: exact rest session_deny=true dot_deny=false parsed path=/api/v1/session/local; slash .. and %2e forms dot_deny=true and the same parsed path; /api/v1/session/.\\local, /api/v1/foo/..\\session/local, and /api/v1/session/.\\.\\local all printed session_deny=false dot_deny=false and parsed path=/api/v1/session/local. %5Clocal and %2Flocal printed session_deny=false dot_deny=false and stayed on /api/v1/session/%5Clocal and /api/v1/session/%2Flocal. httparse 1.10.1 completed and returned the path containing one backslash; http 1.5.0 Uri::path kept /host/api/v1/session/.\\local. matchit 0.8.4 selected the /host/{*path} catch-all for /host/api/v1/session/.\\local, /host/api/v1/foo/..\\session/local, and /host/api/v1/session/.\\.\\local and captured each raw rest with the backslash. No opaque-session token was minted."
+    },
+    "remediation": {
+      "strategy": "Decide the denylist on the path reqwest will request. Keep the slash-segment dot check, parse the outbound URL, and apply is_local_session_path to the parsed path so every normalization to /api/v1/session/local, including a raw backslash collapse, is 403. Reject any other raw backslash in the rest with 400. Add the three backslash payloads next to proxy_never_forwards_local_session_mint. Do not strip Authorization globally; other /host routes are meant to carry the operator bearer. Leave the whois listener unchanged.",
+      "code_changes": [
+        {
+          "file_name": "crates/daemon/src/lib.rs",
+          "fixed_code": "let path = req.uri().path();\nlet rest = path.strip_prefix(prefix).unwrap_or(path);\nif has_dot_segment(rest) {\n    return StatusCode::BAD_REQUEST.into_response();\n}\nlet query = req.uri().query().map(|q| format!(\"?{q}\")).unwrap_or_default();\nlet url = format!(\"{}{}{}\", base.trim_end_matches('/'), rest, query);\nlet Ok(parsed) = reqwest::Url::parse(&url) else {\n    return StatusCode::BAD_REQUEST.into_response();\n};\nif prefix == \"/host\" && is_local_session_path(parsed.path()) {\n    return StatusCode::FORBIDDEN.into_response();\n}\nif rest.as_bytes().contains(&b'\\\\') {\n    return StatusCode::BAD_REQUEST.into_response();\n}"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "The caller must already hold the host operator token, the host must be non-production and local-only with demo bootstrap on, and the request must reach a daemon listener the caller can use while the host port stays closed. The bridge flag, WSL, and a Windows tailscale.exe are explicit opt-ins. A successful Windows curl of /health does not suppress the eth bind, because that probe requires the substring opensesame-daemon and the health body is {\"status\":\"ok\"}. Loopback on the same machine does not need this bypass, and Tailscale Serve's handling of backslash was not shown."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "Source of local_mint shows a 300-second owner opaque-session for the demo principal only. Sync push and credential-connection routes accept that session and reject the raw operator token. Host production safeguards still return 403. The local test did not issue a token, and the session is not an arbitrary tenant."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The guard miss and the url 2.5.8 rewrite were executed again in the sandbox: the three raw-backslash rests had session_deny=false, dot_deny=false, and parsed path /api/v1/session/local, while %5C and %2F stayed encoded. httparse 1.10.1 and http 1.5.0 kept the backslash, and matchit 0.8.4 routed those request-targets to the /host catch-all. Header forwarding, redirect Policy::none, host bearer acceptance, and the demo-bootstrap gate are direct source with no later re-check of the canonical path. The live mint, hyper, and Tailscale Serve were not run."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "domain.EgressBinding.allows_url/encoded-path-escape",
+    "title": "Path-scoped egress allowlist accepts encoded traversals that decode outside the prefix",
+    "description": "EgressBinding::allows_url is the destination fence on the connection-owner level-2 invoke path before the sealed bearer is attached. New connections default to max_invoke_level 2. Delegates are refused above level 1. The owner grant minted from the catalog lists the provider's operations, and invoke_network_json checks only that the operation name is in that list. The later OpenFGA check, when configured, also sees subject, operation, and resource, not the URL. After url 2.5.8 WHATWG parsing, a non-empty path_prefixes entry matches when Url::path() equals the prefix or starts with that prefix plus a slash. A whole segment that is exactly .. or %2e%2e is collapsed, so https://api.doppler.com/v3/projects/%2e%2e/%2e%2e/configs/config/secrets becomes /configs/config/secrets and fails the prefix test, and the literal values path /v3/configs/config/secrets fails it too. A traversal glued to %2f, a semicolon, or %5c is not a whole dot segment. Applied to Doppler prefixes [/v3/projects, /v3/configs/config/secrets/names], Cloudflare Origin CA [/client/v4/certificates], a custom base path such as /api/v2, and OpenRouter [/api/v1/], those forms stay under the prefix and pass. url.as_str() keeps the encoded target, and reqwest 0.12.28 builds the HTTP URI from that string on http_bytes, which uses redirect Policy::none. One percent-decode of the accepted Doppler target /v3/projects/%2e%2e%2fconfigs/config/secrets is /v3/projects/../configs/config/secrets, which resolves to the values path the catalog test says must stay unreachable. The in-repo surrogate check_scope refuses dot segments, backslash, and semicolon on both the raw path and one percent-decode because upstream resolution is not predictable. allows_url does not. Whether Doppler, Cloudflare, OpenRouter, or a custom origin performs that decode is not in this repository.",
+    "claimed_root_cause": "allows_url decides path scope from Url::path() with a segment-boundary prefix test and never percent-decodes the path or rejects .., backslash, or semicolon segments. authorized_json treats that Ok as sufficient and http_authorized attaches the sealed credential to the original URL.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/gateway/src/routes/intents.rs",
+        "line": 471,
+        "scope": "create_checked",
+        "description": "When invoke_level is 2 and the resolved connection is broker-backed, the caller JSON parameters.url is copied into ConstrainedHttpInput with no path normalization."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/authz/src/authority_use.rs",
+        "line": 86,
+        "scope": "authorize_authority_use",
+        "description": "Level-2 authorization accepts the URL when this same allows_url returns Ok. It does not decode the path or bind the operation to a path."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/gateway/src/routes/intents.rs",
+        "line": 394,
+        "scope": "execute_invocation",
+        "description": "The copied URL is passed to invoke_network_json together with the caller operation name."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/connection-broker/src/egress.rs",
+        "line": 94,
+        "scope": "ConnectionBroker::invoke_network_json",
+        "description": "The operation is accepted when its name is in the provider list. The URL is not compared to that operation."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/connection-broker/src/egress.rs",
+        "line": 207,
+        "scope": "ConnectionBroker::authorized_json",
+        "description": "After the row is in-org and Active, the only destination check is row.egress.allows_url(url). Ok continues into credential opening."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/domain/src/authority.rs",
+        "line": 235,
+        "scope": "EgressBinding::allows_url",
+        "description": "A non-empty path_prefixes list allows the WHATWG path when it equals a prefix or starts with that prefix plus a slash, including segments such as %2e%2e%2fconfigs, ..%2f..%2f, ..;, and %5c..%5c."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/connection-broker/src/egress.rs",
+        "line": 346,
+        "scope": "ConnectionBroker::http_authorized",
+        "description": "credential_header's sealed access token is set on the request for the caller URL. The http_bytes client does not follow redirects."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/domain/src/authority.rs",
+        "line": 229,
+        "description": "The compared path is Url::path(), which leaves %2f, %5c, and semicolon inside a segment."
+      },
+      {
+        "file": "crates/domain/src/authority.rs",
+        "line": 235,
+        "description": "Path scope is path == prefix or path.starts_with(prefix + '/'), using the WHATWG path only. There is no second decode."
+      },
+      {
+        "file": "crates/connection-broker/src/egress.rs",
+        "line": 207,
+        "description": "authorized_json returns before opening the credential only when allows_url fails. An Ok continues into credential injection."
+      },
+      {
+        "file": "crates/connection-broker/src/egress.rs",
+        "line": 340,
+        "description": "http_authorized sends the caller URL on self.http_bytes, the client built with redirect Policy::none."
+      },
+      {
+        "file": "crates/connection-broker/src/egress.rs",
+        "line": 346,
+        "description": "credential_header's value is set on the outbound request for the caller URL."
+      },
+      {
+        "file": "crates/connection-broker/src/lib.rs",
+        "line": 287,
+        "description": "http_bytes is built with reqwest redirect Policy::none, so a 3xx is not followed with the bearer."
+      },
+      {
+        "file": "crates/connection-broker/src/lib.rs",
+        "line": 97,
+        "description": "DEFAULT_MAX_INVOKE_LEVEL is 2, so a new connection's ceiling includes constrained HTTP unless an owner lowers it."
+      },
+      {
+        "file": "crates/gateway/src/routes/intents.rs",
+        "line": 306,
+        "description": "A delegate is refused when invoke level is greater than 1, so this URL path is the connection owner's, not a delegated agent's."
+      },
+      {
+        "file": "crates/connection-broker/src/delegation.rs",
+        "line": 343,
+        "description": "The owner grant minted from the catalog copies provider.operations into actions, which invoke then checks only by name."
+      },
+      {
+        "file": "spec/connectors/catalog.json",
+        "line": 2284,
+        "description": "Doppler's fence is the prefixes /v3/projects and /v3/configs/config/secrets/names."
+      },
+      {
+        "file": "crates/connection-broker/src/catalog_tests.rs",
+        "line": 123,
+        "description": "doppler_promotion_is_value_blind requires allows_url to reject the literal secret-values path /v3/configs/config/secrets."
+      },
+      {
+        "file": "spec/connectors/catalog.json",
+        "line": 1128,
+        "description": "cloudflare-origin-ca is limited to /client/v4/certificates. The encoded ..%2f and %2e%2e%2f forms still match that prefix."
+      },
+      {
+        "file": "spec/connectors/catalog.json",
+        "line": 2882,
+        "description": "OpenRouter's path prefix is /api/v1/, so /api/v1/..%2fkeys still matches the segment-boundary test."
+      },
+      {
+        "file": "crates/connection-broker/src/custom_provider.rs",
+        "line": 211,
+        "description": "A custom connector's path prefix is the base URL path, so a base of https://host/api/v2 is supposed to confine the credential to that subtree."
+      },
+      {
+        "file": "crates/invoke-through/src/surrogate/scan.rs",
+        "line": 166,
+        "description": "The sibling path fence refuses dot segments, backslash, and semicolon in both the raw and percent-decoded path because the upstream's resolution is not the host's to predict."
+      }
+    ],
+    "blockers": [
+      "The broker and reqwest 0.12.28 agree on the encoded request-target: try_uri parses url.as_str(), and a sandboxed url 2.5.8 parse kept paths such as /v3/projects/%2e%2e%2fconfigs/config/secrets, /client/v4/certificates/%2e%2e%2fuser/tokens/verify, and /api/v2/..%2fadmin. Reaching /v3/configs/config/secrets, /client/v4/user/tokens/verify, /keys, or a custom /admin path requires the upstream to percent-decode that target and then resolve .., backslash, or semicolon parameters. That behavior is not in the repository, and this sandbox has no external network, so api.doppler.com, api.cloudflare.com, and openrouter.ai were not called."
+    ],
+    "validation_plan": {
+      "local": "Call the crate EgressBinding::allows_url, not a transcribed copy. With Doppler's binding, https://api.doppler.com/v3/configs/config/secrets?project=a&config=b and https://api.doppler.com/v3/projects/%2e%2e/%2e%2e/configs/config/secrets must be Err, and https://api.doppler.com/v3/projects/%2e%2e%2fconfigs/config/secrets?project=a&config=b, https://api.doppler.com/v3/configs/config/secrets/names/..%2f..%2f?project=a&config=b, https://api.doppler.com/v3/projects/..;/configs/config/secrets, and https://api.doppler.com/v3/projects/%5c..%5cconfigs/config/secrets must be Ok. Repeat for Cloudflare Origin CA with https://api.cloudflare.com/client/v4/certificates/%2e%2e%2fuser/tokens/verify and for authority internal.example:8443 prefix /api/v2 with https://internal.example:8443/api/v2/..%2fadmin. Then, only on loopback, insert one Active in-org connection whose scheme is http, authority is 127.0.0.1, path_prefixes is [/api/v2], and bearer is a dummy value. Serve a fixture that records the raw request-target and whether that dummy bearer arrived, and returns 204. Invoke authorized_json GET http://127.0.0.1:<port>/api/v2/..%2fadmin. The host side holds if the recorded target is still /api/v2/..%2fadmin and the dummy bearer is present. Do not treat that as proof a decoder maps it to /admin.",
+      "deployment": "Do not use a production token and do not store response bodies. With a non-production Cloudflare Origin CA token, compare only the HTTP status and top-level JSON keys of GET https://api.cloudflare.com/client/v4/certificates/%2e%2e%2fuser/tokens/verify to a direct GET of /client/v4/user/tokens/verify. If both are the token-verify success shape, the prefix did not hold. With a Doppler service token for a dummy project, compare only the status codes of GET https://api.doppler.com/v3/projects/%2e%2e%2fconfigs/config/secrets?project=<p>&config=<c> and GET /v3/configs/config/secrets with the same query. Matching non-404 statuses means the values path was reached. Stop after that comparison."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "gateway/observation-control/role-evidence-fence-skipped",
+    "title": "Role evidence fence does not bind observation control or one-shot log reads",
+    "description": "Browser observe tails re-read config_authorization_roles before releasing a sealed event: a missing row, a null role, or an auth_time that is not strictly after evidence_after ends the stream. That row is the Host membership ceiling provisioned for a sync pairing or device approval. set_role updates the ceiling and moves evidence_after forward, and on a null role deletes only project access; it does not revoke the browser client, stored authentication_json, in-memory session, or an authorized elevation. narrow_identity_role enforces the fence only when browser.authenticate is consumed, so a later step-up at or before the floor fails, but step_up keeps treating already stored phishing-resistant webauthn as fresh for 300 seconds. Control challenge, verify, commit, and control_with_host_authorization never read the row, so the same browser can mint or consume a handoff, take, or release elevation after the ceiling is cleared or the floor moves. GET /api/v1/agent/runs/{id}/log returns that run's sealed payloads after load(Attachment::View) and never calls StreamAuthority::active. NativeSession active reloads only the in-memory session. No gateway request of this sequence was executed.",
+    "claimed_root_cause": "StreamAuthority::active enforces a non-null config_authorization_roles role and auth_time greater than evidence_after only for CredentialKind::BrowserGrant. step_up, agent.browser.control challenge and verify, control_with_host_authorization, NativeSession active, and read_log do not read that row. set_role_ceiling does not revoke browser clients, grants, stored authentication_json, sessions, or host elevations. narrow_identity_role applies the fence only to browser.authenticate.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "crates/gateway/src/routes/agent_runs/lease.rs",
+        "line": 177,
+        "scope": "take_control",
+        "description": "POST /api/v1/agent/runs/{id}/control loads the run as Attachment::Control, which calls step_up, then commits a take elevation. Handoff and release use the same commit path."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/gateway/src/routes/agent_runs.rs",
+        "line": 128,
+        "scope": "step_up",
+        "description": "step_up is fresh only for a BrowserGrant with phishing-resistant webauthn, amr webauthn, and auth_time inside 300 seconds. Those claims come from stored authentication_json. The role ceiling and evidence_after floor are not read."
+      },
+      {
+        "kind": "propagation",
+        "file": "crates/gateway/src/routes/agent_runs/lease.rs",
+        "line": 65,
+        "scope": "commit",
+        "description": "commit requires a BrowserGrant and a 64-hex elevation, hashes that elevation, and calls control_with_host_authorization. It does not read config_authorization_roles."
+      },
+      {
+        "kind": "sink",
+        "file": "crates/storage/src/host_authorizations.rs",
+        "line": 193,
+        "scope": "control_with_host_authorization",
+        "description": "After the consume update matches, this statement writes control_state, quiescence, handoff_queued, lease holder, and lease expiry on the open run. Neither statement joins config_authorization_roles."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "crates/gateway/src/routes/agent_run_stream_authority.rs",
+        "line": 55,
+        "description": "Browser active returns false when role_policy has a null role or when the reloaded grant auth_time is less than or equal to evidence_after. A missing policy row also returns false."
+      },
+      {
+        "file": "crates/gateway/src/routes/agent_run_stream_authority.rs",
+        "line": 60,
+        "description": "The NativeSession branch reloads only the in-memory session map and does not call role_policy."
+      },
+      {
+        "file": "crates/gateway/src/routes/agent_runs.rs",
+        "line": 132,
+        "description": "step_up's freshness predicate is assurance, amr webauthn, and a 300-second auth_time window, with no role or evidence_after comparison."
+      },
+      {
+        "file": "crates/gateway/src/routes/host_authorizations.rs",
+        "line": 75,
+        "description": "The agent.browser.control challenge requires phishing-resistant assurance, an open run, and owner equality. It does not read config_authorization_roles."
+      },
+      {
+        "file": "crates/storage/src/host_authorizations.rs",
+        "line": 140,
+        "description": "narrow_identity_role runs only in the browser.authenticate branch. The agent.browser.control branch does not call it."
+      },
+      {
+        "file": "crates/storage/src/host_authorizations.rs",
+        "line": 178,
+        "description": "The consume UPDATE matches client, elevation digest, operation, target, transition, version, state, expiry, an unrevoked client, an unexpired grant, organization, and run owner. It does not join config_authorization_roles."
+      },
+      {
+        "file": "crates/gateway/src/routes/agent_runs/stream.rs",
+        "line": 106,
+        "description": "read_log authorizes with load(Attachment::View) and then reads observation events. It never calls StreamAuthority::active."
+      },
+      {
+        "file": "crates/gateway/src/routes/secret_config_policy.rs",
+        "line": 111,
+        "description": "set_role calls set_role_ceiling with evidence_after set to the current timestamp. The handler does not revoke browser clients, grants, sessions, or host elevations."
+      },
+      {
+        "file": "crates/connection-broker/src/config_access.rs",
+        "line": 163,
+        "description": "A null role deletes that principal's config_project_access rows and appends a role_changed outbox event. It does not revoke browser grants or elevations."
+      },
+      {
+        "file": "crates/gateway/src/routes/browser_pairings.rs",
+        "line": 328,
+        "description": "session_claims copies assurance, auth_time, and the verified capability ceiling from stored authentication_json and does not read config_authorization_roles."
+      }
+    ],
+    "blockers": [
+      "No prebuilt opensesame-gateway test binary or cargo target directory is present. The approved sandbox allows 25s CPU, 1 GiB virtual memory, a read-only /workspace and /usr, and scratch-only writes, which cannot compile this commit or execute POST /api/v1/agent/runs/{id}/control or GET /api/v1/agent/runs/{id}/log.",
+      "Source shows no role predicate on those handlers, but the decisive fact is unobserved: the HTTP status and whether a dummy observation_runs row changes version and control_state, and whether GET /log still returns the sealed payload, after role is null or evidence_after equals the stored auth_time."
+    ],
+    "validation_plan": {
+      "local": "Use the in-crate agent_runs Browser fixture, a temporary sqlite file, and dummy principals only. Provision config_authorization_roles, seed an awaiting_human run owned by the paired principal, and append one observation event. Call verified_webauthn_at with the current timestamp before changing policy, so browser.authenticate passes narrow_identity_role and stores authentication_json. Then set role to NULL and evidence_after to now without revoking the browser client. Only after that update, mint a take elevation through Browser::elevation, which calls authorize_host_challenge, and POST /api/v1/agent/runs/{id}/control with that 64-hex elevation. Do not treat HTTP 409 as success or failure: commit maps every zero-row consume to stale_version. The fence holds only if observation_runs.version and control_state stay unchanged. Repeat with the role left non-null and evidence_after set equal to the stored auth_time, minting the elevation only after the floor moves. GET /api/v1/agent/runs/{id}/log with the same browser DPoP headers; the fence holds only if the stored event's sealed payload is absent. GET /observe on that browser is the existing positive control. Separately record whether a native opaque session for the same owner still receives GET /observe events after role is NULL. Do not contact a deployed host or use production principals.",
+      "deployment": "No deployed IdP, browser, certificate, or live host is required. The grant, authentication_json, and authorized elevation are local rows, and set_role performs the same policy write as the test update. Replay the dummy sequence only to compare a running binary that is not commit a8843c3e33ae1049aaf174be8ae539c421642940, and only against a disposable organization and principal."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "opensesame.cli.connect.open_url.authorization-url-cmd-start",
+    "title": "Windows open_url passes a Host authorization_url to cmd.exe /C start",
+    "description": "connect create calls authorize_oauth for a configured oauth2_authorization_code connection that is not yet active. authorize_oauth takes the Host field authorization_url as a raw string and, unless --no-browser, passes it to open_url. open_url does not parse a scheme or reject command metacharacters. Its Windows branch is Command::new(\"cmd\").arg(\"/C\").arg(\"start\").arg(url). start is a cmd.exe builtin, so the Host string is placed on a cmd command line rather than passed to a URL-only API. The broker's assert_transport_allowed allows only https, plus non-production loopback http, and only for URLs that crate builds; build_authorize_url then joins query pairs with raw &. Custom-provider https_url forbids a query and a fragment but not & in the path. The CLI never applies those checks: api() accepts any JSON object. The Host base URL is not loopback-only (default http://127.0.0.1:8787, overridable with --server or OPENSESAME_HOST_API). The architecture treats loopback as same-machine authority, which calibrates a purely local Host and does not cover a remote Host response used as a command line. This Linux host compiles the xdg-open arm, and cmd.exe was not executed. connect open reaches the same opener with a pages URL and is omitted so the trace has one entrypoint.",
+    "claimed_root_cause": "The Windows arm of open_url is Command::new(\"cmd\").arg(\"/C\").arg(\"start\").arg(url) with the Host authorization_url left unmodified. This crate adds no scheme allowlist, no empty start window title, and no cmd metacharacter escaping before Command::arg. The client treats the authorize JSON string as trusted and does not enforce the broker's https-or-nonproduction-loopback-http rule.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/cli/src/connect.rs",
+        "line": 603,
+        "scope": "authorize_oauth",
+        "description": "The Host POST /api/v1/connections/{id}/authorize JSON field authorization_url is taken with as_str and is not parsed as a URL."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/cli/src/connect.rs",
+        "line": 609,
+        "scope": "authorize_oauth",
+        "description": "Unless --no-browser, which is a clap flag that defaults off, the raw authorization_url is passed to open_url."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/cli/src/connect.rs",
+        "line": 1358,
+        "scope": "open_url",
+        "description": "When target_os is windows, the opener prefix is cmd, /C, start. macOS uses open and every other target uses xdg-open. The windows arm is not the branch compiled on this Linux host."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/cli/src/connect.rs",
+        "line": 1370,
+        "scope": "open_url",
+        "description": "The Host string is appended with arg and the process is spawned. On Windows that command line is cmd.exe /C start followed by authorization_url."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/cli/src/connect.rs",
+        "line": 603,
+        "description": "authorization_url is required only to be a JSON string. No scheme, host, or metacharacter check follows before it is opened."
+      },
+      {
+        "file": "apps/cli/src/connect.rs",
+        "line": 56,
+        "description": "no_browser is a clap bool flag with no default_value, so the browser-open path is the default for connect create."
+      },
+      {
+        "file": "apps/cli/src/connect.rs",
+        "line": 1358,
+        "description": "The Windows arm sets the argv prefix to cmd, /C, start and does not quote or filter the caller string in this function."
+      },
+      {
+        "file": "apps/cli/src/connect.rs",
+        "line": 1370,
+        "description": "spawn uses Command::arg(url) and discards the result. This crate does not insert an empty start title or escape the string."
+      },
+      {
+        "file": "apps/cli/src/connect.rs",
+        "line": 1303,
+        "description": "A non-empty Host body is serde_json::from_str into a Value, or a raw wrapper. AuthorizeResponseSchema is not applied."
+      },
+      {
+        "file": "crates/connection-broker/src/flow.rs",
+        "line": 70,
+        "description": "The scheme match accepts https, and non-production loopback http, and rejects every other scheme. It does not inspect &."
+      },
+      {
+        "file": "crates/connection-broker/src/flow.rs",
+        "line": 131,
+        "description": "append_pair starts the authorize query at response_type=code. The following pairs are client_id, redirect_uri, state, code_challenge, and code_challenge_method, so the serialized URL contains raw & separators."
+      },
+      {
+        "file": "crates/connection-broker/src/custom_provider.rs",
+        "line": 103,
+        "description": "This check rejects a custom authorize URL that already has a query or a fragment. It does not reject & in the path."
+      },
+      {
+        "file": "spec/config/endpoints.json",
+        "line": 8,
+        "description": "The Host API default address is http://127.0.0.1:8787."
+      },
+      {
+        "file": "spec/config/endpoints.json",
+        "line": 17,
+        "description": "The Host endpoint sets loopbackOnly to false, so the CLI is not pinned to a same-machine peer."
+      }
+    ],
+    "blockers": [
+      "This host is Linux. cmd.exe and Wine are not installed, rust-src for the 1.88 toolchain is not installed, and cfg!(target_os = \"windows\") is false, so the compiled open_url branch is xdg-open. Windows CreateProcess quoting and cmd.exe parsing were not executed.",
+      "The decisive fact is whether cmd.exe /C start, given the single argument Rust Command::arg produces, treats a normal authorization_url that contains &, a path containing & around a command, or a non-URL command string, as more than one command. A Linux xdg-open result does not answer that."
+    ],
+    "validation_plan": {
+      "local": "On a Windows machine, in an empty temp directory, spawn only the same argv as open_url: Command::new(\"cmd\").arg(\"/C\").arg(\"start\").arg(value), with no Host, no token, and no production server. Use a marker whose only effect is creating an empty file in that temp directory, then delete it. Test three values: (1) https://example.invalid/authorize?response_type=code&client_id=dummy ; (2) the marker command alone; (3) https://example.invalid/x&MARKER&y where MARKER is that create-file command and contains no further metacharacters. Record whether the marker file is created and whether cmd reports a second command. Do not change system settings or contact a real provider.",
+      "deployment": "No production deployment, signing check, installer ACL, or device policy is required. A local Windows build of this CLI, or a throwaway copy of open_url, plus a stub authorization_url string, is enough."
+    }
+  },
+  {
+    "verdict": "needs_validation",
+    "fingerprint": "ops/compose/docker-compose.yml/nats/plaintext-host-port",
+    "title": "Compose publishes the NATS client port with no host IP and no server auth config",
+    "description": "ops/compose/docker-compose.yml is the file ops/README.md tells operators to start for local or HA-shaped runs. Its default-profile nats service uses image nats:2.11.4 and command [\"-js\", \"-m\", \"8222\"] with no volume, listen address, or authorization argument, then publishes container port 4222 as \"4222:4222\", which names no host IP. Monitoring port 8222 is not published. That service does not load ops/nats/local-dev.conf, whose comment says the plaintext profile authenticates nobody and must not be exposed beyond loopback, and whose listen directive is 127.0.0.1:4222. The same compose file sets gateway OPENSESAME_TASKBUS=nats and NATS_URL=nats://nats:4222 and sets no OPENSESAME_NATS_* variables. When those variables are unset, NatsTransportSpec::from_env returns None, create_nats uses NatsTransportSpec::plaintext, and it provisions because the profile is not secure. normalized() accepts a plaintext nats:// URL without requiring the dialed host to be loopback; on that branch it does refuse client identity, credentials, and tls_first. Stock gateway startup does not reach a connect: AppState::build calls StartupSecurity::load first, and from_env rejects this file because OPENSESAME_ENV and NODE_ENV are unset. The file also sets OPENSESAME_LISTEN=0.0.0.0:8787 and http://keycloak and http://gateway endpoints, which classify as networked, so a mode override would still hit the HTTPS safeguard, and assert_tcp_listen_allowed would still reject that listen without OPENSESAME_ALLOW_NONLOCAL=1. The worker service is behind the workload profile and does not set NATS_URL. Operator docs describe the compose client port as 4222 and show a host URL of nats://127.0.0.1:4222, which does not pin the published host IP. The file header calls the stack local/HA-capable and says to replace tags with digests in production; it does not label this publish as an accepted non-loopback exception. ops/README.md says to adapt the reference rather than adopt it wholesale, which also does not set the bind. Whether the unpinned Docker publish binds beyond loopback, and whether the nats:2.11.4 image accepts an unauthenticated client for this command, is not in the repository. Docker is not installed here and compose was not started.",
+    "claimed_root_cause": "ops/compose/docker-compose.yml runs nats:2.11.4 with command [\"-js\", \"-m\", \"8222\"], no mounted authorization or listen config, and ports [\"4222:4222\"] with no host IP, instead of the 127.0.0.1 listener in ops/nats/local-dev.conf, and points the gateway task bus at nats://nats:4222 with no OPENSESAME_NATS_* settings.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "ops/compose/docker-compose.yml",
+        "line": 54,
+        "scope": "service nats",
+        "description": "Default-profile service nats in the compose file operators start from ops/README.md. A non-compose peer is the lower-trust caller; this service is the in-repo entry that offers that caller a client port."
+      },
+      {
+        "kind": "propagation",
+        "file": "ops/compose/docker-compose.yml",
+        "line": 56,
+        "scope": "nats command",
+        "description": "The compose command is only [\"-js\", \"-m\", \"8222\"]. No config is mounted and no listen or authorization argument is set, so ops/nats/local-dev.conf is not applied. The image entrypoint that receives those arguments is not in this repository."
+      },
+      {
+        "kind": "sink",
+        "file": "ops/compose/docker-compose.yml",
+        "line": 57,
+        "scope": "nats ports",
+        "description": "Container port 4222 is published as short syntax 4222:4222, which sets no host IP. That is the source-visible boundary. The file does not show whether the orchestrator binds the publish beyond loopback."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 1,
+        "description": "The file header calls this a local/HA-capable compose profile and says to replace tags with digests in production. It does not say the NATS publish may bind beyond loopback."
+      },
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 55,
+        "description": "The nats service image is nats:2.11.4. The service has no volumes key and does not mount ops/nats/local-dev.conf or any other server config."
+      },
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 56,
+        "description": "The command is [\"-js\", \"-m\", \"8222\"] with no -a, -c, user, or authorization flag."
+      },
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 57,
+        "description": "The only published NATS port is \"4222:4222\". Monitoring port 8222 is not in ports."
+      },
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 68,
+        "description": "Gateway OPENSESAME_LISTEN is 0.0.0.0:8787, and the next lines set OPENSESAME_ISSUER and OPENSESAME_RESOURCE to http://keycloak:8080/realms/opensesame and http://gateway:8787. OPENSESAME_ENV, OPENSESAME_ALLOW_NONLOCAL, and OPENSESAME_NATS_* are not set."
+      },
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 72,
+        "description": "OPENSESAME_TASKBUS=nats and the next line NATS_URL=nats://nats:4222 are set with no OPENSESAME_NATS TLS or credential variables."
+      },
+      {
+        "file": "ops/compose/docker-compose.yml",
+        "line": 88,
+        "description": "The worker service is behind profiles [\"workload\"] and its environment does not set NATS_URL or OPENSESAME_TASKBUS."
+      },
+      {
+        "file": "ops/README.md",
+        "line": 5,
+        "description": "ops is a reference operators are expected to adapt rather than adopt wholesale. That sentence does not set a host IP on the NATS publish."
+      },
+      {
+        "file": "ops/README.md",
+        "line": 9,
+        "description": "The documented invocation is docker compose -f ops/compose/docker-compose.yml up for local or HA-shaped runs, and it names this NATS service."
+      },
+      {
+        "file": "ops/nats/local-dev.conf",
+        "line": 14,
+        "description": "The plaintext profile comment says never to expose the listener beyond loopback because it authenticates nobody."
+      },
+      {
+        "file": "ops/nats/local-dev.conf",
+        "line": 16,
+        "description": "The same file binds listen to 127.0.0.1:4222. The compose nats service does not load this file."
+      },
+      {
+        "file": "docs/operators/local.md",
+        "line": 199,
+        "description": "Operator docs describe compose NATS as client port 4222 with monitoring 8222 inside the container network."
+      },
+      {
+        "file": "docs/operators/local.md",
+        "line": 207,
+        "description": "The same section shows a host URL of nats://127.0.0.1:4222, or nats://nats:4222 inside Compose. It does not show a non-loopback host bind."
+      },
+      {
+        "file": "crates/task-bus/src/nats_transport_env.rs",
+        "line": 112,
+        "description": "from_env returns None when no OPENSESAME_NATS_* transport variable is set, so the caller falls back to the default profile."
+      },
+      {
+        "file": "crates/task-bus/src/lib.rs",
+        "line": 234,
+        "description": "create_nats uses NatsTransportSpec::from_env and otherwise NatsTransportSpec::plaintext, and the next line provisions because the profile is not secure."
+      },
+      {
+        "file": "crates/task-bus/src/nats_transport.rs",
+        "line": 174,
+        "description": "When require_tls is false, normalized() returns Ok for a plaintext URL without checking that the dialed host is loopback. The same branch refuses a client identity, non-none auth, or tls_first."
+      },
+      {
+        "file": "crates/task-bus/src/nats_delivery.rs",
+        "line": 107,
+        "description": "Provisioning keeps an existing stream's subjects and any limit already set, and only fills limits an older release left unbounded. That path runs only if a client connects and provisions."
+      },
+      {
+        "file": "crates/gateway/src/app_state.rs",
+        "line": 160,
+        "description": "AppState::build calls StartupSecurity::load before later setup, so a startup rejection happens before a task-bus connect."
+      },
+      {
+        "file": "crates/host-core/src/deployment_mode.rs",
+        "line": 68,
+        "description": "from_env fails when OPENSESAME_ENV and NODE_ENV are unset and OPENSESAME_ALLOW_DEV_DEFAULTS is not the local-only development opt-in. The compose gateway sets none of those."
+      },
+      {
+        "file": "crates/host-core/src/deployment_mode.rs",
+        "line": 119,
+        "description": "classify marks a non-loopback listen address, or an HTTP(S) endpoint whose host is not loopback or localhost, as networked."
+      },
+      {
+        "file": "crates/gateway/src/config.rs",
+        "line": 236,
+        "description": "When production safeguards apply, StartupSecurity::load rejects a networked endpoint that does not start with https://."
+      },
+      {
+        "file": "crates/host-core/src/daemon.rs",
+        "line": 34,
+        "description": "assert_tcp_listen_allowed rejects a non-loopback listen string unless OPENSESAME_ALLOW_NONLOCAL=1. Compose does not set that override."
+      }
+    ],
+    "blockers": [
+      "Docker is not installed and this audit must not start compose. The short syntax \"4222:4222\" does not name a host IP, and the repository does not pin a Docker Engine or Compose version. Whether that publish binds 0.0.0.0, localhost, or a daemon ip setting, and whether a firewall, rootless mode, or userland proxy restricts it, is not source-visible.",
+      "The nats:2.11.4 image and its entrypoint are not in this repository, and nats-server is not installed. The compose command supplies no config file and no authorization or listen flag. Whether that image accepts a client with no credentials, and where monitoring port 8222 binds inside the container, was not observed. ops/nats/local-dev.conf documents a different profile that this service does not load."
+    ],
+    "validation_plan": {
+      "local": "On an isolated host with Docker, no extra firewall, and no route to a shared or production network, render `docker compose -f ops/compose/docker-compose.yml config` and record the nats service's published host IP and port. Start only that service with `docker compose -f ops/compose/docker-compose.yml up -d nats`. Record `docker compose -f ops/compose/docker-compose.yml port nats 4222`. From a second network namespace, open TCP to the host's non-loopback address on the published port and read only the NATS INFO line. If and only if that line shows authentication is not required, on this fresh server only, publish and subscribe once with no credentials on the dummy subject opensesame.events.test, then remove the container. Do not start the other compose services and do not use an operator token or any real credential.",
+      "deployment": "On the host that actually runs this file, read only `docker compose -f ops/compose/docker-compose.yml port nats 4222` and the host socket's bind address. Record any firewall, rootless Docker, or published-port IP override that is not in the repository. If the broker might already hold operator data, do not publish, subscribe, or create streams; a non-compose peer may only read the NATS INFO banner to see whether authentication is required. Do not send credentials."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "packages/cli/startup-env-denylist-omits-ld-audit",
+    "title": "Shared startup denylist omits LD_AUDIT, so an env template loads an audit object in the credential-bearing child",
+    "description": "credentialStartupEnvKeys is the only startup-hook denylist for both the TypeScript opensesame-id helper and the Rust opensesame password agent. It reserves LD_PRELOAD and LD_LIBRARY_PATH and does not reserve glibc LD_AUDIT. An environment template is lower-trust input: the operator chooses the command, and the template is supposed to be rejected when it names an interpreter or dynamic-linker hook. validateRunTemplate, assertSafeRunName, and the Rust validate_run_template and validate_run_assignments consult only that list, so a literal LD_AUDIT assignment is accepted and passed through as op run --env-file. helperEnvironment and scrub_startup remove only listed names. On the TypeScript path the provider child is a node wrapper whose script deletes OP_SERVICE_ACCOUNT_TOKEN only after the dynamic linker has started the process. On the Rust path Env::Run forwards the same unrejected bytes, authenticate() may then place the service token on the op command, and internal_exec removes that token only when it starts the selected command. A glibc parent that was itself started under LD_AUDIT is already running the library before either scrub; that inherited case is not a separate boundary. The boundary the denylist exists to enforce is introduction of the hook by the template. The same omitted key is not a second fingerprint. The name check also accepts an LD_AUDIT=op:// assignment, but the executed load used a literal path in the template.",
+    "root_cause": "spec/conformance/2password-policy.json credentialStartupEnvKeys omits LD_AUDIT, and both the TypeScript and Rust password-agent gates treat that shared list as the complete set of reserved startup hooks.",
+    "intended_behavior": "Interpreter and dynamic-linker startup hooks are reserved before credential-bearing helpers run. Inherited hooks are removed before authentication, and run assignments and environment templates cannot introduce them. The selected child receives ordinary resolved variables only after the provider service token is removed. ADR 0177 states this for both CLI adapters.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "packages/cli/src/parity-commands.ts",
+        "line": 165,
+        "scope": "runEnv",
+        "description": "env run reads the caller-supplied template and passes its text to the password-agent runFile path. The template is the lower-trust input; the child command is a separate argument."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/password-agent/env.ts",
+        "line": 128,
+        "scope": "runFile",
+        "description": "runFile calls validateRunTemplate and, on success, forwards the same contents to the host runEnvFile port. A literal LD_AUDIT assignment is not rejected."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/app-core/src/lib/password-agent/startup-env.ts",
+        "line": 30,
+        "scope": "validateRunTemplate",
+        "description": "Each parsed assignment name is passed to assertSafeRunName, which rejects only an uppercase match in credentialStartupEnvKeys. LD_AUDIT is accepted."
+      },
+      {
+        "kind": "propagation",
+        "file": "spec/conformance/2password-policy.json",
+        "line": 41,
+        "scope": "credentialStartupEnvKeys",
+        "description": "LD_PRELOAD is reserved in this array. The array also lists LD_LIBRARY_PATH and does not contain LD_AUDIT. The TypeScript policy import and the Rust include_str both compile this file."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/cli/src/parity-node.ts",
+        "line": 237,
+        "scope": "runEnvFileSnapshot",
+        "description": "The accepted template is written unchanged to an owner-only snapshot and supplied as op run --env-file. Nothing removes LD_AUDIT from those bytes."
+      },
+      {
+        "kind": "sink",
+        "file": "packages/cli/src/parity-node.ts",
+        "line": 163,
+        "scope": "runOpChild",
+        "description": "op is spawned with helperEnvironment, which still holds the service token and does not remove an unlisted LD_AUDIT. The provider applies the env file to the node wrapper. The wrapper script at line 151 deletes OP_SERVICE_ACCOUNT_TOKEN only after the dynamic linker has loaded LD_AUDIT."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "spec/conformance/2password-policy.json",
+        "line": 41,
+        "description": "The credentialStartupEnvKeys array includes LD_PRELOAD and LD_LIBRARY_PATH and has no LD_AUDIT entry. It contains 18 names and ends at DOTNET_STARTUP_HOOKS."
+      },
+      {
+        "file": "packages/app-core/src/lib/password-agent/policy.ts",
+        "line": 2,
+        "description": "The TypeScript password-agent policy is this JSON file, so the CLI helper and the app-core validators share the incomplete list."
+      },
+      {
+        "file": "packages/app-core/src/lib/password-agent/startup-env.ts",
+        "line": 6,
+        "description": "assertSafeRunName throws only when the uppercase name is a member of credentialStartupEnvKeys."
+      },
+      {
+        "file": "packages/cli/src/parity-node.ts",
+        "line": 207,
+        "description": "helperEnvironment deletes only names whose uppercase form is in credentialStartupEnvKeys. OP_SERVICE_ACCOUNT_TOKEN is not in that list and is kept."
+      },
+      {
+        "file": "packages/cli/src/parity-node.ts",
+        "line": 151,
+        "description": "The fixed node wrapper deletes OP_SERVICE_ACCOUNT_TOKEN in JavaScript after the process has started."
+      },
+      {
+        "file": "packages/app-core/src/lib/password-agent/auth.ts",
+        "line": 91,
+        "description": "authenticatedPort merges the service-account environment into runEnvFile before the snapshot is executed, which is how the wrapper receives the token."
+      },
+      {
+        "file": "packages/cli/src/fixtures/password-agent/op.cjs",
+        "line": 107,
+        "description": "The repository op run stand-in copies the parent environment, overlays every env-file KEY=value line, substitutes op:// values, and spawnSyncs the wrapper with that environment."
+      },
+      {
+        "file": "crates/connector-host/src/password_agent/policy.rs",
+        "line": 15,
+        "description": "The Rust policy is include_str of the same JSON, so the Rust password agent uses the same incomplete key list."
+      },
+      {
+        "file": "crates/connector-host/src/password_agent/env.rs",
+        "line": 21,
+        "description": "credential_startup_key matches a name only by eq_ignore_ascii_case against credential_startup_env_keys."
+      },
+      {
+        "file": "crates/connector-host/src/password_agent/env.rs",
+        "line": 74,
+        "description": "validate_run_template rejects an assignment only when credential_startup_key is true, so a literal LD_AUDIT line is kept."
+      },
+      {
+        "file": "apps/cli/src/password_agent/io.rs",
+        "line": 17,
+        "description": "scrub_startup env_removes each policy name and, in the following loop, only current names for which credential_startup_key is true. Unlisted LD_AUDIT is not removed."
+      },
+      {
+        "file": "apps/cli/src/password_agent/credential.rs",
+        "line": 168,
+        "description": "When the parent environment holds a service-account token, authenticate() copies it onto the helper command after startup scrubbing."
+      },
+      {
+        "file": "apps/cli/src/password_agent/consume.rs",
+        "line": 113,
+        "description": "This argument passes the unchanged template snapshot to op run --env-file. The snapshot is not filtered to drop LD_AUDIT."
+      },
+      {
+        "file": "apps/cli/src/password_agent/consume.rs",
+        "line": 73,
+        "description": "internal_exec removes OP_SERVICE_ACCOUNT_TOKEN from the selected command and does not remove LD_AUDIT. That removal runs only after internal-exec itself has started."
+      },
+      {
+        "file": "docs/adr/0177-password-workflow-surface-boundaries.md",
+        "line": 117,
+        "description": "Both CLI adapters are required to reserve interpreter startup variables before provider execution and to remove inherited startup hooks before authenticating."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "user_interaction",
+        "description": "The operator runs env run, or the Rust password-agent env run, on a template the attacker can influence. The child command is chosen separately from the template."
+      },
+      {
+        "kind": "data_state",
+        "description": "The template contains a literal LD_AUDIT assignment whose value is a path to an attacker-controlled glibc audit object, and a service-account token is present in the helper environment. The parent process is not itself started under LD_AUDIT."
+      },
+      {
+        "kind": "environmental_dependency",
+        "description": "The credential child is a dynamically linked ELF started by glibc, which loads LD_AUDIT and calls la_version before main. This was observed with Node v22.23.3 on Linux. macOS dyld and Windows do not honor LD_AUDIT; their listed equivalents are already denied."
+      },
+      {
+        "kind": "third_party_dependency",
+        "description": "The provider applies env-file assignments to the child and forwards the parent environment. That is what packages/cli/src/fixtures/password-agent/op.cjs does for op run, which is the provider stand-in used by this repository."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "An author of an environment template supplies a literal LD_AUDIT assignment naming a shared object they control, next to an ordinary op:// reference. The operator runs that template through the credential helper, which is supposed to reject startup hooks such as LD_PRELOAD and NODE_OPTIONS before the service token is exposed.",
+      "payloads": [
+        "API=op://vault/item/field",
+        "LD_AUDIT=/home/vscode/security-audit-skill/OpenSesame/run-1/agents/v15-packages-cli-startup-env-denylist-omits/scratch/auditlib.so",
+        "LD_PRELOAD=/home/vscode/security-audit-skill/OpenSesame/run-1/agents/v15-packages-cli-startup-env-denylist-omits/scratch/auditlib.so",
+        "NODE_OPTIONS=--require /tmp/x.cjs",
+        "OP_SERVICE_ACCOUNT_TOKEN=ops_canary"
+      ],
+      "instructions": [
+        "Build a local glibc shared object that exports la_version and whose constructor records only whether LD_AUDIT is set and whether OP_SERVICE_ACCOUNT_TOKEN equals the dummy value ops_canary.",
+        "Read credentialStartupEnvKeys from spec/conformance/2password-policy.json.",
+        "In the approved sandbox, call validateRunTemplate, assertSafeRunName, and helperEnvironment from the TypeScript password-agent sources on a template containing the op:// line and the literal LD_AUDIT line, and on the LD_PRELOAD and NODE_OPTIONS controls.",
+        "Copy packages/cli/src/fixtures/password-agent/op.cjs to an absolute PATH directory other than the process cwd, set PARITY_DB and PARITY_LOG, and call runEnvFileSnapshot with that template, options.env OP_SERVICE_ACCOUNT_TOKEN=ops_canary, and a child command of node -e process.exit(0). Do not start the parent with LD_AUDIT.",
+        "Separately, exec a dynamically linked ELF after removing the dummy token and every name that case-insensitively matches the policy list, which is the scrub_startup rule, and compare it with a preload-only run after the same removal and with an unsanitized LD_PRELOAD control.",
+        "Stop after the marker lines. Do not use a real service-account token or continue into the selected command."
+      ],
+      "observed_result": "The policy contained 18 keys, included LD_PRELOAD, and did not contain LD_AUDIT. validateRunTemplate accepted the LD_AUDIT template and rejected LD_PRELOAD and NODE_OPTIONS. assertSafeRunName accepted ld_audit. helperEnvironment kept LD_AUDIT and ops_canary and removed LD_PRELOAD and NODE_OPTIONS. The parent process did not have LD_AUDIT. runEnvFileSnapshot against the repository op fixture exited 0. The audit object recorded ctor saw_canary=1 has_ld_audit=1 and la_version in the node wrapper, then ctor saw_canary=0 has_ld_audit=1 and la_version in the grandchild after the wrapper deleted the token. A separate exec that removed only those 18 names and the dummy token kept LD_AUDIT, and that glibc child called la_version and its constructor. The same removal applied to LD_PRELOAD alone did not load the object. An unsanitized LD_PRELOAD control ran the constructor and did not call la_version. The reproduction called those TypeScript functions directly, with the dummy token supplied the way authenticatedPort attaches it. The Rust opensesame binary was not executed."
+    },
+    "remediation": {
+      "strategy": "Add LD_AUDIT to credentialStartupEnvKeys. The TypeScript validators and helperEnvironment and the Rust validators and scrub_startup all read this list, so one entry reserves the hook in templates, assignment names, and helper environments. The node wrapper cannot delete the service token before the dynamic linker runs, so the variable must be rejected and stripped before exec. Extend the existing startup-key regression, which already iterates the shared list, to require that LD_AUDIT is rejected in the same case variants as LD_PRELOAD and removed before authenticate() attaches a token.",
+      "code_changes": [
+        {
+          "file_name": "spec/conformance/2password-policy.json",
+          "fixed_code": "    \"LD_PRELOAD\",\n    \"LD_AUDIT\",\n    \"LD_LIBRARY_PATH\","
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "medium",
+        "reason": "The operator must run env run or the Rust password-agent env run on an attacker-influenced template that names a loadable glibc audit object. That is ordinary local or repository input on Linux, and it is the same class of input the existing NODE_OPTIONS and LD_PRELOAD denylist already treats as in scope. It is not a remote anonymous request."
+      },
+      "impact": {
+        "score": "high",
+        "reason": "The audit object runs inside the node wrapper while the dummy service-account token is still in the environment, and it runs again in the selected child after that token is deleted. Code in that position can disclose the service token and provider-injected variables and can execute as that process."
+      },
+      "overall_severity": "high"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The omission is a direct membership test over the shared JSON, and a sandboxed run of the cited TypeScript validators and runEnvFileSnapshot against the repository op fixture called la_version while the dummy token was still set. The Rust adapter's use of the same list, its unchanged env-file forwarding, and its post-start token removal were read from source; a glibc exec after removing only the listed names also called la_version. The Rust binary itself was not run."
+    }
+  },
+  {
+    "verdict": "confirmed",
+    "fingerprint": "runner.drive.getRun-origin-unbound",
+    "title": "In-flight runner keeps filling an origin after its arm expires when getRun names another armed origin",
+    "description": "driveRun opens the page and vault context for the run id and origin taken from listRuns, then before every later claim applies skipReason to whatever getRun returns. getAgentRun returns a decoded body without requiring its id or origin to be the requested run, while claim, settle, and fill keep using the opened run. skipReason therefore applies the arm, grant, and credential checks to the body origin, and fill_credential still resolves the opened origin's password. Options-page Stop calls service.disarm, which also revokes the browser grant, so that path is outside this window. Arm expiry is inside it: isArmed is false once expiresAt passes, but lapse revokes the grant only at the start of a tick, and a tick started while driveRun is in progress is the same pass. A getRun body whose origin is another still-ready origin keeps skipReason successful, so this pass does not return and the opened origin's password is written while its grant is still held. After the pass returns, the next tick's lapse does revoke that grant. The checked-in gateway copies stored target_origin, and no update in this repository rewrites that column, so an unmodified gateway does not flip the field. The failing input is a non-conforming response from the loopback Host the extension is already calling.",
+    "root_cause": "The fresh Host view is not bound to the run id and origin the page was opened for. getAgentRun returns the decoded body id and origin without comparing them to the requested id, and driveRun uses that body only for skipReason while the vault context, claim, and settle keep the original run.",
+    "intended_behavior": "A claim is authorized only for the same run id and origin whose page was opened. When that origin is no longer armed, the runner claims nothing further and does not write that origin's credential.",
+    "trace": [
+      {
+        "kind": "entrypoint",
+        "file": "apps/browser-extension/runner/host.ts",
+        "line": 70,
+        "scope": "hostConnection",
+        "description": "getRun forwards getAgentRun's decoded Host body for the opened run id into the runner and does not compare that body to the requested id or to the origin already being driven."
+      },
+      {
+        "kind": "propagation",
+        "file": "packages/api-client/src/agent-runs.ts",
+        "line": 161,
+        "scope": "getAgentRun",
+        "description": "The decoded view is returned whenever it is shaped like a run. Its id and origin are the body fields, not the id in the request path."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/browser-extension/runner/drive.ts",
+        "line": 133,
+        "scope": "driveRun",
+        "description": "skipReason is applied to that fresh view before every claim. The DriverDeps created at open still name the original run id, origin, tab, and vault context."
+      },
+      {
+        "kind": "propagation",
+        "file": "apps/browser-extension/runner/readiness.ts",
+        "line": 22,
+        "scope": "skipReason",
+        "description": "The arm, browser grant, and credential checks use current.origin from the Host body. They do not use the origin stored on the open page."
+      },
+      {
+        "kind": "sink",
+        "file": "apps/browser-extension/runner/driver.ts",
+        "line": 72,
+        "scope": "fill",
+        "description": "fill_credential resolves current_password for the opened context origin and pages.fill writes that value into the page that was opened for it."
+      }
+    ],
+    "evidence": [
+      {
+        "file": "apps/browser-extension/runner/drive.ts",
+        "line": 105,
+        "description": "The execution context fixes run.id and run.origin when the page is opened and is not updated from later Host views."
+      },
+      {
+        "file": "apps/browser-extension/runner/drive.ts",
+        "line": 142,
+        "description": "After skipReason passes, claim is issued for the opened run id, not for the id in the fresh view."
+      },
+      {
+        "file": "apps/browser-extension/runner/drive.ts",
+        "line": 149,
+        "description": "answer executes the claimed step with the DriverDeps and the AgentRunView captured at open, not with the fresh Host view. settle then uses that same opened run id."
+      },
+      {
+        "file": "packages/api-client/src/agent-run-wire.ts",
+        "line": 47,
+        "description": "decodeAgentRun copies id and origin from the JSON object and does not know which run was requested."
+      },
+      {
+        "file": "packages/api-client/src/agent-run-wire.ts",
+        "line": 142,
+        "description": "decodeClaim rejects a body whose run_id is not the requested run id. getAgentRun has no equivalent bind, so only the authorization view can name a different run."
+      },
+      {
+        "file": "apps/browser-extension/runner/loop.ts",
+        "line": 85,
+        "description": "Expired arms are disarmed and their grants revoked only in lapse, which runTick calls before driveRun and not again until that pass finishes."
+      },
+      {
+        "file": "apps/browser-extension/runner/loop.ts",
+        "line": 116,
+        "description": "tick shares one in-flight pass, so a later alarm cannot enter lapse while driveRun is still claiming steps."
+      },
+      {
+        "file": "apps/browser-extension/runner/settings.ts",
+        "line": 76,
+        "description": "armed() omits a row once expiresAt is no longer in the future, so isArmed becomes false without deleting the row or revoking the grant."
+      },
+      {
+        "file": "apps/browser-extension/runner/service.ts",
+        "line": 109,
+        "description": "service.disarm, which the options-page Stop message calls, removes the arm and revokes the grant together. The expiry window inside driveRun does not take that path."
+      },
+      {
+        "file": "apps/browser-extension/runner/browser.ts",
+        "line": 70,
+        "description": "The production page port passes the fill value to the injected pfFill. It does not consult the fresh Host origin; the tab origin was fixed when the page was opened."
+      },
+      {
+        "file": "apps/browser-extension/runner/page-fns.ts",
+        "line": 103,
+        "description": "pfFill writes the value it was given into the matched field. That value is the opened origin's credential, not a credential for the origin named by the later getRun body."
+      },
+      {
+        "file": "crates/gateway/src/routes/agent_runs.rs",
+        "line": 148,
+        "description": "The gateway run view sets origin from the stored target_origin of the row loaded by the path id."
+      },
+      {
+        "file": "crates/storage/src/observation.rs",
+        "line": 397,
+        "description": "Control updates rewrite control state, quiescence, handoff, and lease fields, not target_origin. The column is written at insert and is not reassigned by any update in this repository."
+      }
+    ],
+    "conditions": [
+      {
+        "kind": "authentication_level",
+        "description": "The extension already holds a Host session and has opened a drive for origin A from listRuns while A was armed, granted, and credentialed."
+      },
+      {
+        "kind": "authorization_role",
+        "description": "Some other origin B remains armed, browser-granted, and present in the vault, and a recovery recipient and private-window permission are still set, so a view naming B passes skipReason."
+      },
+      {
+        "kind": "data_state",
+        "description": "A's arm expires during driveRun, so isArmed(A) is false while lapse has not run again and A's host permission is still held. An options-page Stop revokes the grant immediately and is outside this window. After this pass returns, the next tick's lapse revokes the grant."
+      },
+      {
+        "kind": "system_configuration",
+        "description": "The loopback Host the extension is calling returns a getRun body whose origin is not the opened run, with expires_at still ahead of the runner clock. The in-repo gateway serializes the stored target_origin for the path id and does not update that column."
+      }
+    ],
+    "execution": {
+      "attacker_perspective": "A process that can answer as the loopback Host the runner is already calling returns, after the page is open, a run view for a different id and for origin B while the page and vault context remain origin A, and A's arm expires during that pass.",
+      "payloads": [
+        "{\"id\":\"run:other\",\"origin\":\"https://other.example\",\"control_state\":\"agent_driving\",\"quiescence\":\"quiescent\",\"driver\":\"agent\",\"closed_at\":null,\"expires_at\":\"2026-10-08T12:00:00.000Z\",\"next_seq\":0}"
+      ],
+      "instructions": [
+        "Arm https://rp.example for a short TTL and https://other.example for longer, grant both, store a distinct credential for each, pin a recovery recipient, and allow a private window.",
+        "List one agent-driving run whose id is run:1 and whose origin is https://rp.example, with expires_at still ahead of the runner clock, and queue navigate to that origin, fill_credential of current_password, and submit.",
+        "On the first getRun, return that same run. On later getRun calls, move only the settings clock past https://rp.example's expiresAt, leave its browser grant in place, and return the payload above.",
+        "Repeat with getRun still returning id run:1 and origin https://rp.example after the same clock advance."
+      ],
+      "observed_result": "With the swapped body, the runner opened run:1 on https://rp.example, claimed only run:1, and settled navigate, fill_credential, and submit. The fill port received https://rp.example's vault password and not https://other.example's, while isArmed(https://rp.example) was false, https://other.example stayed armed, and the grant for https://rp.example was still held. A second tick() during that pass was the same promise. With the origin left unchanged, the runner settled only navigate, skipped run:1 as not_armed, and did not fill or submit. In both cases a later tick then revoked the https://rp.example grant."
+    },
+    "remediation": {
+      "strategy": "Before skipReason, reject a fresh view whose id or origin differs from the run the page was opened for, and do not claim. The arm check then stays on that same origin, so expiry makes driveRun return and the next tick can lapse the grant. Also reject a getAgentRun body whose id is not the requested id. Add a regression that expires only the opened origin and swaps the getRun origin after the first step, expecting no further claim, and keep the case where an unchanged origin stops with not_armed.",
+      "code_changes": [
+        {
+          "file_name": "apps/browser-extension/runner/drive.ts",
+          "fixed_code": "const current = await link.host.getRun(run.id);\nif (current.id !== run.id || current.origin !== run.origin) {\n  report.skipped.push({ runId: run.id, reason: \"origin_refused\" });\n  return;\n}\nconst reason = await skipReason(env.deps, current, env.now());"
+        },
+        {
+          "file_name": "packages/api-client/src/agent-runs.ts",
+          "fixed_code": "const run = decodeAgentRun(await jsonBody(\"agent_run\", res));\nif (!run || run.id !== id) {\n  throw new RunnerApiError(\"agent_run\", res.status, \"unexpected_response\");\n}\nreturn run;"
+        }
+      ]
+    },
+    "severity": {
+      "likelihood": {
+        "score": "low",
+        "reason": "The host base is loopback-pinned, and the in-repo gateway returns the stored target_origin for the path id without any update of that column. A drive also cannot start for an origin that fails skipReason on listRuns. The extension has to be talking to a Host that misreports a later getRun, some other origin must still pass skipReason, and the opened origin's arm must expire during that in-flight pass. A normal Stop click revokes the grant and is not this window."
+      },
+      "impact": {
+        "score": "medium",
+        "reason": "After the opened origin is no longer armed, the runner still writes that origin's current password into the page it already opened and can submit it, and this pass does not revoke the host permission. The password is not returned to the Host or taken from the other origin. The grant is revoked on the next tick once the pass returns, including when the step queue goes idle."
+      },
+      "overall_severity": "low"
+    },
+    "confidence": {
+      "score": "high",
+      "reason": "The repository runner, readiness, settings, vault, and driver code was executed both with a swapped getRun body and with the origin unchanged, using an arm clock moved past expiresAt rather than settings.disarm. The swapped body filled and submitted the opened origin's password; the unchanged origin stopped with not_armed and did not fill. Tick coalescing and grant revocation on the following tick were observed. Gateway serialization of target_origin was read from source."
+    }
+  }
+]
