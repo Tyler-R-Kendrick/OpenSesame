@@ -4,13 +4,14 @@
 use crate::password_wrap::{unwrap_vrk_with_password, wrap_vrk_with_password};
 use crate::VaultRootKey;
 
-use super::auth::{seal_manifest_auth, verify_manifest_auth};
+use super::auth::verify_manifest_auth;
 use super::error::ProtectionError;
 use super::key_file::{
     list_protector_summaries, load_key_file, password_wrapper_from_manifest, write_key_file,
     KeyFileContents,
 };
 use super::limits::MANIFEST_SCHEMA_VERSION;
+use super::native_factor_configuration::{assert_present_binding, seal_for_native_producer};
 use super::recovery::{
     fingerprint_recovery_key, generate_recovery_key, unwrap_vrk_with_recovery_key,
     wrap_vrk_with_recovery_key,
@@ -36,6 +37,7 @@ pub fn ensure_versioned_manifest(
             let wrapper = password_wrapper_from_manifest(&manifest)?;
             let vrk = unwrap_vrk_with_password(password, wrapper)?;
             verify_manifest_auth(&vrk, &manifest)?;
+            assert_present_binding(&manifest)?;
             Ok((vrk, manifest))
         }
         KeyFileContents::Legacy(wrapper) => {
@@ -63,7 +65,7 @@ pub fn ensure_versioned_manifest(
             {
                 manifest.preferred_protector_id = Some(protector_id.clone());
             }
-            seal_manifest_auth(&vrk, &mut manifest)?;
+            seal_for_native_producer(&vrk, &mut manifest)?;
             Ok((vrk, manifest))
         }
     }
@@ -124,8 +126,11 @@ pub fn protect_rewrap_password(
     if !replaced {
         return Err(ProtectionError::ProtectorNotFound);
     }
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&vrk, &mut manifest)?;
+    manifest.revision = manifest
+        .revision
+        .checked_add(1)
+        .ok_or(ProtectionError::ContextMismatch)?;
+    seal_for_native_producer(&vrk, &mut manifest)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest))?;
     Ok(())
 }
@@ -152,8 +157,11 @@ pub fn protect_add_recovery(
         proof_status: ProofStatus::Verified,
         last_evidence: None,
     });
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&vrk, &mut manifest)?;
+    manifest.revision = manifest
+        .revision
+        .checked_add(1)
+        .ok_or(ProtectionError::ContextMismatch)?;
+    seal_for_native_producer(&vrk, &mut manifest)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest))?;
     Ok((recovery, fingerprint))
 }
@@ -175,8 +183,11 @@ pub fn protect_remove(
     let contents = load_key_file(root)?;
     let (vrk, mut manifest) = ensure_versioned_manifest(password, contents)?;
     remove_record(&mut manifest, protector_id)?;
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&vrk, &mut manifest)?;
+    manifest.revision = manifest
+        .revision
+        .checked_add(1)
+        .ok_or(ProtectionError::ContextMismatch)?;
+    seal_for_native_producer(&vrk, &mut manifest)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest))?;
     Ok(())
 }
@@ -245,6 +256,7 @@ pub fn protect_test_recovery(
             }
             let vrk = unwrap_vrk_with_recovery_key(recovery_key, wrap)?;
             verify_manifest_auth(&vrk, &manifest)?;
+            assert_present_binding(&manifest)?;
             return Ok(());
         }
     }
@@ -272,8 +284,11 @@ pub fn protect_add_age_recipient(
         proof_status: ProofStatus::Untested,
         last_evidence: None,
     });
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&vrk, &mut manifest)?;
+    manifest.revision = manifest
+        .revision
+        .checked_add(1)
+        .ok_or(ProtectionError::ContextMismatch)?;
+    seal_for_native_producer(&vrk, &mut manifest)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest))?;
     Ok(protector_id)
 }

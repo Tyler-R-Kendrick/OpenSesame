@@ -124,7 +124,7 @@ mod tests {
     use opensesame_human_vault::{wrap_vrk_with_password, ItemDataKey, VaultRootKey};
 
     use crate::entry::Entry;
-    use crate::store::{init_store, unlock_store_key};
+    use crate::store::{init_store, init_store_key, unlock_store_key};
 
     #[test]
     fn legacy_opensesame_key_still_opens_osseal_kp03() {
@@ -146,5 +146,48 @@ mod tests {
         .unwrap();
         let unlocked = unlock_store_key(dir.path(), b"correct horse").unwrap();
         assert_eq!(root.show("x", &unlocked).unwrap().secret, "v");
+    }
+
+    #[test]
+    fn genuine_age_enrollment_refreshes_native_binding_and_its_capsule_opens_the_real_root() {
+        use age::secrecy::ExposeSecret;
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        use opensesame_human_vault::root_protection::{
+            assert_native_factor_configuration, load_key_file, verify_manifest_auth,
+            ProtectionRecord,
+        };
+
+        let dir = tempfile::tempdir().unwrap();
+        init_store(dir.path(), &[]).unwrap();
+        let password = b"actual native age binding producer";
+        let key = init_store_key(dir.path(), password).unwrap();
+        let KeyFileContents::Manifest(before) = load_key_file(dir.path()).unwrap() else {
+            panic!("versioned native age fixture");
+        };
+        assert_native_factor_configuration(&before).unwrap();
+        let identity = age::x25519::Identity::generate();
+        let recipient = identity.to_public().to_string();
+        super::protect_add_store_age_recipient(dir.path(), password, &[recipient]).unwrap();
+        let KeyFileContents::Manifest(after) = load_key_file(dir.path()).unwrap() else {
+            panic!("versioned native age fixture");
+        };
+        assert_native_factor_configuration(&after).unwrap();
+        assert_ne!(before.factor_configuration, after.factor_configuration);
+        verify_manifest_auth(&VaultRootKey(key.0), &after).unwrap();
+        let capsule = after
+            .records
+            .iter()
+            .find_map(|record| match record {
+                ProtectionRecord::AgeRecipient {
+                    capsule_age_b64, ..
+                } => Some(capsule_age_b64),
+                _ => None,
+            })
+            .unwrap();
+        let sealed = STANDARD.decode(capsule).unwrap();
+        let actual =
+            crate::age_fmt::decrypt_age(&sealed, identity.to_string().expose_secret()).unwrap();
+        assert_eq!(actual, key.0);
+        assert_eq!(unlock_store_key(dir.path(), password).unwrap().0, key.0);
     }
 }
