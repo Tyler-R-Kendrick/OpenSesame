@@ -4,6 +4,7 @@ import {
   approvePendingShare,
   denyPendingShare,
   listPendingShares,
+  type PendingShare,
   submitLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
