@@ -1,5 +1,5 @@
 /**
- * deepsec agent backend: Cursor Agent CLI with grok-4.7 (Cursor subscription).
+ * deepsec agent backend: Cursor Agent CLI with Composer (Cursor subscription).
  * Registers `--agent cursor` when `cursor-agent` is on PATH and authenticated.
  *
  * Does not use XAI_API_KEY, AI Gateway, or other pay-per-token routes.
@@ -10,7 +10,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { DeepsecPlugin } from "deepsec/config";
 import {
-  DEFAULT_GROK_MODEL,
+  DEFAULT_CURSOR_MODEL,
   type RunPromptParams,
   createHeadlessDeepsecAgent,
   extractTextFromAgentStdout,
@@ -121,7 +121,7 @@ function runCursorPrompt(params: RunPromptParams): Promise<string> {
 const CursorAgent = createHeadlessDeepsecAgent({
   type: "cursor",
   providerLabel: "Cursor Agent",
-  defaultModel: DEFAULT_GROK_MODEL,
+  defaultModel: DEFAULT_CURSOR_MODEL,
   runPrompt: runCursorPrompt,
 });
 

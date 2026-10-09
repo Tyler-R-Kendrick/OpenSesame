@@ -10,6 +10,8 @@ export const JSON_ONLY_SUFFIX =
 
 export const DEFAULT_GROK_MODEL = "grok-4.7";
 export const DEFAULT_KIMI_MODEL = "kimi-code/k3";
+/** Cursor Agent CLI (`agent` / `cursor-agent`), subscription — not AI Gateway. */
+export const DEFAULT_CURSOR_MODEL = "composer-2.5";
 export const MAX_ATTEMPTS = 3;
 
 export type FileRecord = {

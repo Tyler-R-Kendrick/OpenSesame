@@ -52,6 +52,7 @@ const meta = {
   queueLength: queue.total,
   falsePositiveCount: queue.falsePositives?.length ?? 0,
   investigateWave2: wave,
+  investigateWave2ByAgentModel: wave.byAgentModel ?? {},
 };
 
 fs.writeFileSync(
@@ -102,7 +103,22 @@ Native CLI (\`apps/cli/\`) uses the Rust \`opensesame\` binary; regex matchers o
 
 ${
   wave.filesComplete < wave.filesTracked
-    ? `> **Investigate wave ${wave.marker} in progress:** ${wave.filesComplete}/${wave.filesTracked} files re-investigated with the fixed Kimi JSON schema. Severity/verdict/triage counts below reflect **persisted findings only**; most files still show empty \`findings[]\` from the earlier unparsed wave until wave ${wave.marker} finishes (\`scripts/audit/deepsec-grok-reinvestigate-wave.sh\`).\n`
+    ? `> **Investigate wave ${wave.marker} in progress:** ${wave.filesComplete}/${wave.filesTracked} files re-investigated (Kimi K3 when quota allows; Cursor \`composer-2.5\` via \`cursor-agent\` when Kimi is limited). Severity/verdict/triage counts below reflect **persisted findings only** until wave ${wave.marker} finishes (\`scripts/audit/deepsec-grok-reinvestigate-wave.sh\`).\n`
+    : ""
+}
+
+${
+  wave.byAgentModel && Object.keys(wave.byAgentModel).length > 0
+    ? `## Wave ${wave.marker} coverage by agent/model
+
+| Agent / model | Files completed |
+| --- | ---: |
+${Object.entries(wave.byAgentModel)
+  .sort((a, b) => b[1] - a[1])
+  .map(([k, v]) => `| \`${k}\` | ${v} |`)
+  .join("\n")}
+
+`
     : ""
 }
 

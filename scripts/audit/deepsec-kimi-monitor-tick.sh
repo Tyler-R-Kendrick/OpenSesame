@@ -11,8 +11,19 @@ if ! pgrep -f deepsec-kimi-quota-watch.sh >/dev/null; then
   echo "restarted quota-watch" >>"$LOG"
 fi
 (cd "$WS" && "$DEEPSEC" status --project-id opensesame) >>"$LOG" 2>&1 || true
-if timeout 60 kimi -p 'reply ok' 2>&1 | grep -qiE '5-hour usage limit|403'; then
+if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" >>"$LOG" 2>&1; then
   echo "kimi: quota limited" >>"$LOG"
+  if pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null; then
+    pkill -f 'deepsec/dist/cli.mjs process.*--agent kimi' || true
+    echo "stopped kimi deepsec process (quota)" >>"$LOG"
+  fi
+  if "${ROOT}/scripts/audit/deepsec-cursor-auth-probe.sh" >>"$LOG" 2>&1; then
+    echo "cursor: composer available — starting wave2" >>"$LOG"
+    if ! pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null \
+      && ! pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null; then
+      nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
+    fi
+  fi
 else
   echo "kimi: ok" >>"$LOG"
   errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
@@ -38,7 +49,13 @@ if [[ "$errs" -le 25 ]] && ! pgrep -f deepsec-kimi-error-loop.sh >/dev/null; the
   fi
 fi
 if ! pgrep -f deepsec-grok-reinvestigate-wave.sh >/dev/null \
+  && ! pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null \
   && ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
-  echo "wave2 incomplete — starting reinvestigate $(date -u +%H:%M:%SZ)" >>"$LOG"
-  nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
+  if "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" \
+    || "${ROOT}/scripts/audit/deepsec-cursor-auth-probe.sh"; then
+    echo "wave2 incomplete — starting reinvestigate $(date -u +%H:%M:%SZ)" >>"$LOG"
+    nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
+  else
+    echo "wave2 incomplete — no agent available (sleeping)" >>"$LOG"
+  fi
 fi

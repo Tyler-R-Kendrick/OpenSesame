@@ -1,5 +1,6 @@
 import { defineConfig } from "deepsec/config";
 import { generatedMatchersPlugin } from "./generated-matchers.js";
+import { cursorAgentPlugin } from "./cursor-agent-plugin.js";
 import { grokAgentPlugin } from "./grok-agent-plugin.js";
 import { kimiAgentPlugin } from "./kimi-agent-plugin.js";
 
@@ -42,5 +43,5 @@ export default defineConfig({
         "auth/session handling, crypto and at-rest storage, and CLI paths that could print secrets to logs.",
     },
   ],
-  plugins: [generatedMatchersPlugin, kimiAgentPlugin, grokAgentPlugin],
+  plugins: [generatedMatchersPlugin, kimiAgentPlugin, grokAgentPlugin, cursorAgentPlugin],
 });

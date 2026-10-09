@@ -13,11 +13,8 @@ unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 
 exec >>"$LOG" 2>&1
 echo "=== reinvestigate wave $WAVE start $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-node "${ROOT}/scripts/audit/deepsec-ingest-native-cli.mjs" "$ROOT" || true
-cd "$WS"
-"$DEEPSEC" process --project-id opensesame \
-  --agent kimi --model kimi-code/k3 \
-  --thinking-level "$DEEPSEC_THINKING" \
-  --concurrency "$DEEPSEC_CONCURRENCY" \
-  --reinvestigate "$WAVE"
+if ! DEEPSEC_REINVESTIGATE_WAVE="$WAVE" "${ROOT}/scripts/audit/deepsec-wave2-process.sh"; then
+  echo "=== reinvestigate wave $WAVE paused (no agent) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+  exit 0
+fi
 echo "=== reinvestigate wave $WAVE done $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="

@@ -134,18 +134,22 @@ rows.sort((a, b) => {
 });
 
 let investigateWave2Complete = 0;
+const investigateWave2ByAgentModel = {};
 for (const fp of walk(filesRoot)) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
   const hist = rec.analysisHistory ?? [];
-  if (
-    hist.some(
-      (h) =>
-        h.reinvestigateMarker === 2 &&
-        h.phase !== "revalidate" &&
-        ((h.usage?.outputTokens ?? 0) > 0 || h.phase === "process"),
-    )
-  ) {
+  const wave2 = hist.filter(
+    (h) =>
+      h.reinvestigateMarker === 2 &&
+      h.phase !== "revalidate" &&
+      ((h.usage?.outputTokens ?? 0) > 0 || h.phase === "process"),
+  );
+  if (wave2.length > 0) {
     investigateWave2Complete += 1;
+    const last = wave2[wave2.length - 1];
+    const key = `${last.agentType ?? "unknown"}/${last.model ?? "unknown"}`;
+    investigateWave2ByAgentModel[key] =
+      (investigateWave2ByAgentModel[key] ?? 0) + 1;
   }
 }
 
@@ -159,6 +163,7 @@ console.log(
         marker: 2,
         filesComplete: investigateWave2Complete,
         filesTracked: walk(filesRoot).length,
+        byAgentModel: investigateWave2ByAgentModel,
       },
     },
     null,

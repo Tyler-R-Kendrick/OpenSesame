@@ -5,6 +5,7 @@
 export { extractTextFromAgentStdout } from "./deepsec-agent-stdout.js";
 export {
   DEEPSEC_SYSTEM_NOTE,
+  DEFAULT_CURSOR_MODEL,
   DEFAULT_GROK_MODEL,
   DEFAULT_KIMI_MODEL,
   JSON_ONLY_SUFFIX,
