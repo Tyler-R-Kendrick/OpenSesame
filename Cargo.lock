@@ -4143,6 +4143,7 @@ dependencies = [
  "hkdf",
  "hmac 0.12.1",
  "insta",
+ "libc",
  "opensesame-domain",
  "pbkdf2 0.12.2",
  "proptest",
