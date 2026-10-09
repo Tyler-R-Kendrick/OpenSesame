@@ -36,7 +36,11 @@ const sourceExt = /\.(tsx?|mts|cts|jsx?|mjs|cjs)$/;
 
 function walk(dir, out = []) {
   for (const name of readdirSync(dir)) {
-    if (name === "node_modules" || name === "dist" || name.startsWith("dist-")) {
+    if (
+      name === "node_modules" ||
+      name === "dist" ||
+      name.startsWith("dist-")
+    ) {
       continue;
     }
     const path = join(dir, name);
@@ -49,7 +53,9 @@ function walk(dir, out = []) {
 
 describe("pages stays backend-free", () => {
   it("package.json does not depend on Host/Identity/daemon packages", () => {
-    const pkg = JSON.parse(readFileSync(join(pagesRoot, "package.json"), "utf8"));
+    const pkg = JSON.parse(
+      readFileSync(join(pagesRoot, "package.json"), "utf8"),
+    );
     const deps = {
       ...pkg.dependencies,
       ...pkg.devDependencies,
