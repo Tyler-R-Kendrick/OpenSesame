@@ -11,10 +11,11 @@ use windows_sys::Win32::{
     Foundation::{HANDLE, INVALID_HANDLE_VALUE},
     Storage::FileSystem::{
         CreateFileW, GetDriveTypeW, GetFileInformationByHandle, GetFileType,
-        GetFinalPathNameByHandleW, GetVolumeInformationByHandleW, BY_HANDLE_FILE_INFORMATION,
-        FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS,
-        FILE_FLAG_OPEN_REPARSE_POINT, FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_SHARE_READ,
-        FILE_SHARE_WRITE, FILE_TYPE_DISK, OPEN_EXISTING, READ_CONTROL,
+        GetFinalPathNameByHandleW, GetShortPathNameW, GetVolumeInformationByHandleW,
+        BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT,
+        FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT, FILE_LIST_DIRECTORY,
+        FILE_READ_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE, FILE_TYPE_DISK, OPEN_EXISTING,
+        READ_CONTROL,
     },
     System::{SystemServices::FILE_PERSISTENT_ACLS, WindowsProgramming::DRIVE_FIXED},
 };
@@ -147,10 +148,35 @@ pub(super) fn child_relation(parent: &File, child: &File, name: &str) -> io::Res
     let parent = final_path(parent)?;
     let child = final_path(child)?;
     let (directory, leaf) = child.rsplit_once('\\').ok_or_else(refused)?;
-    if directory != parent.trim_end_matches('\\') || leaf != name {
+    if directory != parent.trim_end_matches('\\') {
+        return Err(refused());
+    }
+    if leaf.eq_ignore_ascii_case(name) {
+        return Ok(());
+    }
+    // Every parent and this exact child are already held without delete sharing.
+    // Only the kernel-reported short name of this same selected node can match.
+    let short = short_path(&child)?;
+    let (_, short_leaf) = short.rsplit_once('\\').ok_or_else(refused)?;
+    if !short_leaf.eq_ignore_ascii_case(name) {
         return Err(refused());
     }
     Ok(())
+}
+
+pub(super) fn short_path(path: &str) -> io::Result<String> {
+    let path = wide(Path::new(path))?;
+    let mut buffer = vec![0u16; 32768];
+    // SAFETY: retained terminated actual handle path and bounded output stay live.
+    let length = unsafe { GetShortPathNameW(path.as_ptr(), buffer.as_mut_ptr(), 32768) };
+    if length == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let length = usize::try_from(length).map_err(|_| refused())?;
+    if length >= buffer.len() {
+        return Err(refused());
+    }
+    String::from_utf16(&buffer[..length]).map_err(|_| refused())
 }
 pub(super) fn local_ntfs(root: &File, drive: &Path) -> io::Result<()> {
     let drive = wide(drive)?;
@@ -185,4 +211,10 @@ pub(super) fn local_ntfs(root: &File, drive: &Path) -> io::Result<()> {
         return Err(refused());
     }
     Ok(())
+}
+
+impl Identity {
+    pub(super) fn resource_binding(self) -> String {
+        format!("windows:{}:{}:{}", self.0, self.1, self.2)
+    }
 }
