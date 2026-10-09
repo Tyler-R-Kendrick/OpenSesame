@@ -247,7 +247,7 @@ function NotificationsBarDefault({
   );
 }
 
-function StatusNoticeCard({
+export function StatusNoticeCard({
   notice,
   onOpen,
 }: { notice: Notice; onOpen: () => void }) {
