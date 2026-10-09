@@ -8,7 +8,7 @@ use serde_json::Value;
 use crate::password_wrap::{unwrap_vrk_with_password, wrap_vrk_with_password, PasswordWrapper};
 use crate::{ItemDataKey, VaultRootKey};
 
-use super::auth::{seal_manifest_auth, verify_manifest_auth};
+use super::auth::verify_manifest_auth;
 use super::error::ProtectionError;
 use super::legacy::{
     looks_like_legacy_password_wrapper, parse_legacy_password_wrapper,
@@ -18,6 +18,7 @@ use super::limits::{
     KEY_FILE_NAME, MANIFEST_SCHEMA_VERSION, MAX_MANIFEST_ENCODED_BYTES, MAX_PROTECTION_RECORDS,
     MAX_RECORD_ENCODED_BYTES,
 };
+use super::native_factor_configuration::{assert_present_binding, seal_for_native_producer};
 use super::types::{
     ProofStatus, ProtectionPurpose, ProtectionRecord, ProtectorSummary, RootProtectionManifest,
 };
@@ -59,8 +60,7 @@ pub fn parse_key_file_json(json: &str) -> Result<KeyFileContents, ProtectionErro
             json,
         )?));
     }
-    let manifest: RootProtectionManifest = serde_json::from_str(json)
-        .map_err(|e| ProtectionError::MalformedEncoding(format!("manifest: {e}")))?;
+    let manifest = super::parse::parse_root_protection_manifest(json)?;
     validate_manifest_bounds(&manifest)?;
     Ok(KeyFileContents::Manifest(manifest))
 }
@@ -171,7 +171,7 @@ pub fn init_versioned_key_file(
         auth_b64: None,
         factor_configuration: None,
     };
-    seal_manifest_auth(&vrk, &mut manifest)?;
+    seal_for_native_producer(&vrk, &mut manifest)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest.clone()))?;
     Ok((ItemDataKey(vrk.0), manifest))
 }
@@ -197,6 +197,7 @@ pub fn unlock_key_file_with_password(
             let wrapper = password_wrapper_from_manifest(manifest)?;
             let vrk = unwrap_vrk_with_password(password, wrapper)?;
             verify_manifest_auth(&vrk, manifest)?;
+            assert_present_binding(manifest)?;
             vrk
         }
     };

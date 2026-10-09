@@ -16,9 +16,11 @@ fn genuine_native_password_root_mac_retains_the_optional_binding() {
     let (_, mut manifest) = init_versioned_key_file(dir.path(), b"binding-native-owner").unwrap();
     let (_, _, root) = unlock_key_file_with_password(dir.path(), b"binding-native-owner").unwrap();
     verify_manifest_auth(&root, &manifest).unwrap();
-    assert!(manifest.factor_configuration.is_none());
-    // Fixture-only opaque metadata signing, not publication or factor enrollment.
-    manifest.factor_configuration = Some(binding());
+    assert_eq!(
+        manifest.factor_configuration,
+        Some(super::prepare_native_factor_configuration(&manifest).unwrap())
+    );
+    // Actual native producer metadata is covered by this real root MAC; no owner permit results.
     seal_manifest_auth(&root, &mut manifest).unwrap();
     let raw = encode_key_file(&KeyFileContents::Manifest(manifest.clone())).unwrap();
     let parsed = parse_root_protection_manifest(&raw).unwrap();

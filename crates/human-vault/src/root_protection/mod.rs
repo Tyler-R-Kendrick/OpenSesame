@@ -58,3 +58,6 @@ pub use types::{
     AuthenticatedLegacyGates, ProofStatus, ProtectionPurpose, ProtectionRecord, ProtectorSummary,
     RootProtectionManifest, VerificationEvidence,
 };
+
+#[cfg(test)]
+mod native_factor_producer_tests;

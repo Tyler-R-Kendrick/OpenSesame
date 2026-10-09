@@ -92,3 +92,21 @@ pub fn assert_native_factor_configuration(
 #[cfg(test)]
 #[path = "native_factor_configuration_tests.rs"]
 mod tests;
+
+// Actual native producer only: configuration MAC emission, never an owner-permit factory.
+pub(super) fn seal_for_native_producer(
+    root: &crate::VaultRootKey,
+    manifest: &mut RootProtectionManifest,
+) -> Result<(), ProtectionError> {
+    manifest.factor_configuration = Some(prepare_native_factor_configuration(manifest)?);
+    super::auth::seal_manifest_auth(root, manifest)
+}
+
+pub(super) fn assert_present_binding(
+    manifest: &RootProtectionManifest,
+) -> Result<(), ProtectionError> {
+    if manifest.factor_configuration.is_some() {
+        assert_native_factor_configuration(manifest)?;
+    }
+    Ok(())
+}
