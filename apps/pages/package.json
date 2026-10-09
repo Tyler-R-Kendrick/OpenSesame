@@ -15,6 +15,7 @@
     "test:relay": "node --test server/test/*.test.mjs",
     "generate:connect": "node scripts/emit-connect-verify-targets.mjs && biome format --write server/connect-verify-targets.generated.mjs",
     "verify:static": "node scripts/verify-static-origin.mjs",
+    "verify:self-hosted-connectors": "node scripts/verify-self-hosted-connectors.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
     "verify:device-identity": "node scripts/verify-device-identity.mjs",
     "verify:device-inbox": "node scripts/verify-device-inbox.mjs",

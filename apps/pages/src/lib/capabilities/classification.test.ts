@@ -79,6 +79,11 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/local-access-requests.ts": "access.authority",
       "src/lib/capabilities.ts": "settings.core",
       "src/lib/capabilities/catalog.ts": "core",
+      "src/lib/self-hosted-config.ts": "connectors.external",
+      "src/lib/self-hosted-config.test.ts": "connectors.external",
+      "src/lib/self-hosted-connectors.ts": "connectors.external",
+      "src/lib/self-hosted-connectors.test.ts": "connectors.external",
+      "src/lib/self-hosted-connectors.durable.test.ts": "connectors.external",
       "src/modules/sharing.drops/runtime.ts": "sharing.drops",
     };
     for (const [path, expected] of Object.entries(expectations)) {

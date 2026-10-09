@@ -234,6 +234,12 @@ jobs:
         run: |
           google-chrome --version
           pnpm --filter @opensesame/pages verify:webmcp
+      - name: Self-hosted provider configuration without hosted Connect
+        if: matrix.shard == 'budgets'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:

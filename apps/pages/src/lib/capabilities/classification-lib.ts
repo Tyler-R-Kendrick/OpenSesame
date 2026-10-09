@@ -116,6 +116,8 @@ const SIGNIN_FILES = [
 const CONNECTOR_FILES = [
   "connector-guidance",
   "connect-",
+  "self-hosted-config",
+  "self-hosted-connectors",
   "github-installation-access",
   "identity-graph",
 ];
@@ -163,8 +165,7 @@ const LOCAL_IAM_FILES = [
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
-  // `orgs-directory` only: `orgs.ts` stays the core sign-in vocabulary and the
-  // Identity-API seams this capability installs.
+  // `orgs.ts` stays core sign-in vocabulary; only its directory is optional.
   "orgs-directory",
 ];
 const LOCAL_AI_FILES = [
@@ -309,7 +310,6 @@ export const LIB_RULES = [
     CEREMONIES,
     "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
   ),
-  // Settings › Notifications, reached only through notifications.routing (ADR 0140).
   optional(
     `${L}notification-routing/`,
     "notifications.routing",

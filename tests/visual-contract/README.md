@@ -20,7 +20,7 @@ The six baselines it enforces:
 | Baseline | What it captures |
 | --- | --- |
 | `pages-desktop.png` / `pages-mobile.png` | The front door of a fresh device: Set up your own, Join a session, and the guest road as the corner Skip (ADR 0150) |
-| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only seal form behind "Use without an account" — Set up your own, Skip all, then sign-in (`#master`, `#confirm`, the no-recovery checkbox) |
+| `vault-unlock-desktop.png` / `vault-unlock-mobile.png` | The local-only device-PIN seal form behind "Use without an account" — Set up your own, Skip all, then sign-in (Device PIN, Confirm PIN, the no-recovery checkbox) |
 | `vault-list-desktop.png` / `vault-list-mobile.png` | The empty vault, right after sealing |
 
 ## Running it locally
@@ -59,13 +59,16 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `isMobile`/`hasTouch`) — walking the first run a visitor walks today:
    the front door (`apps/pages/src/screens/FrontDoor.tsx`, `.door`), the
    "Use without an account" road to the seal form
-   (`apps/pages/src/screens/UnlockScreen.tsx`: `#master`, `#confirm`,
-   the `"Seal this device"` button), and the vault
+   (`apps/pages/src/screens/UnlockScreen.tsx`: Device PIN, Confirm PIN,
+   the `"Seal with PIN"` button), and the vault
    (`apps/pages/src/sections/VaultSection.tsx`, `.vault`). Desktop shows
    the empty `"Nothing here"` list; phone opens its Sections tree with Vault
    expanded and all selected, retaining the empty list behind it. Both verify
    the unlocked vault and its empty state before capture. Every test gets a fresh browser context, so every run
-   is a true first run. Nothing is mocked: Pages calls no backend by default
+   is a true first run. The IP-address preview origin cannot host a WebAuthn
+   relying party, so enrollment offers PIN; the spec asserts it is selected and
+   master-password enrollment is absent (ADR 0180). The vault journey fills a
+   valid PIN and actually seals the device. Nothing is mocked: Pages calls no backend by default
    (ADR 0090), so a request that leaves the preview origin, or an uncaught
    page error, fails the test. Service workers are blocked
    (`serviceWorkers: "block"`, as in the other Pages harnesses): a fresh
@@ -124,7 +127,7 @@ they're correct. In practice that means:
   all pixels, and these screens are mostly paper: a capture of a blank frame
   once passed `pages-mobile` inside 1.5%. `src/compare.ts` therefore also
   measures the diff against the content pixels alone (the 5% budget above),
-  and each capture asserts its landmark (the door's card, `#master`, `.vault`)
+  and each capture asserts its landmark (the door's card, Device PIN, `.vault`)
   is visible immediately before and after the screenshot. Keep that when
   adding a screen.
 - **Motion is frozen for capture.** An init script sets `animation: none` and
@@ -222,6 +225,21 @@ Pixel and content thresholds, font handling, dimensions, and screenshot
 comparison logic were not changed. The harness now binds its preview to the
 same IPv4 address it probes, and opens the phone's All items list from its
 section tree before capturing that list.
+
+**2026-10-08.** A fresh, separate production build of main at `3b2729f73`
+reproduced five pixel failures with the corrected enrollment journey. Each
+baseline and actual capture was opened and reviewed before copying only those
+five captures: front door and seal form at desktop/phone, plus the phone vault
+list. Main had already removed master-password enrollment (`8b6499cb4`, #763),
+changed gate alignment and collapsed stacked release notes (`9c0eca722`, #769),
+kept wide release notes open (`2fe44676b`, #778), and added the seal screen's
+Join entry (`6ddaad5a1`, #798). The phone vault header and square controls also
+matched that untouched base build. The desktop vault-list baseline passed and
+was retained. The spec now follows the real PIN seal instead of waiting for
+removed master-password fields. A normal comparison against the connector
+branch then passed all six screens with Chrome for Testing 153.0.8010.12,
+`VISUAL_UPDATE` unset. Pixel/content thresholds, dimensions, fonts and
+comparison code remain unchanged.
 
 ## What the orchestrator should do next
 

@@ -78,6 +78,25 @@ describe("ci gates", () => {
     ).toEqual(["journeys-1", "journeys-2"]);
   });
 
+  it("selects the connector browser contract for its driver and shared provider metadata", async () => {
+    const { bundlePackageDirs, pushPackageDirs, selectGates } = await import(
+      "./ci-changed-areas.mjs"
+    );
+    const metadata = "spec/connectors/self-hosted-config.json";
+    expect(
+      gatesOf("apps/pages/scripts/verify-self-hosted-connectors.mjs"),
+    ).toEqual(["budgets"]);
+    expect(gatesOf(metadata)).toEqual(["budgets"]);
+    expect([
+      ...selectGates(
+        root,
+        [metadata],
+        bundlePackageDirs(root),
+        pushPackageDirs(root),
+      ),
+    ]).toEqual(["budgets"]);
+  });
+
   it("writes matrix legs in the shard file's order and only for wanted gates", () => {
     const shards = loadShards(root);
     const legs = bundleMatrix(["mobile", "budgets"], shards).map(

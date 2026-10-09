@@ -18,11 +18,16 @@ afterEach(() => {
 function stubViewport(stacked: boolean) {
   vi.stubGlobal(
     "matchMedia",
-    (query: string) =>
-      ({
-        matches: stacked && query === "(max-width: 1099px)",
-        media: query,
-      }) as MediaQueryList,
+    (query: string): MediaQueryList => ({
+      matches: stacked && query === "(max-width: 1099px)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => true),
+    }),
   );
 }
 
