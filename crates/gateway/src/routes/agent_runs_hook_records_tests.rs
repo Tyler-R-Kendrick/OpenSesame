@@ -3,11 +3,8 @@
 //! Host opened — standing in for a sealed log the Host has no key to write
 //! (ADR 0081 §9).
 
-use opensesame_connection_broker::config_access::{role_policy, set_role_ceiling};
 use opensesame_storage::web_login_runs::StoredAgentHookRecord;
 use opensesame_storage::NO_VIEWER_KEY_PREFIX;
-
-use crate::session_claims::parse_principal;
 
 use super::support::Fixture;
 use super::web_login::{happy, prerequisites, rotate_driven, the_run};
