@@ -1,6 +1,10 @@
 /** Browser-supported self-hosted Vault/OpenBao: verified token access, no relay. */
 import { NativeApiError } from "./native-api-http.js";
 import {
+  safeNativeConnectorIcon,
+  safeProviderText,
+} from "./native-api-verify.js";
+import {
   type NativeProviderCleanup,
   registerNativeProviderCleanup,
   retryNativeConnectorCleanup,
@@ -107,6 +111,8 @@ export async function configureNativeLocalInstance(
   if (existing)
     await assertNativeConnectorRevision(existing.connectionId, guard(existing));
   const apiKey = resolveInstanceToken(input, endpoint, existing);
+  safeProviderText(input.displayName, { api_key: apiKey });
+  safeNativeConnectorIcon(input.icon, { api_key: apiKey });
   const resolvedInput = { ...input, apiKey };
   const facts = await lookupNativeLocalInstance(
     endpoint,
@@ -134,6 +140,7 @@ export async function configureNativeLocalInstance(
         ...verified,
       },
       classification,
+      () => transport.assertCurrent(),
     );
   await updateNativeConnector(
     existing.connectionId,
@@ -160,6 +167,7 @@ export async function configureNativeLocalInstance(
         ...verified,
       };
     },
+    () => transport.assertCurrent(),
   );
   return retryNativeConnectorCleanup(existing.connectionId);
 }
@@ -228,6 +236,7 @@ export async function verifyNativeLocalInstance(
       );
       return { ...current, ...verified };
     },
+    () => transport.assertCurrent(),
   );
 }
 async function invalidateInstanceAuthorization(

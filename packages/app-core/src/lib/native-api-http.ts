@@ -1,5 +1,6 @@
 /** Capability-fenced JSON transport; response errors never expose upstream material. */
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { EgressDenied } from "./capabilities/egress.js";
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 
 export class NativeApiError extends Error {
@@ -9,6 +10,7 @@ export class NativeApiError extends Error {
       | "permission"
       | "rate-limit"
       | "response"
+      | "deployment"
       | "network",
     readonly status = 0,
   ) {
@@ -19,6 +21,7 @@ export class NativeApiError extends Error {
         permission: "Provider permissions do not allow this operation",
         "rate-limit": "Provider rate limit reached; try again later",
         response: "Provider did not return the expected response",
+        deployment: "This deployment does not permit this provider endpoint",
         network:
           "Could not reach the provider from this browser; check its CORS policy and your connection",
       }[code],
@@ -98,6 +101,7 @@ export async function nativeApiHttp(
     return body;
   } catch (error) {
     if (error instanceof NativeApiError) throw error;
+    if (error instanceof EgressDenied) throw new NativeApiError("deployment");
     throw new NativeApiError("network");
   } finally {
     clearTimeout(deadline);

@@ -145,6 +145,10 @@ export const CROSS_RULES = [
     "connectors.external",
     "native provider authorization and connection runtime",
   ),
+  shared(
+    `${L}generated-json`,
+    "public JSON fragment codec shared by the connector catalogue and browser admission metadata",
+  ),
   ...LOCAL_RECORDS.map((name) =>
     shared(`${L}${name}`, "local directory records Access and Identity share"),
   ),

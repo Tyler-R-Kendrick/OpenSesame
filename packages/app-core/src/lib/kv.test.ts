@@ -12,7 +12,17 @@ import {
 } from "./kv.js";
 
 type FakeRoot = ReturnType<typeof makeOpfsRoot>;
-type FakeOpfsOptions = { failWrites?: boolean };
+type FakeOpfsOptions = {
+  failWrites?: boolean;
+  beforeWrite?: () => Promise<void>;
+};
+function deferredWrite() {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 function makeOpfsRoot(options: FakeOpfsOptions = {}) {
   const files = new Map<string, string>();
@@ -35,12 +45,17 @@ function makeOpfsRoot(options: FakeOpfsOptions = {}) {
           };
         },
         async createWritable() {
+          let staged = files.get(name) ?? "";
           return {
             async write(value: string) {
               if (options.failWrites) throw new Error("disk full");
-              files.set(name, value);
+              await options.beforeWrite?.();
+              staged = value;
             },
-            async close() {},
+            async close() {
+              files.set(name, staged);
+            },
+            async abort() {},
           };
         },
       };
@@ -70,6 +85,33 @@ afterEach(() => {
 });
 
 describe("kv with OPFS backing", () => {
+  it("aborts a staged authority update when its attempt is cancelled before durable commit", async () => {
+    const entered = deferredWrite();
+    const resume = deferredWrite();
+    let held = false;
+    const root = makeOpfsRoot({
+      beforeWrite: async () => {
+        if (!held) return;
+        entered.resolve();
+        await resume.promise;
+      },
+    });
+    stubOpfs(root);
+    await kvSetDurable("authority", "retained recovery");
+    const before = root.files.get("opensesame-pages-authority.json");
+    held = true;
+    const attempt = new AbortController();
+    const pending = kvSetDurable("authority", "active grant", () =>
+      attempt.signal.throwIfAborted(),
+    );
+    const refused = expect(pending).rejects.toThrow();
+    await entered.promise;
+    attempt.abort();
+    resume.resolve();
+    await refused;
+    expect(root.files.get("opensesame-pages-authority.json")).toBe(before);
+    expect(kvGet("authority")).toBe("retained recovery");
+  });
   it("refreshes changed records and clears records deleted by another tab", async () => {
     const root = makeOpfsRoot();
     stubOpfs(root);

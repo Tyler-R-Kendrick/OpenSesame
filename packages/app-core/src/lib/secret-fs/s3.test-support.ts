@@ -13,7 +13,7 @@ import { Redacted } from "effect";
 import { signS3 } from "./s3-sigv4.js";
 
 export const ACCESS_KEY = "AKIATESTONLY";
-export const SECRET_KEY = "test-secret-key-0123456789abcdef";
+export const SECRET_KEY = "test-secret-key-0123456789abcdef"; // gitleaks:allow -- synthetic signature fixture, never a provider credential
 export const REGION = "eu-west-1";
 export const BUCKET_NAME = "vault-bucket";
 export const ENDPOINT = "https://s3.test";

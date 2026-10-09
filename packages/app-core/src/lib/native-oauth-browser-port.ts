@@ -16,7 +16,10 @@ export type NativeOAuthImplicitAuthorization = {
   redirectUri: string;
   authorize: (
     url: string,
-    options: { expiresAt: number },
+    options: {
+      expiresAt: number;
+      retain: (token: IssuedNativeOAuthToken) => Promise<void>;
+    },
   ) => Promise<IssuedNativeOAuthToken>;
   close: () => void;
 };
@@ -26,6 +29,8 @@ export type NativeOAuthBrowserPort = {
   scrubCallback: () => void;
   /** Reserve the consent window synchronously before any discovery request. */
   prepareAuthorization?: () => () => void;
+  /** Capture the initiating attempt; cancellation cannot revive on another click. */
+  captureAuthorizationGuard?: () => () => void;
   /** Return to the initiating unlocked runtime instead of navigating its tab. */
   authorize?: (
     url: string,

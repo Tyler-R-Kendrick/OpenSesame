@@ -104,6 +104,8 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/local-share-reach.ts",
       "src/lib/connections.ts",
       "src/lib/vercel-connect.ts",
+      "src/lib/generated-json.ts",
+      "src/lib/generated-json.test.ts",
       "src/sections/identity/LocalApplicationSettings.tsx",
       "src/sections/identity/identity-views.ts",
       "src/sections/identity/HostedRecordParts.tsx",

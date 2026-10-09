@@ -97,6 +97,7 @@
     "fast-check": "4.9.0",
     "jsdom": "26.1.0",
     "node-turn": "0.0.6",
+    "terser": "5.51.2",
     "typescript": "5.8.3",
     "vite": "6.4.3",
     "vite-plugin-pwa": "1.0.3",

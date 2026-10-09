@@ -111,7 +111,7 @@ describe("an S3 bucket", () => {
   it("is refused by a bucket that does not know the key, as a permission and not a retry", async () => {
     const error = await failureOf(
       client(fakeBucket(), {
-        secret: "wrong-secret-key-0123456789abcdef",
+        secret: "wrong-secret-key-0123456789abcdef", // gitleaks:allow -- deliberately invalid signature fixture
       }).read("a.json"),
     );
     expect(error).toMatchObject({
