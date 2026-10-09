@@ -19,6 +19,7 @@ import {
   localDropClaimStorage,
   localDropDevicePepper,
   localDropPollState,
+  type LocalDropPollState,
   readLocalDropClaimStore,
   resetLocalDropClaimSlotForTests,
   writeLocalDropClaimStore,
@@ -63,7 +64,7 @@ export type LocalDropSession = {
   expiresAt: string;
 };
 
-export type { LocalDropPollState } from "./local-drop-claim-store.js";
+export type { LocalDropPollState };
 
 /** What a sender's revoke did to the claim on this device. */
 export type LocalDropRevocation = "revoked" | "already_consumed" | "missing";
