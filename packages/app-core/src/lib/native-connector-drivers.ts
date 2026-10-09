@@ -23,6 +23,7 @@ export type NativeDriverResult = {
     label: string;
     url?: string;
     inputSchema?: string;
+    secretValue?: string;
   }[];
 };
 
