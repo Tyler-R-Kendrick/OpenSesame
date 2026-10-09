@@ -81,6 +81,55 @@ describe("DropClaimScreen", () => {
     expect(onSettled).not.toHaveBeenCalled();
   });
 
+  it("trays how many tries are left after a wrong code", async () => {
+    dropOpenSeams.presentClaim = vi.fn(async () => {
+      throw new DropTransportError(
+        "invalid_code",
+        "That code does not match this drop. 3 tries left.",
+        3,
+      );
+    });
+    render(
+      <DropClaimScreen
+        token={TOKEN}
+        fragmentKey="a2V5"
+        onSettled={onSettled}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
+    await waitFor(() =>
+      expect(trayed()?.body).toBe(
+        "That code does not match this drop. 3 tries left.",
+      ),
+    );
+    expect(screen.getByRole("img", { name: DROP_FAILURE_MARK })).toBeTruthy();
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("warns in the tray before the last try is spent", async () => {
+    dropOpenSeams.presentClaim = vi.fn(async () => {
+      throw new DropTransportError(
+        "invalid_code",
+        "That code does not match this drop. This is your last try.",
+        1,
+      );
+    });
+    render(
+      <DropClaimScreen
+        token={TOKEN}
+        fragmentKey="a2V5"
+        onSettled={onSettled}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
+    await waitFor(() =>
+      expect(trayed()?.body).toBe(
+        "That code does not match this drop. This is your last try.",
+      ),
+    );
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
   it("settles a drop that was already opened", async () => {
     dropOpenSeams.presentClaim = vi.fn(async () => {
       throw new DropTransportError("already_opened", "Already opened.");

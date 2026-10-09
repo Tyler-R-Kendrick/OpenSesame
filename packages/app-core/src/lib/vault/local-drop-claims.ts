@@ -41,6 +41,13 @@ export const LOCAL_DROP_CLAIM_KEYS: readonly string[] = [
 ];
 const MAX_ATTEMPTS = 5;
 
+function wrongCodeWords(triesLeft: number): string {
+  const base = "That code does not match this drop.";
+  if (triesLeft > 1) return `${base} ${triesLeft} tries left.`;
+  if (triesLeft === 1) return `${base} This is your last try.`;
+  return `${base} No tries left.`;
+}
+
 export class LocalDropClaimError extends Error {
   readonly code: "unreachable" | "refused";
   /**
@@ -52,6 +59,7 @@ export class LocalDropClaimError extends Error {
     code: "unreachable" | "refused",
     message: string,
     wire: string = code,
+    readonly attemptsLeft?: number,
   ) {
     super(message);
     this.name = "LocalDropClaimError";
@@ -181,19 +189,16 @@ export function pagesClaimBase(
   origin = maybePage()?.location.origin ?? "",
   base = env().BASE_URL || "/",
 ): string {
-  if (!isString(origin) || origin.length === 0) {
-    throw new LocalDropClaimError(
+  const noOrigin = () =>
+    new LocalDropClaimError(
       "unreachable",
       "This page has no origin, so a drop link cannot be minted here.",
     );
-  }
+  if (!isString(origin) || origin.length === 0) throw noOrigin();
   try {
     return new URL(base, origin).href.replace(/\/$/, "");
   } catch {
-    throw new LocalDropClaimError(
-      "unreachable",
-      "This page has no origin, so a drop link cannot be minted here.",
-    );
+    throw noOrigin();
   }
 }
 
@@ -275,8 +280,8 @@ export async function presentLocalDropClaim(
   bearerToken: string,
   userCode: string,
 ): Promise<PresentedLocalDrop> {
-  const refuse = (wire: string, message: string) =>
-    new LocalDropClaimError("refused", message, wire);
+  const refuse = (wire: string, message: string, attemptsLeft?: number) =>
+    new LocalDropClaimError("refused", message, wire, attemptsLeft);
   const malformed = "This drop link's claim token is not well formed.";
   const claimId = claimIdFromBearer(bearerToken);
   if (!claimId) throw refuse("invalid_token", malformed);
@@ -323,12 +328,10 @@ export async function presentLocalDropClaim(
     );
   }
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
-    persist({
-      ...record,
-      attempts: record.attempts + 1,
-      version: record.version + 1,
-    });
-    throw refuse("invalid_user_code", "That code does not match this drop.");
+    const attempts = record.attempts + 1;
+    const triesLeft = MAX_ATTEMPTS - attempts;
+    persist({ ...record, attempts, version: record.version + 1 });
+    throw refuse("invalid_user_code", wrongCodeWords(triesLeft), triesLeft);
   }
   const targetManifest = structuredClone(record.targetManifest);
   persist({
