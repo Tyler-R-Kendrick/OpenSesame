@@ -70,3 +70,7 @@ impl PrivateDirectory {
         Ok(child)
     }
 }
+
+#[cfg(test)]
+#[path = "child_tests.rs"]
+mod child_tests;

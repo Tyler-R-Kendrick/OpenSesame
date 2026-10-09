@@ -27,7 +27,7 @@ impl Drop for Pending {
         if self.published {
             return;
         }
-        let disposition = FILE_DISPOSITION_INFO { DeleteFile: 1 };
+        let disposition = FILE_DISPOSITION_INFO { DeleteFile: true };
         if let Ok(size) = u32::try_from(mem::size_of::<FILE_DISPOSITION_INFO>()) {
             // SAFETY: the retained DELETE-access handle selects this exact created file.
             unsafe {
@@ -134,7 +134,7 @@ fn rename_file(
     // UTF-16 tail. All destination ancestors are retained through this call.
     unsafe {
         let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
-        (*info).Anonymous.ReplaceIfExists = u8::from(replace);
+        (*info).Anonymous.ReplaceIfExists = replace;
         (*info).RootDirectory = ptr::null_mut();
         (*info).FileNameLength = content_bytes;
         ptr::copy_nonoverlapping(
@@ -230,3 +230,7 @@ fn publish_with(
 #[cfg(test)]
 #[path = "publish_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "publish_create_tests.rs"]
+mod publish_create_tests;

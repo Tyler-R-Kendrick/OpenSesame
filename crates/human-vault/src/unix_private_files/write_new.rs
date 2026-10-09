@@ -1,6 +1,12 @@
 //! Exact retained-root create-new publication; private mode precedes bytes.
-use super::*;
-use std::io::{Read, Seek, SeekFrom, Write};
+use super::{name, open_at, refused, same, stat_at, PrivateDirectory};
+use std::{
+    ffi::CString,
+    fs::{File, Metadata},
+    io::{self, Read, Seek, SeekFrom, Write},
+    os::unix::{ffi::OsStrExt, fs::MetadataExt, io::AsRawFd},
+    path::{Component, Path},
+};
 
 struct Pending<'a> {
     directory: &'a PrivateDirectory,

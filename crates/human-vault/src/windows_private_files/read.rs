@@ -205,3 +205,11 @@ fn components(relative: &Path) -> io::Result<Vec<String>> {
     }
     Ok(names)
 }
+
+#[cfg(test)]
+#[path = "read_tests.rs"]
+mod read_tests;
+
+#[cfg(test)]
+#[path = "journal_read_tests.rs"]
+mod journal_read_tests;
