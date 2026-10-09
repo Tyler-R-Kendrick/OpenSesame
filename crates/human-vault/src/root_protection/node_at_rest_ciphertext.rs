@@ -16,6 +16,7 @@ const MAX_WIRE: usize = 16 * 1024 * 1024;
 /// Fixed codec domain DATA. A caller-selected domain never grants access or ownership.
 #[derive(Clone, Copy)]
 pub(crate) enum NodeAtRestDomain {
+    #[cfg(test)]
     OriginFile,
     DeviceRecord,
     VaultGeneration,
@@ -23,6 +24,7 @@ pub(crate) enum NodeAtRestDomain {
 impl NodeAtRestDomain {
     fn store(self) -> &'static str {
         match self {
+            #[cfg(test)]
             Self::OriginFile => "origin-file",
             Self::DeviceRecord => "node-device-record-v1",
             Self::VaultGeneration => "node-vault-generation-v1",
@@ -88,7 +90,7 @@ pub(crate) fn validate_node_at_rest_ciphertext(
             .expand(&binding, &mut kek[..])
             .map_err(|_| refused())?;
         let wrapper = XChaCha20Poly1305::new_from_slice(&kek[..]).map_err(|_| refused())?;
-        let dek = Zeroizing::new(
+        let data_key = Zeroizing::new(
             wrapper
                 .decrypt(
                     XNonce::from_slice(&bytes[..NONCE]),
@@ -99,10 +101,10 @@ pub(crate) fn validate_node_at_rest_ciphertext(
                 )
                 .map_err(|_| refused())?,
         );
-        if dek.len() != 32 {
+        if data_key.len() != 32 {
             return Err(refused());
         }
-        let cipher = XChaCha20Poly1305::new_from_slice(&dek).map_err(|_| refused())?;
+        let cipher = XChaCha20Poly1305::new_from_slice(&data_key).map_err(|_| refused())?;
         Zeroizing::new(
             cipher
                 .decrypt(
