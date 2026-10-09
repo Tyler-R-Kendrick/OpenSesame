@@ -69,6 +69,8 @@ const CORE_INFRA = [
   "local-network-fetch",
   "queue",
   "pact",
+  // Harness/`__vt` clock shared by CipherWordmark, CipherDial, VaultDoors.
+  "injected-clock",
   "__tests__/",
   "__snapshots__/",
 ];
@@ -236,6 +238,11 @@ export const LIB_RULES = [
   ),
   ...each(L, ["webauthn", "browser-reset"], (p) =>
     core(p, "vault.local-unlock", "WebAuthn detection; resetting this browser"),
+  ),
+  core(
+    `${L}unlock-ceremony-store`,
+    "vault.local-unlock",
+    "holds unlock while lock-v5 doors finish",
   ),
   core(`${L}guest-connections`, "vault.local-unlock", "tomb"),
   core(`${L}idp-registry`, "vault.local-unlock", "tomb IdPs"),
