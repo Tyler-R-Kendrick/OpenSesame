@@ -11,7 +11,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../../../../spec/conformance/vault-vectors.json" with {
   type: "json",
 };
-import { PIN_PBKDF2_ITERATIONS } from "./pin-kdf.js";
 import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
 import {
   PERSONAL_PROJECT_ID,
@@ -29,6 +28,7 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
+import { PIN_PBKDF2_ITERATIONS } from "./pin-kdf.js";
 import { enrollTotp } from "./store-totp.fixture.js";
 import {
   ATTEMPTS_KEY,
