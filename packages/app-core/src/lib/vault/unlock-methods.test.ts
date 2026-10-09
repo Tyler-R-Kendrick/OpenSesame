@@ -1,4 +1,5 @@
 import {
+  MAX_PBKDF2_ITERATIONS,
   WrongPasswordError,
   createVault,
   importVaultKey,
@@ -68,6 +69,7 @@ describe("PIN wrap", () => {
     const { vaultKey, rawVaultKey: raw } = await createVault(PASSWORD);
     const sealed = await sealJson(vaultKey, { via: "pin" });
     const record = await wrapVaultKeyWithPin(raw, PIN);
+    expect(record.kdf.iterations).toBe(MAX_PBKDF2_ITERATIONS);
     raw.fill(0);
 
     const unwrapped = await unwrapVaultKeyWithPin(record, PIN);

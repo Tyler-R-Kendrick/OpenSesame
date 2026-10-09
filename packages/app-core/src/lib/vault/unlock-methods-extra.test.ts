@@ -1,5 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  MAX_PBKDF2_ITERATIONS,
   VaultCorruptError,
   type VaultHeader,
   WrongPasswordError,
@@ -8,6 +9,7 @@ import {
   randomBytes,
 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PIN_PBKDF2_ITERATIONS, pinPbkdf2Iterations } from "./pin-kdf.js";
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
@@ -99,6 +101,14 @@ describe("assertPinPolicy", () => {
   });
 });
 
+describe("pinPbkdf2Iterations", () => {
+  it("raises iterations for short digit-only PINs up to the vault ceiling", () => {
+    expect(pinPbkdf2Iterations(PIN)).toBe(MAX_PBKDF2_ITERATIONS);
+    expect(pinPbkdf2Iterations("13579246")).toBe(MAX_PBKDF2_ITERATIONS);
+    expect(pinPbkdf2Iterations("abcdefgh1i")).toBe(PIN_PBKDF2_ITERATIONS);
+  });
+});
+
 describe("PIN unwrap guards", () => {
   it("rejects a wrap from an unknown KDF", async () => {
     const { rawVaultKey: raw } = await createVault(PASSWORD);
@@ -120,6 +130,19 @@ describe("PIN unwrap guards", () => {
     const weakened = {
       ...record,
       kdf: { ...record.kdf, iterations: 1000 },
+    };
+    await expect(unwrapVaultKeyWithPin(weakened, PIN)).rejects.toBeInstanceOf(
+      VaultCorruptError,
+    );
+  });
+
+  it("rejects a weakened iteration count above the legacy floor", async () => {
+    const { rawVaultKey: raw } = await createVault(PASSWORD);
+    const record = await wrapVaultKeyWithPin(raw, PIN);
+    raw.fill(0);
+    const weakened = {
+      ...record,
+      kdf: { ...record.kdf, iterations: PIN_PBKDF2_ITERATIONS + 1 },
     };
     await expect(unwrapVaultKeyWithPin(weakened, PIN)).rejects.toBeInstanceOf(
       VaultCorruptError,

@@ -19,13 +19,13 @@ import {
   type VaultHeader,
   type VaultUnlocks,
   WrongPasswordError,
-  assertKdfParams,
   b64ToBytes,
   bytesToB64,
   parseTotp,
   randomBytes,
   totpCode,
 } from "@opensesame/vault-core";
+import { loadPinKdf } from "./pin-kdf-loader.js";
 import {
   createPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyDefault,
@@ -64,7 +64,6 @@ const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
 
 export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
-/** PIN wraps use at least the password floor; extra iterations raise offline cost. */
 export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
 export type {
@@ -77,10 +76,6 @@ export type {
   VaultUnlocks,
 } from "@opensesame/vault-core";
 
-/**
- * Passkey wraps present on a header. A legacy lone `passkey` migrates to a
- * one-element list; when both exist, `passkey` is prepended if its id is new.
- */
 export function listPasskeyUnlockRecords(
   unlocks: VaultUnlocks | null | undefined,
 ): PasskeyUnlockRecord[] {
@@ -298,14 +293,16 @@ export async function wrapVaultKeyWithPin(
   pin: string,
 ): Promise<PinUnlockRecord> {
   assertPinPolicy(pin);
+  const { pinPbkdf2Iterations } = await loadPinKdf();
+  const iterations = pinPbkdf2Iterations(pin);
   const salt = randomBytes(SALT_BYTES);
-  const kek = await deriveAesKeyFromPassword(pin, salt, PIN_PBKDF2_ITERATIONS);
+  const kek = await deriveAesKeyFromPassword(pin, salt, iterations);
   const wrap = await encryptWithKey(kek, rawVaultKey);
   return {
     kdf: {
       alg: "PBKDF2-SHA256",
       saltB64: bytesToB64(salt),
-      iterations: PIN_PBKDF2_ITERATIONS,
+      iterations,
     },
     wrap,
   };
@@ -319,7 +316,8 @@ export async function unwrapVaultKeyWithPin(
   if (record.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("unsupported PIN unlock format");
   }
-  assertKdfParams(record.kdf);
+  const { assertPinKdfIterations } = await loadPinKdf();
+  assertPinKdfIterations(record.kdf, pin);
   const kek = await deriveAesKeyFromPassword(
     pin,
     b64ToBytes(record.kdf.saltB64),
