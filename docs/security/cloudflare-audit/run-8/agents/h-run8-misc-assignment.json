@@ -1,0 +1,134 @@
+[
+  {
+    "coverage_id": "apps%2Fandroid%2Fios%2FSources%2FOpenSesameAuthenticator%2FWalletView.swift%23onOpenURL::crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift#onOpenURL",
+    "boundary": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletModel.swift",
+      "apps/android/ios/Info.plist",
+      "crates/authenticator-core/src/lib.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::crates%2Fauthenticator-core%2Fsrc%2Flib.rs::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+    "boundary": "crates/authenticator-core/src/lib.rs",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/authenticator-core/src/lib.rs",
+      "apps/android/android/app/src/main/AndroidManifest.xml"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fconnection-broker%2Fsrc%2Fegress.rs%23authorized_json::crates%2Fdomain%2Fsrc%2Fauthority.rs%23allows_url::crates%2Fconnection-broker::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/connection-broker/src/egress.rs#authorized_json",
+    "boundary": "crates/domain/src/authority.rs#allows_url",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/connection-broker/src/egress.rs",
+      "crates/domain/src/authority.rs",
+      "crates/connection-broker/src/lib.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "surface": "crates/credential-helpers/src/lib.rs",
+    "boundary": "crates/credential-helpers/src/lib.rs",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "crates/credential-helpers/src/lib.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23proxy_loopback::crates%2Fdaemon%2Fsrc%2Fproxy_path.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "surface": "crates/daemon/src/lib.rs#proxy_loopback",
+    "boundary": "crates/daemon/src/proxy_path.rs",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/daemon/src/proxy_path.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23require_operator::crates%2Fuds-authn%2Fsrc%2Flib.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/daemon/src/lib.rs#require_operator",
+    "boundary": "crates/uds-authn/src/lib.rs",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/uds-authn/src/lib.rs",
+      "crates/daemon/src/peer_auth.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Ftailscale.rs::crates%2Fdaemon%2Fsrc%2Fstartup.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "surface": "crates/daemon/src/tailscale.rs",
+    "boundary": "crates/daemon/src/startup.rs",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/daemon/src/tailscale.rs",
+      "crates/daemon/src/startup.rs",
+      "crates/daemon/src/tailnet.rs",
+      "crates/daemon/src/fill/caller.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "surface": "crates/human-vault/src/lib.rs",
+    "boundary": "crates/human-vault/src/lib.rs",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "crates/human-vault/src/lib.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fsandbox%2Fsrc%2Fcapability.rs::crates%2Fsandbox%2Fsrc%2Fboundary.rs::crates%2Fsandbox::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/sandbox/src/capability.rs",
+    "boundary": "crates/sandbox/src/boundary.rs",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/sandbox/src/capability.rs",
+      "crates/sandbox/src/boundary.rs",
+      "crates/sandbox/src/lib.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fstorage%2Fsrc%2Fauthority%2Fgrants.rs%23issue_authority::crates%2Fstorage%2Fsrc%2Fgrants.rs%23find_grant::crates%2Fstorage::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/storage/src/authority/grants.rs#issue_authority",
+    "boundary": "crates/storage/src/grants.rs#find_grant",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/storage/src/authority/grants.rs",
+      "crates/storage/src/grants.rs",
+      "crates/connection-broker/src/store.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fsurrogate-proxy%2Fsrc%2Flistener.rs%23outer::crates%2Finvoke-through%2Fsrc%2Fsurrogate.rs%23admit::crates%2Fsurrogate-proxy::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/surrogate-proxy/src/listener.rs#outer",
+    "boundary": "crates/invoke-through/src/surrogate.rs#admit",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/surrogate-proxy/src/listener.rs",
+      "crates/surrogate-proxy/src/target.rs",
+      "crates/surrogate-proxy/src/broker.rs",
+      "crates/surrogate-proxy/src/passthrough.rs",
+      "crates/invoke-through/src/surrogate.rs"
+    ]
+  },
+  {
+    "coverage_id": "ops%2Fcompose%2Fdocker-compose.yml::ops%2Fnats%2Flocal-dev.conf::ops%2Fcompose::ATTACK-CLASSES.md%23Obvious%20things",
+    "surface": "ops/compose/docker-compose.yml",
+    "boundary": "ops/nats/local-dev.conf",
+    "attack_class": "Obvious things",
+    "starting_paths": [
+      "ops/compose/docker-compose.yml",
+      "ops/nats/local-dev.conf",
+      "ops/ingress/Caddyfile"
+    ]
+  }
+]

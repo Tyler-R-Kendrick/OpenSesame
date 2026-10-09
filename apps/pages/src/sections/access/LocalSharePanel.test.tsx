@@ -57,6 +57,9 @@ it("shares a vault with a person from the grants command", async () => {
   await waitFor(() =>
     expect(screen.getByRole("heading", { name: /→ / })).toBeTruthy(),
   );
+  await waitFor(() =>
+    expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true),
+  );
 });
 
 it("offers a new application and grants it a vault", async () => {
@@ -212,4 +215,7 @@ it("asks for approval before an agent share is active", async () => {
       ),
     ).toBe(true);
   });
+  await waitFor(() =>
+    expect(grant instanceof HTMLButtonElement && !grant.disabled).toBe(true),
+  );
 });

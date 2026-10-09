@@ -18,6 +18,10 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  LINEAR_API_PURPOSE,
+  NATIVE_PROVIDER_PURPOSE,
+} from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
 import {
   TAILNET_DEVICES_PURPOSE,
@@ -51,6 +55,8 @@ const CATALOG_DIR = join(repo, "packages/app-core/src/lib/capabilities");
 /** Every purpose constant a catalog file exports, with its text. */
 const catalogConstants: ReadonlyMap<string, string> = new Map(
   Object.entries({
+    LINEAR_API_PURPOSE,
+    NATIVE_PROVIDER_PURPOSE,
     LIVE_CARRIER_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
     PWNED_PURPOSE,
@@ -144,6 +150,8 @@ describe("the sweep finds the places a purpose reaches the egress port", () => {
   it("covers every package that deals in egress, and the capabilities known to use one", () => {
     const seen = new Set(SITES.map((site) => site.file));
     for (const known of [
+      "apps/pages/src/modules/connectors.external/linear-runtime.ts",
+      "apps/pages/src/modules/connectors.external/native-runtime.ts",
       "apps/pages/src/modules/notifications.web-push/runtime.ts",
       "apps/pages/src/modules/sharing.live/carriers/allowed.ts",
       "packages/app-core/src/lib/tailnet-sync/plugin-daemon.ts",
@@ -315,6 +323,20 @@ describe("shapes that must fail", () => {
 });
 
 describe("shapes that must pass", () => {
+  it("admits native provider operations only under their owning capability", () => {
+    const source = `import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";`;
+    expect(
+      verdicts(
+        `${source} egress.fetch(u, i, { capability: "connectors.external", purpose: NATIVE_PROVIDER_PURPOSE });`,
+      ),
+    ).toEqual([]);
+    expect(
+      verdicts(
+        `${source} egress.fetch(u, i, { capability: "wallet.spending", purpose: NATIVE_PROVIDER_PURPOSE });`,
+      ),
+    ).toEqual(["wallet.spending does not declare NATIVE_PROVIDER_PURPOSE"]);
+  });
+
   it("accepts a catalog constant, under an import alias, inline or through a const", () => {
     expect(
       verdicts(

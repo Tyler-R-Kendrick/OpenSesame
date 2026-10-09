@@ -1,4 +1,5 @@
 import { handleGithubAppWebhook } from "../../server/github-app-contents.mjs";
+import { isPayloadTooLarge, readRawBody } from "../../server/read-body.mjs";
 
 export const config = {
   api: {
@@ -6,14 +7,8 @@ export const config = {
   },
 };
 
-async function readRaw(req) {
-  if (typeof req.body === "string") return req.body;
-  if (Buffer.isBuffer(req.body)) return req.body.toString("utf8");
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
-  }
-  return Buffer.concat(chunks).toString("utf8");
+function sendBodyTooLarge(res) {
+  res.status(413).send("body_too_large");
 }
 
 export default async function handler(req, res) {
@@ -21,7 +16,16 @@ export default async function handler(req, res) {
     res.status(405).send("POST only.");
     return;
   }
-  const rawBody = await readRaw(req);
+  let rawBody = "";
+  try {
+    rawBody = await readRawBody(req);
+  } catch (error) {
+    if (isPayloadTooLarge(error)) {
+      sendBodyTooLarge(res);
+      return;
+    }
+    throw error;
+  }
   let body = {};
   try {
     body = rawBody ? JSON.parse(rawBody) : {};

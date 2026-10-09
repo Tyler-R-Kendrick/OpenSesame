@@ -19,6 +19,7 @@ import { type FormEvent, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { IconPlus } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { LinearConnectorForm } from "./LinearConnectorForm.js";
 
 import {
   SelfHostedConfigFields,
@@ -42,17 +43,27 @@ function initialOptions(plan: ConnectPlan): SelfHostedConnectorOptions {
 }
 
 /** The configuration experience belongs to the selected provider and this device. */
-export function SelfHostedConnectorForm({
-  plan,
-  connectorId,
-  onFlash,
-  onSaved,
-}: {
+type Props = {
   plan: ConnectPlan;
   connectorId?: string;
   onFlash: (flash: Flash) => void;
   onSaved: () => void;
-}) {
+};
+
+export function SelfHostedConnectorForm(props: Props) {
+  return props.plan.id === "linear" ? (
+    <LinearConnectorForm {...props} />
+  ) : (
+    <LocalConfigurationForm {...props} />
+  );
+}
+
+function LocalConfigurationForm({
+  plan,
+  connectorId,
+  onFlash,
+  onSaved,
+}: Props) {
   const held = connectorId ? readSelfHostedConnector(connectorId) : null;
   const [options, setOptions] = useState(
     () => held?.options ?? initialOptions(plan),

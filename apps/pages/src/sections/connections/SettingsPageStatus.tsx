@@ -21,6 +21,8 @@ import {
   statusTone,
 } from "../../components/StatusMark.js";
 
+import { nativeConnectorHeaderStatus } from "./SettingsPageNativeStatus.js";
+
 export type ConnectorTitleStatus = { tone: StatusTone; label: string };
 
 export function githubConnectorStatus(
@@ -79,14 +81,20 @@ export function AuthorizedAccount({
   ceremonyRoot: ReturnType<typeof connectorCeremonyRoot>;
 }) {
   const chip = STATUS_CHIP[connection.status];
+  const native = provider
+    ? nativeConnectorHeaderStatus(connection, provider)
+    : null;
   return (
     <li className="conn-service">
       <div className="conn-service__copy">
         <h3>{connection.displayName}</h3>
-        <p>{statusSentence(connection, provider)}</p>
+        <p>{native?.sentence ?? statusSentence(connection, provider)}</p>
       </div>
       <div className="conn-service__actions">
-        <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
+        <StatusMark
+          tone={native?.tone ?? statusTone(chip.tone)}
+          label={native?.label ?? chip.label}
+        />
         <Link
           className="btn btn--sm"
           to={connectorPath(

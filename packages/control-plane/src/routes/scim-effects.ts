@@ -79,14 +79,60 @@ export async function provisionedRoleForSubject(
  * resolves to, SCIM acts only on a principal that holds a membership here —
  * a push from one tenant's directory must never sign out anybody else.
  */
+/**
+ * Issuers this organization actually admits people under.
+ *
+ * SSO and SAML issuer strings are not the whole set. LDAP sign-in stores
+ * `ldapIssuer` of the directory URL, and native SAML with no `samlIssuer`
+ * stores the metadata entityID. Both have to be searched or deprovision
+ * reports success while the membership stays.
+ *
+ * Imports are dynamic: the LDAP and SAML modules call back into organization
+ * routes, which load this file.
+ */
+async function issuersForOrganization(
+  ctx: AppContext,
+  organization: Organization,
+): Promise<string[]> {
+  const issuers = [organization.ssoIssuer, organization.samlIssuer].filter(
+    (issuer): issuer is string => isString(issuer) && issuer.length > 0,
+  );
+  const ldap = await ctx.stores.orgFederation.ldapConfigs.get(organization.id);
+  if (ldap) {
+    try {
+      const { ldapIssuer } = await import("../interactions/ldap.js");
+      const directoryIssuer = ldapIssuer(ldap);
+      if (!issuers.includes(directoryIssuer)) issuers.push(directoryIssuer);
+    } catch {
+      /* An unusable directory URL is not an issuer. */
+    }
+  }
+  if (
+    !organization.samlIssuer &&
+    (organization.samlMetadataUrl || organization.samlMetadataXml)
+  ) {
+    try {
+      const { resolveIdpMetadata, samlOrgConfig } = await import(
+        "../interactions/saml.js"
+      );
+      const cfg = samlOrgConfig(organization);
+      if (cfg) {
+        const entityId = (await resolveIdpMetadata(ctx, cfg)).entityId;
+        if (entityId && !issuers.includes(entityId)) issuers.push(entityId);
+      }
+    } catch {
+      /* Metadata that cannot be read adds no issuer. */
+    }
+  }
+  return issuers;
+}
+
 async function principalsForSubject(
   ctx: AppContext,
   organization: Organization,
   subject: string,
 ): Promise<string[]> {
-  const issuers = [organization.ssoIssuer, organization.samlIssuer].filter(
-    (issuer): issuer is string => isString(issuer) && issuer.length > 0,
-  );
+  const issuers = await issuersForOrganization(ctx, organization);
   const principalIds = new Set<string>();
   for (const issuer of issuers) {
     for (const kind of ORG_IDENTITY_KINDS) {

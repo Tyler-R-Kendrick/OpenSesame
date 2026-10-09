@@ -9,6 +9,7 @@ import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
   FEATURE_BINDING_CATEGORIES,
+  belongsToConnectedList,
   connectorPath,
   isFeatureBindingCategory,
 } from "@opensesame/app-core/sections/connections/shared.js";
@@ -138,7 +139,7 @@ export function connectedPageItems(
   connections: readonly Connection[],
 ): PageTreeLeaf[] {
   return connections
-    .filter((connection) => connection.status !== "revoked")
+    .filter(belongsToConnectedList)
     .map((connection) =>
       leaf(
         connection.connectionId,

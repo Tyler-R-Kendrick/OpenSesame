@@ -69,6 +69,80 @@ function refused(id, row) {
   return REFUSED.has(id) || row?.category === "wallet";
 }
 
+function templateParams(row) {
+  return (row.template_params ?? []).map((param) => ({
+    ...param,
+    required: param.required !== false,
+    secret: param.secret === true,
+  }));
+}
+
+function verification(row) {
+  if (!row) return null;
+  return {
+    method: row.method,
+    url: row.url,
+    headers: row.headers ?? {},
+    body: row.body ?? null,
+    accountField: row.account_field ?? null,
+    success: row.success ?? [],
+    requiredFields: row.required_fields ?? [],
+    errorFields: row.error_fields ?? [],
+    auth: row.header
+      ? {
+          kind: "header",
+          header: row.header,
+          scheme: row.scheme ?? null,
+          valueTemplate: null,
+        }
+      : null,
+  };
+}
+
+/** An explicit credential injection site; never inferred from an arbitrary URL. */
+function authentication(row) {
+  if (row.auth && !["header", "basic", "query", "path"].includes(row.auth.kind))
+    throw new Error(`Unsupported authentication metadata for ${row.service}`);
+  if (row.auth?.kind === "query")
+    return { kind: "query", parameter: row.auth.parameter };
+  if (row.auth?.kind === "path")
+    return { kind: "path", template: row.auth.template };
+  if (row.auth?.kind === "basic")
+    return {
+      kind: "basic",
+      username: row.auth.username,
+      password: row.auth.password,
+    };
+  if (row.basic) return { kind: "basic", ...row.basic };
+  return headerAuthentication(row);
+}
+
+function headerAuthentication(row) {
+  const header = row.auth?.header ?? row.header;
+  if (!header) return null;
+  return {
+    kind: "header",
+    header,
+    scheme:
+      row.auth && Object.hasOwn(row.auth, "scheme")
+        ? row.auth.scheme
+        : (row.scheme ?? null),
+    valueTemplate: row.auth?.value_template ?? null,
+  };
+}
+
+function credentialDefinition(row) {
+  return {
+    header: row.header ?? null,
+    scheme: row.scheme ?? null,
+    basic: row.basic ?? null,
+    auth: authentication(row),
+    verify: verification(row.verify),
+    templateParams: templateParams(row),
+    additionalCredentials: row.additional_credentials ?? [],
+  };
+}
+
 function oauthPreset(row) {
   return {
     serverUrl: row.server_url,
@@ -88,7 +162,10 @@ function oauthPreset(row) {
     registration: row.client_registration ?? "manual",
     consoleUrl: row.developer_console_url ?? null,
     docsUrl: row.docs_url ?? null,
-    templateParams: row.template_params ?? [],
+    templateParams: templateParams(row),
+    verify: verification(row.verify),
+    scopeSeparator: row.scope_separator ?? " ",
+    registrationEndpoint: row.registration_endpoint ?? null,
   };
 }
 
@@ -99,7 +176,13 @@ function apiKeyPreset(row) {
     serviceUrls: row.service_urls ?? [],
     instructions: row.instructions ?? "",
     docsUrl: row.docs_url ?? null,
-    templateParams: row.template_params ?? [],
+    ...credentialDefinition(row),
+    credentialVariants: (row.credential_variants ?? []).map((variant) => ({
+      id: variant.id,
+      label: variant.label,
+      description: variant.description ?? "",
+      ...credentialDefinition({ ...row, ...variant }),
+    })),
   };
 }
 
@@ -116,6 +199,12 @@ function mcpInfo(url, found) {
     registration: found.client_registration,
     pkce: found.code_challenge_methods,
     scopes: found.scopes_supported.slice(0, 12),
+    resource: found.resource ?? null,
+    resourceMetadata: found.resource_metadata ?? null,
+    discoveryUrl: found.discovery_url ?? null,
+    registrationEndpoint: found.registration_endpoint ?? null,
+    revocationEndpoint: found.revocation_endpoint ?? null,
+    tokenAuthMethods: found.token_endpoint_auth_methods ?? [],
   };
 }
 

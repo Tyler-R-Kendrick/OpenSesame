@@ -1,9 +1,14 @@
+import {
+  connectPlan,
+  isRefusedPlan,
+} from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
+import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
 import {
   catalogTileNote,
   isVercelCatalogId,
@@ -28,6 +33,31 @@ export function authKindLabel(provider: Provider): string {
   if (provider.authKind === "api_key") return "API key";
   if (provider.authKind === "configuration") return "Configuration";
   return "OAuth";
+}
+
+/** Catalog badges describe provider protocols; managed configuration is a mode. */
+function browserProtocolLabel(
+  providerId: string,
+  method: "api-key" | "oauth",
+  label: string,
+): string {
+  return nativeBrowserMethodPolicy(providerId, method).available
+    ? label
+    : `${label} (browser unavailable)`;
+}
+
+export function catalogMethodLabel(provider: Provider): string {
+  const plan = connectPlan(provider.id);
+  if (!plan) return authKindLabel(provider);
+  const labels = plan.methods.flatMap((method) => {
+    if (method.kind === "mcp") return ["MCP"];
+    if (method.kind === "oauth" && method.preset)
+      return [browserProtocolLabel(provider.id, "oauth", "OAuth")];
+    if (method.kind === "api-key" && method.preset)
+      return [browserProtocolLabel(provider.id, "api-key", "API key")];
+    return [];
+  });
+  return [...new Set(labels)].join(" · ") || "Configuration";
 }
 
 /** Enter in the prompt lands on the first tile, when the search left one. */
@@ -151,7 +181,7 @@ function ProviderTile({
   const note = catalogTileNote(provider, connection);
   // Under "Managed" every tile said "Managed", and "API Key" said "API key":
   // a kind is drawn only where it says something its heading and name do not.
-  const kind = authKindLabel(provider);
+  const kind = catalogMethodLabel(provider);
   const repeats = [groupLabel, provider.displayName].some(
     (text) => text.toLowerCase() === kind.toLowerCase(),
   );
@@ -164,7 +194,8 @@ function ProviderTile({
       <TileBody
         provider={provider}
         blocked={
-          isVercelCatalogId(provider.id) && !isVercelConnectable(provider.id)
+          isRefusedPlan(provider.id) ||
+          (isVercelCatalogId(provider.id) && !isVercelConnectable(provider.id))
         }
       >
         <ConnectorMark

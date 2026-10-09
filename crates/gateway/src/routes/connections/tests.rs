@@ -39,7 +39,7 @@ fn production_discovery_requires_the_host_operator() {
 
 #[tokio::test]
 async fn operator_can_select_org_but_session_cannot_spoof_it() {
-    let state = app_state::build_test(Args {
+    let state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
@@ -363,7 +363,7 @@ impl AuthServer {
 
 async fn harness() -> (AppState, AuthServer) {
     let server = AuthServer::start().await;
-    let state = app_state::build_test(Args {
+    let state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
@@ -1528,7 +1528,7 @@ async fn github_api_server() -> String {
 
 /// Harness whose broker points its GitHub API base at the in-test server.
 async fn github_harness(api_base: &str) -> AppState {
-    let state = app_state::build_test(Args {
+    let state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),

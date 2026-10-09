@@ -27,6 +27,7 @@ const KEYS = {
   ),
   supportAgentUrl: "PAGES_SUPPORT_AGENT_URL",
   connectCallbackBase: "PAGES_CONNECT_CALLBACK_BASE",
+  linearClientId: "PAGES_LINEAR_CLIENT_ID",
 };
 
 export function runtimeConfig(environment) {

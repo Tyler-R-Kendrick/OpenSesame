@@ -1,5 +1,4 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
-
 import { core, each, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
@@ -114,6 +113,7 @@ const SIGNIN_FILES = [
   "orgs",
 ];
 const CONNECTOR_FILES = [
+  "linear-",
   "connector-guidance",
   "connect-",
   "self-hosted-config",
@@ -170,8 +170,6 @@ const FEDERATION_FILES = [
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
-  "hosted-inference",
-  "saved-model-agent",
   "model-catalog",
   "model-slugs",
   "browser-inference",

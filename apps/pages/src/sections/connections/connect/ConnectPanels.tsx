@@ -10,6 +10,7 @@ import { useIdentitySession } from "../../../bindings/identity.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
+import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
 import { SavedConnectorSummary } from "./SavedConnectorSummary.js";
 import { SelfHostedConnectorForm } from "./SelfHostedConnectorForm.js";
 import { UserTokenPanel } from "./UserTokenPanel.js";
@@ -82,6 +83,7 @@ export function ConnectPanels(props: Props) {
   if (!plan || plan.refused) return null;
   if (connection && isConnectConnection(connection))
     return <ImportedConnectPanels {...props} connection={connection} />;
+  if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
   const local = isSelfHostedConnector(connection) ? connection : null;
   const connectorId = local?.connectionId;
   return (

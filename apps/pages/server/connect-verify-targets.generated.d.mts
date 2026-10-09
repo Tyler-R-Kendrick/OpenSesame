@@ -9,6 +9,9 @@ export type VerifyTarget = {
   headers: Record<string, string>;
   body: string | null;
   sources: { template: string; field: string }[];
+  success?: { field: string; equals: string | number | boolean | null }[];
+  requiredFields?: string[];
+  errorFields?: string[];
 };
 
 export const VERIFY_TARGETS: Readonly<

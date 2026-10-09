@@ -51,10 +51,25 @@ interface SecretStore {
   [key: string]: StringFields;
 }
 
+const rowListeners = new Set<() => void>();
+
+/** Observe committed public metadata without exposing the private record. */
+export function subscribeDeviceRows(listener: () => void): () => void {
+  rowListeners.add(listener);
+  return () => {
+    rowListeners.delete(listener);
+  };
+}
+
+function notifyDeviceRows(): void {
+  for (const listener of rowListeners) listener();
+}
+
 export function clearDeviceConnectorStore(): void {
   kvDelete(PUBLIC_KEY);
   kvDelete(SECRET_KEY);
   kvDelete(ATOMIC_KEY);
+  notifyDeviceRows();
 }
 
 function rowFrom(value: BoundaryValue): PublicRow | null {
@@ -91,7 +106,8 @@ function rowFrom(value: BoundaryValue): PublicRow | null {
   };
 }
 
-type Configuration = { row: PublicRow; secrets: StringFields };
+export type DeviceConfiguration = { row: PublicRow; secrets: StringFields };
+type Configuration = DeviceConfiguration;
 interface AtomicStore {
   [connectionId: string]: Configuration | null;
 }
@@ -158,6 +174,7 @@ export function writeDeviceRows(rows: PublicRow[]): void {
   const legacy = rows.filter((row) => !(row.connectionId in atomic));
   if (legacy.length === 0) kvDelete(PUBLIC_KEY);
   else kvSet(PUBLIC_KEY, JSON.stringify(legacy));
+  notifyDeviceRows();
 }
 
 function readLegacySecrets(): SecretStore {
@@ -228,6 +245,7 @@ async function commitAtomic(records: AtomicStore): Promise<void> {
     throw new Error("Connector configuration exceeds the storage size limit");
   }
   await kvSetDurable(ATOMIC_KEY, value);
+  notifyDeviceRows();
 }
 
 /** Evaluate compatibility under the lock, then commit metadata and secrets in one sealed file. */
@@ -244,13 +262,42 @@ export function writeDeviceConfigurationDurable(
   });
 }
 
+/** Re-read under the same cross-tab lock before changing a provider grant. */
+export function updateDeviceConfigurationDurable(
+  id: string,
+  update: (record: DeviceConfiguration) => Promise<DeviceConfiguration>,
+): Promise<PublicRow> {
+  return withConfigurationLock(async () => {
+    const records = readAtomic();
+    const record = records[id];
+    if (!record) throw new Error("Saved connector not found on this device");
+    const next = await update(record);
+    if (
+      next.row.connectionId !== id ||
+      next.row.providerId !== record.row.providerId
+    )
+      throw new Error("A provider grant cannot change its connector");
+    if (next !== record) await commitAtomic({ ...records, [id]: next });
+    return next.row;
+  });
+}
+
 /** A durable tombstone masks legacy copies even if the browser closes immediately. */
-export function removeDeviceConfigurationDurable(id: string): Promise<boolean> {
+export function removeDeviceConfigurationDurable(
+  id: string,
+  beforeRemove?: (record: DeviceConfiguration) => void,
+): Promise<boolean> {
   return withConfigurationLock(async () => {
     const row = readDeviceRows().find((entry) => entry.connectionId === id);
     if (!row || row.fields.self_hosted_configuration === undefined)
       return false;
-    await commitAtomic({ ...readAtomic(), [id]: null });
+    const records = readAtomic();
+    if (beforeRemove) {
+      const record = records[id];
+      if (!record) throw new Error("Saved connector not found on this device");
+      beforeRemove(record);
+    }
+    await commitAtomic({ ...records, [id]: null });
     return true;
   });
 }

@@ -43,6 +43,8 @@ export async function askDaemonFor(session, origin, reference = "Dev/app") {
     async (asked) => {
       const { fillPairingToken } =
         await chrome.storage.local.get("fillPairingToken");
+      // The daemon fixture listens only on loopback; this exercises its paired local HTTP protocol.
+      // nosemgrep: typescript.react.security.react-insecure-request.react-insecure-request
       const response = await fetch("http://127.0.0.1:18790/v1/fill", {
         method: "POST",
         headers: {

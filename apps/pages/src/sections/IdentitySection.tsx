@@ -64,6 +64,7 @@ import type { IdentityTab } from "./identity/IdentityTabs.js";
 import { LocalDirectoryWorkspace } from "./identity/LocalDirectoryWorkspace.js";
 import { ProvidersWorkspace } from "./identity/ProvidersWorkspace.js";
 import { useEnabledIdentityViews } from "./identity/identity-views.js";
+import { providersListRoute } from "./identity/providers-list-route.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";
@@ -173,20 +174,17 @@ export function IdentitySection() {
   const [flash, setFlash] = useState<Flash | null>(null);
 
   function openCeremony() {
-    navigate("/identity?view=providers&action=new");
+    navigate(providersListRoute({ action: "new" }));
   }
 
   function closeCeremony() {
-    if (listAdditionalIdpRegistrations().length === 0) {
-      // "Set up later" defers adding another upstream; the device IdP remains.
-      dismissIdpCeremony();
-    }
-    navigate("/identity?view=providers");
+    if (listAdditionalIdpRegistrations().length === 0) dismissIdpCeremony();
+    navigate(providersListRoute({}));
   }
 
   function registered(record: IdpRecord, message: string) {
     setProviders(listIdpRegistrations());
-    navigate(`/identity?view=providers#${encodeURIComponent(record.id)}`);
+    navigate(providersListRoute({}, record.id));
     setFlash({ tone: "ok", text: message });
   }
 

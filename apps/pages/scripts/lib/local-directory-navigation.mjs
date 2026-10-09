@@ -3,28 +3,34 @@ import { expect } from "@playwright/test";
 /** Read a row's position, then use the listing's real count-prefixed motion. */
 async function chooseRow(page, tree, row, tabTo, activate = true) {
   await expect(row).toBeVisible();
+  await tabTo(page, tree);
+  await expect(tree).toBeFocused();
   const index = await row.evaluate((node) =>
     [
       ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
     ].indexOf(node),
   );
-  await tabTo(page, tree);
   await page.keyboard.type(`${index + 1}gg`);
   if (activate) await page.keyboard.press("Enter");
 }
 
 export async function openIdentityView(page, tabTo, name) {
+  const narrow = page.viewportSize().width <= 900;
+  const workspace = page.locator('.record-workspace[data-section="Identity"]');
+  const beforeEscape = page.url();
   await page.keyboard.press("Escape");
   await page.keyboard.press("Escape");
+  // Wait only when Escape moved a pane. A tray close may legitimately leave
+  // focus on the shell's More key, outside the previous record pane.
+  if (page.url() !== beforeEscape)
+    await settledIdentityPane(page, workspace, narrow);
   await page.keyboard.press("g");
   await page.keyboard.press("i");
   // The jump must finish at the root before taking a row index. On a phone,
   // a list/detail route hides the section tree; the shell's drawer also has
   // a tree named Sections, so use the workspace's actual navigation pane.
   await expect(page).toHaveURL(/\/identity\/?$/);
-  const narrow = page.viewportSize().width <= 900;
-  const workspace = page.locator('.record-workspace[data-section="Identity"]');
-  if (narrow) await expect(workspace).toHaveAttribute("data-pane", "tree");
+  await settledIdentityPane(page, workspace, narrow);
   const tree = (narrow ? workspace.locator(".vault__tree") : page)
     .getByRole("tree", { name: "Sections", exact: true })
     .filter({ visible: true })
@@ -41,13 +47,16 @@ export async function openIdentityView(page, tabTo, name) {
     await page.keyboard.press("ArrowRight");
   }
   const category = tree.getByRole("treeitem", { name, exact: true });
+  const destination = new URL(await category.getAttribute("href"), page.url());
   const expanded = (await category.getAttribute("aria-expanded")) === "true";
   // Expanded directories preview on motion; collapsed ones need Enter. On a
   // phone, that preview replaces the tree, so a second Enter could open a file.
   await chooseRow(page, tree, category, tabTo, !expanded);
+  await expect(page).toHaveURL(destination.href);
   await expect(
-    page.locator('.record-workspace[data-section="Identity"]'),
+    workspace.getByRole("tree", { name: `${name} items`, exact: true }),
   ).toBeVisible();
+  await settledIdentityPane(page, workspace, narrow);
 }
 
 export async function openIdentityRecord(page, tabTo, name) {
@@ -69,7 +78,13 @@ export async function identityList(page, tabTo) {
   }
 }
 
-export async function expectIdentityRefusal(page, tabTo, text) {
+export async function expectIdentityRefusal(page, tabTo, text, returnedFocus) {
+  // The refusal and its focus restoration finish asynchronously. Starting
+  // Tab navigation first can let that restoration take focus from the bell.
+  if (returnedFocus) {
+    await expect(returnedFocus).toBeEnabled();
+    await expect(returnedFocus).toBeFocused();
+  }
   const bell = page
     .getByRole("button", { name: /^Notifications/ })
     .filter({ visible: true });
@@ -96,4 +111,24 @@ export async function expectIdentityRefusal(page, tabTo, text) {
   await tabTo(page, sheet.getByRole("button", { name: "Close", exact: true }));
   await page.keyboard.press("Enter");
   await expect(sheet).toBeHidden();
+}
+
+/** Await the pane rendered for the route before another chord or row motion. */
+async function settledIdentityPane(page, workspace, narrow) {
+  if (!narrow || !(await workspace.count())) return;
+  const url = new URL(page.url());
+  const pane =
+    url.hash || url.searchParams.has("action")
+      ? "detail"
+      : url.search
+        ? "list"
+        : "tree";
+  await expect(workspace).toHaveAttribute("data-pane", pane);
+  const target =
+    pane === "tree"
+      ? workspace.locator('.vault__tree [role="tree"]')
+      : pane === "list"
+        ? workspace.locator('.vtree__rows[role="tree"]')
+        : workspace.locator(".vault__detail");
+  await expect(target).toBeVisible();
 }

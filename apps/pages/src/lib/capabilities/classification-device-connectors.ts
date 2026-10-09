@@ -14,6 +14,7 @@ export const DEVICE_CONNECTOR_RULES = [
       "apply-saved-connectors",
       "capability-feature-operation",
       "device-connector-records",
+      "device-connector-view",
       "device-connectors",
       "feature-connector-operation",
       "feature-request",

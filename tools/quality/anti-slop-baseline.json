@@ -11,15 +11,15 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 170,
-    "violations": 569,
+    "files": 169,
+    "violations": 567,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
       "anti-slop/no-known-value-widening": 203,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 162,
+      "anti-slop/no-runtime-typeof": 160,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 34,
       "anti-slop/no-unknown-returns": 2,
@@ -48,9 +48,6 @@
     },
     "apps/pages/api/github-app/webhook-pending.mjs": {
       "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/github-app/webhook.mjs": {
-      "anti-slop/no-runtime-typeof": 2
     },
     "apps/pages/scripts/build-profile.mjs": {
       "anti-slop/no-conditional-empty-object-spread": 1

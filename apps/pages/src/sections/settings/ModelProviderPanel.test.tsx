@@ -163,6 +163,25 @@ describe("ModelProviderPanel", () => {
     });
   });
 
+  it("describes a stored hosted model as selected rather than already running", async () => {
+    barrenBrowser();
+    await kvSetDurable(
+      MODEL_PROVIDER_KEY,
+      JSON.stringify({
+        kind: "hosted",
+        provider: "openai",
+        endpoint: "https://api.openai.com/v1",
+        model: "gpt-4o",
+      }),
+    );
+    render(<ModelProviderPanel />);
+    expect(
+      await screen.findByRole("img", {
+        name: "Hosted model selected. Answers require a verified connector and active Remote AI support and External connectors capabilities.",
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Running at the provider/)).toBeNull();
+  });
   it("sends a failed save to the tray", async () => {
     barrenBrowser();
     const save = modelProviderSeams.saveModelProvider;

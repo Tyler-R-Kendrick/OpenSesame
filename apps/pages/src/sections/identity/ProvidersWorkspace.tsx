@@ -35,8 +35,8 @@ export function ProvidersWorkspace({
   const { rows, refresh } = useProviderCatalog(providers);
   const { hash } = useLocation();
   const navigate = useNavigate();
-  const id = identityRecordId(hash);
-  const record = rows.find((row) => row.id === id);
+  const id = editor ? null : identityRecordId(hash);
+  const record = id ? rows.find((row) => row.id === id) : undefined;
   const guide = useGuideTarget<HTMLButtonElement>("identity.register-idp");
   const listPath = "/identity?view=providers";
   return (

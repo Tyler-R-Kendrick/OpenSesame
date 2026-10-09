@@ -245,3 +245,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0181](0181-the-title-row-is-one-path-control.md) | The editor's title row is one path control, and every field has a cap | Accepted |
 | [0182](0182-secrets-are-files-one-vfs-contract-on-effect.md) | Secrets are files: one VFS contract over an emulated store, a real directory and a private store, written on Effect | Accepted |
 | [0183](0183-self-hosted-connector-configuration.md) | Self-hosted connector configuration follows the Connect experience | Accepted |
+| [0184](0184-browser-linear-authorization.md) | Linear authorizes and runs directly in the browser | Accepted |
+| [0185](0185-native-browser-connectors.md) | Browser connectors execute compiled provider contracts | Accepted |

@@ -19,9 +19,10 @@
  * rather than from the DOM (ADR 0088), so no secret, item name or folder
  * name has a path into a prompt, and the endpoint is validated as absolute
  * http(s) with nothing smuggled in the authority or the tail
- * (`agents/ag-ui/endpoint.ts`). The endpoint itself is read once per
- * activation from this origin's `os-runtime-config.json`; with none
- * configured the remote transport stays off, and dispose forgets it.
+ * (`agents/ag-ui/endpoint.ts`). Deployment endpoint config is read under the
+ * activation lease. Without it, only the operator-selected verified model
+ * can answer, while External connectors is also active. Disposal destroys
+ * captured agents and forgets the endpoint.
  *
  * Side effects: none at import. The config read is a `background-job` under
  * the lease, so a capability disabled mid-flight fetches nothing further.
@@ -31,126 +32,128 @@ import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/ru
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import {
-  type FeatureOperation,
-  runListedFeature,
-} from "@opensesame/app-core/lib/feature-connector-operation.js";
-import { savedFeatureRequests } from "@opensesame/app-core/lib/feature-request.js";
-import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
-import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
+  type ModelExchange,
+  modelExchange,
+} from "@opensesame/app-core/lib/hosted-inference.js";
+import {
+  type HostedModelTransport,
+  hostedModelAuthority,
+} from "@opensesame/app-core/lib/hosted-model-authority.js";
 import { createSavedModelSupportAgent } from "@opensesame/app-core/lib/saved-model-agent.js";
 import {
   applyAgUiEndpoint,
   loadAgUiEndpoint,
 } from "@opensesame/app-core/tutorial/agents/ag-ui/endpoint.js";
+import type { SupportAgentPort } from "@opensesame/support-agent";
 import { installSupportAgentLoaders } from "../../tutorial/agent-seams.js";
 import { createActivation } from "../activation.js";
+import { anySignal, runUnlessAborted } from "../signals.js";
 
 export const CAPABILITY = "support.remote-ai";
-
-/** Test seam: the deploy-config read, swappable without a module mock. */
 interface RemoteSupportSeams {
   loadAgUiEndpoint: typeof loadAgUiEndpoint;
 }
-
 export const remoteSupportSeams: RemoteSupportSeams = { loadAgUiEndpoint };
-
-/** The model operation for a saved api-key connector, with no Host required. */
-export function savedRemoteModel(
-  provider: Provider | string,
-): FeatureOperation {
-  return runListedFeature(provider);
+/** Compatibility observations never start inference; a question must await an agent. */
+export function savedRemoteModel(provider: Provider | string): ModelExchange {
+  return modelExchange(provider);
 }
-
-/**
- * Send every saved agent-harness request. The key is on those requests,
- * never on the same-origin support endpoint and never on the model record.
- * Each request is the operation `savedRemoteModel` returned.
- */
 export function loadSavedRemoteModels(): ModelExchange[] {
-  const operations = savedFeatureRequests(["agent_harnesses"]).map((row) =>
-    savedRemoteModel(row.providerId),
-  );
-  return savedModelRequests(operations);
+  return [];
 }
-
-let acceptedModels: ModelExchange[] = [];
-
-/** Inference requests this capability has accepted. Secrets stay on their headers. */
 export function acceptedRemoteModels(): readonly ModelExchange[] {
-  return acceptedModels;
+  return [];
 }
-
-function secretsStayOnHeaders(row: ModelExchange & { ok: true }): boolean {
-  const packed = JSON.stringify(row.body);
-  return Object.values(row.headers).every(
-    (value) => value === "" || !packed.includes(value),
-  );
-}
-
-/** AG-UI when an endpoint is configured, otherwise the saved model connector. */
 interface RemoteAgentModule {
-  readonly createAgUiAgent: () => ReturnType<
-    typeof createSavedModelSupportAgent
-  >;
+  readonly createAgUiAgent: () => SupportAgentPort | null;
 }
 
-export async function loadRemoteAgentModule(): Promise<RemoteAgentModule> {
+function modelTransport(signal: AbortSignal): HostedModelTransport | null {
+  let captured: HostedModelTransport;
+  try {
+    const authority = hostedModelAuthority();
+    if (!authority) return null;
+    captured = authority;
+  } catch {
+    return null;
+  }
+  return {
+    assertCurrent() {
+      signal.throwIfAborted();
+      captured.assertCurrent();
+    },
+    fetch(url, init) {
+      signal.throwIfAborted();
+      captured.assertCurrent();
+      const merged = init?.signal ? anySignal([signal, init.signal]) : signal;
+      return runUnlessAborted(merged, () =>
+        captured.fetch(url, { ...init, signal: merged }),
+      );
+    },
+  };
+}
+/** Every created agent belongs to this support lease and captures its connector lease. */
+export async function loadRemoteAgentModule(
+  signal?: AbortSignal,
+  onCreated?: (agent: SupportAgentPort) => void,
+): Promise<RemoteAgentModule> {
   const ag = await import(
     "@opensesame/app-core/tutorial/agents/ag-ui/index.js"
   );
+  if (signal?.aborted) return { createAgUiAgent: () => null };
+  const transport = signal ? modelTransport(signal) : null;
   return {
-    createAgUiAgent: () =>
-      ag.createAgUiAgent() ?? createSavedModelSupportAgent(),
+    createAgUiAgent() {
+      if (signal?.aborted) return null;
+      const agent =
+        ag.createAgUiAgent() ??
+        createSavedModelSupportAgent(transport ?? undefined);
+      if (agent) onCreated?.(agent);
+      return agent;
+    },
   };
 }
-
-/** Read the configured endpoint once, unless the lease already aborted. */
+/** Config discovery performs no inference and holds no fabricated delivery record. */
 export function startAgUiEndpointLoad(signal: AbortSignal): void {
   if (signal.aborted) return;
-  acceptedModels = loadSavedRemoteModels().filter(
-    (row): row is ModelExchange & { ok: true } =>
-      row.ok && secretsStayOnHeaders(row),
-  );
-  void remoteSupportSeams.loadAgUiEndpoint().then(
-    (endpoint) => {
-      // Disabled while the read was in flight: the address is not kept.
-      if (signal.aborted && endpoint !== null) applyAgUiEndpoint(null);
-    },
+  void remoteSupportSeams.loadAgUiEndpoint(signal).then(
+    () => {},
     () => {
-      // No runtime config, or an address that failed validation: the
-      // remote transport stays off, which is the default.
+      /* No configured remote endpoint. */
     },
   );
 }
-
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-
+    const lifetime = new AbortController();
+    const signal = anySignal([ctx.lease.signal, lifetime.signal]);
+    const agents = new Set<SupportAgentPort>();
     activation.onDispose(
       installSupportAgentLoaders({
         provider: () =>
           import("@opensesame/app-core/tutorial/agents/provider/index.js"),
-        agUi: () => loadRemoteAgentModule(),
+        agUi: () => loadRemoteAgentModule(signal, (agent) => agents.add(agent)),
       }),
     );
+    activation.onDispose(() => {
+      for (const agent of agents) agent.destroy();
+      agents.clear();
+    });
     activation.onDispose(() => applyAgUiEndpoint(null));
-
+    activation.onDispose(() => lifetime.abort());
     activation.register("background-job", {
       id: "ag-ui-endpoint",
-      start: startAgUiEndpointLoad,
+      start: (jobSignal) =>
+        startAgUiEndpointLoad(anySignal([signal, jobSignal])),
     });
-    // The bar stays a command parser until a model capability is on. This
-    // one does not interpret; it only opens the ask road. On-device
-    // interpretation sorts first (order 10).
     activation.register("command-assist", {
       id: "remote",
       order: 30,
       interpret: (utterance) => Promise.resolve(readCommand(utterance)),
     });
-
     return activation.handle();
   },
 };

@@ -212,13 +212,23 @@ it("registers, edits and confirms revocation without showing the claim bearer", 
     publicKeyJkt: "a".repeat(43),
   });
   expect(document.body.textContent).not.toContain("osc_clm_private-fixture");
-  expect(screen.getByTestId("location").textContent).toBe("?view=agents#agt_1");
+  await waitFor(() =>
+    expect(screen.getByTestId("location").textContent).toBe(
+      "?view=agents#agt_1",
+    ),
+  );
   await user.click(screen.getByRole("button", { name: "Edit Deploy" }));
   await user.type(screen.getByLabelText("Agent name"), " safely");
   await user.click(screen.getByRole("button", { name: "Save agent" }));
   await screen.findByRole("button", { name: "Edit Deploy safely" });
   expect(agents[0]?.displayName).toBe("Deploy safely");
-  await user.click(screen.getByRole("button", { name: "Revoke" }));
+  await waitFor(() =>
+    expect(screen.getByTestId("location").textContent).toBe(
+      "?view=agents#agt_1",
+    ),
+  );
+  const revoke = await screen.findByRole("button", { name: "Revoke" });
+  await user.click(revoke);
   expect(writes).toHaveLength(2);
   await user.click(screen.getByRole("button", { name: "Confirm revocation" }));
   await waitFor(() => expect(agents[0]?.state).toBe("revoked"));

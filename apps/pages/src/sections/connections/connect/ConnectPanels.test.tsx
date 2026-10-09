@@ -1,6 +1,5 @@
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
 import {
-  connectPlan,
   connectPlans,
   isConnectable,
 } from "@opensesame/app-core/lib/connect-plan.js";
@@ -9,13 +8,8 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 /** @vitest-environment jsdom */
-import {
-  forgetDeviceConnectors,
-  listDeviceConnections,
-} from "@opensesame/app-core/lib/device-connectors.js";
+import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import { kvDurability } from "@opensesame/app-core/lib/kv.js";
-import { readSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import type { JsonObject, JsonValue } from "@opensesame/os-domain";
@@ -31,6 +25,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../../bindings/identity.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { ConnectPanels } from "./ConnectPanels.js";
+import { nativeSettingsDescriptor } from "./NativeConnectorPanels.js";
+import {
+  activateNativePanelRuntime,
+  expectNativePanel,
+} from "./connect-panels.test-support.js";
 
 Object.assign(identityHookSeams, {
   useIdentitySession: () => ({ principalId: "prn_person" }),
@@ -40,6 +39,7 @@ Object.assign(vaultHooksSeams, {
 });
 
 const KEY = "k".repeat(40);
+let runtime: ReturnType<typeof activateNativePanelRuntime>;
 
 function provider(id: string): Provider {
   // Every row the Connections page lists: Connect's own, then the bundled
@@ -101,11 +101,13 @@ function reply(body: JsonValue) {
 }
 
 beforeEach(() => {
+  runtime = activateNativePanelRuntime();
   setVercelConnectAuth({ token: "vercel_token" });
 });
 
 afterEach(() => {
   cleanup();
+  runtime.activation.dispose();
   forgetDeviceConnectors();
   vi.unstubAllGlobals();
   setVercelConnectAuth(null);
@@ -136,44 +138,69 @@ describe("no connector page is blank", () => {
     .map((plan) => plan.id)
     .filter((id) => id !== "github");
 
-  it.each(ids)("%s opens filled in, with a way to create it", (id) => {
-    draw(id);
-    const panel = screen.getByRole("region", { name: "Connector" });
-    expect(
-      within(panel).getByRole("button", { name: "Create Connector" }),
-    ).toBeTruthy();
-    expect(within(panel).getByLabelText("Connector Name")).toHaveProperty(
-      "value",
-      connectPlan(id)?.name,
-    );
-  });
+  it.each(ids)(
+    "%s opens its own configuration or explicit browser refusal",
+    (id) => {
+      draw(id);
+      const panel = screen.getByRole("region", { name: "Connector" });
+      if (id === "linear") {
+        expect(
+          within(panel).getByRole("button", {
+            name: "Create and authorize Linear",
+          }),
+        ).toBeTruthy();
+        expect(within(panel).getByLabelText("Connector Name")).toHaveProperty(
+          "value",
+          "Linear",
+        );
+        return;
+      }
+      const descriptor = nativeSettingsDescriptor(provider(id));
+      if (!descriptor) throw new Error(`${id} has no native descriptor`);
+      expectNativePanel(panel, descriptor, runtime.fetch);
+    },
+  );
 });
 
 describe("moving between connectors", () => {
   it("starts each connector's form from its own plan", async () => {
     const view = render(
       <ConnectPanels
-        provider={provider("resend")}
+        provider={provider("algolia")}
         connection={null}
         online
         onFlash={vi.fn()}
         onChanged={vi.fn()}
       />,
     );
-    await userEvent.click(screen.getByRole("radio", { name: "API key" }));
+    await userEvent.type(
+      screen.getByLabelText("Connector name"),
+      "Algolia draft",
+    );
+    await userEvent.type(
+      screen.getByLabelText("Algolia API key"),
+      "entered-only",
+    );
+    await userEvent.type(screen.getByLabelText("Application ID"), "first-app");
     view.rerender(
       <ConnectPanels
-        provider={provider("okta")}
+        provider={provider("gemini")}
         connection={null}
         online
         onFlash={vi.fn()}
         onChanged={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Connector Name")).toHaveProperty(
+    expect(screen.getByLabelText("Connector name")).toHaveProperty(
       "value",
-      "Okta",
+      "Google Gemini",
     );
+    expect(screen.getByLabelText("Google Gemini API key")).toHaveProperty(
+      "value",
+      "",
+    );
+    expect(screen.queryByLabelText("Application ID")).toBeNull();
+    expect(runtime.fetch).not.toHaveBeenCalled();
   });
 });
 
@@ -192,7 +219,9 @@ describe("self-hosted provider configuration", () => {
       true,
     );
     expect(screen.getByRole("radio", { name: "Bring Your Own" })).toBeTruthy();
-    expect(screen.getByLabelText("Select a Linear workspace")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Expected Linear workspace (optional)"),
+    ).toBeTruthy();
     expect(screen.getByLabelText("Icon")).toHaveProperty(
       "accept",
       "image/png,image/jpeg",
@@ -203,81 +232,43 @@ describe("self-hosted provider configuration", () => {
     expect(screen.getByLabelText("User Scopes").textContent).toContain(
       "2 selected",
     );
+    expect(screen.queryByLabelText("Webhook Resource Types")).toBeNull();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Register a Linear webhook" }),
+    );
     expect(
       screen.getByLabelText("Webhook Resource Types").textContent,
     ).toContain("2 selected");
+    expect(screen.getByLabelText("Webhook delivery URL")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("radio", { name: "Bring Your Own" }),
     );
-    expect(screen.getByLabelText("Client ID")).toBeTruthy();
-    expect(screen.getByLabelText("Authorization endpoint")).toHaveProperty(
-      "value",
-      "https://linear.app/oauth/authorize",
+    expect(screen.getByLabelText("Linear OAuth client ID")).toBeTruthy();
+    expect(screen.getByLabelText("Redirect URI")).toHaveProperty(
+      "readOnly",
+      true,
     );
+    expect(screen.queryByLabelText("Client secret")).toBeNull();
+    expect(screen.queryByLabelText("Authorization endpoint")).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("stores Linear settings locally, retains selections, and keeps secrets out of readback", async () => {
-    setVercelConnectAuth(null);
-    const fetch = vi.fn();
-    vi.stubGlobal("fetch", fetch);
-    const onFlash = draw("linear");
-    await userEvent.type(
-      screen.getByLabelText("Select a Linear workspace"),
-      "quickdeploy-ai",
-    );
-    await userEvent.click(screen.getByText("Linear OAuth application"));
-    await userEvent.type(screen.getByLabelText("Client ID"), "lin_client");
-    await userEvent.type(screen.getByLabelText("Client secret"), "lin_secret");
-    await userEvent.click(screen.getByLabelText("Webhook Resource Types"));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Project" }));
-    await userEvent.click(
-      screen.getByRole("button", { name: "Create Connector" }),
-    );
-    await waitFor(() => expect(listDeviceConnections()).toHaveLength(1));
-    const row = listDeviceConnections()[0];
-    expect(row?.status).toBe("pending");
-    expect(row?.grantedScopes).toEqual([]);
-    const saved = readSelfHostedConnector(row?.connectionId ?? "");
-    expect(saved?.options).toMatchObject({
-      workspace: "quickdeploy-ai",
-      appScopes: ["read", "write", "issues:create", "comments:create"],
-      userScopes: ["read", "write"],
-      webhookResourceTypes: ["Issue", "Comment", "Project"],
-    });
-    expect(saved?.state.oauth.clientSecret).toBe("");
-    expect(saved?.hasCredential).toBe(true);
-    expect(onFlash).toHaveBeenCalledWith({
-      tone: kvDurability() === "memory" ? "warn" : "ok",
-      text:
-        kvDurability() === "memory"
-          ? "Linear configuration is kept for this session."
-          : "Linear configuration is saved on this device.",
-    });
-    expect(fetch).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Client secret")).toHaveProperty("value", "");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Save connector" }),
-    );
-    expect(listDeviceConnections()).toHaveLength(1);
-  });
-
-  it("asks for the selected provider key, never a Vercel key", async () => {
+  it("requires an actual Linear key for API verification and keeps provider endpoints fixed", async () => {
     setVercelConnectAuth(null);
     draw("linear");
     await userEvent.click(
       screen.getByRole("radio", { name: "Bring Your Own" }),
     );
     await userEvent.click(screen.getByRole("radio", { name: "API key" }));
-    expect(
-      screen
-        .getAllByLabelText("API key")
-        .find((element) => element.getAttribute("type") === "password"),
-    ).toBeTruthy();
-    expect(screen.getByLabelText("API")).toHaveProperty(
-      "value",
-      "https://api.linear.app",
+    expect(screen.getByLabelText("Linear API key")).toHaveProperty(
+      "type",
+      "password",
     );
+    expect(
+      screen.getByRole("button", { name: "Verify and connect Linear" }),
+    ).toHaveProperty("disabled", true);
+    expect(screen.queryByLabelText("API")).toBeNull();
+    expect(screen.queryByLabelText("App Scopes")).toBeNull();
     expect(screen.queryByText(/Vercel/)).toBeNull();
   });
 
@@ -285,9 +276,20 @@ describe("self-hosted provider configuration", () => {
     setVercelConnectAuth(null);
     draw("resend");
     expect(screen.getByRole("region", { name: "Connector" })).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Create Connector" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Managed MCP" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(screen.getByLabelText("Connector name")).toHaveProperty(
+      "value",
+      "Resend",
+    );
+    expect(screen.getByRole("radio", { name: "API Key" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.queryByLabelText("Resend API key")).toBeNull();
+    expect(runtime.fetch).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Relay management key")).toBeNull();
   });
 });

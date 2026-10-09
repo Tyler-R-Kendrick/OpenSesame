@@ -86,7 +86,11 @@ describe("ci gates", () => {
     expect(
       gatesOf("apps/pages/scripts/verify-self-hosted-connectors.mjs"),
     ).toEqual(["budgets"]);
-    expect(gatesOf(metadata)).toEqual(["budgets"]);
+    expect(gatesOf(metadata)).toEqual([
+      "budgets",
+      "native-connectors",
+      "native-public-protocol",
+    ]);
     expect([
       ...selectGates(
         root,
@@ -94,7 +98,7 @@ describe("ci gates", () => {
         bundlePackageDirs(root),
         pushPackageDirs(root),
       ),
-    ]).toEqual(["budgets"]);
+    ]).toEqual(["budgets", "native-connectors", "native-public-protocol"]);
   });
 
   it("writes matrix legs in the shard file's order and only for wanted gates", () => {
@@ -166,4 +170,19 @@ describe("ci gate selection", () => {
     );
     expect([...gates].sort()).toEqual(["budgets", "journeys", "sign-in"]);
   });
+});
+
+it("runs both native production journeys for provider configuration changes", () => {
+  for (const path of [
+    "apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx",
+    "apps/pages/src/sections/ConnectionsSection.tsx",
+    "packages/app-core/src/lib/native-api-connectors.ts",
+    "spec/connectors/connect-presets.json",
+  ]) {
+    expect(gatesOf(path)).toContain("native-connectors");
+    expect(gatesOf(path)).toContain("native-public-protocol");
+  }
+  expect(
+    gatesOf("apps/pages/scripts/verify-native-public-protocol.mjs"),
+  ).toEqual(["native-public-protocol"]);
 });
