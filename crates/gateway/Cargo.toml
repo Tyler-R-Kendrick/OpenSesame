@@ -3,39 +3,94 @@ name = "opensesame-gateway"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Optional vault-relay peer (ADR 0181). Host API removed."
 
 [dependencies]
 opensesame-domain = { path = "../../crates/domain" }
-opensesame-host-core = { path = "../../crates/host-core" }
+opensesame-authz = { path = "../../crates/authz" }
+opensesame-broker = { path = "../../crates/broker" }
+opensesame-connection-broker = { path = "../../crates/connection-broker" }
+opensesame-event-seal = { path = "../../crates/event-seal" }
+opensesame-task-access = { path = "../../crates/task-access" }
 opensesame-proof = { path = "../../crates/proof" }
-opensesame-transport-security = { path = "../../crates/transport-security" }
-anyhow = { workspace = true }
-axum = { workspace = true }
+opensesame-protocol-aauth = { path = "../../crates/protocol-aauth", features = ["experimental-aauth"] }
+opensesame-audit = { path = "../../crates/audit" }
+opensesame-pki-core = { path = "../../crates/pki-core" }
 base64 = { workspace = true }
+futures = { workspace = true }
+rand = { workspace = true }
+opensesame-a2h = { path = "../../crates/a2h" }
+opensesame-agent-events = { path = "../../crates/agent-events" }
+opensesame-agent-hooks = { path = "../../crates/agent-hooks" }
+# The web-login runner hosts its runs as agent-hooks sessions (ADR 0076, ADR 0159).
+opensesame-rotation-web = { path = "../../crates/rotation-web" }
+opensesame-session-observe = { path = "../../crates/session-observe" }
+url = { workspace = true }
+opensesame-lifecycle = { path = "../../crates/lifecycle" }
+opensesame-ceremony = { path = "../../crates/ceremony" }
+opensesame-security-events = { path = "../../crates/security-events" }
+opensesame-breach-intel = { path = "../../crates/breach-intel" }
+opensesame-storage = { path = "../../crates/storage" }
+opensesame-bitwarden-server = { path = "../../crates/bitwarden-server", optional = true }
+opensesame-claims = { path = "../../crates/claims" }
+opensesame-connector-host = { path = "../../crates/connector-host" }
+opensesame-client-core = { path = "../../crates/client-core" }
+opensesame-host-core = { path = "../../crates/host-core" }
+opensesame-redaction = { path = "../../crates/redaction" }
+opensesame-relay = { path = "../../crates/relay" }
+opensesame-provider-openfga = { path = "../../crates/provider-openfga" }
+opensesame-provider-openbao = { path = "../../crates/provider-openbao" }
+opensesame-task-bus = { path = "../../crates/task-bus", features = ["jetstream"] }
+opensesame-nats-callout = { path = "../../crates/nats-callout" }
+opensesame-transport-security = { path = "../../crates/transport-security" }
+opensesame-spiffe-source = { path = "../../crates/spiffe-source" }
+opensesame-ingress-evidence = { path = "../../crates/ingress-evidence" }
+secrecy = { workspace = true }
+rustls-pki-types = { version = "1.15.1", features = ["std"] }
+tower = { workspace = true }
+sqlx = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+axum = { workspace = true }
 chrono = { workspace = true }
-clap = { workspace = true }
-hex = { workspace = true }
-http = { workspace = true }
-jsonwebtoken = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sha2 = { workspace = true }
+jsonwebtoken = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
-url = { workspace = true }
 uuid = { workspace = true }
+clap = { workspace = true }
+hkdf = { workspace = true }
+hmac = { workspace = true }
+hex = { workspace = true }
+blake3 = { workspace = true }
+sha2 = { workspace = true }
+async-trait = { workspace = true }
+bytes = { workspace = true }
+http = { workspace = true }
+http-body-util = "0.1.3"
+instant-acme = { version = "=0.8.5", default-features = false, features = ["aws-lc-rs"] }
+rcgen = { version = "0.13.2", features = ["x509-parser"] }
+time = { version = "0.3.41", default-features = false, features = ["std"] }
+x509-parser = "0.16.0"
+zeroize = { workspace = true }
+
+[features]
+# Pass-through for the ADR 0065 §3 community connector runtime. Default off;
+# enabling it is a gateway deployment decision, never the daemon's.
+wasm-connectors = ["opensesame-connector-host/wasm-connectors"]
+# The Bitwarden-compatible server (ADR 0141, ADR 0148): a password-manager
+# bridge, so it is compiled only on request, like crates/pm-bridges (ADR 0053).
+bitwarden-compat = ["dep:opensesame-bitwarden-server"]
 
 [dev-dependencies]
-opensesame-pki-core = { path = "../../crates/pki-core" }
-opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
-http-body-util = { workspace = true }
-reqwest = { workspace = true }
-rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
-secrecy = { workspace = true }
-tempfile = { workspace = true }
-tower = { workspace = true }
 tracing-subscriber = { workspace = true }
-x509-parser = { version = "0.16.0", features = ["verify"] }
+async-trait = { workspace = true }
+opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
+tempfile = { workspace = true }
+insta = { workspace = true, features = ["redactions", "json"] }
+proptest = { workspace = true }
+sqlx = { workspace = true }

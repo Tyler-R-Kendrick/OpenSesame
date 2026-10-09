@@ -1,0 +1,7 @@
+---
+source: crates/daemon/src/lib.rs
+expression: body
+---
+{
+  "error": "uds_peer_unattested"
+}
