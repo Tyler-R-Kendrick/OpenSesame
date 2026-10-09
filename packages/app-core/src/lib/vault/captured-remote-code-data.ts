@@ -6,16 +6,13 @@ import { assertUnambiguousJson } from "../retired-credentials/json-preflight.js"
 import type { SentCode } from "./remote-code.js";
 
 const actualHost = host;
-const acknowledged = z.object({
-  ok: z.literal(true),
-  channel: z.enum(["email", "sms"]),
-  to: z.string().min(1).max(512),
-});
-const sent = acknowledged.extend({
-  challengeId: z.string().min(1).max(512),
-  to: z.string().min(1).max(512),
-  expiresAt: z.string().max(64).datetime(),
-});
+function acknowledgementSchema() {
+  return z.object({
+    ok: z.literal(true),
+    channel: z.enum(["email", "sms"]),
+    to: z.string().min(1).max(512),
+  });
+}
 function unavailable(): never {
   throw new Error("Original remote code authentication is unavailable.");
 }
@@ -67,6 +64,12 @@ async function readAcceptedCodeResponse(response: Response, check: () => void) {
   return { ok: response.ok, status: response.status, text };
 }
 class OriginalRemoteCodeData {
+  readonly #acknowledged = acknowledgementSchema();
+  readonly #sent = this.#acknowledged.extend({
+    challengeId: z.string().min(1).max(512),
+    to: z.string().min(1).max(512),
+    expiresAt: z.string().max(64).datetime(),
+  });
   readonly #owner: ReturnType<typeof actualHost>;
   readonly #fetch: typeof fetch;
   readonly #base: string;
@@ -160,7 +163,7 @@ class OriginalRemoteCodeData {
         this.check();
         if (!response.ok) unavailable();
         assertUnambiguousJson(response.text, 16384);
-        const parsed = sent.parse(JSON.parse(response.text));
+        const parsed = this.#sent.parse(JSON.parse(response.text));
         if (parsed.channel !== channel) unavailable();
         const expires = Date.parse(parsed.expiresAt);
         if (expires <= Date.now() || expires > Date.now() + 600000)
@@ -200,7 +203,7 @@ class OriginalRemoteCodeData {
         if (this.#challenge !== selected) unavailable();
         if (!response.ok) unavailable();
         assertUnambiguousJson(response.text, 16384);
-        const accepted = acknowledged.parse(JSON.parse(response.text));
+        const accepted = this.#acknowledged.parse(JSON.parse(response.text));
         if (
           accepted.channel !== selected.channel ||
           accepted.to !== selected.to

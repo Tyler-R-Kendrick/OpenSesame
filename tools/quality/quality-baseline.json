@@ -18,7 +18,7 @@
   "totals": {
     "files": 424,
     "violations": 657,
-    "oversizedLines": 214598
+    "oversizedLines": 214586
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -619,7 +619,7 @@
       "max-lines": 447
     },
     "packages/app-core/src/lib/identity.ts": {
-      "max-lines": 642
+      "max-lines": 630
     },
     "packages/app-core/src/lib/idp-registry.ts": {
       "complexity": 1

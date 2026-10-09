@@ -2,7 +2,6 @@
 import { z } from "zod";
 
 const MAX_DEPTH = 8;
-const jsonText = z.string();
 type Frame =
   | { kind: "object"; keys: Set<string>; expectsKey: boolean }
   | { kind: "array" };
@@ -32,6 +31,7 @@ function utf8Length(text: string, maxBytes: number): void {
 type QuotedStringToken = { text: string; end: number };
 
 function quotedString(raw: string, start: number): QuotedStringToken {
+  const jsonText = z.string();
   let end = start + 1;
   while (end < raw.length && raw.charAt(end) !== '"') {
     if (raw.charAt(end) === "\\") end++;
