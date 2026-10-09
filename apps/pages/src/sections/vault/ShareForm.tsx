@@ -1,3 +1,4 @@
+import { isDeviceIdentityMode } from "@opensesame/app-core/lib/device-identity.js";
 import { useEffect, useRef } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -34,6 +35,11 @@ export function ShareForm({
   return (
     <section className="detail__group" aria-label="Share this item once">
       <h2 className="detail__grouphead">Share once</h2>
+      {isDeviceIdentityMode() ? (
+        <FieldRow label="Opens on">
+          <span className="frow__value">This browser</span>
+        </FieldRow>
+      ) : null}
       <TtlChoices
         value={ttlMs}
         onChange={onTtl}

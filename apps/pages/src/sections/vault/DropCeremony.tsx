@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
  * it lapses, and the QR. A seal that fails is a tray notice, never a box.
  */
 
+import { isDeviceIdentityMode } from "@opensesame/app-core/lib/device-identity.js";
 import {
   type SharedOnce,
   shareOnce,
@@ -107,6 +108,11 @@ export function DropCard({
       {opensFor !== "" ? (
         <FieldRow label="Opens for">
           <span className="frow__value">{opensFor}</span>
+        </FieldRow>
+      ) : null}
+      {isDeviceIdentityMode() ? (
+        <FieldRow label="Opens on">
+          <span className="frow__value">This browser</span>
         </FieldRow>
       ) : null}
       <FieldRow label="Expires">
