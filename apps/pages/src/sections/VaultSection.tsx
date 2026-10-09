@@ -1,4 +1,3 @@
-import { vaultFilterLabel } from "@opensesame/app-core/lib/crumbs.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Outlet,
@@ -9,6 +8,7 @@ import {
 } from "react-router";
 import { canPreviewVaultPath } from "./vault/preview-path.js";
 
+import { vaultFilterLabel } from "@opensesame/app-core/lib/crumbs.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
@@ -19,7 +19,6 @@ import {
   itemTypeRegistry,
   sortItems,
 } from "@opensesame/vault-core";
-import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
 import { UpLink } from "../components/UpLink.js";
@@ -34,9 +33,8 @@ import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
-import { VaultShareSheet } from "./vault/VaultShareKey.js";
+import { VaultShareSheet } from "./vault/VaultShareSheet.js";
 import { VaultTree } from "./vault/VaultTree.js";
-import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { accountSecretToCopy } from "./vault/account-copy.js";
 import { credentialChoices } from "./vault/account-credentials.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
@@ -353,53 +351,4 @@ export function VaultSection() {
   );
 }
 
-/**
- * The buffer before the cursor lands on a file. No dashboard: moving the
- * cursor previews items, so this pane only states what the list beside it
- * holds and hands over the keys for the filter the list is showing.
- */
-export function VaultWelcome() {
-  const { items } = useVault();
-  const [params] = useSearchParams();
-  const filter = resolveFilterSlug(params.get("f") ?? "all");
-  const inTrash = filter === "trash";
-  const shown = items.filter((item) => {
-    if (inTrash) return item.deletedAt !== null;
-    if (item.deletedAt !== null) return false;
-    if (filter === "favorites") return item.favorite;
-    return filter === "all" || itemTypeId(item) === filter;
-  });
-  const what =
-    filter === "all"
-      ? null
-      : (vaultFilterLabel(filter) ?? filter).toLowerCase();
-
-  if (shown.length === 0) {
-    // The list pane states the empty list and carries the actions that fill
-    // it. The buffer says what is there and hands over the keys — the same
-    // two mono lines it shows a full vault (DESIGN.md § Empty states).
-    return (
-      <div className="buffer">
-        <p className="buffer__line">
-          {inTrash
-            ? "trash is empty"
-            : what
-              ? `no ${what} yet`
-              : "nothing sealed yet"}
-        </p>
-        <WelcomeKeys inTrash={inTrash} empty />
-      </div>
-    );
-  }
-
-  return (
-    <div className="buffer">
-      <p className="buffer__line">
-        {shown.length} {shown.length === 1 ? "item" : "items"}
-        {what ? ` · ${what}` : ""}
-      </p>
-      <EmptyTip tip="vaultMove" />
-      <WelcomeKeys inTrash={inTrash} empty={false} />
-    </div>
-  );
-}
+export { VaultWelcome } from "./vault/VaultWelcome.js";
