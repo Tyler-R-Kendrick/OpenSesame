@@ -18,6 +18,7 @@ import { host } from "./host.js";
 import { sealedWebStorage } from "./lib/at-rest/web-storage.js";
 import { storageWritesHalted } from "./lib/storage-halt.js";
 import { type WebStorageArea, ownsDatabase } from "./lib/storage-ownership.js";
+import type { PhysicalAuthenticationPort } from "./lib/vault/physical-authentication-port.js";
 
 /** Web Storage, as `localStorage` and `sessionStorage` expose it. */
 export type WebStorage = {
@@ -149,6 +150,7 @@ export type KeyRangeFactory = {
 };
 
 export type Ports = {
+  readonly physicalVaultAuthentication?: PhysicalAuthenticationPort;
   readonly storage?: StoragePorts;
   readonly atRestKeys?: AtRestKeyPort;
   readonly page?: PagePort;

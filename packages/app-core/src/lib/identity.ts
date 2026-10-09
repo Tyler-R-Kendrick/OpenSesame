@@ -29,71 +29,25 @@ import {
   resolveIdentityBase,
 } from "./device-identity.js";
 import {
+  HostSessionError,
+  IdentityError,
+  type IdentitySession,
+  type Principal,
+} from "./identity-session-types.js";
+import {
   type FailureClass,
   classifyResponse,
   classifyThrown,
 } from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
+import { captureRemoteIdentityCodeData } from "./vault/captured-remote-code-data.js";
+export { HostSessionError, IdentityError };
+export type { IdentitySession, Principal };
 
 export { isDeviceIdentityMode, isRemoteIdentityConfigured, remoteIdentityApi };
 
 const IDENTITY_FETCH_MS = 8000;
 const PROBE_MS = 4000;
-
-export type Principal = {
-  id: string;
-  state: string;
-  assurance: string;
-  createdAt: string;
-  updatedAt: string;
-  verifiedAt?: string;
-  version: number;
-  identities: Array<{
-    id: string;
-    kind: string;
-    issuer: string;
-    displayHint?: string;
-    assurance: string;
-  }>;
-};
-
-export type IdentitySession = {
-  principalId: string;
-  accessToken: string;
-  /** Normalized scheme/host/port that issued this credential. */
-  issuerOrigin: string;
-  /**
-   * Absent for a token the operator pasted in: only the API knows its horizon,
-   * and guessing one would drop a working token. A 401 ends it instead.
-   */
-  expiresAt?: string | undefined;
-  /**
-   * Pasted in by the operator rather than minted here, so no cookie belongs to
-   * it. Requests must withhold cookies or a surviving one answers in its place.
-   */
-  adopted?: boolean;
-  /** Resumed from the HttpOnly cookie; no bearer is copied into JavaScript. */
-  cookieOnly?: boolean;
-};
-
-export class IdentityError extends Error {
-  readonly status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "IdentityError";
-    this.status = status;
-  }
-}
-
-export class HostSessionError extends Error {
-  constructor(
-    readonly code: "setup_required" | "identity_changed" | "invalid_host",
-    message: string,
-  ) {
-    super(message);
-    this.name = "HostSessionError";
-  }
-}
 
 let session: IdentitySession | null = null;
 type HostSession = BrowserGrant;
@@ -639,4 +593,38 @@ export async function fetchPrincipal(): Promise<Principal> {
 
 export function restoreSession(next: IdentitySession): void {
   identitySeams.restoreSession(next);
+}
+
+/** Original bearer transport DATA only; the private Store must prove primary/all configured factors. */
+export function captureOriginalIdentityCodeData(original: () => void) {
+  const active = session;
+  const epoch = sessionEpoch;
+  const base = loadSettings().identityApi.replace(/\/+$/u, "");
+  if (!active || active.cookieOnly || !active.accessToken || !base)
+    throw new Error("Original remote identity code transport is unavailable.");
+  const selected = Object.freeze({ ...active });
+  const check = () => {
+    original();
+    if (
+      session !== active ||
+      sessionEpoch !== epoch ||
+      loadSettings().identityApi.replace(/\/+$/u, "") !== base ||
+      active.principalId !== selected.principalId ||
+      active.accessToken !== selected.accessToken ||
+      active.issuerOrigin !== selected.issuerOrigin ||
+      active.cookieOnly !== selected.cookieOnly ||
+      active.expiresAt !== selected.expiresAt ||
+      (selected.expiresAt &&
+        (!Number.isFinite(Date.parse(selected.expiresAt)) ||
+          Date.parse(selected.expiresAt) <= Date.now()))
+    )
+      throw new Error("The original identity code transport ended.");
+  };
+  check();
+  return captureRemoteIdentityCodeData(
+    base,
+    selected.accessToken,
+    selected.issuerOrigin,
+    check,
+  );
 }
