@@ -53,6 +53,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-09-retired-credential-management/`](2026-10-09-retired-credential-management/README.md) | Retired-password management: original journey |
 | [`2026-10-08-visual-contract-baselines/`](2026-10-08-visual-contract-baselines/README.md) | Reviewed visual contract baselines |
 | [`2026-10-08-s3-setup-step/`](2026-10-08-s3-setup-step/README.md) | S3-compatible bucket in the Custom setup ceremony |
 | [`2026-10-08-s3-bucket-connector/`](2026-10-08-s3-bucket-connector/README.md) | S3-compatible bucket connector — Settings › Capabilities › Local storage |
