@@ -30,6 +30,7 @@ function validIcon(value: string): boolean {
 export const NativeMethodSchema = z.enum([
   "api-key",
   "oauth",
+  "oidc",
   "mcp",
   "native-local",
 ]);

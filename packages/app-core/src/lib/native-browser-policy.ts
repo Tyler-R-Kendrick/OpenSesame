@@ -48,7 +48,7 @@ function publicDefaults(
 }
 export function nativeBrowserMethodPolicy(
   providerId: string,
-  method: ConnectPlan["methods"][number]["kind"] | "native-local",
+  method: ConnectPlan["methods"][number]["kind"] | "native-local" | "oidc",
   parameters: Readonly<Record<string, string>> = {},
 ): NativeBrowserPolicyDecision {
   const selected =
