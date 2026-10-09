@@ -85,7 +85,9 @@ jobs:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
       postgres:
-        image: public.ecr.aws/docker/library/postgres:16
+        # Same Docker Official Image digest, served by the public ECR mirror.
+        # Anonymous Docker Hub pulls can exhaust the shared hosted-runner quota.
+        image: public.ecr.aws/docker/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
         env:
           POSTGRES_USER: opensesame
           POSTGRES_PASSWORD: opensesame
