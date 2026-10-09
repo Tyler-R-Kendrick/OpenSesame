@@ -61,3 +61,7 @@ pub use types::{
 
 #[cfg(test)]
 mod native_factor_producer_tests;
+
+#[cfg(unix)]
+#[path = "../unix_private_files.rs"]
+pub mod unix_private_files;
