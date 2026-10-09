@@ -1,5 +1,4 @@
 import type { LocalAccessRequest } from "@opensesame/app-core/lib/local-access-requests.js";
-import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import type { PendingShare } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import type { RefObject } from "react";
 import { AccessDetail } from "./AccessRecords.js";
