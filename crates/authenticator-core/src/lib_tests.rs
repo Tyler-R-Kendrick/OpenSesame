@@ -84,6 +84,7 @@ fn custom_scheme_presentment_requires_a_public_request_uri() {
     );
 }
 
+#[test]
 fn rejects_ssrf_literal_and_localhost_forms() {
     for request_uri in [
         "https://localhost./request",
