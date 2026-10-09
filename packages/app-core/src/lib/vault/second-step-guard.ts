@@ -1,3 +1,5 @@
+import { WrongPasswordError } from "@opensesame/vault-core";
+
 /**
  * Bounds for the parked second step, independent of the unlocked idle
  * auto-lock: the challenge expires on its own timer, and the codes it may
@@ -55,4 +57,23 @@ export class CodeSendGuard {
     this.#sentAt = now;
     this.#sends += 1;
   }
+}
+
+/** Second-step handlers must not activate after cancel/expiry cleared the challenge. */
+export function assertSecondStepPending(
+  pending: CryptoKey,
+  parked: CryptoKey | null,
+): void {
+  if (parked !== pending) {
+    throw new WrongPasswordError("That second step is no longer pending.");
+  }
+}
+
+export async function finishSecondStepUnlock(
+  pending: CryptoKey,
+  parked: CryptoKey | null,
+  activate: (key: CryptoKey) => Promise<void>,
+): Promise<void> {
+  assertSecondStepPending(pending, parked);
+  await activate(pending);
 }
