@@ -13,8 +13,8 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build, collapsed on arrival. Choosing a row
- * toggles it and collapses the rest.
+ * One accordion row per build; the newest opens on arrival (lock-v5).
+ * Choosing a row toggles it and collapses the rest.
  */
 
 type ReleaseNote = {
@@ -136,7 +136,9 @@ function ReleasePanel({
 
 export const ReleaseNotes = forwardRef<HTMLElement>(
   function ReleaseNotes(_props, ref) {
-    const [active, setActive] = useState<string | null>(null);
+    const [active, setActive] = useState<string | null>(
+      () => RELEASES[0]?.version ?? null,
+    );
     return (
       <aside ref={ref} className="unlock__notes" aria-label="Release notes">
         <div className="unlock__notes-stack">

@@ -9,6 +9,33 @@
   z-index: 1;
 }
 
+/* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
+.unlock__hero {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.unlock__hero-wordmark {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.unlock__hero-wordmark > svg {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+/* Reserve the brand-row height the in-card wordmark used to occupy. */
+.unlock__wordmark--reserve {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.55rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .unlock {
   min-height: 100dvh;
   display: grid;

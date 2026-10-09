@@ -22,6 +22,31 @@ describe("computeDialLayout", () => {
     expect(layout.rings).toHaveLength(RING_COUNT);
     expect(layout.cx).toBe(600);
     expect(PLAIN.startsWith("0PEN")).toBe(true);
+    // Notes are not a quiet zone on wide — rings meet the divider.
+    expect(layout.quiet).toEqual([{ x: 80, y: 40, w: 400, h: 500 }]);
+  });
+
+  it("quiets the notes column only when the layout is narrow", () => {
+    const notes = { x: 0, y: 520, w: 390, h: 280 };
+    const card = { x: 20, y: 40, w: 350, h: 420 };
+    const wide = computeDialLayout({
+      w: 1200,
+      h: 800,
+      card,
+      notes,
+      narrow: false,
+      nowMs: 0,
+    });
+    const phone = computeDialLayout({
+      w: 390,
+      h: 800,
+      card,
+      notes,
+      narrow: true,
+      nowMs: 0,
+    });
+    expect(wide.quiet).toEqual([card]);
+    expect(phone.quiet).toEqual([card, notes]);
   });
 });
 

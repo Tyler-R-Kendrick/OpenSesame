@@ -14,8 +14,10 @@ export function computeDialLayout(input: {
   prev?: RingSpec[];
 }): DialLayout {
   const { w, h, card, notes, narrow, nowMs, prev } = input;
+  // Wide layout clips rings at the divider in apply-dial-layout; only quiet
+  // the notes column on a phone, or the pads eat past the divider (lock-v5).
   const quiet: QuietRect[] = [card];
-  if (notes) quiet.push(notes);
+  if (narrow && notes) quiet.push(notes);
 
   const geo = computeDialGeometry({ w, h, card, notes, narrow, quiet });
   const rings = buildRingSpecs({ w, h, geo, nowMs, prev });

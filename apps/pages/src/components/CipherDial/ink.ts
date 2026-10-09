@@ -1,5 +1,15 @@
+/** Light ink on a dark surface — dial alphas were tuned for dark ink on white. */
+function isLightInk(rgb: [number, number, number]): boolean {
+  return (rgb[0] + rgb[1] + rgb[2]) / 3 > 140;
+}
+
+/**
+ * Ink with alpha. On dark theme (light `--ink`) lift alpha so rings keep the
+ * same subtle-but-visible presence as in light stills (lock-v5).
+ */
 export function inkAlpha(rgb: [number, number, number], a: number): string {
-  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
+  const scaled = isLightInk(rgb) ? Math.min(1, a * 1.55) : a;
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${scaled})`;
 }
 
 export function readInkRgb(root: HTMLElement): [number, number, number] {
