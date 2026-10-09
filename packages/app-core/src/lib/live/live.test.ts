@@ -140,11 +140,15 @@ describe("an invite session", () => {
 
   it("seals the codes: no name, note, offer or answer in the clear", async () => {
     const r = await room();
-    const g = guest(r, r.host.code);
+    // A short name may occur by chance in base64url ciphertext.
+    const name = "Ada private display name 814e73a8";
+    const g = guest(r, r.host.code, name);
     const request = await g.start();
-    for (const plain of ["Ada", "from design", "v=0", "a=fake"])
+    for (const plain of [name, "from design", "v=0", "a=fake"])
       expect(request).not.toContain(plain);
     const received = await r.host.receive(request);
+    expect(received.kind).toBe("guest");
+    expect(r.host.state.guests[0]?.name).toBe(name);
     if (received.kind === "guest") await r.host.admit(received.key);
     const reply = r.host.state.guests[0]?.reply ?? "";
     expect(reply).not.toContain("v=0");
