@@ -14,12 +14,17 @@
   position: absolute;
   z-index: 1;
   pointer-events: none;
+  /* font-size drives CipherWordmark em; kill the strut so the box is the canvas. */
+  line-height: 0;
+  display: flex;
+  align-items: flex-start;
 }
 
 .unlock__hero-wordmark {
   margin: 0;
   color: var(--ink);
   font-weight: 400;
+  line-height: 0;
 }
 
 /* Hero mark is canvas `includeMark` at plate height — no separate SVG. */

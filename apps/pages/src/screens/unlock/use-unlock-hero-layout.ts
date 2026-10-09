@@ -52,12 +52,13 @@ export function useUnlockHeroLayout(
       const avail0 = narrow ? cr.width : cardX + cr.width - 40;
       const size = Math.max(28, Math.min(MAX_EM, avail0 / WORD_UNITS));
       const width = size * WORD_UNITS;
-      const height = size * 1.25;
+      // Canvas plate height ≈ 1.25 * asc * em (asc < 1 for OS Logo); 1.05 covers
+      // pad + measured glyph box without oversizing the reserved band.
+      const height = size * 1.05;
 
       if (narrow) {
         // Reserve a band above the card for the hero (prototype paddingTop).
-        // Extra 16px keeps plates clear of the brand-tools (theme / help).
-        pane.style.paddingTop = `${NARROW_BASE_PAD_TOP + height + gap + 16}px`;
+        pane.style.paddingTop = `${NARROW_BASE_PAD_TOP + height + gap}px`;
         const pr2 = pane.getBoundingClientRect();
         cr = card.getBoundingClientRect();
         cardX = cr.left - pr2.left;
