@@ -24,6 +24,7 @@ mod path;
 mod piv_age;
 mod produce;
 mod recipients;
+mod retired_native;
 mod root;
 mod root_protection;
 mod rotation;
@@ -90,3 +91,6 @@ pub use update::{
 };
 
 pub use opensesame_human_vault::{ItemDataKey, VaultRootKey};
+
+// Public read-only metadata; no transferable owner capability is returned.
+pub use retired_native::{inspect_native_retired_policy, NativeRetiredPolicyView};
