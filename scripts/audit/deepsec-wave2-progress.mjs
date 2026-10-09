@@ -28,10 +28,12 @@ for (const fp of paths) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
   const hist = rec.analysisHistory ?? [];
   if (
-    hist.some(
-      (h) =>
-        h.reinvestigateMarker === marker && (h.usage?.outputTokens ?? 0) > 0,
-    )
+    hist.some((h) => {
+      if (h.reinvestigateMarker !== marker) return false;
+      if (h.phase === "revalidate") return false;
+      if ((h.usage?.outputTokens ?? 0) > 0) return true;
+      return h.phase === "process" && (h.findingCount ?? 0) >= 0;
+    })
   ) {
     complete += 1;
   }

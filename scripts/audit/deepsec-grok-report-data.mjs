@@ -137,7 +137,14 @@ let investigateWave2Complete = 0;
 for (const fp of walk(filesRoot)) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
   const hist = rec.analysisHistory ?? [];
-  if (hist.some((h) => h.reinvestigateMarker === 2)) {
+  if (
+    hist.some(
+      (h) =>
+        h.reinvestigateMarker === 2 &&
+        h.phase !== "revalidate" &&
+        ((h.usage?.outputTokens ?? 0) > 0 || h.phase === "process"),
+    )
+  ) {
     investigateWave2Complete += 1;
   }
 }
