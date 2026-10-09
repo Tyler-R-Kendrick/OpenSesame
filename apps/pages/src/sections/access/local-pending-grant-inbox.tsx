@@ -7,11 +7,7 @@ import {
   policyLabel,
 } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import { IconKey } from "../../components/IconKey.js";
-import {
-  IconArrowRight,
-  IconCheck,
-  IconX,
-} from "../../components/Icons.js";
+import { IconArrowRight, IconCheck, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 export function PendingGrantRows({
@@ -72,10 +68,7 @@ export function PendingGrantDecision({
   pending: PendingShare;
   directory: LocalDirectory;
   busy: boolean;
-  run: (
-    action: () => Promise<void>,
-    success: string,
-  ) => Promise<boolean>;
+  run: (action: () => Promise<void>, success: string) => Promise<boolean>;
   close: () => void;
 }) {
   const name =
@@ -88,7 +81,8 @@ export function PendingGrantDecision({
         {name} → {pending.resourceLabel}
       </p>
       <p className="hint">
-        {pending.resourceKind} · {policyLabel(pending.resourceKind, pending.policy)}
+        {pending.resourceKind} ·{" "}
+        {policyLabel(pending.resourceKind, pending.policy)}
       </p>
       <p>
         <code className="access-ref">{pending.id}</code>
@@ -97,12 +91,9 @@ export function PendingGrantDecision({
         <IconKey
           label={`Approve ${name}`}
           onClick={() =>
-            void run(
-              async () => {
-                await approvePendingShare(tomb, pending.id);
-              },
-              "Grant approved.",
-            ).then((done) => {
+            void run(async () => {
+              await approvePendingShare(tomb, pending.id);
+            }, "Grant approved.").then((done) => {
               if (done) close();
             })
           }
@@ -112,12 +103,9 @@ export function PendingGrantDecision({
         <IconKey
           label={`Deny ${name}`}
           onClick={() =>
-            void run(
-              async () => {
-                await denyPendingShare(tomb, pending.id);
-              },
-              "Grant denied.",
-            ).then((done) => {
+            void run(async () => {
+              await denyPendingShare(tomb, pending.id);
+            }, "Grant denied.").then((done) => {
               if (done) close();
             })
           }

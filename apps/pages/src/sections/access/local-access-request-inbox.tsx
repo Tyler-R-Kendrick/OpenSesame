@@ -15,7 +15,9 @@ import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { RequestApproval } from "./RequestApproval.js";
 import type { useLocalRequests } from "./useLocalRequests.js";
 
-export function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
+export function useRequestSelection(
+  requests: LocalAccessRequest[] | undefined,
+) {
   const [creating, setCreating] = useState(false);
   const [selectedId, setSelected] = useState<string | null>(null);
   const selected = requests?.find((row) => row.id === selectedId) ?? null;

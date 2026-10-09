@@ -109,7 +109,9 @@ it("offers a new application and grants it a vault", async () => {
       (share) => share.principalId === payroll?.id,
     ),
   ).toBe(false);
-  await userEvent.click(screen.getByRole("button", { name: "Approve Payroll" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Approve Payroll" }),
+  );
   await waitFor(async () => {
     expect(
       (await listLocalShares(fixture.tomb)).some(
@@ -133,9 +135,7 @@ it("asks twice before revoking an active share", async () => {
     expect(screen.getByRole("button", { name: "Revoke" })).toBeTruthy(),
   );
   await userEvent.click(screen.getByRole("button", { name: "Revoke" }));
-  expect(
-    screen.getByRole("button", { name: "Confirm revoke" }),
-  ).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Confirm revoke" })).toBeTruthy();
   expect((await listLocalShares(fixture.tomb)).length).toBe(1);
   await userEvent.click(screen.getByRole("button", { name: "Confirm revoke" }));
   await waitFor(async () =>

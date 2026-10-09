@@ -1,4 +1,3 @@
-import { useState } from "react";
 import "./local-authority.css";
 import type { InboxStatusFilter } from "@opensesame/app-core/lib/configuration/inbox-triage.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
@@ -14,12 +13,11 @@ import {
   PendingGrantDecision,
   PendingGrantRows,
 } from "./local-pending-grant-inbox.js";
+import { useLocalRequestsInboxUi } from "./use-local-requests-inbox-ui.js";
 import { useLocalRequests } from "./useLocalRequests.js";
 
 export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const model = useLocalRequests(tomb);
-  const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>("all");
-  const [selectedGrantId, setSelectedGrantId] = useState<string | null>(null);
   const {
     creating,
     setCreating,
@@ -30,14 +28,13 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
     reload,
     close,
   } = useRequestSelection(model.data?.requests);
-  const selectedGrant =
-    model.data?.pendingGrants.find((row) => row.id === selectedGrantId) ?? null;
-  const disabled = model.busy || Boolean(model.error);
-  const listDisabled =
-    disabled || creating || selected !== null || selectedGrant !== null;
-  function closeGrant() {
-    setSelectedGrantId(null);
-  }
+  const ui = useLocalRequestsInboxUi(model, {
+    creating,
+    selected,
+    setCreating,
+    setSelected,
+    trigger,
+  });
   return (
     <section
       className="panel"
@@ -51,10 +48,10 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           <select
             className="head-filter"
             aria-label="Local request status filter"
-            value={statusFilter}
+            value={ui.statusFilter}
             onChange={(event) =>
               // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
-              setStatusFilter(event.target.value as InboxStatusFilter)
+              ui.setStatusFilter(event.target.value as InboxStatusFilter)
             }
           >
             <option value="pending">pending</option>
@@ -65,7 +62,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           <IconKey
             small
             label="New local request"
-            disabled={disabled || !model.data || listDisabled}
+            disabled={ui.disabled || !model.data || ui.listDisabled}
             onClick={(event) => {
               trigger.current = event.currentTarget;
               setCreating(true);
@@ -96,7 +93,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             tomb={tomb}
             directory={model.data.directory}
             applications={model.data.applications}
-            busy={disabled}
+            busy={ui.disabled}
             run={model.run}
             close={close}
           />
@@ -107,20 +104,20 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             tomb={tomb}
             row={selected}
             directory={model.data.directory}
-            busy={disabled}
+            busy={ui.disabled}
             run={model.run}
             close={close}
           />
         ) : null}
-        {selectedGrant && model.data ? (
+        {ui.selectedGrant && model.data ? (
           <PendingGrantDecision
-            key={selectedGrant.id}
+            key={ui.selectedGrant.id}
             tomb={tomb}
-            pending={selectedGrant}
+            pending={ui.selectedGrant}
             directory={model.data.directory}
-            busy={disabled}
+            busy={ui.disabled}
             run={model.run}
-            close={closeGrant}
+            close={ui.closeGrant}
           />
         ) : null}
         {model.data ? (
@@ -128,25 +125,15 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             <PendingGrantRows
               grants={model.data.pendingGrants}
               directory={model.data.directory}
-              filter={statusFilter}
-              disabled={listDisabled}
-              select={(row, button) => {
-                trigger.current = button;
-                setSelectedGrantId(row.id);
-                setSelected(null);
-                setCreating(false);
-              }}
+              filter={ui.statusFilter}
+              disabled={ui.listDisabled}
+              select={(row, button) => ui.selectGrant(row.id, button)}
             />
             <AccessRequestRows
               data={model.data}
-              filter={statusFilter}
-              disabled={listDisabled}
-              select={(row, button) => {
-                trigger.current = button;
-                setSelected(row.id);
-                setSelectedGrantId(null);
-                setCreating(false);
-              }}
+              filter={ui.statusFilter}
+              disabled={ui.listDisabled}
+              select={(row, button) => ui.selectRequest(row.id, button)}
             />
           </>
         ) : !model.error ? (

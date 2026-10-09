@@ -14,23 +14,13 @@ import {
   revokeLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import type { Folder, VaultItem } from "@opensesame/vault-core";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
-import { IconKey } from "../../components/IconKey.js";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
-import {
-  ActiveShareRow,
-  PendingShareRow,
-} from "./local-share-grant-rows.js";
 import { ShareGrantForm } from "./ShareGrantForm.js";
+import { ActiveShareRow, PendingShareRow } from "./local-share-grant-rows.js";
 
 async function readApprovals(tomb: string): Promise<PendingShare[]> {
   try {

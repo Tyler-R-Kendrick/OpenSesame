@@ -90,7 +90,8 @@ export function ActiveShareRow({
             {name} → {share.resourceLabel}
           </h3>
           <code className="identity-ref">
-            {share.resourceKind} · {policyLabel(share.resourceKind, share.policy)}
+            {share.resourceKind} ·{" "}
+            {policyLabel(share.resourceKind, share.policy)}
             {role ? ` · ${role}` : ""}
           </code>
         </div>
