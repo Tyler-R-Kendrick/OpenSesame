@@ -27,6 +27,8 @@ export type RingSpec = {
   alpha: number;
   dirty: boolean;
   atlas?: Map<string, HTMLCanvasElement>;
+  /** RGB key the atlas was baked with — rebuild when theme ink changes. */
+  atlasInk?: string;
   spin?: (u: number) => number;
   lastK?: number;
   lastLit?: number;
