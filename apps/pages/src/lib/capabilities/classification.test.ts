@@ -106,6 +106,8 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/vercel-connect.ts",
       "src/sections/identity/LocalApplicationSettings.tsx",
       "src/sections/identity/identity-views.ts",
+      "src/sections/identity/HostedRecordParts.tsx",
+      "src/sections/identity/hosted-identity-rail.ts",
       "src/screens/setup/steps/ConnectorCards.tsx",
       "node_modules/@vercel/connect",
       "node_modules/@opensesame/auth-upstream",

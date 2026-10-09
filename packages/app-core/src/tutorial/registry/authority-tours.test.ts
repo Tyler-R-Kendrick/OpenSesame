@@ -75,6 +75,24 @@ describe("the Access, Connections and Identity tours", () => {
     }
   });
 
+  it("opens Identity shares before pointing at its add key", () => {
+    const guide = guideGoal("access.grant")?.guide ?? "";
+    expect(guide).toContain('navigate "/access/shares"');
+    expect(guide.indexOf('wait route "/access/shares"')).toBeLessThan(
+      guide.indexOf('focus "access.grant-access"'),
+    );
+    expect(
+      mergedGuideRoutes().some((route) => route.id === "/access/shares"),
+    ).toBe(true);
+  });
+
+  it("keeps the Access navigation tree visible while teaching its branches", () => {
+    const guide = guideGoal("access.review")?.guide ?? "";
+    expect(guide).not.toContain('navigate "/access/resources"');
+    expect(guide).not.toContain('navigate "/access/policies"');
+    expect(guide).toContain('navigate "/access"');
+  });
+
   it("stay out of the model's goal list, which has a budget", () => {
     const offered = describeGuideGoals("/access").map((goal) => goal.id);
     for (const id of Object.keys(TOURS)) {

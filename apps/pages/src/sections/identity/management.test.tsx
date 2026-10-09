@@ -4,14 +4,40 @@ import { type JsonObject, isJsonObject } from "@opensesame/os-domain";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import type { ReactNode } from "react";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { installOrgDirectory } from "../../lib/orgs-directory.js";
 import { AgentsPanel } from "./AgentsPanel.js";
-import { EditApplication } from "./EditApplication.js";
+import { ServiceAccountsPanel } from "./HostedApplicationsPanel.js";
 import { UsersPanel } from "./UsersPanel.js";
 import { makeClient } from "./test-fixtures.js";
 
+const session = {
+  principalId: "prn_test",
+  accessToken: "test",
+  issuerOrigin: "https://identity.example",
+};
+function Location() {
+  const location = useLocation();
+  return (
+    <output data-testid="location">
+      {location.search}
+      {location.hash}
+    </output>
+  );
+}
+function open(ui: ReactNode, path: string) {
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <MemoryRouter initialEntries={[path]}>
+        {children}
+        <Location />
+      </MemoryRouter>
+    ),
+  });
+}
+let clients = [makeClient()];
 let users: JsonObject[] = [];
 let agents: JsonObject[] = [];
 let refuseRegistration = false;
@@ -25,11 +51,30 @@ function input(init?: RequestInit): JsonObject {
   if (!isJsonObject(body)) throw new Error("Expected object");
   return body;
 }
+function applicationResponse(
+  path: string,
+  init?: RequestInit,
+): Response | null {
+  if (path === "/v1/oauth/clients" && (!init?.method || init.method === "GET"))
+    return Response.json({ clients });
+  if (
+    !path.startsWith("/v1/oauth/clients/") ||
+    !init?.method ||
+    init.method === "GET"
+  )
+    return null;
+  const body = input(init);
+  writes.push({ path, body });
+  const updated = { ...makeClient(), ...body };
+  clients = [updated];
+  return Response.json(updated);
+}
 beforeEach(() => {
   uninstallOrgDirectory = installOrgDirectory();
   vi.spyOn(identitySeams, "identityBase").mockReturnValue(
     "https://identity.example",
   );
+  clients = [makeClient()];
   users = [];
   agents = [];
   writes = [];
@@ -55,15 +100,14 @@ beforeEach(() => {
             },
           ],
         });
+      const application = applicationResponse(path, init);
+      if (application) return application;
       if (!init?.method || init.method === "GET")
         return path === "/v1/agents"
           ? Response.json({ agents })
           : Response.json({ Resources: users });
       const body = input(init);
       writes.push({ path, body });
-      if (path.startsWith("/v1/oauth/clients/")) {
-        return Response.json({ ...makeClient(), ...body });
-      }
       if (path === "/v1/agents" && init.method === "POST") {
         if (refuseRegistration)
           return Response.json({ error: "quota" }, { status: 403 });
@@ -115,20 +159,22 @@ afterEach(() => {
 
 it("creates and updates users only within the selected owned organization", async () => {
   const user = userEvent.setup();
-  render(
-    <MemoryRouter>
-      <UsersPanel online />
-    </MemoryRouter>,
-  );
+  open(<UsersPanel online />, "/identity?view=people&directory=1");
   await screen.findByRole("option", { name: "Owned org" });
   expect(screen.queryByRole("option", { name: "Member org" })).toBeNull();
   await user.selectOptions(screen.getByLabelText("Organization"), "org:owned");
-  await screen.findByText("No directory users yet.");
+  await waitFor(() =>
+    expect(screen.queryByText("Loading directory…")).toBeNull(),
+  );
+  expect(screen.queryByRole("treeitem")).toBeNull();
   await user.click(screen.getByRole("button", { name: "New user" }));
   await user.type(screen.getByLabelText("Username / sign-in subject"), "alice");
   await user.type(screen.getByLabelText("Display name (optional)"), "Alice");
   await user.click(screen.getByRole("button", { name: "Save user" }));
   await screen.findByRole("button", { name: "Edit alice" });
+  expect(screen.getByTestId("location").textContent).toContain(
+    "org=org%3Aowned#user-1",
+  );
   expect(users).toEqual([
     { id: "user-1", userName: "alice", displayName: "Alice", active: true },
   ]);
@@ -143,14 +189,15 @@ it("creates and updates users only within the selected owned organization", asyn
 
 it("registers, edits and confirms revocation without showing the claim bearer", async () => {
   const user = userEvent.setup();
-  render(<AgentsPanel online />);
-  await screen.findByText("No agents registered.");
+  open(<AgentsPanel online />, "/identity?view=agents");
+  await waitFor(() => expect(screen.queryByText("Loading agents…")).toBeNull());
+  expect(screen.queryByRole("treeitem")).toBeNull();
   const create = screen.getByRole("button", { name: "New agent" });
   expect(create.textContent).toBe("");
   expect(create.querySelector("svg")).not.toBeNull();
   expect(create.className).toContain("icon-btn--sm");
   expect(
-    screen.getByRole("group", { name: "Agent commands" }).contains(create),
+    screen.getByRole("group", { name: "Agents commands" }).contains(create),
   ).toBe(true);
   await user.click(create);
   await user.type(screen.getByLabelText("Agent name"), "Deploy");
@@ -165,6 +212,7 @@ it("registers, edits and confirms revocation without showing the claim bearer", 
     publicKeyJkt: "a".repeat(43),
   });
   expect(document.body.textContent).not.toContain("osc_clm_private-fixture");
+  expect(screen.getByTestId("location").textContent).toBe("?view=agents#agt_1");
   await user.click(screen.getByRole("button", { name: "Edit Deploy" }));
   await user.type(screen.getByLabelText("Agent name"), " safely");
   await user.click(screen.getByRole("button", { name: "Save agent" }));
@@ -179,8 +227,8 @@ it("registers, edits and confirms revocation without showing the claim bearer", 
 it("keeps a refused agent draft and disables offline mutations", async () => {
   const user = userEvent.setup();
   refuseRegistration = true;
-  const view = render(<AgentsPanel online />);
-  await screen.findByText("No agents registered.");
+  const view = open(<AgentsPanel online />, "/identity?view=agents");
+  await waitFor(() => expect(screen.queryByText("Loading agents…")).toBeNull());
   await user.click(screen.getByRole("button", { name: "New agent" }));
   await user.type(screen.getByLabelText("Agent name"), "Draft");
   await user.type(
@@ -197,6 +245,7 @@ it("keeps a refused agent draft and disables offline mutations", async () => {
   );
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.getByDisplayValue("Draft")).toBeTruthy();
+  expect(screen.getByTestId("location").textContent).toBe("?view=agents&new=1");
   view.rerender(<AgentsPanel online={false} />);
   expect(screen.getByRole("button", { name: "Save agent" })).toHaveProperty(
     "disabled",
@@ -206,15 +255,14 @@ it("keeps a refused agent draft and disables offline mutations", async () => {
 
 it("edits application redirects without replacing its subject sector", async () => {
   const user = userEvent.setup();
-  const saved = vi.fn();
-  render(
-    <EditApplication
-      client={makeClient()}
-      online
-      onSaved={saved}
-      onCancel={() => undefined}
-    />,
+  open(
+    <ServiceAccountsPanel online session={session} />,
+    "/identity?view=service-accounts",
   );
+  await user.click(
+    await screen.findByRole("treeitem", { name: /Release pipeline/ }),
+  );
+  await user.click(screen.getByRole("button", { name: "Edit application" }));
   await user.clear(screen.getByLabelText("Application name"));
   await user.type(screen.getByLabelText("Application name"), "Updated RP");
   await user.clear(screen.getByLabelText("Redirect URIs (one per line)"));
@@ -223,7 +271,7 @@ it("edits application redirects without replacing its subject sector", async () 
     "https://rp.example/callback",
   );
   await user.click(screen.getByRole("button", { name: "Save application" }));
-  await waitFor(() => expect(saved).toHaveBeenCalledOnce());
+  await screen.findByRole("button", { name: "Edit application" });
   expect(writes).toEqual([
     {
       path: "/v1/oauth/clients/cli_1",
@@ -239,18 +287,16 @@ it("edits application redirects without replacing its subject sector", async () 
 
 it("saves a hosted application edit through the Identity PATCH adapter", async () => {
   const user = userEvent.setup();
-  const saved = vi.fn();
-  render(
-    <EditApplication
-      client={makeClient()}
-      online
-      onSaved={saved}
-      onCancel={() => undefined}
-    />,
+  open(
+    <ServiceAccountsPanel online session={session} />,
+    "/identity?view=service-accounts#cli_1",
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Edit application" }),
   );
   expect(screen.queryByRole("button", { name: "Visual" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Source" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Save application" }));
-  await waitFor(() => expect(saved).toHaveBeenCalledOnce());
+  await screen.findByRole("button", { name: "Edit application" });
   expect(writes[0]?.path).toBe("/v1/oauth/clients/cli_1");
 });

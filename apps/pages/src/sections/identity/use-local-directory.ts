@@ -1,5 +1,5 @@
+import { isGuestSession } from "@opensesame/app-core/lib/guest-isolation.js";
 import { listIdpRegistrations } from "@opensesame/app-core/lib/idp-registry.js";
-import { ensureDefaultAccess } from "@opensesame/app-core/lib/local-access-bootstrap.js";
 import {
   type LocalDevice,
   readLocalDevices,
@@ -10,12 +10,16 @@ import {
 } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { useEffect, useState } from "react";
+import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { useHostedIdentityRows } from "./hosted-identity-rail.js";
 import type { IdentityRailSnapshot } from "./page-tree.js";
 
 /** Live directory, devices, and IdP registry for every Identity rail subtree. */
 export function useIdentityRailSnapshot(): IdentityRailSnapshot {
   const { tomb } = useVault();
+  const configured = useIdentityConfigured();
+  const hosted = useHostedIdentityRows();
   const [directory, setDirectory] = useState<LocalIdentity[]>([]);
   const [devices, setDevices] = useState<LocalDevice[]>([]);
   const [providers, setProviders] = useState(() => listIdpRegistrations());
@@ -28,9 +32,8 @@ export function useIdentityRailSnapshot(): IdentityRailSnapshot {
         setDevices([]);
         return;
       }
-      // Read only — never ensureDefaultAccess here. Ensure writes notify, and
-      // a notify listener that ensures again is a write→notify feedback loop
-      // that also clears in-panel validation errors mid-keystroke.
+      // Navigation only reads sealed state. Bootstrapping on another tree's
+      // mount would change the directory revision and invalidate active sign-ins.
       void Promise.all([readLocalDirectory(tomb), readLocalDevices(tomb)])
         .then(([next, deviceRows]) => {
           if (!alive) return;
@@ -44,24 +47,17 @@ export function useIdentityRailSnapshot(): IdentityRailSnapshot {
           }
         });
     };
-    const seed = async () => {
-      if (!tomb) {
-        refresh();
-        return;
-      }
-      try {
-        await ensureDefaultAccess(tomb);
-      } catch {
-        // refresh still runs so the rail can show an empty/error state
-      }
-      if (alive) refresh();
-    };
     const off = subscribeLocalIamChanges(refresh);
-    void seed();
+    refresh();
     return () => {
       alive = false;
       off();
     };
   }, [tomb]);
-  return { directory, providers, devices };
+  return {
+    directory,
+    providers,
+    devices,
+    hosted: configured && !isGuestSession() ? hosted : undefined,
+  };
 }

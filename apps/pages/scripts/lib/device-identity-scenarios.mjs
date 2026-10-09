@@ -152,7 +152,9 @@ export async function walkAccess(page, label, { receipts }) {
       `${label}: Access ${tab} rendered`,
     );
     if (tab === "sessions") {
-      const drawn = (await page.locator("#access-receipts").count()) > 0;
+      await go(page, "/access?view=sessions#access-receipts");
+      const drawn =
+        (await page.getByRole("tree", { name: "Receipts items" }).count()) > 0;
       env.check(
         drawn === receipts,
         `${label}: Receipts ${receipts ? "is" : "is not"} drawn on Sessions`,
@@ -312,14 +314,16 @@ export async function lateActivation(browser) {
   await capabilityOnSwitch(page, "Browser-local IAM").waitFor({
     timeout: 15000,
   });
-  await go(page, "/access?view=sessions");
-  const early = await page.locator("#access-receipts").count();
+  await go(page, "/access?view=sessions#access-receipts");
+  const early = await page
+    .getByRole("tree", { name: "Receipts items" })
+    .count();
   await env.snap(page, `${label}-before-activation`);
   await page
-    .locator("#access-receipts")
+    .getByRole("tree", { name: "Receipts items" })
     .waitFor({ state: "attached", timeout: 20000 })
     .catch(() => undefined);
-  const late = await page.locator("#access-receipts").count();
+  const late = await page.getByRole("tree", { name: "Receipts items" }).count();
   env.check(
     early === 0,
     `${label}: Receipts is not drawn while the capability is still arriving`,

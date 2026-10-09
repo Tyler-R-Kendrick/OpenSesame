@@ -1,17 +1,13 @@
 import {
   type SettingsCategory,
   settingsPath,
-  walletCategoryFromLocation,
-  walletPath,
 } from "@opensesame/app-core/lib/crumbs.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 
 import { sectionForPath } from "./RailRows.js";
+import { accessRailPath, walletRailPath } from "./record-rail-path.js";
 
-import {
-  ACCESS_VIEWS,
-  IDENTITY_VIEWS,
-} from "@opensesame/app-core/lib/section-view-names.js";
+import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export function selectedRailPath(
   pathname: string,
   hash: string,
@@ -31,8 +27,7 @@ export function selectedRailPath(
     }
     return base;
   }
-  if (pathname.startsWith("/wallet"))
-    return walletPath(walletCategoryFromLocation(pathname));
+  if (pathname.startsWith("/wallet")) return walletRailPath(pathname, hash);
   if (pathname.startsWith("/vault")) {
     // The report is a page, not a `?f=` filter. A leftover filter must not
     // leave the cursor on `all` or on that filter while the report is open.
@@ -42,8 +37,7 @@ export function selectedRailPath(
     return vaultRailPath(filter, folder, folderKind);
   }
   if (pathname.startsWith("/access")) {
-    const id = ACCESS_VIEWS.find((item) => item === view) ?? "grants";
-    return `/access?view=${id}${hash}`;
+    return accessRailPath(pathname, hash, view);
   }
   if (pathname.startsWith("/identity")) {
     const id = IDENTITY_VIEWS.find((item) => item === view) ?? "people";

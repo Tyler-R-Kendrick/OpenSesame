@@ -12,7 +12,9 @@ import {
   IDENTITY_LABELS,
   IDENTITY_VIEWS,
 } from "@opensesame/app-core/lib/section-view-names.js";
+import type { HostedIdentityRows } from "./hosted-identity-rail.js";
 export type IdentityRailSnapshot = {
+  hosted?: HostedIdentityRows;
   directory?: readonly LocalIdentity[];
   providers?: readonly { id: string; label: string }[];
   devices?: readonly { id: string; name: string }[];
@@ -39,6 +41,10 @@ function itemsFor(
   view: (typeof IDENTITY_VIEWS)[number],
   snapshot: IdentityRailSnapshot,
 ): PageTreeLeaf[] {
+  if (snapshot.hosted && view !== "devices" && view !== "providers")
+    return (snapshot.hosted[view] ?? []).map((record) =>
+      leaf(view, record.id, record.label),
+    );
   const directory = snapshot.directory ?? [];
   if (view === "providers") {
     return (snapshot.providers ?? []).map((record) =>
@@ -66,6 +72,7 @@ export function identityPageSources(
   return views.map((id) => ({
     id,
     label: IDENTITY_LABELS[id],
+    guide: `identity.${id}`,
     href: `/identity?view=${id}`,
     items: itemsFor(id, snapshot),
   }));

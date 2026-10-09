@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { openIdentityView } from "./local-directory-navigation.mjs";
 import { expectTrayRaised } from "./tray-contract.mjs";
 
 export async function localApplicationContract(page, tabTo) {
@@ -6,11 +7,8 @@ export async function localApplicationContract(page, tabTo) {
     await tabTo(page, control);
     await page.keyboard.press("Enter");
   }
-  await activate(page.getByRole("tab", { name: "Applications", exact: true }));
-  const panel = page.getByRole("region", {
-    name: "Local applications",
-    exact: true,
-  });
+  await openIdentityView(page, tabTo, "Applications");
+  const panel = page.locator('.record-workspace[data-section="Identity"]');
   await activate(
     panel.getByRole("button", { name: "New application", exact: true }),
   );
@@ -19,9 +17,7 @@ export async function localApplicationContract(page, tabTo) {
   ).toBeFocused();
   await page.keyboard.type("Keyboard relying party");
   await page.keyboard.press("Enter");
-  const row = panel
-    .getByRole("listitem")
-    .filter({ hasText: "Keyboard relying party" });
+  const row = panel.locator(".vault__detail");
   const disclosure = row.locator("summary", {
     hasText: "Application registration",
   });
