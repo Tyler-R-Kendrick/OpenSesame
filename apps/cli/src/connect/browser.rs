@@ -1,9 +1,8 @@
 use std::process::Command;
 
 fn authorization_url_may_open_in_browser(url: &str) -> bool {
-    let parsed = match url::Url::parse(url) {
-        Ok(parsed) => parsed,
-        Err(_) => return false,
+    let Ok(parsed) = url::Url::parse(url) else {
+        return false;
     };
     match parsed.scheme() {
         "https" => true,
