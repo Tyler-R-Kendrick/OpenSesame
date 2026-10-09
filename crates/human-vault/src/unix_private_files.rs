@@ -281,3 +281,7 @@ mod tests;
 #[cfg(target_os = "android")]
 #[path = "unix_private_files/android_app_parent.rs"]
 mod android_app_parent;
+
+#[path = "unix_private_files/read.rs"]
+mod read;
+pub use read::HeldPrivateRead;
