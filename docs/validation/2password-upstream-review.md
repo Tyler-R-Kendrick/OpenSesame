@@ -56,23 +56,24 @@ surface; the earlier default-branch report does not establish expanded parity.
 Browser request preparation/handoffs must identify a native execution boundary
 explicitly: ordinary browser fetch cannot attest pinned DNS/TLS behavior.
 
-Three additional integration scenarios require item-detail workflows,
-organization-health navigation and a native request handoff. The resulting
-matrix contains 53 scenarios and 237 stated surface bindings, including a
-travel-withdrawal regression through the shared adapter and actual WebMCP
-handlers. Account custody additionally binds each login method, excludes human-protected
-passwords from automated reads and preserves sibling methods. Withdrawal during asynchronous discovery must remove previous item
-names and references and reject subsequent reads and updates. The Access
-Requests browser panel prepares exact shell-safe native commands for human
-approval, use, status and revocation. It neither grants a lease nor executes a
-private HTTPS request in browser JavaScript.
+Two additional integration scenarios require item-detail workflows and
+organization-health navigation. The resulting matrix contains 52 scenarios and
+197 stated surface bindings, including a travel-withdrawal regression through
+the shared adapter and actual WebMCP handlers. Account custody additionally
+binds each login method, excludes human-protected passwords from automated
+reads and preserves sibling methods. Withdrawal during asynchronous discovery
+must remove previous item names and references and reject subsequent reads and
+updates. A native request handoff was once a third scenario, bound to an Access
+form that prepared shell commands; it was removed with the form, and native
+requests remain a CLI-only contract (ADR 0177).
 
 The runtime gauntlet runs on Linux. Windows helper/clipboard command policies
 are reviewed and covered by portable contract tests; this report does not
 claim execution on a Windows desktop or live DPAPI/provider authentication.
 
-Final verification on 2026-10-05 passed the expanded frozen matrix: 53
-scenarios and 237 surface checks, with no failures after fresh native and PWA
+Final verification on 2026-10-05 passed the expanded frozen matrix of that date (53
+scenarios, 237 surface checks; since narrowed to 52 and 197, see the 2026-10-07 correction in
+[validation](2password-parity.md)), with no failures after fresh native and PWA
 builds. All seven runtime suites passed. The default-branch result above is
 historical; the expanded report now establishes the stated PR/issue contracts
 and contextual surface bindings. See [validation](2password-parity.md) for

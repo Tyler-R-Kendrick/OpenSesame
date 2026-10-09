@@ -7,18 +7,6 @@ import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 
 export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
   {
-    id: "access.private-request",
-    title: "Prepare a bounded native credential request",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "access.private-request"',
-      'navigate "/access/requests"',
-      'focus "access.private-request" "Choose a reference, exact destination and header, expiry and use budget. This prepares shell-safe commands. Review them and approve with the native CLI yourself; the browser never approves, fetches a secret or sends the request. Enter the resulting lease ID for use, status and revoke commands." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-  {
     id: "access.grant",
     title: "Grant an agent access",
     routes: [],
@@ -27,8 +15,8 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "access.grant"',
       'say "A share is a grant. The person or agent it is for gets use of it under a policy, never the credential behind it."',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/access"',
-      'wait route "/access" timeout=15000',
+      'navigate "/access/shares"',
+      'wait route "/access/shares" timeout=15000',
       'focus "access.grant-access" "This opens a share: who it is for, what it opens, how narrowly, and for how long." side=bottom',
       'wait target "access.grant-ceremony" event=appear timeout=60000',
     ].join("\n"),
@@ -72,7 +60,7 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/access"',
       'wait route "/access" timeout=15000',
       'say "Connectors are configured or imported on the Connections page. Granting one to a person or agent is the PAM decision: which policy, until when. No token ever reaches this device."',
-      'focus "access.connectors" "The Connectors tab: Add chooses a connector and who may use it. Revoke ends a grant early." side=bottom',
+      'focus "access.connectors" "The Connectors branch: Add chooses a connector and who may use it. Open a record to revoke its grant early." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -84,17 +72,13 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "access.review"',
-      'say "Three tabs of Access hold what stands between an application and this vault: what has been shared, what could be shared, and how widely each application may ask. This tour only points; nothing changes until you act on a row."',
+      'say "Three branches of Access hold what stands between an application and this vault: what has been shared, what could be shared, and how widely each application may ask. This tour only points; nothing changes until you act on a record."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/access"',
       'wait route "/access" timeout=15000',
       'focus "access.grants" "Grants lists what is already shared: the application grants this vault issued and its identity shares, each with an expiry. Revoking an application grant asks you to confirm first." side=bottom',
-      'navigate "/access/resources"',
-      'wait route "/access/resources" timeout=15000',
       'focus "access.resources" "Resources lists what a grant can point at: the vaults on this device, this application and this device, and any connection a share names. Each row says who holds a standing share of it, or that none does." side=bottom',
-      'navigate "/access/policies"',
-      'wait route "/access/policies" timeout=15000',
-      'focus "access.policies" "Policies has one block per local application. Its Application registration holds the exact callbacks it may return to and the roles allowed per permission; a role left unchecked is denied, owners included." side=bottom',
+      'focus "access.policies" "Policies has one record per local application. Open its Application registration for the exact callbacks it may return to and the roles allowed per permission; a role left unchecked is denied, owners included." side=bottom',
       'navigate "/access"',
       'wait route "/access" timeout=15000',
       'success "Grants say what is shared, Resources what can be, and Policies how widely an application may ask."',
@@ -125,22 +109,6 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
 ];
 
 export const ACCESS_HELP: readonly HelpTopic[] = [
-  {
-    id: "help.access.private-request",
-    title: "How do I approve and use a native credential request?",
-    answer:
-      "Access Requests prepares native CLI commands for an exact destination, credential reference, header, expiry and use budget. Review and run lease approve in your native terminal. Enter its lease ID for request, status and revoke commands. This browser handoff neither approves nor sends a request; Identity and local-vault approval ceremonies are separate.",
-    routes: ["/access/requests"],
-    goal: "access.private-request",
-    keywords: [
-      "lease",
-      "request",
-      "destination",
-      "approve",
-      "revoke",
-      "2password",
-    ],
-  },
   {
     id: "help.access.grant",
     title: "How do I give an agent access to something?",

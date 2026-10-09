@@ -100,7 +100,7 @@ export function resolveToken(
   if (!hadPrefix) return false;
   // A key that continues nothing is swallowed, not reinterpreted: a stale
   // `g y` must not become `y` (copy the secret) because the capability that
-  // owned the jump left. A motion keeps its meaning after a prefix (`gj`).
+  // owned the jump left. A motion keeps its meaning after a prefix (`gk`).
   const fresh = map.get(token);
   if (token.length === 1 && !(fresh !== undefined && isMotion(fresh))) {
     chord.count = 0;

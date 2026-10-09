@@ -38,8 +38,10 @@ installPanelFixture();
  * Their tiles open connector pages, and those pages are routed only while
  * Connections is on, so a tile would lead nowhere (ADR 0158). Backups keeps
  * its tiles: each is the history switch, which acts without a page. External
- * telemetry and Certificate authority have no Pages code behind them, so
- * their sections have no switch to draw and are absent too.
+ * telemetry, Certificate authority and Household sharing have no Pages code
+ * behind them. The first two sections have no switch to draw and are absent.
+ * Household sharing shares the Sharing section with live sessions, so that
+ * section stays and the household switch does not.
  */
 const NOTHING_TO_DO_HERE = new Set([
   "encryption",
@@ -152,23 +154,30 @@ describe("sections — one list, one style, a switch only where something is opt
     }
   });
 
-  it("switching a section on reviews, then commits every capability behind it", async () => {
+  it("draws no Household sharing switch until a plan approves it", () => {
     renderPanel();
-    const sharing = screen.getByRole("switch", { name: "Sharing" });
-    expect(sharing.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(sharing);
-    expect(screen.queryByTestId("capability-review")).toBeNull();
     expect(
-      screen.getByRole("list", { name: "Sharing capabilities" }),
-    ).toBeTruthy();
+      screen.queryByRole("switch", { name: "Household sharing" }),
+    ).toBeNull();
+    // Live sessions are not in this fixture's distribution, so Sharing has
+    // nothing a switch can change and draws no capability tiles.
+    expect(
+      screen.queryByRole("list", { name: "Sharing capabilities" }),
+    ).toBeNull();
+    expect(screen.queryByRole("switch", { name: "Sharing" })).toBeNull();
+  });
+
+  it("switching a section on commits every capability behind it", async () => {
+    renderPanel();
+    const identity = screen.getByRole("switch", { name: "Identity" });
+    expect(identity.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(identity);
+    expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(1));
     const selected = double.commits[0]?.draft.selectedOptional ?? [];
-    // Drops are always on, so the switch does not record them. Live
-    // sessions are not in this fixture's distribution, so only household
-    // sharing is added.
-    expect(selected).not.toContain("sharing.drops");
-    expect(selected).toContain("sharing.household");
+    expect(selected).toContain("identity.federation");
     expect(selected).toContain("agents.webmcp");
+    expect(selected).not.toContain("sharing.household");
   });
 
   it("switching a running section off removes it and keeps the rest", async () => {
@@ -238,8 +247,13 @@ describe("sections — one list, one style, a switch only where something is opt
     expect(
       screen.queryByRole("switch", { name: "Certificate authority" }),
     ).toBeNull();
+    expect(
+      screen.queryByRole("switch", { name: "Household sharing" }),
+    ).toBeNull();
     expect(document.getElementById("feature-telemetry")).toBeNull();
     expect(document.getElementById("feature-certificates")).toBeNull();
+    // Sharing stays: live sessions are the section's surface.
+    expect(document.getElementById("feature-sharing")).not.toBeNull();
     for (const id of NO_SURFACE) expect(featureOf(id), id).not.toBeNull();
   });
 

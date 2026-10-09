@@ -166,8 +166,8 @@ once using its original private local session, and recheck current policy. The
 request management panel does not execute an application operation or issue an
 application session. Popup application sign-in now creates a transaction-bound
 request, asks for a fresh approval passkey after identity verification, and
-consumes it into the existing PKCE flow. Its history appears as **Application
-sign-in · consumed**. Members may consent to their own bound sign-in within the
+consumes it into the existing PKCE flow. Its history row carries the reason
+*Application sign-in* and the status `consumed`. Members may consent to their own bound sign-in within the
 application's scope policy; manual requests and agent approvals still require a
 human owner/admin. Manual requests cannot be substituted for popup transactions.
 If an effect fails after consumption, its approval stays spent: start a new
@@ -210,7 +210,8 @@ revocation remain human-custodian operations under ADR 0103/0109.
 The exact authorization route needs a cross-origin opener for the handshake.
 Serve it with `Cross-Origin-Opener-Policy: unsafe-none`, retaining the stronger
 default on other routes. The Vite development server scopes this exception to
-`<base>/identity/authorize`; reverse proxies/static hosts must do the same.
+`<base>/identity/authorize` (and `<base>/identity/siop`, the SIOP route below);
+reverse proxies/static hosts must do the same.
 Do not use a `noopener` link or an RP opener policy that severs cross-origin
 popups. If the opener is unavailable, sign-in is refused.
 

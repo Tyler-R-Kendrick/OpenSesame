@@ -6,16 +6,16 @@ Mandatory local suite does **not** require cloud IdP credentials.
 |---------|------|---------|------------------|
 | OIDC discovery / JWKS | OIDC Core, RFC 8414 | oidc-provider | Mount + issuer config |
 | Auth code + PKCE S256 | RFC 7636 | oidc-provider | Public-client policy |
-| Device authorization | RFC 8628 | oidc-provider | Domain projection + console UX |
+| Device authorization | RFC 8628 | oidc-provider | Domain projection + hosted device pages (`packages/oauth-provider/src/pages.ts`) |
 | PAR | RFC 9126 | oidc-provider | Feature enabled |
-| Resource indicators | RFC 8707 | oidc-provider | Client allowlists |
-| DPoP | RFC 9449 | oidc-provider | CLI/agent preference |
+| Resource indicators | RFC 8707 | oidc-provider | Resource allowlist (`OPENSESAME_ALLOWED_RESOURCES`; default: the issuer only) |
+| DPoP | RFC 9449 | oidc-provider | Feature enabled, replay refused (`allowReplay: false`) |
 | Revocation / introspection | RFC 7009 / 7662 | oidc-provider | Policy gates for introspect |
 | Pairwise `sub` | OIDC Core | oidc-provider + store | Sector mapping table |
 | Protected resource metadata | RFC 9728 | Hono | `/.well-known/oauth-protected-resource` |
-| Passkeys / anonymous | WebAuthn L3 | Better Auth | Principal mapping adapter |
+| Passkeys / provisional principals | WebAuthn L3 | `@simplewebauthn/server` behind the `PasskeySeam` (Better Auth is mounted for email magic link only) | Principal mapping adapter (`better_auth_subjects`), provisional principals |
 | Origin client profile | OpenSesame (not IETF) | OpenSesame | Feature flag + restrictions |
-| CIMD | Draft | oidc-provider (gated) | SSRF fetcher; **disabled by default** |
+| CIMD | Draft | OpenSesame (`SafeMetadataFetcher`; oidc-provider's own `clientIdMetadataDocument` feature is not enabled) | Admission mode and SSRF-hardened fetcher, **disabled by default**; nothing loads a client from a metadata document yet |
 | DCR | RFC 7591 | oidc-provider (gated) | **Disabled by default** |
 | auth.md / Agent Card | Product profile | agent-protocols | Generated from config |
 | auth.md AgentAuth (WorkOS v0.6.0, 2026-06-10) | Ecosystem profile | `@opensesame/agent-protocols` + control-plane `/agent/identity` | Anonymous + `service_auth` enabled; ID-JAG/SET disabled |
@@ -23,12 +23,12 @@ Mandatory local suite does **not** require cloud IdP credentials.
 | RFC 7009 revocation (AgentAuth access tokens) | Final | control-plane `/oauth2/revoke` | Opaque `aat_` tokens; unknown tokens return 200 |
 | RFC 8414 AS metadata `agent_auth` | Final + profile extension | control-plane discovery | Advertises only enabled identity types |
 | RFC 9728 PRM | Final | control-plane + static examples | `WWW-Authenticate` on the demo resource |
-| ID-JAG draft-04 | IETF draft | typed seam only | **Disabled by default; not advertised** |
+| ID-JAG draft-04 | IETF draft | `packages/agent-protocols` verifier + control-plane `/agent/identity` | **Disabled by default** (`OPENSESAME_AGENT_AUTH_PROVIDER_ASSERTION_ENABLED`); advertised only when enabled with an enabled trusted provider configured |
 | OID4VP holder | OpenID4VP 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Vault selection, consent, verified invocation |
 | OID4VCI wallet | OpenID4VCI 1.0 + HAIP 1.0 | Multipaz 0.100.0 (native) | Issuer policy, encrypted custody, verified invocation |
 | OID4VP **verifier** | OpenID4VP 1.0 (Final, 2025-07-09) + RFC 9901 + draft-ietf-oauth-sd-jwt-vc-18 | `jose` | `packages/openid4vp` — request construction, DCQL, transaction-data binding, SD-JWT VC verification |
 | OID4VCI **issuer** | OpenID4VCI 1.0 (Final, 2025-09-16) + RFC 9901 + draft-ietf-oauth-sd-jwt-vc-18 | `jose` | `packages/openid4vci` — pre-authorized code, JWT proof of possession, `dc+sd-jwt` |
-| SIOPv2 (Self-Issued OP) | Self-Issued OpenID Provider v2 **Implementer's Draft 1** (`openid-connect-self-issued-v2-1_0-07`, 2022-01-28) | `jose` | `packages/siop-v2` — ES256 mint/verify, JWK-thumbprint `sub`/`sub_jwk`, static + dynamic **issuer profiles** (`STATIC_SIOP_METADATA` documents draft static shape; no discovery HTTP client); see `SUPPORT_MATRIX`. Hosted link bridge: ADR 0117. PACT + mutation slice cover SIOP (`docs/validation/pact.md`). **Not a Final Specification.** |
+| SIOPv2 (Self-Issued OP) | Self-Issued OpenID Provider v2 **Implementer's Draft 1** (`openid-connect-self-issued-v2-1_0-07`, 2022-01-28) | `jose` | `packages/siop-v2` — ES256 mint/verify, JWK-thumbprint `sub`/`sub_jwk`, static + dynamic **issuer profiles** (`STATIC_SIOP_METADATA` documents the draft static shape; Pages publishes a SIOP-shaped `siop-metadata.json`, not OIDC Discovery, and `fetchSiopMetadata` reads one through an injected fetch); see `SUPPORT_MATRIX`. Hosted link bridge: ADR 0117. PACT + mutation slice cover SIOP (`docs/validation/pact.md`). **Not a Final Specification.** |
 
 ## Draft features (pinned / gated)
 
@@ -37,7 +37,7 @@ Mandatory local suite does **not** require cloud IdP credentials.
 | `OPENSESAME_ORIGIN_CLIENTS_ENABLED` | false | Pre-registered clients only |
 | `OPENSESAME_CIMD_ENABLED` | false | Reject URL client_ids |
 | `OPENSESAME_DCR_ENABLED` | false | `/reg` denied |
-| ATProto / Nostr adapters | disabled | Interfaces only until mandatory green |
+| ATProto / Nostr identity adapters | not implemented | `atproto` and `nostr` exist only as reserved `ExternalIdentityKind` values (a Nostr relay is a live-session carrier, a separate use) |
 
 Do **not** claim OAuth 2.1 RFC compliance; follow RFC 9700 BCP.
 

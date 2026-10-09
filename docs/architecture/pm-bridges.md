@@ -28,35 +28,37 @@ which reads the sealed store in-process. No daemon, no gateway, no network.
  keepassxc-browser ext ──┐ stdio (native messaging: u32-LE len + UTF-8 JSON)
  browserpass ext ────────┤        ─ or ─
  gopass-jsonapi consumer ┤ UDS ($XDG_RUNTIME_DIR, opt-in, conflict-checked)
- libsecret consumer ─────┘ D-Bus session bus (stretch, opt-in)
+ libsecret consumer ─────┘ D-Bus session bus (planned, not built)
              │
              ▼
    ┌─────────────────────────────────────────────┐
-   │ crates/pm-bridges  (one [[bin]] per surface)  │
-   │   keepassxc_bridge  browserpass_host        │
-   │   gopass_jsonapi    secret_service*         │
+   │ crates/pm-bridges  (one `entry` program per │
+   │   surface; `opensesame` runs it when started│
+   │   under the bridge's link name)             │
+   │   keepassxc   browserpass   gopass          │
    │  ── all default-off behind a cargo feature  │
-   │  ── pairing check (ADR 0052 §2b) per caller │
+   │  ── approval per caller (ADR 0052 §2b):     │
+   │     keepassxc pairing, or manifest install  │
    └───────────────────┬─────────────────────────┘
                        │ in-process (opensesame-sealed-store)
                        ▼
         crates/sealed-store  →  StoreRoot / Entry / otp / generate
                        │  git-native ciphertext tree, anti-rollback revisions
                        ▼
-        ~/.password-store  (or OPENSESAME_STORE_DIR / active tomb)
+        ~/.password-store  (or OPENSESAME_BRIDGE_STORE_DIR / OPENSESAME_STORE_DIR /
+                            PASSWORD_STORE_DIR — never the active tomb)
 
-   pairing state: ~/.config/opensesame/bridges/<surface>.json
+   pairing state (keepassxc): ~/.config/opensesame/bridges/keepassxc.json
                   (public keys + name + created — never secrets)
 ```
 
-The one exception to "no gateway" is the **Vault KV v2 read facade**, which
-is a server-API surface rather than local IPC and therefore lives on the
-gateway:
+The exceptions to "no gateway" are server-API surfaces rather than local IPC,
+and therefore live on the gateway. One is the **Vault KV v2 read facade**:
 
 ```
  ESO / Terraform / bao CLI ── HTTPS + X-Vault-Token ──► crates/gateway
                                                           │ default OFF
-                                                          │ (kv_facade_enabled)
+                                                          │ (OPENSESAME_KV_FACADE)
                                                           ▼
                                             read view over existing gateway
                                             secret storage — no new tables
@@ -64,6 +66,15 @@ gateway:
                                                           ▼
                                                    receipt per read
 ```
+
+The other is the **Bitwarden-compatible server**
+([ADR 0141](../adr/0141-bitwarden-compatible-server.md),
+[ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)): Bitwarden's own
+clients sign in and sync against the gateway's `/bitwarden` mount
+(`crates/bitwarden-server`). It exists only in a build with the gateway's
+`bitwarden-compat` feature and is mounted only when
+`OPENSESAME_BITWARDEN_COMPAT=on`. It stores opaque `EncString`s and holds no key
+that opens a vault.
 
 ### Direction 2 — consume their stores (outbound, brokered)
 
@@ -97,7 +108,10 @@ the call.
                         host + TLS pinned in-crate, redirects refused
 ```
 
-`*` = stretch surfaces (ADR 0052 tier 2), each droppable with a green tree.
+`*` = stretch surfaces (ADR 0052 tier 2): planned, and not present in this
+checkout (there is no `crates/provider-passbolt`, no `HumanProviderPlan`
+variant for it, and no Secret Service bridge — the `secret-service` and
+`webdav` features of `crates/pm-bridges` are declared and gate nothing).
 
 The `Unavailable`-in-sync / execute-in-async split is not a workaround: it
 is the existing `HumanProviderPlan::GitHubApp` pattern, which keeps
@@ -125,12 +139,13 @@ failing any clause is agent-plane and yields no plaintext.
 | browserpass stdio host | human/device | Yes | stdio parent = the browser | native-messaging manifest install | stdio only |
 | gopass-jsonapi stdio host | human/device | Yes | stdio parent = the browser | native-messaging manifest install | stdio only |
 | keepassxc bridge — stdio mode | human/device | Yes | stdio parent + NaCl-box client key | `opensesame bridge keepassxc pair` (bounded window, fingerprint shown) | stdio only |
-| keepassxc bridge — UDS mode | human/device | Yes | UDS peer-cred (same uid) + client key | same pairing ceremony | `$XDG_RUNTIME_DIR` socket, opt-in |
-| Secret Service bin (stretch) | human/device | Yes | session bus, same user | explicit enable + name-conflict refusal | session D-Bus, opt-in |
-| WebDAV KDBX (stretch/likely cut) | human | Yes (a KDBX file) | loopback + token | explicit enable | loopback only |
-| Vault KV v2 read facade | **ops** | Yes | `X-Vault-Token` → existing session/operator validation | operator enables `kv_facade_enabled` (default off) | gateway; **receipt emitted per read** |
+| keepassxc bridge — UDS mode | human/device | Yes | socket mode `0600` under the user's `$XDG_RUNTIME_DIR` (same user) + client key | same pairing ceremony | `$XDG_RUNTIME_DIR` socket, opt-in |
+| Secret Service bin (stretch, not built) | human/device | Yes | session bus, same user | explicit enable + name-conflict refusal | session D-Bus, opt-in |
+| WebDAV KDBX (stretch/likely cut, not built) | human | Yes (a KDBX file) | loopback + token | explicit enable | loopback only |
+| Vault KV v2 read facade | **ops** | Reference-first; credential bytes only from `secret/materialize/{name}`, provider-minted and short-lived, where the connection's policy is `derived_short_lived` (ADR 0049) | `X-Vault-Token` → existing session/operator validation | operator sets `OPENSESAME_KV_FACADE` (default off) | gateway; **receipt emitted per read** |
+| Bitwarden-compatible server | human | No — opaque `EncString`s; the client holds the keys | Bitwarden sign-in (password, API key, authenticator) | the person's own account | gateway `/bitwarden`; needs the `bitwarden-compat` build feature and `OPENSESAME_BITWARDEN_COMPAT=on` |
 | Bitwarden/vaultwarden consume-client | human | Yes, to the human who unlocked | TTY master password | connection configured by its owner | outbound from `apps/cli` |
-| Passbolt consume-client (stretch) | human | Yes, to the human who unlocked | TTY key passphrase | connection configured by its owner | outbound from `apps/cli` |
+| Passbolt consume-client (stretch, not built) | human | Yes, to the human who unlocked | TTY key passphrase | connection configured by its owner | outbound from `apps/cli` |
 | Discovery probes (`connection-detect`, `cli_probe`) | device | **No** — names and presence only | daemon operator gate | — | loopback/UDS, no network |
 
 Reading the table: the top three rows are the product's invariant and none
@@ -141,16 +156,18 @@ the same value by running `opensesame pass show --reveal`.
 ## Why the daemon is absent from both diagrams
 
 Deliberately. `crates/daemon` depends on none of `crates/pm-bridges`,
-`crates/kdbx-bridge`, `crates/provider-bitwarden`, or
-`crates/provider-passbolt`, so none of their dependencies —
-`crypto_box`, `zbus`/`oo7`, `rpgp`, `reqwest`, `keepass` — enter its tree.
+`crates/kdbx-bridge` or `crates/provider-bitwarden`, so the dependencies they
+bring — `crypto_box`, `keepass` — do not enter its tree on their account.
+(`reqwest` and, on Linux, `zbus` through the platform-keychain `secret-service`
+backend are in the daemon's tree for their own reasons; neither is among the
+gate's banned crates.)
 
 `scripts/audit/daemon-deps-gate.sh` audits `opensesame-connection-detect`'s full
 tree against a fixed allowlist, plus banned crates (`sqlx`, `oauth2`,
-`jsonwebtoken`, `chacha20poly1305`, `task-bus`) in the daemon's manifest
-and depth-1 resolved tree and in the `invoke-through` / `tailscale-authn` /
-`uds-authn` trees. A workspace member the daemon does not depend on appears
-in none of those, which is what makes this topology legal without amending
+`jsonwebtoken`, `chacha20poly1305`, `task-bus`, `wasmtime`, `cranelift-codegen`)
+in the daemon's manifest and depth-1 resolved tree and in the `invoke-through` /
+`tailscale-authn` / `uds-authn` trees. A workspace member the daemon does not
+depend on appears in none of those, which is what makes this topology legal without amending
 ADR 0048 §5 — and what makes `pnpm audit:daemon-deps` the regression alarm
 if someone later wires a bridge into the daemon. Full argument in
 [ADR 0053](../adr/0053-pm-bridge-binaries.md) §2.
@@ -162,7 +179,7 @@ sit at a fixed point in it:
 
 | Mode | Available for PMs? | Why |
 |---|---|---|
-| MINT | **Never** | No provider-native short-lived derived-token path ⇒ `422 UNMINTABLE` (ADR 0049 §3). There is no fallback that decrypts a stored credential to satisfy a helper |
+| MINT | **Never** | No provider-native short-lived derived-token path ⇒ `422 unmintable` (ADR 0049 §3). There is no fallback that decrypts a stored credential to satisfy a helper |
 | INVOKE-THROUGH | Yes — the default | Session is memory-resident: `secrecy::SecretBox`, zeroized on drop, TTL-bound, never on disk, never logged, never in argv |
 | IMPORT | Yes — explicit and visible | `pass import-kdbx`, Pages importers. Marked as legacy-compat in the offer UI |
 
@@ -178,9 +195,10 @@ base URL — a self-hosted vaultwarden, a company Passbolt — which a static
 allowlist cannot enumerate.
 
 These clients are human-plane, run from `apps/cli` under a TTY, against a
-URL the connection's owner configured. They **pin the configured host and
-TLS in-crate and refuse redirects**, mirroring invoke-through's rules
-inside the provider crate rather than widening the shared table. They do
+URL the connection's owner configured. They **pin the configured host, require
+https (loopback http only in tests) and refuse redirects in-crate**, mirroring
+invoke-through's rules inside the provider crate rather than widening the shared
+table. They do
 not run in the daemon and give the agent plane no new outbound path. The
 invariant preserved is "an agent cannot cause a request to a host the user
 did not authorize"; a human typing their own vault's URL is that
@@ -188,11 +206,12 @@ authorization. See ADR 0052 §7.
 
 ## Singleton endpoints
 
-Three endpoints are machine-wide singletons and are never taken by default:
+Three endpoints are machine-wide singletons and are never taken by default
+(the first has no bridge in this checkout):
 
 | Endpoint | Collides with | Policy |
 |---|---|---|
-| `org.freedesktop.secrets` (D-Bus name) | gnome-keyring, kwallet | Feature-gated + runtime opt-in; requested `DO_NOT_QUEUE`; on conflict, name the current owner and exit |
+| `org.freedesktop.secrets` (D-Bus name) | gnome-keyring, kwallet | Policy for the unbuilt Secret Service bridge: feature-gated + runtime opt-in; requested `DO_NOT_QUEUE`; on conflict, name the current owner and exit |
 | `org.keepassxc.KeePassXC.BrowserServer` (UDS) | a running KeePassXC | Feature-gated + runtime opt-in; probe-connect first; takeover removes only a **verified-dead** socket. Prefer stdio mode, which avoids the singleton entirely |
 | Native-messaging manifests | the vendor's own host binary | Written only by an explicit `opensesame bridge install …` — the install *is* the approval ceremony |
 
@@ -203,12 +222,13 @@ Not automated (each step needs a third-party client), and not part of
 record the result and the client versions in the PR.
 
 Prerequisites: a temp sealed store with at least one entry carrying a
-`url:` trailer line and a TOTP, and a workspace build with the relevant
-features on (`cargo +1.88.0 build -p opensesame-pm-bridges --features …`).
+`url:` trailer line and a TOTP, and an `opensesame` build with the relevant
+features on (`cargo +1.88.0 build -p opensesame-cli --features browserpass,gopass,keepassxc`),
+with the bridge link names created beside it (`opensesame helpers link`).
 
 1. **KeePassXC opens an exported KDBX.**
    ```bash
-   opensesame pass export-kdbx --output /tmp/smoke.kdbx --reveal
+   opensesame pass export-kdbx /tmp/smoke.kdbx --reveal
    keepassxc /tmp/smoke.kdbx     # or File > Open Database
    ```
    Expect: the database opens with the export passphrase; group paths,

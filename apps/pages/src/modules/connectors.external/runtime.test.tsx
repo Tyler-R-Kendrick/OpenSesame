@@ -38,13 +38,13 @@ const KINDS = [
   "unlock-effect",
   "webmcp-tool",
 ];
-// 1 section + 2 routes + 1 setup + 1 command + 1 jump
+// 1 section + 2 routes + 2 setup + 1 command + 1 jump
 // + the authored connections targets, goals and route + 2 webmcp tools
 // + 2 unlock effects
 const COUNT =
   1 +
   2 +
-  1 +
+  2 +
   1 +
   1 +
   CONNECTIONS_TARGETS.length +
@@ -94,7 +94,10 @@ describe("connectors.external runtime", () => {
     expect(t.entries("settings-category")).toEqual([]);
     expect(
       t.entries("setup-panel").map((p) => [p.id, p.tab, p.rail, p.order]),
-    ).toEqual([["connectors", "connectors", "Connectors", 10]]);
+    ).toEqual([
+      ["connectors", "connectors", "Connectors", 10],
+      ["storage", "storage", "Storage", 15],
+    ]);
     expect(t.entries("command-path")).toEqual([
       { path: "/connections", label: "Connections" },
     ]);

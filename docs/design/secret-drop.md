@@ -10,7 +10,11 @@ disposed on consumption.
 
 ## Pieces
 
-### 1. `lib/vault/drop.ts` (new)
+### 1. `packages/app-core/src/lib/vault/drop.ts`
+
+The sealed format (`sealDrop`, the manifest, the 1 MiB cap) is
+`packages/vault-core/src/drop-format.ts`; opening a drop is
+`packages/app-core/src/lib/claims/drop-open.ts`, re-exported here.
 
 - `sealDrop(payload: DropPayload) → {manifest, fragmentKey}` — fresh
   AES-GCM-256 drop key per drop; payload `{text}` or file chunks (1 MiB
@@ -19,14 +23,13 @@ disposed on consumption.
   (≤ 1 MiB total ciphertext, enforced with a clear error).
 - `openDrop(manifest, fragmentKey) → DropPayload` — decrypt + digest verify.
 - `createDropSession(manifest, ttlMs) → {claimId, bearerToken, userCode,
-  verifyUrl}` — `POST /v1/claims` (verify the create shape in
-  `packages/control-plane/src/routes/claims.ts:165-269` FIRST; if manifest-only
-  sessions are refused, STOP and report — the fallback route is an ADR 0062
-  decision, don't improvise it).
-- `pollDrop(claimId)` — `GET /v1/claims/:id/poll` → state mapping
-  (`pending|consumed|expired`).
-- `dropLink(verifyUrl, bearerToken, fragmentKey)` — ceremonies URL with
-  `#key=` fragment (fragment never leaves the browser).
+  verifyUrl, expiresAt}` — `POST /v1/claims` with
+  `{type: "resource_bundle", targetManifest, ttlSeconds}`
+  (`packages/control-plane/src/routes/claims.ts`).
+- `pollDrop(claimId, bearerToken)` — `GET /v1/claims/:id/poll` (the token in
+  `x-claim-token`) → state mapping (`pending|consumed|expired`).
+- `dropLink(verifyUrl, bearerToken, fragmentKey)` — the Pages claim URL with
+  `#token=…&key=…` in the fragment (the fragment never leaves the browser).
 - Seam-wrapped (`dropSeams`), BoundaryValue guards, typed `DropError`.
 
 ### 2. A drop is not an item type
@@ -61,7 +64,7 @@ legacy drop record offer no share.
 `sharing.drops` is always on. The minimal vault, which creates secrets
 only, can still share one. Opening a link stays on `identity.ceremonies`.
 
-### 5. Acceptance page (Pages `/claim`; was `apps/ceremonies` until [ADR 0140](../adr/0140-pages-hosts-every-ceremony.md))
+### 5. Acceptance page (Pages `/claim`; a separate ceremonies app until [ADR 0140](../adr/0140-pages-hosts-every-ceremony.md))
 
 Drop branch on the claim acceptance page: detect `kind: "secret-drop"` in
 the presented manifest → user-code field → present (single-use) → decrypt
@@ -75,19 +78,18 @@ Consumed state renders `This drop was already opened.`
 - Poll drop states on vault open and on the drop detail view; purge on
   terminal states.
 - Locked vault → no share button (secrets are unreachable anyway).
-- Ceremonies app changes are additive (new branch), no restructure.
 
 ## Test plan
 
-- `drop.test.ts`: seal/open round-trip (text + chunked file), tamper →
+- `packages/app-core/src/lib/vault/drop.test.ts`: seal/open round-trip (text + chunked file), tamper →
   digest failure, manifest cap enforced, fragment key absent from every
   seam call body.
 - Model tests: `drop` kind create, state transitions, purge-on-terminal.
 - Section tests: share ceremony on a secret and on a login (TTL → seal →
   drop card with link + code; the item is not saved), poll-consumed purges
   a legacy drop record.
-- Ceremonies: drop branch renders reveal after present; second visit shows
+- Claim page: drop branch renders reveal after present; second visit shows
   the consumed line.
 
-Gates: `pnpm --filter @opensesame/pages test` (+ ceremonies app tests),
-`tsc --noEmit` both apps, per-file oxlint anti-slop, biome.
+Gates: `pnpm --filter @opensesame/pages test`, `tsc --noEmit`, per-file
+oxlint anti-slop, biome.

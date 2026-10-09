@@ -293,9 +293,11 @@ export async function liveKeyboardContract({
       "--allow-loopback-in-peer-connection",
       // Host candidates as plain addresses, not `<uuid>.local` names: two
       // browsers on one runner would resolve those names over multicast DNS,
-      // which a hosted runner does not reliably carry, and the keyboard
-      // contract is about where focus goes, not about mDNS (verify:live-join
-      // and verify:live-netns walk the real network paths).
+      // which a hosted runner does not reliably carry. IPv6 host candidates
+      // on that runner often never leave "checking", so the joiner sits on
+      // "Connecting" until the wait expires. The keyboard contract is about
+      // where focus goes (verify:live-join walks the real network paths).
+      "--disable-ipv6",
       "--disable-features=LocalNetworkAccessChecks,WebRtcHideLocalIpsWithMdns",
     ],
   });
@@ -308,28 +310,27 @@ export async function liveKeyboardContract({
           origin,
         },
       );
+      // A public origin pairing over loopback is a local-network access.
+      // Headless has no prompt to allow it, and a pending check stays on
+      // "Connecting" instead of failing. Same grant as verify:live-join.
+      const cdp = await made.context.newCDPSession(made.page);
+      await cdp.send("Browser.setPermission", {
+        permission: { name: "local-network-access" },
+        setting: "granted",
+        origin,
+      });
       await made.page.setViewportSize({
         width,
         height: width < 600 ? 640 : 900,
       });
       return made;
     };
-    const owner = await device();
-    await ownerEnters(owner.page, { origin, base, tabTo, width });
-    await openLive(owner.page, tabTo);
-    const { link, code } = await ownerStarts(owner.page, tabTo);
-    const joiner = await device();
-    const request = await joinerAsks(joiner.page, { link, code, tabTo });
-    const reply = await ownerAdmits(owner.page, {
-      request,
-      tabTo,
-    });
-    await joinerConnects(joiner.page, { reply, tabTo }).catch(async (error) => {
+    const showed = async (owner, joiner) => {
       // Say what each side showed, so a connection that never forms reads as
       // one, not as a bare "element(s) not found".
       for (const [who, page] of [
-        ["owner", owner.page],
-        ["joiner", joiner.page],
+        ["owner", owner],
+        ["joiner", joiner],
       ]) {
         const shown = await page
           .locator("#live-session, .live-join")
@@ -340,11 +341,37 @@ export async function liveKeyboardContract({
           `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`,
         );
       }
-      throw error;
-    });
-    await endings(owner.page, joiner.page, { tabTo });
-    await owner.context.close();
-    await joiner.context.close();
+    };
+    const walk = async () => {
+      const owner = await device();
+      let joiner = null;
+      try {
+        await ownerEnters(owner.page, { origin, base, tabTo, width });
+        await openLive(owner.page, tabTo);
+        const { link, code } = await ownerStarts(owner.page, tabTo);
+        joiner = await device();
+        const request = await joinerAsks(joiner.page, { link, code, tabTo });
+        const reply = await ownerAdmits(owner.page, { request, tabTo });
+        await joinerConnects(joiner.page, { reply, tabTo }).catch(
+          async (error) => {
+            await showed(owner.page, joiner.page);
+            throw error;
+          },
+        );
+        await endings(owner.page, joiner.page, { tabTo });
+      } finally {
+        await owner.context.close().catch(() => undefined);
+        await joiner?.context.close().catch(() => undefined);
+      }
+    };
+    try {
+      await walk();
+    } catch {
+      // One more walk. A loopback check that never completes is the flake
+      // this shard hits; a second pair of browsers gets a new socket.
+      console.error("live keyboard: connection did not form; trying once more");
+      await walk();
+    }
   } finally {
     await browser.close();
   }

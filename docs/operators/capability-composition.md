@@ -30,7 +30,7 @@ does not change what your deployment serves.**
 
 A capability **owns** operations; it is not one. Nothing in the registry was
 renamed. The mapping is one file,
-`packages/capability-registry/src/capability-map.ts` (98 operations at the time
+`packages/capability-registry/src/capability-map.ts` (132 operations at the time
 of writing), and the catalog test asserts that a descriptor's `operationIds`
 are exactly that map grouped by value.
 
@@ -43,19 +43,19 @@ Two more identifiers you will see in emitted files and never have to author:
 Seven capabilities are statically linked:
 `shell.navigation`, `vault.passwords`, `vault.local-unlock`,
 `backup.local-encrypted`, `identity.brokered-signin`, `settings.core`,
-`install.pwa`. Seven more are **always-on** (ADR 0135, ADR 0142): core in
+`install.pwa`. Eight more are **always-on** (ADR 0135, ADR 0142): core in
 every plan, code still a module after boot — `vault.interop-formats`,
 `backup.cloud-secrets`, `identity.ceremonies`, `activity.log`,
-`support.guided-help`, `identity.site-broker` and `backup.git-remote`.
-None of those is a switch. An older selection that still names one is read
-as though it did not.
+`support.guided-help`, `identity.site-broker`, `backup.git-remote` and
+`sharing.drops`. None of those is a switch. An older selection that still
+names one is read as though it did not.
 
 Connections, Access and Identity are optional (ADR 0153). The minimal plan
 approves `vault.passwords`, `activity.log` and `settings.core` and no
 optional capability. `~/connections`, `~/access` and `~/identity` load only
 after their Settings › Capabilities switch is on (`capability.<id>` is the
-OpenFeature flag). The minimal vault's only creatable kind is `secret`.
-Account, note, card, passkey, certificate and the other built-in types
+OpenFeature flag). The minimal vault's only creatable kinds are `secret` and
+`file`. Account, note, card, passkey, certificate and the other built-in types
 project onto that secret and stay out until Item types is on. Password reset
 (`ai.password-reset`) is its own section, off until chosen, and it depends on
 the account item type (`vault.derived-records`).
@@ -69,13 +69,13 @@ has no module to leave out. Settings › Capabilities says "withdrawn by
 operator" in a notice and on the section the capability backs.
 
 A policy a version-1 preset wrote (`presetProvenance.version: 1`) listed
-every optional id the preset did not offer, so it may name the site broker
-or git backup in `prohibited` without anyone having chosen that. The store
-drops those two from such a policy when it reads it. Identity is optional
-again (ADR 0153), so a version-1 prohibition of browser-local IAM or SIOP
-stands. To withdraw the site broker or git backup, write it into a policy
-you author yourself, or apply a preset again (presets are version 2 now)
-and add it.
+every optional id the preset did not offer, so it may name the site broker,
+git backup or secret drops in `prohibited` without anyone having chosen that.
+The store drops those three from such a policy when it reads it. Identity is
+optional again (ADR 0153), so a version-1 prohibition of browser-local IAM or
+SIOP stands. To withdraw the site broker, git backup or secret drops, write
+it into a policy you author yourself, or apply a preset again (presets are
+version 2 now) and add it.
 
 Git backup's automatic calls are held while the plan does not allow external
 services, whichever surface starts them (`backup-egress-gate.ts`). They are
@@ -116,15 +116,17 @@ The operator guide for the routes is
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,
-Identity, Access, Connections, Directory, Encryption, Backups, Password
-managers, Cloud secret storage, Local storage, Item types, Environments, Browser
-autofill, Sharing, Payments, AI, Password reset, Surrogate credentials,
-Networking, Notifications, and — for the operator — Instance policy. A section
-is drawn only where it has a switch or a tile that acts (ADR 0158): External
-telemetry and Certificate authority are optional so an operator can prohibit
-them, but have no Pages code behind them, so they have no section and no switch
-(`NO_SURFACE` in `features.ts`), except while the plan already approves one: its
-switch then stays, so it can be turned off. Connector tiles (Backups, Password managers,
+Identity, Access, Connections, Directory, Encryption, Certificate authority,
+Backups, Password managers, Cloud secret storage, Local storage, Encrypted
+search, Item types, Environments, Breach and two-step checks, Browser autofill,
+Sharing, Payments, AI, Password reset, Surrogate credentials, Networking, Local
+notifications, Notifications, Telemetry, and — for the operator — Instance
+policy. A section is drawn only where it has a switch or a tile that acts (ADR
+0158): External telemetry and Certificate authority are optional so an
+operator can prohibit them, but have no Pages code behind them, so they have
+no switch (`NO_SURFACE` in `feature-surface.ts`) and Telemetry, left with nothing to
+draw, is absent, except while the plan already approves one: its switch then
+stays, so it can be turned off. Connector tiles (Backups, Password managers,
 Cloud secret storage, Local storage, and the providers under Identity,
 Payments, AI and Networking) are the Connections capability's pages
 (`/settings/connections/<id>`, ADR 0153), so they are drawn while Connections
@@ -225,8 +227,9 @@ it as Household sharing's transport.
 | **Custom** | none | every optional capability | nothing | allow |
 
 Personal and Family never offer and never pre-select the
-`enterprise.*`, `agents.*` or `telemetry.*` families, nor `support.remote-ai`.
-Homelab and Organization *offer* those families but never pre-select them.
+`connectors.*`, `enterprise.*`, `agents.*` or `telemetry.*` families, nor
+`support.remote-ai`. Homelab and Organization *offer* those families but never
+pre-select them.
 `presets.test.ts` pins both rules.
 
 ## 4. Authoring, exporting and publishing an instance policy
@@ -279,7 +282,7 @@ instanceId: inst-family
 revision: "2026-09-22.1"
 presetProvenance:
   id: family
-  version: 1
+  version: 2
 capabilities:
   default: deny
   required: []
@@ -359,8 +362,10 @@ its own policy. That is the default, and it is not an error.
 A profile file under `apps/pages/capability-profiles/` is the same two
 documents in one JSON object (`{ "instancePolicy": …, "installationSelection": … }`),
 which is what makes an operator configuration testable and buildable. Eleven
-are checked in, from `minimal-local` (core only) to `rich-explicit` (all 15
-optional) and the four `managed-invalid-*` rejection cases.
+are checked in, from `minimal-local` (core only) to `rich-explicit` (all 29
+optional) and four rejection cases (`managed-invalid-instance`,
+`managed-invalid-revision`, `managed-invalid-signature` and
+`managed-missing-required`).
 
 ## 5. Selective or hardened: when a change needs a new artifact
 
@@ -370,7 +375,7 @@ optional) and the four `managed-invalid-*` rejection cases.
 | What a device loads | its accepted closure | its accepted closure |
 | Excluded HTML entries (`auth/redirect.html`) | emitted | not emitted |
 | Excluded public files, worker variants | emitted | not emitted |
-| Build fails on reachability of an excluded module | no | **yes** |
+| Build fails on reachability of an excluded module | no (unless `OPENSESAME_GRAPH_GATE=enforce` is set) | **yes** |
 | Changing the answer | a setting | **a new build** |
 
 Choose hardened when the requirement is that an implementation *not be on the
@@ -389,18 +394,20 @@ export NODE_OPTIONS="--max-old-space-size=8192"
 
 # One profile, one mode. The script runs security-profile.mjs, builds in a
 # child process so OPENSESAME_* is read fresh, then verifies the emitted dist.
+# Relative paths resolve against apps/pages, whatever the working directory.
 node apps/pages/scripts/build-profile.mjs \
-  --profile apps/pages/capability-profiles/family-local.json \
+  --profile capability-profiles/family-local.json \
   --mode hardened \
   --out dist-profiles/family-local-hardened \
   --expect-absent connectors.external/runtime
 
-# The whole matrix (eight builds), aggregated into dist-profiles/measurements.json
+# The whole matrix (eight builds), aggregated into
+# apps/pages/dist-profiles/measurements.json
 node apps/pages/scripts/build-profile.mjs --all
 
 # Verify a dist someone else built, independently of the plugin's own claim
-node apps/pages/scripts/verify-capability-graph.mjs --dist apps/pages/dist \
-  --profile apps/pages/capability-profiles/family-local.json --mode hardened
+node apps/pages/scripts/verify-capability-graph.mjs --dist dist \
+  --profile capability-profiles/family-local.json --mode hardened
 ```
 
 The package scripts `pnpm --filter @opensesame/pages build:profile` and
@@ -411,7 +418,8 @@ The three environment variables the Vite config reads are
 `OPENSESAME_CAPABILITY_PROFILE` (a profile JSON path; absent means
 `rich-explicit`'s distribution), `OPENSESAME_BUILD_MODE`
 (`selective` | `hardened`, default `selective`) and `OPENSESAME_GRAPH_GATE`
-(`enforce` | `report`, default `enforce` on a build).
+(`enforce` | `report`; a hardened build enforces by default, and a selective
+build fails on reachability only when you name `enforce`).
 
 ## 6. Offline and worker consequences
 

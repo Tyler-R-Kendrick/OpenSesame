@@ -21,7 +21,7 @@ first.
 | `encodeQrSize(value)` | Matrix size, for tests and diagnostics |
 | `encodeInteractionQr(url, options)` | Refuses forbidden params, then refuses a URL `parseInteractionUrl` does not recognise, then encodes |
 | `encodeInteractionQrTerminal(url, options)` | The same refusals, terminal output |
-| `QrEncodeError` | Thrown for an empty or whitespace-only payload |
+| `QrEncodeError` | Thrown for an empty or whitespace-only payload, and by the interaction encoders for a URL that is not a canonical interaction link |
 
 ```ts
 import { encodeQrSvg } from "@opensesame/qr";

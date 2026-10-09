@@ -5,27 +5,28 @@
  * it exists only while `access.authority` is active.
  */
 
+import { accessViewFromLocation } from "@opensesame/app-core/lib/access-routes.js";
 import type { TreeProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { useLocation, useSearchParams } from "react-router";
+import { useLocation } from "react-router";
 import { PageTreeBranch } from "../../components/PageTreeBranch.js";
 
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { accessPageTree } from "../../sections/access/page-tree.js";
+import { accessRailHash } from "../../sections/access/rail-route.js";
 import { useShareLeaves } from "../../sections/access/share-leaves.js";
 import { useHasPortableGrants } from "../../sections/access/use-access-book.js";
 import { useReceiptsSession } from "../../sections/access/use-receipts-session.js";
 
-import { ACCESS_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export function AccessRailTree(_props: TreeProps) {
-  const [params] = useSearchParams();
-  const { hash } = useLocation();
+  const location = useLocation();
+  const { hash } = location;
   const identity = useIdentityConfigured();
   // The same rules AccessSection draws Portable grants and Receipts by.
   const book = useHasPortableGrants();
   const receipts = useReceiptsSession() !== null;
-  const view = ACCESS_VIEWS.find((id) => id === params.get("view")) ?? "grants";
-  const current = `/access?view=${view}${hash}`;
+  const view = accessViewFromLocation(location.pathname, location.search);
+  const current = `/access?view=${view}${accessRailHash(hash)}`;
   const { tomb } = useVault();
   const shares = useShareLeaves(tomb);
   return (

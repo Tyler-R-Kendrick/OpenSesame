@@ -1,10 +1,12 @@
 # @opensesame/cli
 
-The Client CLI, binary `opensesame-id` (alias `opensesame-identity`). It signs
+The Client CLI, binary `opensesame-id` (alias `opensesame-identity`; both names
+are `bin` entries of this package, pointing at `src/bin.ts`). It signs
 in to the Identity API by device flow, loopback PKCE or as an anonymous guest,
 keeps that session in a private file, polls claims, probes the Host API, and
 opens a sealed vault export or offline backup to verify it or list its items
-(names and paths, never values). It is the Client-plane counterpart of the Host
+(names and paths, never values). It also serves the two MCP servers as
+`opensesame-id mcp host|client`. It is the Client-plane counterpart of the Host
 CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 
 ## Where it fits
@@ -13,10 +15,12 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 - **Builds on:** [`@opensesame/sdk-cli`](../sdk-cli) (device flow, loopback
   login, Identity API client, secret redaction),
   [`@opensesame/api-client`](../api-client) (the `host` verbs),
-  [`@opensesame/vault-core`](../vault-core) (`openVaultFile`) and
+  [`@opensesame/vault-core`](../vault-core) (`openVaultFile`),
   [`@opensesame/app-core`](../app-core) (the Node host, installed before a
-  vault is opened).
-- The session file is refused if anyone but its owner can read or write it.
+  vault is opened) and, for the `mcp` verb, [`@opensesame/mcp-host`](../mcp-host)
+  and [`@opensesame/mcp-client`](../mcp-client), each loaded only when asked for.
+- The session file is refused if anyone but its owner can read or write it
+  (a POSIX mode check; it is skipped on Windows).
 - `vault verify` and `vault ls` read the master password from a terminal
   only, and never print a field value.
 - `--json` output redacts secrets.
@@ -32,11 +36,14 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 | `agent init --anonymous [--name <name>]` | Register an anonymous agent |
 | `host health [--host <url>]`, `host discover [--host <url>]` | Host API health and discovery |
 | `vault verify <file>`, `vault ls <file>` | Open a vault export or offline backup; lists `account` items (a legacy `login` file lists as `account`) by name and path, never a method secret |
-| `vault new <account\|secret\|note\|card> --name <n>` | Create an item (`login` is accepted as `account`). An account's password is typed here as a stored (`manual`) method; typing one over a method keeps where its pepper goes |
+| `vault list`, `vault new <account\|secret\|note\|card> --name <n>`, `vault set\|edit <item>` | List the local vault (id, kind, name); create an item (`login` is accepted as `account`); change `--name`, `--username` or `--secret`. An account's password is typed here as a stored (`manual`) method; typing one over a method keeps where its pepper goes |
 | `vault copy <item> [--field secret\|rest\|username]` | Copy through the one password facade (ADR 0174): the whole password, or what comes before a pepper slot; `--field rest` copies what follows it. A pepper is never asked for or stored. A password an earlier version sealed under a pepper (`legacy_password`) is converted in the vault app |
+| `vault import <file>`, `vault export [--out <file>]`, `vault share <item>`, `vault sync [--pair <code>]` | Merge or write a sealed export of the local vault; share a secret once (link and code); sync with a tailnet drive (ADR 0144) |
+| `mcp host\|client` | Serve the host- or client-facing MCP tools on stdio (`OPENSESAME_MCP_TRANSPORT=http` for the host server's loopback HTTP); see [`mcp-host`](../mcp-host) and [`mcp-client`](../mcp-client) |
 
 Global flags: `--json`, `--issuer <url>`, `--api <url>`, `--client-id <id>`.
-The library entry exports `runCli`, `parseArgs` and `helpText`.
+The library entry exports `runCli`, `parseArgs`, `helpText`, `SessionFileSchema`
+and `GlobalFlagsSchema`.
 
 | Variable | Default |
 |---|---|
@@ -65,9 +72,16 @@ opensesame-id service-account setup --vault Automation --create-vault --write --
 Creation and password changes accept secrets from a pipe or `--clipboard`,
 verify every write by reading it back, and never retry a write. Passwords retain
 exact bytes; `password` compares unless `--apply` is supplied. Discovery and
-receipts contain metadata and references. `read` intentionally prints plaintext;
-`env resolve <file> --output <file>` or `--in-place` intentionally writes an
-owner-only plaintext file. The selected child receives injected secrets and
+receipts contain metadata and references. `read` and `env resolve` refuse unless
+stdin and stdout are both TTYs, you pass `--reveal`, `op://` reads also need
+`--desktop`, and no agent context is detected; each allowed use writes a
+value-free receipt to stderr. Prefer `opensesame-id run` / `os run` with
+`--env NAME=op://…` or `os://…` (1Password-style references), or `env run`, for
+scripts — the same `run` wrapper pattern as `op run`, `infisical run`, and
+`doppler run`. `env resolve` is deprecated in favor of `env run`. A future
+broker lane (network stand-in swap) extends `run`, not a separate top-level
+command. The selected child receives
+injected secrets and
 its exit status is preserved; the provider service token is removed before
 that child starts.
 

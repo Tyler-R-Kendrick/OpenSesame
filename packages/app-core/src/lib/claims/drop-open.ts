@@ -17,6 +17,7 @@ import { type DropRefusalCode, dropRefusal } from "@opensesame/ceremony-kit";
 import {
   type BoundaryValue,
   type JsonObject,
+  isNumber,
   isString,
   isTypeofObject,
   overlapCast,
@@ -29,6 +30,9 @@ import {
   openDrop as openDropFormat,
 } from "@opensesame/vault-core";
 import { identityBase, identityFetch } from "../identity.js";
+import { noteDropOpened } from "../sharing-receipts.js";
+import { claimIdFromBearer } from "../vault/local-drop-codec.js";
+import { noteOutboundDropConsumed } from "../vault/outbound-drops.js";
 
 /**
  * What went wrong on the claim plane. Creating and polling a drop fail as
@@ -44,10 +48,17 @@ export type DropTransportErrorCode =
 
 export class DropTransportError extends Error {
   readonly code: DropTransportErrorCode;
-  constructor(code: DropTransportErrorCode, message: string) {
+  /** Wrong-code refusals only: tries remaining after this one. */
+  readonly attemptsLeft?: number | undefined;
+  constructor(
+    code: DropTransportErrorCode,
+    message: string,
+    attemptsLeft?: number,
+  ) {
     super(message);
     this.name = "DropTransportError";
     this.code = code;
+    this.attemptsLeft = attemptsLeft;
   }
 }
 
@@ -66,6 +77,8 @@ export class DropError extends Error {
   constructor(
     readonly code: DropErrorCode,
     message: string,
+    /** Wrong-code refusals only: tries remaining after this one. */
+    readonly attemptsLeft?: number,
   ) {
     super(message);
     this.name = "DropError";
@@ -89,7 +102,7 @@ export function asDropError(error: Error): never {
 export function mapTransportError(error: Error): DropError {
   if (error instanceof DropError) return error;
   if (error instanceof DropTransportError) {
-    return new DropError(error.code, error.message);
+    return new DropError(error.code, error.message, error.attemptsLeft);
   }
   return new DropError("unreachable", error.message);
 }
@@ -144,7 +157,11 @@ async function presentClaimDefault(
       res.status,
       isString(detail.hint) ? detail.hint : null,
     );
-    throw new DropTransportError(refused.code, refused.words);
+    throw new DropTransportError(
+      refused.code,
+      refused.words,
+      isNumber(detail.attemptsLeft) ? detail.attemptsLeft : undefined,
+    );
   }
   const body = obj(await res.json());
   const manifest = body.targetManifest;
@@ -167,6 +184,9 @@ export async function presentDrop(
 ): Promise<PresentedDrop> {
   try {
     const presented = await dropOpenSeams.presentClaim(bearerToken, userCode);
+    const claimId = claimIdFromBearer(bearerToken);
+    if (claimId) noteOutboundDropConsumed(claimId);
+    if (claimId) noteDropOpened(claimId);
     return { targetManifest: guardManifest(presented.targetManifest) };
   } catch (error) {
     throw mapTransportError(

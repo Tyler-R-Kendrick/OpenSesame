@@ -20,7 +20,11 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
-import { LOCAL_DROP_CLAIM_KEYS } from "@opensesame/app-core/lib/vault/local-drop-claims.js";
+import {
+  LOCAL_DROP_CLAIM_KEYS,
+  disposeExpiredLocalDropClaims,
+} from "@opensesame/app-core/lib/vault/local-drop-claims.js";
+import { OUTBOUND_DROPS_STORAGE_KEY } from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   DROPS_GOALS,
@@ -44,7 +48,10 @@ export const CAPABILITY = "sharing.drops";
  * or polled — and the core boot does not pull them for an installation
  * without drops.
  */
-export const HYDRATE_KEYS: readonly string[] = LOCAL_DROP_CLAIM_KEYS;
+export const HYDRATE_KEYS: readonly string[] = [
+  ...LOCAL_DROP_CLAIM_KEYS,
+  OUTBOUND_DROPS_STORAGE_KEY,
+];
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
@@ -78,13 +85,15 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "drop-sweep",
       run: ({ signal }) => {
         const stop = anySignal([ctx.lease.signal, signal]);
-        return runUnlessAborted(stop, () =>
-          sweepDrops(
+        return runUnlessAborted(stop, async () => {
+          disposeExpiredLocalDropClaims();
+          await vaultStore.reconcileTrashedShares();
+          await sweepDrops(
             vaultStore.getSnapshot().items,
             (id) => vaultStore.purgeItem(id),
             stop,
-          ),
-        );
+          );
+        });
       },
     });
 

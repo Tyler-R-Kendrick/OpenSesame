@@ -2,8 +2,8 @@ import type { Ref } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
 import { IconPlus } from "../../components/Icons.js";
+import { ClaimOpenLink } from "./ClaimOpen.js";
 import { ExportKey } from "./ExportKey.js";
-import { PasswordWorkflowsKey } from "./PasswordWorkflows.js";
 
 /**
  * The keys that add to a vault or take it out: New item, whatever a capability
@@ -37,6 +37,7 @@ export function VaultActions({
         <IconPlus size={15} />
       </Link>
       <VaultCommands />
+      <ClaimOpenLink />
     </>
   );
 }
@@ -52,7 +53,6 @@ export function VaultCommands() {
       {commands.map(({ id, Command }) => (
         <Command key={id} />
       ))}
-      <PasswordWorkflowsKey />
       <ExportKey />
     </>
   );

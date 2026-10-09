@@ -84,6 +84,11 @@ export const SHELL_RULES = [
   core("src/no-host-import", null, "proof the core loads with no host"),
   core("src/memory-storage", null, "in-memory Web Storage for hosts"),
   core("src/browser/", null, "the browser host's ports (ADR 0133)"),
+  optional(
+    "src/browser/native-",
+    "connectors.external",
+    "provider consent browser ports loaded only by native connector runtime",
+  ),
   core("src/node/", null, "the CLI host; never in a Pages build"),
   core("src/sandbox/", null, "the isolate host; never in a Pages build"),
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
@@ -99,6 +104,16 @@ export const SHELL_RULES = [
     "src/screens/capabilities/",
     "settings.core",
     "purpose cards, capability cards, review (S09)",
+  ),
+  optional(
+    "auth/native-",
+    "connectors.external",
+    "native public provider consent return document",
+  ),
+  optional(
+    "auth/linear",
+    "connectors.external",
+    "Linear public PKCE return document",
   ),
   optional(
     "auth/",
@@ -254,6 +269,11 @@ export const SHELL_RULES = [
     "src/screens/setup/steps/ConnectorsStep",
     "connectors.external",
     "setup connectors tab",
+  ),
+  optional(
+    "src/screens/setup/steps/StorageStep",
+    "connectors.external",
+    "setup storage tab (the S3-compatible bucket)",
   ),
   optional(
     "src/screens/setup/steps/AiStep",

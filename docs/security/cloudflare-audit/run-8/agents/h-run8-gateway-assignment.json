@@ -1,0 +1,140 @@
+[
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fbreach%2Fsources.rs%23password_occurrences::crates%2Fbreach-intel%2Fsrc%2Frange.rs%23range_url::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "surface": "crates/gateway/src/breach/sources.rs#password_occurrences",
+    "boundary": "crates/breach-intel/src/range.rs#range_url",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "crates/gateway/src/breach/sources.rs",
+      "crates/breach-intel/src/range.rs",
+      "crates/breach-intel/src/catalogue.rs",
+      "crates/breach-intel/src/event.rs",
+      "crates/gateway/src/routes/security.rs",
+      "crates/gateway/src/security/dispatch.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23require_session::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23resolve_caller::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/middleware/auth.rs#require_session",
+    "boundary": "crates/gateway/src/middleware/auth.rs#resolve_caller",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/middleware/auth.rs",
+      "crates/gateway/src/session_claims.rs",
+      "crates/gateway/src/middleware/agent_grants.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fhook_records.rs%23read_hook_records::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/routes/agent_runs/hook_records.rs#read_hook_records",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/hook_records.rs",
+      "crates/gateway/src/routes/agent_runs.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Flease.rs%23commit::crates%2Fstorage%2Fsrc%2Fhost_authorizations.rs%23control_with_host_authorization::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "surface": "crates/gateway/src/routes/agent_runs/lease.rs#commit",
+    "boundary": "crates/storage/src/host_authorizations.rs#control_with_host_authorization",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/lease.rs",
+      "crates/storage/src/host_authorizations.rs",
+      "crates/gateway/src/routes/host_authorizations.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fstream.rs%23observe::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/routes/agent_runs/stream.rs#observe",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/stream.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs",
+      "crates/gateway/src/routes/shared_sessions/events.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs.rs%23get_run::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/routes/agent_runs.rs#get_run",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fauthority_grants.rs%23issue::crates%2Fauthz%2Fsrc%2Fauthority_use.rs%23authorize_authority_use::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/routes/authority_grants.rs#issue",
+    "boundary": "crates/authz/src/authority_use.rs#authorize_authority_use",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/authority_grants.rs",
+      "crates/gateway/src/routes/authority_issuance_preflight.rs",
+      "crates/authz/src/authority_use.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbackup.rs::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "surface": "crates/gateway/src/routes/backup.rs",
+    "boundary": "crates/gateway/src/middleware/auth.rs",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "crates/gateway/src/routes/backup.rs",
+      "crates/gateway/src/routes/admin.rs",
+      "crates/gateway/src/routes/kv_facade.rs",
+      "crates/gateway/src/routes/kv_facade_path.rs",
+      "crates/gateway/src/routes/attachments.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings.rs%23create::crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings%2Fceiling.rs%23verified_ceiling::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/routes/browser_pairings.rs#create",
+    "boundary": "crates/gateway/src/routes/browser_pairings/ceiling.rs#verified_ceiling",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/browser_pairings.rs",
+      "crates/gateway/src/routes/browser_pairings/ceiling.rs",
+      "crates/gateway/src/routes/browser_pairings/renew.rs",
+      "crates/gateway/src/browser_pairing_proof.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdelegations.rs::crates%2Fauthz%2Fsrc%2Fauthority_use.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "surface": "crates/gateway/src/routes/delegations.rs",
+    "boundary": "crates/authz/src/authority_use.rs",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/gateway/src/routes/delegations.rs",
+      "crates/gateway/src/routes/connections.rs",
+      "crates/gateway/src/routes/grant_offers.rs",
+      "crates/gateway/src/routes/ceremonies.rs",
+      "crates/authz/src/authority_use.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "surface": "crates/gateway/src/routes/device.rs",
+    "boundary": "crates/gateway/src/routes/device.rs",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "crates/gateway/src/routes/device.rs",
+      "crates/gateway/src/routes/session.rs"
+    ]
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fnats_callout.rs::crates%2Fauthz%2Fsrc%2Fcallout.rs%23evaluate_callout::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "crates/gateway/src/routes/nats_callout.rs",
+    "boundary": "crates/authz/src/callout.rs#evaluate_callout",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/nats_callout.rs",
+      "crates/authz/src/callout.rs"
+    ]
+  }
+]

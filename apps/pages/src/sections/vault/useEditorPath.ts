@@ -30,5 +30,36 @@ export function useEditorPath(
       );
     }
   };
-  return { choices, resolve, blur, stage: setPending };
+  /** The folder the person chose from the list: `undefined` is the root. */
+  const select = (folder?: Folder) => {
+    setPending(folder);
+    change({ name: value.name, folderId: folder?.id ?? null });
+    report(null);
+  };
+  /**
+   * The name field as it is typed. A `/` ends a folder: everything before the
+   * last one moves into the folder segment now, relative to the folder that is
+   * chosen, and only the leaf stays in the field. A prefix that cannot resolve
+   * yet (`../` at the root) stays as typed; leaving the field reports it.
+   */
+  const typed = (text: string) => {
+    const cut = text.lastIndexOf("/") + 1;
+    if (cut > 0) {
+      try {
+        const next = resolveItemPath(
+          `${text.slice(0, cut)}_`,
+          value.folderId,
+          choices,
+        );
+        setPending(next.folder);
+        change({ name: text.slice(cut), folderId: next.folderId });
+        report(null);
+        return;
+      } catch {
+        // Left as typed for the blur to report.
+      }
+    }
+    change({ name: text, folderId: value.folderId });
+  };
+  return { choices, resolve, blur, select, typed, stage: setPending };
 }

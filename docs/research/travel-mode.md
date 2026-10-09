@@ -37,10 +37,10 @@
 
 | Design | What it does | How it differs |
 |---|---|---|
-| [GrapheneOS duress PIN/password](https://grapheneos.org/features) | Entering the duress credential at any prompt wipes the device and its eSIMs, without a reboot and without a way to interrupt it. | Destroys everything instead of choosing what stays. Separate 72-hour auto-reboot. |
+| [GrapheneOS duress PIN/password](https://grapheneos.org/features) | Entering the duress credential at any prompt wipes the device and its eSIMs, without a reboot and without a way to interrupt it. | Destroys everything instead of choosing what stays. Separate auto-reboot timer (18 hours by default, 72 at most). |
 | [Apple Stolen Device Protection](https://support.apple.com/en-us/120340) | Away from familiar places, sensitive actions need biometrics with no passcode fallback, and critical changes wait an hour. | Limits a thief who knows the passcode. Nothing leaves the device. |
 | [iOS inactivity reboot](https://www.magnetforensics.com/blog/understanding-the-security-impacts-of-ios-18s-inactivity-reboot/) | After 72 h (iOS 18.1) the Secure Enclave reboots the phone into Before First Unlock. | A lock-state protection, not a data-minimisation one. |
-| [Android Identity Check](https://security.googleblog.com/2025/01/android-theft-protection-identity-check-expanded-features.html) | Biometrics required for sensitive actions outside trusted places; optional 72 h auto-restart. | Same class as Apple's. |
+| [Android Identity Check](https://security.googleblog.com/2025/01/android-theft-protection-identity-check-expanded-features.html) | Biometrics required for sensitive actions outside trusted places. | Same class as Apple's. |
 | [VeraCrypt hidden volumes](https://veracrypt.io/en/Plausible%20Deniability.html) | A second volume inside the first volume's random free space. | Deniability through encryption. Snapshots taken at different times show which sectors changed. |
 | [Keeper self-destruct](https://help.keeper.io/article/163-what-is-self-destruct) | Erases the local vault after five failed logins; the cloud copy stays. | Triggered by an attacker, not planned by the owner. |
 | Bitwarden, Proton Pass, Dashlane | No travel mode. Bitwarden's [request](https://community.bitwarden.com/t/travel-mode/6364) dates from 2019. Proton's [request](https://protonmail.uservoice.com/forums/953584-proton-pass/suggestions/48536921-travel-mode) has no status. | — |
@@ -56,12 +56,13 @@ Power devices off before crossing. EFF names 1Password's travel vaults.
 ## 3. Criticisms of 1Password's design
 
 - **It invites a lie.** Schneier: "When … asked … 'have you enabled travel
-  mode,' you can't tell them the truth. In the US, lying to a federal officer
-  is a felony." Also: "Since you can turn travel mode off at will, a border
-  official can just demand you do so." 1Password's security lead, Jeffrey
-  Goldberg, advised against lying and framed Travel Mode as a way to make
-  complying with a search safe.
-  <https://www.schneier.com/blog/archives/2018/07/1passwords_trav.html>
+  mode,' you can't tell them the truth. In the US, lying to a federal office
+  is a felony." (2018) Also: "But since you can turn it off at will, a border
+  official can just demand you do so." (2017) 1Password's security lead,
+  Jeffrey Goldberg, advised against lying and framed Travel Mode as a way to
+  make complying with a search safe.
+  <https://www.schneier.com/blog/archives/2018/07/1passwords_trav.html>,
+  <https://www.schneier.com/blog/archives/2017/06/passwords_at_th.html>
 - **The account is still one sign-in away.** The vaults still exist in the
   account. Whoever can compel a web sign-in (account password and Secret Key)
   or an unlocked extension can turn Travel Mode off.
@@ -112,8 +113,10 @@ products do about each: show a plausible vault, show nothing, lock the sensitive
 things for a while, remove this device's copy, or tell a contact
 ([ADR 0168](../adr/0168-duress-modes-from-scenarios.md)). OpenSesame offers five
 modes from that list (decoy, decoy with everyday items, wrong password, freeze
-for a while, wipe this device's copy). It does not offer alert-a-contact: a static
-app has no delivery path and no independent receiver for it.
+for a while, wipe this device's copy) and a sixth, show my vault without the
+items I hide, a decoy holding copies of the items the owner chose to leave
+shown. It does not offer alert-a-contact: a static app has no delivery path
+and no independent receiver for it.
 
 ## 7. Items, not only vaults
 

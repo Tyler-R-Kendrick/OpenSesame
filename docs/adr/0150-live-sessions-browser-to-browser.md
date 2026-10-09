@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-28
+- Amended by: [ADR 0167](0167-nats-live-session-route.md) (§3 what a link
+  carries, §5 what crosses the peer channel, §6 carriers pass codes only)
 - Amends: [ADR 0090](0090-static-frontend-complete-without-backend.md) and
   [ADR 0115](0115-front-door-and-connector-directory.md) (the first-run door:
   two roads, sign-in behind a vault), [ADR 0136](0136-join-a-session-restored.md)
@@ -52,10 +54,11 @@ sign-in panel beside an existing vault and on the unlock form, unchanged.
 ### 2. A live session is hosted by the owner's open tab
 
 The owner, with the vault unlocked, opens a **live session**: what it shares
-(the whole vault or chosen items), how (`read` shows values, `use` copies
-them without drawing them, `edit` lets the joiner replace a shared field in
-the open vault), for how long (at most eight hours), and who gets
-in — **invite** (a link plus an out-of-band code, the ADR 0044 shape) or
+(the whole vault or chosen items), how (`read` shows values, `use` — Copy
+only — keeps a concealed value off the joiner's screen and clipboard, `edit`
+lets the joiner replace a shared field in the open vault), for how long (at
+most eight hours), and who gets in — **invite** (a link plus an out-of-band
+code, the ADR 0044 shape) or
 **open** (anyone holding the link is let in as they ask). The tab hosts the
 session: closing it, locking the vault, or the time running out ends it for
 everyone. The session itself is not written to storage on either side. An
@@ -188,12 +191,13 @@ The owner's key never leaves its device. Over the data channel the owner
 sends the shared items' names, types and non-concealed fields, and answers a
 `reveal` or `copy` request for one concealed field at a time, re-checking
 scope, policy and expiry on every request and recording each in the
-session's on-screen log. Under `edit`, an `edit` request replaces one shared
-field in the open vault. The session itself is still not stored. The joiner
-keeps received values in memory, drops them the moment the channel closes,
-and never writes them to storage. `use` is a display policy: a browser that
-receives a value to copy can keep it, and the page says nothing to the
-contrary.
+session's on-screen log. Under `use` (Copy only) both are refused: the
+concealed plaintext does not cross, and the joiner's page does not write it
+to the clipboard. Under `read` or `edit`, a copy the joiner asks for may be
+written to their clipboard. Under `edit`, an `edit` request replaces one
+shared field in the open vault. The session itself is still not stored. The
+joiner keeps received values in memory, drops them the moment the channel
+closes, and never writes them to storage.
 
 ### 6. Routes: every one optional, every one the owner's
 

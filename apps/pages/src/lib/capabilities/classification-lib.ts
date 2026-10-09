@@ -1,5 +1,4 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
-
 import { core, each, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
@@ -22,8 +21,7 @@ const CORE_INFRA = [
   "vfs",
   "projects",
   "vaults",
-  // The dotted mark for a vault, person or organization (ADR 0165): drawn in
-  // the shell's prompt, so it is core with the prompt.
+  // Dotted mark for a vault, person or organization, drawn in the shell prompt (ADR 0165).
   "glyph",
   "last-vault",
   "theme",
@@ -50,6 +48,9 @@ const CORE_INFRA = [
   "page-to-tree",
   "listing-page",
   "notices",
+  // Tray history sealed at rest, and the boot that installs it (ADR 0163).
+  "notice-tray-persist",
+  "tray-boot",
   "use-online",
   "use-configured",
   // A press that must count once, however fast it is pressed twice.
@@ -112,8 +113,11 @@ const SIGNIN_FILES = [
   "orgs",
 ];
 const CONNECTOR_FILES = [
+  "linear-",
   "connector-guidance",
   "connect-",
+  "self-hosted-config",
+  "self-hosted-connectors",
   "github-installation-access",
   "identity-graph",
 ];
@@ -161,15 +165,11 @@ const LOCAL_IAM_FILES = [
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
-  // `orgs-directory` only: `orgs.ts` is the core sign-in vocabulary (the slug
-  // shape, the method routing, the profile this tab is on) and declares the
-  // four Identity-API calls as seams this capability installs.
+  // `orgs.ts` stays core sign-in vocabulary; only its directory is optional.
   "orgs-directory",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
-  "hosted-inference",
-  "saved-model-agent",
   "model-catalog",
   "model-slugs",
   "browser-inference",
@@ -240,6 +240,10 @@ export const LIB_RULES = [
     "append API used by core; the section is activity.log",
   ),
   shared(
+    `${L}sharing-receipts`,
+    "value-blind drop, live-grant and share receipts; activity log and device receipts",
+  ),
+  shared(
     `${L}document-lifecycle`,
     "trusted-hide and persisted-restore decisions the shell and a live session share",
   ),
@@ -277,8 +281,7 @@ export const LIB_RULES = [
     SIGNIN,
     "join a session: invite or open endpoint, before sign-in (ADR 0136)",
   ),
-  // The ceremonies a link opens on this origin (ADR 0140): always-on, so
-  // their models ship in every build beside the join road.
+  // Ceremonies a link opens on this origin ship in every build (ADR 0140).
   core(
     `${L}claims/`,
     CEREMONIES,
@@ -295,9 +298,8 @@ export const LIB_RULES = [
     CEREMONIES,
     "/approve/<ref> review, hosted rows, -link (boot), -route (ADR 0084, 0140)",
   ),
-  // A link's query, read at boot: `/device?user_code=` and the legacy links
-  // normalised to it; `/invoke/<kind>`'s handle and its screen model; the
-  // `/guest` and `/delegate` aliases (ADR 0140).
+  // A link's query, read at boot: `/device?user_code=`, `/invoke/<kind>`,
+  // and the `/guest` and `/delegate` aliases (ADR 0140).
   ...each(L, ["device-link", "invoke-", "ceremony-aliases", "directory"], (p) =>
     core(p, CEREMONIES, "a ceremony link read at boot, and its model"),
   ),
@@ -306,16 +308,13 @@ export const LIB_RULES = [
     CEREMONIES,
     "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
   ),
-  // Settings › Notifications' model (ADR 0140 plan step 11, D9): reached
-  // only through the notifications.routing module and its file provider.
   optional(
     `${L}notification-routing/`,
     "notifications.routing",
     "notification routing document, channel words, policy narrowing, Identity API routes (ADR 0084)",
   ),
   // Where this device tells its person a request is waiting (ADR 0162):
-  // the places, the preference, the notice and the watcher; reached only
-  // through the notifications.local module and its file provider.
+  // places, preference, notice and watcher, only through notifications.local.
   optional(
     `${L}local-notifications/`,
     "notifications.local",
@@ -341,9 +340,8 @@ export const LIB_RULES = [
     "enterprise.directory-provisioning",
     "organization upstream, email domains and SCIM tokens (ADR 0140)",
   ),
-  // Duress (ADR 0131): a duress code is an unlock method, and the fence,
-  // compartments and alerting it drives all hang off unlocking, so the whole
-  // tree belongs to the core unlock capability.
+  // Duress (ADR 0131): the code, fence, compartments and alerting hang off
+  // unlocking, so the tree belongs to the core unlock capability.
   core(
     `${L}duress/`,
     "vault.local-unlock",

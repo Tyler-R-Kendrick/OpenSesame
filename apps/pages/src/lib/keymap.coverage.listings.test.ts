@@ -259,10 +259,10 @@ describe("preventDefault and chord timers", () => {
       showHelp: vi.fn(),
     });
     press(handler, "g");
-    press(handler, "j");
+    press(handler, "k");
     press(handler, "g");
     expect(tree.first).not.toHaveBeenCalled();
-    expect(tree.next).toHaveBeenCalledWith(1);
+    expect(tree.previous).toHaveBeenCalledWith(1);
     press(handler, "g");
     expect(tree.first).toHaveBeenCalledOnce();
     release();
@@ -277,13 +277,13 @@ describe("preventDefault and chord timers", () => {
       showHelp: vi.fn(),
     });
     press(handler, "g");
-    press(handler, "j");
+    press(handler, "k");
     vi.advanceTimersByTime(100);
     press(handler, "g");
     vi.advanceTimersByTime(keymapSeams.goTimeoutMs - 100);
     press(handler, "g");
     expect(tree.first).toHaveBeenCalledOnce();
-    expect(tree.next).toHaveBeenCalledWith(1);
+    expect(tree.previous).toHaveBeenCalledWith(1);
     release();
   });
 

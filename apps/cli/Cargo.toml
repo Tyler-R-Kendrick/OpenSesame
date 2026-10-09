@@ -53,6 +53,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
+url = { workspace = true }
 crossterm = { workspace = true }
 ratatui = { workspace = true }
 uuid = { workspace = true }
@@ -65,6 +66,8 @@ regex = "1.11.1"
 tempfile = "3.20.0"
 
 [dev-dependencies]
+# Attach journey tests sit a person at a real terminal. `script` is not portable.
+libc = { workspace = true }
 # The dev-run tests point the CLI at their own settings file, which a shipped
 # build refuses to take from the environment.
 opensesame-plugin-settings = { path = "../../crates/plugin-settings", features = ["path-override"] }

@@ -43,8 +43,11 @@ hold — do not just restate the item back as a finding.
    (`OPENSESAME_RECEIPT_SIGNING_KEY`) rather than generated per boot; production refuses
    to start without one — see `docs/security/audits/2026-08-08-receipt-signing-key.md`.
 7. A build that inlines `VITE_*`/client env vars never bakes an operator or shared
-   secret into a shipped bundle; production builds refuse outright if one is set — see
-   `docs/security/audits/2026-08-08-browser-followups.md` (§4).
+   secret into a shipped bundle — see
+   `docs/security/audits/2026-08-08-browser-followups.md` (§4). That audit's guard
+   (the production build of `apps/console`, which is not in this checkout,
+   refusing `VITE_OPENSESAME_OPERATOR_TOKEN`) has no counterpart in this tree, so
+   check the diff itself for a secret reaching a `VITE_*` variable.
 
 ## 3. Token / proof-key custody and DPoP binding/nonce handling
 
@@ -163,7 +166,11 @@ hold — do not just restate the item back as a finding.
 
 ## Non-negotiables (restate on every review, not diff-checkable line by line)
 
-- No GitHub Actions — this repo has no `.github/` directory and none may be added.
+- A security review never becomes a GitHub Actions job (see
+  `ops/routines/pr-security-review.md`). `.github/workflows/` holds `ci.yml`
+  (the required pull-request checks), `deploy-pages.yml`, `full-suite.yml` and
+  `password-parity.yml`, and none of them runs the `pnpm audit:*` gates; those
+  run from the local git hooks and the Routines.
 - No new paid dependencies or services introduced to satisfy a finding.
 - Never commit, log, or quote a real secret value in a PR description, commit message,
   or review comment — describe *that* a secret was found and where, not the value.

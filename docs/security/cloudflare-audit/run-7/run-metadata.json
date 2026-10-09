@@ -1,0 +1,101 @@
+{
+  "run_id": "OpenSesame-run-7",
+  "repo": "OpenSesame",
+  "target": "/workspace",
+  "source_ref": {
+    "commit": "d1ce497fbc40e5c8ea4756674d08d74b116cdaae",
+    "artifact_branch_tip": "68dff5a99f032d00e58148f238703e416534f3ae",
+    "branch": "cursor/cf-audit-run-7-artifacts-d641",
+    "worktree": "clean",
+    "origin_main": "be3c9db9036d23ffabae67d34d5892b38e1a95c8"
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "count_status": "counted",
+  "run_status": "complete",
+  "current_phase": "complete",
+  "hunter_platform": "cursor_composer_2.5_subagents",
+  "hunter_model_policy": "Composer 2.5 for recon, hunt, validate, and fix; grok-4.7 only as optional Cursor subagent when required. No XAI_API_KEY or AI Gateway.",
+  "started_at": "2026-10-08T14:55:26Z",
+  "phase_log": [
+    {
+      "phase": "1_reconnaissance",
+      "started_at": "2026-10-08T14:55:26Z",
+      "completed_at": "2026-10-08T15:01:39Z",
+      "agents": ["recon-1a", "recon-1b", "recon-1c", "recon-1d"]
+    },
+    {
+      "phase": "2_hunting",
+      "started_at": "2026-10-08T15:12:30Z",
+      "completed_at": "2026-10-08T15:39:54Z",
+      "agents": [
+        "h-run7-gateway-wave",
+        "h-run7-pages-wave",
+        "h-run7-ts-wave",
+        "h-run7-cli-wave",
+        "h-run7-misc-wave"
+      ],
+      "worktrees": [
+        "/tmp/wt-run7-h-gateway",
+        "/tmp/wt-run7-h-pages",
+        "/tmp/wt-run7-h-cp"
+      ]
+    },
+    {
+      "phase": "3_validation",
+      "started_at": "2026-10-08T17:08:12Z",
+      "completed_at": "2026-10-08T17:16:03Z",
+      "agents": [
+        "v-run7-egress-encoded-path",
+        "v-run7-cli-open-url",
+        "v-run7-android-manifest",
+        "v-run7-gateway-observe-fence",
+        "v-run7-nats-loopback",
+        "v-run7-sandbox-grant-expiry",
+        "v-run7-wallet-custom-scheme"
+      ]
+    },
+    {
+      "phase": "4_findings",
+      "started_at": "2026-10-08T17:16:03Z",
+      "completed_at": "2026-10-08T17:16:30Z",
+      "confirmed": 0,
+      "needs_validation": 0
+    },
+    {
+      "phase": "5_record_verification",
+      "started_at": "2026-10-08T17:16:30Z",
+      "completed_at": "2026-10-08T17:17:05Z",
+      "agent": "v-run7-record-verify"
+    },
+    {
+      "phase": "6_report",
+      "started_at": "2026-10-08T17:17:05Z",
+      "completed_at": "2026-10-08T17:17:30Z"
+    }
+  ],
+  "prior_run_paths": [
+    "docs/security/cloudflare-audit/run-1",
+    "docs/security/cloudflare-audit/run-2",
+    "docs/security/cloudflare-audit/run-3",
+    "docs/security/cloudflare-audit/run-4",
+    "docs/security/cloudflare-audit/run-5",
+    "docs/security/cloudflare-audit/run-6"
+  ],
+  "prior_runs_not_counted": ["run-5", "run-6"],
+  "coverage_ledger_units": 54,
+  "shared_file_owners": ["parent"],
+  "notes": "Counted run 7. Phases 1\u20132: parallel Composer recon and hunt waves (51 wave-2 units + wave-1 overlays); no build-run-* scripts. Phases 3\u20136 closed with live verifier runs logged in agents/phase3-verifier.log.",
+  "completed_at": "2026-10-08T17:17:30Z",
+  "coverage_ledger_md5": "977a0410818b3fa577a6f6417177e97d"
+}

@@ -19,8 +19,13 @@ surrogate text never becomes the credential; it only selects one.
   `pnpm audit:plugin-boundary` fails if either does, so ADR 0048 §5's budget
   is unchanged.
 - **Builds on:** [`opensesame-invoke-through`](../invoke-through) — the ledger,
-  the fence, the invoker and the reflection scrub. `opensesame-transport-security`
-  (with `testkit`) is a dev-dependency only, for the loopback TLS upstream.
+  the fence, the invoker and the reflection scrub;
+  [`opensesame-session-observe`](../session-observe) (the run lease),
+  [`opensesame-rotation-web`](../rotation-web) (login substitution),
+  [`opensesame-plugin-settings`](../plugin-settings) (the install gate and the
+  login switch) and [`opensesame-agent-events`](../agent-events) (the
+  `surrogate.*` notices). `opensesame-transport-security` (with `testkit`) is a
+  dev-dependency only, for the loopback TLS upstream.
 - One listener per run on `127.0.0.1:0`, one in-memory CA per run, one random
   proxy credential per run, one ledger across runs.
 
@@ -75,7 +80,7 @@ certificate reaches the child only through its own trust variables
 | `plugin::wire` | The control protocol: one spec line in (logins' passwords ride only here), one reply line out |
 | `plugin::serve::serve` | Start the run, reply, write event lines while serving until stdin EOF, a signal or the TTL, then `end_and_revoke` and remove the CA file |
 | `plugin::source::CliTokenSource` | invoke-through's `source_tool` per provider, scrubbed env, timeout, capped capture |
-| `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`, capped and rotated |
+| `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`: noise to `notices.jsonl` (capped, rotated once), evidence to `tripwires.jsonl` (capped, never rotated) |
 
 ## The run lease and the tripwire (ADR 0150 §6.2)
 

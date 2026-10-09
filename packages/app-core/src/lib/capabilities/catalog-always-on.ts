@@ -16,6 +16,11 @@ const IDENTITY_API_EGRESS = {
   automatic: false,
 } as const;
 
+export const LINEAR_API_PURPOSE =
+  "Linear provider authorization and GraphQL operations";
+export const NATIVE_PROVIDER_PURPOSE =
+  "Native provider authorization, verification and documented API or MCP operations";
+
 export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.passkey-records",
@@ -88,6 +93,16 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       egress: [
         {
           class: "external-service",
+          purpose: LINEAR_API_PURPOSE,
+          automatic: false,
+        },
+        {
+          class: "external-service",
+          purpose: NATIVE_PROVIDER_PURPOSE,
+          automatic: false,
+        },
+        {
+          class: "external-service",
           purpose:
             "the Vercel Connect relay, the GitHub App relay and a Nango-compatible connector directory",
           automatic: false,
@@ -98,6 +113,7 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
           automatic: false,
         },
       ],
+      browserPermissions: ["clipboard-write"],
       keyAccess: "provider-bearer",
       requiresService: true,
       offlineLimits:
@@ -110,11 +126,6 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The Access section: local grants, requests and the requests addressed to your Identity session, sessions, resources and policies, receipts, browser pairing and transport status.",
     {
       operationIds: [
-        "password_provider.request",
-        "password_provider.lease_approve",
-        "password_provider.lease_status",
-        "password_provider.lease_revoke",
-
         "agent_identities.read",
         "authority.portal.templates.manage",
         "authority.portal.templates.read",

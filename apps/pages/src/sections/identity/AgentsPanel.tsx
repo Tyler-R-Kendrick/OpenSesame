@@ -4,7 +4,7 @@ import {
   updateManagedAgent,
 } from "@opensesame/app-core/lib/identity-management.js";
 import type { AgentResponse } from "@opensesame/contracts";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
@@ -15,7 +15,14 @@ import {
   IconTrash,
   IconX,
 } from "../../components/Icons.js";
+import { RecordWorkspace } from "../../components/RecordWorkspace.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import {
+  HostedDetailHead,
+  HostedFact,
+  useHostedRecord,
+} from "./HostedRecordParts.js";
+import { usePublishHostedIdentityRows } from "./hosted-identity-rail.js";
 
 function useAgents() {
   const [agents, setAgents] = useState<AgentResponse[]>([]);
@@ -52,16 +59,18 @@ function useAgents() {
     };
   }, [load]);
 
-  async function save() {
+  async function save(afterCommit?: (id: string) => void) {
     if (!draft) return;
     setBusy(true);
     setError("");
     try {
-      if (draft.id)
-        await updateManagedAgent(draft.id, { displayName: draft.name.trim() });
-      else await registerManagedAgent(draft.name.trim(), draft.jkt.trim());
+      const saved = draft.id
+        ? await updateManagedAgent(draft.id, { displayName: draft.name.trim() })
+        : await registerManagedAgent(draft.name.trim(), draft.jkt.trim());
       setDraft(null);
+      afterCommit?.(saved.id);
       await load();
+      return saved.id;
     } catch {
       setError(
         "Could not save the agent; check your session, proof key and registration quota.",
@@ -102,17 +111,47 @@ function useAgents() {
 
 export function AgentsPanel({ online }: { online: boolean }) {
   const model = useAgents();
-  const { agents, loading, error, setDraft, busy, load } = model;
+  const route = useHostedRecord("agents");
+  const { agents, loading, error, setDraft, busy, load, draft } = model;
+  const railRows = useMemo(
+    () => agents.map((row) => ({ id: row.id, label: row.displayName })),
+    [agents],
+  );
+  usePublishHostedIdentityRows("agents", railRows);
+  const selected = agents.find((agent) => agent.id === route.selectedId);
+  useEffect(() => {
+    if (route.creating) setDraft({ id: "", name: "", jkt: "" });
+    else if (route.editing && selected && selected.state !== "revoked")
+      setDraft({ id: selected.id, name: selected.displayName, jkt: "" });
+    else setDraft(null);
+  }, [route.creating, route.editing, selected, setDraft]);
   return (
-    <section className="panel">
-      <div className="panel__head">
-        <h2>Agents</h2>
-        <fieldset className="vtree__keys" aria-label="Agent commands">
+    <RecordWorkspace
+      section="Identity"
+      title="Agents"
+      rootPath="/identity"
+      listPath={route.listPath}
+      rows={agents.map((agent) => ({
+        id: agent.id,
+        label: agent.displayName,
+        extension: "agent",
+        to: `${route.listPath}#${encodeURIComponent(agent.id)}`,
+      }))}
+      selectedId={route.selectedId}
+      detailOpen={route.creating || Boolean(selected)}
+      status={
+        <>
+          <FailureNotice id="identity:agents" title="Agents" message={error} />
+          {loading ? <output>Loading agents…</output> : null}
+        </>
+      }
+      commands={
+        <>
           <IconKey
             label="New agent"
             small
             disabled={!online || busy}
-            onClick={() => setDraft({ id: "", name: "", jkt: "" })}
+            onClick={route.create}
           >
             <IconPlus size={15} />
           </IconKey>
@@ -124,32 +163,51 @@ export function AgentsPanel({ online }: { online: boolean }) {
           >
             <IconRefresh size={15} />
           </IconKey>
-        </fieldset>
-      </div>
-      <div className="panel__body">
-        <FailureNotice id="identity:agents" title="Agents" message={error} />
-        {loading ? <output>Loading agents…</output> : null}
-        {!loading && !error && agents.length === 0 ? (
-          <p className="hint">No agents registered.</p>
-        ) : null}
-        <AgentsRows model={model} online={online} />
-        <AgentsForm model={model} online={online} />
-      </div>
-    </section>
+        </>
+      }
+    >
+      {draft ? (
+        <>
+          <HostedDetailHead
+            title={draft.id ? `Edit ${draft.name}` : "New agent"}
+          />
+          <AgentsForm
+            model={model}
+            online={online}
+            onCancel={route.close}
+            onSaved={(id) => route.open(id)}
+          />
+        </>
+      ) : selected ? (
+        <AgentDetail
+          selected={selected}
+          model={model}
+          route={route}
+          online={online}
+        />
+      ) : null}
+    </RecordWorkspace>
   );
 }
 
 function AgentsForm({
   model,
   online,
-}: { model: ReturnType<typeof useAgents>; online: boolean }) {
+  onCancel,
+  onSaved,
+}: {
+  model: ReturnType<typeof useAgents>;
+  online: boolean;
+  onCancel: () => void;
+  onSaved: (id: string) => void;
+}) {
   const { draft, setDraft, busy, save } = model;
   if (!draft) return null;
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        void save();
+        void save(onSaved);
       }}
     >
       <div className="field">
@@ -187,7 +245,7 @@ function AgentsForm({
         label="Save agent"
         disabled={busy || !online || !draft.name.trim()}
       >
-        <IconKey label="Cancel" disabled={busy} onClick={() => setDraft(null)}>
+        <IconKey label="Cancel" disabled={busy} onClick={onCancel}>
           <IconX size={16} />
         </IconKey>
       </FormCommit>
@@ -195,78 +253,75 @@ function AgentsForm({
   );
 }
 
-function AgentsRows({
+function AgentDetail({
+  selected,
   model,
+  route,
   online,
-}: { model: ReturnType<typeof useAgents>; online: boolean }) {
-  const { agents, busy, setDraft, revoke, setRevoke, revokeAgent } = model;
+}: {
+  selected: AgentResponse;
+  model: ReturnType<typeof useAgents>;
+  route: ReturnType<typeof useHostedRecord>;
+  online: boolean;
+}) {
+  const { busy } = model;
   return (
-    <ul className="identity-rows">
-      {agents.map((agent) => (
-        <li className="identity-row" key={agent.id}>
-          <div className="identity-row__main">
-            <div className="identity-row__id">
-              <h3>{agent.displayName}</h3>
-              <code className="identity-ref">{agent.id}</code>
-            </div>
-            <StatusMark
-              tone={
-                agent.state === "revoked"
-                  ? "err"
-                  : agent.state === "suspended"
-                    ? "warn"
-                    : agent.state === "claimed"
-                      ? "ok"
-                      : "idle"
-              }
-              label={agent.state}
-            />
-            {agent.state !== "revoked" ? (
-              <div className="actions">
+    <>
+      <HostedDetailHead
+        title={selected.displayName}
+        tools={
+          selected.state !== "revoked" ? (
+            <>
+              <IconKey
+                label={`Edit ${selected.displayName}`}
+                disabled={busy || !online}
+                onClick={() => route.edit(selected.id)}
+              >
+                <IconEdit size={16} />
+              </IconKey>
+              <IconKey
+                label={
+                  model.revoke === selected.id ? "Confirm revocation" : "Revoke"
+                }
+                disabled={busy || !online}
+                onClick={() => {
+                  if (model.revoke === selected.id)
+                    void model.revokeAgent(selected.id);
+                  else model.setRevoke(selected.id);
+                }}
+              >
+                <IconTrash size={16} />
+              </IconKey>
+              {model.revoke === selected.id ? (
                 <IconKey
-                  label={`Edit ${agent.displayName}`}
-                  small
-                  disabled={busy || !online}
-                  onClick={() =>
-                    setDraft({ id: agent.id, name: agent.displayName, jkt: "" })
-                  }
+                  label="Keep agent"
+                  disabled={busy}
+                  onClick={() => model.setRevoke(null)}
                 >
-                  <IconEdit size={16} />
+                  <IconX size={16} />
                 </IconKey>
-                {revoke === agent.id ? (
-                  <>
-                    <IconKey
-                      label="Confirm revocation"
-                      small
-                      disabled={busy || !online}
-                      onClick={() => void revokeAgent(agent.id)}
-                    >
-                      <IconTrash size={16} />
-                    </IconKey>
-                    <IconKey
-                      label="Keep agent"
-                      small
-                      disabled={busy}
-                      onClick={() => setRevoke(null)}
-                    >
-                      <IconX size={16} />
-                    </IconKey>
-                  </>
-                ) : (
-                  <IconKey
-                    label="Revoke"
-                    small
-                    disabled={busy || !online}
-                    onClick={() => setRevoke(agent.id)}
-                  >
-                    <IconTrash size={16} />
-                  </IconKey>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </li>
-      ))}
-    </ul>
+              ) : null}
+            </>
+          ) : null
+        }
+      />
+      <HostedFact label="Agent ID">{selected.id}</HostedFact>
+      <HostedFact label="State">
+        <StatusMark
+          tone={
+            selected.state === "revoked"
+              ? "err"
+              : selected.state === "suspended"
+                ? "warn"
+                : selected.state === "claimed"
+                  ? "ok"
+                  : "idle"
+          }
+          label={selected.state}
+        />
+      </HostedFact>
+      <HostedFact label="Provider">{selected.provider || "Not set"}</HostedFact>
+      <HostedFact label="Created">{selected.createdAt}</HostedFact>
+    </>
   );
 }

@@ -1,0 +1,69 @@
+{
+  "run_id": "OpenSesame-run-3",
+  "repo": "OpenSesame",
+  "target": "/workspace",
+  "source_ref": {
+    "commit": "33ecab02e8a0befa70f184e66fb1aa203b2aa084",
+    "branch": "cursor/cf-audit-getrun",
+    "worktree": "clean",
+    "origin_main": "6a1648ed8af6868885e303837f34a3bc745063f4",
+    "same_commit_as_run_2": true,
+    "prior_run_2_commit": "6395f1e401d2acab18720e654fe9549d198a372b",
+    "prior_run_1_commit": "a8843c3e33ae1049aaf174be8ae539c421642940"
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "selected_companion_files": [
+    "WEB-PROTOCOL-AND-AUTH.md",
+    "DATA-ISOLATION-AND-LIFECYCLE.md",
+    "AI-AND-LLM.md",
+    "DESKTOP-MOBILE-AND-LOCAL-IPC.md",
+    "CLOUD-AND-DEPLOYMENT.md",
+    "CLIENT-SIDE.md",
+    "PROTOCOLS-RPC-AND-MESSAGING.md",
+    "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md",
+    "SUPPLY-CHAIN-AND-RELEASE.md"
+  ],
+  "prior_run_paths": [
+    "/home/vscode/security-audit-skill/OpenSesame/run-1",
+    "/home/vscode/security-audit-skill/OpenSesame/run-2"
+  ],
+  "shared_file_owners": [
+    "parent"
+  ],
+  "run_status": "complete",
+  "sandbox": {
+    "mechanism": "unshare --user --map-root-user --mount --net",
+    "network": "loopback namespace only",
+    "environment": "env -i with PATH, HOME, TMPDIR, LANG, LC_ALL, RUSTUP_HOME, CARGO_HOME, CARGO_TARGET_DIR",
+    "mounts": "read-only /workspace and /usr; read-write agent scratch only",
+    "default_limits": {
+      "cpu_sec": 25,
+      "virtual_kb": 1048576,
+      "processes": 128,
+      "file_blocks_512": 10240,
+      "wall_sec": 25
+    },
+    "probe_limits": {
+      "cpu_sec": 150,
+      "virtual_kb": 2097152,
+      "processes": 256,
+      "file_blocks_512": 524288,
+      "wall_sec": 180,
+      "why": "Domain rlib is about 45MB. The 5MB default cap cannot emit it. 256MB per file still blocks a wasmtime-sized artifact."
+    },
+    "node_wasm_blocker": "WebAssembly.Memory fails under RLIMIT_AS. A 64KB memory fails at 8GB and a 512KB memory fails at 14GB, while the same allocation succeeds with no virtual cap. Node undici and tsx both instantiate Wasm and cannot run the control-plane harness inside this sandbox. The cap stays in place."
+  },
+  "notes": "Run 3 standard pass on stack tip. Grok unavailable (402); parent closed phases 3–6. Zero confirmed.",
+  "completed_at": "2026-10-08T12:00:00Z"
+}

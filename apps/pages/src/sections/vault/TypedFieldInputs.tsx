@@ -1,4 +1,8 @@
-import { inputType } from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
+import {
+  fieldMaxLength,
+  inputType,
+  partMaxLength,
+} from "@opensesame/app-core/sections/vault/typed-field-inputs-model.js";
 import {
   FIELD_TYPES,
   type FieldDefinition,
@@ -26,6 +30,7 @@ export function ScalarInput({
         id={field.id}
         rows={4}
         spellCheck={false}
+        maxLength={fieldMaxLength(field)}
         value={value}
         placeholder={field.placeholder}
         onChange={(event) => onChange(event.target.value)}
@@ -64,6 +69,7 @@ export function ScalarInput({
       type={inputType(field, revealed)}
       autoComplete="off"
       spellCheck={false}
+      maxLength={fieldMaxLength(field)}
       value={value}
       placeholder={field.placeholder}
       onChange={(event) => onChange(event.target.value)}
@@ -104,6 +110,7 @@ export function RepeatingInput({
             aria-label={`${field.label} ${index + 1}`}
             autoComplete="off"
             spellCheck={false}
+            maxLength={fieldMaxLength(field)}
             value={entry}
             onChange={(event) =>
               onChange(
@@ -166,6 +173,7 @@ export function RecordInput({
                   id={key}
                   type={revealed ? "text" : "password"}
                   autoComplete="off"
+                  maxLength={partMaxLength(field, part)}
                   value={parts[part.id] ?? ""}
                   onChange={(event) =>
                     onChange({ ...parts, [part.id]: event.target.value })
@@ -181,6 +189,7 @@ export function RecordInput({
               <input
                 id={key}
                 autoComplete="off"
+                maxLength={partMaxLength(field, part)}
                 value={parts[part.id] ?? ""}
                 onChange={(event) =>
                   onChange({ ...parts, [part.id]: event.target.value })

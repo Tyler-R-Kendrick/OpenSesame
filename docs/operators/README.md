@@ -2,19 +2,21 @@
 
 How to deploy, configure and run OpenSesame. Each guide is task-shaped: what to
 set, in what order, and how to tell it worked. For the mechanisms behind them
-see [architecture](../architecture/README.md); for every environment variable,
-[`.env.schema`](../../.env.schema) is authoritative.
+see [architecture](../architecture/README.md); for the environment variables it
+lists, [`.env.schema`](../../.env.schema) is authoritative, and a guide that
+introduces its own (mTLS, plugins) names them where they are used.
 
 ## Start here
 
 | Guide | When you need it |
 |---|---|
 | [Local operator guide](local.md) | Running both planes on one machine: the daemon, devcontainers, env-spec resolution, live providers. |
-| [Health and operations](health-and-operations.md) | Health and readiness endpoints, logs, and day-two checks for both planes. |
+| [Health and operations](health-and-operations.md) | Health and readiness endpoints, ports, backup and restore, agent-hooks and web-login housekeeping, and signing-key rotation. |
 | [Logs and events at rest](log-and-event-sealing.md) | The sealed log file, the keys that seal logs and event rows, what refuses to start without one, and how to read a sealed log. |
 | [Pages origin](pages-origin.md) | What the GitHub Pages build can and cannot do from a shared origin, and how to give it its own. |
 | [Capability composition](capability-composition.md) | Deciding which optional features a deployment contains, permits and lets a device run. |
 | [Encrypted search](encrypted-search.md) | Keeping the browser's identifier databases encrypted with no readable name, id or field and still searchable (ADR 0175); using the library. |
+| [Vault files](vault-files.md) | Every secret as its own file on disk: the tree, what a file shows and holds, backing up and sharing, two writers, and the privately hosted store (ADR 0182). |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 
 ## Identity
@@ -40,9 +42,9 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [General authority support matrix](general-authority-support-matrix.md) | Which hierarchical-authority features are enforced where, and which are not yet. |
 | [Agent hooks](agent-hooks.md) | The policy that decides what an agent may do, who is asked when it needs a person, the audit, and what fails closed (ADR 0159). |
 | [Web-login recipes](web-login-recipes.md) | Storing a recipe, pinning the keys that sign them, signing locally, and proving one with an attended canary before the scanner rotates a login on its own (ADR 0076 §4). |
-| [Access portal](access-portal.md) | The Access screen: just-in-time grants, approvals and live sessions. |
+| [Access portal](access-portal.md) | The Access screen, the local PAM plane: grants, requests, sessions, connectors, resources and policies, and what an Identity service adds. |
 | [Credential helpers](credential-helpers.md) | git, Docker, AWS and kubectl authenticating with short-lived derived tokens. |
-| [Browser identity verification](host-browser-verification.md) | Pairing a browser to the Host and the one-use controls that follow. |
+| [Browser identity verification](host-browser-verification.md) | The host-authorization ceremony that follows pairing, and the one-use browser-control approval. |
 | [Encrypted sync pages](sync-pages.md) | The sync page format and the legacy-ownership migration. |
 | [Tailnet vault sync](tailnet-sync.md) | Run a drive on the daemon, open slots, pair devices over Tailscale (ADR 0144). |
 | [Tailnet device management](tailnet-devices.md) | Connect the daemon to a tailnet, pair the web app, approve, rename, tag, route, expire, remove and add machines (ADR 0169). |
@@ -67,6 +69,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Duress inventory and recovery](duress-inventory-recovery.md) | Inventorying unlock paths, migrating, recovering and retiring duress setups. |
 | [Duress troubleshooting](duress-troubleshooting.md) | PRF support, RP-ID changes and other failure modes. |
 | [New-item links](vault-draft-links.md) | Links that open a reviewable draft item with generated defaults. |
+| [Travel mode](travel-mode.md) | Crossing a border carrying only the vaults that are safe to carry, or only some of one vault's items, and bringing the rest back (ADR 0143, ADR 0171). |
 
 ## Payments
 

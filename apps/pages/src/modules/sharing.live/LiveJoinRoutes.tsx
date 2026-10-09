@@ -14,7 +14,7 @@ import {
 } from "@opensesame/app-core/lib/live/transport.js";
 import { useEffect, useState } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
-import type { Standing } from "./live-hooks.js";
+import { type Standing, standingMark } from "./live-hooks.js";
 
 export function RoutesChoice({
   routes,
@@ -51,12 +51,12 @@ export function carrierStanding(state: CarrierState): Standing {
   // The installation said no before anything was contacted: not a fault of
   // the server, so not "Unreachable".
   if (state.status === "blocked")
-    return { tone: "warn", label: `Blocked by this installation: ${where}` };
+    return standingMark("warn", `Blocked by this installation: ${where}`);
   if (state.status === "ready")
-    return { tone: "ok", label: `Carrying codes: ${name}` };
+    return standingMark("ok", `Carrying codes: ${name}`);
   if (state.status === "failed")
-    return { tone: "err", label: `Unreachable: ${name}` };
-  return { tone: "idle", label: `Connecting: ${name}` };
+    return standingMark("err", `Unreachable: ${name}`);
+  return standingMark("idle", `Connecting: ${name}`);
 }
 
 /** Where each carrier stands, while it has codes to carry. */

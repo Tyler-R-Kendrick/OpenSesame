@@ -25,7 +25,7 @@ dual-plane system with a **host/client** product topology (see
   workload connector host (`crates/worker`); linked under a helper's name it
   answers as that credential helper or browser bridge. Password-manager
   ecosystem bridging (KDBX, keepassxc-protocol,
-  browserpass/gopass hosts, Bitwarden/Passbolt consume-clients) lives in
+  browserpass/gopass hosts, the Bitwarden consume-client) lives in
   `crates/kdbx-bridge`, `crates/provider-bitwarden` and the default-off
   `crates/pm-bridges` features — human/device/ops plane only, never
   agent-facing ([ADR 0052](docs/adr/0052-password-manager-ecosystem-bridging.md),
@@ -60,10 +60,19 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
 [`.cursor/Dockerfile`](.cursor/Dockerfile) (`rust:1.88.0-bookworm`, aligned with
 `rust-toolchain.toml`).
 
-- **Grok Build** is installed on `PATH` as `grok` (and `agent`). With
+- **Grok Build** is installed on `PATH` as `grok`
+  (`GROK_BIN_DIR=/usr/local/bin` in the Dockerfile). With
   `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
   applicable), headless use looks like:
   `grok -p "…" --always-approve --output-format json`.
+- **Kimi Code CLI** is installed on `PATH` as `kimi`
+  (`KIMI_INSTALL_DIR=/usr/local` in the Dockerfile; binary at
+  `/usr/local/bin/kimi`). Cloud agents use it for fix work with model alias
+  **`kimi-code/k3`** (`-m kimi-code/k3` or `default_model = "kimi-code/k3"` after
+  login). Sign in once per machine with the **Kimi Code (OAuth)** subscription
+  device-code flow — not a Kimi Open Platform API key: `kimi login`. Full
+  headless recipes, probe (`kimi -m kimi-code/k3 -p "say OK"`), quota detection,
+  and Composer fallback: [`.cursor/kimi-code.md`](.cursor/kimi-code.md).
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.
@@ -77,7 +86,7 @@ when compiling Rust in Cloud Agents.
 All scripts below are defined in the root `package.json` unless noted.
 
 ```bash
-pnpm bootstrap           # install + db:generate + db:migrate
+pnpm bootstrap           # install + db:generate + db:migrate + setup:hooks
 pnpm dev                 # turbo dev (control-plane, identity-worker,
                           #   mock-upstream-idp, example-rp-alpha/beta/static-rp)
 pnpm dev:pwa             # Pages vite on :5180, no backend
@@ -88,12 +97,13 @@ pnpm dev:live-nats       # nats-server config in operator mode for live sessions
                           #   (minted per-session credentials, ADR 0167)
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
-pnpm lint                # Biome gate for files changed from origin/main
+pnpm lint                # lint:artifacts + Biome gate for files changed from origin/main
 pnpm lint:design         # control contract (docs/design/controls.md)
-pnpm lint:all            # full-repository Biome + anti-slop audit
+pnpm lint:all            # lint:artifacts + full-repository Biome + anti-slop audit
 pnpm lint:anti-slop      # strict Oxlint anti-slop; nested configs/unused disables fail;
                           #   ratchets tools/quality/anti-slop-baseline.json
-pnpm quality             # structural + component-coupling gates (both ratchets)
+pnpm quality             # quality:test (scripts/lib + scripts/security tests) + quality:gate, :log-hygiene,
+                          #   :packages and :app-core
 pnpm quality:gate        # module size (400) + TS complexity; ratchets tools/quality/quality-baseline.json
 pnpm quality:packages    # ADP cycles, phantom deps, SDP/CRP debt across both planes
 pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subscriber in production code; ratchets
@@ -103,7 +113,7 @@ pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-cor
                           #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks;
                           #   and repo-wide, a seam its module exports for its owner and tests (the vault store's
                           #   body port, ADR 0160 §5a) is imported by no one else
-pnpm quality:bundle      # build apps/pages|pwa, check tools/quality/bundle-budgets.json
+pnpm quality:bundle      # build apps/pages, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
 pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
@@ -113,7 +123,8 @@ pnpm test:integration    # turbo run test:integration
 pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
 pnpm test:security       # @opensesame/testing test:security
 pnpm test:task-access    # scripts/test/task-security-battle-test.sh
-pnpm test:redteam        # @opensesame/redteam structural pact suite
+pnpm test:redteam        # @opensesame/redteam promptfoo corpus against mcp-host, behind a stub Host/daemon
+                          #   (the structural pact suite is that package's test:integration)
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
@@ -128,18 +139,22 @@ pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-securi
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
 pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates against the
-                          #   ingress reference, plus the static app with no certificate
+                          #   Identity plane's own TLS listener (verify-browser-cert), plus the static app with
+                          #   no certificate and the Transport form
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned
                           #   upstream source + live-turn (pion/turn, UDP/TCP/TLS), the servers
                           #   verify:live-join runs (ADR 0150 §6)
 pnpm test:all            # typecheck + test + test:integration
+pnpm test:2password-parity # scripts/test/2password-parity.mjs — every suite declared in
+                          #   spec/conformance/2password-parity.json (CI: password-parity.yml)
 pnpm test:connect-preflight # scripts/test/connect-preflight.mjs — every connector's real endpoints,
                           #   read-only: OAuth authorize + discovery, MCP metadata, API-key verify (ADR 0147)
 
 # Test-depth suites (none of these are in `pnpm verify`)
-pnpm test:coverage       # TS (v8, 94/88/94/95 floors + 50% per-pkg lines) + Rust (llvm-cov) — docs/validation/test-coverage.md
+pnpm test:coverage       # TS (v8; statements/branches/functions/lines floors 94/88/94/95, + 50% per-pkg lines)
+                          #   + Rust (llvm-cov) — docs/validation/test-coverage.md
 pnpm test:coverage:ts    # scripts/quality/ts-coverage-gate.mjs; floors ratchet, never lower
 pnpm test:coverage:rust  # cargo llvm-cov --fail-under-lines/-functions
 pnpm test:mutation       # Stryker (TS) + cargo-mutants (Rust), scoped high-value files
@@ -150,12 +165,13 @@ pnpm db:migrate          # @opensesame/database db:migrate
 pnpm db:reset            # @opensesame/database db:reset
 pnpm generate:openapi    # writes packages/control-plane/openapi.json
 pnpm generate:sbom       # CycloneDX SBOM to sbom/bom.json
-pnpm verify              # changed-file lint + anti-slop lint/plugin tests
-                          #   + rustfmt/full-feature Clippy + test:all
+pnpm docs:index          # rewrite the generated tables in docs/adr, docs/security/audits and docs/evidence
+pnpm verify              # lint + lint:anti-slop + test:anti-slop + quality + test:rust-lint
+                          #   + audit:clippy (rustfmt, full-feature Clippy) + test:plugin-boundary + test:all
                           #   + cargo +1.88.0 test --workspace --all-targets
                           #   + ./scripts/test/battle-test.sh — full local gate
 
-# Security/audit gates (each backed by scripts/audit/*-gate.sh)
+# Security/audit gates (scripts/audit/*-gate.sh; the fuzz passes are in scripts/fuzz/)
 pnpm audit:cve-lite
 pnpm audit:ast-grep
 pnpm audit:clippy          # rustfmt + full-feature Clippy; pedantic/complexity denied
@@ -163,8 +179,11 @@ pnpm audit:osv
 pnpm audit:cargo-audit
 pnpm audit:gitleaks
 pnpm audit:semgrep
+pnpm audit:deepsec          # .deepsec pattern scan (+ AI process when credentials allow)
 pnpm audit:daemon-deps      # daemon dependency budget (ADR 0048 §5)
-pnpm audit:fuzz             # cargo-fuzz short pass (not in verify)
+pnpm audit:plugin-boundary  # opensesame-cli and the daemon never reach a plugin crate (ADR 0150 §7);
+                            #   test:plugin-boundary is its negative control, and is in verify
+pnpm audit:fuzz             # cargo-fuzz short pass over targets whose crates changed (not in verify)
 pnpm audit:fuzz:batch       # cargo-fuzz long batch over all targets (not in verify)
 pnpm audit:kani             # bounded proofs (scripts/audit/kani-gate.sh)
 pnpm audit:miri             # UB checks (scripts/audit/miri-gate.sh)
@@ -179,20 +198,22 @@ pnpm test:fuzz              # Jazzer.js short pass (not in verify)
 pnpm install
 pnpm --filter @opensesame/mock-upstream-idp build
 pnpm --filter @opensesame/mock-upstream-idp start        # :9090
-export OPENSESAME_ENV=development                        # or OPENSESAME_ALLOW_DEV_DEFAULTS=true
+export OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1   # the dev claim pepper needs the opt-in, and it is 1 or 0
 pnpm --filter @opensesame/control-plane start             # :8788
 curl -s http://127.0.0.1:8788/v1/health/live
 ```
 
 **Host plane:**
 ```bash
-cargo build -p opensesame-cli
+cargo build -p opensesame-cli     # ./target/debug/opensesame, or $CARGO_TARGET_DIR/debug/opensesame (§9)
+source scripts/dev/local-env.sh   # dev mode, loopback URLs, 0600 dev keys; what dev:host, dev:daemon and dev:cli source
 ./target/debug/opensesame host run --listen 127.0.0.1:8787
 ./target/debug/opensesame daemon run --listen 127.0.0.1:18790
 ./target/debug/opensesame daemon status
 ./target/debug/opensesame login --flow device --no-browser --server http://127.0.0.1:8787
 
-# Sealed store (pass parity; never agent-facing reveal)
+# Sealed store (pass parity; never agent-facing reveal). `opensesame pass …` is the
+# older spelling of `opensesame vault pass …`; both run (session.rs rewrites the former)
 ./target/debug/opensesame pass init --path ~/.password-store \
   --remote https://github.com/you/password-store.git   # --remote optional
 ./target/debug/opensesame pass insert Dev/api-token
@@ -207,7 +228,7 @@ cargo build -p opensesame-cli
 ./target/debug/opensesame pass attach sync                              # replicate via Host target
 ./target/debug/opensesame pass seal manifest.json --shred  # encrypt a Pages manifest
 ./target/debug/opensesame pass backup                      # commit + push to origin
-# backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App
+# backup auth for GitHub HTTPS remotes: GITHUB_TOKEN (or GH_TOKEN) → GitHub App
 # (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
 
 # Tailnet device management (ADR 0169): the daemon holds the Tailscale credential
@@ -229,7 +250,7 @@ pnpm dev:pwa             # vite --port 5180 --strictPort --host localhost
 # 127.0.0.1, for passkeys). Watch console, pageerror, and failed requests.
 # Patch source so Vite HMR updates the same session; do not restart from
 # dist/ unless a merge-gate build was requested.
-pnpm --filter @opensesame/pages dev       # full stack: gateway + Identity + mock IdPs + Vite
+pnpm --filter @opensesame/pages dev       # full stack: Host :18787 + Identity :18788 + mock IdPs :9090-:9094 + Vite
 ```
 
 **Pages as a static front end, no backend (ADR 0090) — run before touching
@@ -246,7 +267,8 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:mobile
 # Same harness, the phone journey (DESIGN.md § Touch): 320, 390, 430 and
-# landscape, in a real coarse-pointer context. Every interactive control is
+# landscape (then a tablet, portrait and landscape), in a real coarse-pointer
+# context. Every interactive control is
 # 44px, no form control is under 16px (iOS zooms a smaller one on focus and
 # never zooms back), nothing floating rests on a control, the statusline is
 # one row, the sections sit in a drawer, the chrome stays under a third
@@ -387,10 +409,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # `scripts/lib/ci-changed-areas.mjs`).
 ```
 
-Sealed-store Settings bridge: export a path manifest in Pages, then
-`opensesame pass seal manifest.json --shred` encrypts it into the store and
-`opensesame pass backup` pushes ciphertext to the git remote. Importing a manifest
-in Pages merges by store path (idempotent), never duplicates.
+Sealed-store manifest bridge (ADR 0037 §6): `opensesame pass seal manifest.json --shred`
+encrypts a Pages plaintext path manifest into the store and `opensesame pass backup`
+pushes ciphertext to the git remote. The Pages Import sheet reads such a manifest and
+merges by store path (idempotent), never duplicates. The writing half
+(`storeManifestFile`, `packages/app-core/src/sections/vault/import/store-manifest.ts`)
+has no caller outside tests, so no Pages control exports one today.
 
 Server-side backup (ADR 0039): gateway-held secrets need no CLI at all —
 register the GitHub App (`POST /api/v1/providers/github/app`), install it on
@@ -400,17 +424,20 @@ full ciphertext snapshot to the repo with compensating retries/suspension.
 ## 4. Layout map
 
 Top level: `apps/` (deployables), `crates/` (Rust libraries), `packages/`
-(TypeScript libraries), `examples/` (runnable integrations on public SDKs
-only), `marketplace/` (vault item-type definitions: `item-types/builtin/` is
+(TypeScript libraries and services), `examples/` (runnable integrations on the
+public SDKs and shared contract packages, never an app's source), `marketplace/` (vault item-type definitions: `item-types/builtin/` is
 embedded by both planes, `item-types/optional/` is indexed by
 `.opensesame/marketplace.json`), `spec/` (WIT, Host OpenAPI, OpenFGA model,
-connector manifests), `tests/` (cross-cutting suites and shared fixtures),
+connector manifests, and the shared config, conformance vectors, plugin
+catalog, log-scrub rules, secret-file and agent-hooks contracts), `tests/`
+(cross-cutting suites and shared fixtures),
 `tools/` (lint plugins, quality ledgers in `tools/quality/`, mutation configs,
 scanner rules, the mock IdP), `scripts/` (what `pnpm` tasks run, one folder
 per purpose: `quality/`, `audit/`, `fuzz/`, `test/`, `mtls/`, `release/`,
-`dev/`, `wallet/`, shared logic in `lib/`), `ops/`
-(compose, ingress, NATS, governance, routines), `skills/`, `docs/`. Each has a
-`README.md`; `docs/getting-started/repository-tour.md` says where things go.
+`dev/`, `wallet/`, `security/`, shared logic in `lib/`), `ops/`
+(compose, GitHub governance, ingress, NATS, routines), `skills/`, `patches/`
+(pnpm patches for third-party dependencies), `docs/`. Each has a `README.md`
+(`patches/` has none); `docs/getting-started/repository-tour.md` says where things go.
 Do not add new top-level directories or loose root files — find the group.
 
 | Path | Role |
@@ -432,7 +459,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/human-vault` | E2EE envelope crypto shared by vault + sealed-store, and `pages_vault`: the Rust reader of the vault Pages writes (vault format v1, checked against `spec/conformance/vault-vectors.json`), behind `opensesame vault verify\|ls` |
 | `crates/session-observe` | Live observation of sandboxed agent runs — one sealed log (live tails, replay seeks), fail-closed frame admission, single-holder control lease (ADR 0081) |
 | `crates/ceremony` | Connector registration ceremonies — the C0..C3 tier ladder, typed capture slots that fail closed, and ADR 0082 §5's refusals as types (ADR 0082) |
-| `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
+| `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §6, §9) |
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
 | `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0169): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
@@ -447,14 +474,22 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/spiffe-source` | SPIFFE Workload API X.509-SVID source → `TransportGenerations`; exact configured SPIFFE ID, per-domain bundles, snapshot replacement; SPIRE is an optional issuer (ADR 0132 §2) |
 | `crates/ingress-evidence`, `packages/ingress-evidence` | RFC 9440 `Client-Cert` / `Client-Cert-Chain` bounded parsing; accepted only from a bound ingress on a `trusted_ingress` listener (ADR 0132 §8) |
 | `crates/nats-callout` | Native `$SYS.REQ.USER.AUTH` bridge (`opensesame-nats-auth-bridge`) — NKey/JWT verification, request/response binding; a high-trust component, narrowly bound to the Host (ADR 0132 §8) |
-| `crates/gateway/src/transport` | Host transport runtime — config, admission (`ServiceCallerExtractor`), bindings CAS, status, verify probe, trust/lifecycle routes under `/api/v1/operator/transport/*` (ADR 0132) |
+| `crates/gateway/src/transport`, `crates/gateway/src/transport_lifecycle` | Host transport runtime — config, admission (`ServiceCaller`, `require_service_caller`), bindings CAS, status, verify probe (`transport`), and trust, certificate, revocation and renewal routes (`transport_lifecycle`), all under `/api/v1/operator/transport/*` (ADR 0132) |
 | `ops/ingress`, `ops/nats` | Vendor-neutral reference configurations — Caddy trusted ingress; NATS client-mTLS (`verify`) and certificate-mapping (`verify_and_map`) profiles plus the one tested server-to-server topology (ADR 0132 §8) |
 | `tests/mtls-interop` | Real-protocol interop crate (`opensesame-mtls-interop`): Rust↔Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, ingress; `#[ignore]`d unless `OPENSESAME_MTLS_FIXTURES=1` |
 | `crates/credential-helpers` | git/docker/AWS/kubectl helpers — thin mint-path clients of the daemon, run as entry points of `opensesame` (ADR 0049) |
 | `crates/bitwarden-server` | Bitwarden-compatible server, the `bitwarden-compat` cargo feature of the gateway and `opensesame` (off by default), mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on` — Bitwarden's own clients sign in (password, API key, authenticator), sync and edit personal vaults, attachments and Sends, organizations and collections, emergency access and key rotation, hear live sync on `/notifications/hub`, and optionally load an operator-supplied web vault; `opensesame bridge bitwarden import` moves vaultwarden servers and live accounts over; Argon2id client KDF by default and an Argon2id server hash behind a replaceable `HashRegistry`; `pnpm test:bitwarden-oracle` drives the pinned official `bw` CLI and SignalR client as the oracles (ADR 0141, ADR 0148) |
 | `crates/kdbx-bridge` | KDBX 4.x read/write + mapping to sealed-store `Entry` (ADR 0052; not a daemon dep) |
 | `crates/provider-bitwarden` | Bitwarden/vaultwarden consume-client — memory-resident session, host+TLS pinned (ADR 0052; not a daemon dep) |
-| `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; a `secret-service` feature is declared but has no entry yet) — per-surface cargo features of `opensesame`, all default off (ADR 0052/0053) |
+| `crates/pm-bridges` | Local-IPC bridges (keepassxc-protocol, browserpass, gopass; `secret-service` and `webdav` features are declared but have no entry yet) — per-surface cargo features of `opensesame` (the first three), all default off (ADR 0052/0053) |
+| `crates/domain`, `crates/authn`, `crates/authz`, `crates/grants`, `crates/broker` | Pure domain resources, invariants, IDs and errors; authentication flows (device authorization, loopback PKCE, workload, CIBA selection); OpenFGA relationships plus contextual constraints behind an AuthZEN-shaped API; the grant compiler; the invocation broker that checks a grant covers a frozen intent before anything runs |
+| `crates/proof`, `crates/claims`, `crates/audit`, `crates/xkeys` | RFC 9449 DPoP validation and key custody; claim and device-code digests; signed invocation receipts; X25519 recipient seal/open AEAD for bus E2EE (never the Host connection seal key) |
+| `crates/connection-broker`, `crates/connector-host`, `crates/connector-sdk` | Third-party authorizations held in the authority plane — callers get a `ConnectionRef` and status, never token material — with the connector catalogue in `src/catalog` (ADR 0032); the WIT connector host (authorized HTTP, signing, opaque token handles, no `secrets.get` for guests); WIT guest helpers |
+| `crates/provider-openbao`, `crates/provider-openfga`, `crates/provider-static-mesh` | OpenBao adapter; OpenFGA remote PDP adapter; static service-discovery adapter (an in-memory endpoint map, not a TLS transport) |
+| `crates/task-access`, `crates/task-bus`, `crates/relay`, `crates/sandbox`, `crates/enforcement` | Trust Ratchet task access engine; `TaskBus` trait with in-memory and optional NATS JetStream adapters; fail-closed admission rules for relayed execution (ADR 0046); bounded, brokered sandbox for general-authority guest execution; what a platform actually holds, and what it must refuse to claim |
+| `crates/rotation`, `crates/env-spec`, `crates/pki-core` | Rotation state machine; the consumer of `@env-spec` JSON (via `packages/env-spec-bridge`); the provider-agnostic X.509 engine behind the certificate manager (ADR 0066/0067) — a pure library, no HTTP surface and no database |
+| `crates/plugin-settings`, `crates/surrogate-proxy` | Optional runtime plugins: the catalog, the settings file that switches them and the install-time pins verified at every launch (ADR 0150 §7); the per-run surrogate proxy, shipped only as the plugin binary `opensesame-surrogate-proxy` (ADR 0150 §6.1) |
+| `crates/protocol-mcp`, `crates/protocol-aauth`, `crates/authenticator-core`, `crates/collab-adapter`, `crates/dns-enforcement` | MCP Authorization Bearer-profile adapter; experimental AAuth draft-10 adapter (disabled by default); shared native authenticator policy, invocation validation and OTP core, with UniFFI bindings for `apps/android`; collaboration-platform authority adapter (a Discord guild's roles and channel overwrites, bot only); DNS-layer enforcement against Blocky |
 | `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
@@ -463,14 +498,17 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
 | `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0157): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
-| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0157): every line sealed on its own (`osl1.`, XChaCha20-Poly1305) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-vectors.json` |
-| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0157): the Host's SQLite events (`osev1.` text, HKDF from `OPENSESAME_CONNECTION_KEY`, one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
+| `crates/sealed-log`, `packages/observability/src/sealed-log.ts` | The encrypted, rotating, owner-only log file (ADR 0157): every line sealed on its own (an `osl2.` envelope: XChaCha20-Poly1305, a fresh data key per line; legacy `osl1.` lines still read) under a key kept apart from the file; `OPENSESAME_LOG_FILE` replaces stdout on the Host, worker, daemon and TypeScript services; `daemon start`/`daemon logs` use and read it. One format, vectors in `spec/conformance/sealed-log-envelope-vectors.json` (`osl2.`) and the retained legacy `sealed-log-vectors.json` (`osl1.`) |
+| `crates/event-seal`, `packages/database/src/event-seal.ts` | Event rows at rest (ADR 0157): the Host's SQLite events (`osev2.` text, a data key per value wrapped under a key HKDF-derived from `OPENSESAME_CONNECTION_KEY`; legacy `osev1.` is read only through startup migration; one process-wide sealer installed before anything writes) and the Identity plane's Postgres events (`withSealedEvents`, `{"$sealed": …}` jsonb, `OPENSESAME_EVENT_KEY` or the claim pepper). A networked or production Host, and a persistent database, refuse to start without their key |
 | `packages/app-core/src/lib/nango-directory.ts`, `packages/app-core/src/lib/connector-directory.ts` | Connectors by reference: the Nango-compatible listing adapter (two routes, never a credential) and the directory's three homes — plaintext endpoint, sealed key + list, in-memory until a vault seals it (ADR 0115) |
-| `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client|host` |
+| `packages/mcp-client` / `packages/mcp-host` | MCP servers (client- and host-facing), served by `opensesame-id mcp client\|host` |
 | `packages/identity-worker` | Identity-plane background worker (TypeScript: outbox, webhooks, notifications, pruning) |
 | `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0159): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
+| `apps/browser-extension-autofill` | Optional companion extension, the `browser-autofill` plugin (ADR 0150 §7): fills a focused login field by reference after a gesture on its own UI, only on sites a person switched on; never in the default extension |
+| `apps/android` | Native OpenID4VC holder/wallet through Multipaz: Android entry points under `android/`, the Apple wallet and Identity Document Provider sources under `ios/`, Kotlin and Swift bindings generated from `crates/authenticator-core` (`apps/android/scripts/build-core.sh`). Password, OTP and passkey provider behaviour is not part of it |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
-| `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
+| `packages/app-core` | The client application core shared by the Pages PWA and the CLIs, with a sandbox host for a bare V8 isolate (ADR 0133; `apps/android` does not use it today): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
+| `packages/app-core/src/lib/secret-fs/`, `packages/app-core/src/node/{secret-files,vault-directory}.ts`, `spec/secret-files/` | Secrets as files (ADR 0182), written on Effect 4: the `SecretFiles` contract (read/write/remove/list, revision = SHA-256, path rule, four typed failures), its backends — the emulation, a confined atomic directory over Effect `FileSystem` (Node layer in `src/node`), and an S3-compatible bucket (`s3.ts` over the `s3-sigv4.ts` signer; a browser needs no server of ours) — the `resilient` wrapper (attempt timeout, jittered retries, circuit breaker, lost-answer confirmation), the layout (`vault.json` manifest + `secrets/<folder>/<name>.<kind>.json`, one sealed document per secret), and `vfs-files.ts`, which lays the VFS seams (`vfs-seams.ts`) over any of them. One conformance suite per layer runs against every backend. The CLI keeps its vault at `<state>/vault/` through `useVaultDirectory`. Names are visible on disk by design; values never are |
 | `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0170): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
@@ -497,13 +535,19 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser. `auto` mode runs a model's trajectory to its next boundary; `tour` mode (`plan.ts`, `tour.ts`) walks a person through steps at their own pace — Next, Back, Replay, a step that degrades to text when its control is absent (ADR 0163) |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
+| `packages/agent-client` | Agent-side exchange of an approved launch handle for a short-lived agent capability, over the daemon socket or the Host (ADR 0099) |
+| `packages/capability-composition` | Pure, browser-safe capability composition: identities, policy documents, the deterministic resolver, reason codes, consent deltas and the lifecycle contracts every runtime and editor consumes (ADR 0130) |
+| `packages/trust-broker` | The one evaluator for whether an approval stands: assurance, channel settlement and activation binding |
+| `packages/siop-v2` / `static-auth` | Self-Issued OpenID Provider v2 (ID1) utilities — request parsing, ES256 Self-Issued ID Tokens, fragment responses; sign-in for static sites with no backend (hosted-identity, loopback and browser-local profiles) |
+| `packages/qr` / `webhooks` / `telemetry` | QR encoding to SVG and terminal, with interaction-link encoders that refuse credential material; Standard Webhooks signing and verification and a public-only HTTPS sender; allowlisted anonymous product analytics (unknown events and props are dropped) |
+| `packages/wallet-budget` / `wallet-consent` / `wallet-evm` / `wallet-mandates` / `wallet-policy` / `wallet-x402` | Wallet spending authority (ADR 0123): the pure budget journal (atomic reserve/commit/release, idempotent attempts); payment consent (intent, digest, digest-bound signature verification, export redaction); the EVM payment adapter foundation (fail-closed until a local-chain harness); AP2/UCP mandate codecs (fixture trust only); the spending-constraint vocabulary and enforcement assessment; the bounded x402 exact-payment profile |
 | `skills/` | Agent skills — see §7 |
 | `spec/wit/` | Polyglot core contracts (client, connector, core, host, mediation, proof, task) |
 | `spec/openapi/host-api.yaml`, `spec/openfga/`, `spec/connectors/` | Host OpenAPI, OpenFGA model + baseline tuples, connector parity table and reference manifest |
 | `spec/agent-hooks/` | `conformance/` is the agent-hooks CTK corpus vendored byte for byte from tag `v0.1.0-alpha.5` (47 vectors plus the golden identity file; exercised by `crates/rotation-web/tests/agent_hooks_ctk*.rs`) and `presets/` the named policies (`rotation-web-login`, `strict`, `observe`), embedded by both the CLI and the gateway with a drift test each (ADR 0139, ADR 0159) |
 | `crates/storage/migrations/` | Host SQL migrations, embedded by `crates/storage` |
 | `tests/fuzz/{cargo,jazzer,clusterfuzzlite}`, `tests/redteam`, `tests/visual-contract`, `tests/fixtures` | Fuzzing, MCP red team, visual regression, shared fixtures |
-| `tools/quality/`, `tools/mutation/`, `tools/security/` | Ratchet ledgers and budgets, Stryker configs, ast-grep rules and negative controls |
+| `tools/quality/`, `tools/mutation/`, `tools/security/`, `tools/oxlint/anti-slop/` | Ratchet ledgers and budgets, Stryker configs, ast-grep rules and negative controls, the vendored anti-slop Oxlint plugin |
 | `docs/` | Start at `docs/README.md`. `getting-started/`, `architecture/`, `adr/` (index generated by `pnpm docs:index`), `operators/`, `reference/`, `design/`, `security/` (audits in `security/audits/`), `validation/`, `evidence/`, `implementation/`, `research/` (competitors in `research/competitors/`), `contributing/`, `archive/` |
 
 ## 5. Design rules that gate merges
@@ -553,7 +597,7 @@ Do not add new top-level directories or loose root files — find the group.
   are not regression proof. Include saved-vault reload/unlock and immediate
   movement from empty and populated vaults; guest entry alone is insufficient.
   It also Tabs onto a settings file's textarea and asserts the stage's focus
-  cue shows (`scripts/lib/settings-file-keyboard-contract.mjs`). Keep this gate in the required Bundle budgets
+  cue shows (`apps/pages/scripts/lib/settings-file-keyboard-contract.mjs`). Keep this gate in the required Bundle budgets
   job; demonstrate failure before fixing a regression and success afterward.
 - **A phone is not a narrow desktop, and the touch rules are gated on width as
   well as pointer.** The 44px floor, the 16px field floor that keeps iOS from
@@ -625,14 +669,16 @@ Do not add new top-level directories or loose root files — find the group.
   [ADR 0166](docs/adr/0166-gate-help-launcher.md)): a single icon key in the
   screen's chrome row, never in front of its content, its roads or the guest
   Skip, offline, opening the same Support sheet with only the tutorials written
-  for that screen. `setupRequired` does not
-  exist and must not come back. No
+  for that screen. No `setupRequired` gate on the setup record exists
+  (`setup.test.ts` pins it) and none may come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
   offer, never something the app assumes. With no Identity API configured a
   guest or federated sign-in is complete, not pending — no notice may name a
   service that is not there. A screen is gated on what it actually needs, one
-  panel at a time (`useHostConfigured`, `NoHostNote`), never on "a backend":
+  panel at a time (`useIdentityServes`, `useIdentityConfigured`; `useHostConfigured`
+  in `apps/pages/src/lib/use-configured.ts` is a shim that always returns false,
+  ADR 0128), never on "a backend":
   Access › Resources is Identity-plane and local-only, Sessions' receipts are
   Identity-plane, and gating those on a Host hid features that need none. A
   deployment that asks nothing may never report that something failed.
@@ -872,7 +918,7 @@ Do not add new top-level directories or loose root files — find the group.
 - **Built-in item types beyond the core are packs, switched on to download**
   ([ADR 0165](docs/adr/0165-item-type-packs-on-demand.md)). Only `secret`,
   `file`, `passkey`, `certificate` and `drop` are embedded in the bundle; the
-  other 18 are `packages/vault-item-types/src/packs/<id>.generated.ts`, each its
+  other 23 are `packages/vault-item-types/src/packs/<id>.generated.ts`, each its
   own chunk behind a dynamic `import()`, indexed by `PACK_INDEX` (metadata and a
   SHA-256, nothing else). Settings › Vaults › Item types is a list of switches —
   the whole row is the switch, `role="switch"`, for a thumb. Switching on queues
@@ -1069,8 +1115,9 @@ Do not add new top-level directories or loose root files — find the group.
   (`no-in-page-error`, `no-error-box-css`; no ledger, the count is zero); `impeccable detect`
   enforces the same design file. Both run in `.githooks/pre-commit`. The
   word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
-  **Three shape rules gate every control, and each has a lint rule with no
-  ledger.** *Corners are square* (`no-round-corners`): `--radius` is 0, and no
+  **Three shape rules gate every control, and each has a lint rule whose
+  count is zero** (the corners ledger, `tools/quality/design-radius-baseline.json`,
+  is empty and stays empty). *Corners are square* (`no-round-corners`): `--radius` is 0, and no
   `border-radius` past 0 — no 2px, no pill, no circle, no percentage — appears on
   anything; dots, knobs and spinners are squares. *A control is never red*
   (`no-danger-control`, `no-control-error-ink`): the error ink belongs to a
@@ -1106,7 +1153,10 @@ Do not add new top-level directories or loose root files — find the group.
   `scripts/audit/cve-lite-gate.sh`, `scripts/audit/ast-grep-security-gate.sh`,
   `scripts/audit/clippy-gate.sh`, `scripts/audit/osv-scanner-gate.sh`,
   `scripts/audit/cargo-audit-gate.sh`, `scripts/audit/gitleaks-gate.sh`,
-  `scripts/audit/semgrep-gate.sh`, `scripts/audit/daemon-deps-gate.sh`.
+  `scripts/audit/semgrep-gate.sh`, `scripts/audit/deepsec-gate.sh`,
+  `scripts/audit/daemon-deps-gate.sh`, `scripts/audit/plugin-boundary-gate.sh`,
+  `scripts/audit/kani-gate.sh`, `scripts/audit/miri-gate.sh`,
+  `scripts/audit/shuttle-gate.sh`.
 
 ### Codex Security checker
 
@@ -1243,8 +1293,9 @@ other secret material in issues, logs, or scan reports.
 
 Agent skills live under `skills/*/SKILL.md` (canonical). `.agents/skills/`
 holds symlinks to the same directories for tools that look there instead —
-except third-party installs (currently `impeccable`), which live there
-directly so their own updater can refresh them.
+except third-party installs (`impeccable` and the design skills below), which
+are real directories there (and, for each, under `.claude/skills/` too) so
+their own updaters can refresh them.
 
 | Skill | Path | Purpose |
 |-------|------|---------|
@@ -1256,7 +1307,7 @@ directly so their own updater can refresh them.
 | `security-review` | `skills/security-review/SKILL.md` | Run repository security gates and targeted Codex Security reviews |
 | `visual-evidence` | `skills/visual-evidence/SKILL.md` | Capture before/after screenshots from two real builds for any user-visible change and post them on the PR |
 | `local-debug-session` | `skills/local-debug-session/SKILL.md` | Attach a live HMR debug session when asked to run the app locally; watch real console/page/network errors and patch the hot-reloaded process |
-| `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` |
+| `impeccable` | `.agents/skills/impeccable/SKILL.md` | Third-party frontend design skill ([pbakaus/impeccable](https://github.com/pbakaus/impeccable), Apache 2.0), installed via `npx impeccable install` — lives in `.agents/skills/` (not `skills/`) so `npx impeccable update` can refresh it; design detector hook in `.codex/hooks.json` + `.claude/settings.local.json` (gitignored, machine-local) |
 | `scandinavian-design` | `.claude/skills/scandinavian-design/SKILL.md` | Third-party ([ericzakariasson/scandinavian-design](https://github.com/ericzakariasson/scandinavian-design)), installed via `npx skills add ericzakariasson/scandinavian-design` — the visual-restraint contract behind the Scandinavian retoken; its `scripts/*.js` verifiers are patched to launch the container's pinned Chromium (`/opt/pw-browsers/chromium`) instead of a system Chrome |
 | `minimalist-ui` | `.claude/skills/minimalist-ui/SKILL.md` | Third-party ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT), installed via `npx skills add Leonxlnx/taste-skill -s minimalist-ui` |
 | `design-taste-frontend` | `.claude/skills/design-taste-frontend/SKILL.md` | Third-party anti-slop frontend skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT; docs at [tasteskill.dev](https://www.tasteskill.dev/changelog)) |
@@ -1297,14 +1348,16 @@ For the full local gate suite (what `pnpm verify` runs — required before
 anything security-sensitive lands):
 
 ```bash
-pnpm verify   # lint + quality gates + rustfmt/full-feature Clippy + test:all
+pnpm verify   # lint + anti-slop (lint and plugin tests) + quality gates
+              #   + rustfmt/full-feature Clippy + plugin-boundary + test:all
               #   + cargo +1.88.0 test --workspace --all-targets
               #   + ./scripts/test/battle-test.sh
 ```
 
 CI lives in `.github/workflows/`:
 
-- `ci.yml` — runs on `pull_request`. The required checks stay
+- `ci.yml` — runs on `pull_request`, and on every push to `main` and on demand.
+  The required checks stay
   TypeScript, Bundle budgets, and Rust, and each name reports on every
   pull request (a skipped required check does not satisfy the ruleset).
   The suite behind a check runs only when the diff touches that area
@@ -1328,9 +1381,12 @@ CI lives in `.github/workflows/`:
   row. A new gate goes in exactly one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
   waits for, and runs when the Pages build or the server code it imports changes.
-  The TypeScript job also runs the signature preflight, changed-file lint,
-  and `pnpm quality`. A docs-only diff passes the three checks without those
-  suites. An unrecognized path runs every suite.
+  The TypeScript check also waits on the signature preflight (the `changes`
+  job), and its tests job runs changed-file lint and `pnpm quality`. The Rust
+  check also waits on the Android and Swift native jobs when a diff touches
+  native mobile code; the `mTLS` job is not a required check. A docs-only diff
+  passes the three checks without those suites. An unrecognized path runs
+  every suite.
   The ruleset also requires an up-to-date PR and squash auto-merge; this
   personal-account repository does not support merge queues. Verify
   actual settings with `node ops/github/governance.mjs --verify`.
@@ -1340,6 +1396,13 @@ CI lives in `.github/workflows/`:
   prove the live HTML/runtime configuration matches the exact source SHA.
   `scripts/release/deploy-pages.sh` remains as the
   manual/local fallback publisher.
+- `full-suite.yml` — typechecks and tests every TypeScript package on `main`
+  daily (03:17 UTC) and on demand, so a red that no open diff reaches
+  surfaces within a day. Not a required check.
+- `password-parity.yml` — `pnpm test:2password-parity` (the 2password parity
+  gauntlet) on pull requests that touch the CLI, Pages, the extension, the
+  crates, `app-core`, `vault-core` and the other paths it lists, and on demand.
+  Not a required check.
 
 CI is the merge gate, not the whole story: the heavier suites
 (`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks

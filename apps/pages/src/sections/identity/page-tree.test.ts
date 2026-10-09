@@ -64,4 +64,20 @@ describe("identity page tree", () => {
     expect(leaves("providers")).toEqual(["Google"]);
     expect(leaves("devices")).toEqual(["Desk laptop"]);
   });
+  it("uses hosted record hashes when a hosted directory is active", () => {
+    const tree = identityPageTree({
+      directory: [alice, bot],
+      hosted: {
+        people: [{ id: "linked:principal/1", label: "Verified person" }],
+      },
+    });
+    const people = tree.find((node) => node.id === "people");
+    expect(people?.children.map((node) => node.label)).toEqual([
+      "Verified person",
+    ]);
+    expect(people?.children[0]?.href).toBe(
+      "/identity?view=people#linked%3Aprincipal%2F1",
+    );
+    expect(tree.find((node) => node.id === "agents")?.children).toEqual([]);
+  });
 });

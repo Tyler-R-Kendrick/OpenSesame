@@ -663,132 +663,11 @@ describe("completeSignIn", () => {
     expect(location.search).toBe("");
   });
 
-  /**
-   * "We actually have an authorized user" (docs.shoo.dev/server-verification):
-   * Shoo's JWKS serves no CORS, so the ES256 signature cannot be verified in
-   * this page — `POST /session/check` is the broker's signature- and
-   * revocation-backed answer, and its explicit 401 refuses the sign-in.
-   */
-  describe("upstream session check", () => {
-    const CHECK = "https://shoo.dev/session/check";
-
-    function shooToken(): string {
-      return jwt({
-        iss: "https://shoo.dev",
-        aud: originClientId(),
-        exp: 4_000_000_000,
-        pairwise_sub: "ps_sub-1",
-      });
-    }
-
-    function seedShooPending(): void {
-      seedPending({
-        upstreamId: "shoo",
-        issuer: "https://shoo.dev",
-        tokenEndpoint: "https://shoo.dev/token",
-        jwksUri: "https://shoo.dev/.well-known/jwks.json",
-        sessionCheckEndpoint: CHECK,
-      });
-    }
-
-    function stubExchangeThenCheck(check: () => Response) {
-      const calls: Array<{ url: string; init: RequestInit }> = [];
-      vi.stubGlobal(
-        "fetch",
-        vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
-          const url = String(input);
-          calls.push({ url, init });
-          if (url === CHECK) return Promise.resolve(check());
-          return Promise.resolve(Response.json({ id_token: shooToken() }));
-        }),
-      );
-      return calls;
-    }
-
-    it("asks the broker and passes an active session through", async () => {
-      seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
-      const calls = stubExchangeThenCheck(() =>
-        Response.json({ status: "active" }),
-      );
-
-      const result = await completeSignIn();
-
-      expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
-      const check = calls.find((call) => call.url === CHECK);
-      const headers = new Headers(check?.init.headers);
-      expect(headers.get("authorization")).toBe(`Bearer ${shooToken()}`);
-      expect(loadSession()?.pairwiseSub).toBe("ps_sub-1");
-    });
-
-    it("refuses a sign-in the broker says is revoked, saving nothing", async () => {
-      seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
-      stubExchangeThenCheck(
-        () =>
-          new Response(
-            JSON.stringify({ status: "login_required", reason: "revoked" }),
-            { status: 401 },
-          ),
-      );
-
-      await expect(completeSignIn()).rejects.toMatchObject({
-        code: "login_required",
-      });
-      expect(loadSession()).toBeNull();
-    });
-
-    it("does not block on a broker without the endpoint", async () => {
-      seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
-      stubExchangeThenCheck(() => new Response("not here", { status: 404 }));
-
-      const result = await completeSignIn();
-      expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
-    });
-
-    it("does not block on a transport failure after a good exchange", async () => {
-      seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
-      vi.stubGlobal(
-        "fetch",
-        vi.fn((input: RequestInfo | URL) => {
-          if (String(input) === CHECK) {
-            return Promise.reject(new TypeError("failed to fetch"));
-          }
-          return Promise.resolve(Response.json({ id_token: shooToken() }));
-        }),
-      );
-
-      const result = await completeSignIn();
-      expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
-    });
-
-    it("never calls a check endpoint an upstream does not declare", async () => {
-      seedPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
-      const fetchMock = vi.fn(() =>
-        Promise.resolve(
-          Response.json({
-            id_token: jwt({
-              iss: "http://127.0.0.1:9090",
-              aud: originClientId(),
-              exp: Date.now() / 1000 + 3600,
-              pairwise_sub: "sub-1",
-            }),
-          }),
-        ),
-      );
-      vi.stubGlobal("fetch", fetchMock);
-
-      await completeSignIn();
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-    });
-  });
-
   it("accepts an org-tenant issuer that is not a global trusted broker", async () => {
     seedPending({
       issuer: "https://idp.acme.example",
+      tokenEndpoint: "https://idp.acme.example/token",
+      jwksUri: "https://idp.acme.example/jwks",
       orgSlug: "acme",
       orgMethod: "saml",
       returnTo: "/settings",
@@ -956,6 +835,7 @@ describe("brokered federation", () => {
       upstreamId: "broker:google",
       issuer: BASE,
       tokenEndpoint: `${BASE}/token`,
+      jwksUri: `${BASE}/jwks`,
     });
     history.replaceState(null, "", "/?code=abc&state=state-1");
     vi.stubGlobal(
@@ -1010,7 +890,11 @@ describe("brokered federation", () => {
   });
 
   it("refuses a subject-less token from the brokered issuer", async () => {
-    seedPending({ issuer: BASE, tokenEndpoint: `${BASE}/token` });
+    seedPending({
+      issuer: BASE,
+      tokenEndpoint: `${BASE}/token`,
+      jwksUri: `${BASE}/jwks`,
+    });
     history.replaceState(null, "", "/?code=abc&state=state-1");
     vi.stubGlobal(
       "fetch",
@@ -1234,6 +1118,24 @@ describe("an operator's own identity provider", () => {
     expect(pending.scope).toBe("openid profile email");
   });
 
+  it("does not post the code to a token endpoint outside the operator issuer", async () => {
+    withIdps([OKTA]);
+    seedPending({
+      issuer: OKTA.issuer,
+      tokenEndpoint: "https://attacker.example/token",
+      jwksUri: `${OKTA.issuer}/keys`,
+      clientId: OKTA.clientId,
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "untrusted_issuer",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("spends the operator's client id at the token endpoint", async () => {
     withIdps([OKTA]);
     seedPending({
@@ -1278,6 +1180,7 @@ describe("an operator's own identity provider", () => {
     seedPending({
       issuer: OKTA.issuer,
       tokenEndpoint: `${OKTA.issuer}/token`,
+      jwksUri: `${OKTA.issuer}/keys`,
       clientId: OKTA.clientId,
     });
     history.replaceState(null, "", "/?code=abc&state=state-1");

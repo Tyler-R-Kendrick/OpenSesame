@@ -29,7 +29,8 @@ Default redirect URI: `{origin}/opensesame/callback`.
 ## Run both origins
 
 ```bash
-pnpm --filter @opensesame/control-plane start   # :8788, origin clients on
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 OPENSESAME_ORIGIN_CLIENTS_ENABLED=true \
+  pnpm --filter @opensesame/control-plane start   # :8788, origin clients on
 pnpm --filter @opensesame/example-static-rp dev:4101   # http://127.0.0.1:4101
 pnpm --filter @opensesame/example-static-rp dev:4102   # http://127.0.0.1:4102
 ```

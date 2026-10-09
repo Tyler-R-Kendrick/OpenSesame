@@ -2,9 +2,10 @@
 
 A command-line agent that registers itself anonymously with the Identity API
 and waits for a person to claim it. It mints a provisional principal, registers
-an agent under it, prints the claim link and user code, then polls the claim
-until it is completed, denied or expired. It finishes by rendering an `auth.md`
-and an agent card for the same API.
+an agent under it, prints the claim link and user code, then polls the claim,
+at most five times 50 ms apart, stopping early when it is completed, denied or
+expired. It finishes by rendering an `auth.md` and an agent card for the same
+API and printing the `auth.md`'s first line and the card's name.
 
 ## Where it fits
 
@@ -14,6 +15,7 @@ and an agent card for the same API.
 - **Builds on:** [`@opensesame/sdk-cli`](../../packages/sdk-cli)
   (`createControlPlaneClient`, `redactSecrets`),
   [`@opensesame/contracts`](../../packages/contracts) (response schemas),
+  [`@opensesame/log-scrub`](../../packages/log-scrub) (`scrubStrings`, `scrubText`),
   [`@opensesame/agent-protocols`](../../packages/agent-protocols)
   (`renderAuthMd`, `renderAgentCard`).
 - The claim link it prints is `verificationUriComplete` when the Identity API
@@ -38,6 +40,7 @@ MOCK_AGENT_FLOW=1 pnpm --filter @opensesame/example-agent start
 | Variable | Default | Description |
 |---|---|---|
 | `OPENSESAME_IDENTITY_API` | `http://127.0.0.1:8788` | Identity API base URL |
+| `OPENSESAME_CLIENT_APP_URL` | `http://localhost:5180` | The app origin the mock's claim link and the rendered `auth.md` name |
 | `MOCK_AGENT_FLOW` | unset | `1` swaps `fetch` for the in-process mock |
 
 The package also declares an `opensesame-example-agent` bin pointing at

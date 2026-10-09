@@ -31,10 +31,22 @@ import {
 } from "@opensesame/app-core/lib/local-vault-sessions.js";
 import { listDeviceVaults } from "@opensesame/app-core/lib/vaults.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 
 export function VaultSessionsPanel({ tomb }: { tomb: string }) {
   const [sessions, setSessions] = useState<LocalVaultSession[]>([]);
-  const [draft, setDraft] = useState(false);
+  const selection = useAccessRecord(
+    "vault-share-sessions",
+    "sessions",
+    "vault-session-",
+  );
+  const draft = selection.creating;
+  const setDraft = selection.setCreating;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const items = useVaultStore()
@@ -58,8 +70,8 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
     setBusy(true);
     setError("");
     try {
-      await action();
-      setDraft(false);
+      const result = await action();
+      if (draft && result) selection.select(result.id);
       reload();
     } catch (caught) {
       setError(
@@ -70,15 +82,19 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
     }
   }
 
+  const selected = sessions.find((session) => session.id === selection.id);
   return (
-    <section
-      className="panel"
-      id="vault-share-sessions"
-      aria-label="Vault share sessions"
-    >
-      <div className="panel__head">
-        <h2>Vault share sessions</h2>
-        <fieldset className="vtree__keys" aria-label="Session commands">
+    <AccessRecords
+      title="Vault share sessions"
+      selection={selection}
+      rows={sessions.map((session) => ({
+        id: session.id,
+        label: session.label,
+        extension: "session",
+        to: selection.path(session.id),
+      }))}
+      commands={
+        <>
           <IconKey
             label="Start vault session"
             small
@@ -98,11 +114,14 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
           >
             <IconRefresh size={15} />
           </IconKey>
-        </fieldset>
-      </div>
-      <div className="panel__body">
+        </>
+      }
+      status={
         <FailureNotice id="access:sessions" title="Sessions" message={error} />
-        {draft ? (
+      }
+    >
+      {draft ? (
+        <AccessDetail title="New vault share session" kind="Session">
           <NewVaultSessionForm
             tomb={tomb}
             busy={busy}
@@ -114,28 +133,20 @@ export function VaultSessionsPanel({ tomb }: { tomb: string }) {
               )
             }
           />
-        ) : null}
-        {sessions.length === 0 && !draft ? (
-          <p className="hint">No vault share sessions.</p>
-        ) : null}
-        <ul className="identity-rows">
-          {sessions.map((session) => (
-            <SessionRow
-              key={session.id}
-              session={session}
-              busy={busy}
-              onStart={() =>
-                void run(() => startVaultSession(tomb, session.id))
-              }
-              onStop={() => void run(() => stopVaultSession(tomb, session.id))}
-              onRestart={() =>
-                void run(() => restartVaultSession(tomb, session.id))
-              }
-            />
-          ))}
-        </ul>
-      </div>
-    </section>
+        </AccessDetail>
+      ) : null}
+      {!draft && selected ? (
+        <SessionRow
+          session={selected}
+          busy={busy}
+          onStart={() => void run(() => startVaultSession(tomb, selected.id))}
+          onStop={() => void run(() => stopVaultSession(tomb, selected.id))}
+          onRestart={() =>
+            void run(() => restartVaultSession(tomb, selected.id))
+          }
+        />
+      ) : null}
+    </AccessRecords>
   );
 }
 
@@ -153,45 +164,29 @@ function SessionRow({
   onRestart: () => void;
 }) {
   return (
-    <li className="identity-row" id={`vault-session-${session.id}`}>
-      <div className="identity-row__main">
-        <div className="identity-row__id">
-          <h3>{session.label}</h3>
-          <code className="identity-ref">
-            code {session.code} · {session.grants.length} grant
-            {session.grants.length === 1 ? "" : "s"} · bound {session.boundTomb}
-          </code>
-        </div>
-        <StatusMark
-          tone={session.status === "stopped" ? "idle" : "ok"}
-          label={session.status}
-        />
-        {session.expiresAt ? (
+    <AccessDetail
+      title={session.label}
+      kind="Vault share session"
+      actions={
+        <>
           <StatusMark
-            tone="idle"
-            label={`Until ${new Date(session.expiresAt).toLocaleString()}`}
+            tone={session.status === "stopped" ? "idle" : "ok"}
+            label={session.status}
           />
-        ) : null}
-        <div className="actions">
-          {session.status === "stopped" ? (
-            <IconKey
-              label="Start session"
-              small
-              disabled={busy}
-              onClick={onStart}
-            >
+          <IconKey
+            label={
+              session.status === "stopped" ? "Start session" : "Stop session"
+            }
+            small
+            disabled={busy}
+            onClick={session.status === "stopped" ? onStart : onStop}
+          >
+            {session.status === "stopped" ? (
               <IconArrowRight size={16} />
-            </IconKey>
-          ) : (
-            <IconKey
-              label="Stop session"
-              small
-              disabled={busy}
-              onClick={onStop}
-            >
+            ) : (
               <IconX size={16} />
-            </IconKey>
-          )}
+            )}
+          </IconKey>
           <IconKey
             label="Restart session"
             small
@@ -200,9 +195,20 @@ function SessionRow({
           >
             <IconRefresh size={16} />
           </IconKey>
-        </div>
-      </div>
-    </li>
+        </>
+      }
+    >
+      <AccessFact label="Join code" value={session.code} />
+      <AccessFact label="Grants" value={session.grants.length} />
+      <AccessFact label="Vault" value={session.boundTomb} />
+      <AccessFact
+        label="Expires"
+        value={
+          session.expiresAt ? new Date(session.expiresAt).toLocaleString() : "—"
+        }
+      />
+      <AccessFact label="Reference" value={session.id} />
+    </AccessDetail>
   );
 }
 

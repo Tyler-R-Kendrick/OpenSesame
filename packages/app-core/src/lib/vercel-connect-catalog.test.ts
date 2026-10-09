@@ -138,7 +138,11 @@ describe("Vercel Connect browse catalog", () => {
       expect(merged.filter((row) => row.id === id)).toHaveLength(1);
       const row = merged.find((item) => item.id === id);
       expect(row?.category).toBe("wallet");
-      if (row) expect(catalogTileNote(row, null)).toBeNull();
+      if (!row) throw new Error(`Expected the retained wallet provider ${id}`);
+      expect(catalogTileNote(row, null)).toEqual({
+        label: "Not connectable",
+        tone: "chip--err",
+      });
     }
   });
 });

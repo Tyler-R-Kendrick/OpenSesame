@@ -1,7 +1,5 @@
-/** @vitest-environment jsdom */
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
 import {
-  connectPlan,
   connectPlans,
   isConnectable,
 } from "@opensesame/app-core/lib/connect-plan.js";
@@ -9,6 +7,8 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+/** @vitest-environment jsdom */
+import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
@@ -25,6 +25,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../../bindings/identity.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { ConnectPanels } from "./ConnectPanels.js";
+import { nativeSettingsDescriptor } from "./NativeConnectorPanels.js";
+import {
+  activateNativePanelRuntime,
+  expectNativePanel,
+} from "./connect-panels.test-support.js";
 
 Object.assign(identityHookSeams, {
   useIdentitySession: () => ({ principalId: "prn_person" }),
@@ -34,6 +39,7 @@ Object.assign(vaultHooksSeams, {
 });
 
 const KEY = "k".repeat(40);
+let runtime: ReturnType<typeof activateNativePanelRuntime>;
 
 function provider(id: string): Provider {
   // Every row the Connections page lists: Connect's own, then the bundled
@@ -95,11 +101,14 @@ function reply(body: JsonValue) {
 }
 
 beforeEach(() => {
+  runtime = activateNativePanelRuntime();
   setVercelConnectAuth({ token: "vercel_token" });
 });
 
 afterEach(() => {
   cleanup();
+  runtime.activation.dispose();
+  forgetDeviceConnectors();
   vi.unstubAllGlobals();
   setVercelConnectAuth(null);
   applyConnectCallbackBase(undefined);
@@ -129,130 +138,159 @@ describe("no connector page is blank", () => {
     .map((plan) => plan.id)
     .filter((id) => id !== "github");
 
-  it.each(ids)("%s opens filled in, with a way to create it", (id) => {
-    draw(id);
-    const panel = screen.getByRole("region", { name: "Connector" });
-    expect(
-      within(panel).getByRole("button", { name: "Create connector" }),
-    ).toBeTruthy();
-    expect(within(panel).getByLabelText("Name")).toHaveProperty(
-      "value",
-      connectPlan(id)?.name,
-    );
-    expect(within(panel).getByLabelText("UID")).toHaveProperty(
-      "value",
-      `${id}/default`,
-    );
-  });
+  it.each(ids)(
+    "%s opens its own configuration or explicit browser refusal",
+    (id) => {
+      draw(id);
+      const panel = screen.getByRole("region", { name: "Connector" });
+      if (id === "linear") {
+        expect(
+          within(panel).getByRole("button", {
+            name: "Create and authorize Linear",
+          }),
+        ).toBeTruthy();
+        expect(within(panel).getByLabelText("Connector Name")).toHaveProperty(
+          "value",
+          "Linear",
+        );
+        return;
+      }
+      const descriptor = nativeSettingsDescriptor(provider(id));
+      if (!descriptor) throw new Error(`${id} has no native descriptor`);
+      expectNativePanel(panel, descriptor, runtime.fetch);
+    },
+  );
 });
 
 describe("moving between connectors", () => {
   it("starts each connector's form from its own plan", async () => {
     const view = render(
       <ConnectPanels
-        provider={provider("resend")}
+        provider={provider("algolia")}
         connection={null}
         online
         onFlash={vi.fn()}
         onChanged={vi.fn()}
       />,
     );
-    await userEvent.click(screen.getByRole("radio", { name: "OAuth" }));
+    await userEvent.type(
+      screen.getByLabelText("Connector name"),
+      "Algolia draft",
+    );
+    await userEvent.type(
+      screen.getByLabelText("Algolia API key"),
+      "entered-only",
+    );
+    await userEvent.type(screen.getByLabelText("Application ID"), "first-app");
     view.rerender(
       <ConnectPanels
-        provider={provider("okta")}
+        provider={provider("gemini")}
         connection={null}
         online
         onFlash={vi.fn()}
         onChanged={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Name")).toHaveProperty("value", "Okta");
-    expect(screen.getByLabelText("UID")).toHaveProperty(
+    expect(screen.getByLabelText("Connector name")).toHaveProperty(
       "value",
-      "okta/default",
+      "Google Gemini",
     );
+    expect(screen.getByLabelText("Google Gemini API key")).toHaveProperty(
+      "value",
+      "",
+    );
+    expect(screen.queryByLabelText("Application ID")).toBeNull();
+    expect(runtime.fetch).not.toHaveBeenCalled();
   });
 });
 
-describe("Resend", () => {
-  it("prefills the OAuth server from what we know and lets Vercel register the client", async () => {
-    draw("resend");
-    await userEvent.click(screen.getByRole("radio", { name: "OAuth" }));
-    expect(screen.getByLabelText("Authorization endpoint")).toHaveProperty(
-      "value",
-      "https://api.resend.com/oauth/authorize",
-    );
-    expect(screen.getByLabelText("Token endpoint")).toHaveProperty(
-      "value",
-      "https://api.resend.com/oauth/token",
-    );
-    expect(screen.getByLabelText("Client ID (optional)")).toBeTruthy();
-    expect(
-      screen
-        .getByRole("button", { name: "Create connector" })
-        .hasAttribute("disabled"),
-    ).toBe(false);
-  });
-
-  it("asks where connectors live when nothing is configured, and draws no key that cannot act", () => {
+describe("self-hosted provider configuration", () => {
+  it("shows Linear configuration without a Vercel credential or relay", async () => {
     setVercelConnectAuth(null);
-    draw("resend");
-    expect(screen.getByRole("region", { name: "Vercel Connect" })).toBeTruthy();
-    expect(screen.getByLabelText("Vercel access token")).toBeTruthy();
-    // Create needs the credential above; until it is sealed the form is not
-    // drawn, rather than drawn with a key that stays disabled (ADR 0158).
-    expect(
-      screen.queryByRole("button", { name: "Create connector" }),
-    ).toBeNull();
-    expect(screen.queryByRole("region", { name: "Connector" })).toBeNull();
-  });
-
-  it("asks for the relay's management key on a relay deployment", () => {
-    setVercelConnectAuth(null);
-    applyConnectCallbackBase("https://relay.test");
-    draw("resend");
-    expect(screen.getByLabelText("Relay management key")).toBeTruthy();
-  });
-});
-
-describe("Linear", () => {
-  it("creates the OAuth connector whole, with the scopes a person picks", async () => {
-    // Pages no longer speaks Host (ADR 0128): the connector is created on
-    // Vercel Connect with its OAuth server, client and scopes (ADR 0147).
-    const sent: string[] = [];
-    vi.stubGlobal(
-      "fetch",
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (String(input).includes("/v1/connect/connectors"))
-          sent.push(String(init?.body));
-        return reply({
-          connector: { id: "scl_1", uid: "linear/linear", service: "linear" },
-        });
-      },
-    );
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
     draw("linear");
-    await userEvent.click(screen.getByRole("radio", { name: "OAuth" }));
-    await userEvent.click(screen.getByRole("checkbox", { name: /^write/ }));
-    await userEvent.type(screen.getByLabelText("Client ID"), "lin_client");
-    await userEvent.type(screen.getByLabelText("Client secret"), "lin_secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Create connector" }),
+    expect(screen.queryByLabelText("Vercel access token")).toBeNull();
+    expect(screen.queryByLabelText("Team ID")).toBeNull();
+    expect(screen.queryByLabelText("Project ID")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Vercel Connect" })).toBeNull();
+    expect(screen.getByRole("radio", { name: "Managed" })).toHaveProperty(
+      "checked",
+      true,
     );
-    await waitFor(() => expect(sent).toHaveLength(1));
-    expect(JSON.parse(sent[0] ?? "{}")).toMatchObject({
-      service: "linear",
-      type: "oauth",
-      data: {
-        clientId: "lin_client",
-        clientSecret: "lin_secret",
-        serverConfig: {
-          authorization_endpoint: "https://linear.app/oauth/authorize",
-          token_endpoint: "https://api.linear.app/oauth/token",
-        },
-        userAuthorization: { enabled: true, scopes: ["read", "write"] },
-      },
-    });
+    expect(screen.getByRole("radio", { name: "Bring Your Own" })).toBeTruthy();
+    expect(
+      screen.getByLabelText("Expected Linear workspace (optional)"),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Icon")).toHaveProperty(
+      "accept",
+      "image/png,image/jpeg",
+    );
+    expect(screen.getByLabelText("App Scopes").textContent).toContain(
+      "4 selected",
+    );
+    expect(screen.getByLabelText("User Scopes").textContent).toContain(
+      "2 selected",
+    );
+    expect(screen.queryByLabelText("Webhook Resource Types")).toBeNull();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Register a Linear webhook" }),
+    );
+    expect(
+      screen.getByLabelText("Webhook Resource Types").textContent,
+    ).toContain("2 selected");
+    expect(screen.getByLabelText("Webhook delivery URL")).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("radio", { name: "Bring Your Own" }),
+    );
+    expect(screen.getByLabelText("Linear OAuth client ID")).toBeTruthy();
+    expect(screen.getByLabelText("Redirect URI")).toHaveProperty(
+      "readOnly",
+      true,
+    );
+    expect(screen.queryByLabelText("Client secret")).toBeNull();
+    expect(screen.queryByLabelText("Authorization endpoint")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("requires an actual Linear key for API verification and keeps provider endpoints fixed", async () => {
+    setVercelConnectAuth(null);
+    draw("linear");
+    await userEvent.click(
+      screen.getByRole("radio", { name: "Bring Your Own" }),
+    );
+    await userEvent.click(screen.getByRole("radio", { name: "API key" }));
+    expect(screen.getByLabelText("Linear API key")).toHaveProperty(
+      "type",
+      "password",
+    );
+    expect(
+      screen.getByRole("button", { name: "Verify and connect Linear" }),
+    ).toHaveProperty("disabled", true);
+    expect(screen.queryByLabelText("API")).toBeNull();
+    expect(screen.queryByLabelText("App Scopes")).toBeNull();
+    expect(screen.queryByText(/Vercel/)).toBeNull();
+  });
+
+  it("starts every supported provider from its own preset without deployment credentials", () => {
+    setVercelConnectAuth(null);
+    draw("resend");
+    expect(screen.getByRole("region", { name: "Connector" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Managed MCP" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+    expect(screen.getByLabelText("Connector name")).toHaveProperty(
+      "value",
+      "Resend",
+    );
+    expect(screen.getByRole("radio", { name: "API Key" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(screen.queryByLabelText("Resend API key")).toBeNull();
+    expect(runtime.fetch).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Relay management key")).toBeNull();
   });
 });
 

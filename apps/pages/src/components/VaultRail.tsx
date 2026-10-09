@@ -18,6 +18,7 @@ export type VaultCounts = {
 };
 
 const TRASH = "/vault?f=trash";
+const HEALTH = "/vault/health";
 
 export function VaultRail({
   items,
@@ -63,6 +64,8 @@ export function VaultRail({
         level={2}
         current={selectedTo}
       />
+      {/* A page, not a filter. Above the type directories. */}
+      <PageTreeLeafRow node={healthLeaf()} level={2} current={selectedTo} />
       {kinds.map(({ id, segment }) => (
         <KindFilter
           key={id}
@@ -105,6 +108,18 @@ export function VaultRail({
         ))}
     </div>
   );
+}
+
+/** No count: the filter sheet does not list this page. */
+function healthLeaf(): PageTreeNode {
+  return {
+    id: "health",
+    label: "health",
+    title: "Password health",
+    href: HEALTH,
+    children: [],
+    branch: false,
+  };
 }
 
 function vaultLeaf(

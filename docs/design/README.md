@@ -10,12 +10,12 @@ at the repository root; the product's users and voice are in
 | Page | Covers |
 |---|---|
 | [Controls](controls.md) | The control vocabulary: icon keys, which glyph means what, and why a verb is never painted on a button. Enforced by `pnpm lint:design`. |
-| [Access screen](access-screen.md) | The Access section — the PAM plane. |
+| [Access screen](access-screen.md) | The Access section — the PAM plane (original Host-bound design, with the as-built tabs). |
 | [Access domains](access-domain-forest.md) | Access domains as a realm-bound forest. |
-| [Identity screen](identity-screen.md) | People, providers and devices. |
+| [Identity screen](identity-screen.md) | People, agents, providers, devices, applications and organizations. |
 | [Vault VFS](vault-vfs.md) | The vault as a first-party tree with keyboard-first navigation. |
 | [Encrypted VFS](encrypted-vfs.md) | Tombs in the browser. |
-| [Secret drop](secret-drop.md) | The share ceremony and burner items. |
+| [Secret drop](secret-drop.md) | The one-time share ceremony and the claim page that opens it. |
 | [Writing a vault item type](vault-item-types.md) | The item-type JSON format, field by field. |
 
 ## Design canvases
@@ -28,7 +28,7 @@ exploring one flow. Open the HTML files in a browser.
 | [Authentication flow](canvases/auth-flow/README.md) | Sign-out, switching accounts, and the unlock ceremony ([ADR 0091](../adr/0091-account-exits-and-unlock-ceremony.md)). |
 | [First-run setup](canvases/first-run-setup/README.md) | What a new device shows first. |
 | [Setup next steps](canvases/setup-next-steps/README.md) | What an operator can do after first-run setup. |
-| [Settings connectivity](canvases/settings-connectivity/README.md) | The Settings pane's connection configuration. |
+| [Settings connectivity](canvases/settings-connectivity/README.md) | A connector strip and ceremony for the Settings pane (not built as drawn). |
 | [PWA install](canvases/pwa-install/README.md) | Installing the app from inside the app. |
 | [Shared sessions](canvases/shared-sessions/README.md) | Making a session shareable: who is in it, what they may do. |
 

@@ -2,6 +2,7 @@ import { MAX_PBKDF2_ITERATIONS } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { PIN_PBKDF2_ITERATIONS } from "../../vault/unlock-methods.js";
 import {
+  DURESS_PIN_MAX,
   DURESS_PIN_PBKDF2_ITERATIONS,
   DURESS_PIN_PBKDF2_ITERATIONS_MAX,
   DuressKdfError,
@@ -21,6 +22,14 @@ describe("KEYS-D PIN KDF floors", () => {
     expect(() => assertDuressCodeLength("1234567")).toThrow(DuressKdfError);
     expect(() => assertDuressCodeLength("abcdefgh")).toThrow(DuressKdfError);
     assertDuressCodeLength("01234567");
+  });
+
+  it("stays capped at 12 digits while the vault PIN ceiling is higher", () => {
+    expect(DURESS_PIN_MAX).toBe(12);
+    assertDuressCodeLength("012345678901");
+    expect(() => assertDuressCodeLength("0123456789012")).toThrow(
+      DuressKdfError,
+    );
   });
 
   it("rejects malicious KDF metadata before derive", () => {

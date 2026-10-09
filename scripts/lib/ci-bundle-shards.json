@@ -1,14 +1,50 @@
 [
-  { "shard": "budgets" },
-  { "shard": "keyboard" },
-  { "shard": "sign-in" },
-  { "shard": "static" },
-  { "shard": "auth" },
-  { "shard": "customer-crypto" },
-  { "shard": "journeys-1", "journeys": "1/2" },
-  { "shard": "journeys-2", "journeys": "2/2" },
-  { "shard": "mobile-320", "sizes": "320,tablet-portrait,tablet-landscape" },
-  { "shard": "mobile-390", "sizes": "390" },
-  { "shard": "mobile-430", "sizes": "430" },
-  { "shard": "mobile-landscape", "sizes": "landscape" }
+  {
+    "shard": "budgets"
+  },
+  {
+    "shard": "keyboard"
+  },
+  {
+    "shard": "sign-in"
+  },
+  {
+    "shard": "static"
+  },
+  {
+    "shard": "auth"
+  },
+  {
+    "shard": "customer-crypto"
+  },
+  {
+    "shard": "journeys-1",
+    "journeys": "1/2"
+  },
+  {
+    "shard": "journeys-2",
+    "journeys": "2/2"
+  },
+  {
+    "shard": "mobile-320",
+    "sizes": "320,tablet-portrait,tablet-landscape"
+  },
+  {
+    "shard": "mobile-390",
+    "sizes": "390"
+  },
+  {
+    "shard": "mobile-430",
+    "sizes": "430"
+  },
+  {
+    "shard": "mobile-landscape",
+    "sizes": "landscape"
+  },
+  {
+    "shard": "native-connectors"
+  },
+  {
+    "shard": "native-public-protocol"
+  }
 ]

@@ -11,6 +11,6 @@ The Identity API generates `/auth.md` from typed capabilities via
 is authoritative if this document and those URLs disagree.
 
 Compatibility revision: WorkOS auth.md repository `AUTH.md` / CHANGELOG **v0.6.0 (2026-06-10)**.
-ID-JAG: `draft-ietf-oauth-identity-assertion-authz-grant-04` (disabled).
+ID-JAG: `draft-ietf-oauth-identity-assertion-authz-grant-04` (disabled by default).
 
 See ADR 0092 and `docs/reference/protocol-conformance.md`.

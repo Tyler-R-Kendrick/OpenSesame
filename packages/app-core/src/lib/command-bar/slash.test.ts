@@ -78,6 +78,29 @@ describe("slashSuggestions", () => {
   it("says nothing for an ordinary sentence", () => {
     expect(slashSuggestions("go to vault", SECTIONS, ["GitHub"])).toEqual([]);
   });
+
+  it("offers the claim ceremony, and /drop as its alias", () => {
+    const sections = slashSections([]);
+    expect(
+      slashSuggestions("/", sections, []).map((row) => row.insert.trim()),
+    ).toContain("/claim");
+    expect(
+      slashSuggestions("/drop", sections, []).map((row) => row.insert),
+    ).toEqual(["/claim"]);
+    expect(slashSuggestions("/claim", sections, [])[0]).toMatchObject({
+      insert: "/claim",
+      label: "Claim",
+      run: true,
+    });
+    expect(
+      slashSuggestions("/", sections, []).map((row) => row.insert.trim()),
+    ).toContain("/join");
+    expect(slashSuggestions("/join", sections, [])[0]).toMatchObject({
+      insert: "/join",
+      label: "Join",
+      run: true,
+    });
+  });
 });
 
 describe("slashSections", () => {
@@ -92,6 +115,8 @@ describe("slashSections", () => {
     expect(rows).toEqual([
       { path: "/vault", label: "Vault" },
       { path: "/settings", label: "Settings" },
+      { path: "/claim", label: "Claim" },
+      { path: "/join", label: "Join" },
     ]);
   });
 });

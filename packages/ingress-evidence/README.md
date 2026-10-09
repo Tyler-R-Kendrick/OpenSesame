@@ -7,8 +7,9 @@ RFC 9440 originating-client evidence for the Identity plane. Two entries:
 | `@opensesame/ingress-evidence` | browser or Node (no native imports) | `parseClientCertFields`, `hasClientCertFields`, `stripClientCertFields`, `pairsFromRawHeaders`, `IngressEvidenceError`, `DEFAULT_INGRESS_LIMITS` |
 | `@opensesame/ingress-evidence/node` | Node only (`node:crypto`) | `verifyOriginatingChain`, `OriginatingChainError` |
 
-The parser is a line-for-line twin of `crates/ingress-evidence`
-(`opensesame-ingress-evidence`). Both run the corpus under
+The parser is a twin of `crates/ingress-evidence`
+(`opensesame-ingress-evidence`): the same checks in the same order, with the
+same error codes. Both run the corpus under
 `crates/ingress-evidence/fixtures/`, so every error code below means the same
 thing in both planes.
 

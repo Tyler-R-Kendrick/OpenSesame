@@ -692,7 +692,7 @@
     "title": "Find references by title queries",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "lib/vault/password-workflows.ts:passwordWorkflowFind"
+      "pwa": "route:/vault"
     }
   },
   {
@@ -716,7 +716,7 @@
     "title": "Build reference-only environment templates",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "route:/vault"
+      "pwa": "lib/vault/item-references.ts:itemEnvTemplate"
     }
   },
   {
@@ -724,7 +724,7 @@
     "title": "Create an API credential from private input",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "lib/vault/password-workflows.ts:createPrivateCredential"
+      "pwa": "route:/vault"
     }
   },
   {
@@ -757,38 +757,6 @@
     "plane": "client_local",
     "surfaces": {
       "pwa": "lib/vault/password-workflows.ts:resolveLocalEnvTemplate"
-    }
-  },
-  {
-    "id": "password_provider.request",
-    "title": "Send a bound native request (PWA command handoff)",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands"
-    }
-  },
-  {
-    "id": "password_provider.lease_approve",
-    "title": "Approve a bounded native lease (PWA command handoff)",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands"
-    }
-  },
-  {
-    "id": "password_provider.lease_status",
-    "title": "Inspect native lease metadata (PWA command handoff)",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands"
-    }
-  },
-  {
-    "id": "password_provider.lease_revoke",
-    "title": "Revoke a native lease (PWA command handoff)",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands"
     }
   },
   {

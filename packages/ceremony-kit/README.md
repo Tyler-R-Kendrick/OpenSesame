@@ -47,10 +47,12 @@ ceremony steps. Pure logic: no React, no storage of its own, no ambient
 | Approval words and copy (`approval-words.ts`, `approval-copy.ts`) — refusals worded by the body's error code, then the status; reason codes, risk classes and channels as sentences | `approvalRefusal`, `approvalWords`, `ApprovalError`, `requirementSentences`, `riskSentence`, `channelLabel`, `channelName`, `assuranceSummary`, `needsCeremony`, `describeDetail`, `APPROVAL_WORDS` |
 | Interaction outcomes (`interaction-outcome.ts`) — endings, the approval view, and refusals worded by the body's error code, then the status | `OUTCOME_TEXT`, `OUTCOME_MARK`, `OUTCOME_IS_REFUSAL`, `outcomeOfStatus`, `chooseMechanism`, `viewOf`, `interactionRefusal`, `INTERACTION_WORDS` |
 | Interaction arrival (`interaction-arrival.ts`) — what an address opened on, and the address to put in its place | `readInteractionArrival` |
+| Approval link (`approval-link.ts`) — the `/approve/<ref>` reference, bounded and shape-checked | `readApprovalArrival`, `approvalRefAt`, `isApprovalRef` |
+| Authenticator invocation link (`invocation-link.ts`) — `/invoke/<kind>?<handle>`, read without touching a global | `readInvocationArrival`, `invocationKindAt`, `INVOCATION_LABELS`, `INVOCATION_WORDS` |
 | Summary (`interaction-summary.ts`) | `renderInteractionSummary` |
 | Device approval (`device.ts`) — the one implementation (ADR 0140 D3), worded by the body's error code, then the status | `approveDevice`, `deviceApprovalWords`, `CeremonyRequestError` |
 | Claim bearer (`claim-stash.ts`) | `createClaimStash` over an injected `StashStorage`; optional stricter reading (`maxAgeMs`, `acceptToken`) |
-| Claim link (`claim-link.ts`) — claim or drop, dispatched once | `readClaimLink`, `isClaimToken`, `fragmentCarriesBearer` |
+| Claim link (`claim-link.ts`) — claim or drop, dispatched once | `buildClaimLink`, `readClaimLink`, `isClaimToken`, `fragmentCarriesBearer` |
 | Claim and drop refusals (`claim-words.ts`) — worded by the body's error code, then the status | `claimRefusal`, `dropRefusal` |
 | Deep links (`deep-link.ts`) | `readFragmentToken`, `scrubFragment`, `parseUserCode` |
 
@@ -65,7 +67,9 @@ pnpm --filter @opensesame/ceremony-kit typecheck
 
 - [ADR 0086](../../docs/adr/0086-wallet-native-interaction-layer.md) — the
   wallet-native interaction layer
-- [ADR 0045](../../docs/adr/0045-hosted-ceremony-pages.md) — hosted ceremony
-  pages
+- [ADR 0140](../../docs/adr/0140-pages-hosts-every-ceremony.md) — Pages hosts
+  every ceremony (supersedes decision 1 of
+  [ADR 0045](../../docs/adr/0045-hosted-ceremony-pages.md), hosted ceremony
+  pages)
 - [ADR 0009](../../docs/adr/0009-claims-vs-device-auth.md) — claims versus
   device authorization

@@ -12,6 +12,15 @@ describe("runtimeConfig", () => {
     ).toEqual({ hostApi: "https://host.example", connectCallbackBase: "/" });
   });
 
+  it("publishes the registered Linear client ID without accepting client secrets", () => {
+    expect(
+      runtimeConfig({
+        PAGES_LINEAR_CLIENT_ID: " public-linear-client ",
+        PAGES_LINEAR_CLIENT_SECRET: "must-not-ship",
+      }),
+    ).toEqual({ linearClientId: "public-linear-client" });
+  });
+
   it("is empty when nothing is set", () => {
     expect(runtimeConfig({})).toEqual({});
   });

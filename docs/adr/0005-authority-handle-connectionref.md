@@ -3,6 +3,10 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0049](0049-derived-short-lived-materialization.md) (Level 3 materialization: a provider-natively minted,
+short-lived derived token is a new artifact class that may cross the boundary;
+the sealed stored credential never does).
+
 ## Context
 Industry “SecretRef” patterns (1Password `op://`, K8s CSI, ESO, Dapr) often only delay plaintext exposure into the agent process. OpenClaw/agentgateway/Boundary/CyberArk show gateway-side injection. SUDP (arXiv:2604.24920) argues against “authorization by exposure.” MCP requires separate upstream credentials (no token passthrough). RFC 9396 RAR supports structured operation authorization.
 

@@ -11,7 +11,8 @@ The Host plane's workload connector host is a different thing, served by
   imports the package.
 - **Builds on:** [`@opensesame/database`](../../packages/database)
   (repositories, Drizzle, the OIDC store), [`@opensesame/webhooks`](../../packages/webhooks),
-  [`@opensesame/claims`](../../packages/claims),
+  [`@opensesame/claims`](../../packages/claims) (the `ClaimEngine` type; the
+  worker process is not handed one),
   [`@opensesame/notification-adapters`](../../packages/notification-adapters)
   (Web Push delivery),
   [`@opensesame/observability`](../../packages/observability), and the `nats`
@@ -27,7 +28,8 @@ The Host plane's workload connector host is a different thing, served by
 `src/index.ts`: `runCleanupTick`, `startCleanupLoop`;
 `routeNotification`, `deliverNotifications`, `retractNotifications`;
 `consumeRotationEvents` and the `credential.rotation.*` event names;
-`MemoryTaskBus`, `NatsCoreTaskBus`, `createTaskBusFromEnv`. Environment:
+`MemoryTaskBus`, `createTaskBusFromEnv` and `NatsCoreTaskBus` (a deprecated
+alias of the JetStream publisher, `NatsJetStreamTaskBus`). Environment:
 `DATABASE_URL` (required), `OPENSESAME_WORKER_INTERVAL_MS` (default `5000`),
 `OPENSESAME_TASKBUS`, `NATS_URL`; Web Push (`OPENSESAME_WEBPUSH_PUBLIC_KEY`,
 `_PRIVATE_KEY`, `_SUBJECT`: none without a private key, refuse to start with an

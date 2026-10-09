@@ -8,6 +8,15 @@ around detected defaults.
 Published canvas:
 <https://claude.ai/code/artifact/ef3483dc-4bdf-4adf-9880-0f95ab1ec33f>
 
+> Status (2026-10-08): the glyph strip did not ship as drawn. The workspace
+> statusline carries no connector glyphs; on a phone the More sheet
+> (`apps/pages/src/components/MoreMenu.tsx`) lists the connections as named rows
+> and opens a connection ceremony (`ConnectionCeremony.tsx`). Settings has no
+> Connectivity category (its core categories are General, Keybindings, Security,
+> Vaults, Capabilities and Danger); the two addresses are an Endpoints panel
+> under Settings › Capabilities. The open questions below predate that build,
+> and `discoverTailscaleDaemon` is not in this checkout.
+
 ## Artboards
 
 | File | What it shows |
@@ -20,9 +29,11 @@ Published canvas:
 | `canvas.json` | Artboard layout, sticky notes, launch view. |
 | `_tokens.css` | `apps/pages/src/styles.css` tokens, lifted verbatim, concatenated into each artboard at seed time. |
 
-Copy is grounded in the real code: `usePlaneStatus()` states from
-`packages/app-core/src/lib/planes.ts`, endpoint defaults from `lib/settings.ts`, and the
-connector set from `CAPABILITIES` in `lib/capabilities.ts` plus the three planes.
+Copy was grounded in the code as it stood: the `PlaneStatus` states from
+`packages/app-core/src/lib/planes.ts` (read through `usePlaneStatus()` in
+`apps/pages/src/bindings/planes.ts`), endpoint defaults from `lib/settings.ts`,
+and the connector set from `CAPABILITIES` in `lib/capabilities.ts` plus the
+three planes.
 
 ## Re-seeding after an edit
 

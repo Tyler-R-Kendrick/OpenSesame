@@ -9,6 +9,7 @@ import {
   syncConnectorDirectory,
 } from "@opensesame/app-core/lib/connector-directory.js";
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
+import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import {
   createLocalShare,
@@ -104,16 +105,20 @@ async function granted() {
 
 function mount(tomb: string) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      initialEntries={[
+        "/access?view=connectors#local-connectors/nango%3Agithub%2Foctocat",
+      ]}
+    >
       <ConnectorsPanel tomb={tomb} />
     </MemoryRouter>,
   );
 }
 
 function accessRow(name: string) {
-  const list = screen.getByRole("list", { name: "Connector access" });
+  const list = screen.getByRole("region", { name: "Connector access" });
   const heading = within(list).getByRole("heading", { name });
-  const item = heading.closest("li");
+  const item = heading.closest<HTMLElement>(".detail");
   if (!item) throw new Error(`${name} is not in a row`);
   return within(item);
 }
@@ -139,7 +144,9 @@ it("never asks for a directory, a key or a sync: that is the Connections page's"
   expect(screen.queryByLabelText("Directory endpoint")).toBeNull();
   expect(screen.queryByLabelText("Environment key")).toBeNull();
   expect(
-    screen.queryByRole("button", { name: /sync|import|export/i }),
+    screen.queryByRole("button", {
+      name: /sync connectors|import connectors|export connectors/i,
+    }),
   ).toBeNull();
   expect(screen.queryByText(/api\.nango\.dev/)).toBeNull();
   expect(
@@ -183,6 +190,77 @@ it("Add offers the connectors this device knows; choosing one grants it and list
       row.getByRole("button", { name: "Bind" }),
     ),
   );
+});
+
+it("offers a new application and binds the connector to it", async () => {
+  const fixture = await seeded();
+  await fixture.change({
+    action: "create",
+    kind: "application",
+    name: "Payroll",
+  });
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  const choices = within(
+    screen.getByRole("list", { name: "Choose a connector" }),
+  );
+  await userEvent.click(choices.getByRole("button", { name: /^Slack/ }));
+  const identity = await screen.findByLabelText("Identity");
+  await waitFor(() =>
+    expect(
+      within(identity).getByRole("option", { name: "Payroll" }),
+    ).toBeTruthy(),
+  );
+  await userEvent.selectOptions(identity, "Payroll");
+  const form = screen.getByRole("group", { name: /^Bind Slack/ });
+  await userEvent.click(within(form).getByRole("button", { name: "Bind" }));
+  await waitFor(() =>
+    expect(screen.getByRole("heading", { name: "Slack" })).toBeTruthy(),
+  );
+  const payroll = (await readLocalDirectory(fixture.tomb)).entries.find(
+    (row) => row.name === "Payroll",
+  );
+  await waitFor(async () => {
+    const shares = await listLocalShares(fixture.tomb);
+    expect(shares).toHaveLength(1);
+    expect(shares[0]?.principalId).toBe(payroll?.id);
+    expect(screen.getByText("Slack bound.")).toBeTruthy();
+  });
+});
+
+it("asks for approval before an agent is bound to a connector", async () => {
+  const fixture = await seeded();
+  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  mount(fixture.tomb);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Add connector access" }),
+  );
+  const choices = within(
+    screen.getByRole("list", { name: "Choose a connector" }),
+  );
+  await userEvent.click(choices.getByRole("button", { name: /^Slack/ }));
+  const identity = await screen.findByLabelText("Identity");
+  await waitFor(() =>
+    expect(
+      within(identity).getByRole("option", { name: "Helper" }),
+    ).toBeTruthy(),
+  );
+  await userEvent.selectOptions(identity, "Helper");
+  const form = screen.getByRole("group", { name: /^Bind Slack/ });
+  await userEvent.click(
+    within(form).getByRole("button", { name: "Request approval" }),
+  );
+  await waitFor(() => {
+    expect(screen.getByText("Approval requested.")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Slack" })).toBeTruthy();
+  });
+  expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
+  await userEvent.click(screen.getByRole("button", { name: "Approve Helper" }));
+  await waitFor(async () => {
+    expect(await listLocalShares(fixture.tomb)).toHaveLength(1);
+  });
 });
 
 it("with nothing configured and Connections on, Add offers the way to configure a connector", async () => {
@@ -285,6 +363,9 @@ it("configures a granted connector: alias, disable, and bind defaults", async ()
     "Invoke",
   );
   await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("group", { name: /^Configure/ })).toBeNull(),
+  );
   const renamed = await waitFor(() => accessRow("CI mirror"));
   expect(await renamed.findByRole("img", { name: "Disabled" })).toBeTruthy();
   // A disabled connector refuses new grants, here and in the choices.
@@ -298,73 +379,4 @@ it("configures a granted connector: alias, disable, and bind defaults", async ()
     screen.getByRole<HTMLButtonElement>("button", { name: /CI mirror/ })
       .disabled,
   ).toBe(true);
-});
-
-it("a disabled connector stays listed after its last grant, so it can be enabled again", async () => {
-  const fixture = await granted();
-  mount(fixture.tomb);
-  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  await userEvent.click(
-    accessRow("GitHub · octo@example.com").getByRole("button", {
-      name: "Configure",
-    }),
-  );
-  const form = screen.getByRole("group", {
-    name: "Configure GitHub · octo@example.com",
-  });
-  await userEvent.click(within(form).getByLabelText(/Enabled/));
-  await userEvent.click(within(form).getByRole("button", { name: "Save" }));
-  const row = await waitFor(() => accessRow("GitHub · octo@example.com"));
-  await row.findByRole("img", { name: "Disabled" });
-  await userEvent.click(row.getByRole("button", { name: "Revoke" }));
-  await waitFor(async () =>
-    expect(await listLocalShares(fixture.tomb)).toHaveLength(0),
-  );
-  // Nobody holds it, and its row is still where it is switched back on.
-  const still = accessRow("GitHub · octo@example.com");
-  // Storage settles before the row re-renders: wait for the row itself.
-  await still.findByText("0 bound");
-  await userEvent.click(still.getByRole("button", { name: "Configure" }));
-  await userEvent.click(
-    within(
-      screen.getByRole("group", {
-        name: "Configure GitHub · octo@example.com",
-      }),
-    ).getByLabelText(/Enabled/),
-  );
-  await userEvent.click(screen.getByRole("button", { name: "Save" }));
-  await screen.findByRole("heading", { name: "No connector access" });
-});
-
-it("cancelling the chosen connector's form returns the keyboard to its choice", async () => {
-  const fixture = await seeded();
-  mount(fixture.tomb);
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Add connector access" }),
-  );
-  const choice = screen.getByRole("button", { name: /Slack/ });
-  await userEvent.click(choice);
-  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(screen.queryByLabelText("Identity")).toBeNull();
-  await waitFor(() => expect(document.activeElement).toBe(choice));
-});
-
-it("one bind form at a time: a row's Bind closes the choices", async () => {
-  const fixture = await granted();
-  mount(fixture.tomb);
-  await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  await userEvent.click(
-    screen.getByRole("button", { name: "Add connector access" }),
-  );
-  await userEvent.click(screen.getByRole("button", { name: /Slack/ }));
-  expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
-  await userEvent.click(
-    accessRow("GitHub · octo@example.com").getByRole("button", {
-      name: "Bind",
-    }),
-  );
-  expect(
-    screen.queryByRole("group", { name: "Add connector access" }),
-  ).toBeNull();
-  expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
 });

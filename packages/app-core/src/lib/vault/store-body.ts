@@ -15,7 +15,7 @@ import {
   openJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
-import { BODY_PATH, readSealedFile } from "../vfs.js";
+import { BODY_PATH, readSealedFile, vfsSeams } from "../vfs.js";
 import { retireLegacySample } from "./body-edits.js";
 
 const ROLLED_BACK =
@@ -56,6 +56,8 @@ export async function loadVaultBody(
   header: VaultHeader | null,
 ): Promise<VaultBody> {
   const recorded = header?.bodyRev ?? 0;
+  // A store that keeps each secret as its own file puts the body together now.
+  await vfsSeams.openBody?.(tomb, vaultKey);
   const sealed = readSealedFile(tomb, BODY_PATH);
   if (!sealed) {
     if (recorded > 0) {

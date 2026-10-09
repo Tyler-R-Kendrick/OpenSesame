@@ -1,7 +1,22 @@
 # ADR 0066 — Certificate Manager domain model
 
-Status: Accepted
+Status: Accepted (partly implemented; see Implementation)
 Date: 2026-08-30
+Implementation: partly built. The Host serves `/api/v1/certmgr/cas` (list,
+create, get, patch, CSR export, `import-chain`, `renew`, `signing-config`),
+`/api/v1/certmgr/policies` and `/api/v1/certmgr/profiles` (list, create, get,
+update, delete) and each profile's `GET|PUT .../est-config`
+(`crates/gateway/src/routes/certmgr_ca.rs`, `certmgr_policy.rs`,
+`certmgr_profile.rs`, `est_server.rs`); `crates/pki-core` is the X.509 engine;
+migration `0016_certificate_manager.sql` and the storage accessors carry the
+rest of the model. Not built: application and member routes and the
+`certmgr_roles.rs` role helper (§3), the inventory routes (§4), and the
+capability-registry entries (only the ADR 0068 `certificates.est.enrollment`
+exists), CLI, api-client, Pages and MCP surfaces (§6). §5 is not
+true of the code: the audit event is appended in a separate call after the state
+write, not in the same transaction (`certmgr_policy::append_audit` documents the
+compensating shape; `certmgr_ca` appends with `append_outbox`), and
+`PUT .../est-config` and EST issuance append no event.
 Supplements: ADR 0005 (ConnectionRef / authority handles),
 ADR 0017 (host/client product topology), ADR 0032 §3 (catalog is data),
 ADR 0039 (outbox and the backup actor),

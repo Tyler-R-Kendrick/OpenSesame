@@ -12,6 +12,7 @@ import {
   profileFile,
   selection,
 } from "./lib/capability-fixtures.mjs";
+import { lazyLeafChunk } from "./lib/capability-lazy-leaves.mjs";
 
 // The plugin's own surface: the virtual modules it serves, the HTML entries a
 // hardened build drops, and every way a profile is refused (BUILD-05). The
@@ -139,6 +140,61 @@ describe("chunk partition", () => {
       chunkFor(`${tree.appRoot}/src/modules/sharing.drops/a.css`),
       undefined,
       "stylesheets keep Vite's own placement",
+    );
+  });
+
+  test("tailnet pairing stays an explicit optional leaf when small chunks merge", () => {
+    const source =
+      "/repo/packages/app-core/src/lib/tailnet-sync/plugin-pairing.ts";
+    const entry = {
+      classification: "optional",
+      capability: "networking.tailnet",
+    };
+    assert.equal(lazyLeafChunk(source, entry), "tailnet-plugin-pairing");
+    assert.equal(
+      lazyLeafChunk(source.replaceAll("/", "\\"), entry),
+      "tailnet-plugin-pairing",
+    );
+    assert.equal(
+      lazyLeafChunk(source.replace("plugin-pairing", "plugin-daemon"), entry),
+      undefined,
+      "the daemon keeps its runtime's ordinary chunk placement",
+    );
+    assert.equal(
+      lazyLeafChunk(source, { classification: "shared", capability: null }),
+      undefined,
+      "the chunk pin does not reclassify shared code",
+    );
+    assert.equal(
+      lazyLeafChunk(source, {
+        classification: "optional",
+        capability: "networking.tailnet-devices",
+      }),
+      undefined,
+      "the pin is specific to its existing capability owner",
+    );
+  });
+
+  test("web-push enrolment joins the capability chunk, not a pure leaf", () => {
+    const entry = {
+      classification: "optional",
+      capability: "notifications.web-push",
+    };
+    for (const file of [
+      "push-browser.ts",
+      "push-enrolment.ts",
+      "push-seams.ts",
+    ]) {
+      assert.equal(
+        lazyLeafChunk(`${tree.appRoot}/src/lib/${file}`, entry),
+        "cap-notifications.web-push",
+        file,
+      );
+    }
+    assert.equal(
+      lazyLeafChunk(`${tree.appRoot}/src/lib/push.ts`, entry),
+      undefined,
+      "the worker payload renderer stays out of the document chunk",
     );
   });
 });

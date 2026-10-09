@@ -1,6 +1,6 @@
 /**
- * The Identity section's rail entries — one subtree per tab on the page,
- * with the records each tab shows underneath. The tabs are whatever the
+ * The Identity section's rail entries — one subtree per record list,
+ * with its records underneath. The views are whatever the
  * identity capabilities contributed (`sections/identity/identity-views.ts`);
  * the shell draws the section row from the `section` contribution.
  */
@@ -14,15 +14,16 @@ import { useIdentityRailSnapshot } from "../../sections/identity/use-local-direc
 
 export function IdentityRailTree(_props: TreeProps) {
   const [params] = useSearchParams();
-  const { hash } = useLocation();
+  const { hash, pathname } = useLocation();
   const views = useEnabledIdentityViews();
   const view =
     views.find((id) => id === params.get("view")) ?? views[0] ?? "people";
-  const current = `/identity?view=${view}${hash}`;
-  const tabs = identityPageTree(useIdentityRailSnapshot(), views);
+  const current =
+    pathname === "/identity" ? `/identity?view=${view}${hash}` : "";
+  const branches = identityPageTree(useIdentityRailSnapshot(), views);
   return (
     <div className="railtree__kids" id="identity-tree">
-      {tabs.map((node) => (
+      {branches.map((node) => (
         <PageTreeBranch key={node.id} node={node} level={2} current={current} />
       ))}
     </div>

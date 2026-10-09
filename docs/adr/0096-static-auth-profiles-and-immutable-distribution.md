@@ -2,8 +2,11 @@
 
 ## Status
 
-Accepted. Supersedes the production admission, browser verification and fragment
-fallback portions of ADR 0034; its historical rationale remains intact.
+Accepted
+
+Supersedes the production admission, browser verification and fragment
+fallback portions of [ADR 0034](0034-origin-brokered-static-site-signin.md); its
+historical rationale remains intact.
 
 ## Context
 

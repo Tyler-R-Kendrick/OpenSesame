@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; a durable principal no
+longer needs an upstream broker).
+
 ## Context
 ADR 0012 settled how *clients* are admitted. Nothing settled how *humans* are admitted.
 `POST /principals/provisional` mints a principal from an unauthenticated request, and the

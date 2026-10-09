@@ -12,15 +12,15 @@ Scope: `STO-SCHEMA`, `STO-ATOMIC`, `STO-PROJECT`, `STO-MIGRATE`, `STO-RESTORE`
 There is no `AccessLease` table and no second grant table. Generalized authority
 is a **sidecar on the existing `grants` row**: `grant_authority` carries the
 lineage, the policy digest, the remaining delegation depth and the pinned
-generations, keyed by `(grant_id, organization_id)` with a foreign key onto
-`grants`. A grant therefore cannot exist in the generalized model without
+generations, keyed by `grant_id` (unique with `organization_id`) with a foreign
+key onto `grants`. A grant therefore cannot exist in the generalized model without
 existing in the model the gateway already revokes, expires and audits — a
 revocation that predates this work still ends the authority, because
 `fenced_authority` joins `grants.revoked_at` in the same predicate.
 
 Ancestry and per-grant revocation are **not** reimplemented here either. They
 belong to the invalidation fence (`crates/storage/migrations/0033_authority_invalidation_fence.sql`,
-`crates/storage/src/authority_fence.rs`): `issue_authority` records the child's
+`crates/storage/src/authority_fence/`): `issue_authority` records the child's
 lineage through `record_lineage`, and `fenced_authority` asks `fence_status` for
 the chain verdict. Two ancestry tables would eventually disagree, and the
 disagreement would be a privilege escalation rather than a bug.
@@ -34,9 +34,14 @@ disagreement would be a privilege escalation rather than a bug.
 
 Host migrations are applied in order by `crates/storage/src/migrations.rs`;
 `0033` is the sibling fence and stays ahead of `0034`, which depends on it.
+Three later Host migrations extend it: `0036_authority_grant_watermarks`
+(a lifecycle watermark may name an `authority_grant`), `0038_authority_offer_roster_digest`
+(`grant_offers.roster_digest`) and `0039_authority_offer_live_writer`
+(`grant_offers.trusted_writer`, `grant_offers.permitted_principal_class`).
 The Identity migration follows `0023_naive_meltdown` and is generated from
 `packages/database/src/schema/authority.ts` (registered in `drizzle.config.ts`
-alongside `schema/index.ts`, which is at its structural size budget).
+alongside `schema/index.ts`, which is over the 400-line module budget and
+recorded in `tools/quality/quality-baseline.json`, so it may not grow).
 
 Every Host table takes `organization_id` as part of its primary key or its
 unique index, and every predicate names it. A realm is part of a row's identity,
@@ -154,17 +159,20 @@ pre-restore grant is denied at the fence, not offered a grace period.
 ## 8. Tests
 
 `cargo +1.88.0 test -p opensesame-storage` (Host plane). The suites are
-adversarial by design: each names the escalation it is trying to perform.
+adversarial by design: each names the escalation it is trying to perform. They
+are under `crates/storage/tests/`; the number is the count of test functions.
 
 | Suite | Covers |
 |---|---|
-| `tests/authority_schema.rs` (8) | realm-scoped constraints: a cross-realm parent, a stale reparent revision, a cycle, entry correlation, authority with no entries, an inactive domain, an offer cap, a child window outlasting its parent |
-| `tests/authority_atomic.rs` (7) | budget conservation across a hundred children, a retried reservation, an unknown provider outcome staying charged, a parent revoke denying its child at the commit, realm fencing, a late provider observation losing to a newer revoke |
-| `tests/authority_projection.rs` (8) | applied-revision fences, an absent projection denying, another model id not satisfying a fence, no backward movement, a failed apply staying dirty, one writer holding the lease and the other refused by its own fence token |
-| `tests/authority_migrate.rs` (6) | backfill refused without a backup, a translated grant keeping its window and gaining no delegation, malformed/expired/revoked quarantined, another realm out of scope, a crashed pass resuming, a client below the floor refused by name |
-| `tests/authority_restore.rs` (6) | recovery invalidating pre-restore authority without visiting a row, held capacity voided and spend kept, projection state discarded, reissue required, a rolled-back file and a different file both fenced |
-| `tests/authority_fence.rs` (19, sibling) | chain verdicts, revocation ordering, idempotent revoke — consumed here rather than duplicated |
+| `authority_schema.rs` (7) | realm-scoped constraints: a cross-realm parent, a stale reparent revision, a cycle, entry correlation, authority with no entries, an inactive domain, a child window outlasting its parent |
+| `authority_atomic.rs` (7) | budget conservation across a hundred children, a retried reservation, an unknown provider outcome staying charged, a parent revoke denying its child at the commit, realm fencing, a late provider observation losing to a newer revoke |
+| `authority_projection.rs` (8) | applied-revision fences, an absent projection denying, another model id not satisfying a fence, no backward movement, a failed apply staying dirty, one writer holding the lease and the other refused by its own fence token |
+| `authority_migrate.rs` (6) | backfill refused without a backup, a translated grant keeping its window and gaining no delegation, malformed/expired/revoked quarantined, another realm out of scope, a crashed pass resuming, a client below the floor refused by name |
+| `authority_restore.rs` (6) | recovery invalidating pre-restore authority without visiting a row, held capacity voided and spend kept, projection state discarded, reissue required, a rolled-back file and a different file both fenced |
+| `authority_offers.rs` (4) | an offer admits each person once and no more than its cap; a snapshot offer without a roster digest and a live offer without a trusted writer are refused |
+| `authority_adversarial_matrix.rs` (5) | the storage-plane `AT-*` cases (realm id, cohort cycle, state restore, multiwriter lease, budget fan-out), mapped in [`adversarial-matrix.md`](adversarial-matrix.md) |
+| `authority_fence.rs` (6) and `authority_fence_freshness.rs` (13), sibling | chain verdicts, revocation ordering, idempotent revoke, freshness — consumed here rather than duplicated |
 
-Shared fixtures are in `tests/authority_support/mod.rs`, which seeds rows with
+Shared fixtures are in `crates/storage/tests/authority_support/mod.rs`, which seeds rows with
 raw SQL on purpose: a test that can only build valid states cannot prove the
 store rejects invalid ones.

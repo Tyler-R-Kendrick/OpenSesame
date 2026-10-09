@@ -294,38 +294,30 @@ describe("ConnectionsSection connector page", () => {
     expect(await screen.findByRole("img", { name: /no host/ })).toBeTruthy();
   });
 
-  it("shows only required Better Auth inputs and applies hidden defaults", async () => {
-    const created = makeConnection({ providerId: "better-auth" });
-    createConnection.mockResolvedValue(created);
-    setConnectionConfiguration.mockResolvedValue(created);
+  it("refuses unsupported Better Auth without collecting or saving credentials", async () => {
     renderAt("/connections/better-auth");
-    await userEvent.type(
-      await screen.findByLabelText(/Base URL/),
-      "https://auth.example.com/api/auth",
-    );
-    await userEvent.type(
-      screen.getByLabelText(/^API key \(required\)/),
-      "ba_secret",
-    );
-    const optional = screen.getByText("Optional settings").closest("details");
-    expect(optional?.open).toBe(false);
-    expect(screen.getByLabelText(/API key header \(automatic\)/)).toMatchObject(
-      { value: "x-api-key" },
-    );
+    await screen.findByRole("heading", { name: "Better Auth" });
     expect(
-      screen.getByLabelText(/Configuration ID \(automatic\)/),
-    ).toMatchObject({ value: "default" });
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save configuration/i }),
-    );
-    await waitFor(() =>
-      expect(setConnectionConfiguration).toHaveBeenCalledWith("con_1", {
-        base_url: "https://auth.example.com/api/auth",
-        api_key: "ba_secret",
-        api_key_header: "x-api-key",
-        config_id: "default",
+      screen.getByText(
+        /Better Auth has no supported browser driver for its catalog operations/,
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("img", {
+        name: "Better Auth has no supported browser connection method.",
       }),
-    );
+    ).toBeTruthy();
+    expect(screen.queryByLabelText(/Base URL/)).toBeNull();
+    expect(screen.queryByLabelText(/^API key/)).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: /Save configuration|Verify and connect|Authorize with/,
+      }),
+    ).toBeNull();
+    expect(createConnection).not.toHaveBeenCalled();
+    expect(setConnectionConfiguration).not.toHaveBeenCalled();
+    expect(setConnectionCredential).not.toHaveBeenCalled();
+    expect(authorizeConnection).not.toHaveBeenCalled();
   });
 });
 

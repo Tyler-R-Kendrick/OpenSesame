@@ -173,7 +173,7 @@ describe("presenting a drop to this device's claim plane", () => {
 
     await expect(presentDrop(token, "WRONG-CODE")).rejects.toMatchObject({
       code: "invalid_code",
-      message: "That code does not match this drop.",
+      message: "That code does not match this drop. 4 tries left.",
     });
     const opened = await presentDrop(token, created.userCode);
     await expect(

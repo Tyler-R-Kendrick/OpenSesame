@@ -1,6 +1,6 @@
 # ADR 0060 — An Identity screen with a mandatory-once IdP ceremony
 
-Status: Accepted
+Status: Accepted (tab structure partly superseded by [ADR 0061](0061-access-pam-plane-ceremonies.md))
 Date: 2026-08-29
 References: ADR 0007 (dual-plane identity/authority), ADR 0033 (federated
 identity admission), ADR 0054 (Access screen), ADR 0055 (provider registry,

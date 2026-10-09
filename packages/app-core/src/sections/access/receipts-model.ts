@@ -30,6 +30,12 @@ const RECEIPT_LABELS: ReadonlyMap<string, string> = new Map([
   ["access.receipts.reset", "Receipts were replaced"],
   ["access.siop.approved", "Self-issued sign-in approved"],
   ["access.siop.denied", "Self-issued sign-in refused"],
+  ["access.drop.opened", "Drop opened"],
+  ["access.drop.expired", "Drop expired"],
+  ["access.drop.revoked", "Drop revoked"],
+  ["access.live.granted", "Live session granted"],
+  ["access.share.granted", "Share granted"],
+  ["access.share.revoked", "Share revoked"],
 ]);
 
 export function isReceiptEvent(event: AuditEvent): boolean {

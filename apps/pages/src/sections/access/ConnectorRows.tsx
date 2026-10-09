@@ -11,27 +11,25 @@
 
 import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
 import {
-  type LocalShare,
+  type PendingShare,
   policyLabel,
-} from "@opensesame/app-core/lib/local-share-grants.js";
-import { Link } from "react-router";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
-import {
-  IconCheck,
-  IconConnection,
-  IconSettings,
-  IconTrash,
-} from "../../components/Icons.js";
+} from "@opensesame/app-core/lib/local-share-grants-approvals.js";
+import type { LocalShare } from "@opensesame/app-core/lib/local-share-grants.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconCheck, IconTrash, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { ConnectorMark } from "../connections/ConnectorMark.js";
+import { AccessDetail, AccessFact } from "./AccessRecords.js";
 import { ConnectorBindForm } from "./ConnectorBindForm.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
+import { RowActions, bindButtonId } from "./connector-row-actions.js";
 import { formatTime } from "./format.js";
 import type {
   ConnectorIdentity,
   ConnectorRow,
   useConnectorAccess,
 } from "./useConnectorAccess.js";
+
+export { bindButtonId };
 
 function BindingRow({
   share,
@@ -81,9 +79,59 @@ function BindingRow({
   );
 }
 
-/** Where the keyboard returns when a row's bind form closes. */
-export function bindButtonId(rowId: string): string {
-  return `connector-bind-${rowId}`;
+/** Agent grants on this connector that are not active yet. */
+function PendingBindings({
+  displayName,
+  pending,
+  identities,
+  busy,
+  onApprove,
+  onDeny,
+}: {
+  displayName: string;
+  pending: readonly PendingShare[];
+  identities: readonly ConnectorIdentity[];
+  busy: boolean;
+  onApprove: (id: string) => void;
+  onDeny: (id: string) => void;
+}) {
+  if (pending.length === 0) return null;
+  const names = new Map(identities.map((entry) => [entry.id, entry.name]));
+  return (
+    <ul
+      className="access-bindings"
+      aria-label={`Awaiting approval for ${displayName}`}
+    >
+      {pending.map((row) => {
+        const name = names.get(row.principalId) ?? row.principalId;
+        return (
+          <li key={row.id} className="access-binding">
+            <strong>{name}</strong>
+            <span className="access-binding__policy">
+              {policyLabel("connection", row.policy)}
+            </span>
+            <StatusMark tone="warn" label="Awaiting approval" />
+            <IconKey
+              label={`Approve ${name}`}
+              small
+              disabled={busy}
+              onClick={() => onApprove(row.id)}
+            >
+              <IconCheck size={16} />
+            </IconKey>
+            <IconKey
+              label={`Deny ${name}`}
+              small
+              disabled={busy}
+              onClick={() => onDeny(row.id)}
+            >
+              <IconX size={16} />
+            </IconKey>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 /** The row's chips: source, health (or Disabled), and the binding count. */
@@ -152,83 +200,12 @@ function RowBindings({
   );
 }
 
-/** The row's verbs. The forms beneath carry them while open — one Bind or
-    Configure per card, never a disabled twin beside it. */
-function RowActions({
-  row,
-  setting,
-  busy,
-  onOpenBind,
-  onOpenSettings,
-}: {
-  row: ConnectorRow;
-  setting: ConnectorSetting;
-  busy: boolean;
-  onOpenBind: () => void;
-  onOpenSettings: () => void;
-}) {
-  const { pages } = useConnectorRoads();
-  // A grant on a connector this device does not list can only be revoked:
-  // there is nothing here to bind it to or configure.
-  if (row.source === "unlisted") return null;
-  return (
-    <div className="actions">
-      <button
-        id={bindButtonId(row.id)}
-        type="button"
-        className="icon-btn icon-btn--sm"
-        disabled={busy || !setting.enabled}
-        aria-label="Bind"
-        title={setting.enabled ? "Bind" : "Enable the connector first"}
-        onClick={onOpenBind}
-      >
-        <IconCheck size={16} />
-      </button>
-      <button
-        type="button"
-        className="icon-btn icon-btn--sm"
-        disabled={busy}
-        aria-label="Configure"
-        title="Configure"
-        onClick={onOpenSettings}
-      >
-        <IconSettings size={16} />
-      </button>
-      {row.href && pages ? (
-        <Link
-          className="icon-btn icon-btn--sm"
-          to={row.href}
-          aria-label="Open in Connections"
-          title="Open in Connections"
-        >
-          <IconConnection size={16} />
-        </Link>
-      ) : null}
-    </div>
-  );
-}
-
-function ConnectorRowItem({
-  row,
-  setting,
-  bindings,
-  identities,
-  busy,
-  binding,
-  configuring,
-  showSource,
-  onOpenBind,
-  onCloseBind,
-  onBind,
-  onOpenSettings,
-  onCloseSettings,
-  onSaveSetting,
-  onRevoke,
-}: {
+type ConnectorRowItemProps = {
   row: ConnectorRow;
   setting: ConnectorSetting;
   bindings: readonly LocalShare[];
   identities: readonly ConnectorIdentity[];
+  pending: readonly PendingShare[];
   busy: boolean;
   binding: boolean;
   configuring: boolean;
@@ -245,36 +222,57 @@ function ConnectorRowItem({
   onCloseSettings: () => void;
   onSaveSetting: (setting: ConnectorSetting) => void;
   onRevoke: (share: LocalShare) => void;
-}) {
+  onApprove: (id: string) => void;
+  onDeny: (id: string) => void;
+};
+
+function ConnectorRowItem({
+  row,
+  setting,
+  bindings,
+  identities,
+  pending,
+  busy,
+  binding,
+  configuring,
+  showSource,
+  onOpenBind,
+  onCloseBind,
+  onBind,
+  onOpenSettings,
+  onCloseSettings,
+  onSaveSetting,
+  onRevoke,
+  onApprove,
+  onDeny,
+}: ConnectorRowItemProps) {
   const displayName = setting.alias || row.name;
   return (
-    <li className="identity-row">
-      <div className="identity-row__main">
-        <ConnectorMark
-          providerId={row.providerId}
-          displayName={displayName}
-          size={32}
-        />
-        <div className="identity-row__id">
-          <h3>{displayName}</h3>
-          <code className="identity-ref">{row.detail}</code>
-        </div>
-        <RowChips
-          row={row}
-          setting={setting}
-          bindings={bindings}
-          showSource={showSource}
-        />
-        {binding || configuring ? null : (
-          <RowActions
+    <AccessDetail
+      title={displayName}
+      kind="Connector access"
+      actions={
+        <>
+          <RowChips
             row={row}
             setting={setting}
-            busy={busy}
-            onOpenBind={onOpenBind}
-            onOpenSettings={onOpenSettings}
+            bindings={bindings}
+            showSource={showSource}
           />
-        )}
-      </div>
+          {binding || configuring ? null : (
+            <RowActions
+              row={row}
+              setting={setting}
+              busy={busy}
+              onOpenBind={onOpenBind}
+              onOpenSettings={onOpenSettings}
+            />
+          )}
+        </>
+      }
+    >
+      <AccessFact label="Connection" value={row.detail} />
+      <AccessFact label="Reference" value={row.id} />
       {binding ? (
         <ConnectorBindForm
           connector={displayName}
@@ -304,7 +302,15 @@ function ConnectorRowItem({
         busy={busy}
         onRevoke={onRevoke}
       />
-    </li>
+      <PendingBindings
+        displayName={displayName}
+        pending={pending}
+        identities={identities}
+        busy={busy}
+        onApprove={onApprove}
+        onDeny={onDeny}
+      />
+    </AccessDetail>
   );
 }
 
@@ -341,7 +347,7 @@ export function ConnectorRows({
 }) {
   if (rows.length === 0) return null;
   return (
-    <ul className="identity-rows" aria-label="Connector access">
+    <section aria-label="Connector access">
       {rows.map((row) => (
         <ConnectorRowItem
           key={row.id}
@@ -349,6 +355,7 @@ export function ConnectorRows({
           setting={state.settingsFor(row)}
           bindings={state.bindingsFor(row)}
           identities={state.identities}
+          pending={state.pendingFor(row)}
           busy={state.busy}
           binding={bindingRow === row.id}
           configuring={settingsRow === row.id}
@@ -360,8 +367,10 @@ export function ConnectorRows({
           onCloseSettings={onCloseSettings}
           onSaveSetting={(setting) => onSaveSetting(row, setting)}
           onRevoke={onRevoke}
+          onApprove={(id) => void state.approve(id)}
+          onDeny={(id) => void state.deny(id)}
         />
       ))}
-    </ul>
+    </section>
   );
 }

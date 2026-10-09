@@ -13,9 +13,23 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build, collapsed on arrival. Choosing a row
- * toggles it and collapses the rest.
+ * "Release notes" is the column's title; below it, one accordion row per build. The notes sit beside the card on a wide
+ * screen and the newest row is open on arrival; stacked under the card on a
+ * phone or narrow window they start collapsed so the form stays first.
+ * Choosing a row toggles it and collapses the rest.
  */
+
+/** The width below which the gate stacks (the `max-width: 1099px` block in unlock.css). */
+const STACKED_GATE_QUERY = "(max-width: 1099px)";
+
+function gateIsStacked(): boolean {
+  if (globalThis.window === undefined) return false;
+  try {
+    return window.matchMedia?.(STACKED_GATE_QUERY).matches === true;
+  } catch {
+    return false;
+  }
+}
 
 type ReleaseNote = {
   readonly version: string;
@@ -86,16 +100,14 @@ function NoteList({
 
 function ReleasePanel({
   release,
-  newest,
   open,
   onToggle,
 }: {
   release: ReleaseNote;
-  newest: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
-  const label = newest ? `Release notes · ${release.version}` : release.version;
+  const label = release.version;
   const panelId = `unlock-notes-${release.version}`;
   return (
     <div
@@ -135,15 +147,19 @@ function ReleasePanel({
 }
 
 export function ReleaseNotes() {
-  const [active, setActive] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(() =>
+    gateIsStacked() ? null : (RELEASES[0]?.version ?? null),
+  );
   return (
-    <aside className="unlock__notes" aria-label="Release notes">
+    <aside className="unlock__notes" aria-labelledby="unlock-notes-title">
+      <h2 className="unlock__notes-title" id="unlock-notes-title">
+        Release notes
+      </h2>
       <div className="unlock__notes-stack">
-        {RELEASES.map((release, index) => (
+        {RELEASES.map((release) => (
           <ReleasePanel
             key={release.version}
             release={release}
-            newest={index === 0}
             open={active === release.version}
             onToggle={() =>
               setActive((current) =>

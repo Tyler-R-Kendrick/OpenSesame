@@ -259,11 +259,11 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "feature.sharing"',
-      'say "Sharing lets you hand chosen vault items, or the whole vault, to someone else. Live sessions are browser to browser, paired by codes you pass each other, for as long as the tab stays open; household sharing uses a transport you choose."',
+      'say "Sharing lets you hand chosen vault items, or the whole vault, to someone else. Live sessions are browser to browser, paired by codes you pass each other, for as long as the tab stays open."',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
       'scroll "feature.sharing"',
-      'focus "feature.sharing" "The Sharing section. Its switch adds live sessions and household sharing; the tiles under it switch each one on its own." side=bottom',
+      'focus "feature.sharing" "The Sharing section. Its switch adds live sessions." side=bottom',
       'say "No server is needed for a live session, and nothing of one is stored on either side. Routes you name — a tunnel address, STUN or TURN — are optional."',
       'success "That is Sharing."',
       "end",

@@ -2,6 +2,10 @@
 
 - Status: Accepted
 - Date: 2026-10-05
+- Implementation: the Travel panel (the vault departure and "Leave items at
+  home") is drawn in Settings › Security, beside the duress row
+  (`SecurityPanels` in `apps/pages/src/sections/SettingsSection.tsx`), not
+  under Settings › Vaults as §1 says.
 - Amends: [ADR 0143](0143-travel-mode.md) (travel gains a second,
   per-item granularity; the vault departure there is unchanged)
 - Builds on: [ADR 0063](0063-encrypted-vfs-tombs.md) (the open body is

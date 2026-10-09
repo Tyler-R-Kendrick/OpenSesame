@@ -1,0 +1,95 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "measure": ".unlock__card, .unlock__notes"
+        },
+        {
+          "shot": "390-door"
+        },
+        {
+          "sealPin": null
+        },
+        {
+          "coldLoad": null
+        },
+        {
+          "measure": ".unlock__card, .unlock__notes"
+        },
+        {
+          "metrics": ".unlock__brand-tools button, .unlock__notes-summary"
+        },
+        {
+          "shot": "390-unlock"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "measure": ".unlock__card, .unlock__notes"
+        },
+        {
+          "shot": "1280-door"
+        },
+        {
+          "sealPin": null
+        },
+        {
+          "coldLoad": null
+        },
+        {
+          "measure": ".unlock__card, .unlock__notes"
+        },
+        {
+          "metrics": ".unlock__brand-tools button, .unlock__notes-summary"
+        },
+        {
+          "shot": "1280-unlock"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-door",
+      "width": 390,
+      "title": "Door \u2014 390 \u00d7 844",
+      "caption": "Release notes open on arrival on a large screen, collapsed on a phone.",
+      "before": "Collapsed on every width",
+      "after": "Collapsed; tap a release to read it"
+    },
+    {
+      "shot": "390-unlock",
+      "width": 390,
+      "title": "Unlock \u2014 390 \u00d7 844",
+      "caption": "Release notes open on arrival on a large screen, collapsed on a phone.",
+      "before": "Collapsed on every width",
+      "after": "Collapsed; tap a release to read it"
+    },
+    {
+      "shot": "1280-door",
+      "width": 1280,
+      "title": "Door \u2014 1280 \u00d7 900",
+      "caption": "Release notes open on arrival on a large screen, collapsed on a phone.",
+      "before": "Collapsed on every width",
+      "after": "Newest release open beside the card"
+    },
+    {
+      "shot": "1280-unlock",
+      "width": 1280,
+      "title": "Unlock \u2014 1280 \u00d7 900",
+      "caption": "Release notes open on arrival on a large screen, collapsed on a phone.",
+      "before": "Collapsed on every width",
+      "after": "Newest release open beside the card"
+    }
+  ]
+}

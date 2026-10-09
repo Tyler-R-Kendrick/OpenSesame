@@ -1,0 +1,453 @@
+[
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fbreach%2Fsources.rs%23password_occurrences::crates%2Fbreach-intel%2Fsrc%2Frange.rs%23range_url::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "read_ranges": [
+      {"path": "crates/gateway/src/breach/sources.rs", "start_line": 1, "end_line": 139},
+      {"path": "crates/breach-intel/src/range.rs", "start_line": 1, "end_line": 127},
+      {"path": "crates/breach-intel/src/catalogue.rs", "start_line": 1, "end_line": 80},
+      {"path": "crates/breach-intel/src/event.rs", "start_line": 1, "end_line": 80},
+      {"path": "crates/gateway/src/routes/security.rs", "start_line": 57, "end_line": 302},
+      {"path": "crates/gateway/src/security/dispatch.rs", "start_line": 1, "end_line": 80},
+      {"path": "crates/gateway/src/breach/scanner.rs", "start_line": 108, "end_line": 130}
+    ],
+    "hypotheses": [
+      {
+        "id": "hibp-prefix-in-url",
+        "claim": "range_url or password_occurrences leaks the full SHA-1 or tenant-identifying data in the outbound HIBP request.",
+        "result": "rejected",
+        "reason": "range_url interpolates only digest.prefix(); tests assert suffix never appears in URL; client disables redirects and sends Add-Padding only.",
+        "evidence": [
+          {"path": "crates/breach-intel/src/range.rs", "line": 28},
+          {"path": "crates/gateway/src/breach/sources.rs", "line": 40},
+          {"path": "crates/gateway/src/breach/sources.rs", "line": 61}
+        ]
+      },
+      {
+        "id": "scan-failed-prefix-in-detail",
+        "claim": "On range transport failure during breach-check, error.to_string() embeds the range URL path (five hex prefix) in breach.scan.failed detail visible to security subscribers.",
+        "result": "rejected",
+        "reason": "Plausible bucket-id hint in event detail for org admins, not plaintext password; scanner/delivery paths use failure_text::transport elsewhere; prefix alone is k-anonymity by design. Hardening only.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/security.rs", "line": 286},
+          {"path": "crates/gateway/src/security/failure_text.rs", "line": 17},
+          {"path": "crates/gateway/src/routes/security.rs", "line": 244}
+        ]
+      },
+      {
+        "id": "breach-check-tenant-bypass",
+        "claim": "A member session can run breach-check against another organization's findings or exfiltrate sealed secrets via password_occurrences.",
+        "result": "rejected",
+        "reason": "authorize requires can_configure_integrations; resolve_caller_organization forbids x-opensesame-organization on sessions; validate binds subject to caller org; scanner never calls password_occurrences.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/security.rs", "line": 59},
+          {"path": "crates/gateway/src/routes/security.rs", "line": 234},
+          {"path": "crates/gateway/src/routes/security.rs", "line": 273}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "cargo +1.88.0 test -p opensesame-gateway --lib breach (23 passed)",
+    "result_one_line": "HIBP range fetch is prefix-only with padding and no redirects; breach-check is owner/admin/operator-gated with org-bound subjects and fails closed on corpus errors.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23require_session::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23resolve_caller::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/middleware/auth.rs", "start_line": 25, "end_line": 294},
+      {"path": "crates/gateway/src/session_claims.rs", "start_line": 1, "end_line": 120}
+    ],
+    "hypotheses": [
+      {
+        "id": "agent-bearer-bypass",
+        "claim": "Presenting Bearer opaque-session: with agent-capability claims bypasses agent_grants ceiling checks via require_session alone.",
+        "result": "rejected",
+        "reason": "require_session enforces credential_kind vs bearer prefix pairing (agent-capability spelling, no DPoP for agents); router applies agent_grants guard before handlers.",
+        "evidence": [
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 77},
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 48}
+        ]
+      },
+      {
+        "id": "session-org-header",
+        "claim": "A session can select another tenant via x-opensesame-organization while resolve_caller still returns Session.",
+        "result": "rejected",
+        "reason": "resolve_caller_organization returns FORBIDDEN when a session sends the operator organization header.",
+        "evidence": [
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 266},
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 282}
+        ]
+      },
+      {
+        "id": "operator-fallback-widens-session",
+        "claim": "resolve_caller falls through to operator when session is almost valid, granting Operator owns_subject everywhere.",
+        "result": "rejected",
+        "reason": "resolve_caller returns Session only when require_session succeeds fully; invalid binding or claims reject before operator path is considered.",
+        "evidence": [
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 282},
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 67}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'resolve_caller_organization' crates/gateway/src/middleware/auth.rs",
+    "result_one_line": "Sessions are digest-keyed with strict DPoP/agent binding; resolve_caller is session-first and sessions cannot set x-opensesame-organization.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fhook_records.rs%23read_hook_records::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/agent_runs/hook_records.rs", "start_line": 1, "end_line": 155},
+      {"path": "crates/gateway/src/routes/agent_runs.rs", "start_line": 171, "end_line": 211},
+      {"path": "crates/gateway/src/routes/agent_run_stream_authority.rs", "start_line": 97, "end_line": 165}
+    ],
+    "hypotheses": [
+      {
+        "id": "cross-tenant-hook-records",
+        "claim": "read_hook_records returns another org's hook records when run_id is guessed.",
+        "result": "rejected",
+        "reason": "load resolves caller org, fetches run in that org only, authorize_attach returns 404 for non-owners; DB query scopes organization_id.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs.rs", "line": 177},
+          {"path": "crates/gateway/src/routes/agent_runs/hook_records.rs", "line": 104},
+          {"path": "crates/gateway/src/routes/agent_runs/hook_records.rs", "line": 114}
+        ]
+      },
+      {
+        "id": "browser-observe-without-ceiling",
+        "claim": "Browser grant sessions read hook records without host.agent.observe and role-evidence floor.",
+        "result": "rejected",
+        "reason": "load calls ensure_view_authority for Attachment::View, which re-validates browser grant ceiling and role_policy evidence.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs.rs", "line": 205},
+          {"path": "crates/gateway/src/routes/agent_run_stream_authority.rs", "line": 121}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'read_hook_records' crates/gateway/src/routes/agent_runs",
+    "result_one_line": "Hook records are owner-gated like log reads, payload-free rows, with browser observe ceiling on View attachment.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Flease.rs%23commit::crates%2Fstorage%2Fsrc%2Fhost_authorizations.rs%23control_with_host_authorization::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/agent_runs/lease.rs", "start_line": 31, "end_line": 264},
+      {"path": "crates/storage/src/host_authorizations.rs", "start_line": 166, "end_line": 216},
+      {"path": "crates/gateway/src/routes/agent_runs.rs", "start_line": 126, "end_line": 141}
+    ],
+    "hypotheses": [
+      {
+        "id": "control-without-elevation",
+        "claim": "commit applies control transitions without consuming a purpose-bound host authorization elevation digest.",
+        "result": "rejected",
+        "reason": "commit requires 64-hex elevation and control_with_host_authorization atomically consumes matching authorized row before versioned run update.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs/lease.rs", "line": 47},
+          {"path": "crates/storage/src/host_authorizations.rs", "line": 178},
+          {"path": "crates/storage/src/host_authorizations.rs", "line": 193}
+        ]
+      },
+      {
+        "id": "stale-version-double-take",
+        "claim": "Two gateways can both take control when expected_version races because elevation is not single-use.",
+        "result": "rejected",
+        "reason": "Authorization row moves to consumed in same transaction as observation_runs UPDATE ... AND version=?; zero rows yields Ok(false) and CONFLICT.",
+        "evidence": [
+          {"path": "crates/storage/src/host_authorizations.rs", "line": 187},
+          {"path": "crates/gateway/src/routes/agent_runs/lease.rs", "line": 84}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'control_with_host_authorization' crates/storage/tests/host_authorizations.rs",
+    "result_one_line": "Control commits require fresh WebAuthn-backed elevation consumed in-transaction with optimistic run version CAS.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fstream.rs%23observe::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/agent_runs/stream.rs", "start_line": 49, "end_line": 206},
+      {"path": "crates/gateway/src/routes/agent_run_stream_authority.rs", "start_line": 15, "end_line": 95}
+    ],
+    "hypotheses": [
+      {
+        "id": "sse-after-revoke",
+        "claim": "observe SSE keeps streaming sealed log after session or grant revocation because StreamAuthority is captured once.",
+        "result": "rejected",
+        "reason": "tail loop calls authority.active before each poll batch; active re-reads grant/session and re-checks owner_principal_id.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs/stream.rs", "line": 171},
+          {"path": "crates/gateway/src/routes/agent_run_stream_authority.rs", "line": 28}
+        ]
+      },
+      {
+        "id": "gateway-decrypts-log",
+        "claim": "observe decrypts sealed_payload for clients lacking viewer keys.",
+        "result": "rejected",
+        "reason": "SSE and read_log base64 relay ciphertext only; comments and JSON mark sealed true and secrets_returned false.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs/stream.rs", "line": 212},
+          {"path": "crates/gateway/src/routes/agent_runs/stream.rs", "line": 134}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'active\\(&tail' crates/gateway/src/routes/agent_runs/stream.rs",
+    "result_one_line": "Observe tails re-validate StreamAuthority each poll and relay ciphertext only; AgentCapability cannot pass active().",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs.rs%23get_run::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/agent_runs.rs", "start_line": 82, "end_line": 270},
+      {"path": "crates/gateway/src/routes/agent_run_stream_authority.rs", "start_line": 119, "end_line": 126}
+    ],
+    "hypotheses": [
+      {
+        "id": "operator-reads-user-run",
+        "claim": "Operator caller can get_run and learn another principal's sandbox metadata.",
+        "result": "rejected",
+        "reason": "authorize_attach maps Operator to ViewerRelation::Operator but relation for session must be CredentialOwner; operator gets 404 via refusal mapping for non-owner attach.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs.rs", "line": 113},
+          {"path": "crates/gateway/src/routes/agent_runs.rs", "line": 198}
+        ]
+      },
+      {
+        "id": "list-leaks-other-runs",
+        "claim": "list_runs exposes all organization runs to any member.",
+        "result": "rejected",
+        "reason": "list filters to ViewerRelation::CredentialOwner only after tenant listing.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/agent_runs.rs", "line": 243},
+          {"path": "crates/gateway/src/routes/agent_runs.rs", "line": 245}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'get_run' crates/gateway/src/routes/agent_runs.rs",
+    "result_one_line": "get_run uses load(View) with owner-only attach and hook summary counts only; operators cannot enumerate others' runs.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fauthority_grants.rs%23issue::crates%2Fauthz%2Fsrc%2Fauthority_use.rs%23authorize_authority_use::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/authority_grants.rs", "start_line": 67, "end_line": 252},
+      {"path": "crates/authz/src/authority_use.rs", "start_line": 46, "end_line": 173}
+    ],
+    "hypotheses": [
+      {
+        "id": "member-issues-authority",
+        "claim": "Organization member can POST issue authority on grants without integration admin role.",
+        "result": "rejected",
+        "reason": "authorize_realm requires can_configure_integrations and path organization must match resolve_caller_organization.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/authority_grants.rs", "line": 74},
+          {"path": "crates/gateway/src/routes/authority_grants.rs", "line": 85}
+        ]
+      },
+      {
+        "id": "reserved-actions-without-owner",
+        "claim": "Admin session can mint credential.export via issue without owner/operator.",
+        "result": "rejected",
+        "reason": "entries_include_reserved triggers may_issue_reserved_administration which is false for non-owner admin sessions.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/authority_grants.rs", "line": 187},
+          {"path": "crates/gateway/src/middleware/auth.rs", "line": 231}
+        ]
+      },
+      {
+        "id": "wrong-action-at-exercise",
+        "claim": "authorize_authority_use still checks grant.actions.first instead of requested action.",
+        "result": "rejected",
+        "reason": "Engine path requires requested_action and denies when not in grant.actions; materialize uses separate class.",
+        "evidence": [
+          {"path": "crates/authz/src/authority_use.rs", "line": 145},
+          {"path": "crates/authz/src/authority_use.rs", "line": 148}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'authorize_authority_use' crates/authz",
+    "result_one_line": "Authority issue is owner/admin in-path org with reserved-action gating; exercise checks named action against grant and egress binding.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbackup.rs::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/backup.rs", "start_line": 1, "end_line": 200},
+      {"path": "crates/gateway/src/middleware/auth.rs", "start_line": 98, "end_line": 118}
+    ],
+    "hypotheses": [
+      {
+        "id": "session-configures-backup",
+        "claim": "Vault session can read or change backup target and learn gateway-wide outbox depth.",
+        "result": "rejected",
+        "reason": "require_configurator calls require_operator only; member sessions never reach handlers (401 in tests).",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/backup.rs", "line": 21},
+          {"path": "crates/gateway/src/routes/backup.rs", "line": 25},
+          {"path": "crates/gateway/src/routes/backup.rs", "line": 87}
+        ]
+      },
+      {
+        "id": "secret-shaped-config",
+        "claim": "PutTargetBody.config can smuggle tokens into backup target JSON persisted in DB.",
+        "result": "rejected",
+        "reason": "config_has_secret_shaped_key recursively refuses keys matching token/password/bearer patterns.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/backup.rs", "line": 133},
+          {"path": "crates/gateway/src/routes/backup.rs", "line": 124}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'require_configurator' crates/gateway/src/routes/backup.rs",
+    "result_one_line": "Backup routes are operator-only; config rejects secret-shaped keys and does not return credential material.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings.rs%23create::crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings%2Fceiling.rs%23verified_ceiling::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/browser_pairings.rs", "start_line": 36, "end_line": 150},
+      {"path": "crates/gateway/src/routes/browser_pairings/ceiling.rs", "start_line": 1, "end_line": 105},
+      {"path": "crates/gateway/src/browser_pairing_proof.rs", "start_line": 1, "end_line": 80}
+    ],
+    "hypotheses": [
+      {
+        "id": "arbitrary-capabilities-on-create",
+        "claim": "create accepts host.connections.write or other high caps before passkey verification.",
+        "result": "rejected",
+        "reason": "allowed_capabilities permits only host.join alone or host.sync.read/write pair; verified_ceiling widens only after approval path.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/browser_pairings.rs", "line": 41},
+          {"path": "crates/gateway/src/routes/browser_pairings/ceiling.rs", "line": 18}
+        ]
+      },
+      {
+        "id": "pairing-without-dpop",
+        "claim": "Attacker can create pairings without DPoP proof binding to origin.",
+        "result": "rejected",
+        "reason": "create awaits validate on POST /api/v1/browser-pairings with origin and jkt from proof verification.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/browser_pairings.rs", "line": 44},
+          {"path": "crates/gateway/src/routes/browser_pairings.rs", "line": 88}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'allowed_capabilities' crates/gateway/src/routes/browser_pairings",
+    "result_one_line": "Pairing create is DPoP-bound and rate-limited; capability ceiling is closed until passkey verification expands it.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdelegations.rs::crates%2Fauthz%2Fsrc%2Fauthority_use.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/delegations.rs", "start_line": 1, "end_line": 200},
+      {"path": "crates/authz/src/authority_use.rs", "start_line": 46, "end_line": 100}
+    ],
+    "hypotheses": [
+      {
+        "id": "present-needs-session",
+        "claim": "present endpoint wrongly requires session, blocking intentional token-only spend.",
+        "result": "rejected",
+        "reason": "present intentionally has no resolve_caller; claim requires session to bind delegate subject at exercise time.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/delegations.rs", "line": 109},
+          {"path": "crates/gateway/src/routes/delegations.rs", "line": 126}
+        ]
+      },
+      {
+        "id": "body-injected-subject",
+        "claim": "mint or claim accepts principal from JSON body instead of transport subject.",
+        "result": "rejected",
+        "reason": "caller_subject is always from resolve_caller Session or operator demo id; broker mint_delegation_offer takes organization and subject parameters from gateway only.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/delegations.rs", "line": 51},
+          {"path": "crates/gateway/src/routes/delegations.rs", "line": 85}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'present_delegation_offer' crates/connection-broker",
+    "result_one_line": "Delegation HTTP layer binds subjects from auth only; present is token-gated and claim requires session; broker enforces fences.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/device.rs", "start_line": 16, "end_line": 379},
+      {"path": "crates/gateway/src/routes/session.rs", "start_line": 1, "end_line": 80}
+    ],
+    "hypotheses": [
+      {
+        "id": "user-code-brute-force",
+        "claim": "Unauthenticated attacker can brute-force user_code to approve arbitrary device logins.",
+        "result": "rejected",
+        "reason": "approve requires operator; global MAX_APPROVE_FAILURES per minute with per-device digest binding for guesses.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/device.rs", "line": 298},
+          {"path": "crates/gateway/src/routes/device.rs", "line": 305},
+          {"path": "crates/gateway/src/routes/device.rs", "line": 321}
+        ]
+      },
+      {
+        "id": "approve-principal-injection",
+        "claim": "Operator approve can mint session for arbitrary principal without validation.",
+        "result": "rejected",
+        "reason": "principal must parse via parse_principal; organization claims must be complete or demo bootstrap default; token binds approved principal not bootstrap alone.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/device.rs", "line": 343},
+          {"path": "crates/gateway/src/routes/device.rs", "line": 177}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "rg 'MAX_APPROVE_FAILURES' crates/gateway/src/routes/device.rs",
+    "result_one_line": "Device flow limits clients and scopes; approve is operator-only with rate-limited user_code checks and parsed principal binding.",
+    "agent_id": "h-run8-gateway"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fnats_callout.rs::crates%2Fauthz%2Fsrc%2Fcallout.rs%23evaluate_callout::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      {"path": "crates/gateway/src/routes/nats_callout.rs", "start_line": 1, "end_line": 384},
+      {"path": "crates/authz/src/callout.rs", "start_line": 1, "end_line": 283}
+    ],
+    "hypotheses": [
+      {
+        "id": "connect-project-ids",
+        "claim": "NATS CONNECT project_ids widen evaluate_callout permissions without Identity mapping.",
+        "result": "rejected",
+        "reason": "decide_nats_callout passes empty project_ids; eval ignores client-supplied memberships.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/nats_callout.rs", "line": 160},
+          {"path": "crates/gateway/src/routes/nats_callout.rs", "line": 277}
+        ]
+      },
+      {
+        "id": "unsigned-identity-allow",
+        "claim": "Missing upstream token still yields allow via issuer/subject alone.",
+        "result": "rejected",
+        "reason": "evaluate_callout denies empty issuer/subject and unmapped principal; resolve_identity only allows dev profile when configured else Missing.",
+        "evidence": [
+          {"path": "crates/authz/src/callout.rs", "line": 134},
+          {"path": "crates/gateway/src/routes/nats_callout.rs", "line": 348}
+        ]
+      },
+      {
+        "id": "replay-flip-allow",
+        "claim": "Retry with same request_digest can change allow to broader permissions after policy update.",
+        "result": "rejected",
+        "reason": "decide records decision in host_kv via try_claim_host_kv; replay returns stored JSON including exp for allows.",
+        "evidence": [
+          {"path": "crates/gateway/src/routes/nats_callout.rs", "line": 241},
+          {"path": "crates/gateway/src/routes/nats_callout.rs", "line": 374}
+        ]
+      }
+    ],
+    "candidate": null,
+    "local_check": "cargo +1.88.0 test -p opensesame-authz --lib callout (pending compile)",
+    "result_one_line": "Callout separates bridge mTLS, signed NATS request, and verified user JWT; evaluate_callout denies email-join and system subjects with replay-bound decisions.",
+    "agent_id": "h-run8-gateway"
+  }
+]

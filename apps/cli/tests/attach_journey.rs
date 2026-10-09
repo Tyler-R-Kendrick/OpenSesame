@@ -6,8 +6,10 @@
 //! an agent cannot, and that the ciphertext actually reaches git — the three
 //! things the feature exists to do.
 
+use std::io::Read;
+use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 
 const PASSPHRASE: &str = "correct horse battery staple";
 
@@ -15,8 +17,9 @@ fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_opensesame")
 }
 
-fn run(store: &Path, args: &[&str]) -> Output {
-    Command::new(bin())
+fn command(store: &Path, args: &[&str]) -> Command {
+    let mut command = Command::new(bin());
+    command
         .args(args)
         .arg("--path")
         .arg(store)
@@ -25,9 +28,61 @@ fn run(store: &Path, args: &[&str]) -> Output {
         .env("GIT_AUTHOR_NAME", "Test")
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
-        .env("GIT_COMMITTER_EMAIL", "test@example.com")
+        .env("GIT_COMMITTER_EMAIL", "test@example.com");
+    command
+}
+
+fn run(store: &Path, args: &[&str]) -> Output {
+    command(store, args)
         .output()
         .expect("failed to run the opensesame binary")
+}
+
+/// A person at a terminal: stdin and stdout are both the slave side of a pty.
+/// Piped `Command::output` is the agent shape, and the reveal gate refuses it.
+fn run_as_person(store: &Path, args: &[&str]) -> Output {
+    let mut master_fd: libc::c_int = -1;
+    let mut slave_fd: libc::c_int = -1;
+    let opened = unsafe {
+        libc::openpty(
+            &raw mut master_fd,
+            &raw mut slave_fd,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(opened, 0, "openpty");
+    let master = unsafe { std::fs::File::from_raw_fd(master_fd) };
+    let slave = unsafe { std::fs::File::from_raw_fd(slave_fd) };
+    let slave_in = slave.try_clone().expect("dup slave for stdin");
+    let slave_out = slave.try_clone().expect("dup slave for stdout");
+    drop(slave);
+
+    let mut child = command(store, args)
+        .stdin(Stdio::from(slave_in))
+        .stdout(Stdio::from(slave_out))
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to run the opensesame binary");
+    let stdout_thread = std::thread::spawn(move || {
+        let mut master = master;
+        let mut buf = Vec::new();
+        let _ = master.read_to_end(&mut buf);
+        buf
+    });
+    let mut stderr_pipe = child.stderr.take().expect("stderr");
+    let stderr_thread = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut buf);
+        buf
+    });
+    let status = child.wait().expect("wait for opensesame");
+    Output {
+        status,
+        stdout: stdout_thread.join().expect("stdout thread"),
+        stderr: stderr_thread.join().expect("stderr thread"),
+    }
 }
 
 fn stdout(out: &Output) -> String {
@@ -92,9 +147,9 @@ fn a_person_can_seal_a_document_and_get_the_same_bytes_back() {
     assert!(listing.contains("w2.pdf"), "{listing}");
     assert!(listing.contains("application/pdf"), "{listing}");
 
-    // ...and it comes back byte-for-byte.
+    // ...and it comes back byte-for-byte, with a person at the terminal.
     let out = f.store.parent().unwrap().join("recovered.pdf");
-    let got = run(
+    let got = run_as_person(
         &f.store,
         &[
             "pass",
@@ -129,6 +184,7 @@ fn an_agent_cannot_read_a_document_out_of_the_store() {
     );
 
     // No TTY and no --reveal is exactly the shape of an agent invocation.
+    // Off a terminal the gate names that fact before it mentions --reveal.
     let out = f.store.parent().unwrap().join("stolen.pdf");
     let denied = run(
         &f.store,
@@ -143,8 +199,8 @@ fn an_agent_cannot_read_a_document_out_of_the_store() {
     );
     assert!(!denied.status.success(), "reveal gate must refuse");
     assert!(
-        String::from_utf8_lossy(&denied.stderr).contains("--reveal"),
-        "the refusal should name the flag: {}",
+        String::from_utf8_lossy(&denied.stderr).contains("interactive terminals"),
+        "the refusal should name the terminal: {}",
         String::from_utf8_lossy(&denied.stderr)
     );
     assert!(!out.exists(), "a refused read must not leave a file behind");
@@ -261,7 +317,7 @@ fn a_dot_named_document_survives_gc_and_reaches_a_replica() {
     );
 
     let out = f.store.parent().unwrap().join("recovered.pdf");
-    let got = run(
+    let got = run_as_person(
         &f.store,
         &[
             "pass",

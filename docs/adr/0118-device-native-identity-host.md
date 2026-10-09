@@ -2,6 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-09-15
+- Amended by: [ADR 0160](0160-the-device-identity-plane-is-declared.md) (§4's "a
+  remote URL is set" question becomes a per-feature one; §6's
+  `useIdentityPlane()` becomes `identityPlane()` and `identityServes(family)`)
 
 ## Context
 

@@ -56,8 +56,10 @@ import {
   MIGRATION_MARKER_PATH,
   SEAL_BOUND_MARKER_PATH,
   ensureIndexed,
+  lockTomb,
   readPlaintextFile,
   tombFileKey,
+  vfsFlush,
   vfsSeams,
   writeFile,
   writePlaintextFile,
@@ -132,6 +134,7 @@ function tombSessionKeys(tomb: string): string[] {
     "config/identity-directory",
     "config/identity-devices",
     "config/identity-shares",
+    "config/identity-share-approvals",
     "config/identity-grants",
     "config/identity-sessions",
     "config/identity-credentials",
@@ -260,6 +263,11 @@ export async function discardVaultBody(tomb: string): Promise<void> {
 }
 
 export async function wipeTombOnDestroy(tomb: string): Promise<void> {
+  // A sealed write that already holds this key has to finish, and then the
+  // files go. One that has not taken the key finds the tomb locked and does
+  // not seal a fresh index under the key this wipe is retiring.
+  lockTomb(tomb);
+  await vfsFlush();
   await Promise.all(
     [
       ...tombSessionKeys(tomb),

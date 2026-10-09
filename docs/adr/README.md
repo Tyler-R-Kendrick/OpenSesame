@@ -13,11 +13,31 @@ looks arbitrary, the ADR it cites explains it.
   (the static front end needs no backend) and [0133](0133-shared-app-core.md)
   (one shared client core) shape nearly everything else.
 - **Status is the ADR's own.** `Accepted (partly superseded)` means a later
-  ADR replaced some sections; the ADR names which.
-- **Numbers are not unique.** Parallel work landed a handful of ADRs under the
-  same number (0038, 0052, 0054, 0065, 0125, 0130). They are distinct
-  decisions and are cited by file name; they are not renumbered because
-  hundreds of references point at them.
+  ADR replaced some sections; the ADR names which, and the later ADR is named
+  in the older one's status line, `Amended by:` or `Superseded in part by:`. A
+  `Proposed` or `Accepted` status is a decision, not a claim about the code:
+  an `Implementation:` line in the header block, where there is one, says what
+  is built in this checkout and what is not.
+- **Numbers are not unique, and one is missing.** Parallel work landed several
+  ADRs under the same number. They are distinct decisions, cited by file name,
+  and they are not renumbered because hundreds of references point at them.
+  The shared numbers, by file:
+  - 0038: `multi-tomb-sealed-store`, `project-hierarchy-sharing`,
+    `sealed-store-backup-github-app`
+  - 0052: `automatic-certificate-authority-selection` (cited as "ADR 0052-cert"),
+    `federated-first-sign-in-surfaces`, `host-sealed-config-value-store`,
+    `password-manager-ecosystem-bridging`
+  - 0054: `access-screen-pam`, `file-attachment-storage`
+  - 0065: `agent-surface-parity`, `connector-hook-architecture`
+  - 0125: `ambient-sso-and-safe-default-account-sessions`,
+    `wallet-native-proof-admission`
+  - 0130: `browser-local-sops`, `duress-profiles-trust-boundaries`,
+    `operator-controlled-capability-composition`
+  - 0150: `live-sessions-browser-to-browser`,
+    `surrogate-credentials-at-the-last-hop`
+  - 0163: `failures-live-in-the-tray`, `tutorial-mode`
+
+  There is no ADR 0040.
 
 ## Writing one
 
@@ -46,7 +66,7 @@ looks arbitrary, the ADR it cites explains it.
 | [0013](0013-agent-actor-instance.md) | Agent principal / actor / instance separation | Accepted |
 | [0014](0014-opaque-access-tokens.md) | Opaque access tokens by default | Accepted |
 | [0015](0015-audit-vs-diagnostic-logging.md) | Audit vs diagnostic logging | Accepted |
-| [0016](0016-keycloak-upstream-broker.md) | Optional Keycloak for SAML/LDAP | Accepted |
+| [0016](0016-keycloak-upstream-broker.md) | Optional Keycloak for SAML/LDAP | Accepted (partly superseded) |
 | [0017](0017-host-client-product-topology.md) | Host/Client product topology | Accepted |
 | [0018](0018-standing-grants-vs-task-authority.md) | Standing grants vs task authority | Accepted |
 | [0019](0019-immutable-ceiling.md) | Immutable capability ceiling | Accepted |
@@ -64,14 +84,14 @@ looks arbitrary, the ADR it cites explains it.
 | [0031](0031-sqlite-local-vs-postgres-distributed.md) | SQLite local vs PostgreSQL distributed task store | Accepted |
 | [0032](0032-connection-broker-service-integrations.md) | Connection broker for service integrations | Accepted |
 | [0033](0033-federated-identity-admission.md) | Federated identity admission | Accepted |
-| [0034](0034-origin-brokered-static-site-signin.md) | Origin-brokered sign-in for static sites | Accepted |
+| [0034](0034-origin-brokered-static-site-signin.md) | Origin-brokered sign-in for static sites | Accepted (partly superseded) |
 | [0035](0035-organization-integrations.md) | Provider templates, organization integrations, and member connections | Accepted |
 | [0036](0036-coverage-guided-fuzz-and-bounded-proofs.md) | Coverage-guided fuzzing and bounded proofs | Accepted |
 | [0037](0037-git-sealed-store.md) | Git-native sealed store (`pass` parity) | Accepted |
 | [0038](0038-multi-tomb-sealed-store.md) | Multi-tomb sealed-store roots | Accepted |
 | [0038](0038-project-hierarchy-sharing.md) | Projects as the top-level hierarchy, with a personal default and optional sharing | Accepted |
-| [0038](0038-sealed-store-backup-github-app.md) | Sealed-store git backup and GitHub App leases | Accepted |
-| [0039](0039-event-driven-github-backup.md) | Event-driven GitHub backup actor | Accepted (partly superseded) |
+| [0038](0038-sealed-store-backup-github-app.md) | Sealed-store git backup and GitHub App leases | Accepted (partly superseded) |
+| [0039](0039-event-driven-github-backup.md) | Event-driven GitHub backup actor | Accepted |
 | [0041](0041-projects-sync-targets-and-secret-changelog.md) | Projects, sync targets, and secret changelog | Accepted |
 | [0042](0042-nats-taskbus-auth-callout-and-xkeys.md) | NATS TaskBus, auth callout, and xkeys | Accepted |
 | [0043](0043-environment-branch-git-backup.md) | Environment branches for git-backed recoverability | Accepted |
@@ -83,24 +103,24 @@ looks arbitrary, the ADR it cites explains it.
 | [0049](0049-derived-short-lived-materialization.md) | Derived short-lived materialization | Accepted |
 | [0050](0050-origin-profile-static-site-issuer.md) | Origin-profile issuer for zero-backend static sites | Accepted |
 | [0051](0051-user-controlled-trust-broker-core.md) | User-controlled trust broker core | Accepted |
-| [0052](0052-automatic-certificate-authority-selection.md) | Automatic certificate authority selection and key custody | Accepted |
-| [0052](0052-federated-first-sign-in-surfaces.md) | Federated sign-in on the first-run and hosted-login surfaces | Accepted |
+| [0052](0052-automatic-certificate-authority-selection.md) | Automatic certificate authority selection and key custody | Accepted (partly superseded) |
+| [0052](0052-federated-first-sign-in-surfaces.md) | Federated sign-in on the first-run and hosted-login surfaces | Accepted (partly superseded) |
 | [0052](0052-host-sealed-config-value-store.md) | Host-sealed project-config value store | Accepted |
-| [0052](0052-password-manager-ecosystem-bridging.md) | Password-manager ecosystem bridging | Accepted |
+| [0052](0052-password-manager-ecosystem-bridging.md) | Password-manager ecosystem bridging | Accepted (partly superseded) |
 | [0053](0053-pm-bridge-binaries.md) | Bridge binaries and the daemon dependency budget | Accepted |
-| [0054](0054-access-screen-pam.md) | The Agents screen becomes Access, a PAM surface | Accepted |
+| [0054](0054-access-screen-pam.md) | The Agents screen becomes Access, a PAM surface | Accepted (partly superseded) |
 | [0054](0054-file-attachment-storage.md) | File attachment storage | Accepted |
 | [0055](0055-provider-registry-byo-and-org-signin.md) | Provider registry, bring-your-own issuers, and organization sign-in | Accepted |
-| [0056](0056-native-saml-scim-and-directory-federation.md) | Native SAML SP, SCIM provisioning, and directory federation | Accepted (partly superseded) |
+| [0056](0056-native-saml-scim-and-directory-federation.md) | Native SAML SP, SCIM provisioning, and directory federation | Accepted |
 | [0057](0057-email-linking-better-auth-and-ldap.md) | Verified-email linking, the Better Auth mount, and native LDAP | Accepted |
 | [0058](0058-native-authenticator-and-openid4vc-wallet.md) | Native authenticator and OpenID4VC wallet | Accepted |
 | [0059](0059-free-passwordless-authentication-service.md) | Free, PWA-managed passwordless authentication service | Accepted |
-| [0060](0060-identity-screen-idp-brokering.md) | An Identity screen with a mandatory-once IdP ceremony | Accepted |
+| [0060](0060-identity-screen-idp-brokering.md) | An Identity screen with a mandatory-once IdP ceremony | Accepted (partly superseded) |
 | [0061](0061-access-pam-plane-ceremonies.md) | Access becomes the PAM plane; ceremony per action; Authority and Authentication removed | Accepted |
 | [0062](0062-secret-drop.md) | Secret drop: E2EE one-time sharing and burner items | Accepted |
 | [0063](0063-encrypted-vfs-tombs.md) | Encrypted VFS for vault + config; every vault is a tomb | Accepted |
 | [0064](0064-vault-vfs-keyboard-first.md) | The vault renders as a VFS; the keyboard is first-class | Accepted (partly superseded) |
-| [0065](0065-agent-surface-parity.md) | 0065. Agent-surface parity via a capability registry (MCP + WebMCP) | Accepted |
+| [0065](0065-agent-surface-parity.md) | Agent-surface parity via a capability registry (MCP + WebMCP) | Accepted |
 | [0065](0065-connector-hook-architecture.md) | Connector/hook architecture: Wasm-first community connectors | Accepted |
 | [0066](0066-certificate-manager-domain-model.md) | Certificate Manager domain model | Accepted |
 | [0067](0067-certificate-revocation-crl-ocsp.md) | Revocation: CRL generation and an OCSP responder | Accepted |
@@ -128,11 +148,11 @@ looks arbitrary, the ADR it cites explains it.
 | [0089](0089-device-vault-switching.md) | Several vaults on one device, and a front door to choose between them | Accepted |
 | [0090](0090-static-frontend-complete-without-backend.md) | The static front end is complete without a backend | Accepted |
 | [0091](0091-account-exits-and-unlock-ceremony.md) | Two ledgers on one screen: the account, the key, and the roads out | Accepted |
-| [0092](0092-auth-md-agent-registration.md) | auth.md AgentAuth registration as a profile over OpenSesame identity | Accepted |
+| [0092](0092-auth-md-agent-registration.md) | auth.md AgentAuth registration as a profile over OpenSesame identity | Accepted (partly superseded) |
 | [0093](0093-structural-quality-gates.md) | Structural quality gates: module size, complexity, and component coupling | Accepted |
 | [0094](0094-browser-local-authority.md) | Browser authority requires pairing and purpose-bound proof | Accepted |
 | [0095](0095-strict-deployment-and-durable-identity.md) | Strict deployment mode and durable Identity state | Accepted |
-| [0096](0096-static-auth-profiles-and-immutable-distribution.md) | Verified static-auth profiles and immutable distribution | Accepted (partly superseded) |
+| [0096](0096-static-auth-profiles-and-immutable-distribution.md) | Verified static-auth profiles and immutable distribution | Accepted |
 | [0097](0097-bounded-kdf-policy.md) | Bounded password-wrapper KDF work | Accepted |
 | [0098](0098-secret-metadata-authorization.md) | Durable Host ceilings for project secret metadata | Accepted |
 | [0099](0099-scoped-local-agent-authority.md) | Explicit short-lived local agent launch capabilities | Accepted |
@@ -166,7 +186,7 @@ looks arbitrary, the ADR it cites explains it.
 | [0126](0126-browser-held-github-backup-token.md) | Browser-held GitHub backup token via Vercel Connect | Superseded |
 | [0127](0127-connect-callback-backend.md) | Thin Connect callback backend | Accepted |
 | [0128](0128-pages-without-host.md) | The Pages PWA no longer speaks Host | Accepted |
-| [0129](0129-vault-key-protection-manifest.md) | Vault key protection manifest (any-of roots) | Accepted |
+| [0129](0129-vault-key-protection-manifest.md) | Vault key protection manifest (any-of roots) | Accepted (partly superseded) |
 | [0130](0130-browser-local-sops.md) | Browser-local SOPS | Accepted |
 | [0130](0130-duress-profiles-trust-boundaries.md) | Duress profiles: trust boundaries | Accepted |
 | [0130](0130-operator-controlled-capability-composition.md) | Operator-controlled capability composition | Accepted |
@@ -222,3 +242,8 @@ looks arbitrary, the ADR it cites explains it.
 | [0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) | Authorization checks are proofs the compiler can see | Accepted |
 | [0179](0179-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |
 | [0180](0180-vaults-are-sealed-by-passkey-not-password.md) | A new vault is sealed by a passkey, never a master password | Accepted |
+| [0181](0181-the-title-row-is-one-path-control.md) | The editor's title row is one path control, and every field has a cap | Accepted |
+| [0182](0182-secrets-are-files-one-vfs-contract-on-effect.md) | Secrets are files: one VFS contract over an emulated store, a real directory and a private store, written on Effect | Accepted |
+| [0183](0183-self-hosted-connector-configuration.md) | Self-hosted connector configuration follows the Connect experience | Accepted |
+| [0184](0184-browser-linear-authorization.md) | Linear authorizes and runs directly in the browser | Accepted |
+| [0185](0185-native-browser-connectors.md) | Browser connectors execute compiled provider contracts | Accepted |

@@ -3,7 +3,7 @@
 Method: STRIDE + asset/actor/data-flow analysis.
 
 ## Assets
-- Human vault plaintext / VRK / PCK / IDK (client-only)
+- Human vault plaintext / vault key (VK) / VRK / IDK (client-only; see [key hierarchy](key-hierarchy.md))
 - Authority credentials (OAuth refresh, CA keys, dynamic secret engines)
 - Grants, policy model, revocation state
 - Claim tokens / device codes (one-time secrets)
@@ -16,7 +16,7 @@ Human, device, workload, service, agent, agent instance, malicious connector, co
 ## Trust boundaries
 1. Client crypto boundary (E2EE)
 2. Gateway PEP
-3. Authority plane (OpenBao/KMS)
+3. Authority plane (OpenBao provider, Host sealing root)
 4. WASM capability boundary
 5. Public callback edge (narrow)
 6. Transport admission — a native TLS peer or a bound ingress (authentication, never authorization; ADR 0132)
@@ -70,7 +70,7 @@ Host-specific passkey contract does not upgrade unrelated interaction approvals.
 | Quorum loss write | A2/A3 fail closed | availability tests |
 | Malicious WASM | Capability denial + digest verify | sandbox tests |
 | Rotation failure | verify-before-revoke, reconcile | rotation tests |
-| Supply chain | pins, deny, SBOM, signatures | CI |
+| Supply chain | pins, deny, SBOM, signatures | CI; `cargo deny` runs in the nightly dependency-triage routine |
 
 ## Credential / authority abuse (added)
 
@@ -79,15 +79,15 @@ Host-specific passkey contract does not upgrade unrelated interaction approvals.
 | Agent knows ConnectionRef → extracts secret | Resolve/Materialize denied without export grant | `authz::authority_use` |
 | Gateway string-replaces SecretRef to attacker URL | Egress binding + typed ops; no generic substitution | `EgressBinding`, connector-host redirect tests |
 | Authenticated 302 to evil.example | Cross-authority redirect denied while credential held | `follow_redirect_with_credential` |
-| WASM `secrets.get` | Not in WIT imports; authorized-http/sign only | `spec/wit/connector/world.wit` |
+| WASM `secrets.get` | Not in WIT imports; `host-http`, `host-crypto` (purpose-bound `sign`) and `host-oauth` only | `spec/wit/connector/world.wit` |
 | SecretRef late-binding into agent env | Agent API is ConnectionRef+Intent (ADR 0005) | domain `resolve_secret_for_agent` |
 | Unconstrained placeholder substitution (email token away) | Placement + max occurrences fail-closed | `PlaceholderPlacement` / connector-host |
 | Surrogate reflected through the allowed host (gist/issue body) to read the credential back | Recognize, strip, re-place: the credential is written only into the provider's own site; a surrogate anywhere else is refused (ADR 0150 §2) | `surrogate_tests::a_surrogate_in_the_body_is_refused_even_beside_a_valid_header` |
 | Allowed upstream echoes the presented credential in its response | Response scrub (raw, percent, base64 at every alignment) before the caller sees it (ADR 0150 §4) | `invoke_tests::a_reflected_credential_never_reaches_the_caller` |
 | Surrogate exfiltrated and replayed / sent to attacker host | Caller-bound, run-revocable, exact-host; every refusal is a `surrogate.*` tripwire with one client message (ADR 0150 §3, §5) | `surrogate_tests`, `surrogate_lifecycle_tests` |
-| Same-UID agent reads host keychain | Host agent session capability; sandbox egress via broker | credential-agent + ADR 0006 |
+| Same-UID agent reads host keychain | Host agent session capability; sandbox egress via broker | `crates/daemon` + ADR 0006 |
 | Agent `materialize` via `.env` | DevDeliveryPolicy denies materialize for agents | `opensesame dev --agent` |
-| Root or leaf key exposed by certificate ceremony/storage | Host generates keys; authority and delivery records are sealed with organization/purpose AAD | gateway/storage certificate tests; ADR 0052 |
+| Root or leaf key exposed by certificate ceremony/storage | Host generates keys; authority and delivery records are sealed with organization/purpose AAD | gateway/storage certificate tests; ADR 0052 (automatic certificate authority selection) |
 | Duplicate request mints multiple certificates | Request digest + organization idempotency constraint + transactional issuance record | gateway certificate idempotency/chaos tests |
 | External CA outage silently downgrades trust | Selected/default external issuer fails closed; no private-CA fallback | `adversarial_external_issuer_failure_never_downgrades_to_private_ca` |
 | Certificate delivered to another actor | Expiring delivery is creator-bound and deleted after acknowledgement | gateway cross-actor/ack tests |
@@ -97,50 +97,43 @@ See ADR 0005–0006 and SUDP (arXiv:2604.24920) for custodian execution semantic
 
 ## Certificate Manager (ADR 0066–0072, added)
 
-Anchors named as forthcoming files are the ones the Certificate Manager swarms
-create; each is the file that will hold the test, per the implementation plan.
+Only part of the Certificate Manager design is in the tree. Present: the
+`crates/pki-core` library (issuance, CRL and OCSP building), the migration 0016
+schema, certificate authority, policy and profile routes
+(`/api/v1/certmgr/{cas,policies,profiles}`, including a profile's `est-config`),
+and EST enrollment at `/.well-known/est/{profileId}/*`. Not built: ACME and SCEP
+servers, CRL and OCSP endpoints, certificate syncs, discovery, code signing,
+HSM/PKCS#11, and the Kubernetes external issuer (ADR 0072). Rows below name what
+exists as a control. A row marked **not in this tree** is an ADR design whose
+endpoint, actor or crate is absent, so it is a requirement on whoever builds it,
+not a mitigation.
 
 | Threat | Mitigation | Test anchor |
 |--------|------------|-------------|
-| ACME enrollment by anyone who can reach the directory | External Account Binding required on every profile's `new-account`; EAB HMAC sealed under `eab_secret` | `crates/gateway/src/routes/acme_server.rs` EAB tests (ADR 0068 §2) |
-| ACME JWS replay | Single-use nonces minted in `acme_nonces`, consumed on every POST; order/authz lookups bound to the requesting account | `acme_server.rs` replayed-nonce and cross-account-order tests |
-| ACME HTTP-01 validation used to pivot into internal hosts | Sanctioned raw-egress path constrained to the order's own identifiers; no redirect to a different identifier; size- and time-bounded | `acme_server.rs` challenge-fetch adversarial tests |
-| Skip-validation profile issues for a name the claimant does not control | Admin-enabled per profile only, never a fallback from failed HTTP-01; issuance audit event records it; bounded by EAB + policy name constraints | `acme_server.rs` skip-mode tests (ADR 0068 §3) |
-| SCEP challenge bypass or reuse | Static challenge stored hashed and sealed, compared in constant time; dynamic challenges one-time, expiry ≤1440 min, pending set ≤1000, consumed exactly once | `crates/gateway/src/routes/scep_server.rs` fixture interop tests |
-| EST enrollment with a forged bootstrap identity | Bootstrap certificate validated against the operator-uploaded chain; passphrase sealed under `est_passphrase`; re-enrollment may require mTLS with the certificate being replaced | `crates/gateway/src/routes/est_server.rs` bootstrap tests |
-| Enrollment CSR requests attributes the operator never intended | Profile policy evaluated at finalize/enroll; violating CSR refused, never narrowed | `crates/pki-core` policy property tests |
-| CRL forgery or rollback to an older signed CRL | CRL signed by the issuing CA through the `Signer` trait; `cRLNumber` monotonic per CA, never timestamp-derived or reused; DER sealed at rest with org/CA-bound AAD | `crates/pki-core` revocation tests; `crl_state` storage tests (ADR 0067 §2, §7) |
-| CRL staleness leaves a revoked certificate accepted | Regeneration on revoke **and** on `next_update` horizon by the lifecycle actor; revocation record commits even if signing fails, actor retries | `crates/gateway/src/cert_lifecycle.rs` inline tests (ADR 0067 §3) |
-| OCSP response forged by a non-delegated signer | Responder signs with the CA key or a delegate that is issued by that same CA and carries `id-kp-OCSPSigning`; validated at configuration time, not response time | `crates/pki-core` OCSP delegation tests (ADR 0067 §6) |
-| OCSP asserts `good` for a serial the CA never issued | Unknown serials return `unknown`, never `good` | `crates/pki-core` OCSP tests |
-| Sync destination redirected to attacker infrastructure | Destinations are admin-configured connections; every push through `ConnectionBroker::authorized_json` with the connection's egress allowlist; no URL/host/credential field in any sync request body; redirects are responses, never chased | `crates/gateway/src/cert_syncs/` adapter tests (ADR 0069 §2a) |
-| Sync used as a key-export channel | Key unsealed only inside the sync actor pass, in a non-`Clone`/non-`Serialize` carrier with redacting `Debug`; no route response, run record, log, error or audit payload contains it | `cert_syncs` adapter + `certmgr_syncs.rs` projection tests (ADR 0069 §2b) |
-| Agent creates or triggers a sync to exfiltrate a key | `certmgr.sync.*` excluded from `mcp_host`, `mcp_client` and `webmcp`; parity test fails if ever mapped | `packages/capability-registry/src/registry.test.ts` (ADR 0069 §2d) |
-| Certificate delivered to the wrong destination object | Name schema validated at write time over a fixed variable set with per-destination sanitization; unknown variables rejected, not passed through literally | `cert_syncs` name-schema unit tests |
-| Signing approval scope-pin evasion | Every present pin field must match exactly; mismatch denies and is ledgered; `data_hash` binds a pre-approval to one input; `ip` is server-observed (trusted-proxy configuration required) | `crates/gateway/src/routes/certmgr_signers.rs` scope tests (ADR 0070 §3) |
-| Signature-counter race turns a one-signature approval into many | Counter increment, record read and `signing_events` append in one transaction under the row's optimistic `version`; losing writer re-reads or is denied | `certmgr_signers.rs` concurrency test (ADR 0070 §4) |
-| Approval mutated after grant, or self-approved | Access records immutable after approval — amendment requires a new request; self-approval forbidden by default | `certmgr_signers.rs` + approval-engine tests |
-| Credentials leak into the signing activity ledger | Command lines redacted at **write** time against an argument-name denylist plus value-shape heuristics, deliberately over-eager; never stored verbatim | `certmgr_signers.rs` redaction tests (ADR 0070 §6) |
-| Code-signing private key exfiltrated | Signers have no key read path at all — no resolve, materialize or export ceremony; Sign API takes a digest and returns a signature only | `certmgr_signers.rs` + `assertsNoSecretTools` (ADR 0070 §1, §2) |
-| Sign API abused as a data-upload channel | Digest-only intake: fixed-length hex validated against the declared algorithm, 64 KiB body limit, no artifact/multipart/URL intake | `certmgr_signers.rs` request-hygiene tests |
-| HSM PIN read back or leaked in a projection | PIN sealed under `hsm_pin` with org/connector-bound AAD; no reveal ceremony; connector `*_view` omits it; `certmgr.connector.hsm` excluded from every agent surface | `certmgr_connectors.rs` projection tests; registry parity (ADR 0071 §2, §5) |
-| HSM connector pointed at an attacker-supplied module (`dlopen` as configuration) | PKCS#11 module path is gateway operator configuration; the connector row names only an expected module hint, never a path | `crates/hsm-client` + `certmgr_connectors.rs` tests (ADR 0071 §2) |
-| HSM connector silently addresses the wrong token after a restart | Slots addressed by operator-assigned label, never by index; verify-on-create performs a live sign-and-verify round trip before `status = verified` | `crates/hsm-client` SoftHSM2 / mock-token tests (ADR 0071 §2, §5) |
-| CA key exposed anywhere in a multi-level hierarchy | Every CA key sealed under `certificate_authority` scope or held in an HSM; all signing (issuance, CRL, OCSP) through one custody-agnostic `Signer` trait, so no path bypasses custody; no sealed→HSM in-place migration, because it would require exporting the key | `crates/pki-core` `Signer` tests; `certmgr_ca.rs` tests (ADR 0071 §4) |
-| Compromised intermediate used to mint beyond its intent | Path-length constraint enforced on creation and on chain validation; imported signed intermediate must chain to the named parent; profile policy constrains what each CA may issue | `certmgr_ca.rs` hierarchy tests |
-| Cross-tenant certificate, CA, signer or revocation disclosure | Every new table carries `organization_id` with composite `UNIQUE(organization_id, id)` and tenant-pair FKs; every accessor org-scoped; non-member of an application gets 404, not 403 | storage cross-org isolation tests; `certmgr_app.rs` tests (ADR 0066 §3) |
-| Unauthenticated CRL/OCSP endpoints leak tenant structure | Read-only, CA-id path parameter only; identical shape for "no such CA" and "CA with no CRL"; no organization identifiers emitted; body/encoded-request limits; contract-allowlisted with a category comment | `crates/gateway/src/routes/revocation.rs` tests (ADR 0067 §8) |
-| Discovery scanner used as an SSRF probe | Sanctioned raw-egress path constrained to the job's declared targets; job caps (≤20 domains, ≤256 IPs, CIDR ≥ /24, ≤5 ports); allow-internal flag honored; concurrency and timeout capped | `crates/gateway/src/cert_discovery.rs` limit-enforcement tests |
-| Discovered certificate silently enters the authoritative inventory | Discovery writes installation records only; promotion to inventory requires an explicit import action | `certmgr_discovery.rs` + `certmgr_inventory.rs` tests (ADR 0066 §4) |
+| ACME server abuse: enrollment by anyone who can reach the directory, JWS replay, HTTP-01 used to pivot inward, skip-validation issuing for a name the claimant does not control | **Not in this tree.** ACME is not served (ADR 0068 §1–§3 design); `crates/storage/src/acme.rs` persists accounts, orders, challenges and single-use nonces only | `crates/storage/src/acme.rs` |
+| SCEP challenge bypass or reuse | **Not in this tree.** SCEP is not served (ADR 0068 §4 design). Storage keeps SCEP configuration and one-time challenges by hash; a conditional update lets exactly one racing consumer burn a challenge | `crates/storage/src/est_scep.rs` |
+| EST enrollment with a forged bootstrap identity | Bootstrap certificate matched against the operator-uploaded chain; passphrase sealed under `est_passphrase` and compared in constant time; re-enrollment may require mTLS with the certificate being replaced | `crates/gateway/src/routes/est_wire.rs`, `est_server_tests.rs` |
+| Enrollment CSR requests attributes the operator never intended | Profile policy evaluated at enroll; a violating CSR is refused whole (`policy_denied`), never narrowed | `crates/gateway/src/routes/est_enrollment.rs`, `crates/pki-core/src/policy.rs` tests |
+| CRL forgery or rollback to an older signed CRL | Library only: `build_crl` signs with the issuing CA key and embeds the caller's `cRLNumber`; `verify_crl` checks a CRL against its issuer. **Not in this tree:** a gateway route or actor that generates, stores (the `crl_state` row and the sealed `crl_der` scope exist but nothing writes them) or serves a CRL, so monotonic numbering and sealed-at-rest storage are ADR 0067 §2, §7 requirements, not exercised end to end | `crates/pki-core/src/revocation.rs` tests, `crates/pki-core/tests/behavior.rs` |
+| CRL staleness leaves a revoked certificate accepted | **Not in this tree.** ADR 0067 §3 calls for regeneration on revoke and at the `next_update` horizon by a lifecycle actor; none exists | — |
+| OCSP response forged by a non-delegated signer | Library only: `build_ocsp_response` signs with the key it is handed and names the responder `byName` for the issuer's own key, `byKey` otherwise. It does not check that a delegate was issued by the CA or carries `id-kp-OCSPSigning`; ADR 0067 §6 puts that check at configuration time and no configuration path exists | `crates/pki-core/src/revocation.rs` (`a_delegated_responder_signs_with_its_own_key`) |
+| OCSP asserts `good` for a serial the CA never issued | `status_for` answers `unknown`, never `good`, for a serial absent from the issued set | `crates/pki-core/src/revocation.rs` tests |
+| Sync destination redirected to attacker infrastructure, sync used as a key-export channel, agent-triggered sync | **Not in this tree.** Certificate syncs (ADR 0069) have schema only (`cert_syncs`, `sync_runs`); there is no adapter, actor, route or capability-registry entry | `crates/storage/migrations/0016_certificate_manager.sql` |
+| Signing approval scope-pin evasion, signature-counter race, approval mutated after grant, credentials in the signing ledger, code-signing key exfiltration, Sign API as upload channel | **Not in this tree.** Code signing (ADR 0070) has storage only (`signers`, members, signing-access records and events in `crates/storage/src/signing*.rs`); no route or signer implementation exists, so no key is held and no Sign API is served | `crates/storage/src/signing.rs`, `signing_access.rs` |
+| HSM PIN leaked, HSM connector pointed at an attacker-supplied module, wrong token addressed after a restart | **Not in this tree.** There is no PKCS#11 client, HSM connector route or `crates/hsm-client` (ADR 0071 design); a CA's `key_source = 'hsm'` can be recorded but nothing can sign for it | `crates/pki-core/src/signer.rs` (`Signer` has only `SealedKeySigner`) |
+| CA key exposed in a multi-level hierarchy | Every CA key is sealed under the `certificate_authority` scope. The `Signer` trait exists, but issuance and CRL building take the CA's `KeyPair` directly; no sealed-to-HSM path exists | `crates/gateway/src/routes/certmgr_ca.rs` (`seal_ca_key`, `open_ca_key`) |
+| Compromised intermediate used to mint beyond its intent | Path-length constraint enforced on creation (`path_len_exceeded`); an imported signed intermediate must chain to the named parent; profile policy constrains what each CA may issue | `crates/gateway/src/routes/certmgr_ca.rs` tests |
+| Cross-tenant certificate, CA or revocation disclosure | Every certificate-manager table carries `organization_id` with composite `UNIQUE(organization_id, id)` and tenant-pair FKs; accessors are organization-scoped, so an id outside the caller's organization answers 404 | `crates/storage/tests/certmgr_pact.rs`, `certmgr_behavior.rs`, `certmgr_chaos.rs` |
+| Unauthenticated CRL/OCSP endpoints leak tenant structure | **Not in this tree.** No CRL or OCSP endpoint is mounted (ADR 0067 §8 design); when one is added it must answer "no such CA" and "CA with no CRL" identically and emit no organization identifiers | — |
+| Discovery scanner used as an SSRF probe; discovered certificate enters the authoritative inventory | **Not in this tree.** Discovery (ADR 0066 §4) has storage only (`crates/storage/src/discovery.rs`); no scanner or route exists | `crates/storage/src/discovery.rs` |
 
 ## Transport security and workload identity (ADR 0132)
 
 The full trust-boundary matrix, attack corpus and property tests for this
 area are in [mtls-threat-model.md](mtls-threat-model.md). This section states
 the shape of the claim and the residual realities the design does not remove.
-As in the Certificate Manager section, an anchor under a path that is not yet
-in the tree is the file its owning swarm names; ADR 0132 § Evidence records,
-with a timestamp, which anchors were present and which suites had run.
+ADR 0132 § Evidence records, with a timestamp, which anchors were present and
+which suites had run.
 
 The claim is narrow: on a hop configured `mtls_required` or `trusted_ingress`,
 a caller must hold a private key that chains to the operator-installed trust
@@ -152,8 +145,8 @@ compromised.
 
 | Threat | Mitigation | Test anchor |
 |--------|------------|-------------|
-| Credential substitution — tenant B's valid leaf presented with tenant A's bearer, ConnectionRef, NATS claim, pooled client or forwarded header | Factors combine only under an explicit binding: `cnf.x5t#S256` compared to the originating leaf; callout decision bound to request digest + server context + one-time user key + bridge identity; client pools keyed by tenant, connection, executor, credential and trust generation; ingress evidence request-local | AT-OAUTH-SWAP, AT-CALLOUT-RESPONSE, AT-CONNECTOR-POOLS, AT-INGRESS-POOL (`tests/mtls-interop/`, `crates/domain/src/transport/*_tests.rs`) |
-| Forged `verified: true`, thumbprint or principal in JSON, header, query or plugin manifest | `VerifiedPeer` has no `Deserialize`; the only constructor is `attest::AttestedPeer::into_verified`, called by the rustls verifier, the Node TLS socket adapter and the UDS adapter | AT-TLS-FAKECONTEXT (`crates/domain/src/transport/evidence_tests.rs`, `source_contract_tests.rs`) |
+| Credential substitution — tenant B's valid leaf presented with tenant A's bearer, ConnectionRef, NATS claim, pooled client or forwarded header | Factors combine only under an explicit binding: `cnf.x5t#S256` compared to the originating leaf; callout decision bound to request digest + server context + one-time user key + bridge identity; client pools keyed by tenant, connection, executor, credential and trust generation; ingress evidence request-local | AT-OAUTH-SWAP, AT-CALLOUT-REPLAY, AT-CALLOUT-PROVENANCE, AT-CONNECTOR-POOLS, AT-INGRESS-POOL (`tests/mtls-interop/`, `crates/domain/src/transport/*_tests.rs`) |
+| Forged `verified: true`, thumbprint or principal in JSON, header, query or plugin manifest | `VerifiedPeer` has no `Deserialize`; the only constructor is `attest::AttestedPeer::into_verified`, called by the rustls verifier (`crates/transport-security`) and the ingress-evidence verifier; the Node TLS socket adapter attests through its TS mirror (`attestPeer`) | AT-TLS-FAKECONTEXT (`crates/domain/src/transport/evidence_tests.rs`, `source_contract_tests.rs`) |
 | Valid certificate from the trusted root with no binding, wrong purpose, or a name that "looks like" a service | Default deny; exact `spiffe_id` / `dns_name` / `uri_san` / `leaf_thumbprint_sha256` selectors only; no CN, email, IP or wildcard; one match or denial | AT-TLS-WRONGSERVICE, AT-CALLOUT-BRIDGE (`binding_tests.rs`, `crates/gateway/src/transport/`) |
 | Bridge or ingress launders claims it did not verify | Bridge authentication and end-user authentication are separate: Host verifies the upstream token's issuer, audience, signature and expiry itself; RFC 9440 fields accepted only from a bound `trusted_ingress` peer on that listener and labelled `trusted_ingress_assertion` | AT-CALLOUT-CLAIMS, AT-INGRESS-SPOOF, AT-INGRESS-WRONGPEER |
 | Plaintext or alternate listener offers the same protected operation | Purpose-to-listener policy: `403 listener_policy_mismatch` on the plain listener; health exceptions narrow and explicit; direct-origin, alternate host/port and IPv6 paths tested | AT-TLS-PLAINTEXT, AT-INGRESS-ORIGIN |
@@ -216,7 +209,7 @@ construction, not the scanner:
   and CLI-tool sources have no readable material in v1.
 - **Dependency profile:** `connection-detect` is serde + serde_json +
   thiserror + std; the daemon must not gain the credential-exchange
-  surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) —
+  surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus, wasmtime) —
   enforced by `scripts/audit/daemon-deps-gate.sh` (`pnpm audit:daemon-deps`).
 
 Test anchors: `crates/connection-detect` (canary/no-value-escape
@@ -322,29 +315,38 @@ reference is worth nothing on its own (§ above), the leak-resistant placement
 buys nothing and costs the ability to use it. Bearers keep using the fragment
 (`readFragmentToken`, ADR 0045); references do not need to.
 
-### What an approval currently proves, and what it does not
+### What an approval proves, and what it does not
 
-The digest binds *what* was approved. It does not, today, prove *how strongly*
-the approver authenticated.
+The digest binds *what* was approved. A spent activation binds *who* approved it
+and *how strongly*, and the proof that reaches the audit trail is derived on the
+server.
 
-`/v1/interactions/{ref}/approve` verifies an authenticated session and records
-`session_reauth` plus the approver's own assurance level. It does not verify a
-WebAuthn assertion or a verifiable presentation. `/v1/mfa/*` does verify both
-kinds of step-up for real, but nothing binds a verification there to a
-particular interaction here.
+`/v1/interactions/{ref}/approve` accepts the request-digest echo and the id of a
+completed activation, and nothing else. A proof field in the body is a 400, and
+an approval with no matching activation is `proof_required`. An ordinary
+session may deny (authority only shrinks) but cannot approve.
 
-An earlier implementation accepted the entire `ApprovalProof` — mechanism,
-assurance, credential handle — from the request body and stored it as though
-checked, so any authenticated caller could write `phishing_resistant` into an
-audit trail having touched no key. Every field is now server-derived, and the
-client's declaration is discarded. The residual risk is stated rather than
-implied: **an interaction is approvable by anyone holding the approver's
-session token**, and a stolen bearer is therefore a stolen approval, bounded
-only by the digest (which constrains *what* is approved, not *who* approved).
+An activation (`packages/control-plane/src/routes/interaction-activation.ts`) is
+minted for one interaction, one approver and the decision `approved`, lasts at
+most five minutes, and carries a transaction digest over the interaction id,
+request digest, approver, decision, policy digest and channel. For WebAuthn the
+challenge is bound to that digest and the raw assertion is verified before the
+activation completes; approve then spends it once, by compare-and-set. The
+sealed proof records `phishing_resistant` for the `webauthn` mechanism and `mfa`
+otherwise.
 
-Closing that means scoping a step-up result to one interaction's digest. Until
-it lands, no part of this system should be read as claiming phishing-resistant
-approval.
+Which mechanism suffices depends on the kind. `authorization_request`,
+`transaction_authorization` and `grant_claim` may only be approved by a
+phishing-resistant mechanism, so a TOTP activation is refused for them
+([ADR 0125](../adr/0125-wallet-native-proof-admission.md)); other kinds accept `mfa`. An earlier implementation accepted the
+entire `ApprovalProof` — mechanism, assurance, credential handle — from the
+request body and stored it as though checked, so any authenticated caller could
+write `phishing_resistant` into an audit trail having touched no key. Every
+field is now server-derived, and the client's declaration is discarded. The
+residual risk is stated rather than implied: for a kind that accepts `mfa`, an
+interaction is approvable by anyone holding the approver's session token and a
+current TOTP code, and the digest constrains *what* is approved, not *who*
+approved.
 
 ### Digest-bound approval
 

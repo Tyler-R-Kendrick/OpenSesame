@@ -8,6 +8,7 @@ import {
 
 const PREFIX = "osle1.";
 const HEADER_BYTES = 72;
+const TAG_BYTES = 16;
 
 function wrappingKey(root: Uint8Array, context: string): Buffer {
   if (root.length !== 32)
@@ -27,7 +28,9 @@ function encrypt(
   plain: Buffer,
   context: Buffer,
 ): Buffer {
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const cipher = createCipheriv("aes-256-gcm", key, iv, {
+    authTagLength: TAG_BYTES,
+  });
   cipher.setAAD(context);
   return Buffer.concat([
     cipher.update(plain),
@@ -42,11 +45,13 @@ function decrypt(
   packed: Buffer,
   context: Buffer,
 ): Buffer {
-  const cipher = createDecipheriv("aes-256-gcm", key, iv);
+  const cipher = createDecipheriv("aes-256-gcm", key, iv, {
+    authTagLength: TAG_BYTES,
+  });
   cipher.setAAD(context);
-  cipher.setAuthTag(packed.subarray(packed.length - 16));
+  cipher.setAuthTag(packed.subarray(packed.length - TAG_BYTES));
   return Buffer.concat([
-    cipher.update(packed.subarray(0, -16)),
+    cipher.update(packed.subarray(0, -TAG_BYTES)),
     cipher.final(),
   ]);
 }
@@ -88,7 +93,7 @@ export function openLocalEnvelope(
   let dek: Buffer | undefined;
   try {
     const packed = Buffer.from(value.slice(PREFIX.length), "base64url");
-    if (packed.length < HEADER_BYTES + 16) return null;
+    if (packed.length < HEADER_BYTES + TAG_BYTES) return null;
     kek = wrappingKey(root, context);
     const binding = aad(context);
     dek = decrypt(

@@ -1,5 +1,6 @@
 import type { IssuedCertificate } from "@opensesame/app-core/lib/certs.js";
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
+import { folderKey } from "@opensesame/app-core/lib/vault/path-suggest.js";
 import {
   type AccountItem,
   type CertificateItem,
@@ -22,6 +23,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { choose, shown } from "./path-field.test-support.js";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -356,12 +358,10 @@ describe("ItemEditor", () => {
       renderEditor("/vault/new");
       await userEvent.clear(screen.getByLabelText(/^Name$/i));
       await userEvent.type(screen.getByLabelText(/^Name$/i), "My card");
-      await userEvent.selectOptions(screen.getByLabelText(/^Type$/i), "card");
+      await choose("Type", "card");
       expect(screen.getByLabelText(/Cardholder/i)).toBeTruthy();
       expect(inputByLabel(/^Name$/i).value).toBe("My card");
-      expect(screen.getByLabelText<HTMLSelectElement>(/^Type$/i).value).toBe(
-        "card",
-      );
+      expect(shown("Type")).toBe(".card");
     } finally {
       revoke();
     }
@@ -392,9 +392,9 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("starts with the every-site wildcard and saves its removal", async () => {
+  it("starts with an empty address and saves its removal", async () => {
     renderEditor();
-    expect(inputByLabel("Address 1").value).toBe("*");
+    expect(inputByLabel("Address 1").value).toBe("");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
@@ -561,7 +561,7 @@ describe("ItemEditor", () => {
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
     };
     renderEditor();
-    await userEvent.selectOptions(screen.getByLabelText(/^Folder$/i), "fld_1");
+    await choose("Folder", folderKey("fld_1"));
     await userEvent.click(screen.getByRole("button", { name: "Pin item" }));
     screen.getByRole("button", { name: "Unpin item", pressed: true });
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Filed");

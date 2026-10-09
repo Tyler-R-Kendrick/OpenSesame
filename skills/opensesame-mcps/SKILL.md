@@ -38,6 +38,7 @@ exchanged from a one-use launch handle, which only the native launch ceremony
 hands out ([ADR 0099](../../docs/adr/0099-scoped-local-agent-authority.md)):
 
 ```bash
+# The launching CLI reads OPENSESAME_OPERATOR_TOKEN (32+ characters) from its own environment.
 opensesame --server <exact-host-origin> local-authority launch \
   --principal-id <principal> --organization-id <org> \
   --audience mcp-host \
@@ -63,11 +64,14 @@ Optional mcp-host tool-call telemetry: `OPENSESAME_TELEMETRY_KEY`
 
 ## Init
 
-Register stdio servers in your MCP client config pointing at:
+Register stdio servers in your MCP client config with the client CLI's
+commands (in the workspace, `pnpm --filter @opensesame/cli start -- mcp host`),
+started through the launch ceremony above:
 
-- `packages/mcp-client` — client-plane tools over the Host API
-- `packages/mcp-host` — task authority, sync and health against the Host API
-  and the daemon's liveness probe
+- `opensesame-id mcp client` (`packages/mcp-client`) — client-plane tools over
+  the Host API
+- `opensesame-id mcp host` (`packages/mcp-host`) — task authority, sync and
+  health against the Host API and the daemon's liveness probe
 
 ## Use
 

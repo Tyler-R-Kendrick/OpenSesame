@@ -7,6 +7,7 @@ import {
   saveCredential,
   splitAccount,
 } from "@opensesame/vault-core";
+import { FIELD_LIMITS, isFolderPath } from "./field-limits.js";
 
 export function itemCreatePath(
   kind: string | undefined,
@@ -24,7 +25,10 @@ export function resolveItemPath(
 ) {
   const selected = folders.find((folder) => folder.id === folderId);
   if (folderId && !selected) throw new Error("Choose an available folder.");
-  if (!name.includes("/")) return { name, folderId, folder: selected };
+  if (!name.includes("/")) {
+    assertNameLength(name);
+    return { name, folderId, folder: selected };
+  }
   const input = name.trim();
   if (
     input.endsWith("/") ||
@@ -39,15 +43,33 @@ export function resolveItemPath(
   }
   const parts = pathSegments(input, selected?.name);
   const shortName = parts.pop() ?? "";
+  assertNameLength(shortName);
   const folderName = parts.join("/");
   const folder = folderName
-    ? (folders.find((entry) => entry.name === folderName) ?? {
-        id: crypto.randomUUID(),
-        name: folderName,
-        createdAt: new Date().toISOString(),
-      })
+    ? (existing(folders, folderName) ?? made(folderName))
     : undefined;
   return { name: shortName, folderId: folder?.id ?? null, folder };
+}
+
+function assertNameLength(name: string) {
+  if (name.length > FIELD_LIMITS.name)
+    throw new Error(`A name can be at most ${FIELD_LIMITS.name} characters.`);
+}
+
+const existing = (folders: Folder[], name: string) =>
+  folders.find((entry) => entry.name === name);
+
+/** A folder a path names that the vault does not have yet. */
+function made(name: string): Folder {
+  if (!isFolderPath(name))
+    throw new Error(
+      `A folder path can be at most ${FIELD_LIMITS.folder} characters, and each folder name ${FIELD_LIMITS.name}.`,
+    );
+  return {
+    id: crypto.randomUUID(),
+    name,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 function pathSegments(input: string, base?: string) {

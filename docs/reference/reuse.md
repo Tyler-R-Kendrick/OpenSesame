@@ -8,16 +8,17 @@ Product license: **MIT** (see `LICENSE`).
 |------------|--------|---------------|----------------|--------|
 | Agent-facing authority | **ConnectionRef + Intent** (not SecretRef) | ADR 0005 | n/a | Reference ≠ capability; SUDP-aligned custodian |
 | SecretRef | Internal under connection broker only | ADR 0005 | n/a | Compatibility; never default agent API |
-| Language (control plane) | Rust 2021 / toolchain 1.88 | `rust-toolchain.toml` | MIT/Apache deps via `deny.toml` | Security-sensitive daemon defaults |
+| Language (Host / authority plane) | Rust 2021 / toolchain 1.88 | `rust-toolchain.toml` | MIT/Apache deps via `deny.toml` | Security-sensitive daemon defaults |
 | HTTP | Axum + Tower + Tokio + rustls | workspace Cargo.toml | Apache-2.0/MIT | Mature, audited ecosystem |
-| DB (prod) | PostgreSQL + SQLx | SQLx 0.8.x | Apache-2.0/MIT | HA via CloudNativePG/Patroni |
-| DB (local) | SQLite behind same traits | SQLx sqlite | public domain/blessing | Dev/test only; not HA |
-| AuthZ relationships | OpenFGA | model in `spec/openfga` | Apache-2.0 | Relationship engine; AuthZEN adapter owned by us |
-| Policy API | AuthZEN 1.0 | adapter in `crates/authz` | spec | Stable external contract |
+| DB (Host store) | SQLite via SQLx | SQLx 0.8.x (`Cargo.toml`) | public domain/blessing | `crates/storage` `Db` is SQLite only; single node, not HA |
+| DB (distributed task authority) | PostgreSQL + SQLx | SQLx 0.8.x | Apache-2.0/MIT | `PostgresTaskStore`, selected when `OPENSESAME_TASK_DB` is a PostgreSQL URL (ADR 0031) |
+| DB (Identity plane) | PostgreSQL + Drizzle | `packages/database` | Apache-2.0 | Schema and migrations for the Identity API |
+| AuthZ relationships | OpenFGA | model in `spec/openfga` | Apache-2.0 | Relationship engine; AuthZEN-shaped request/decision types owned by us |
+| Policy API | AuthZEN 1.0 request/decision shapes | types in `crates/authz` (in-process; no AuthZEN HTTP endpoint) | spec | Stable external contract |
 | Authority | OpenBao as provider | provider crate | MPL-2.0 | Dynamic secrets/PKI/SSH/transit |
-| Bundled IdP | Keycloak | Compose profile | Apache-2.0 | OIDC/SAML/LDAP/passkeys/device flow |
-| Workload ID | SPIFFE/SPIRE | provider | Apache-2.0 | Secretless preferred |
-| WASM | Wasmtime Component Model | WIT in `spec/wit/` | Apache-2.0 | No secrets.get; authorized-http/sign |
+| Bundled IdP | Keycloak | Compose service (`ops/compose/docker-compose.yml`) | Apache-2.0 | OIDC/SAML/LDAP/passkeys/device flow |
+| Workload ID | SPIFFE Workload API (SPIRE optional) | `crates/spiffe-source` | Apache-2.0 | Secretless preferred |
+| WASM | Wasmtime Component Model | WIT in `spec/wit/` | Apache-2.0 | No secrets.get; `host-http`, `host-crypto` (purpose-bound `sign`) and `host-oauth` imports only |
 | Developer config contract | **`@env-spec` / `.env.schema`** via `@env-spec/parser` | pin in `packages/env-spec-bridge` | MIT | Schema/value separation; anti-NIH |
 | Prior art (study) | SUDP arXiv:2604.24920 | research | — | Custodian execution; not a wire protocol fork |
 | Prior art (peer) | Varlock credential proxy / sandbox | docs | MIT | Placeholder+placement; do not fork MITM as primary |
@@ -33,12 +34,12 @@ Product license: **MIT** (see `LICENSE`).
 | Boundary / CyberArk Secretless | Credential injection prior art |
 | Nango / Bitwarden / Vaultwarden / Infisical | Study only; no incompatible source copy — see [docs/research/competitors](../research/competitors/index.md) |
 | KeePass / KeePassXC | **Study-only clean-room** (GPL). KDBX and keepassxc-protocol implemented from their public specs — see [docs/research/competitors/keepass.md](../research/competitors/keepass.md), [ADR 0052](../adr/0052-password-manager-ecosystem-bridging.md) §3 |
-| Passbolt | **Study-only clean-room** (AGPL-3.0). API implemented from public docs/OpenAPI; KDBX export ingests today — see [docs/research/competitors/passbolt.md](../research/competitors/passbolt.md) |
+| Passbolt | **Study-only clean-room** (AGPL-3.0). No Passbolt client is implemented in this tree (the consume-client in ADR 0052 is a stretch item); a KDBX export ingests today — see [docs/research/competitors/passbolt.md](../research/competitors/passbolt.md) |
 | 1Password (clients / server / Connect) | Proprietary — serving its clients is impossible and not attempted; consume via `op` CLI, Connect REST (ops plane), and `.1pux` import — see [docs/research/competitors/1password.md](../research/competitors/1password.md) |
 | `keepass` crate (Rust KDBX) | **Permissive dependency allowed** (MIT), pinned. Upstream KDBX4 *write* is experimental → writer constrained to KDBX 4.0 / AES-256 or ChaCha20 / Argon2id + cross-implementation conformance fixture |
 | kdbxweb + hash-wasm (Pages KDBX) | **Permissive dependencies allowed** (MIT). hash-wasm supplies Argon2 to kdbxweb via `CryptoEngine.setArgon2Impl`; both lazily imported |
 | `crypto_box` (RustCrypto NaCl box) | **Permissive dependency allowed** (MIT OR Apache-2.0) — keepassxc-protocol transport crypto, in `crates/pm-bridges` only |
-| rpgp | **Permissive dependency allowed** (MIT OR Apache-2.0) — OpenPGP for the Passbolt consume-client |
+| rpgp | **Permissive dependency allowed** (MIT OR Apache-2.0) if the Passbolt consume-client is built; not a dependency today |
 | oo7 (Secret Service) | **MIT — fork/derive or depend, with `NOTICE` attribution** |
 | rbw (Rust Bitwarden client) | **MIT — fork/derive with `NOTICE` attribution.** In maintenance mode: use as verified protocol knowledge, do **not** take it as a dependency |
 | browserpass-native | **ISC — reference only.** Reimplement the JSON stdio protocol; do not vendor |
@@ -60,7 +61,7 @@ Product license: **MIT** (see `LICENSE`).
 
 ## License policy
 
-CI must run `cargo deny check`. Notices in `NOTICE`.
+`cargo deny check` is run by the nightly dependency-triage routine (`ops/routines/nightly-dependency-triage.md`); no workflow under `.github/workflows` runs it. Notices in `NOTICE`.
 
 Implementing a protocol or file format from its **public specification** is
 not a derivative work of any implementation of it; copying source is. That
@@ -72,7 +73,7 @@ AGPL-3.0). Enforcement is mechanical on the Rust side: `deny.toml`'s
 `[licenses].allow` is permissive-only (MIT, Apache-2.0, BSD-2/3-Clause,
 ISC, MPL-2.0, Unicode, Zlib, CC0-1.0, OpenSSL, CDLA-Permissive-2.0) and
 lists **no GPL or AGPL**, so a contaminating dependency fails
-`cargo deny check` before it reaches review. The residual risk is a human
+`cargo deny check` when the routine runs it. The residual risk is a human
 pasting source, which is why the study-only rows above are explicit.
 
 Bitwarden's 2024 SDK licensing episode — `sdk-internal` made proprietary

@@ -14,36 +14,36 @@ use, and the access they hold. It does — it never lectures.
 ## Hard rules
 
 Same as Access: **no prose** (headers, actions, one-line empty states),
-**a ceremony per fork** (add IdP, approve device, claim access, unlink
-identity — each its own focused view, one at a time), nothing that isn't
-identity management.
+**a ceremony per fork** (add IdP, approve device, unlink identity — each its
+own focused view, one at a time), nothing that isn't identity management.
 
 ## Layout
 
 Route `/identity`, nav label **Identity** (`IconUser`), crumb `identity`.
 Tabs, one mounted at a time:
 
-**People · Providers · Devices · Service accounts · Organization**
+**People · Agents · Providers · Devices · Applications · Organizations**
 
-The first-navigation **IdP ceremony gate** from ADR 0060 is unchanged
-(branded first-class row + custom-OIDC two-step + "Set up later"), minus its
-explanatory paragraphs.
+Each tab is contributed by a capability and is on the page only while that
+capability is (`apps/pages/src/sections/identity/identity-views.ts`). With no
+Identity API configured, or for a guest, People, Agents, Applications and
+Organizations are the vault's own encrypted local records
+(`LocalDirectoryPanel`); the sections below describe the panels backed by the
+Identity API, drawn once one is configured.
+
+The **IdP ceremony** from ADR 0060 (branded first-class row + custom-OIDC
+two-step + "Set up later") is no longer a gate on first navigation: it is opened
+from Providers, replaces the tab panels while it is open, and "Set up later"
+closes it.
 
 ## People — who can sign in, and what they hold
 
-- **Me card** — principal id (truncated, copyable), state badge
+- **You card** — principal id (truncated, copyable), state mark
   (`provisional → Guest`, `active`, `suspended`, `closed`), assurance chip,
   created date. No sentences beyond the chips.
 - **Linked identities** (`GET /v1/principals/identities`) — kind icon,
   issuer, display hint, assurance; **Unlink** (confirm →
   `DELETE /v1/principals/identities/:id`).
-- **My access** (the requester side of JIT) — grants I hold
-  (`GET /api/v1/delegations`, claimant rows): resource, actions, mode,
-  expiry countdown; **Drop** (confirm → `DELETE /api/v1/delegations/{id}`).
-  Primary action **Claim access** → ceremony: paste `claim_token` +
-  `user_code` → present (`POST /api/v1/delegations/present`) shows the
-  offered scope → **Accept** (`POST /api/v1/delegations/claim`,
-  `accepted_item_ids` = all items) → grant appears in My access.
 - **Org members** (active org profile) — rows with role chips
   (owner/admin/member); owner adds by principal id, changes roles, removes.
 
@@ -88,8 +88,8 @@ Moved from the deleted Authority screen. The browser-reachable device act:
 - **Approve a device** ceremony — enter the user code the device/CLI shows
   → `POST /v1/device/approve` `{user_code}` → result line (approved /
   unknown code / unreachable). Focused field, one submit.
-- One-line note: connected devices are enumerated by the operator, not here
-  (no browser-reachable list route exists — honest, not faked).
+- Drawn only where an Identity API is configured and a session exists; with
+  no session the tab shows a connect note instead.
 
 ### The tailnet's machines (ADR 0169)
 
@@ -111,15 +111,17 @@ there is no key and the mark says why (ADR 0158), and Add is drawn only once
 the daemon has a tailnet. Under it all, the browsers that opened this vault
 (rename, remove); nothing is typed in by hand.
 
-## Service accounts — identities that aren't people
+## Applications — identities that aren't people
 
-OAuth clients (`GET /v1/oauth/clients`): name, client id, mode, state,
+The hosted panel is *OIDC applications*: OAuth clients
+(`GET /v1/oauth/clients`) as rows — name, client id, admission mode, state,
 created. **Create** (ceremony: display name, redirect URIs, sector
 identifier → `POST /v1/oauth/clients`), **Rotate** (`POST /:id/rotate` →
-new client id shown once, copy), **Revoke** (confirm → `POST /:id/revoke`).
-Empty state: `No service identities.`
+new client id shown once, copy), **Revoke** (`POST /:id/revoke`). Empty state:
+`No applications registered.` (The route and view id are still
+`service-accounts`.)
 
-## Organization — the tailnet analog
+## Organizations — the tailnet analog
 
 Membership cards (slug, display name, my role, SSO/SAML issuer as the
 server-side IdP binding). **Create an organization** ceremony (slug
@@ -130,12 +132,11 @@ them.
 
 ## Data and state rules
 
-- Existing libs stay the binding points: `lib/directory.ts` (people, orgs,
-  OAuth clients), `lib/idp-registry.ts` (providers), `lib/access.ts`
-  delegation functions (My access + claim — same seams Access uses).
-- New: `approveDevice(userCode)` in `lib/directory.ts` →
-  `POST /v1/device/approve` — exact shape from
-  `packages/control-plane/src/routes/device.ts` (read it before binding).
+- The binding points are in `packages/app-core/src/lib/`: `directory.ts`
+  (people, orgs, OAuth clients), `idp-registry.ts` (providers) and
+  `device-approval.ts` (the Devices form, over ceremony-kit's `approveDevice`
+  and `POST /v1/device/approve` — shape in
+  `packages/control-plane/src/routes/device.ts`).
 - Guests/no-session → connect notes, not errors. All lists fail soft.
 
 ## Test plan
@@ -144,9 +145,6 @@ Extend `IdentitySection.test.tsx` (hoisted seam mocks):
 
 - Devices: approve posts `{user_code}`; unknown-code and unreachable paths
   render their one-liners.
-- My access: claimant delegations render with expiry; Drop confirms then
-  calls seam; Claim ceremony — present shows offered scope, accept posts
-  `{claim_token, user_code, accepted_item_ids}` and the grant appears.
 - Providers: registering a second and third IdP works (registry appends,
   no re-gate).
 - Prose budget: no multi-sentence paragraphs in any view.

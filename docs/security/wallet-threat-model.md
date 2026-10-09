@@ -130,7 +130,7 @@ is not spending authority (ADR 0086 §3; ADR 0119).
 
 | ID | Status | Notes |
 |---|---|---|
-| *(none yet)* | — | Add WAL-* adversarial cases with command output refs as swarms land |
+| *(not backfilled)* | — | The `WAL-*` claims, each with a status and command refs, are in [`docs/evidence/wallet/claims.json`](../evidence/wallet/claims.json); this table has not been backfilled from them |
 
 ## Related
 

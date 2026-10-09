@@ -13,60 +13,6 @@ import type { GuideTargetDescriptor } from "./targets.js";
 
 export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
-    id: "vault.workflow.open",
-    description:
-      "Open the password workflow sheet from the toolbar or phone Add menu.",
-    role: "action",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "vault.workflow.find_references",
-  },
-  {
-    id: "vault.workflow.find",
-    description: "Find several title queries as metadata and references.",
-    role: "action",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "vault.workflow.find_references",
-  },
-  {
-    id: "vault.workflow.inventory",
-    description: "List metadata-only vault inventory.",
-    role: "action",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "vault.workflow.inventory",
-  },
-  {
-    id: "vault.workflow.audit",
-    description: "Review credential organization audit results.",
-    role: "action",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "vault.workflow.audit_organization",
-  },
-  {
-    id: "vault.workflow.template",
-    description:
-      "Create reference templates; optionally choose a private plaintext download.",
-    role: "action",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "vault.workflow.env_template",
-  },
-  {
-    id: "vault.workflow.read",
-    description:
-      "Read a locally held reference after a deliberate plaintext download choice.",
-    role: "action",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "password_provider.read",
-  },
-  {
-    id: "vault.workflow.private",
-    description:
-      "Privately create credentials, compare a candidate or verify an update.",
-    role: "surface",
-    routes: ["/vault", "/vault/password-workflows"],
-    capabilityId: "vault.workflow.compare_private",
-  },
-
-  {
     id: "vault.list",
     description:
       "The item list pane. Everything the vault holds is listed here, grouped by folder and narrowed by whichever filter is active.",
@@ -93,7 +39,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.filter",
     description:
-      "The vault's filters: favorites, each item type this vault holds, your folders and the trash, with the count each would show. Narrowing the list never changes an item. They are rows of the section tree, on a wide screen and on a phone's first screen; in a phone's list one key opens the same roads as a sheet.",
+      "The vault's filters: favorites, each item type this vault holds, your folders and the trash, with the count each would show. Narrowing the list never changes an item. Health is drawn with them and opens the password health report; it does not narrow the list. They are rows of the section tree, on a wide screen and on a phone's first screen; in a phone's list one key opens the same roads as a sheet.",
     role: "filter",
     routes: ["/vault"],
     capabilityId: "vault.items.search",
@@ -189,7 +135,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "item.credentials.references",
     description:
-      "Credential fields on the open account or credential, or contextual reference tools on another item. Reveal and copy controls stay beside each value; reference templates and deliberate private downloads appear when available.",
+      "The item toolbar's key that writes the item's secret fields out by reference as an environment template. Drawn only where the item has a secret field to reference.",
     role: "surface",
     routes: ["/vault/item"],
     capabilityId: "vault.items.reveal",
@@ -197,17 +143,9 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "item.credentials.compare",
     description:
-      "Private password comparison and verified update for the selected login. Human input remains in the vault.",
+      "Compare a typed password with the saved one, on the update editor of a login's password row. The answer is a mark; neither value is shown.",
     role: "surface",
     routes: ["/vault/item"],
     capabilityId: "vault.workflow.compare_private",
-  },
-  {
-    id: "vault.health.organization",
-    description:
-      "Metadata organization findings alongside password health, linking each finding to its actual item.",
-    role: "surface",
-    routes: ["/vault/health"],
-    capabilityId: "vault.workflow.audit_organization",
   },
 ];

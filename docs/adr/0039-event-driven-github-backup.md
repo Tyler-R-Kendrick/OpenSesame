@@ -2,8 +2,11 @@
 
 ## Status
 
-Accepted (supersedes the client-side-only backup posture of ADR 0038 §6 for
-the hosted path; the CLI `pass backup` verb remains for local stores)
+Accepted
+
+Supersedes: [ADR 0038](0038-sealed-store-backup-github-app.md) §6 (the
+client-side-only backup posture, for the hosted path). The CLI `pass backup`
+verb remains for local stores.
 
 ## Context
 

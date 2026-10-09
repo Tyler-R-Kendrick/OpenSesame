@@ -1,12 +1,21 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { readLocalDirectory } from "./local-directory.js";
 import { localRequestFixture } from "./local-request.fixture.js";
 import {
-  createLocalShare,
-  listLocalShares,
+  approvePendingShare,
+  denyPendingShare,
+  listPendingShares,
   listShareTargets,
+  submitLocalShare,
+} from "./local-share-grants-approvals.js";
+import {
+  createLocalShare,
+  grantIdentities,
+  listLocalShares,
   revokeLocalShare,
 } from "./local-share-grants.js";
+import { shareAllows } from "./local-share-reach.js";
 import { lockAllTombs, writeFile } from "./vfs.js";
 
 beforeEach(() => {
@@ -92,4 +101,167 @@ it("a connector revoke the trail will not record leaves the share for a retry", 
   expect((await listLocalShares(fixture.tomb)).map((row) => row.id)).toEqual([
     share.id,
   ]);
+});
+
+it("lists folder and item targets the open vault names", () => {
+  const targets = listShareTargets({
+    folders: [
+      { id: "fold-1", label: "Work" },
+      { id: "", label: "blank" },
+      { id: "x".repeat(129), label: "too long" },
+    ],
+    items: [{ id: "item-1", label: `  ${"n".repeat(200)}` }],
+  });
+  expect(targets.filter((row) => row.kind === "folder")).toEqual([
+    { kind: "folder", id: "fold-1", label: "Work" },
+  ]);
+  const item = targets.find((row) => row.kind === "item");
+  expect(item?.id).toBe("item-1");
+  expect(item?.label).toHaveLength(128);
+});
+
+it("grants an application immediately, including a folder", async () => {
+  const fixture = await localRequestFixture();
+  const directory = await readLocalDirectory(fixture.tomb);
+  expect(grantIdentities(directory.entries).map((row) => row.kind)).toEqual([
+    "person",
+    "application",
+  ]);
+  const submitted = await submitLocalShare(fixture.tomb, {
+    principalId: fixture.applicationId,
+    resourceKind: "folder",
+    resourceId: "fold-1",
+    resourceLabel: "Work",
+    policy: "read",
+    durationSeconds: 3600,
+  });
+  expect(submitted.outcome).toBe("granted");
+  expect(await listPendingShares(fixture.tomb)).toEqual([]);
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "folder", id: "fold-1" },
+      "read",
+      fixture.applicationId,
+    ),
+  ).toBe(true);
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "folder", id: "fold-1" },
+      "write",
+      fixture.applicationId,
+    ),
+  ).toBe(false);
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "item", id: "item-1", folderId: "fold-1" },
+      "read",
+      fixture.applicationId,
+    ),
+  ).toBe(true);
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "item", id: "item-2", folderId: "other" },
+      "read",
+      fixture.applicationId,
+    ),
+  ).toBe(false);
+});
+
+it("covers an item grant only for that item", async () => {
+  const fixture = await localRequestFixture();
+  await createLocalShare(fixture.tomb, {
+    principalId: fixture.applicationId,
+    resourceKind: "item",
+    resourceId: "item-1",
+    resourceLabel: "Work / API key",
+    policy: "use",
+    durationSeconds: 3600,
+  });
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "item", id: "item-1", folderId: "fold-1" },
+      "write",
+      fixture.applicationId,
+    ),
+  ).toBe(true);
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "item", id: "item-2", folderId: "fold-1" },
+      "write",
+      fixture.applicationId,
+    ),
+  ).toBe(false);
+});
+
+async function agentNamed(tomb: string, name: string) {
+  const directory = await readLocalDirectory(tomb);
+  const agent = directory.entries.find(
+    (row) => row.kind === "agent" && row.name === name,
+  );
+  if (!agent) throw new Error(`missing agent ${name}`);
+  return agent;
+}
+
+it("holds an agent grant until it is approved", async () => {
+  const fixture = await localRequestFixture();
+  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  const agent = await agentNamed(fixture.tomb, "Helper");
+  const input = {
+    principalId: agent.id,
+    resourceKind: "item" as const,
+    resourceId: "item-1",
+    resourceLabel: "Work / API key",
+    policy: "use",
+    durationSeconds: 3600,
+  };
+  await expect(createLocalShare(fixture.tomb, input)).rejects.toThrow(
+    /Approve the agent grant/,
+  );
+  const first = await submitLocalShare(fixture.tomb, input);
+  const second = await submitLocalShare(fixture.tomb, input);
+  expect(first.outcome).toBe("pending");
+  expect(second.outcome).toBe("pending");
+  if (first.outcome !== "pending" || second.outcome !== "pending") return;
+  expect(second.pending.id).toBe(first.pending.id);
+  expect(
+    (await listLocalShares(fixture.tomb)).some(
+      (share) => share.principalId === agent.id,
+    ),
+  ).toBe(false);
+  await denyPendingShare(fixture.tomb, first.pending.id);
+  expect(await listPendingShares(fixture.tomb)).toEqual([]);
+  const again = await submitLocalShare(fixture.tomb, input);
+  if (again.outcome !== "pending") throw new Error("expected pending");
+  const shares = await approvePendingShare(fixture.tomb, again.pending.id);
+  expect(shares.some((share) => share.principalId === agent.id)).toBe(true);
+  expect(await listPendingShares(fixture.tomb)).toEqual([]);
+  expect(shares[0]?.expiresAt).toBe(1788998400000 + 3600 * 1000);
+});
+
+it("refuses a grant to a disabled agent", async () => {
+  const fixture = await localRequestFixture();
+  await fixture.change({ action: "create", kind: "agent", name: "Helper" });
+  const agent = await agentNamed(fixture.tomb, "Helper");
+  await fixture.change({
+    action: "update",
+    id: agent.id,
+    name: agent.name,
+    enabled: false,
+  });
+  await expect(
+    submitLocalShare(fixture.tomb, {
+      principalId: agent.id,
+      resourceKind: "vault",
+      resourceId: "personal",
+      resourceLabel: "personal",
+      policy: "open",
+      durationSeconds: 3600,
+    }),
+  ).rejects.toThrow(/disabled/);
 });

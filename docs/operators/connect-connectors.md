@@ -1,87 +1,148 @@
-# Connectors on Vercel Connect (ADR 0147)
+# Configure self-hosted connectors
 
-Every service on the Connections page opens with its whole configuration
-filled in — the OAuth server, client authentication, PKCE, scopes and their
-meaning, extra authorization parameters, where to register a client or issue
-a key — from [`spec/connectors/connect-presets.json`](../../spec/connectors/connect-presets.json)
-and Vercel Connect's own service registry
-([`connect-services.json`](../../spec/connectors/connect-services.json)).
-This runbook takes one connector from nothing to a proven user token.
+The Connections page follows the Vercel Connect configuration experience while
+keeping your connectors on your device. A static, self-hosted deployment can
+connect Linear directly; no Vercel account, token, team, project or relay is needed.
+Provider-specific API-key, public REST OAuth and MCP methods also execute
+directly in the browser; see [the browser connector guide](native-browser-connectors.md)
+and [all 225 catalog dispositions](native-connector-support.md). Methods requiring
+confidential clients or native tooling show their constraints explicitly.
 
-## 1. The relay (once per deployment)
+## Connect Linear
 
-A Vercel deployment of `apps/pages` serves the relay at `/api/connect/*`
-(ADR 0127). Set on the project:
+1. Unlock your vault and open **Connections › Add a connection › Linear**.
+2. Choose **Managed** for your deployment's registered Linear application,
+   or **Bring Your Own** for your own OAuth application or API key.
+3. Enter a connector name. The optional expected workspace accepts a Linear
+   organization name, URL key or ID. Linear's API must confirm it; app and
+   user authorizations must belong to the same workspace.
+4. For OAuth, review **App Scopes** and **User Scopes** and enter your registered
+   **Linear OAuth client ID** if the deployment has not provided one. Register
+   the exact displayed **Redirect URI** in
+   [Linear developer settings](https://linear.app/settings/api/applications/new).
+   The browser uses S256 PKCE; do not enter or publish a client secret.
+5. Press **Create and authorize Linear** and complete Linear's consent screen. App scopes
+   authorize `actor=app`; selected user scopes require a second consent with
+   `actor=user`. Clear one actor's scopes if you do not need that actor. Linear
+   always includes `read`. The form's initial four app and two user selections
+   are product defaults, not evidence of provider grants.
+6. Alternatively, choose **Bring Your Own › API key**, supply a personal key,
+   and press **Verify and connect Linear**. The app verifies its account and
+   workspace through Linear before reporting success. Specific key permissions
+   are managed in Linear, not represented as OAuth scopes.
+7. The verified summary shows the actual account, workspace ID, granted scopes
+   and expiry. **Use Linear** reads recent issues/projects, lists accessible
+   teams, and creates an issue in the selected team. OAuth app and user actors
+   are selectable. Results and failures are awaited and displayed.
 
-| Variable | What it is |
-| --- | --- |
-| `VERCEL_TOKEN` | An access token for the team that owns the connectors. The page never sees it. |
-| `VERCEL_TEAM_ID` | That team (`team_…`). |
-| `VERCEL_PROJECT_ID` | Optional: link new connectors to this project. |
-| `OPENSESAME_CONNECT_MANAGE_KEY` | ≥ 32 characters (`openssl rand -base64 48`). Every create, edit, authorize, revoke and token proof needs it. Unset, those routes answer 403. |
-| `OPENSESAME_CONNECT_APP_ORIGINS` | The https origins the app is served from, comma-separated. |
+The connector name and optional icon identify the local connection. They do
+not create or rename an OAuth application in Linear's developer console.
 
-On a deployment with no relay (GitHub Pages), the connector page asks for a
-Vercel access token and team instead and uses Connect's API directly. It can
-create, edit and authorize connectors that way, but it cannot run the token
-proof: that would put a provider token in the page (ADR 0005).
+### Provision a deployment-owned application
 
-## 2. Seal the management key
+Create a Linear OAuth application and register the deployment's displayed
+callback, for example:
 
-Open **Connections › any service**. With no key sealed, the page opens with a
-**Vercel Connect** panel: paste the management key and seal it. It lives in
-the vault (`config/vercel-connect-auth`), never in plaintext storage.
+```text
+https://your.example/OpenSesame/auth/linear.html
+```
 
-## 3. Create the connector
+Serve the public client ID in `os-runtime-config.json` beside the bundle:
 
-Pick the connection method the service offers — **Vercel app** (managed),
-**OAuth**, **MCP server** or **API key** — and review the filled-in fields:
+```json
+{ "linearClientId": "your-registered-public-client-id" }
+```
 
-- **OAuth, you register the client.** Open the linked developer console,
-  create an OAuth app, paste its client ID and secret. After creation the page
-  shows the **Redirect URI** Connect uses; register that exact value at the
-  provider (copy key beside it).
-- **OAuth or MCP where the server registers clients itself** (RFC 7591 or a
-  client ID metadata document — Resend, Linear's MCP server, most MCP
-  servers): leave the client ID empty and Vercel registers one.
-- **Placeholders** (`{domain}` for Okta, Auth0 and Databricks, `{shop}` for
-  Shopify, Workday's host and tenant): fill the field and every endpoint that
-  uses it follows.
-- **API key:** by default each person pastes their own key when they
-  authorize (`subjectType: user`); choose **One shared key** to store one.
+`PAGES_LINEAR_CLIENT_ID` is accepted by `apps/pages/scripts/write-runtime-config.mjs`.
+GitHub Pages' deployment workflow reads the repository variable of that name.
+This is a public application identifier, never a client secret. Deploy the
+secondary `auth/linear.html` document with the static build. Its callback
+parameters are distinct from OpenSesame identity sign-in.
 
-**Create connector** sends the whole configuration; nothing is created blank.
+OAuth consent redirects require durable browser storage so encrypted pending
+state and the verifier survive navigation. If browser storage is unavailable,
+use an API key in the explicitly session-only connection rather than attempting
+an OAuth redirect that loses its state.
 
-## 4. Authorize as yourself, then prove the token
+### Register a webhook
 
-On the created connector's page, **User token**:
+Enable **Register a Linear webhook**, provide your HTTPS delivery URL and
+select resource types. OAuth requires `admin` in **App Scopes**; a personal key
+requires workspace administration rights. The app does not request `admin`
+by default. Linear must confirm an enabled subscription before setup completes.
 
-1. **Authorize as you** opens the provider's consent in a popup, on behalf of
-   your principal (`subject: { type: "user", id }`).
-2. **Test user token** asks the relay to acquire your token from Connect. The
-   relay fingerprints it, calls the service's own read-only verify endpoint
-   with it, and shows: subject, `sha256` fingerprint, expiry, scopes, and the
-   service's answer (**Token accepted** with the account it names, or the
-   refusal status). The token itself never reaches the page.
+Use **Copy webhook signing secret** in the verified summary to configure your
+receiver. The secret never appears in the page or public connection data; the
+existing clipboard clearing preference applies. Your receiver should verify
+Linear's `Linear-Signature` header using this secret before processing events,
+as described in [Linear's webhook documentation](https://linear.app/developers/webhooks).
+The browser registers the webhook; your supplied receiver processes deliveries.
 
-The CLI equivalent is `vercel connect token <uid>` (it prints the token; the
-page does not).
+A durable UUID and signing-secret intent precede provider creation. A lost
+response or failed completion save remains retryable: saving again reconciles
+that exact subscription rather than creating duplicates. Changing or disabling
+webhooks removes the previous provider subscription. Deletion retries verify
+that the subscription is absent before clearing its local record.
 
-## 5. Grant access
+If an old credential expires or is revoked, **Reconnect application** obtains
+fresh consent before reconciling its webhook. Recovery stays bound to the
+original Linear workspace and the connection remains pending until cleanup
+and the requested setup are durable. **Retry webhook setup** resumes a failed
+provider request. Cleanup can request temporary app `admin` permission; when
+that permission was not selected, a second consent restores the selected
+app scopes before activation; selecting no app scopes instead revokes the
+temporary app grant. Copy the latest signing secret into your receiver
+after a webhook is replaced.
 
-**Access** on the same page grants a person or agent from this vault's
-directory the right to use the connector (`use` / `invoke`) until a time.
-These are the same `connection` shares Access › Resources lists (ADR 0115).
+A replacement API key is verified against the original workspace before it
+can remove the old subscription. You can therefore replace a revoked key
+without requiring the revoked key to perform cleanup.
 
-## What is proven, and where
+## Storage, edits and disconnect
 
-| Check | Command | Covers |
-| --- | --- | --- |
-| Every plan × method ends in a person's token | `pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance` | 220 paths across 185 services, through the real relay handlers, a schema-strict Connect emulator and a strict OAuth provider emulator; every one confirmed by the service's verify call (Linq and Snowflake, Vercel-only, excepted). Negative controls fail as a provider would. |
-| Every real endpoint is live | `pnpm test:connect-preflight` | 47 OAuth authorization servers, 98 MCP servers, 67 API-key verify endpoints; 9 need the customer's own host. |
-| The presets agree with the catalog | `pnpm --filter @opensesame/app-core exec vitest run src/lib/connect-presets.test.ts` | Endpoints and client authentication match `catalog.json` wherever both describe a provider; every create body satisfies Vercel's create schema. |
-| A live user token | Steps 1–4 above | Needs a person at the provider's consent screen; nothing in the repository can stand in for that. |
+Configuration, provider identities and credentials commit together in an
+atomic encrypted device record. Public readers and saved form drafts never
+include API keys, access tokens, refresh tokens or webhook signing secrets.
+Storage failure retains the draft and reports an error. Browser locks and a
+full-record comparison prevent concurrent tabs from overwriting edits.
 
-Re-pin the registry with `node scripts/release/pin-connect-services.mjs`,
-then `pnpm --filter @opensesame/app-core generate:connect` and
-`pnpm --filter @opensesame/pages generate:connect`.
+Safe name/icon edits preserve authorization. Changing an actor's selected
+scope set revokes its old grant and requires new consent, including when
+permissions are narrowed. Changing OAuth applications or methods requires
+removing the existing connector first. Blank API-key edits reuse the compatible
+sealed key and verify it again against Linear.
+
+Before an operation uses an expiring OAuth token, refresh it and persist the
+rotated token pair. Reduced permissions or invalid authorization require
+reconnection. Requests use fixed Linear endpoints and only the selected
+actor's access token; client secrets and refresh tokens are not API headers.
+
+Disconnect removes the registered webhook and revokes OAuth access/refresh
+grants before removing their encrypted records. Completed actor cleanup is
+saved so a partial failure can be retried. A person-supplied API key is removed
+from this device; delete that key in Linear if you also want to invalidate it
+for every application using it.
+
+Rejected or rotated OAuth credentials remain in an encrypted cleanup queue
+until revocation succeeds. Reconnecting retries that cleanup. If the actor's
+scopes have been removed, **Retry authorization cleanup** completes it without
+requesting unwanted consent. Concurrent edits and new authorizations prevent
+disconnect from forgetting credentials that have not been revoked.
+
+## Optional Vercel relay
+
+Imported Vercel connections keep their existing hosted management and token
+proof flow. Its deployment variables (`VERCEL_TOKEN`, `VERCEL_TEAM_ID`, optional
+`VERCEL_PROJECT_ID`, `OPENSESAME_CONNECT_MANAGE_KEY` and
+`OPENSESAME_CONNECT_APP_ORIGINS`) belong to that integration, and are not
+prerequisites for Linear's direct-browser flow.
+
+## Verification
+
+See [ADR 0184](../adr/0184-browser-linear-authorization.md). Provider protocol
+and browser tests cover both actor consent flows, replay refusal, workspace
+and scope verification, token rotation, awaited operations, webhook recovery,
+provider revocation and encrypted reload. Automated authenticated tests use
+a disclosed protocol test authority. Live Linear CORS preflight checks use
+its official endpoints without credentials; live account consent uses the
+application and Linear account supplied by the deployment's user.

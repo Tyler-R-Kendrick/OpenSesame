@@ -38,9 +38,10 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 ## Hard rules (apply on every firing, no exceptions)
 
 - **This routine never becomes a GitHub Actions job.** `.github/workflows/`
-  holds only `ci.yml` (the merge-queue gate) and `deploy-pages.yml`; dependency
-  triage is not to be added there. You operate as an ordinary Claude Code
-  session running `git` and `gh` yourself.
+  holds `ci.yml` (the required pull-request checks), `deploy-pages.yml`,
+  `full-suite.yml` and `password-parity.yml`; dependency triage is not to be
+  added there. You operate as an ordinary Claude Code session running `git`
+  and `gh` yourself.
 - **No new paid dependencies or services.** Only use tools already vendored
   in this repo (see the command list below).
 - **Never commit secrets.** If a scanner finding involves an actual leaked
@@ -96,12 +97,14 @@ For every finding reported by the six commands:
 1. **Check whether it is already accepted.** Read the relevant ignore file
    *before* assuming its syntax:
    - `osv-scanner.toml` — has an `[[IgnoredVulns]]` table array; each entry
-     has an `id` (e.g. `RUSTSEC-2023-0071`) and a `reason` comment above it.
+     has an `id` (e.g. `RUSTSEC-2023-0071`), a `reason` key and a comment
+     explaining it.
      Read it at runtime to confirm the exact keys still match the installed
      osv-scanner version — do not assume the schema from this description.
    - `.cargo/audit.toml` — has an `[advisories]` table with an `ignore = [...]`
      array of RustSec IDs. Read it at runtime the same way.
-   - `deny.toml` — has `[licenses]`, `[bans]`, `[advisories]` sections;
+   - `deny.toml` — has `[licenses]`, `[bans]`, `[advisories]` and `[sources]`
+     sections;
      `cargo deny check` output tells you which section a finding falls under.
    - `docs/security/tooling-evaluation.md` — the running log of decisions;
      search it for the advisory ID or package name before treating anything
@@ -129,6 +132,10 @@ For every finding reported by the six commands:
 EOF
 )"
    ```
+   The default-branch ruleset requires signed commits
+   (`ops/github/default-branch.json`), and a local `git commit` is unsigned:
+   land the commit with `createCommitOnBranch` as described above and use the
+   commands here for the branch and the pull request.
    Keep each PR to one advisory/package family unless multiple advisories
    share one fix commit naturally (e.g. one `pnpm install` moves several
    transitive deps at once) — do not bundle unrelated bumps.

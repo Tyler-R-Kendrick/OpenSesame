@@ -35,11 +35,13 @@ index page with one line per document.
 | [contributing/](contributing/README.md) | How work gets done here: gates, automation routines, team runbooks. | How-to |
 | [archive/](archive/README.md) | Superseded plans and one-shot agent prompts, kept for provenance. | Record |
 
-The repository root also carries four documents that tools read by name:
+The repository root also carries documents that tools read by name:
 [`AGENTS.md`](../AGENTS.md) (the rulebook for coding agents and humans),
+[`CLAUDE.md`](../CLAUDE.md) (imports `AGENTS.md` for Claude Code),
 [`DESIGN.md`](../DESIGN.md) (the visual design contract),
-[`PRODUCT.md`](../PRODUCT.md) (users, purpose, positioning) and
-[`CONTRIBUTING.md`](../CONTRIBUTING.md).
+[`PRODUCT.md`](../PRODUCT.md) (users, purpose, positioning),
+[`CONTRIBUTING.md`](../CONTRIBUTING.md) and
+[`SECURITY.md`](../SECURITY.md) (how to report a vulnerability).
 
 ## Vocabulary
 
@@ -55,7 +57,7 @@ A few words carry specific meaning everywhere in these documents.
 | **Grant** | Authority given to an agent or person, bounded by a capability ceiling. Grants only narrow. |
 | **Receipt** | The Host's signed record of an authorized invocation. |
 | **Vault** / **tomb** | The end-to-end-encrypted store on a device. A device can hold several (personal, one per project, guest); each is a tomb. |
-| **Capability** | An optional product feature an operator turns on. Its code never loads before consent ([ADR 0130](adr/0130-operator-controlled-capability-composition.md)). |
+| **Capability** | A product feature an operator composes. An optional one stays off until switched on, and its code never loads before consent ([ADR 0130](adr/0130-operator-controlled-capability-composition.md)); an always-on one is core ([ADR 0135](adr/0135-always-on-capabilities-and-feature-rollups.md)). |
 | **Plane** | Identity (who), Host/authority (what may be done), client (what runs on a person's device). |
 
 ## Writing documentation
@@ -64,7 +66,7 @@ A few words carry specific meaning everywhere in these documents.
   goes in `operators/`; an explanation of a mechanism goes in `architecture/`;
   a table somebody looks things up in goes in `reference/`.
 - **Add it to the section index.** Each section's `README.md` lists every page
-  with one line. The ADR and audit indexes are generated: run
+  with one line. The ADR, audit and evidence indexes are generated: run
   `pnpm docs:index`.
 - **Link relatively**, so links work on GitHub and in a checkout alike.
 - **Decisions go in ADRs**, dated audits in `security/audits/`, screenshots in

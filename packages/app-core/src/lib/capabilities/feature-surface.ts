@@ -13,13 +13,15 @@ import type { Feature } from "./features.js";
  * Optional capabilities with no Pages code behind them. Each exists so an
  * operator can name it in a policy — prohibit it, or leave it out of a
  * distribution — and its module registers nothing: External telemetry has no
- * collector and Certificate authority no Host issuance surface
- * (`modules/<id>/runtime.ts` say so). A switch
- * for one changes nothing a person can see, so Settings draws none (ADR 0158).
+ * collector, Certificate authority no Host issuance surface, and Household
+ * sharing no members or share action (`modules/<id>/runtime.ts` say so). A
+ * switch for one changes nothing a person can see, so Settings draws none
+ * (ADR 0158).
  */
 export const NO_SURFACE: ReadonlySet<CapabilityId> = new Set([
   "telemetry.external",
   "enterprise.ca-administration",
+  "sharing.household",
 ]);
 
 /**

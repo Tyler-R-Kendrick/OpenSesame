@@ -69,8 +69,9 @@ this local authentication cache's root custody.
 ## Upgrade and recovery
 
 New Host credential writes use a versioned authority envelope inside the
-existing ciphertext column. Event writes use `osev2`. Normal Host, Identity and worker startup requires
-current envelopes and refuses legacy ciphertext or plaintext. To upgrade a
+existing ciphertext column. Event writes use `osev2`. Normal Host startup requires
+current event envelopes, and normal Identity and worker startup requires current
+event and secret envelopes; each refuses legacy ciphertext or plaintext there. To upgrade a
 trusted pre-envelope backup, stop traffic, retain the original customer and row
 context, and temporarily set `OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION=true`.
 This explicitly authorizes legacy event and secret import, OIDC payload sealing

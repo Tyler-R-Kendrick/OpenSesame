@@ -2,6 +2,10 @@
 
 - Status: Accepted
 - Date: 2026-10-04
+- Updated by: [ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)
+  (§1 and §3, the `notifications` row; and the Receipts consequence)
+- Amended: 2026-10-07, §7 (sealing a claim stays gated on the open vault;
+  poll and present of one already sealed run while the vault is locked)
 - Amended: 2026-10-04, §5 (the key travels with the vault; the earlier limit is
   closed)
 - Amends: [ADR 0118](0118-device-native-identity-host.md) (§4's "a remote URL
@@ -407,14 +411,17 @@ owner link in the directory, each its own decision.
 ### 7. A locked vault answers `locked`, and never falls back
 
 When a vault is on this device and none is open, the device routes answer
-`423 {"error":"locked"}`. Nothing is issued: no session, no principal. That
-includes **every claim route** (create, poll, present), whatever the session:
-one minted before any vault existed, then a vault created and locked, is
-refused like any other, because a claim holds what a vault sealed. Health and
-revoke keep working. A session bound to a vault answers `locked` until that same
-vault opens. There is no plaintext fallback and no cached principal: a locked
-device does not speak for the vault. "A vault is on this device" is read from
-the tombs registry and the last-vault pointer, both already plaintext by design
+`423 {"error":"locked"}`. Nothing is issued: no session, no principal.
+Sealing a claim (`POST /v1/claims`) is included, whatever the session: one
+minted before any vault existed, then a vault created and locked, is refused
+like any other, because a claim is sealed from the open vault. Polling
+(`GET /v1/claims/:id/poll`) and presenting (`POST /v1/claims/present`) are
+not. They touch the origin's claim store, not the vault body, so a recipient
+opens a drop while their own vault is locked. Health and revoke keep working.
+A session bound to a vault answers `locked` until that same vault opens.
+There is no plaintext fallback and no cached principal: a locked device does
+not speak for the vault. "A vault is on this device" is read from the tombs
+registry and the last-vault pointer, both already plaintext by design
 (ADR 0063); the host does not import the vault store, which sits on its import
 cycle.
 

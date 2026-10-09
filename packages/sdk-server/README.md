@@ -10,7 +10,7 @@ check fails closed.
 
 - **Used by:** no workspace package or example depends on it yet; it is the public SDK a third-party resource server installs.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), `jose`. `hono` is an optional peer dependency, needed only for `openSesameAuth`.
-- Only asymmetric algorithms are accepted (`DEFAULT_ALLOWED_ALGORITHMS`; ID tokens are RS256/ES256 only). The algorithm is the verifier's choice, never the token's.
+- Only asymmetric algorithms are accepted (`DEFAULT_ALLOWED_ALGORITHMS` in `src/verifier.ts`; ID tokens are RS256/ES256 only). The algorithm is the verifier's choice, never the token's.
 - The JWKS URI comes from the issuer's discovery document unless configured. It must be https (http only on loopback), and a discovered URI may name a private or loopback host only when the issuer is itself private.
 - Introspection requires an `audience`: an authorization server reports any live token as `active`, so a token minted for another resource is refused.
 
@@ -18,13 +18,13 @@ check fails closed.
 
 | Export | What it does |
 |---|---|
-| `createOpenSesameVerifier({ issuer, audience, requiredScopes, algorithms, … })` | Returns `{ verifyAccessToken(token) }` → `VerifiedIdentity` (`sub`, `iss`, `aud`, `scope`, `assurance`, `payload`) |
+| `createOpenSesameVerifier({ issuer, audience, requiredScopes, algorithms, … })` | Returns `{ verifyAccessToken(token) }` → `VerifiedIdentity` (`sub`, `iss`, `aud`, `scope`, `assurance`, `tokenUse`, `payload`, `accessToken`) |
 | `verifyIdToken({ issuer, audience, nonce, … })` | Verifies an OIDC ID token → `VerifiedIdToken` |
 | `introspectOpaqueAccessToken({ introspectionEndpoint, audience, clientId, clientSecret, … })` | RFC 7662 introspection → `IntrospectedAccessToken` |
 | `openSesameAuth({ verifier, getToken, onError })` | Hono middleware; Bearer by default, RFC 6750 `WWW-Authenticate` on 401. Also exported from `@opensesame/sdk-server/hono` |
 | `AuthError`, `AuthorizationError` | 401 (identity not established) and 403 (identity known, access denied), each with a `code` |
 
-From `src/verifier.test.ts`:
+Adapted from the middleware tests in `src/verifier.test.ts`:
 
 ```ts
 import { Hono } from "hono";

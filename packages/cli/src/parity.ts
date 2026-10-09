@@ -40,6 +40,7 @@ export async function runParity(
       ? childArgs(args)
       : [];
   const desktop = toggle(args, "--desktop");
+  const reveal = toggle(args, "--reveal");
   const account = option(args, "--account");
   const vault = option(args, "--vault");
   const scope: Scope = {};
@@ -67,6 +68,7 @@ export async function runParity(
     args,
     child,
     scope,
+    reveal,
     store,
     raw,
     port,

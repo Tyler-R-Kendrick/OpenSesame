@@ -29,7 +29,12 @@ describe("the Keymap panel's rows", () => {
     const byKeys = keymapGroups(EMPTY_KEYMAP, commands, { recorded: "g" });
     expect(
       byKeys.flatMap((group) => group.rows.map((row) => row.command.id)),
-    ).toEqual(["listing.first", "section.vault", "section.settings"]);
+    ).toEqual([
+      "listing.first",
+      "session.join",
+      "section.vault",
+      "section.settings",
+    ]);
   });
 
   it("filters to what changed and what has no key left", () => {
@@ -87,7 +92,11 @@ describe("recording a macro from keys", () => {
     const read = (...tokens: string[]) =>
       stepsFromKeys(tokens, EMPTY_KEYMAP, commands);
     expect(read("g", "j")).toEqual({
-      steps: [{ command: "listing.next", count: 1 }],
+      steps: [{ command: "session.join", count: 1 }],
+      skipped: [],
+    });
+    expect(read("g", "k")).toEqual({
+      steps: [{ command: "listing.previous", count: 1 }],
       skipped: ["g"],
     });
     expect(read("3", "g", "ArrowDown").steps).toEqual([
@@ -105,11 +114,15 @@ describe("recording a macro from keys", () => {
       stepsFromKeys(tokens, EMPTY_KEYMAP, commands);
     // The shell takes a digit as a count before it reads the prefix.
     expect(read("g", "3", "j")).toEqual({
-      steps: [{ command: "listing.next", count: 3 }],
+      steps: [{ command: "session.join", count: 3 }],
+      skipped: [],
+    });
+    expect(read("g", "3", "k")).toEqual({
+      steps: [{ command: "listing.previous", count: 3 }],
       skipped: ["g"],
     });
-    expect(read("g", "1", "2", "j").steps).toEqual([
-      { command: "listing.next", count: 12 },
+    expect(read("g", "1", "2", "k").steps).toEqual([
+      { command: "listing.previous", count: 12 },
     ]);
     // `g G` is `g g` (first row), not a swallowed `g` then `G` (last row).
     expect(read("g", "G")).toEqual({

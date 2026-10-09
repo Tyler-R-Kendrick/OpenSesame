@@ -124,8 +124,10 @@ is answered for that origin alone.
 
 `OPENSESAME_PLUGIN_<ID>=off` turns a plugin off for any process that sees it,
 whatever the settings file says. `<ID>` is the id uppercased, with `-` changed
-to `_`, for example `OPENSESAME_PLUGIN_SURROGATE_PROXY=off`. The values `off`,
-`0`, `false`, `no` and `disabled` all count. **No value turns a plugin on.** An
+to `_`, for example `OPENSESAME_PLUGIN_SURROGATE_PROXY=off`. The override fails
+toward off: any value that is not empty and not `on`, `1`, `true` or `yes`
+counts (`off`, `0`, `false`, `no` and `disabled` among them), and those four
+words only leave the settings file in charge. **No value turns a plugin on.** An
 operator can withdraw a plugin from a process, but no environment can enable
 something a person did not. `PluginState.forced_off` reports it.
 
@@ -149,10 +151,11 @@ something a person did not. `PluginState.forced_off` reports it.
 
 | What | Where |
 |---|---|
-| Settings file (which plugins are installed, pinned, on) | `<config dir>/plugins.json`, or `OPENSESAME_PLUGINS_FILE` |
+| Settings file (which plugins are installed, pinned, on) | `<config dir>/plugins.json`. A shipped build reads no environment variable for this path; `OPENSESAME_PLUGINS_FILE` is honoured only by test builds (cargo feature `path-override`) |
 | Installed native plugin | `<data dir>/plugins/<id>/<version>/<binary>`, or under `OPENSESAME_PLUGINS_DIR` |
 | Installed extension package | `<data dir>/plugins/<id>/<version>/<id>.zip` |
 | Plugin state: notices | `<dir of plugins.json>/plugin-state/<id>/notices.jsonl` (`0600`, capped at 1 MiB, rotated once to `notices.jsonl.1`) |
+| Plugin state: tripwires | `<dir of plugins.json>/plugin-state/<id>/tripwires.jsonl` (`0600`, Error-severity refusals only, capped at 512 KiB, never rotated: once full it drops new lines) |
 | One run's CA certificate | `<dir of plugins.json>/plugin-state/<id>/runs/<run id>/ca.pem` (`0600`, removed when the run ends) |
 
 `<config dir>` and `<data dir>` are the platform directories for
@@ -237,8 +240,9 @@ GITHUB_TOKEN=opensesameConnection(conn://org/github, projection=legacy-token, pa
   and is not inspected for scope.
 
 Every refused surrogate becomes a vetted `surrogate.*` notice line in
-`notices.jsonl`. A notice carries the run, the provider and the fence, never
-the surrogate. The daemon's notices route drops any line that names the
+`notices.jsonl`, or in `tripwires.jsonl` when it is evidence (Error severity
+and up, such as `surrogate.misdirected` and `surrogate.revoked`). A notice
+carries the run, the provider and the fence, never the surrogate. The daemon's notices route drops any line that names the
 `osr_` marker at all.
 
 ### A misdirected surrogate stops the run

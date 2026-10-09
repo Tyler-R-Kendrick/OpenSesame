@@ -11,7 +11,7 @@ checking off.
 ## Where it fits
 
 - **Used by:** [`crates/gateway`](../../crates/gateway),
-  [`packages/identity-worker`](../../packages/identity-worker),
+  [`opensesame-worker`](../worker),
   [`opensesame-connection-broker`](../connection-broker),
   [`opensesame-ingress-evidence`](../ingress-evidence),
   [`opensesame-nats-callout`](../nats-callout),

@@ -11,10 +11,11 @@ what a type is.
 
 ## Where it fits
 
-- **Used by:** no workspace crate or app depends on it today; `apps/cli`,
-  `crates/pm-bridges` and `kdbx-bridge` read `sealed_store::Entry` directly and do
-  not link this crate. It is exercised by its own tests
-  ([`tests/conformance.rs`](tests/conformance.rs),
+- **Used by:** [`apps/cli`](../../apps/cli) (`src/vault_file.rs`, which
+  resolves item types for `opensesame vault verify|ls` with `resolve_type_id`
+  and `ItemTypeRegistry`); `crates/pm-bridges` and `kdbx-bridge` read
+  `sealed_store::Entry` directly and do not link this crate. It is exercised by
+  its own tests ([`tests/conformance.rs`](tests/conformance.rs),
   [`tests/registry.rs`](tests/registry.rs)) and by the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`vault_item_type`, which runs
   `parse_definition` at community trust). It is not in the authority-fabric
@@ -33,7 +34,7 @@ what a type is.
 
 | Area | Items |
 |---|---|
-| Corpus | `BUILTIN_DEFINITIONS` (23 embedded JSON files), `LEGACY_TYPE_IDS` (the seven ids that predate ADR 0087), `LEGACY_TYPE_ALIASES` / `LEGACY_EXTENSION_ALIASES` (`login` → `account`, `.login` → `.account`, ADR 0172; `registry.get("login")` answers the account type) |
+| Corpus | `BUILTIN_DEFINITIONS` (23 embedded JSON files; the five credential types of [ADR 0179](../../docs/adr/0179-credentials-are-entries-bound-to-accounts.md) — `password`, `api-key`, `token`, `oauth-client`, `authenticator` — are in `builtin/` but not embedded here), `LEGACY_TYPE_IDS` (the seven ids that predate ADR 0087), `LEGACY_TYPE_ALIASES` / `LEGACY_EXTENSION_ALIASES` (`login` → `account`, `.login` → `.account`, ADR 0172; `registry.get("login")` answers the account type) |
 | Catalogue | `FieldTypeId`, `FieldShape`, `FieldPart`, `FIELD_TYPE_IDS` |
 | Schema | `ItemTypeDefinition`, `ItemTypeSpec`, `ItemTypeMetadata`, `FieldDefinition`, `SectionDefinition`, `NativeProjection`, `TrailerMapping`, `HandlerId`, `PLATFORM_PUBLISHER` |
 | Validation | `parse_definition`, `validate`, `Trust`, `DefinitionError`, `DefinitionErrors`, `ErrorCode` |

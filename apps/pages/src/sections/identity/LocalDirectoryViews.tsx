@@ -98,7 +98,7 @@ export function newEntryKeyId(kind: LocalIdentityKind): string {
  * whose keep hands focus back to it. A confirmed delete takes the row, and
  * the focused key with it, so focus lands on the panel's add key instead.
  */
-function DirectoryRowKeys({
+export function DirectoryRowKeys({
   model,
   entry,
   kind,
@@ -171,7 +171,7 @@ function DirectoryRowKeys({
   );
 }
 
-function DirectoryAuthority({
+export function DirectoryAuthority({
   tomb,
   entry,
   directory,

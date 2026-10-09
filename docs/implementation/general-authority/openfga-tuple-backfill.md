@@ -4,6 +4,18 @@ Status: dry-run harness in `@opensesame/policy` plus Host live apply on grant
 issue (`crates/gateway/src/openfga_project.rs`) behind `authority_writer_lease`.
 Not agent-reachable.
 
+> Status (2026-10-08): what exists is the dry-run planner in `@opensesame/policy`
+> (`packages/policy/src/authority-tuple-backfill.ts`, used by its tests only)
+> and the per-grant live apply at issue (`project_grant_live` in
+> `crates/gateway/src/openfga_project.rs`: writer lease, `write_tuples`,
+> `record_projection_applied`). Sections 2, 3 and 5 are the operator procedure
+> the planner is designed for: no code in the tree drives a realm-wide live
+> OpenFGA tuple backfill (cursor paging, a pinned-model-id check, an apply
+> ledger) or the tuple-level rollback, and the live apply passes no model id to
+> `record_projection_applied`. `authority_backfill_progress` and
+> `record_backfill_backup` belong to the separate legacy-grant migration in
+> `crates/storage/src/authority/migrate.rs`, which writes no tuples.
+
 Invariants: **INV-GA-03** (additive only — never revoke a baseline allow) and
 **INV-GA-07** (revoked / inactive grants project nothing).
 

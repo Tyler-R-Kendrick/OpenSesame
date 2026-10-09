@@ -260,7 +260,7 @@ export function stepsFromKeys(
 
   // The shell's `resolveToken`: a key that continues nothing after a prefix
   // swallows the prefix. A character key goes with it, unless it is a motion,
-  // which keeps its meaning (`g j` is `j`); a named key is read afresh.
+  // which keeps its meaning (`g k` is `k`); a named key is read afresh.
   const resolve = (token: string): void => {
     const prefix = pending;
     let sequence = [...prefix, token].join(" ");
@@ -298,7 +298,7 @@ export function stepsFromKeys(
 
   for (const token of tokens) {
     // The shell's `countKey` runs before any prefix is read, so a digit is
-    // a count even while a prefix is pending (`g 3 j` is `3 listing.next`).
+    // a count even while a prefix is pending (`g 3 k` is `3 listing.previous`).
     if (/^[1-9]$/.test(token)) {
       count = Math.min(count * 10 + Number(token), 99);
       continue;

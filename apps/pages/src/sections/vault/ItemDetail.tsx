@@ -13,14 +13,11 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { UpLink } from "../../components/UpLink.js";
 import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import {
-  ItemCredentialActions,
-  updateItemSecret,
-} from "./ItemCredentialActions.js";
 import { ItemFields } from "./ItemFields.js";
 import { ItemGone } from "./ItemGone.js";
 import { useItemShare } from "./ItemShare.js";
 import { ItemTools } from "./ItemTools.js";
+import { updateItemSecret } from "./item-secret-update.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -105,7 +102,6 @@ export function ItemDetail() {
         copy={copy}
         onUpdateSecret={(next) => updateItemSecret(item, next, store.saveItem)}
       />
-      <ItemCredentialActions key={item.id} item={item} />
       {ceremony}
 
       {item.fields.length > 0 ? (
