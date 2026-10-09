@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe("revokeDropVaultItem", () => {
-  it("revokes the local claim for a vault drop record", async () => {
+  it("expires the local claim for a vault drop record", async () => {
     const { manifest } = await sealDrop({
       kind: "text",
       name: "Deploy",
@@ -39,6 +39,6 @@ describe("revokeDropVaultItem", () => {
     await revokeDropVaultItem(drop);
     await expect(
       pollLocalDropClaim(session.claimId, session.bearerToken),
-    ).resolves.toBe("revoked");
+    ).resolves.toBe("expired");
   });
 });

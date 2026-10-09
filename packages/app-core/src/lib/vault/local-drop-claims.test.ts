@@ -100,10 +100,10 @@ describe("local drop claims — no Identity API", () => {
     await revokeLocalDropClaim(session.claimId, session.bearerToken);
     await expect(
       pollLocalDropClaim(session.claimId, session.bearerToken),
-    ).resolves.toBe("revoked");
+    ).resolves.toBe("expired");
     await expect(
       presentLocalDropClaim(session.bearerToken, session.userCode),
-    ).rejects.toThrow(/revoked/i);
+    ).rejects.toThrow(/expired/i);
   });
 
   it("refuses a wrong user code without burning the claim", async () => {
