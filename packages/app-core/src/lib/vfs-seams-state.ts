@@ -9,6 +9,8 @@ import type { SealedBlob } from "@opensesame/vault-core";
  * swaps them to put a fault where the disk would be.
  */
 export type VfsSeams = {
+  /** Transport DATA only: installed file storage requires an actual BODY grant. */
+  authenticationStorage?: "file-backed";
   /** Sync read of hydrated kv memory (OPFS is pulled in by `kvHydrate`). */
   readRaw: (key: string) => string | null;
   /**
@@ -24,6 +26,14 @@ export type VfsSeams = {
     key: string,
     maxBytes: number,
     check?: () => void,
+  ) => Promise<void>;
+  /** Physical scalar compare/readback under original caller locks; no memory fallback. */
+  comparePublishRaw?: (
+    key: string,
+    expected: string | null,
+    next: string,
+    maxBytes: number,
+    original: () => void,
   ) => Promise<void>;
   seal: (
     vaultKey: CryptoKey,
