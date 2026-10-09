@@ -18,7 +18,12 @@ export type NativeDriverInput = {
 
 export type NativeDriverResult = {
   label: string;
-  items: readonly { id: string; label: string; url?: string }[];
+  items: readonly {
+    id: string;
+    label: string;
+    url?: string;
+    inputSchema?: string;
+  }[];
 };
 
 export type NativeConnectorDriver = {
