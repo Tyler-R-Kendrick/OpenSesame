@@ -34,4 +34,5 @@ import { VaultDoors } from "./components/VaultDoors/index.js";
 
 ## Dev gallery
 
-Local Vite only: `http://localhost:5180/dev/lock-v5` (`LockV5Demo.tsx`).
+Local Vite only: `http://localhost:5180/OpenSesame/dev/lock-v5`
+(`LockV5Demo.tsx`).
