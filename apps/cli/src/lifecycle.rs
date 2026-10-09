@@ -7,9 +7,51 @@
 //! Host seals it and never returns it again.
 
 use anyhow::{Context, Result};
+use clap::Subcommand;
 use serde_json::{json, Value};
 
 use crate::connect;
+
+/// `opensesame access connectors lifecycle`.
+#[derive(Subcommand, Debug)]
+pub(crate) enum LifecycleCmd {
+    /// Every tracked deadline and how close it is (metadata only).
+    Expiring,
+    /// List registered lifecycle hook subscriptions.
+    Hooks,
+    /// Register or remove a subscription.
+    Hook {
+        #[command(subcommand)]
+        cmd: LifecycleHookCmd,
+    },
+    /// Recent outbound deliveries and whether they landed.
+    Deliveries {
+        #[arg(long, default_value = "50")]
+        limit: usize,
+    },
+    /// Run one expiry scan now instead of waiting for the tick.
+    Scan,
+}
+
+#[derive(Subcommand, Debug)]
+pub(crate) enum LifecycleHookCmd {
+    /// Register a subscription. Prints the signing secret once.
+    Add {
+        #[arg(long)]
+        name: String,
+        /// Absolute https endpoint receiving Standard Webhooks deliveries.
+        #[arg(long)]
+        url: String,
+        /// Event types to receive. Repeatable; defaults to every lifecycle event.
+        #[arg(long = "event")]
+        events: Vec<String>,
+        /// Narrow to particular subject kinds. Repeatable; defaults to all.
+        #[arg(long = "subject-kind")]
+        subject_kinds: Vec<String>,
+    },
+    /// Remove a subscription and its queued deliveries.
+    Rm { id: String },
+}
 
 /// Rows printed before the table truncates. Long inventories are for `--output
 /// json`, not for a terminal.

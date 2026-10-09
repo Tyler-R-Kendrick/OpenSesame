@@ -5,10 +5,10 @@ use std::path::PathBuf;
 
 use clap::Subcommand;
 
-use super::{
-    CeremonyCmd, CertCmd, ConnectionCmd, IntentCmd, LeaseCmd, LifecycleCmd, LifecycleHookCmd,
-    ReceiptCmd, RotateCmd, TaskCmd,
-};
+use super::{ConnectionCmd, IntentCmd, LeaseCmd, ReceiptCmd, RotateCmd, TaskCmd};
+use crate::ceremony::CeremonyCmd;
+use crate::certs::CertCmd;
+use crate::lifecycle::{LifecycleCmd, LifecycleHookCmd};
 use crate::local_authority::LocalAuthorityCommand;
 
 #[derive(Subcommand, Debug)]

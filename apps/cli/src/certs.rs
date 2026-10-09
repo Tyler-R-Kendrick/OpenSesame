@@ -4,6 +4,7 @@
 //! `--reveal` or `--out-dir` is given (human operator only).
 
 use anyhow::{bail, Context, Result};
+use clap::Subcommand;
 use serde_json::{json, Value};
 use std::{
     fs,
@@ -13,6 +14,44 @@ use std::{
 };
 
 use crate::connect;
+
+/// `opensesame access connectors cert`.
+#[derive(Subcommand, Debug)]
+pub(crate) enum CertCmd {
+    /// Print the Host dev CA certificate (trust this for local TLS).
+    Ca {
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+    /// Generate a key and issue a short-lived certificate (default: localhost / 24h).
+    Issue {
+        #[arg(long = "cn", default_value = "localhost")]
+        common_name: String,
+        #[arg(long = "dns")]
+        dns: Vec<String>,
+        #[arg(long = "ip")]
+        ips: Vec<String>,
+        #[arg(long = "ttl-hours", default_value = "24")]
+        ttl_hours: u64,
+        #[arg(long = "out-dir")]
+        out_dir: Option<PathBuf>,
+        /// Print the private key on stderr / JSON. Human operator only.
+        #[arg(long, default_value = "false")]
+        reveal: bool,
+    },
+    /// List issued certificates (metadata only — no private keys).
+    Ls,
+    /// Collect a host-custody private key after an unattended renewal.
+    Key {
+        /// Certificate id, as returned by `cert issue --managed`.
+        id: String,
+        /// Print the private key. Human operator only.
+        #[arg(long, default_value = "false")]
+        reveal: bool,
+        #[arg(long)]
+        out: Option<PathBuf>,
+    },
+}
 
 pub async fn cmd_ca(server: &str, output: &str, out: Option<PathBuf>) -> Result<()> {
     let body = connect::api(server, reqwest::Method::GET, "/api/v1/certs/ca", None).await?;
