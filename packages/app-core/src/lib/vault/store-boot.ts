@@ -1,3 +1,4 @@
+/** Vault store singleton wiring (ADR 0160 device key carrier, activity tomb seam). */
 import { activitySeams } from "../activity-log.js";
 import { bodyPortOf, installDeviceKeyCarrier } from "./store-device-key.js";
 import type { VaultStore } from "./store.js";
