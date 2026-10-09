@@ -1,7 +1,7 @@
 /** Public device rows render without loading any optional provider runtime or private credentials. */
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { Connection } from "./connections.js";
-import type { PublicRow } from "./device-connector-records.js";
+import { type PublicRow, readDeviceRows } from "./device-connector-records.js";
 
 type AuthorizationView = Pick<
   Connection,
@@ -12,6 +12,14 @@ type AuthorizationView = Pick<
   | "expiresAt"
   | "refreshable"
 >;
+
+/** Installed only by the optional provider runtime; inactive records stay pending. */
+type NativeDeviceViewPort = {
+  authorization: (connectionId: string) => AuthorizationView | null;
+};
+export const nativeDeviceViewSeams: NativeDeviceViewPort = {
+  authorization: () => null,
+};
 
 function grantedScopes(raw: string | undefined): string[] {
   try {
@@ -38,6 +46,16 @@ function authorizationView(row: PublicRow): AuthorizationView {
     refreshable: false,
   };
   if (row.fields.self_hosted_configuration === undefined) return ordinary;
+  if (row.fields.native_configuration !== undefined) {
+    return (
+      nativeDeviceViewSeams.authorization(row.connectionId) ?? {
+        ...ordinary,
+        status: "pending",
+        statusDetail: "Enable External connectors to verify this connection",
+        grantedScopes: [],
+      }
+    );
+  }
   if (row.providerId !== "linear" || row.fields.linear_verified !== "1") {
     return {
       ...ordinary,
@@ -76,4 +94,23 @@ export function deviceConnectorView(row: PublicRow): Connection {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** Recognize the public native marker without reading sealed credentials or loading a driver. */
+export function isNativeDeviceConnection(connection: Connection): boolean {
+  return readDeviceRows().some(
+    (row) =>
+      row.connectionId === connection.connectionId &&
+      row.fields.native_configuration !== undefined,
+  );
+}
+
+/** Route labels use saved public metadata, never provider authority or URL identifiers. */
+export function deviceConnectorDisplayName(
+  providerId: string,
+  connectionId: string,
+): string | undefined {
+  return readDeviceRows().find(
+    (row) => row.providerId === providerId && row.connectionId === connectionId,
+  )?.displayName;
 }

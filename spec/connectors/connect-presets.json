@@ -3726,12 +3726,7 @@
         "method": "GET",
         "url": "https://api.{site}/api/v1/validate",
         "account_field": null,
-        "success": [
-          {
-            "field": "valid",
-            "equals": true
-          }
-        ]
+        "success": [{ "field": "valid", "equals": true }]
       },
       "instructions": "In Datadog create an API key under Organization Settings → API Keys, and an application key under Personal Settings → Application Keys with only the read scopes needed (such as monitors_read). Select the Datadog site for your organization. Store both keys privately.",
       "docs_url": "https://docs.datadoghq.com/api/latest/authentication/",

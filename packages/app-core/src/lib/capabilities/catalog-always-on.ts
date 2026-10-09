@@ -18,6 +18,8 @@ const IDENTITY_API_EGRESS = {
 
 export const LINEAR_API_PURPOSE =
   "Linear provider authorization and GraphQL operations";
+export const NATIVE_PROVIDER_PURPOSE =
+  "Native provider authorization, verification and documented API or MCP operations";
 
 export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
@@ -92,6 +94,11 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         {
           class: "external-service",
           purpose: LINEAR_API_PURPOSE,
+          automatic: false,
+        },
+        {
+          class: "external-service",
+          purpose: NATIVE_PROVIDER_PURPOSE,
           automatic: false,
         },
         {

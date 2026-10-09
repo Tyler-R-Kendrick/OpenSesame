@@ -1,4 +1,7 @@
 import { type Crumb, crumbsFor } from "@opensesame/app-core/lib/crumbs.js";
+import { subscribeDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import { deviceConnectorDisplayName } from "@opensesame/app-core/lib/device-connector-view.js";
+import { useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router";
 import { useNarrow } from "../lib/use-narrow.js";
 import { useVault } from "../lib/vault/hooks.js";
@@ -15,6 +18,25 @@ function tabOrFilter(
   // against the first tab; a wide screen keeps the row it has always drawn.
   if (narrow && /^\/access\/[^/]+$/.test(pathname)) return true;
   return pathname === "/vault" && !folderId;
+}
+
+function connectionSegments(parts: string[]): string[] {
+  if (parts[0] === "connections") return parts.slice(1, 3);
+  if (parts[0] === "settings" && parts[1] === "connections")
+    return parts.slice(2, 4);
+  return [];
+}
+
+function connectionLabel(
+  providerId: string | undefined,
+  connectionId: string | undefined,
+): string | undefined {
+  if (!providerId || !connectionId) return undefined;
+  const id = decodeURIComponent(connectionId);
+  return (
+    deviceConnectorDisplayName(decodeURIComponent(providerId), id) ??
+    (id.startsWith("devconn_") ? "Connection" : id)
+  );
 }
 
 /** The path to the current route, from the vault's items and folders. */
@@ -35,15 +57,17 @@ export function useCrumbs(): Crumb[] {
   const folder = folderId
     ? folders.find((candidate) => candidate.id === folderId)
     : undefined;
-  const providerId = parts[0] === "connections" ? parts[1] : undefined;
-  const connectionId = parts[0] === "connections" ? parts[2] : undefined;
+  const [providerId, connectionId] = connectionSegments(parts);
+  const connectionName = useSyncExternalStore(subscribeDeviceRows, () =>
+    connectionLabel(providerId, connectionId),
+  );
 
   return crumbsFor(location.pathname, location.search, {
     itemName: item?.name || undefined,
     folderName: folder?.name,
     folderId: folder?.id,
     providerName: providerId ? decodeURIComponent(providerId) : undefined,
-    connectionName: connectionId ? decodeURIComponent(connectionId) : undefined,
+    connectionName,
   });
 }
 

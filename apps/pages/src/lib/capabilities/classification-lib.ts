@@ -170,8 +170,6 @@ const FEDERATION_FILES = [
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
-  "hosted-inference",
-  "saved-model-agent",
   "model-catalog",
   "model-slugs",
   "browser-inference",

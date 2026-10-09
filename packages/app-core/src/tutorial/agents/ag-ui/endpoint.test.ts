@@ -117,6 +117,20 @@ describe("loadAgUiEndpoint", () => {
     expect(currentAgUiEndpoint()?.url).toBe("https://support.example.com/agui");
   });
 
+  it("does not apply an old activation's late config over a newer endpoint", async () => {
+    let finish: ((config: AgUiEndpointConfig) => void) | undefined;
+    agUiEndpointSeams.fetchAgUiConfig = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    const lease = new AbortController();
+    const loading = loadAgUiEndpoint(lease.signal);
+    lease.abort();
+    applyAgUiEndpoint({ supportAgentUrl: "https://support.example.com/new" });
+    finish?.({ supportAgentUrl: "https://support.example.com/old" });
+    expect(await loading).toBeNull();
+    expect(currentAgUiEndpoint()?.url).toBe("https://support.example.com/new");
+  });
   it("leaves the transport off when the deploy serves no config", async () => {
     agUiEndpointSeams.fetchAgUiConfig = async () => null;
 

@@ -266,6 +266,13 @@ export async function revokeDeviceConnection(id: string): Promise<{
 } | null> {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
+  if (row.fields.native_configuration !== undefined) {
+    const revoke = deviceProviderRevokers[row.providerId];
+    if (!revoke)
+      throw new Error("Enable External connectors to disconnect this provider");
+    await revoke(id);
+    return { revoked: true, providerRevocation: "ok" };
+  }
   if (
     row.providerId === "linear" &&
     row.fields.linear_authorization !== undefined

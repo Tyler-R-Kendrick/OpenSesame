@@ -9,11 +9,6 @@ const SIGNIN = "identity.brokered-signin";
 const UNLOCK = "vault.local-unlock";
 
 export const SHELL_RULES = [
-  optional(
-    "src/browser/native-",
-    "connectors.external",
-    "browser-native provider authorization",
-  ),
   // --- executable roots ----------------------------------------------------
   core("index.html", SHELL, "the one primary HTML entry"),
   core(
@@ -89,6 +84,11 @@ export const SHELL_RULES = [
   core("src/no-host-import", null, "proof the core loads with no host"),
   core("src/memory-storage", null, "in-memory Web Storage for hosts"),
   core("src/browser/", null, "the browser host's ports (ADR 0133)"),
+  optional(
+    "src/browser/native-",
+    "connectors.external",
+    "provider consent browser ports loaded only by native connector runtime",
+  ),
   core("src/node/", null, "the CLI host; never in a Pages build"),
   core("src/sandbox/", null, "the isolate host; never in a Pages build"),
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
@@ -104,6 +104,11 @@ export const SHELL_RULES = [
     "src/screens/capabilities/",
     "settings.core",
     "purpose cards, capability cards, review (S09)",
+  ),
+  optional(
+    "auth/native-",
+    "connectors.external",
+    "native public provider consent return document",
   ),
   optional(
     "auth/linear",

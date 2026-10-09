@@ -1,7 +1,4 @@
-/**
- * SPA rest-path crumbs. Each segment is a real in-app location, not a hash
- * decoration — so refresh, share, and click all land on the same area.
- */
+/** SPA rest-path crumbs point to in-app locations that support refresh, sharing and navigation. */
 
 import {
   type ItemKind,
@@ -232,7 +229,7 @@ export function crumbsFor(
   const segment = parts[0];
   if (segment === undefined) return [];
   if (segment === "vault") return vaultCrumbs(parts, params, ctx);
-  if (segment === "settings") return settingsCrumbs(parts, params);
+  if (segment === "settings") return settingsCrumbs(parts, params, ctx);
   const section = contributionsSnapshot("section").find(
     (entry) => entry.segment === segment,
   );
@@ -247,11 +244,7 @@ function current(label: string): Crumb[] {
   return [{ label }];
 }
 
-/**
- * Crumb builders for the optional sections that spell out a rest path, keyed
- * by the section's segment. A registered section without one is a single
- * current crumb carrying its contributed label.
- */
+/** Contributed sections may spell out a path; other sections have one current crumb. */
 const SECTION_CRUMBS = new Map<
   string,
   (parts: string[], ctx: CrumbContext) => Crumb[]
@@ -361,7 +354,11 @@ function walletCrumbs(parts: string[]): Crumb[] {
   ];
 }
 
-function settingsCrumbs(parts: string[], params: URLSearchParams): Crumb[] {
+function settingsCrumbs(
+  parts: string[],
+  params: URLSearchParams,
+  ctx: CrumbContext,
+): Crumb[] {
   const category = parts[1];
   const aliased = category ? SETTINGS_HASH_ALIAS.get(category) : undefined;
   const named = aliased ?? category ?? "general";
@@ -386,7 +383,9 @@ function settingsCrumbs(parts: string[], params: URLSearchParams): Crumb[] {
         label: provider,
         to: `/settings/connections/${parts[2]}`,
       };
-      crumbs.push({ label: decodeURIComponent(parts[3]) });
+      crumbs.push({
+        label: ctx.connectionName || decodeURIComponent(parts[3]),
+      });
     }
     return crumbs;
   }

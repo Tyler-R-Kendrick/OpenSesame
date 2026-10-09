@@ -40,7 +40,7 @@ import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
-import { useLinearCallback } from "./connections/connect/useLinearCallback.js";
+import { useProviderCallbacks } from "./connections/connect/useProviderCallbacks.js";
 import { useScopedState } from "./connections/use-scoped-state.js";
 import { useFlashNotice } from "./connections/useFlashNotice.js";
 import "./connections.css";
@@ -179,7 +179,7 @@ export function ConnectionsSection() {
     }
   }, []);
 
-  useLinearCallback(search, loadConnections, setFlash);
+  useProviderCallbacks(search, loadConnections, setFlash);
 
   // Re-run after Identity changes because the catalog can differ per session.
   // biome-ignore lint/correctness/useExhaustiveDependencies: session is the retry trigger.

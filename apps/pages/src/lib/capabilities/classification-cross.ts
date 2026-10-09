@@ -120,6 +120,26 @@ const CONNECTOR_RECORDS = [
 ];
 
 export const CROSS_RULES = [
+  shared(
+    `${L}model-provider-record`,
+    "model selections shared by local and remote AI without provider implementations",
+  ),
+  shared(
+    `${L}hosted-model-authority`,
+    "provider authority port shared by model selection and optional provider runtimes",
+  ),
+  ...[
+    "hosted-inference",
+    "saved-model-agent",
+    "hosted-model-protocol",
+    "hosted-model.test-support",
+  ].map((name) =>
+    optional(
+      `${L}${name}`,
+      "support.remote-ai",
+      "closed hosted model protocols and their test fixtures",
+    ),
+  ),
   optional(
     `${L}native-`,
     "connectors.external",

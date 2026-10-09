@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
+  "description": "GitHub Pages installable PWA \u2014 offline client shell for OpenSesame",
   "scripts": {
     "dev": "bash ../../scripts/dev/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
@@ -49,7 +49,9 @@
     "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs",
     "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs",
     "verify:password-agent": "node scripts/verify-password-agent.mjs",
-    "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs"
+    "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs",
+    "verify:native-connectors": "node scripts/verify-native-connectors-journey.mjs",
+    "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",

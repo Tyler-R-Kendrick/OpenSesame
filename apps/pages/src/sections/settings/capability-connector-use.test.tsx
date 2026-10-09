@@ -18,8 +18,6 @@ import { forgeForProvider } from "@opensesame/app-core/lib/git-backup-forges.js"
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
 import { resetDeliveredModels } from "@opensesame/app-core/lib/hosted-inference.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
-import { kvGet } from "@opensesame/app-core/lib/kv.js";
-import * as modelProvider from "@opensesame/app-core/lib/model-provider.js";
 import { driveClientSeams } from "@opensesame/app-core/lib/tailnet-sync/client.js";
 import { writeDriveConfig } from "@opensesame/app-core/lib/tailnet-sync/config.js";
 import {
@@ -229,28 +227,7 @@ async function bootFeatures(): Promise<void> {
   });
 }
 
-function assertSavedOperation(provider: Provider, used: Used): void {
-  const secrets = expectedSecrets(provider);
-  expect(used.ok, provider.id).toBe(true);
-  expect(used.fields, provider.id).toMatchObject(expectedPublic(provider));
-  const packed = JSON.stringify(used.fields);
-  const attached = JSON.stringify(used.secret);
-  for (const value of Object.values(secrets)) {
-    expect(packed, provider.id).not.toContain(value);
-    expect(attached, provider.id).toContain(value);
-  }
-  if (provider.category !== "agent_harnesses") {
-    expect(used.secret, provider.id).toEqual(secrets);
-  }
-  for (const value of Object.values(secrets)) {
-    expect(
-      kvGet(modelProvider.MODEL_PROVIDER_KEY) ?? "",
-      provider.id,
-    ).not.toContain(value);
-  }
-}
-
-describe("capability features use the saved connector", () => {
+describe("capability features refuse unimplemented connector dispatch", () => {
   beforeEach(async () => {
     identitySeams.hostBase = () => "";
     identitySeams.hostLocalSessionEligible = () => false;
@@ -282,14 +259,28 @@ describe("capability features use the saved connector", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses a connector saved after the feature is already on", async () => {
+  it("keeps unsupported saved configurations from claiming execution", async () => {
     await bootFeatures();
-    const listed = listedProviders();
-    console.log(`LISTED ${listed.map((provider) => provider.id).join(" ")}`);
+    const listed = listedProviders().filter(
+      (provider) =>
+        provider.category !== "agent_harnesses" &&
+        provider.category !== "networking" &&
+        forgeForProvider(provider.id) === null,
+    );
+    expect(listed.length).toBeGreaterThan(0);
     for (const provider of listed) {
       expect((await featureUse(provider)).ok, provider.id).toBe(false);
       await saveListed(provider);
-      assertSavedOperation(provider, await featureUse(provider));
+      expect(await featureUse(provider), provider.id).toEqual({
+        ok: false,
+        fields: {},
+        secret: {},
+      });
+      expect(performed, provider.id).toEqual([]);
+      const fabricated = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter(([url]) => String(url).includes(`/${provider.id}/`));
+      expect(fabricated, provider.id).toEqual([]);
     }
   });
 });

@@ -53,6 +53,8 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |
+| [`2026-10-09-native-connectors/`](2026-10-09-native-connectors/README.md) | Native connector configuration evidence |
 | [`2026-10-09-connector-controls/`](2026-10-09-connector-controls/README.md) | Linear connector controls — production browser comparisons |
 | [`2026-10-08-vault-style-sections/`](2026-10-08-vault-style-sections/README.md) | Vault style for Identity, Access and Wallet |
 | [`2026-10-08-self-hosted-connectors/`](2026-10-08-self-hosted-connectors/README.md) | Self-hosted provider configuration |

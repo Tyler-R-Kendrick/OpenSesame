@@ -9,6 +9,8 @@ import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
+import { securityProfile } from "./scripts/security-profile.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -149,7 +151,12 @@ export default defineConfig({
     setupFiles: ["./src/host/test-setup.ts", "./src/host/test-queries.ts"],
   },
   base,
-  define: { "process.env.NODE_DEBUG_NATIVE": "false" },
+  define: {
+    "process.env.NODE_DEBUG_NATIVE": "false",
+    __NATIVE_GOOGLE_HEADER_SECURITY__: JSON.stringify(
+      securityProfile(process.env).headerSecurity,
+    ),
+  },
   resolve: {
     alias: {
       // Subpaths must precede the bare package alias; otherwise Vite resolves
@@ -216,6 +223,9 @@ export default defineConfig({
         linearRedirect: fileURLToPath(
           new URL("./auth/linear.html", import.meta.url),
         ),
+        nativeConnectorRedirect: fileURLToPath(
+          new URL("./auth/native-connector.html", import.meta.url),
+        ),
         msalRedirect: fileURLToPath(
           new URL("./auth/redirect.html", import.meta.url),
         ),
@@ -231,6 +241,7 @@ export default defineConfig({
   // (Chrome 100, Firefox 100, Safari 15) supports module workers.
   worker: { format: "es" },
   plugins: [
+    nativeClientMetadataPlugin(base),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),

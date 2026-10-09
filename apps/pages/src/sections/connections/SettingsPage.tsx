@@ -39,12 +39,17 @@ import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
+import { nativeConnectorHeaderStatus } from "./SettingsPageNativeStatus.js";
 import {
   AuthorizedAccount,
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
+import {
+  NativeConnectorPanels,
+  nativeSettingsDescriptor,
+} from "./connect/NativeConnectorPanels.js";
 
 /**
  * Registry services get the provider configuration experience. Existing
@@ -135,8 +140,12 @@ export function ConnectorSettingsPage({
     );
   }
 
+  const nativeHeader = nativeConnectorHeaderStatus(connection, provider);
   const automatic = canConfigureAutomatically(provider);
   const onConnect = connectOwned(provider.id);
+  const nativeDescriptor = nativeSettingsDescriptor(provider);
+  const nativeExperience =
+    nativeDescriptor !== null && !isConnectConnection(connection);
   // A key or a configuration is collected on this page, including when
   // Vercel lists the same service.
   const deviceSeal =
@@ -160,14 +169,15 @@ export function ConnectorSettingsPage({
           <div className="conn-settings__name">
             <h1>{provider.displayName}</h1>
             <StatusMark
-              {...githubConnectorStatus(
-                provider,
-                connection,
-                connections,
-                backupReady,
-                localGithubApp !== null,
-                roads.acts(provider),
-              )}
+              {...(nativeHeader ??
+                githubConnectorStatus(
+                  provider,
+                  connection,
+                  connections,
+                  backupReady,
+                  localGithubApp !== null,
+                  roads.acts(provider),
+                ))}
             />
             {canBackupEnable(provider.id) ? (
               <BackupEnableSwitch
@@ -180,9 +190,10 @@ export function ConnectorSettingsPage({
             ) : null}
           </div>
           <p>
-            {connection
-              ? statusSentence(connection, provider)
-              : `${authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`}
+            {nativeHeader?.sentence ??
+              (connection
+                ? statusSentence(connection, provider)
+                : `${authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`)}
           </p>
         </div>
         <a
@@ -232,7 +243,7 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {automatic ? (
+      {nativeExperience ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
@@ -323,10 +334,18 @@ export function ConnectorSettingsPage({
           }
         />
       )}
-      {onConnect &&
-      (!deviceSeal ||
-        isSelfHostedConnector(connection) ||
-        isConnectConnection(connection)) ? (
+      {nativeExperience ? (
+        <NativeConnectorPanels
+          key={`${provider.id}/${connection?.connectionId ?? "new"}`}
+          provider={provider}
+          connection={connection}
+          onFlash={onFlash}
+          onChanged={onChanged}
+        />
+      ) : onConnect &&
+        (!deviceSeal ||
+          isSelfHostedConnector(connection) ||
+          isConnectConnection(connection)) ? (
         <ConnectPanels
           provider={provider}
           connection={connection}

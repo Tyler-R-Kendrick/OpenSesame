@@ -51,10 +51,25 @@ interface SecretStore {
   [key: string]: StringFields;
 }
 
+const rowListeners = new Set<() => void>();
+
+/** Observe committed public metadata without exposing the private record. */
+export function subscribeDeviceRows(listener: () => void): () => void {
+  rowListeners.add(listener);
+  return () => {
+    rowListeners.delete(listener);
+  };
+}
+
+function notifyDeviceRows(): void {
+  for (const listener of rowListeners) listener();
+}
+
 export function clearDeviceConnectorStore(): void {
   kvDelete(PUBLIC_KEY);
   kvDelete(SECRET_KEY);
   kvDelete(ATOMIC_KEY);
+  notifyDeviceRows();
 }
 
 function rowFrom(value: BoundaryValue): PublicRow | null {
@@ -159,6 +174,7 @@ export function writeDeviceRows(rows: PublicRow[]): void {
   const legacy = rows.filter((row) => !(row.connectionId in atomic));
   if (legacy.length === 0) kvDelete(PUBLIC_KEY);
   else kvSet(PUBLIC_KEY, JSON.stringify(legacy));
+  notifyDeviceRows();
 }
 
 function readLegacySecrets(): SecretStore {
@@ -229,6 +245,7 @@ async function commitAtomic(records: AtomicStore): Promise<void> {
     throw new Error("Connector configuration exceeds the storage size limit");
   }
   await kvSetDurable(ATOMIC_KEY, value);
+  notifyDeviceRows();
 }
 
 /** Evaluate compatibility under the lock, then commit metadata and secrets in one sealed file. */
