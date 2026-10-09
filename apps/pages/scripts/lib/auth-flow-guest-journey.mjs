@@ -1,9 +1,9 @@
-import { doorGuest } from "./front-door.mjs";
 import { guestEnrollMfa } from "./auth-flow-guest-enroll.mjs";
 import {
   guestUnlockAfterMfa,
   guestUnlockAfterReload,
 } from "./auth-flow-guest-unlock.mjs";
+import { doorGuest } from "./front-door.mjs";
 
 /** Journey 1: a guest asks for MFA and is walked through the key first. */
 export async function guestMfaJourney({
