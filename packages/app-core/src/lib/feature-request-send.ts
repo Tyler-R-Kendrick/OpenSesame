@@ -3,7 +3,7 @@
  * bearer material may ride on request headers; PEMs, SSH keys and other
  * multi-line secrets never do. Nothing saved does not send, and a provider
  * with no declared address is not sent to. Card data is refused before any
- * request.
+ * request. Header values are screened before send.
  */
 
 import {
