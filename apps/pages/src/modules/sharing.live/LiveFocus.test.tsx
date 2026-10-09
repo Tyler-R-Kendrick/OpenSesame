@@ -201,6 +201,7 @@ describe("the keyboard after the host's swaps", () => {
     const copy = await panel.findByRole("button", { name: "Copy the link" });
     await landsOn(copy);
     press(panel.getByRole("button", { name: "End the session for everyone" }));
+    press(panel.getByRole("button", { name: "End for everyone" }));
     const name = await panel.findByLabelText("Session name");
     await landsOn(name);
   });
