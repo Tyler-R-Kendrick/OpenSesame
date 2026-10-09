@@ -1,57 +1,171 @@
-/** Only module delivery is held; authority, MACs, capsules and storage are real. */
-import { createItem } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { isDecoySession } from "../../duress/store/decoy-scratch.js";
-import { kvDelete, kvGet } from "../../kv.js";
-import { writeLastVaultId } from "../../last-vault.js";
+/** Holds original Vite module delivery; no module exports are replaced. */
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
-  BODY_PATH,
-  HEADER_PATH,
-  INDEX_PATH,
-  MIGRATION_MARKER_PATH,
-  PERSONAL_TOMB,
-  tombFileKey,
-  vfsFlush,
-} from "../../vfs.js";
-import { ATTEMPTS_KEY, VaultStore } from "../store.js";
-import { LEGACY_PREFS_KEY } from "../tomb-migration.js";
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
+import { createViteServer } from "vitest/node";
+import { z } from "zod";
+import originalConfig from "../../../../vitest.config.js";
+import { type Host, configureHost, host } from "../../../host.js";
+import type { VaultStore } from "../store.js";
+import { deliveryGate } from "./browser-operation-loading.fixture.js";
 
-const delivery = vi.hoisted(() => {
-  function gate() {
-    let announce = () => {};
-    let release = () => {};
-    const entered = new Promise<void>((resolve) => {
-      announce = resolve;
-    });
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    return { entered, held, announce, release };
-  }
-  return { enrollment: gate(), lifecycle: gate() };
+type Realm = typeof import("./browser-operation-loading.realm.js");
+const originalCallable = z.function();
+const originalPrototype = z.object({
+  create: z.custom<Realm["VaultStore"]["prototype"]["create"]>(
+    (value) => originalCallable.safeParse(value).success,
+  ),
+  unlock: z.custom<Realm["VaultStore"]["prototype"]["unlock"]>(
+    (value) => originalCallable.safeParse(value).success,
+  ),
+  saveItem: z.custom<Realm["VaultStore"]["prototype"]["saveItem"]>(
+    (value) => originalCallable.safeParse(value).success,
+  ),
+  createGuest: z.custom<Realm["VaultStore"]["prototype"]["createGuest"]>(
+    (value) => originalCallable.safeParse(value).success,
+  ),
 });
+const originalRealmSchema = z
+  .object({
+    prepare: z.custom<Realm["prepare"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    reset: z.custom<Realm["reset"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    header: z.custom<Realm["header"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    body: z.custom<Realm["body"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    vfsFlush: z.custom<Realm["vfsFlush"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    createItem: z.custom<Realm["createItem"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    VaultStore: z
+      .custom<Realm["VaultStore"]>(
+        (value) => originalCallable.safeParse(value).success,
+      )
+      .refine((vault) => originalPrototype.safeParse(vault.prototype).success),
+    isDecoySession: z.custom<Realm["isDecoySession"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    assertOwnedStorageWrites: z.custom<Realm["assertOwnedStorageWrites"]>(
+      (value) => originalCallable.safeParse(value).success,
+    ),
+    wipeGuard: z
+      .object({
+        forbid: z.custom<Realm["wipeGuard"]["forbid"]>(
+          (value) => originalCallable.safeParse(value).success,
+        ),
+        allow: z.custom<Realm["wipeGuard"]["allow"]>(
+          (value) => originalCallable.safeParse(value).success,
+        ),
+        permits: z.custom<Realm["wipeGuard"]["permits"]>(
+          (value) => originalCallable.safeParse(value).success,
+        ),
+        takeReached: z.custom<Realm["wipeGuard"]["takeReached"]>(
+          (value) => originalCallable.safeParse(value).success,
+        ),
+      })
+      .strict(),
+  })
+  .strict();
+const delivery = { enrollment: deliveryGate(), lifecycle: deliveryGate() };
+let server: Awaited<ReturnType<typeof createViteServer>>;
+let realm: Realm;
+let cacheDir: string | undefined;
+const stores: VaultStore[] = [];
+let priorHost: Host | undefined;
+type HeldOperation =
+  | ReturnType<VaultStore["protection"]["enrollCandidate"]>
+  | ReturnType<VaultStore["protection"]["testProtector"]>
+  | Promise<void>;
+type Delivery = ReturnType<typeof deliveryGate>;
+const heldOperations: { operation: HeldOperation; gate: Delivery }[] = [];
 
-vi.mock("./browser-enroll.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./browser-enroll.js")>();
-  delivery.enrollment.announce();
-  await delivery.enrollment.held;
-  return actual;
-});
-vi.mock("./browser-lifecycle-ops.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("./browser-lifecycle-ops.js")>();
-  delivery.lifecycle.announce();
-  await delivery.lifecycle.held;
-  return actual;
-});
+function trackHeld<T extends HeldOperation>(operation: T, gate: Delivery): T {
+  heldOperations.push({ operation, gate });
+  return operation;
+}
 
 const PASSWORD = "correct horse battery staple";
-const HEADER_KEY = tombFileKey(PERSONAL_TOMB, HEADER_PATH);
-const BODY_KEY = tombFileKey(PERSONAL_TOMB, BODY_PATH);
-const stores: VaultStore[] = [];
+
+beforeAll(async () => {
+  priorHost = host();
+  cacheDir = await mkdtemp(join(tmpdir(), "opensesame-protector-loader-"));
+  server = await createViteServer({
+    ...originalConfig,
+    configFile: false,
+    root: fileURLToPath(new URL("../../../../", import.meta.url)),
+    cacheDir,
+    server: { middlewareMode: true, watch: null, hmr: false },
+    plugins: [
+      {
+        name: "hold-original-protector-delivery",
+        async load(id) {
+          const gate = id.endsWith("/protection/browser-enroll.ts")
+            ? delivery.enrollment
+            : id.endsWith("/protection/browser-lifecycle-ops.ts")
+              ? delivery.lifecycle
+              : null;
+          if (gate) {
+            gate.announce();
+            await gate.held;
+          }
+          // Delegate untouched source to the ordinary Vite loaders.
+          return null;
+        },
+      },
+    ],
+  });
+  const loaded: unknown = await server.ssrLoadModule(
+    fileURLToPath(
+      new URL("./browser-operation-loading.realm.ts", import.meta.url),
+    ),
+  );
+  const originalFunctions = originalRealmSchema.parse(loaded);
+  // Parsing validates only original function identities; no function is wrapped.
+  realm = originalFunctions;
+  await realm.prepare();
+  realm.wipeGuard.forbid();
+});
+
+async function closeHarness(): Promise<void> {
+  try {
+    await server?.close();
+  } finally {
+    try {
+      if (cacheDir) await rm(cacheDir, { recursive: true, force: true });
+    } finally {
+      if (priorHost) configureHost(priorHost);
+    }
+  }
+}
+
+afterAll(async () => {
+  try {
+    await drainHeldOperations();
+  } finally {
+    await closeHarness();
+  }
+});
 
 async function owner(): Promise<VaultStore> {
-  const store = new VaultStore();
+  const store = new realm.VaultStore();
   stores.push(store);
   await store.create(PASSWORD);
   await store.protection.ensureProtectionProjected();
@@ -67,33 +181,40 @@ function passwordId(store: VaultStore): string {
 }
 
 beforeEach(async () => {
-  await vfsFlush();
-  kvDelete(ATTEMPTS_KEY);
-  for (const path of [
-    HEADER_PATH,
-    BODY_PATH,
-    INDEX_PATH,
-    MIGRATION_MARKER_PATH,
-  ]) {
-    kvDelete(tombFileKey(PERSONAL_TOMB, path));
+  await realm.reset();
+});
+
+async function drainHeldOperations(): Promise<void> {
+  const pending = heldOperations.splice(0);
+  for (const { gate } of pending) gate.releaseEntered();
+  if (delivery.enrollment.loads() > 0) delivery.enrollment.releaseEntered();
+  if (delivery.lifecycle.loads() > 0) delivery.lifecycle.releaseEntered();
+  try {
+    for (const store of stores.splice(0)) store.lock();
+  } finally {
+    await Promise.allSettled(pending.map(({ operation }) => operation));
+    if (realm) {
+      await realm.vfsFlush();
+      realm.assertOwnedStorageWrites();
+      expect(realm.wipeGuard.takeReached()).toEqual([]);
+    }
   }
-  kvDelete(LEGACY_PREFS_KEY);
-  writeLastVaultId(PERSONAL_TOMB);
-});
-afterEach(async () => {
-  delivery.enrollment.release();
-  delivery.lifecycle.release();
-  for (const store of stores.splice(0)) store.lock();
-  await vfsFlush();
-});
+  expect(delivery.enrollment.loads()).toBeLessThanOrEqual(1);
+  expect(delivery.lifecycle.loads()).toBeLessThanOrEqual(1);
+}
+
+afterEach(drainHeldOperations);
 
 describe.sequential(
   "deferred protector management with real owner sessions",
   () => {
     it("does not admit a cold enrollment into a fresh owner session after lock", async () => {
       const store = await owner();
-      const before = kvGet(HEADER_KEY);
-      const pending = store.protection.enrollCandidate("recovery-key");
+      const before = realm.header();
+      const pending = trackHeld(
+        store.protection.enrollCandidate("recovery-key"),
+        delivery.enrollment,
+      );
       const refused = expect(pending).rejects.toMatchObject({
         code: "stale_operation",
       });
@@ -102,7 +223,7 @@ describe.sequential(
       await store.unlock(PASSWORD);
       delivery.enrollment.release();
       await refused;
-      expect(kvGet(HEADER_KEY)).toBe(before);
+      expect(realm.header()).toBe(before);
       expect(
         store.protection
           .listProtectors()
@@ -119,26 +240,31 @@ describe.sequential(
 
     it("does not delegate a cold lifecycle operation into a synthetic session", async () => {
       const store = await owner();
-      const beforeHeader = kvGet(HEADER_KEY);
-      const beforeBody = kvGet(BODY_KEY);
-      const pending = store.protection.setPreferred(passwordId(store));
+      const beforeHeader = realm.header();
+      const beforeBody = realm.body();
+      const pending = trackHeld(
+        store.protection.setPreferred(passwordId(store)),
+        delivery.lifecycle,
+      );
       const refused = expect(pending).rejects.toMatchObject({
         code: "stale_operation",
       });
       await delivery.lifecycle.entered;
       store.lock();
       await store.createGuest({ decoy: true });
-      expect(isDecoySession()).toBe(true);
+      expect(realm.isDecoySession()).toBe(true);
       delivery.lifecycle.release();
       await refused;
       expect(store.protection.listProtectors()).toEqual([]);
-      expect(kvGet(HEADER_KEY)).toBe(beforeHeader);
-      expect(kvGet(BODY_KEY)).toBe(beforeBody);
+      expect(realm.header()).toBe(beforeHeader);
+      expect(realm.body()).toBe(beforeBody);
     });
 
     it("uses the cached operations for genuine enrollment, proof, removal and rotation", async () => {
       const store = await owner();
-      const item = createItem("note", "kept across root rotation");
+      expect(delivery.enrollment.loads()).toBe(1);
+      expect(delivery.lifecycle.loads()).toBe(1);
+      const item = realm.createItem("note", "kept across root rotation");
       item.notes = "genuine encrypted payload";
       await store.saveItem(item);
       const enrollment = await store.protection.enrollCandidate("recovery-key");
@@ -180,15 +306,32 @@ describe.sequential(
       if (!secret)
         throw new Error("The genuine recovery enrollment returned no secret.");
       await store.protection.commitEnrollment(recovery.operationId);
-      const before = kvGet(HEADER_KEY);
+      const before = realm.header();
+      const beforeBody = realm.body();
+      expect(beforeBody).not.toBeNull();
       const pending = [
-        store.protection.setPreferred(recovery.record.protectorId),
-        store.protection.removeProtector(recovery.record.protectorId),
-        store.protection.testProtector(recovery.record.protectorId, {
-          recoverySecretB64: secret,
-        }),
-        store.protection.rotateCompromisedRoot({ password: PASSWORD }),
-        store.protection.enrollCandidate("recovery-key"),
+        trackHeld(
+          store.protection.setPreferred(recovery.record.protectorId),
+          delivery.lifecycle,
+        ),
+        trackHeld(
+          store.protection.removeProtector(recovery.record.protectorId),
+          delivery.lifecycle,
+        ),
+        trackHeld(
+          store.protection.testProtector(recovery.record.protectorId, {
+            recoverySecretB64: secret,
+          }),
+          delivery.lifecycle,
+        ),
+        trackHeld(
+          store.protection.rotateCompromisedRoot({ password: PASSWORD }),
+          delivery.lifecycle,
+        ),
+        trackHeld(
+          store.protection.enrollCandidate("recovery-key"),
+          delivery.enrollment,
+        ),
       ];
       const refusals = pending.map((operation) =>
         expect(operation).rejects.toMatchObject({ code: "stale_operation" }),
@@ -196,7 +339,8 @@ describe.sequential(
       store.lock();
       await store.unlock(PASSWORD);
       await Promise.all(refusals);
-      expect(kvGet(HEADER_KEY)).toBe(before);
+      expect(realm.header()).toBe(before);
+      expect(realm.body()).toBe(beforeBody);
       await store.protection.setPreferred(passwordId(store));
       expect(store.getSnapshot().header?.protection?.preferredProtectorId).toBe(
         passwordId(store),
