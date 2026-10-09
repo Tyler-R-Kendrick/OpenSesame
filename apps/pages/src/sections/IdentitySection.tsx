@@ -62,6 +62,7 @@ import {
 import { HostedConnectWorkspace } from "./identity/HostedRecordParts.js";
 import type { IdentityTab } from "./identity/IdentityTabs.js";
 import { LocalDirectoryWorkspace } from "./identity/LocalDirectoryWorkspace.js";
+import { providersListRoute } from "./identity/providers-list-route.js";
 import { ProvidersWorkspace } from "./identity/ProvidersWorkspace.js";
 import { useEnabledIdentityViews } from "./identity/identity-views.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
@@ -172,36 +173,18 @@ export function IdentitySection() {
   const ceremonyOpen = tab === "providers" && params.get("action") === "new";
   const [flash, setFlash] = useState<Flash | null>(null);
 
-  function providersRoute(
-    query: { action?: "new" },
-    recordId?: string,
-  ): { pathname: string; search: string; hash: string } {
-    const search = new URLSearchParams({ view: "providers" });
-    if (query.action === "new") search.set("action", "new");
-    return {
-      pathname: "/identity",
-      search: `?${search.toString()}`,
-      hash: recordId ? `#${encodeURIComponent(recordId)}` : "",
-    };
-  }
-
   function openCeremony() {
-    // Drop any record hash — a stale fragment leaves ProviderDetail mounted
-    // beside the ceremony and flakes "Connect your identity provider" checks.
-    navigate(providersRoute({ action: "new" }));
+    navigate(providersListRoute({ action: "new" }));
   }
 
   function closeCeremony() {
-    if (listAdditionalIdpRegistrations().length === 0) {
-      // "Set up later" defers adding another upstream; the device IdP remains.
-      dismissIdpCeremony();
-    }
-    navigate(providersRoute({}));
+    if (listAdditionalIdpRegistrations().length === 0) dismissIdpCeremony();
+    navigate(providersListRoute({}));
   }
 
   function registered(record: IdpRecord, message: string) {
     setProviders(listIdpRegistrations());
-    navigate(providersRoute({}, record.id));
+    navigate(providersListRoute({}, record.id));
     setFlash({ tone: "ok", text: message });
   }
 
