@@ -9,7 +9,6 @@ import {
   syncConnectorDirectory,
 } from "@opensesame/app-core/lib/connector-directory.js";
 import { kvDelete } from "@opensesame/app-core/lib/kv.js";
-import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { listPendingShares } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
@@ -224,9 +223,7 @@ it("offers a new application and binds the connector to it", async () => {
   await userEvent.click(
     screen.getByRole("button", { name: "Approve Test application" }),
   );
-  await waitFor(() =>
-    expect(screen.getByText("Grant approved.")).toBeTruthy(),
-  );
+  await waitFor(() => expect(screen.getByText("Grant approved.")).toBeTruthy());
   await waitFor(async () => {
     const shares = await listLocalShares(fixture.tomb);
     expect(shares).toHaveLength(1);
