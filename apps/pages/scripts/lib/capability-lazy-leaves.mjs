@@ -56,6 +56,14 @@ const LAZY_LEAVES = [
   // load with the module and stay off the bootstrap. `push.ts` is the worker
   // half and is not matched here.
   ["/src/lib/push-", "notifications.web-push", "cap-notifications.web-push"],
+  // Pairing secrets for the tailnet plugin daemon: without a leaf, splitting
+  // react-dom out of `main` lets Rollup fold this optional module into the
+  // entry on some deepsec stack graphs (ENTRY_STATIC_OPTIONAL).
+  [
+    "/packages/app-core/src/lib/tailnet-sync/plugin-pairing",
+    "networking.tailnet",
+    "tailnet-plugin-pairing",
+  ],
 ];
 
 export function lazyLeafChunk(id, entry) {
