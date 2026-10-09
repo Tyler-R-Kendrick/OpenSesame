@@ -16,6 +16,7 @@ import {
   normalizeInviteCode,
   takeCapturedLiveLink,
 } from "@opensesame/app-core/lib/join/invite.js";
+import { liveJoinAskDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
 import type { GuestStatus } from "@opensesame/app-core/lib/live/guest.js";
 import {
   type LiveLink,
@@ -253,6 +254,18 @@ function AskForm({ held }: { held: LiveLink | null }) {
       <FormCommit
         label="Ask to join"
         disabled={!ready || busy}
+        disabledReason={
+          !ready && !busy
+            ? liveJoinAskDisabledReason({
+                link,
+                pasted,
+                needsCode: needsCode ?? false,
+                code,
+                name,
+                busy,
+              })
+            : undefined
+        }
         busy={busy}
         icon={<IconArrowRight size={18} />}
       />
