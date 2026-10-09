@@ -12,7 +12,7 @@ import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconPlus, IconRefresh, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { ShareGrantForm } from "./ShareGrantForm.js";
+import { ShareGrantForm } from "../vault/ShareGrantForm.js";
 
 export function useLocalShares(tomb: string) {
   const [shares, setShares] = useState<LocalShare[]>([]);
