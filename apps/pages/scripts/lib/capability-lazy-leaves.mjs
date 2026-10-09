@@ -49,6 +49,13 @@ const LAZY_LEAVES = [
   ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
+  // Document enrolment (`push-browser`, `push-enrolment`, `push-seams`) is
+  // pure. `experimentalMinChunkSize` then folds that small chunk into `main`,
+  // which the gate reads as a static import of `notifications.web-push`
+  // (ADR 0130 §4). The capability chunk is the dynamic entry, so these files
+  // load with the module and stay off the bootstrap. `push.ts` is the worker
+  // half and is not matched here.
+  ["/src/lib/push-", "notifications.web-push", "cap-notifications.web-push"],
 ];
 
 export function lazyLeafChunk(id, entry) {
