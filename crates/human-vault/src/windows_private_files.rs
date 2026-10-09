@@ -72,23 +72,13 @@ impl PrivateDirectory {
         let mut identities = Vec::new();
         for (index, path) in paths.iter().enumerate() {
             if new_leaf && index + 1 == paths.len() {
-                validate_ancestor_chain(&paths[..index], &parents, &identities)?;
-                if security::owner_sid()? != owner {
-                    return Err(security::refused());
-                }
-                let parent = parents.last().ok_or_else(security::refused)?;
-                handles::local_ntfs(parent, &paths[0])?;
+                validate_creation_parent(&paths[..index], &parents, &identities, &owner)?;
                 create_private_directory_new(path, &owner)?;
             }
             let file = match handles::directory(path) {
                 Ok(file) => file,
                 Err(error) if create_missing && error.kind() == io::ErrorKind::NotFound => {
-                    validate_ancestor_chain(&paths[..index], &parents, &identities)?;
-                    if security::owner_sid()? != owner {
-                        return Err(security::refused());
-                    }
-                    let parent = parents.last().ok_or_else(security::refused)?;
-                    handles::local_ntfs(parent, &paths[0])?;
+                    validate_creation_parent(&paths[..index], &parents, &identities, &owner)?;
                     create_private_directory(path, &owner)?;
                     let file = handles::directory(path)?;
                     security::verify(&file, &owner, true)?;
@@ -181,6 +171,20 @@ fn validate_ancestor_chain(
         }
     }
     handles::drive_relation(&parents[0], &paths[0])
+}
+
+fn validate_creation_parent(
+    paths: &[PathBuf],
+    parents: &[File],
+    identities: &[handles::Identity],
+    owner: &str,
+) -> io::Result<()> {
+    validate_ancestor_chain(paths, parents, identities)?;
+    if security::owner_sid()? != owner {
+        return Err(security::refused());
+    }
+    let parent = parents.last().ok_or_else(security::refused)?;
+    handles::local_ntfs(parent, paths.first().ok_or_else(security::refused)?)
 }
 
 fn create_private_directory(path: &Path, owner: &str) -> io::Result<()> {

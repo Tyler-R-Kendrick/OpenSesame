@@ -22,7 +22,7 @@ fn fresh_private_root_has_actual_password_mac_binding_and_held_key_storage() {
     assert_eq!(item_key.0, recovered.0);
     verify_manifest_auth(&recovered, &manifest).unwrap();
     assert!(crate::unwrap_vrk_with_password(b"wrong password", wrapper).is_err());
-    let held = HeldPrivateRead::open(
+    let mut held = HeldPrivateRead::open(
         Arc::clone(&directory),
         Path::new(KEY_FILE_NAME),
         MAX_MANIFEST_ENCODED_BYTES,
