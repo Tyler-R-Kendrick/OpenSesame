@@ -18,7 +18,7 @@ afterEach(() => {
 });
 
 describe("sending a saved connector operation", () => {
-  it("sends to the address the provider declares, secrets on headers only", () => {
+  it("sends to the address the provider declares with bearer material on headers only", () => {
     const sent = sendFeatureOperation({
       ok: true,
       providerId: "anthropic",
