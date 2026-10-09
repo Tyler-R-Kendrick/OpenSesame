@@ -3,6 +3,9 @@
 //! Create / list / delete / sync fan-out. Responses never include secret values.
 //! Bus events (`sync.target.*`) publish via the injected [`TaskBus`].
 
+#[path = "sync_targets_access.rs"]
+mod access;
+
 #[cfg(test)]
 use crate::test_principals::P06;
 use std::sync::Arc;
@@ -13,7 +16,10 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connection_broker::{CreateSyncTarget, KeyFilteredSecretSource, SyncSecretSource};
+use opensesame_connection_broker::{
+    config_access::ResourcePermission, CreateSyncTarget, KeyFilteredSecretSource, SyncSecretSource,
+};
+use opensesame_domain::OrganizationId;
 use opensesame_task_bus::BusEvent;
 use serde::Deserialize;
 use serde_json::json;
@@ -21,6 +27,7 @@ use serde_json::json;
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
 use crate::routes::connections::broker_error;
+use crate::routes::secret_configs::access as secret_config_access;
 
 #[allow(clippy::result_large_err)]
 fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
@@ -35,14 +42,26 @@ fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, R
         )
             .into_response());
     }
+    // Reject a malformed principal even for an empty collection.
+    secret_config_access::actor(&who)?;
     Ok(who)
+}
+
+async fn require_project(
+    st: &AppState,
+    who: &Caller,
+    organization: &OrganizationId,
+    project: &str,
+    permission: ResourcePermission,
+) -> Result<(), Response> {
+    secret_config_access::project(st, who, organization, project, permission).await
 }
 
 fn caller_organization(
     st: &AppState,
     who: &Caller,
     headers: &axum::http::HeaderMap,
-) -> Result<opensesame_domain::OrganizationId, Response> {
+) -> Result<OrganizationId, Response> {
     resolve_caller_organization(st, who, headers)
 }
 
@@ -72,8 +91,7 @@ pub struct CreateBody {
 
 /// Sync body: key **names** only on the wire — an optional filter over the
 /// config's stored key set. Values resolve on Host through the ADR 0052
-/// project-config store (`broker.sync_secret_source()`); clients can never
-/// supply values on this API.
+/// project-config store; clients can never supply values on this API.
 #[derive(Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub struct SyncBody {
@@ -125,18 +143,26 @@ async fn publish_sync_bus(
     })
 }
 
-/// Production secret source: the host-sealed config store, optionally
-/// narrowed to the key names the caller listed. Fails when the deployment
-/// seal key is unset — a keyless deployment cannot sync.
+/// Bind the production source to caller identity, not to a cached allow.
+/// Every load (including each fan-out target) rechecks the live Keys ceiling.
 #[allow(clippy::result_large_err)]
 fn secret_source_from_body(
     st: &AppState,
+    who: &Caller,
+    organization: &OrganizationId,
     body: &SyncBody,
 ) -> Result<Arc<dyn SyncSecretSource>, Response> {
-    let source = st
+    let actor = secret_config_access::actor(who)?;
+    let inner = st
         .connection_broker
         .sync_secret_source()
         .map_err(|error| broker_error(&error))?;
+    let source: Arc<dyn SyncSecretSource> = Arc::new(access::CallerSecretSource::new(
+        st.db.pool().clone(),
+        *organization,
+        actor,
+        inner,
+    ));
     if body.key_names.is_empty() {
         Ok(source)
     } else {
@@ -158,6 +184,32 @@ pub async fn list(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    if let Some(project) = query.project_id.as_deref() {
+        if let Err(resp) = require_project(
+            &st,
+            &who,
+            &organization_id,
+            project,
+            ResourcePermission::Manage,
+        )
+        .await
+        {
+            return resp;
+        }
+    }
+    if let Some(config) = query.config_id.as_deref() {
+        if let Err(resp) = secret_config_access::config(
+            &st,
+            &who,
+            &organization_id,
+            config,
+            ResourcePermission::Manage,
+        )
+        .await
+        {
+            return resp;
+        }
+    }
     match st
         .connection_broker
         .list_sync_targets(
@@ -168,7 +220,24 @@ pub async fn list(
         .await
     {
         Ok(targets) => {
-            let body = json!({ "sync_targets": targets });
+            let mut authorized = Vec::new();
+            for target in targets {
+                match require_project(
+                    &st,
+                    &who,
+                    &organization_id,
+                    &target.project_id,
+                    ResourcePermission::Manage,
+                )
+                .await
+                {
+                    Ok(()) => authorized.push(target),
+                    Err(resp) if resp.status() == StatusCode::NOT_FOUND => {}
+                    // A policy outage must not masquerade as a successful list.
+                    Err(resp) => return resp,
+                }
+            }
+            let body = json!({ "sync_targets": authorized });
             if let Err(resp) = assert_no_secret_fields(&body) {
                 return resp;
             }
@@ -189,16 +258,36 @@ pub async fn create(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    let config = match secret_config_access::config(
+        &st,
+        &who,
+        &organization_id,
+        body.config_id.trim(),
+        ResourcePermission::Manage,
+    )
+    .await
+    {
+        Ok(config) => config,
+        Err(resp) => return resp,
+    };
+    if config.project_id != body.project_id.trim() {
+        return secret_config_access::hidden();
+    }
+    let actor = match secret_config_access::actor(&who) {
+        Ok(actor) => actor,
+        Err(resp) => return resp,
+    };
     match st
         .connection_broker
-        .create_sync_target(
+        .create_sync_target_for_actor(
             &organization_id,
             CreateSyncTarget {
-                project_id: body.project_id,
-                config_id: body.config_id,
+                project_id: config.project_id,
+                config_id: config.id,
                 connection_id: body.connection_id,
                 operation: body.operation,
             },
+            &actor,
         )
         .await
     {
@@ -235,20 +324,26 @@ pub async fn get(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
-    match st
-        .connection_broker
-        .get_sync_target(&organization_id, &id)
-        .await
+    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+        Ok(target) => target,
+        Err(e) => return broker_error(&e),
+    };
+    if let Err(resp) = require_project(
+        &st,
+        &who,
+        &organization_id,
+        &target.project_id,
+        ResourcePermission::Manage,
+    )
+    .await
     {
-        Ok(target) => {
-            let body = serde_json::to_value(&target).unwrap_or_else(|_| json!({}));
-            if let Err(resp) = assert_no_secret_fields(&body) {
-                return resp;
-            }
-            (StatusCode::OK, Json(body)).into_response()
-        }
-        Err(e) => broker_error(&e),
+        return resp;
     }
+    let body = serde_json::to_value(&target).unwrap_or_else(|_| json!({}));
+    if let Err(resp) = assert_no_secret_fields(&body) {
+        return resp;
+    }
+    (StatusCode::OK, Json(body)).into_response()
 }
 
 /// `DELETE /api/v1/sync-targets/{id}`
@@ -262,6 +357,21 @@ pub async fn delete(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+        Ok(target) => target,
+        Err(e) => return broker_error(&e),
+    };
+    if let Err(resp) = require_project(
+        &st,
+        &who,
+        &organization_id,
+        &target.project_id,
+        ResourcePermission::Manage,
+    )
+    .await
+    {
+        return resp;
+    }
     match st
         .connection_broker
         .delete_sync_target(&organization_id, &id)
@@ -284,8 +394,27 @@ pub async fn sync_one(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
+    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+        Ok(target) => target,
+        Err(e) => return broker_error(&e),
+    };
+    let config = match secret_config_access::config(
+        &st,
+        &who,
+        &organization_id,
+        &target.config_id,
+        ResourcePermission::Keys,
+    )
+    .await
+    {
+        Ok(config) => config,
+        Err(resp) => return resp,
+    };
+    if config.project_id != target.project_id {
+        return secret_config_access::hidden();
+    }
     let body = body.map(|Json(b)| b).unwrap_or_default();
-    let secrets = match secret_source_from_body(&st, &body) {
+    let secrets = match secret_source_from_body(&st, &who, &organization_id, &body) {
         Ok(secrets) => secrets,
         Err(resp) => return resp,
     };
@@ -342,7 +471,25 @@ pub async fn sync_all(
         )
             .into_response();
     }
-    let secrets = match secret_source_from_body(&st, &SyncBody::default()) {
+    // Authorize the config even when it has no targets. The caller-bound
+    // source and per-target grants recheck every target at materialization.
+    if let Err(resp) = secret_config_access::config(
+        &st,
+        &who,
+        &organization_id,
+        config_id,
+        ResourcePermission::Keys,
+    )
+    .await
+    {
+        return resp;
+    }
+    let secrets = match secret_source_from_body(
+        &st,
+        &who,
+        &organization_id,
+        &SyncBody::default(),
+    ) {
         Ok(secrets) => secrets,
         Err(resp) => return resp,
     };
@@ -391,3 +538,7 @@ pub struct SyncAllBody {
 #[cfg(test)]
 #[path = "sync_targets_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "sync_targets_authorization_tests.rs"]
+mod authorization_tests;
