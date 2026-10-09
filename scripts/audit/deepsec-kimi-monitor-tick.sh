@@ -24,7 +24,9 @@ else
     echo "started error-loop errors=$errs" >>"$LOG"
   fi
 fi
-errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null | grep 'error:' | head -1 | grep -oE '[0-9]+' || echo 9999)
+errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
+  | grep -E '^[[:space:]]+error:' | head -1 \
+  | sed 's/.*error:[[:space:]]*//' | tr -dc '0-9' || echo 9999)
 if [[ "$errs" -le 25 ]] && ! pgrep -f deepsec-kimi-error-loop.sh >/dev/null; then
   if ! grep -q 'FINISH COMPLETE' /tmp/deepsec-grok-finish.log 2>/dev/null \
     || tail -5 /tmp/deepsec-grok-finish.log | grep -q 'SKIP docs export'; then
