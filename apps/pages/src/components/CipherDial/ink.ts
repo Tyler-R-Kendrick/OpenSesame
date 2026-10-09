@@ -8,7 +8,7 @@ function isLightInk(rgb: [number, number, number]): boolean {
  * much more alpha than dark ink on white for the same subtle-but-visible read
  * (sRGB; lock-v5 stills). Kept as a named constant so the scale is testable.
  */
-export const LIGHT_INK_ALPHA_SCALE = 2.6;
+export const LIGHT_INK_ALPHA_SCALE = 3.2;
 
 /**
  * Ink with alpha. On dark theme (light `--ink`) lift alpha so rings keep the
