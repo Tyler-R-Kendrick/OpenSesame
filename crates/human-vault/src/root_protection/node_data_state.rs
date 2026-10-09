@@ -342,3 +342,6 @@ mod key_wire_tests;
 #[path = "node_data_inventory.rs"]
 mod device_inventory;
 pub use device_inventory::NativeNodeDeviceInventory;
+
+#[path = "node_data_bootstrap.rs"]
+mod bootstrap;
