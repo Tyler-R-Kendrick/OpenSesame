@@ -45,18 +45,18 @@ export async function deriveManifestMacKey(
 
 export function manifestWithoutAuth(
   manifest: RootProtectionManifest,
-): Omit<RootProtectionManifest, "authB64"> {
+): RootProtectionManifest {
   const { authB64: _drop, ...rest } = manifest;
   return rest;
 }
 
 export async function authenticateManifest(
   rootKey: Uint8Array,
-  manifest: Omit<RootProtectionManifest, "authB64">,
+  manifest: RootProtectionManifest,
 ): Promise<string> {
   const key = await deriveManifestMacKey(rootKey);
-  // SAFETY: RootProtectionManifest is JSON-shaped metadata; MAC excludes secrets.
-  const payload: JsonValue = overlapCast(manifest);
+  // An existing optional tag is always excluded, including structurally typed callers.
+  const payload: JsonValue = overlapCast(manifestWithoutAuth(manifest));
   const sig = await crypto.subtle.sign(
     "HMAC",
     key,
@@ -89,7 +89,7 @@ export async function verifyManifestAuth(
 
 export async function sealAuthenticatedManifest(
   rootKey: Uint8Array,
-  manifest: Omit<RootProtectionManifest, "authB64">,
+  manifest: RootProtectionManifest,
 ): Promise<RootProtectionManifest> {
   const authB64 = await authenticateManifest(rootKey, manifest);
   return { ...manifest, authB64 };
