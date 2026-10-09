@@ -5,8 +5,11 @@ const MAX_EM = 90;
 const GAP_WIDE = 34;
 const GAP_NARROW = 20;
 const NARROW_BP = 1100;
-/** Approximate layout units for `0PEN SESAME` particle plates (asc+gap+adv). */
-const WORD_UNITS = 11.2;
+/**
+ * Width of `0PEN SESAME` + mark in em — same shape as lock-v5.html
+ * (`asc*1.25 + gapEm + NL*adv` ≈ 7 for Share Tech Mono metrics).
+ */
+const WORD_UNITS = 7;
 
 export type UnlockHeroBox = {
   left: number;
@@ -42,8 +45,8 @@ export function useUnlockHeroLayout(
       const avail = narrow ? cr.width : cardX + cr.width - 40;
       const size = Math.max(28, Math.min(MAX_EM, avail / WORD_UNITS));
       const gap = narrow ? GAP_NARROW : GAP_WIDE;
-      // Width ≈ mark + gap + 10 cells; height ≈ 1.25em for plate cells.
-      const width = size * (1.25 + 0.28 + 10 * 0.72);
+      // Mark square ≈ 1.25em plate; letters ≈ NL * 0.6em + gap (lock-v5).
+      const width = size * WORD_UNITS;
       const height = size * 1.25;
       const left = narrow ? cardX : cardX + cr.width - width;
       const top = Math.max(8, cardY - gap - height);

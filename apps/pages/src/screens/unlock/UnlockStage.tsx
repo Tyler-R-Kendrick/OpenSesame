@@ -43,6 +43,7 @@ export function UnlockStage({
         style={{
           left: hero.left,
           top: hero.top,
+          fontSize: `${hero.size}px`,
         }}
       >
         <Wordmark
