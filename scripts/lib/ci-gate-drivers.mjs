@@ -21,6 +21,7 @@ export const DRIVER_GATES = {
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],
+  "verify-tutorials-profiles.mjs": ["tutorials"],
   "verify-push.mjs": ["push"],
   // The contract suite's vitest blocks run in the TypeScript job; its browser
   // half is the gates above.
