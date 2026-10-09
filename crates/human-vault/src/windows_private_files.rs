@@ -210,3 +210,9 @@ fn create_private_directory_new(path: &Path, owner: &str) -> io::Result<()> {
     }
     Ok(())
 }
+
+#[path = "windows_private_files/resource_identity.rs"]
+mod resource_identity;
+
+#[path = "windows_private_files/directory_inventory.rs"]
+mod directory_inventory;
