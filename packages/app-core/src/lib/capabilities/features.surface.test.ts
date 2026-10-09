@@ -36,8 +36,8 @@ describe("capabilities with no Pages code behind them", () => {
     const approved = planWith(["sharing.household"]);
     expect(shown(sharing, approved).capabilities).toEqual([
       "sharing.live",
-      "sharing.relay",
       "sharing.household",
+      "sharing.relay",
     ]);
     expect(isSwitchable(sharing, approved)).toBe(true);
     // The section switch Settings draws is the shown feature, so turning
