@@ -18,10 +18,11 @@ describe("cli reveal gate conformance", () => {
   for (const caseRow of gate.cases) {
     it(caseRow.id, () => {
       const env = { ...process.env };
+      for (const rule of gate.agentContextEnv) {
+        env[rule.name] = undefined;
+      }
       if (caseRow.agentContext) {
         env.OPENSESAME_AGENT_LAUNCH_HANDLE = "fixture-handle";
-      } else {
-        env.OPENSESAME_AGENT_LAUNCH_HANDLE = undefined;
       }
       const request: HumanRevealRequest = {
         verb: caseRow.reference ? "read" : "env-resolve",
@@ -57,6 +58,12 @@ describe("cli reveal gate conformance", () => {
       process.env.CLAUDECODE = "1";
       expect(detectAgentContext()).toBe(true);
       Reflect.deleteProperty(process.env, "CLAUDECODE");
+      process.env.CURSOR_AGENT = "1";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CURSOR_AGENT");
+      process.env.CI = "true";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CI");
       expect(detectAgentContext()).toBe(false);
     } finally {
       restoreEnv("OPENSESAME_AGENT_LAUNCH_HANDLE", launch);
