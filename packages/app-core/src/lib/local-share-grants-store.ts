@@ -12,8 +12,8 @@ import { kvRefresh } from "./kv.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import {
-  SHARE_POLICIES,
   type LocalShare,
+  SHARE_POLICIES,
   type ShareKind,
 } from "./local-share-grants-types.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";

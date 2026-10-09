@@ -10,8 +10,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import "./lib/expect-timeout.mjs";
-import { createAuthFlowHarness } from "./lib/auth-flow-harness.mjs";
 import { guestMfaJourney } from "./lib/auth-flow-guest-journey.mjs";
+import { createAuthFlowHarness } from "./lib/auth-flow-harness.mjs";
 import { lock, openSecurity } from "./lib/auth-flow-nav.mjs";
 import { passkeyJourneys } from "./lib/auth-flow-passkey.mjs";
 import { pinMfaJourney } from "./lib/auth-flow-pin-journey.mjs";
@@ -45,7 +45,11 @@ function check(condition, what) {
   record(condition ? "PASS" : "FAIL", what);
 }
 
-const { newPage, snap: snapRaw, text } = createAuthFlowHarness({
+const {
+  newPage,
+  snap: snapRaw,
+  text,
+} = createAuthFlowHarness({
   DIST,
   ORIGIN,
   BASE,

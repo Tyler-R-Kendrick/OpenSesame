@@ -19,10 +19,10 @@ import {
 } from "./local-share-grants-store.js";
 import {
   FOLDER_TARGET_PREFIX,
+  type LocalShare,
   SHARE_DURATIONS,
   SHARE_KINDS,
   SHARE_POLICIES,
-  type LocalShare,
   type ShareKind,
   type ShareTarget,
   listShareTargets,
