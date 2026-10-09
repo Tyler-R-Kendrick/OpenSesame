@@ -11,6 +11,7 @@ import {
   makeSecret,
   store,
 } from "./DropCeremony.test-support.js";
+import { DEVICE_ONLY_DROP_WARNING } from "./ShareForm.js";
 import { makeAccount } from "./account.test-support.js";
 
 installDropCeremonyHarness();
@@ -25,6 +26,7 @@ describe("share ceremony on an item", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
     expect(screen.getByText("This browser")).toBeTruthy();
+    expect(screen.getByText(DEVICE_ONLY_DROP_WARNING)).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
