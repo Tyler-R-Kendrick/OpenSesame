@@ -136,9 +136,10 @@ function ReleasePanel({
 }
 
 function initialOpenVersion(): string | null {
-  if (typeof window === "undefined") return RELEASES[0]?.version ?? null;
   // Narrow: collapsed accordion — empty band for the corner dial.
-  if (window.matchMedia("(max-width: 1099px)").matches) return null;
+  // matchMedia is absent in some test hosts; prefer the wide (open) default.
+  const mq = globalThis.matchMedia?.("(max-width: 1099px)");
+  if (mq?.matches) return null;
   return RELEASES[0]?.version ?? null;
 }
 
