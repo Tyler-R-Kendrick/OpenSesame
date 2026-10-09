@@ -1,0 +1,269 @@
+import { randomUUID } from "node:crypto";
+import { appendAuditEvent } from "@opensesame/audit";
+import {
+  RegisterAgentRequestSchema,
+  RegisterAgentResponseSchema,
+} from "@opensesame/contracts";
+import type { Agent, AgentInstance } from "@opensesame/os-domain";
+import { Hono } from "hono";
+import { z } from "zod";
+import { claimLinks } from "../interactions/rendezvous.js";
+import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
+import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { PostgresAgentStore } from "../repos/legacy-agent-postgres.js";
+import {
+  releaseLegacyAgent,
+  reserveLegacyAgent,
+  transaction,
+} from "../repos/legacy-agent-store.js";
+import { roleFor } from "../services/project-access.js";
+import { getUsage } from "../state.js";
+import { authenticatedPrincipalId } from "./organizations.js";
+import { resolveActiveProject } from "./projects.js";
+
+export const agentRoutes = new Hono<{ Variables: Variables }>();
+
+agentRoutes.get("/", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principal = authenticatedPrincipalId(c.get("principalId"));
+  const agents =
+    ctx.stores.agents instanceof PostgresAgentStore
+      ? await ctx.stores.agents.listByOwner(principal)
+      : [...ctx.stores.agents.values()].filter(
+          (agent) => agent.ownerPrincipalId === principal,
+        );
+  return c.json({ agents });
+});
+
+const UpdateAgent = z
+  .object({
+    displayName: z.string().trim().min(1).max(128).optional(),
+    state: z.literal("revoked").optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.displayName !== undefined || value.state !== undefined,
+  );
+
+agentRoutes.patch("/:id", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const principal = authenticatedPrincipalId(c.get("principalId"));
+  const parsed = UpdateAgent.safeParse(await c.req.json());
+  if (!parsed.success) return c.json({ error: "validation_error" }, 400);
+  return transaction(ctx.stores, principal, async (registry) => {
+    const agent = await registry.agents.get(c.req.param("id"));
+    if (!agent || agent.ownerPrincipalId !== principal)
+      return c.json({ error: "not_found" }, 404);
+    if (agent.state === "revoked")
+      return c.json({ error: "agent_revoked" }, 409);
+    const updated: Agent = {
+      ...agent,
+      displayName: parsed.data.displayName ?? agent.displayName,
+      state: parsed.data.state ?? agent.state,
+    };
+    await registry.agents.set(agent.id, updated);
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "agent.updated",
+      outcome: "succeeded",
+      principalId: principal,
+      correlationId: c.get("correlationId"),
+      targetType: "agent",
+      targetId: agent.id,
+      metadata: { action: "agent.manage", state: updated.state },
+    });
+    return c.json(updated);
+  });
+});
+
+agentRoutes.post(
+  "/",
+  requirePrincipal(),
+  idempotencyMiddleware("agents.register"),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const principal = await ctx.repos.principals.getById(principalId);
+    if (!principal) return c.json({ error: "not_found" }, 404);
+
+    const parsed = RegisterAgentRequestSchema.safeParse(await c.req.json());
+    if (!parsed.success) {
+      return c.json(
+        { error: "validation_error", details: parsed.error.flatten() },
+        400,
+      );
+    }
+
+    const usage = await getUsage(ctx.stores, principalId, ctx.clock());
+    const evaluate = (agents: number) =>
+      ctx.policy.evaluate(
+        principal,
+        {
+          subject: {
+            type: "principal",
+            id: principal.id,
+            assurance: principal.assurance,
+          },
+          action: "agent.register_ephemeral",
+          resource: { type: "agent", id: "*" },
+        },
+        { ...usage, agents },
+      );
+    const decision = evaluate(usage.agents);
+    if (decision.effect === "deny") {
+      return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
+    }
+
+    // Agents always belong to a project: the requested one when the caller
+    // may use it, otherwise the caller's active (default: personal) project.
+    let projectId: string;
+    if (parsed.data.projectId) {
+      const project = await ctx.stores.projects.get(parsed.data.projectId);
+      if (!project || !(await roleFor(ctx, project, principalId))) {
+        return c.json({ error: "project_not_found" }, 404);
+      }
+      projectId = project.id;
+    } else {
+      projectId = (await resolveActiveProject(ctx, principalId)).id;
+    }
+
+    const now = ctx.clock();
+    const agentId = `agt_${randomUUID()}`;
+    const instanceId = `agi_${randomUUID()}`;
+
+    const agent: Agent = {
+      id: agentId,
+      projectId,
+      ownerPrincipalId: principalId,
+      displayName: parsed.data.displayName,
+      state: "provisional",
+      createdAt: now,
+      ...(parsed.data.provider !== undefined
+        ? { provider: parsed.data.provider }
+        : undefined),
+      ...(parsed.data.softwareIdentity !== undefined
+        ? { softwareIdentity: parsed.data.softwareIdentity }
+        : undefined),
+    };
+    const instance: AgentInstance = {
+      id: instanceId,
+      agentId,
+      publicKeyJkt: parsed.data.publicKeyJkt,
+      createdAt: now,
+      ...(parsed.data.runtimeProvider !== undefined
+        ? { runtimeProvider: parsed.data.runtimeProvider }
+        : undefined),
+      ...(parsed.data.attestationDigest !== undefined
+        ? { attestationDigest: parsed.data.attestationDigest }
+        : undefined),
+    };
+    if (
+      !(await reserveLegacyAgent(
+        ctx.stores,
+        agent,
+        instance,
+        (count) => evaluate(count).effect !== "deny",
+      ))
+    )
+      return c.json(
+        { error: "forbidden", reasons: ["agent_quota_exceeded"] },
+        403,
+      );
+
+    let claim: Awaited<ReturnType<typeof ctx.claims.createClaim>>;
+    try {
+      claim = await ctx.claims.createClaim({
+        type: "agent",
+        targetManifest: {
+          agentId,
+          instanceId,
+          ownerPrincipalId: principalId,
+          publicKeyJkt: parsed.data.publicKeyJkt,
+        },
+        creatorPrincipalId: principalId,
+        creatorAgentId: agentId,
+        creatorInstanceId: instanceId,
+        proofKeyJkt: parsed.data.publicKeyJkt,
+      });
+    } catch (error) {
+      await releaseLegacyAgent(ctx.stores, agent, instance);
+      throw error;
+    }
+
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "agent.registered",
+      outcome: "succeeded",
+      principalId,
+      claimId: claim.session.id,
+      agentInstanceId: instanceId,
+      correlationId: c.get("correlationId"),
+      metadata: { action: "agent.register_ephemeral", state: "provisional" },
+    });
+
+    const body = RegisterAgentResponseSchema.parse({
+      agentId,
+      instanceId,
+      projectId,
+      state: "provisional",
+      claimId: claim.session.id,
+      claimToken: claim.token,
+      userCode: claim.userCode,
+      ...claimLinks(ctx.config, claim),
+      expiresAt: claim.session.expiresAt.toISOString(),
+    });
+    return c.json(body, 201);
+  },
+);
+
+agentRoutes.post(
+  "/:id/claim",
+  requirePrincipal(),
+  idempotencyMiddleware("agents.claim"),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const principalId = authenticatedPrincipalId(c.get("principalId"));
+    const agentId = c.req.param("id");
+    const agent = await ctx.stores.agents.get(agentId);
+    // A claim asserts `ownerPrincipalId` in its manifest and flips the agent to
+    // `claimed` on completion, so an unfenced claim would let any caller take
+    // over someone else's agent. Foreign ids answer 404, not 403: the id space
+    // must not be enumerable either.
+    if (!agent || agent.ownerPrincipalId !== principalId) {
+      return c.json({ error: "not_found" }, 404);
+    }
+    if (agent.state === "revoked" || agent.state === "suspended") {
+      return c.json({ error: "agent_unavailable" }, 409);
+    }
+
+    const claim = await ctx.claims.createClaim({
+      type: "agent",
+      targetManifest: {
+        agentId,
+        ownerPrincipalId: principalId,
+      },
+      creatorPrincipalId: principalId,
+      creatorAgentId: agentId,
+    });
+
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "agent.claim_started",
+      outcome: "succeeded",
+      principalId,
+      claimId: claim.session.id,
+      correlationId: c.get("correlationId"),
+      metadata: { action: "agent.claim", state: agent.state },
+    });
+
+    return c.json(
+      {
+        agentId,
+        claimId: claim.session.id,
+        claimToken: claim.token,
+        userCode: claim.userCode,
+        ...claimLinks(ctx.config, claim),
+        expiresAt: claim.session.expiresAt.toISOString(),
+      },
+      201,
+    );
+  },
+);

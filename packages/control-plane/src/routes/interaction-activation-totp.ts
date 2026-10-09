@@ -1,0 +1,160 @@
+/**
+ * Interaction-scoped TOTP activation (ADR 0125). High-risk kinds refuse TOTP.
+ */
+
+import { appendAuditEvent } from "@opensesame/audit";
+import {
+  type ApprovalActivation,
+  type Interaction,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { interactionRequiresPhishingResistance } from "@opensesame/policy";
+import type { Context, Hono } from "hono";
+import type { AppContext } from "../context.js";
+import { requirePrincipal } from "../middleware/auth.js";
+import type { Variables } from "../middleware/context.js";
+import { incrementSecurityCounter } from "../repos/durable-map.js";
+import { spendTotpCode } from "./mfa-totp.js";
+import { authenticatedPrincipalId } from "./organizations.js";
+
+const MAX_INTERACTION_TOTP_FAILURES = 5;
+const TOTP_CODE = /^\d{6}$/;
+
+type TotpActivationDeps = {
+  loadByRef: (
+    ctx: AppContext,
+    ref: string,
+    now: Date,
+  ) => Promise<Interaction | null>;
+  isApprover: (row: Interaction, principalId: string) => boolean;
+  fail: (
+    c: Context<{ Variables: Variables }>,
+    name: "interaction_not_found" | "invalid_request",
+  ) => Response | Promise<Response>;
+};
+
+function isHttpResponse(
+  value: ApprovalActivation | Response,
+): value is Response {
+  return value instanceof Response;
+}
+
+type PendingTotpLookup = {
+  ctx: AppContext;
+  principalId: string;
+  interactionId: string;
+  activationId: string;
+  now: Date;
+};
+
+async function pendingTotpActivation(
+  c: Context<{ Variables: Variables }>,
+  input: PendingTotpLookup,
+): Promise<ApprovalActivation | Response> {
+  const activation = await input.ctx.repos.approvalActivations.getById(
+    input.activationId,
+  );
+  if (
+    !activation ||
+    activation.principalId !== input.principalId ||
+    activation.authReqId !== input.interactionId
+  ) {
+    return c.json({ error: "activation_not_found" }, 404);
+  }
+  if (activation.expiresAt.getTime() <= input.now.getTime()) {
+    return c.json({ error: "activation_expired" }, 410);
+  }
+  if (activation.state !== "pending" || activation.method !== "totp") {
+    return c.json({ error: "activation_not_pending" }, 409);
+  }
+  return activation;
+}
+
+async function completeTotp(
+  c: Context<{ Variables: Variables }>,
+  deps: TotpActivationDeps,
+): Promise<Response> {
+  const ctx = c.get("ctx");
+  const principalId = authenticatedPrincipalId(c.get("principalId"));
+  const now = ctx.clock();
+  const row = await deps.loadByRef(ctx, c.req.param("ref") ?? "", now);
+  if (!row || !deps.isApprover(row, principalId)) {
+    return deps.fail(c, "interaction_not_found");
+  }
+  if (interactionRequiresPhishingResistance(row.kind)) {
+    return deps.fail(c, "invalid_request");
+  }
+  const parsedBody = overlapCast(await c.req.json().catch(() => ({})));
+  if (
+    !isJsonObject(parsedBody) ||
+    !isString(parsedBody.activationId) ||
+    !isString(parsedBody.code) ||
+    !TOTP_CODE.test(parsedBody.code)
+  ) {
+    return deps.fail(c, "invalid_request");
+  }
+  const activationId = parsedBody.activationId;
+  const code = parsedBody.code;
+  const activation = await pendingTotpActivation(c, {
+    ctx,
+    principalId,
+    interactionId: row.id,
+    activationId,
+    now,
+  });
+  if (isHttpResponse(activation)) return activation;
+  const secret = await ctx.stores.totpSecrets.get(principalId);
+  if (!secret) return c.json({ error: "not_enrolled" }, 404);
+  const fenceKey = `interaction-totp:${principalId}:${activation.id}`;
+  const prior =
+    (await incrementSecurityCounter(ctx.stores.mfaFailures, fenceKey)) - 1;
+  if (prior >= MAX_INTERACTION_TOTP_FAILURES) {
+    return c.json({ error: "too_many_attempts" }, 429);
+  }
+  // The step ledger `/v1/mfa/totp/verify` and factor removal share: a code
+  // accepted anywhere is accepted once.
+  const spent = await spendTotpCode(
+    ctx.stores.totpSteps,
+    principalId,
+    secret,
+    code,
+  );
+  if (spent !== "accepted") {
+    await appendAuditEvent(ctx.repos.auditEvents, {
+      eventType: "authority.activation.denied",
+      principalId,
+      actorType: "human",
+      outcome: "denied",
+      correlationId: c.get("correlationId"),
+      metadata: {
+        authReqId: row.id,
+        activationId: activation.id,
+        reason: "totp_failed",
+      },
+    });
+    return c.json({ error: "activation_verification_failed" }, 401);
+  }
+  await ctx.stores.mfaFailures.delete(fenceKey);
+  const updated: ApprovalActivation =
+    await ctx.repos.approvalActivations.updateWithVersion(
+      activation.id,
+      activation.version,
+      { state: "activated", activatedAt: now, method: "totp" },
+    );
+  return c.json({
+    activationId: updated.id,
+    state: updated.state,
+    activatedAt: updated.activatedAt?.toISOString() ?? now.toISOString(),
+  });
+}
+
+export function attachInteractionTotpRoute(
+  routes: Hono<{ Variables: Variables }>,
+  deps: TotpActivationDeps,
+): void {
+  routes.post("/:ref/activation/totp", requirePrincipal(), (c) =>
+    completeTotp(c, deps),
+  );
+}
