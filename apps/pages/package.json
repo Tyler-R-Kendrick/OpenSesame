@@ -30,6 +30,7 @@
     "verify:tutorials-profiles": "node scripts/verify-tutorials-profiles.mjs",
     "verify:push-worker": "node scripts/verify-push-worker.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
+    "verify:share-pam": "node scripts/verify-share-pam.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
     "verify:siop": "vitest run scripts/siop-headers.test.mjs && node scripts/verify-siop.mjs",
     "verify:webmcp": "node scripts/verify-webmcp.mjs",
