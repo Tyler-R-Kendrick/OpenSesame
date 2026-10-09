@@ -1,0 +1,530 @@
+use axum::{
+    extract::State,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+    Json,
+};
+use chrono::{Duration, Utc};
+use opensesame_broker::InvokeInput;
+use opensesame_connector_host::{HostError, InvokeResult};
+use opensesame_domain::{
+    ConnectionAuthorityBinding, ConnectionId, ConnectionRef, DetachedProof, Grant, GrantId, Intent,
+    IntentId, InvocationReceipt, InvokeLevel, OrganizationId, PrincipalId, ValidatedGrantChain,
+};
+#[cfg(test)]
+use opensesame_domain::{EgressBinding, OrganizationRole};
+use serde::Deserialize;
+use serde_json::{json, Value};
+
+use opensesame_connection_broker::store as broker_store;
+
+use crate::app_state::AppState;
+use crate::middleware::auth::{require_demo_bootstrap, resolve_caller, resolve_caller_subject};
+
+#[path = "intents_enforcement.rs"]
+mod intents_enforcement;
+use intents_enforcement::authorize_invocation;
+
+#[path = "intents_queue.rs"]
+mod intents_queue;
+
+/// What a submitted `ConnectionRef` resolved to: whose grant will be exercised,
+/// against which connection, through which connector component.
+pub(crate) struct ResolvedInvocation {
+    pub(crate) grant: Grant,
+    /// Verified parent→child lineage at resolve time (AT-RAW-PARENT fence).
+    pub(crate) lineage: Option<ValidatedGrantChain>,
+    pub(crate) delegation_chain: Vec<GrantId>,
+    pub(crate) connection_id: ConnectionId,
+    pub(crate) principal_id: PrincipalId,
+    pub(crate) binding: ConnectionAuthorityBinding,
+    pub(crate) connection_policy_id: String,
+    /// Budget to decrement after authorization, when the path is delegated.
+    pub(crate) spend_budget: Option<String>,
+    /// True when this resolved through the durable connection broker rather
+    /// than the development bootstrap fixture.
+    pub(crate) broker_connection: bool,
+}
+
+#[derive(Deserialize)]
+pub struct InvokeBody {
+    /// Preferred agent API: `ConnectionRef` URI (conn://...).
+    #[serde(default)]
+    connection_ref: Option<String>,
+    /// Legacy alias accepted as `ConnectionRef` logical name or URI.
+    #[serde(default)]
+    connection: Option<String>,
+    operation: String,
+    resource: String,
+    audience: Option<String>,
+    parameters: Option<Value>,
+    idempotency_key: Option<String>,
+    /// 1=typed, 2=constrained HTTP, 3=materialize (denied by default).
+    #[serde(default)]
+    invoke_level: Option<u8>,
+    /// Present when the caller believes it is executing under task authority.
+    #[serde(default)]
+    task_run_id: Option<String>,
+    #[serde(default)]
+    intent_digest: Option<String>,
+}
+
+/// True when the caller claims task authority, in headers or body.
+fn claims_task_authority(body: &InvokeBody, headers: &axum::http::HeaderMap) -> bool {
+    body.task_run_id.is_some()
+        || body.intent_digest.is_some()
+        || headers.contains_key("x-opensesame-task-run-id")
+        || headers.contains_key("x-opensesame-intent-digest")
+}
+
+pub(super) struct ConstrainedHttpInput {
+    method: String,
+    url: String,
+    body: Option<Value>,
+}
+
+fn constrained_http_input(parameters: &Value) -> Result<ConstrainedHttpInput, Response> {
+    let Some(object) = parameters.as_object() else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"parameters must be an object","type":"about:blank"})),
+        )
+            .into_response());
+    };
+    if object
+        .keys()
+        .any(|key| !matches!(key.as_str(), "url" | "method" | "body"))
+    {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error":"constrained HTTP accepts only url, method, and body",
+                "type":"about:blank"
+            })),
+        )
+            .into_response());
+    }
+    let Some(url) = object.get("url").and_then(Value::as_str) else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error":"url is required for constrained HTTP","type":"about:blank"})),
+        )
+            .into_response());
+    };
+    Ok(ConstrainedHttpInput {
+        method: object
+            .get("method")
+            .and_then(Value::as_str)
+            .unwrap_or("GET")
+            .to_string(),
+        url: url.to_string(),
+        body: object.get("body").cloned(),
+    })
+}
+
+fn build_intent(
+    body: InvokeBody,
+    parameters: &Value,
+    boot: &crate::app_state::Bootstrap,
+    resolved: &ResolvedInvocation,
+) -> Result<Intent, Response> {
+    let param_hash = Intent::parameters_hash(parameters).map_err(|error| {
+        let message = opensesame_redaction::redact_text(&error.to_string());
+        (StatusCode::BAD_REQUEST, Json(json!({"error": message}))).into_response()
+    })?;
+    let now = Utc::now();
+    Ok(Intent {
+        id: IntentId::new(),
+        organization_id: boot.org,
+        project_id: Some(boot.project),
+        principal_id: resolved.principal_id,
+        actor_id: boot.actor,
+        actor_instance_id: None,
+        client_id: None,
+        operator_id: None,
+        connection_id: Some(resolved.connection_id),
+        operation: body.operation,
+        resource: body.resource,
+        audience: body
+            .audience
+            .unwrap_or_else(|| "https://api.github.com".into()),
+        normalized_parameters_hash: param_hash,
+        body_hash: None,
+        nonce: uuid::Uuid::new_v4().to_string(),
+        idempotency_key: body
+            .idempotency_key
+            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+        issued_at: now,
+        expires_at: now + Duration::minutes(5),
+        parent_invocation_id: None,
+        delegation_chain: resolved.delegation_chain.clone(),
+        proof: DetachedProof {
+            algorithm: "EdDSA".into(),
+            key_thumbprint: "demo".into(),
+            signature: "demo".into(),
+        },
+    })
+}
+
+pub(super) fn not_found() -> Response {
+    (StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response()
+}
+
+fn bootstrap_invocation(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+) -> Result<ResolvedInvocation, Response> {
+    let Some(connection_ref) = st.connection_ref.clone() else {
+        return Err((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"bootstrap_unavailable"})),
+        )
+            .into_response());
+    };
+    Ok(ResolvedInvocation {
+        grant: boot.grant.clone(),
+        lineage: None,
+        delegation_chain: vec![boot.grant.id],
+        connection_id: boot.connection,
+        principal_id: boot.principal,
+        binding: opensesame_authz::github_binding(connection_ref, "github/main"),
+        connection_policy_id: "demo-conn".into(),
+        spend_budget: None,
+        broker_connection: false,
+    })
+}
+
+async fn broker_connection(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+    requested_ref: &str,
+) -> Option<broker_store::ConnectionRow> {
+    if let Ok(Some(row)) =
+        broker_store::get_connection(st.connection_broker.pool(), requested_ref).await
+    {
+        if row.organization_id == boot.org.to_string() {
+            return Some(row);
+        }
+    }
+    let views = st
+        .connection_broker
+        .list_connections(&boot.org)
+        .await
+        .ok()?;
+    let id = views
+        .iter()
+        .find(|view| view.logical_name == requested_ref || view.connection_ref == requested_ref)?
+        .connection_id
+        .clone();
+    broker_store::get_connection(st.connection_broker.pool(), &id)
+        .await
+        .ok()
+        .flatten()
+}
+
+async fn delegated_invocation(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+    subject: &str,
+    requested_ref: &str,
+    level: u8,
+) -> Result<ResolvedInvocation, Response> {
+    let Some(row) = broker_connection(st, boot, requested_ref).await else {
+        return Err(not_found());
+    };
+    let connection_id = ConnectionId::parse(&row.id).map_err(|_| not_found())?;
+    let organization_id = OrganizationId::parse(&row.organization_id).unwrap_or(boot.org);
+    let connection_ref = ConnectionRef::new(
+        organization_id,
+        None,
+        row.logical_name.clone(),
+        connection_id,
+    )
+    .map_err(|_| not_found())?;
+    let max_invoke_level = if row.max_invoke_level >= 2 {
+        InvokeLevel::ConstrainedHttp
+    } else {
+        InvokeLevel::TypedOperation
+    };
+    if row.owner_subject.as_deref() == Some(subject) {
+        if level > row.max_invoke_level {
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(json!({"error":"invoke_level_denied"})),
+            )
+                .into_response());
+        }
+        let grant = st
+            .connection_broker
+            .owner_invocation_grant(&organization_id, &row.id, subject)
+            .await
+            .map_err(|_| not_found())?;
+        return Ok(ResolvedInvocation {
+            delegation_chain: vec![grant.id],
+            connection_id,
+            principal_id: grant.beneficiary_principal_id,
+            binding: ConnectionAuthorityBinding {
+                connection_ref,
+                internal_secret: None,
+                credential_handle: None,
+                egress: row.egress,
+                max_invoke_level,
+            },
+            connection_policy_id: st
+                .broker
+                .host
+                .connector_for_provider(&row.provider_id)
+                .to_string(),
+            grant,
+            lineage: None,
+            spend_budget: None,
+            broker_connection: true,
+        });
+    }
+    delegate_invocation(st, &row, subject, level, connection_id, connection_ref).await
+}
+
+/// A delegate's invocation: only through a live delegation, only at L1, and
+/// only when the parent → child chain still validates.
+async fn delegate_invocation(
+    st: &AppState,
+    row: &broker_store::ConnectionRow,
+    subject: &str,
+    level: u8,
+    connection_id: ConnectionId,
+    connection_ref: ConnectionRef,
+) -> Result<ResolvedInvocation, Response> {
+    let Ok(Some(delegation)) = st
+        .connection_broker
+        .find_live_delegation(subject, &row.id)
+        .await
+    else {
+        // Knowing a connection reference must not confirm its existence.
+        return Err(not_found());
+    };
+    // Delegates exercise at L1 in v1 (ADR 0044 decision 6).
+    if level > 1 {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"invoke_level_not_delegated"})),
+        )
+            .into_response());
+    }
+    let lineage = match ValidatedGrantChain::try_validate(
+        &[delegation.parent_grant.clone(), delegation.grant.clone()],
+        Utc::now(),
+        0,
+    ) {
+        Ok(chain) => Some(chain),
+        Err(error) => {
+            let message = opensesame_redaction::redact_text(&error.to_string());
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(json!({"error": message, "type":"about:blank"})),
+            )
+                .into_response());
+        }
+    };
+    Ok(ResolvedInvocation {
+        grant: delegation.grant.clone(),
+        lineage,
+        delegation_chain: vec![delegation.parent_grant_id, delegation.grant.id],
+        connection_id,
+        principal_id: delegation.grant.beneficiary_principal_id,
+        binding: ConnectionAuthorityBinding {
+            connection_ref,
+            internal_secret: None,
+            credential_handle: None,
+            egress: row.egress.clone(),
+            max_invoke_level: InvokeLevel::TypedOperation,
+        },
+        connection_policy_id: st
+            .broker
+            .host
+            .connector_for_provider(&row.provider_id)
+            .to_string(),
+        spend_budget: Some(delegation.delegation_id.clone()),
+        broker_connection: true,
+    })
+}
+
+async fn resolve_invocation(
+    st: &AppState,
+    boot: &crate::app_state::Bootstrap,
+    subject: &str,
+    body: &InvokeBody,
+    level: u8,
+) -> Result<ResolvedInvocation, Response> {
+    let default_ref = st
+        .connection_ref
+        .as_ref()
+        .map_or_else(String::new, |connection| connection.handle.uri());
+    let requested_ref = body
+        .connection_ref
+        .as_ref()
+        .or(body.connection.as_ref())
+        .unwrap_or(&default_ref);
+    let logical_name = st
+        .connection_ref
+        .as_ref()
+        .map_or("", |connection| connection.handle.logical_name.as_str());
+    if [default_ref.as_str(), logical_name, ""].contains(&requested_ref.as_str()) {
+        bootstrap_invocation(st, boot)
+    } else {
+        delegated_invocation(st, boot, subject, requested_ref, level).await
+    }
+}
+
+pub(super) async fn execute_invocation(
+    st: &AppState,
+    organization_id: OrganizationId,
+    resolved: &ResolvedInvocation,
+    input: InvokeInput,
+    constrained_http: Option<ConstrainedHttpInput>,
+) -> anyhow::Result<InvocationReceipt> {
+    let Some(network) = constrained_http else {
+        return st.broker.invoke(input).await;
+    };
+    let broker = st.connection_broker.clone();
+    let connection_id = resolved.connection_id.to_string();
+    let operation = input.intent.operation.clone();
+    st.broker
+        .invoke_with(input, || async move {
+            broker
+                .invoke_network_json(
+                    &organization_id,
+                    &connection_id,
+                    &operation,
+                    &network.method,
+                    &network.url,
+                    network.body,
+                )
+                .await
+                .map(|safe_summary| InvokeResult {
+                    ok: true,
+                    safe_summary,
+                    external_request_digest: None,
+                })
+                .map_err(|error| HostError::Connector(error.to_string()))
+        })
+        .await
+}
+
+pub async fn create(
+    State(st): State<AppState>,
+    headers: axum::http::HeaderMap,
+    Json(body): Json<InvokeBody>,
+) -> Response {
+    // Boxed: the invoke path's state machine is ~19 KiB and would otherwise be
+    // copied onto every caller's stack (clippy::large_futures).
+    Box::pin(create_checked(st, headers, body))
+        .await
+        .unwrap_or_else(|response| response)
+}
+
+/// The invoke route's body; every early refusal is an `Err` response.
+async fn create_checked(
+    st: AppState,
+    headers: axum::http::HeaderMap,
+    mut body: InvokeBody,
+) -> Result<Response, Response> {
+    // This route builds an intent from the request body, so it cannot honour a
+    // task ceiling or a frozen digest. Accepting those fields anyway would let a
+    // task-bound agent execute outside what it froze while looking fenced.
+    if claims_task_authority(&body, &headers) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "task_authority_requires_frozen_invoke",
+                "detail": "Freeze at POST /api/v1/tasks/intents, then execute at POST /api/v1/tasks/invoke",
+                "type": "about:blank"
+            })),
+        )
+            .into_response());
+    }
+    let subject = resolve_caller_subject(&st, &headers)?;
+    let boot = require_demo_bootstrap(&st)?;
+    let caller = resolve_caller(&st, &headers)?;
+    if !caller.in_organization(&boot.org) {
+        return Err((StatusCode::NOT_FOUND, Json(json!({"error":"not_found"}))).into_response());
+    }
+    let parameters = body.parameters.take().unwrap_or_else(|| json!({}));
+    let level = body.invoke_level.unwrap_or(1);
+
+    if level >= 3
+        || body.operation.eq_ignore_ascii_case("credential.resolve")
+        || body.operation.to_ascii_lowercase().contains("secret")
+    {
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "materialize_denied",
+                "detail": "Agents receive ConnectionRef, not SecretRef. Level-3 export requires raw_credential_export.",
+                "type": "about:blank"
+            })),
+        )
+            .into_response());
+    }
+
+    let resolved = resolve_invocation(&st, &boot, &subject, &body, level).await?;
+    let constrained_http = if level == 2 && resolved.broker_connection {
+        Some(constrained_http_input(&parameters)?)
+    } else {
+        None
+    };
+
+    // The ADR 0005 fence, on the invoke path at last: reference is not
+    // capability, level ceilings hold, egress fences L2, and the action must
+    // be inside the grant that will be exercised.
+    authorize_invocation(&st, &subject, &body, &parameters, &resolved, level)?;
+    super::intents_projection::authorize_openfga(
+        &st,
+        &boot.org.to_string(),
+        &subject,
+        &resolved,
+        &body.operation,
+        &body.resource,
+    )
+    .await?;
+    // Budgets decrement after authorization and before execution, and deny
+    // when the decrement cannot be performed (ADR 0044 decision 10 + INV-BUDGET).
+    let idempotency_key = body
+        .idempotency_key
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::now_v7().to_string());
+    let intent = build_intent(body, &parameters, &boot, &resolved)?;
+    let authority_hold = super::intents_budget::spend_invoke_budgets(
+        &st,
+        &boot.org.to_string(),
+        &resolved,
+        &idempotency_key,
+    )
+    .await?;
+
+    let invoke_input = InvokeInput {
+        intent,
+        grant: resolved.grant.clone(),
+        subject,
+        connection_policy_id: resolved.connection_policy_id.clone(),
+        parameters: parameters.clone(),
+        lineage: resolved.lineage.clone(),
+    };
+    Ok(intents_queue::dispatch_or_hold(
+        &st,
+        boot.org,
+        resolved,
+        invoke_input,
+        constrained_http,
+        authority_hold,
+        level,
+    )
+    .await)
+}
+
+#[cfg(test)]
+#[path = "intents_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "intents_delegated_tests.rs"]
+mod delegated_invoke_tests;
