@@ -9,11 +9,11 @@ import {
 } from "react-router";
 import { canPreviewVaultPath } from "./vault/preview-path.js";
 
-import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
+  type DirRow,
   type VaultItem,
   itemTypeId,
   itemTypeRegistry,
@@ -34,6 +34,7 @@ import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
+import { VaultShareSheet } from "./vault/VaultShareKey.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { accountSecretToCopy } from "./vault/account-copy.js";
@@ -177,7 +178,12 @@ export function VaultSection() {
         if (inTrash) return;
         navigate(createPath);
       },
-      shareGrant: () => navigate(accessNewPath("grants")),
+      shareGrant: (item: VaultItem) =>
+        navigate(`/vault/${item.id}?share=grant`),
+      shareFolderGrant: (row: DirRow) =>
+        navigate(
+          `/vault?folder=${encodeURIComponent(row.key.slice("dir_".length))}&share=grant`,
+        ),
       inTrash,
     }),
     [
@@ -341,6 +347,7 @@ export function VaultSection() {
           to={createPath}
           fabRef={recordNewItem}
         />
+        <VaultShareSheet />
       </div>
     </AscendProvider>
   );

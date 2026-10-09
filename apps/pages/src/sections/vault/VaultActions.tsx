@@ -4,6 +4,7 @@ import { useContributions } from "../../bindings/contributions.js";
 import { IconPlus } from "../../components/Icons.js";
 import { ExportKey } from "./ExportKey.js";
 import { PasswordWorkflowsKey } from "./PasswordWorkflows.js";
+import { VaultShareKey } from "./VaultShareKey.js";
 
 /**
  * The keys that add to a vault or take it out: New item, whatever a capability
@@ -53,6 +54,7 @@ export function VaultCommands() {
         <Command key={id} />
       ))}
       <PasswordWorkflowsKey />
+      <VaultShareKey />
       <ExportKey />
     </>
   );

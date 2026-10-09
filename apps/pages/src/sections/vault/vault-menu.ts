@@ -1,6 +1,6 @@
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import { username } from "@opensesame/app-core/sections/vault-section-model.js";
-import type { TreeRow, VaultItem } from "@opensesame/vault-core";
+import type { DirRow, TreeRow, VaultItem } from "@opensesame/vault-core";
 import type {
   MenuGroup,
   MenuItem,
@@ -22,6 +22,8 @@ export type VaultTreeActions = {
   share: (item: VaultItem) => void;
   /** Grant this secret to a person or an agent on the local share ledger. */
   shareGrant: (item: VaultItem) => void;
+  /** Grant a folder's scope to a person or an agent; absent, no folder Share. */
+  shareFolderGrant?: (row: DirRow) => void;
   create: () => void;
   /** A trashed item's two ways out; absent, the menu offers neither. */
   restore?: (item: VaultItem) => void;
@@ -249,7 +251,29 @@ export function vaultRowMenu(
         run: () => toggle(row),
       },
     ];
-    return actions.inTrash ? [folder] : [folder, [create]];
+    if (actions.inTrash) return [folder];
+    // A folder shares as a standing grant to a person or an agent — folder
+    // PAM is the folder's scope on the same ledger, labelled with its path.
+    const share: MenuGroup =
+      actions.shareFolderGrant && isCommandSection("/access")
+        ? [
+            {
+              id: "share",
+              label: "Share",
+              submenu: [
+                [
+                  {
+                    id: "share-grant",
+                    label: "Person or agent",
+                    run: () => actions.shareFolderGrant?.(row),
+                  },
+                ],
+              ],
+              run: () => undefined,
+            },
+          ]
+        : [];
+    return share.length > 0 ? [folder, [create], share] : [folder, [create]];
   }
   return actions.inTrash ? [[searchItem]] : [[create, searchItem]];
 }

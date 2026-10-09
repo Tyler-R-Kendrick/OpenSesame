@@ -22,16 +22,24 @@ export function ShareGrantForm({
   busy,
   onCancel,
   onSave,
+  initialKind = "vault",
+  initialResourceId,
 }: {
   identities: { id: string; name: string }[];
   busy: boolean;
-  onCancel: () => void;
+  /** Absent on a sheet, whose close key is the one way out (DESIGN.md). */
+  onCancel?: () => void;
   onSave: (input: SaveInput) => void;
+  /** The resource the sheet was opened for; the person may still change it. */
+  initialKind?: ShareKind;
+  initialResourceId?: string;
 }) {
-  const [kind, setKind] = useState<ShareKind>("vault");
+  const [kind, setKind] = useState<ShareKind>(initialKind);
   const resources = listShareTargets().filter((target) => target.kind === kind);
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
-  const [resourceId, setResourceId] = useState(resources[0]?.id ?? "");
+  const [resourceId, setResourceId] = useState(
+    initialResourceId ?? resources[0]?.id ?? "",
+  );
   const [policy, setPolicy] = useState<string>(
     SHARE_POLICIES[kind][0]?.id ?? "open",
   );
@@ -74,16 +82,18 @@ export function ShareGrantForm({
         onDuration={setDuration}
       />
       <FormCommit label="Grant" disabled={busy}>
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={busy}
-          aria-label="Cancel"
-          title="Cancel"
-          onClick={onCancel}
-        >
-          <IconX size={16} />
-        </button>
+        {onCancel ? (
+          <button
+            type="button"
+            className="icon-btn"
+            disabled={busy}
+            aria-label="Cancel"
+            title="Cancel"
+            onClick={onCancel}
+          >
+            <IconX size={16} />
+          </button>
+        ) : null}
       </FormCommit>
     </form>
   );
@@ -151,11 +161,14 @@ function ShareFields({
         >
           <option value="vault">Vault</option>
           <option value="connection">Connector</option>
+          <option value="item">Item or folder</option>
         </select>
       </Field>
       <Field
         id="share-resource"
-        label={kind === "vault" ? "Vault" : "Connector"}
+        label={
+          kind === "vault" ? "Vault" : kind === "item" ? "Item" : "Connector"
+        }
       >
         <select
           id="share-resource"
