@@ -3,8 +3,8 @@ import type { PendingShare } from "@opensesame/app-core/lib/local-share-grants-a
 import type { RefObject } from "react";
 import { AccessDetail } from "./AccessRecords.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
-import { LocalRequestDecision } from "./local-request-decision.js";
 import { PendingGrantDecision } from "./local-pending-grant-inbox.js";
+import { LocalRequestDecision } from "./local-request-decision.js";
 import type { useLocalRequests } from "./useLocalRequests.js";
 
 export function LocalRequestsPanelBody({

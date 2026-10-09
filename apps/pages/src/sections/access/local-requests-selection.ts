@@ -47,15 +47,7 @@ export function useLocalRequestSelection(
       trigger: trigger.current,
       reload: reload.current,
     });
-  }, [
-    creating,
-    selected,
-    selectedGrant,
-    selectedId,
-    requests,
-    pendingGrants,
-    setSelected,
-  ]);
+  }, [creating, selected, selectedGrant, selectedId, requests, setSelected]);
   function close() {
     selection.close();
   }
