@@ -1,6 +1,7 @@
 import { useVault } from "../../lib/vault/hooks.js";
 import { LocalAuthorityPanel } from "./LocalAuthorityPanel.js";
 import { LocalAuthorityTemplates } from "./LocalAuthorityTemplates.js";
+import { SentDropsPanel } from "./SentDropsPanel.js";
 import { VaultSessionsPanel } from "./VaultSessionsPanel.js";
 import { Receipts } from "./receipts.js";
 
@@ -13,6 +14,7 @@ export function SessionsPanel({
   const { tomb } = useVault();
   return (
     <>
+      {panel === "sent-drops" ? <SentDropsPanel /> : null}
       {panel === "local-sessions" ? (
         <LocalAuthorityPanel key={tomb} tomb={tomb} records="session" />
       ) : null}
