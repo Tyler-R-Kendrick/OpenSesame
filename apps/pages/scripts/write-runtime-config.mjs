@@ -13,9 +13,11 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Only non-backend optional stamps. Host/Identity/daemon `pagesRuntimeKey`
-// rows were removed from spec/config/endpoints.json.
+// rows were removed from spec/config/endpoints.json. Linear's public OAuth
+// client id is a connector stamp, not a plane URL (#934).
 const KEYS = {
   supportAgentUrl: "PAGES_SUPPORT_AGENT_URL",
+  linearClientId: "PAGES_LINEAR_CLIENT_ID",
 };
 
 /** Refused if someone still exports the old backend stamps in CI. */
