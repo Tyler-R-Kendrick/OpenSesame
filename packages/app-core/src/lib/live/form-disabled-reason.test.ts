@@ -3,6 +3,14 @@ import {
   liveHostStartDisabledReason,
   liveJoinAskDisabledReason,
 } from "./form-disabled-reason.js";
+import type { LiveLink } from "./link.js";
+
+const inviteLink: LiveLink = {
+  admission: "invite",
+  owner: "owner",
+  secret: "secret",
+  routes: null,
+};
 
 describe("liveJoinAskDisabledReason", () => {
   it("names the first missing field", () => {
@@ -26,6 +34,16 @@ describe("liveJoinAskDisabledReason", () => {
         busy: false,
       }),
     ).toBe("Paste a live-session link that parses");
+    expect(
+      liveJoinAskDisabledReason({
+        link: inviteLink,
+        pasted: "",
+        needsCode: true,
+        code: "abcd",
+        name: "Ada",
+        busy: false,
+      }),
+    ).toBe("Enter the invite code, eight letters");
   });
 });
 

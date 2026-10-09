@@ -3,7 +3,9 @@
  * on the `.go` square, not an in-page caption (ADR 0163).
  */
 
+import { normalizeInviteCode } from "../join/invite.js";
 import type { LiveLink } from "./link.js";
+import { cleanText } from "./messages.js";
 
 export function liveJoinAskDisabledReason(input: {
   link: LiveLink | null;
@@ -19,9 +21,13 @@ export function liveJoinAskDisabledReason(input: {
       ? "Paste a live-session link that parses"
       : "Paste a live-session link";
   }
-  if (!input.name.trim()) return "Name is required";
-  if (input.needsCode && input.code.trim() === "")
-    return "Enter the invite code";
+  if (!cleanText(input.name).length) return "Name is required";
+  if (input.needsCode) {
+    if (input.code.trim() === "") return "Enter the invite code";
+    if (normalizeInviteCode(input.code) === null) {
+      return "Enter the invite code, eight letters";
+    }
+  }
   return undefined;
 }
 
