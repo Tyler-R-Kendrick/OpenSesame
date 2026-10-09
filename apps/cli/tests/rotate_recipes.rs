@@ -11,17 +11,35 @@ use serde_json::{json, Value};
 
 const DOC: &str = include_str!("../../../docs/operators/web-login-recipes.md");
 
+/// Preserve fenced text while accepting either checkout line ending.
+fn fenced_block<'a>(document: &'a str, fence: &str) -> &'a str {
+    let (_, rest) = document.split_once(fence).expect("the opening code fence");
+    let content = rest
+        .strip_prefix("\r\n")
+        .or_else(|| rest.strip_prefix('\n'))
+        .expect("a newline after the code fence");
+    content.split_once("```").expect("the closing code fence").0
+}
+
+#[test]
+fn document_fences_preserve_lf_and_crlf_payloads() {
+    for fence in ["```bash", "```json"] {
+        let lf = DOC.replace("\r\n", "\n");
+        let crlf = lf.replace('\n', "\r\n");
+        let expected = fenced_block(&lf, fence);
+        let actual = fenced_block(&crlf, fence);
+        assert_eq!(actual.replace("\r\n", "\n"), expected);
+        assert!(actual.contains("\r\n"));
+    }
+}
+
 /// The commands of the document's worked example, in order.
 fn documented_commands() -> Vec<Vec<String>> {
     let section = DOC
         .split("## A worked example")
         .nth(1)
         .expect("the worked example");
-    let block = section
-        .split("```bash\n")
-        .nth(1)
-        .and_then(|rest| rest.split("```").next())
-        .expect("a bash block");
+    let block = fenced_block(section, "```bash");
     block
         .lines()
         .map(|line| {
@@ -36,11 +54,7 @@ fn documented_commands() -> Vec<Vec<String>> {
 #[test]
 fn the_document_embeds_the_example_recipe_it_runs() {
     let file: Value = serde_json::from_str(EXAMPLE).unwrap();
-    let fenced = DOC
-        .split("```json\n")
-        .nth(1)
-        .and_then(|rest| rest.split("```").next())
-        .expect("a json block");
+    let fenced = fenced_block(DOC, "```json");
     assert_eq!(serde_json::from_str::<Value>(fenced).unwrap(), file);
     assert_eq!(
         fenced.trim(),
