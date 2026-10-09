@@ -151,3 +151,6 @@ fn assert_host_only_secret_source_compiles() {
     });
     let _ = BrokerError::SyncTargetNotFound;
 }
+
+#[path = "sync_targets_background_tests.rs"]
+mod background_tests;
