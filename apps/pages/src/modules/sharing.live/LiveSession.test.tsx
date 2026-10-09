@@ -320,7 +320,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
     );
     expect(
       again
-        .getByRole("button", { name: "Ask to join" })
+        .getByRole("button", { name: /^Ask to join$/ })
         .hasAttribute("disabled"),
     ).toBe(false);
   });
@@ -358,10 +358,9 @@ describe("a live session, owner to joiner, paired by hand", () => {
     expect(
       joiner.getByRole("img", { name: "Not a live-session link" }),
     ).toBeTruthy();
-    expect(
-      joiner
-        .getByRole("button", { name: "Ask to join" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
+    const ask = joiner.getByRole("button", {
+      name: /Ask to join\. Paste a live-session link that parses/,
+    });
+    expect(ask.hasAttribute("disabled")).toBe(true);
   });
 });
