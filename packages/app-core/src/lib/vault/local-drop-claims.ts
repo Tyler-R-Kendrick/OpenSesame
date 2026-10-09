@@ -12,6 +12,7 @@ import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
 import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
 import {
+  type LocalDropPollState,
   MAX_DROP_CLAIM_ATTEMPTS,
   digestDropBearerToken,
   digestDropUserCode,
@@ -19,7 +20,6 @@ import {
   localDropClaimStorage,
   localDropDevicePepper,
   localDropPollState,
-  type LocalDropPollState,
   readLocalDropClaimStore,
   resetLocalDropClaimSlotForTests,
   writeLocalDropClaimStore,
