@@ -17,6 +17,10 @@ const projection = buildSync({
       export {CONNECT_PLAN_JSON as connectPlanJson} from './packages/app-core/src/lib/connect-presets.generated.ts';
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
       import {isConnectionCatalogProvider} from './packages/app-core/src/lib/catalog-provider.ts';
+      import {nativeBrowserMcpPolicy,bindNativeBrowserPolicyOrigin} from './packages/app-core/src/lib/native-browser-policy.ts';
+      const releaseOrigin=bindNativeBrowserPolicyOrigin(()=> 'https://tyler-r-kendrick.github.io');
+      export const auditedAdobeAdmission=nativeBrowserMcpPolicy('adobe');
+      releaseOrigin();
       import {catalogPageSections} from './apps/pages/src/sections/connections/page-tree.ts';
       export const all = mergeVercelCatalog(getBundledProviders()).filter(isConnectionCatalogProvider);
       export const listed = catalogPageSections(all).flatMap(section => section.items ?? []);
@@ -38,3 +42,6 @@ export const NATIVE_CANONICAL_PROVIDERS = source.all.map((provider) => ({
 }));
 export const NATIVE_CANONICAL_CATALOG_IDS = source.listed.map((row) => row.id);
 export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
+
+/** Synthetic allowed-origin protocols never waive the real measured GH admission. */
+export const NATIVE_AUDITED_ADOBE_ADMISSION = source.auditedAdobeAdmission;

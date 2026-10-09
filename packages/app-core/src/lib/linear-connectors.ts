@@ -6,6 +6,7 @@ import {
   deviceConnection,
   saveDeviceConnectorConfigurationDurable,
 } from "./device-connectors.js";
+import { reserveLinearAuthorizationWindow } from "./linear-auth-reservation.js";
 import { beginLinearAuthorization } from "./linear-auth.js";
 import {
   checkLinearEdit,
@@ -18,6 +19,7 @@ import { linearConnectorProblems } from "./linear-config-validation.js";
 import { removeLinearActor } from "./linear-revoke.js";
 import {
   type LinearActor,
+  type LinearRuntime,
   emptyLinearRuntime,
   linearActorNeedsConsent,
   linearConfiguration,
@@ -79,10 +81,45 @@ export async function retryLinearActorCleanup(
     await finishLinearWebhookRecovery(id);
   return requireLinearConnection(id);
 }
+function nextLinearActor(
+  state: DraftState,
+  options: SelfHostedConnectorOptions,
+  runtime: LinearRuntime,
+): LinearActor | null {
+  if (state.method !== "oauth") return null;
+  if (linearActorNeedsConsent(runtime, options, "app")) return "app";
+  return linearActorNeedsConsent(runtime, options, "user") ? "user" : null;
+}
+function needsConsentWindow(
+  previous: ReturnType<typeof linearConfiguration> | null,
+  state: DraftState,
+  options: SelfHostedConnectorOptions,
+  runtime: LinearRuntime,
+  id?: string,
+): boolean {
+  if (state.method !== "oauth") return false;
+  if (nextLinearActor(state, options, runtime)) return true;
+  if (!previous) return false;
+  const changed = ["appScopes", "userScopes"] as const;
+  if (
+    changed.some(
+      (field) =>
+        JSON.stringify([...previous.options[field]].sort()) !==
+        JSON.stringify([...options[field]].sort()),
+    )
+  )
+    return true;
+  return Boolean(
+    runtime.webhook ||
+      runtime.recovery ||
+      (id && readDeviceSecrets()[id]?.linear_webhook_intent),
+  );
+}
 export async function configureLinearConnector(
   state: DraftState,
   options: SelfHostedConnectorOptions,
   id?: string,
+  onPersisted?: (connectionId: string) => void,
 ): Promise<Connection> {
   const problems = linearConnectorProblems(state, options, id);
   if (problems.length) throw new Error(problems.join(". "));
@@ -91,33 +128,40 @@ export async function configureLinearConnector(
     ? (readLinearConnector(id) ?? emptyLinearRuntime())
     : emptyLinearRuntime();
   checkLinearEdit(previous, state, options, runtime);
-  const before = linearSnapshot(id);
-  const key = await verifyLinearKey(state, options, runtime, id);
-  if (id && linearSnapshot(id) !== before)
-    throw new Error(
-      "Linear configuration changed in another tab; reload before saving",
+  const reservation = needsConsentWindow(previous, state, options, runtime, id)
+    ? reserveLinearAuthorizationWindow()
+    : null;
+  try {
+    const before = linearSnapshot(id);
+    const key = await verifyLinearKey(state, options, runtime, id);
+    if (id && linearSnapshot(id) !== before)
+      throw new Error(
+        "Linear configuration changed in another tab; reload before saving",
+      );
+    const expected =
+      id && previous
+        ? await prepareLinearEdit(id, previous, state, options, runtime)
+        : before;
+    const saved = await saveDeviceConnectorConfigurationDurable(
+      () => linearSaveInput(state, options, runtime, key, expected, id),
+      id,
     );
-  const expected =
-    id && previous
-      ? await prepareLinearEdit(id, previous, state, options, runtime)
-      : before;
-  const saved = await saveDeviceConnectorConfigurationDurable(
-    () => linearSaveInput(state, options, runtime, key, expected, id),
-    id,
-  );
-  const actor =
-    state.method === "oauth"
-      ? linearActorNeedsConsent(runtime, options, "app")
-        ? "app"
-        : linearActorNeedsConsent(runtime, options, "user")
-          ? "user"
-          : null
-      : null;
-  if (actor) await beginLinearAuthorization(saved.connectionId, actor);
-  else await configureLinearWebhooks(saved.connectionId);
-  const connection = deviceConnection(saved.connectionId);
-  if (!connection) throw new Error("Saved Linear connector not found");
-  return connection;
+    onPersisted?.(saved.connectionId);
+    // Edits can revoke a broader grant or add webhook cleanup obligations.
+    const actor = nextLinearActor(state, options, runtime);
+    if (actor)
+      await beginLinearAuthorization(
+        saved.connectionId,
+        actor,
+        reservation ?? undefined,
+      );
+    else await configureLinearWebhooks(saved.connectionId);
+    const connection = deviceConnection(saved.connectionId);
+    if (!connection) throw new Error("Saved Linear connector not found");
+    return connection;
+  } finally {
+    reservation?.release();
+  }
 }
 /** Human UI only; fetched only inside the explicit clipboard action. */
 export function linearWebhookSecret(id: string): string | null {

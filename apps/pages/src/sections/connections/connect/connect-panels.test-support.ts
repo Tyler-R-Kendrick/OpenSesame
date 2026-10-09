@@ -35,22 +35,23 @@ export function expectNativePanel(
     }),
   ).toBeTruthy();
   if (offered.length) {
-    expect(within(panel).getByLabelText("Connector name")).toHaveProperty(
-      "value",
-      descriptor.name,
+    expect(within(panel).queryByLabelText("Connector name")).toBeNull();
+    expect(panel.querySelector('input[type="file"]')).toBeNull();
+    const authorizes = offered.some(
+      (method) =>
+        method.authorizeFirst ?? ["oauth", "oidc", "mcp"].includes(method.id),
     );
     const commit = within(panel).getByRole("button", {
-      name: `Verify and connect ${descriptor.name}`,
+      name: `${authorizes ? "Sign in to" : "Verify and connect"} ${descriptor.name}`,
     });
     expect(commit).toBeTruthy();
     if (panel.querySelector('input[type="password"]'))
       expect(commit).toHaveProperty("disabled", true);
-    for (const method of offered)
-      expect(
-        within(panel).getByRole("radio", {
-          name: method.label,
-        }),
-      ).toHaveProperty("disabled", false);
+    for (const method of offered) {
+      const choice = within(panel).queryByRole("radio", { name: method.label });
+      if (offered.length > 1) expect(choice).toHaveProperty("disabled", false);
+      else expect(choice).toBeNull();
+    }
   } else {
     expect(
       within(panel).getByRole("img", {
@@ -64,8 +65,8 @@ export function expectNativePanel(
   }
   for (const method of descriptor.methods.filter((item) => !item.available)) {
     expect(
-      within(panel).getByRole("radio", { name: method.label }),
-    ).toHaveProperty("disabled", true);
+      within(panel).queryByRole("radio", { name: method.label }),
+    ).toBeNull();
     expect(
       within(panel).getByText(
         `${method.label}: ${method.unavailableReason ?? "Unavailable on this device."}`,

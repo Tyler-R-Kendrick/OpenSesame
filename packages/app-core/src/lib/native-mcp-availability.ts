@@ -1,5 +1,6 @@
 /** Configuration is offered only for a complete compiled public-browser MCP route. */
 import type { McpInfo } from "./connect-plan.js";
+import { nativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import { validateNativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
 import { nativeMcpProviderMetadata } from "./native-mcp-profile.js";
 
@@ -65,7 +66,9 @@ export function nativeMcpMetadataUnavailableReason(
   }
 }
 
-export function nativeMcpUnavailableReason(providerId: string): string | null {
+export function nativeMcpCompiledUnavailableReason(
+  providerId: string,
+): string | null {
   try {
     return nativeMcpMetadataUnavailableReason(
       providerId,
@@ -74,4 +77,16 @@ export function nativeMcpUnavailableReason(providerId: string): string | null {
   } catch {
     return "This provider has no complete, admitted public browser MCP endpoint contract in this deployment.";
   }
+}
+
+/** Compiled support remains available for revocation after browser admission changes. */
+export function supportsCompiledNativeMcpProvider(providerId: string): boolean {
+  return nativeMcpCompiledUnavailableReason(providerId) === null;
+}
+
+export function nativeMcpUnavailableReason(providerId: string): string | null {
+  return (
+    nativeMcpCompiledUnavailableReason(providerId) ??
+    nativeBrowserMcpPolicy(providerId).reason
+  );
 }

@@ -19,7 +19,8 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   const tiles = [
     ...container.querySelectorAll<HTMLAnchorElement>("a.conn-tile__link"),
   ];
-  expect(tiles.length).toBeGreaterThan(100);
+  expect(container.querySelectorAll(".conn-tile").length).toBeGreaterThan(100);
+  expect(tiles.length).toBeGreaterThan(0);
   for (const tile of tiles) expect(tile.tabIndex).toBe(-1);
   // Nothing leads to a page that does not exist: the catalog's own tiles are
   // its only links.
@@ -28,7 +29,7 @@ it("keeps browse-catalog tiles out of sequential Tab order", () => {
   // A catalog entry Vercel Connect cannot broker is no link at all, and says
   // so with a StatusMark glyph — the sentence is its name, not a pill.
   expect(stripe?.querySelector("a")).toBeNull();
-  const blocked = stripe?.querySelector('[role="img"]');
-  expect(blocked?.getAttribute("aria-label")).toBe("Not connectable");
+  const blocked = stripe?.querySelector(".conn-tile__go title");
+  expect(blocked?.textContent).toBe("Unavailable");
   expect(stripe?.textContent).not.toMatch(/Not connectable/);
 });

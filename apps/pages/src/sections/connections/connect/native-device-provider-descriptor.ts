@@ -73,6 +73,52 @@ function instanceMethod(
   };
 }
 
+function instanceSignIn(
+  provider: Provider,
+  availability: NativeDeviceAvailability,
+): NativeMethodDescriptor {
+  return {
+    id: "oidc",
+    label: "Sign in",
+    available: availability.has("oidc", provider.id),
+    authorizeFirst: true,
+    authorizationActor: "user",
+    fields: [
+      {
+        id: "endpoint",
+        label: "Instance HTTPS origin",
+        kind: "url",
+        secret: false,
+        required: true,
+        placeholder: "https://vault.example.com",
+      },
+      {
+        id: "auth_mount",
+        label: "OIDC auth mount",
+        kind: "text",
+        secret: false,
+        required: true,
+        defaultValue: "oidc",
+      },
+      {
+        id: "role",
+        label: "Role (optional)",
+        kind: "text",
+        secret: false,
+        required: false,
+      },
+      {
+        id: "namespace",
+        label: "Namespace (optional)",
+        kind: "text",
+        secret: false,
+        required: false,
+      },
+    ],
+    scopeGroups: [],
+  };
+}
+
 function requiresCompanion(provider: Provider): boolean {
   return (
     provider.category === "password_managers" ||
@@ -125,7 +171,9 @@ export function nativeDeviceProviderDescriptor(
     providerId,
     name: provider.displayName,
     docsUrl: provider.docsUrl,
-    methods: [method],
+    methods: ["vault", "openbao"].includes(provider.id)
+      ? [instanceSignIn(provider, availability), method]
+      : [method],
     actions: [],
     configurationLinks: requiresCompanion(provider)
       ? [

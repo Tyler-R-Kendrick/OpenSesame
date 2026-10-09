@@ -16,10 +16,17 @@ export function nativeInitialMethod(
   descriptor: NativeConnectorDescriptor,
   view?: NativeConnectorView | null,
 ) {
-  return descriptor.methods.find(
-    (method) =>
-      method.available && (!view || method.id === view.configuration.method),
-  );
+  if (view)
+    return descriptor.methods.find(
+      (method) => method.available && method.id === view.configuration.method,
+    );
+  for (const id of ["oidc", "oauth", "mcp", "api-key", "native-local"]) {
+    const method = descriptor.methods.find(
+      (entry) => entry.available && entry.id === id,
+    );
+    if (method) return method;
+  }
+  return undefined;
 }
 
 export function nativeEditTargetIds(

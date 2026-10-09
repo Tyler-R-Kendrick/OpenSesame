@@ -61,6 +61,7 @@ function oauthDescriptor(
   const preset = availability.preset ?? method.preset;
   return {
     id: "oauth",
+    authorizeFirst: true,
     label: "Bring Your Own OAuth App",
     available: availability.available && preset !== null,
     unavailableReason: availability.reason ?? unavailableOAuthReason(preset),
@@ -133,6 +134,7 @@ function mcpDescriptor(
   const metadata = method.mcp.status === "ok" ? method.mcp : null;
   return {
     id: "mcp",
+    authorizeFirst: true,
     label:
       metadata && metadata.registration !== "manual" ? "Managed MCP" : "MCP",
     available: availability.available,

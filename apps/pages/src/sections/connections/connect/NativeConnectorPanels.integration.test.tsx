@@ -201,9 +201,9 @@ it("refuses blocked Datadog configuration before entering credentials, HTTP or s
       />
     </MemoryRouter>,
   );
-  expect(screen.getByRole("radio", { name: "API Key" })).toHaveProperty(
-    "disabled",
-    true,
+  expect(screen.queryByRole("radio", { name: "API Key" })).toBeNull();
+  await userEvent.click(
+    screen.getByText("Other sign-in methods", { selector: "summary" }),
   );
   expect(screen.getByText(/Datadog rejected browser access/)).toBeTruthy();
   expect(screen.queryByLabelText("Datadog API key")).toBeNull();

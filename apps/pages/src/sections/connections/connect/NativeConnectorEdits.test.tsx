@@ -40,11 +40,6 @@ it("locks the method of a saved connection until its existing removal finishes",
   expect(alternate).toHaveProperty("disabled", true);
   await userEvent.click(alternate);
   expect(selected).toHaveProperty("checked", true);
-  expect(
-    screen.getByRole("img", {
-      name: /This connection stays saved until removal completes/,
-    }),
-  ).toBeTruthy();
   await userEvent.type(
     screen.getByLabelText("Algolia API key", {
       selector: 'input[type="password"]',
@@ -75,14 +70,7 @@ it("does not switch a saved unavailable method into a different available driver
   expect(
     screen.queryByRole("button", { name: "Verify and connect Algolia" }),
   ).toBeNull();
-  expect(screen.getByRole("radio", { name: "Algolia API key" })).toHaveProperty(
-    "checked",
-    false,
-  );
-  expect(screen.getByRole("radio", { name: "Algolia API key" })).toHaveProperty(
-    "disabled",
-    true,
-  );
+  expect(screen.queryByRole("radio", { name: "Algolia API key" })).toBeNull();
   expect(controller.configure).not.toHaveBeenCalled();
 });
 

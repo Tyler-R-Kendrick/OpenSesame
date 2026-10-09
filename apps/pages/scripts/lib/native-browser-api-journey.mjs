@@ -13,6 +13,14 @@ function nativeKeyLabel(fixture) {
 }
 
 export async function fillNativeApiFixture(page, fixture) {
+  const options = page.locator("details").filter({
+    has: page.locator("summary").filter({ hasText: /^Sign-in options$/ }),
+  });
+  if ((await options.count()) && (await options.getAttribute("open")) === null)
+    await options
+      .locator("summary")
+      .filter({ hasText: /^Sign-in options$/ })
+      .click();
   const variant = page.getByLabel("Credential type", { exact: true });
   if (fixture.variant && (await variant.count()))
     await variant.selectOption(fixture.variant.id);
@@ -60,7 +68,25 @@ async function noSecretRendered(page, fixture, check) {
 }
 
 async function nativeApiAvailability(page, harness, fixture, submit) {
+  const radio = page.getByRole("radio", { name: "API Key", exact: true });
+  if ((await radio.count()) && (await radio.isEnabled())) await radio.check();
   if (!(await submit.count())) {
+    const signIn = page.getByRole("button", {
+      name: `Sign in to ${fixture.name}`,
+      exact: true,
+    });
+    if (await signIn.count()) {
+      harness.check(
+        (await page
+          .getByLabel(nativeKeyLabel(fixture), {
+            exact: true,
+            selector: 'input[type="password"]',
+          })
+          .count()) === 0,
+        `${fixture.providerId}: primary approved sign-in route does not collect unsupported API credentials`,
+      );
+      return "alternative public browser sign-in route";
+    }
     harness.check(
       (await page
         .getByRole("img", {
@@ -68,16 +94,14 @@ async function nativeApiAvailability(page, harness, fixture, submit) {
           exact: true,
         })
         .count()) > 0,
-      `${fixture.providerId}: unsupported browser path is explicitly explained`,
+      `${fixture.providerId}: unavailable browser route indicates desktop capability`,
     );
     harness.check(
       (await page.locator('main input[type="password"]').count()) === 0,
       `${fixture.providerId}: unavailable route does not collect private credentials`,
     );
-    return "explicit browser refusal";
+    return "outside-browser capability";
   }
-  const radio = page.getByRole("radio", { name: "API Key", exact: true });
-  if ((await radio.count()) && (await radio.isEnabled())) await radio.check();
   const variant = page.getByLabel("Credential type", { exact: true });
   if (fixture.variant && (await variant.count()))
     await variant.selectOption(fixture.variant.id);

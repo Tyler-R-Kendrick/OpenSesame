@@ -84,6 +84,8 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/self-hosted-connectors.ts": "connectors.external",
       "src/lib/self-hosted-connectors.test.ts": "connectors.external",
       "src/lib/self-hosted-connectors.durable.test.ts": "connectors.external",
+      "src/lib/connector-action-capability.ts": "connectors.external",
+      "src/lib/connector-action-capability.test.ts": "connectors.external",
       "src/modules/sharing.drops/runtime.ts": "sharing.drops",
     };
     for (const [path, expected] of Object.entries(expectations)) {

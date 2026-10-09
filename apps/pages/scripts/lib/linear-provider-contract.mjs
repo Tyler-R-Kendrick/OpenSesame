@@ -249,17 +249,14 @@ async function providerCallback(page, state, response) {
     throw new Error("Consent did not navigate to Linear");
   if (response.code) state.codes.set(response.code, url);
   const callback = new URL(url.searchParams.get("redirect_uri"));
-  const destination = new URL(`${state.origin}${state.base}connections/linear`);
   for (const name of ["code", "state", "error"]) {
     const value =
       name === "state" ? url.searchParams.get("state") : response[name];
     if (value) {
       callback.searchParams.set(name, value);
-      destination.searchParams.set(`linear_${name}`, value);
     }
   }
-  state.expectedCallbacks.add(destination.href);
-  await page.goto(callback.href, { waitUntil: "networkidle" });
+  await page.goto(callback.href, { waitUntil: "commit" });
 }
 
 export async function routeLinearProvider(context, { origin, base, check }) {

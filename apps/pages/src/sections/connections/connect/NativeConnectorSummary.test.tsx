@@ -27,9 +27,7 @@ it("distinguishes validated access from returned account identity and provider-m
     screen.getByRole("img", { name: "Algolia access verified" }),
   ).toBeTruthy();
   expect(screen.queryByRole("img", { name: "Algolia connected" })).toBeNull();
-  expect(
-    screen.getByText("Managed by the provider's key settings"),
-  ).toBeTruthy();
+  expect(screen.getByText("Managed by the provider")).toBeTruthy();
   expect(screen.getByText("Products")).toBeTruthy();
   expect(screen.queryByRole("button", { name: /^Authorize/ })).toBeNull();
   const verify = screen.getByRole("button", { name: "Verify Algolia access" });

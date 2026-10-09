@@ -20,8 +20,7 @@ fn accepts_only_verified_secret_free_links() {
         Err(AuthenticatorError::UnverifiedInvocationOrigin)
     );
     assert_eq!(
-        policy()
-            .validate_link("https://auth.opensesame.example/invoke/oid4vp?request_id=req_123"),
+        policy().validate_link("https://auth.opensesame.example/invoke/oid4vp?request_id=req_123"),
         Err(AuthenticatorError::InvalidInvocationPayload)
     );
     assert_eq!(
