@@ -1,8 +1,9 @@
 import type {
-  ProtectionContext,
   ProtectionRecord,
   RootProtectionManifest,
 } from "@opensesame/vault-core";
+import { contextForRecord } from "./protector-context.js";
+export { contextForRecord } from "./protector-context.js";
 import { mintRootKeyHandle } from "./adapter.js";
 import { enrollAgeWebauthn } from "./adapters/age-webauthn.js";
 import { protectorFromPrfMaterial } from "./adapters/webauthn-prf-ops.js";
@@ -15,19 +16,6 @@ import {
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
 import { enrollRecoveryKey, openWithRecoveryKey } from "./recovery-key.js";
-
-export function contextForRecord(
-  manifest: RootProtectionManifest,
-  protectorId: string,
-): ProtectionContext {
-  return {
-    vaultId: manifest.vaultId,
-    rootKeyId: manifest.rootKeyId,
-    rootEpoch: manifest.rootEpoch,
-    protectorId,
-    purpose: manifest.purpose,
-  };
-}
 
 export type EnrollableKind =
   | "recovery-key"
