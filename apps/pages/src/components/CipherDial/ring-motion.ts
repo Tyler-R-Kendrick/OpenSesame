@@ -36,7 +36,8 @@ export function alignRings(
   t0: number,
   tClickMs: number,
 ): void {
-  rings.forEach((q, i) => {
+  for (let i = 0; i < rings.length; i += 1) {
+    const q = rings[i];
     const target = q.jt;
     const cur = ((Math.round(q.to) % q.N) + q.N) % q.N;
     let dist =
@@ -61,5 +62,5 @@ export function alignRings(
       return (Math.abs(span) - 1 + easeBack(v)) / Math.abs(span);
     };
     q.dirty = true;
-  });
+  }
 }

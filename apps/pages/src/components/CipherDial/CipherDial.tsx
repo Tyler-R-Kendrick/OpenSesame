@@ -1,5 +1,5 @@
 import { type RefObject, useCallback, useEffect, useRef } from "react";
-import { RING_COUNT, T_CLICK_MS } from "./constants.js";
+import { RING_KEYS, T_CLICK_MS } from "./constants.js";
 import { drawOrnament } from "./draw-ornament.js";
 import { drawOverlay, paintRingLayer } from "./draw-rings.js";
 import { readInkRgb as readInkLocal } from "./ink.js";
@@ -209,9 +209,9 @@ export function CipherDial({
     <div className="cipher-dial" aria-hidden="true">
       <div className="cipher-dial__rings" ref={ringLayerRef}>
         <canvas ref={fixedRef} className="cipher-dial__fixed" />
-        {Array.from({ length: RING_COUNT }, (_, i) => (
+        {RING_KEYS.map((ringKey, i) => (
           <canvas
-            key={i}
+            key={ringKey}
             ref={(el) => {
               if (el) ringCanvasRefs.current.set(i, el);
               else ringCanvasRefs.current.delete(i);

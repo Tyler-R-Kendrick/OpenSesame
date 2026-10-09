@@ -9,7 +9,10 @@ import { noWayIn } from "@opensesame/app-core/lib/settings.js";
 import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
-import { GUEST_TOMB, vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  GUEST_TOMB,
+  vaultStore,
+} from "@opensesame/app-core/lib/vault/store.js";
 import {
   MIN_PIN_LENGTH,
   type SecondStepId,
@@ -55,6 +58,7 @@ import { ResetBrowser } from "./unlock/ResetBrowser.js";
 import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { UnlockLockV5 } from "./unlock/UnlockLockV5.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
 import {
   METHOD_LABEL,
@@ -73,7 +77,6 @@ import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
 import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
 import { useCountdown } from "./unlock/useCountdown.js";
-import { UnlockLockV5 } from "./unlock/UnlockLockV5.js";
 import "./unlock.css";
 import "../components/VaultDoors/vault-doors.css";
 

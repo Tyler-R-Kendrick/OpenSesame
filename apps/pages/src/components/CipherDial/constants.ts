@@ -3,6 +3,10 @@ import { DISPLAY_WORD } from "../CipherWordmark/cipher.js";
 export const PLAIN = DISPLAY_WORD.replace(/ /g, "");
 export const LETTERS = DISPLAY_WORD.split("");
 export const RING_COUNT = LETTERS.length;
+/** Stable canvas keys for the fixed ring stack (order never changes). */
+export const RING_KEYS = LETTERS.map(
+  (glyph, slot) => `cipher-ring:${glyph}:${String(slot)}`,
+);
 
 export const B64 =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";

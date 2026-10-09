@@ -166,9 +166,9 @@ export function computeDialLayout(input: {
       alpha: alphaInk,
     };
   });
-  rings.forEach((q) => {
+  for (const q of rings) {
     q.from = q.to = q.k;
-  });
+  }
 
   const outer = R0 + (RING_COUNT - 1) * dr;
   return {
