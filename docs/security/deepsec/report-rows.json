@@ -1,0 +1,53 @@
+{
+  "stats": {
+    "core": {
+      "analyzed": 255,
+      "pending": 0,
+      "error": 382,
+      "candidates": 869,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    },
+    "pwa": {
+      "analyzed": 0,
+      "pending": 0,
+      "error": 403,
+      "candidates": 529,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    },
+    "cli": {
+      "analyzed": 0,
+      "pending": 0,
+      "error": 13,
+      "candidates": 51,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    }
+  },
+  "triageTotals": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 0,
+    "skip": 0
+  },
+  "rows": []
+}
