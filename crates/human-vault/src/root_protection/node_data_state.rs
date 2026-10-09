@@ -298,3 +298,7 @@ fn decode_device_key_wire(wire: &[u8]) -> io::Result<Zeroizing<[u8; 32]>> {
 #[cfg(test)]
 #[path = "node_data_key_wire_tests.rs"]
 mod key_wire_tests;
+
+#[path = "node_data_inventory.rs"]
+mod device_inventory;
+pub use device_inventory::NativeNodeDeviceInventory;
