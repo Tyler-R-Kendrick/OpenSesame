@@ -48,10 +48,9 @@ it("keeps provider fields and credentials separate and waits for verified durabl
       selector: 'input[type="password"]',
     }),
   ).toHaveProperty("value", "");
-  expect(screen.getByRole("radio", { name: "Operator OAuth" })).toHaveProperty(
-    "disabled",
-    true,
-  );
+  expect(screen.queryByRole("radio", { name: "Operator OAuth" })).toBeNull();
+  expect(screen.queryByLabelText("Icon")).toBeNull();
+  expect(screen.queryByLabelText("Connector name")).toBeNull();
   expect(screen.queryByText("App Scopes")).toBeNull();
   await enterCredentials();
   await userEvent.click(
@@ -139,7 +138,7 @@ it("does not turn a stored configuration into successful authorization", async (
   await waitFor(() =>
     expect(onFlash).toHaveBeenCalledWith({
       tone: "warn",
-      text: "Algolia authorization is incomplete.",
+      text: "Complete Algolia sign-in to connect.",
     }),
   );
   expect(

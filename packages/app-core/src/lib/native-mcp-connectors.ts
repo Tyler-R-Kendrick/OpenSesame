@@ -3,7 +3,7 @@ import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import { beginNativeMcpAuthorization } from "./native-mcp-authorization.js";
-import { nativeMcpUnavailableReason } from "./native-mcp-availability.js";
+import { supportsCompiledNativeMcpProvider } from "./native-mcp-availability.js";
 import {
   createNativeMcpCleanup,
   nativeMcpCleanup,
@@ -32,7 +32,7 @@ export {
 export { nativeMcpCleanup } from "./native-mcp-cleanup.js";
 
 export function supportsNativeMcpProvider(providerId: string): boolean {
-  return nativeMcpUnavailableReason(providerId) === null;
+  return supportsCompiledNativeMcpProvider(providerId);
 }
 
 async function invoke(

@@ -1,0 +1,11 @@
+{
+  "proof": "Google SDK contract intercepted in an approved header-less callback fixture; no live customer grant",
+  "freshSecondClick": true,
+  "publicFragmentScrubbed": true,
+  "encryptedReturnToInitiator": true,
+  "journalBeforeAcknowledgement": true,
+  "cancelWithoutMintedGrant": true,
+  "staleLeaseDuringRetentionKeepsIssuedCredentials": true,
+  "plaintextBearerOnChannel": false,
+  "providerCorsVerificationFixture": true
+}

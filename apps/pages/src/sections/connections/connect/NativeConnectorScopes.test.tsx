@@ -160,7 +160,7 @@ it("shows callback registration metadata without sending it as a provider parame
     "browser-app",
   );
   await userEvent.click(
-    screen.getByRole("button", { name: "Verify and connect Algolia" }),
+    screen.getByRole("button", { name: "Sign in to Algolia" }),
   );
   await waitFor(() => expect(controller.configure).toHaveBeenCalledOnce());
   expect(controller.configure.mock.calls[0]?.[0].parameters).toEqual({

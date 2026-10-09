@@ -1,3 +1,4 @@
+import { assertNativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import type { NativeGrant } from "./native-connector-schema.js";
 import {
   type NativeConnectorRecord,
@@ -39,6 +40,7 @@ export async function nativeMcpRecordSession(
   transport: NativeProviderTransport,
   issuedGrant?: NativeGrant,
 ): Promise<NativeMcpSession> {
+  assertNativeBrowserMcpPolicy(record.configuration.providerId);
   await assertNativeMcpContract(record);
   await assertNativeConnectorRevision(
     record.connectionId,
@@ -50,6 +52,7 @@ export async function nativeMcpRecordSession(
     throw new NativeMcpError("authorization");
   const assertCurrent = () => {
     transport.assertCurrent();
+    assertNativeBrowserMcpPolicy(record.configuration.providerId);
     const actual = requireNativeMcpRecord(record.connectionId);
     if (
       actual.revision !== record.revision ||

@@ -11,20 +11,22 @@ export async function approveNativePublicConsent(
   callback,
   authorizeButton,
 ) {
+  const originatingUrl = page.url();
+  const popupEvent = page.waitForEvent("popup");
   await authorizeButton.click();
-  await page
+  const popup = await popupEvent;
+  await popup
     .getByRole("heading", { name: "Protocol test consent", exact: true })
     .waitFor({ timeout: 30_000 });
-  await page
+  const approved = popup.waitForEvent("close");
+  await popup
     .getByRole("link", { name: "Approve protocol test consent", exact: true })
     .click();
-  await page.waitForURL(
-    (url) =>
-      url.origin === new URL(callback).origin &&
-      url.pathname.endsWith("/connections"),
-    { timeout: 30_000 },
-  );
-  await unlockWithPin(page);
+  await approved;
+  expect(page.url()).toBe(originatingUrl);
+  expect(new URL(page.url()).origin).toBe(new URL(callback).origin);
+  await expect(page.getByLabel("PIN", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lock vault" })).toBeVisible();
 }
 
 export async function noNativeSecrets(page, secrets, check) {
@@ -188,26 +190,24 @@ async function authorizeAndReloadMcp(
   await nativeVisit(page, base, "connections/adobe");
   await page.getByRole("heading", { name: "Adobe", exact: true }).waitFor();
   await page
-    .getByLabel("Connector name", { exact: true })
-    .fill("Adobe protocol proof");
+    .locator("summary")
+    .filter({ hasText: /^Sign-in options$/ })
+    .click();
   await page.locator("summary").filter({ hasText: "MCP permissions" }).click();
   await page.getByRole("checkbox", { name: "openid", exact: true }).check();
-  await page
-    .getByRole("button", { name: "Verify and connect Adobe", exact: true })
-    .click();
   const mark = page.getByRole("img", {
     name: "Adobe access verified",
     exact: true,
   });
   harness.check(
     (await mark.count()) === 0,
-    "saved MCP configuration alone is never verified",
+    "unsubmitted MCP configuration alone is never verified",
   );
   await approveNativePublicConsent(
     page,
     callback,
     page.getByRole("button", {
-      name: "Authorize MCP permissions",
+      name: "Sign in to Adobe",
       exact: true,
     }),
   );

@@ -1,3 +1,4 @@
+import { assertNativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import {
   type NativeConfiguration,
@@ -73,6 +74,7 @@ export async function configureNativeMcpConnector(
   transport: NativeProviderTransport = nativeProviderTransport(),
 ) {
   transport.assertCurrent();
+  assertNativeBrowserMcpPolicy(input.providerId);
   const { client_id: enteredClientId, ...parameters } = input.parameters;
   const clientId = enteredClientId?.trim();
   assertMcpInput(input, parameters);

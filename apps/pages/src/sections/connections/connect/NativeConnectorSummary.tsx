@@ -10,7 +10,9 @@ import {
   IconX,
 } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { NativeCancelSignIn } from "./NativeCancelSignIn.js";
 import { NativeConnectorActions } from "./NativeConnectorActions.js";
+import { nativeSignInRequired } from "./NativeConnectorFormOptions.js";
 import { NativeConnectorRecovery } from "./NativeConnectorRecovery.js";
 import { Facts } from "./fields.js";
 import { nativeError, nativeVerified } from "./native-connector-ui-values.js";
@@ -76,7 +78,7 @@ function nativeGrantRows(
     grant.permissionState === "known"
       ? grant.grantedScopes.join(", ") || "No scopes returned"
       : grant.permissionState === "provider-managed"
-        ? "Managed by the provider's key settings"
+        ? "Managed by the provider"
         : "Provider did not report granted permissions";
   const rows: [string, string][] = [
     ["Permissions", permissions],
@@ -195,8 +197,17 @@ function NativeAuthorizationControls({
   const method = descriptor.methods.find(
     (item) => item.id === view.configuration.method && item.available,
   );
-  const authorizes = method?.id === "oauth" || method?.id === "mcp";
+  const authorizes = method ? nativeSignInRequired(method) : false;
   const groups = method?.scopeGroups ?? [];
+  const [authorizing, setAuthorizing] = useState(false);
+  async function authorize(actor?: string) {
+    setAuthorizing(true);
+    try {
+      await perform(() => controller.authorize(actor));
+    } finally {
+      setAuthorizing(false);
+    }
+  }
   return (
     <div className="cx-form">
       {authorizes &&
@@ -209,9 +220,7 @@ function NativeAuthorizationControls({
                 label={`Authorize ${group.label}`}
                 key={group.actor}
                 disabled={busy}
-                onClick={() =>
-                  void perform(() => controller.authorize(group.actor))
-                }
+                onClick={() => void authorize(group.actor)}
               >
                 <IconExternal size={16} />
               </IconKey>
@@ -220,13 +229,18 @@ function NativeAuthorizationControls({
             <IconKey
               label={`Authorize ${descriptor.name}`}
               disabled={busy}
-              onClick={() => void perform(() => controller.authorize())}
+              onClick={() => void authorize()}
             >
               <IconExternal size={16} />
             </IconKey>
           )}
         </div>
       ) : null}
+      <NativeCancelSignIn
+        busy={authorizing}
+        method={method}
+        onCancel={controller.cancelAuthorization}
+      />
       <IconKey
         label={`Verify ${descriptor.name} access`}
         disabled={busy || !method || view.status === "cleanup"}
@@ -290,6 +304,7 @@ export function NativeConnectorSummary(props: Props) {
     <section
       className="panel"
       id="complete"
+      tabIndex={-1}
       aria-label={`${descriptor.name} connection status`}
     >
       <div className="panel__head">

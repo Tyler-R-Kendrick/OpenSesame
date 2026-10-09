@@ -5,30 +5,16 @@ import type {
   NativeFieldClassification,
 } from "./native-connector-schema.js";
 
-export type NativeBrowserOAuthProvider =
-  | "gitlab"
-  | "microsoft"
-  | "microsoft-teams"
-  | "dropbox"
-  | "spotify"
-  | "google"
-  | "openrouter"
-  | "workos"
-  | "resend";
-// Browser CIMD clients use a deployment-owned HTTPS metadata document.
-export type NativeBrowserOAuthProfile = {
-  id: NativeBrowserOAuthProvider;
-  mode: "pkce" | "google-token" | "openrouter-key" | "cimd";
-  name: string;
-  docsUrl: string;
-  refresh: boolean;
-  revoke: "form" | "dropbox" | "google" | "settings" | "refresh-grant";
-  revocationEndpoint: string | null;
-  settingsUrl: string | null;
-  publicParameters: readonly string[];
-  requiredScopes: readonly string[];
-};
+export type {
+  NativeBrowserOAuthProvider,
+  NativeBrowserOAuthProfile,
+} from "./native-browser-oauth-types.js";
+import { APPROVED_BROWSER_OAUTH_PROFILES } from "./native-approved-oauth-profiles.js";
+import type { NativeBrowserOAuthProfile } from "./native-browser-oauth-types.js";
+import { nativeDatabricksEndpoints } from "./native-databricks-provider.js";
+import { nativeTenantOAuthEndpoints } from "./native-tenant-oauth.js";
 const PROFILES: readonly NativeBrowserOAuthProfile[] = [
+  ...APPROVED_BROWSER_OAUTH_PROFILES,
   {
     id: "workos",
     mode: "cimd",
@@ -170,6 +156,20 @@ export function browserOAuthClassification(
     privateCredentials: [],
   };
 }
+export function nativeBrowserOAuthScopeSupported(
+  profile: NativeBrowserOAuthProfile,
+  scope: string,
+): boolean {
+  if (profile.id === "discord")
+    return [
+      "identify",
+      "email",
+      "guilds",
+      "guilds.members.read",
+      "connections",
+    ].includes(scope);
+  return profile.id !== "twitch" || scope !== "openid";
+}
 export function browserOAuthScopes(
   profile: NativeBrowserOAuthProfile,
   configuration: NativeConfiguration,
@@ -179,6 +179,11 @@ export function browserOAuthScopes(
     throw new Error(
       "This browser route supports the delegated user actor only",
     );
+  if (profile.id === "codeberg") {
+    if ((configuration.requestedScopes[actor] ?? []).length)
+      throw new Error("Codeberg OAuth permissions are managed by the provider");
+    return [];
+  }
   const selected = configuration.requestedScopes[actor] ?? [
     ...profile.requiredScopes,
   ];
@@ -192,8 +197,9 @@ export function browserOAuthScopes(
   if (
     selected.some(
       (scope) =>
-        !profile.requiredScopes.includes(scope) &&
-        !scopes.some((choice) => choice.name === scope),
+        !nativeBrowserOAuthScopeSupported(profile, scope) ||
+        (!profile.requiredScopes.includes(scope) &&
+          !scopes.some((choice) => choice.name === scope)),
     )
   )
     throw new Error("Select documented provider permissions");
@@ -208,6 +214,13 @@ export function browserOAuthEndpoints(
   profile: NativeBrowserOAuthProfile,
   configuration: NativeConfiguration,
 ): NativeBrowserOAuthEndpoints {
+  if (profile.id === "auth0" || profile.id === "okta")
+    return nativeTenantOAuthEndpoints(
+      profile.id,
+      configuration.parameters.domain ?? "",
+    );
+  if (profile.id === "databricks")
+    return nativeDatabricksEndpoints(configuration.parameters.domain ?? "");
   if (profile.id === "gitlab") {
     const instance =
       configuration.parameters.instance_url ?? "https://gitlab.com";
@@ -239,6 +252,31 @@ export function browserOAuthEndpoints(
     };
   }
   const endpoints = {
+    discord: {
+      issuer: "https://discord.com",
+      authorization: "https://discord.com/oauth2/authorize",
+      token: "https://discord.com/api/oauth2/token",
+    },
+    twitch: {
+      issuer: "https://id.twitch.tv",
+      authorization: "https://id.twitch.tv/oauth2/device",
+      token: "https://id.twitch.tv/oauth2/token",
+    },
+    vercel: {
+      issuer: "https://vercel.com",
+      authorization: "https://vercel.com/oauth/authorize",
+      token: "https://api.vercel.com/login/oauth/token",
+    },
+    codeberg: {
+      issuer: "https://codeberg.org",
+      authorization: "https://codeberg.org/login/oauth/authorize",
+      token: "https://codeberg.org/login/oauth/access_token",
+    },
+    crowdin: {
+      issuer: "https://accounts.crowdin.com",
+      authorization: "https://accounts.crowdin.com/oauth/authorize",
+      token: "https://accounts.crowdin.com/oauth/token",
+    },
     workos: {
       issuer: "https://signin.workos.com",
       authorization: "https://signin.workos.com/oauth2/authorize",

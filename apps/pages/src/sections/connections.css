@@ -414,6 +414,7 @@ button.conn-tile__link {
 /* A tile opens its connector's page: the rail's and the vault list's
    chevron says so, where the tile read as a label with nothing behind it. */
 .conn-tile__go {
+  margin-left: auto;
   flex: none;
   color: var(--ink-3);
 }

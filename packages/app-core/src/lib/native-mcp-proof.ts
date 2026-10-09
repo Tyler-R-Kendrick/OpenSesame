@@ -106,6 +106,7 @@ export async function activateNativeMcpGrant(
       );
       return verified(current, grant);
     },
+    transport.assertCurrent,
   );
 }
 
@@ -122,5 +123,6 @@ export async function verifyNativeMcpRecord(
       transport.assertCurrent();
       return verified(current, current.privateState.grants.user);
     },
+    transport.assertCurrent,
   );
 }

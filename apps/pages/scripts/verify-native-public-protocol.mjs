@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { nativeEnableConnections } from "./lib/native-browser-catalog-journey.mjs";
+import { NATIVE_AUDITED_ADOBE_ADMISSION } from "./lib/native-browser-catalog-projection.mjs";
 import { nativeExpectedFailures } from "./lib/native-browser-expected-failures.mjs";
 import { routeNativeGitlabAuthority } from "./lib/native-browser-gitlab-authority.mjs";
 import { nativeGitlabJourney } from "./lib/native-browser-gitlab-journey.mjs";
@@ -21,7 +22,9 @@ const dist = process.env.EVIDENCE_DIST ?? path.resolve(here, "..", "dist");
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ?? "work/native-public-protocol",
 );
-const origin = "https://tyler-r-kendrick.github.io";
+// The disclosed authority admits this self-hosted origin. Measured GH-origin
+// denials remain production policy and are independently checked by core tests.
+const origin = "https://self-host.example.org";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const callback = `${origin}${base}auth/native-connector.html`;
 fs.mkdirSync(out, { recursive: true });
@@ -56,6 +59,10 @@ fs.writeFileSync(
   `${JSON.stringify(provenance, null, 2)}\n`,
 );
 const harness = createHarness({ dist, origin, base, out });
+harness.check(
+  !NATIVE_AUDITED_ADOBE_ADMISSION.available,
+  "measured GH-origin Adobe mandatory-header denial remains enforced; the disclosed protocol authority uses a separately admitted self-hosted origin",
+);
 const browser = await harness.launch();
 const results = [];
 const expectedFailures = [];

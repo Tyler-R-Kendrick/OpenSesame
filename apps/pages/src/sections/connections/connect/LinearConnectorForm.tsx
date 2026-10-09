@@ -24,6 +24,7 @@ import {
 import { type FormEvent, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { LinearCancelSignIn } from "./LinearCancelSignIn.js";
 import { LinearConnectorFields } from "./LinearConnectorFields.js";
 
 function linearOptions(plan: ConnectPlan): SelfHostedConnectorOptions {
@@ -73,7 +74,8 @@ export function LinearConnectorForm({
   const [busy, setBusy] = useState(false);
   const [iconBusy, setIconBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
-  const problems = linearConnectorProblems(state, options, connectorId);
+  const [savedId, setSavedId] = useState(connectorId);
+  const problems = linearConnectorProblems(state, options, savedId);
 
   async function configure(event: FormEvent) {
     event.preventDefault();
@@ -84,7 +86,8 @@ export function LinearConnectorForm({
       const connection = await configureLinearConnector(
         state,
         options,
-        connectorId,
+        savedId,
+        setSavedId,
       );
       setState({
         ...state,
@@ -130,11 +133,12 @@ export function LinearConnectorForm({
         </div>
       </fieldset>
       {failure ? <StatusMark tone="err" label={failure} /> : null}
+      <LinearCancelSignIn authorizing={busy && state.method === "oauth"} />
       <FormCommit
         label={
           state.method === "api-key"
             ? "Verify and connect Linear"
-            : connectorId
+            : savedId
               ? "Save and authorize Linear"
               : "Create and authorize Linear"
         }

@@ -1,6 +1,8 @@
-/** PKCE state and verifier are sealed before any provider navigation or popup. */
 import { randomString, sha256Base64Url } from "@opensesame/sdk-browser";
+import { captureNativeAuthorizationTransport } from "./native-authorization-transport.js";
+import { cancelNativeBrowserConsent } from "./native-browser-oauth-cancel.js";
 import { verifyNativeBrowserCimd } from "./native-browser-oauth-cimd.js";
+import { finishNativeBrowserAuthorization } from "./native-browser-oauth-finish.js";
 import {
   browserOAuthClassification,
   browserOAuthEndpoints,
@@ -17,6 +19,8 @@ import {
   nativeOAuthGuard,
   requireNativeOAuthRecord,
 } from "./native-oauth-session.js";
+/** PKCE state and verifier are sealed before any provider navigation or popup. */
+import { nativeVercelAuthorizationUrl } from "./native-vercel-auth.js";
 
 export async function beginNativeBrowserAuthorization(
   id: string,
@@ -29,7 +33,9 @@ export async function beginNativeBrowserAuthorization(
     record.privateState.recovery.length
   )
     throw new NativeOAuthError("cleanup");
-  const transport = nativeProviderTransport();
+  const transport = captureNativeAuthorizationTransport(
+    nativeProviderTransport(),
+  );
   const browser = nativeOAuthBrowserPort();
   const profile = requiredBrowserOAuthProfile(record.configuration.providerId);
   if (profile.mode === "google-token")
@@ -82,7 +88,11 @@ export async function beginNativeBrowserAuthorization(
     url.searchParams.set(name, value);
   if (profile.id === "dropbox")
     url.searchParams.set("token_access_type", "online");
-  if (["microsoft", "microsoft-teams"].includes(profile.id))
+  if (
+    ["microsoft", "microsoft-teams", "vercel", "auth0", "okta"].includes(
+      profile.id,
+    )
+  )
     url.searchParams.set("nonce", state);
   await updateNativeConnector(
     id,
@@ -95,6 +105,33 @@ export async function beginNativeBrowserAuthorization(
       return current;
     },
   );
-  transport.assertCurrent();
-  browser.navigate(url.href);
+  const callback = await launchNativeBrowserConsent(id, pending, url.href);
+  if (callback) await finishNativeBrowserAuthorization(callback);
+}
+async function launchNativeBrowserConsent(
+  id: string,
+  pending: NativePending,
+  fallbackUrl: string,
+): Promise<string | null> {
+  const transport = captureNativeAuthorizationTransport(
+    nativeProviderTransport(),
+  );
+  const browser = nativeOAuthBrowserPort();
+  try {
+    transport.assertCurrent();
+    const authorizationUrl =
+      pending.providerId === "vercel"
+        ? await nativeVercelAuthorizationUrl(pending, "query")
+        : fallbackUrl;
+    if (browser.authorize)
+      return await browser.authorize(authorizationUrl, {
+        state: pending.state,
+        expiresAt: pending.expiresAt,
+      });
+    browser.navigate(authorizationUrl);
+    return null;
+  } catch (error) {
+    await cancelNativeBrowserConsent(id, pending.state);
+    throw error;
+  }
 }

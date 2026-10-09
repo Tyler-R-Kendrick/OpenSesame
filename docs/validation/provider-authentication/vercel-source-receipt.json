@@ -1,0 +1,42 @@
+[
+  {
+    "url": "https://vercel.com/docs/sign-in-with-vercel",
+    "file": "/workspace/work/vercel-official/0.txt",
+    "sha256": "499bf551609097d117c2a66a2d55343b93f4f93df3f20fb7010aae81f61b4d06"
+  },
+  {
+    "url": "https://vercel.com/docs/sign-in-with-vercel/authorization-server-api",
+    "file": "/workspace/work/vercel-official/1.txt",
+    "sha256": "81efbd1873bf18e0a90abd9c708ea6cf1a7c804c7af008d9934f4a717d79e575"
+  },
+  {
+    "url": "https://vercel.com/.well-known/openid-configuration",
+    "file": "/workspace/work/vercel-official/2.txt",
+    "sha256": "6c856723f1336f7d3a3a9db8be33350af7b5f538065a9b4802663351da53024d"
+  },
+  {
+    "url": "https://vercel.com/docs/sign-in-with-vercel/getting-started",
+    "file": "/workspace/work/vercel-official/3.txt",
+    "sha256": "5a699f4f60d49cfb51ac589e9a1a00aa9a98065bb52b555af1694fdf19f87216"
+  },
+  {
+    "url": "https://vercel.com/docs/sign-in-with-vercel/manage-from-dashboard",
+    "file": "/workspace/work/vercel-official/4.txt",
+    "sha256": "785d33466256cf3980494a65aa1621c622fba5c912dfac59cf5f28ea8b9b5f8d"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/vercel/sign-in-with-vercel-reference-app/main/README.md",
+    "file": "/workspace/work/vercel-official/5.txt",
+    "sha256": "5f2f08e3d82bfac99bb8370b133d60972ed817822fe89466b530ad856da02c1a"
+  },
+  {
+    "url": "https://api.github.com/repos/vercel/sign-in-with-vercel-reference-app/git/trees/main?recursive=1",
+    "file": "/workspace/work/vercel-official/6.txt",
+    "sha256": "baa3a182268317b44b97fe378ea6e34a5f416dc3dacf6c4e3e1e480d5edac4c2"
+  },
+  {
+    "url": "https://vercel.com/docs/sign-in-with-vercel/scopes-and-permissions",
+    "file": "/workspace/work/vercel-official/7.txt",
+    "sha256": "a664e7a56c6f71e0d283fa75603e20eb8da0e26b4c4863383e2e36ed15db7c1c"
+  }
+]

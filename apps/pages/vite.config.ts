@@ -229,6 +229,12 @@ export default defineConfig({
         nativeConnectorRedirect: fileURLToPath(
           new URL("./auth/native-connector.html", import.meta.url),
         ),
+        nativeImplicitRedirect: fileURLToPath(
+          new URL("./auth/native-implicit.html", import.meta.url),
+        ),
+        nativeGoogleConsent: fileURLToPath(
+          new URL("./auth/native-google.html", import.meta.url),
+        ),
         msalRedirect: fileURLToPath(
           new URL("./auth/redirect.html", import.meta.url),
         ),

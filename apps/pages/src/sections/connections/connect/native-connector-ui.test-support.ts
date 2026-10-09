@@ -103,12 +103,20 @@ export function nativeUiDescriptor(): NativeConnectorDescriptor {
 }
 
 export function nativeUiController(view = nativeUiView()) {
+  const configure = vi.fn<NativeConnectorController["configure"]>(
+    async () => view,
+  );
   const controller = {
     load: vi.fn(() => view),
-    configure: vi.fn<NativeConnectorController["configure"]>(async () => view),
+    configure,
+    connect: vi.fn<NativeConnectorController["connect"]>(async (input) =>
+      configure(input),
+    ),
     authorize: vi.fn<NativeConnectorController["authorize"]>(
       async () => undefined,
     ),
+    cancelAuthorization:
+      vi.fn<NativeConnectorController["cancelAuthorization"]>(),
     verify: vi.fn<NativeConnectorController["verify"]>(async () => view),
     invoke: vi.fn<NativeConnectorController["invoke"]>(async () => ({
       label: "Algolia indexes",

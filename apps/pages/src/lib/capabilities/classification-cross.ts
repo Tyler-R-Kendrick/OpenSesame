@@ -145,6 +145,11 @@ export const CROSS_RULES = [
     "connectors.external",
     "native provider authorization and connection runtime",
   ),
+  optional(
+    `${L}connector-action-capability`,
+    "connectors.external",
+    "connector catalogue actions derived from actual browser routes and verified connections",
+  ),
   shared(
     `${L}generated-json`,
     "public JSON fragment codec shared by the connector catalogue and browser admission metadata",

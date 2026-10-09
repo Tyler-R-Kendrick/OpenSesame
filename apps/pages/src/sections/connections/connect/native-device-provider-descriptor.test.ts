@@ -22,8 +22,11 @@ it("covers every visible bundled provider without a plan or replacing a speciali
     }
     expect(descriptor?.providerId).toBe(provider.id);
     expect(descriptor?.docsUrl).toBe(catalogProvider(provider.id)?.docsUrl);
-    expect(descriptor?.methods).toHaveLength(1);
-    const method = descriptor?.methods[0];
+    const instance = ["vault", "openbao"].includes(provider.id);
+    expect(descriptor?.methods).toHaveLength(instance ? 2 : 1);
+    const method = descriptor?.methods.find(
+      (method) => method.id === "api-key" || method.id === "native-local",
+    );
     expect(method?.available).toBe(false);
     expect(method?.fields).toEqual([]);
     expect(method?.unavailableReason).toContain(descriptor?.name);
@@ -31,7 +34,9 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   }
   expect(has.mock.calls.map((call) => call)).toEqual([
     ["api-key", "vault"],
+    ["oidc", "vault"],
     ["api-key", "openbao"],
+    ["oidc", "openbao"],
   ]);
 });
 
@@ -42,7 +47,9 @@ it.each(["vault", "openbao"])(
       (method, provider) => method === "api-key" && provider === id,
     );
     const descriptor = nativeDeviceProviderDescriptor(id, { has });
-    const method = descriptor?.methods[0];
+    const method = descriptor?.methods.find(
+      (method) => method.id === "api-key",
+    );
     expect(has).toHaveBeenCalledWith("api-key", id);
     expect(method?.available).toBe(true);
     expect(

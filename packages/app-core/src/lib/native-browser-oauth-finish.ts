@@ -1,3 +1,6 @@
+import { recordApprovedNativeExchangeFailure } from "./native-approved-auth-recovery.js";
+import { captureNativeAuthorizationTransport } from "./native-authorization-transport.js";
+import { cancelNativeBrowserConsent } from "./native-browser-oauth-cancel.js";
 import { verifyNativeBrowserCimd } from "./native-browser-oauth-cimd.js";
 import { cleanupNativeBrowserOAuth } from "./native-browser-oauth-cleanup.js";
 /** Issued credentials are retained before verification or capability freshness checks. */
@@ -56,7 +59,9 @@ async function compensateUnsealed(
     await cleanupNativeBrowserOAuth(
       {
         id: intentId,
-        kind: "configure",
+        kind: ["databricks", "discord", "twitch"].includes(grant.providerId)
+          ? "revoke"
+          : "configure",
         providerId: grant.providerId,
         actor: grant.actor,
         fingerprint: grant.fingerprint,
@@ -77,13 +82,13 @@ async function compensateUnsealed(
   }
   throw new NativeOAuthError("storage");
 }
-export async function retainAndVerifyNativeBrowserToken(
+export async function retainNativeBrowserToken(
   id: string,
   intentId: string,
   pending: NativePending,
   token: IssuedNativeOAuthToken,
   transport: NativeProviderTransport,
-) {
+): Promise<void> {
   const grant = issuedGrant(pending, token);
   try {
     await journalNativeOAuthGrant(
@@ -101,13 +106,29 @@ export async function retainAndVerifyNativeBrowserToken(
   } catch {
     return compensateUnsealed(id, intentId, grant, transport);
   }
+}
+export async function retainAndVerifyNativeBrowserToken(
+  id: string,
+  intentId: string,
+  pending: NativePending,
+  token: IssuedNativeOAuthToken,
+  transport: NativeProviderTransport,
+  retainedBeforeAck = false,
+) {
+  if (!retainedBeforeAck)
+    await retainNativeBrowserToken(id, intentId, pending, token, transport);
   try {
     transport.assertCurrent();
     const record = requireNativeOAuthRecord(id);
     const retained = record.privateState.recovery.find(
       (entry) => entry.id === intentId,
     )?.grant;
-    if (!retained) throw new NativeOAuthError("storage");
+    if (
+      !retained ||
+      retained.accessToken !== token.accessToken ||
+      retained.fingerprint !== pending.fingerprint
+    )
+      throw new NativeOAuthError("storage");
     if (record.configuration.fingerprint !== pending.fingerprint)
       throw new NativeOAuthError("expired");
     const verification = await verifyNativeBrowserOAuth(
@@ -136,8 +157,10 @@ export async function retainAndVerifyNativeBrowserToken(
     throw error;
   }
 }
+type UnclaimedNativeCallback = { connectionId: string; state: string };
 export async function finishNativeBrowserAuthorization(search: string) {
   const browser = nativeOAuthBrowserPort();
+  let unclaimed: UnclaimedNativeCallback | null = null;
   try {
     const callback = parseNativeOAuthCallback(search);
     browser.scrubCallback();
@@ -145,7 +168,13 @@ export async function finishNativeBrowserAuthorization(search: string) {
     if (!found || found.record.configuration.method !== "oauth")
       throw new NativeOAuthError("callback");
     assertNativeBrowserOAuthPolicy(found.record.configuration.providerId);
-    const transport = nativeProviderTransport();
+    unclaimed = {
+      connectionId: found.record.connectionId,
+      state: found.pending.state,
+    };
+    const transport = captureNativeAuthorizationTransport(
+      nativeProviderTransport(),
+    );
     await verifyNativeBrowserCimd(
       found.record.configuration,
       found.pending.redirectUri,
@@ -155,6 +184,7 @@ export async function finishNativeBrowserAuthorization(search: string) {
       search,
       browserOAuthClassification(found.record.configuration),
     );
+    unclaimed = null;
     const finishMutation = markNativeOAuthMutationInFlight(
       claim.record.connectionId,
       claim.obligation.id,
@@ -173,10 +203,20 @@ export async function finishNativeBrowserAuthorization(search: string) {
         token,
         transport,
       );
+    } catch (error) {
+      if (error instanceof Error)
+        await recordApprovedNativeExchangeFailure(
+          claim.record.connectionId,
+          claim.obligation.id,
+          error,
+        );
+      throw error;
     } finally {
       finishMutation();
     }
   } finally {
+    if (unclaimed)
+      await cancelNativeBrowserConsent(unclaimed.connectionId, unclaimed.state);
     browser.scrubCallback();
   }
 }

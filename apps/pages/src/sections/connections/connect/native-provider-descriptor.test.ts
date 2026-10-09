@@ -1,4 +1,5 @@
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { bindNativeBrowserPolicyOrigin } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { describe, expect, it } from "vitest";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 
@@ -55,25 +56,44 @@ it("distinguishes unsupported public OAuth from confidential-client requirements
   expect(oauth?.unavailableReason).not.toContain("client secret");
 });
 
-it("prefers an admitted MCP alternative while retaining precise refused API and OAuth reasons", () => {
-  const plan = connectPlan("resend");
-  if (!plan) throw new Error("Missing Resend contract");
-  const descriptor = nativeProviderDescriptor(plan, {
-    callbackUrl: "https://app.example/auth/native-connector.html",
-    apiKey: { available: true },
-    oauth: { available: true },
-    mcp: { available: true, actor: "user" },
-  });
-  expect(
-    descriptor.methods
-      .filter((method) => method.available)
-      .map((method) => method.id),
-  ).toEqual(["mcp"]);
-  for (const method of descriptor.methods.filter(
-    (method) => method.id !== "mcp",
-  ))
-    expect(method.unavailableReason).toContain("Resend");
-});
+it.each([
+  { origin: "https://tyler-r-kendrick.github.io", admitted: false },
+  { origin: "https://app.example", admitted: true },
+])(
+  "applies MCP admission at $origin while retaining precise refused API and OAuth reasons",
+  ({ origin, admitted }) => {
+    const releaseOrigin = bindNativeBrowserPolicyOrigin(() => origin);
+    try {
+      const plan = connectPlan("resend");
+      if (!plan) throw new Error("Missing Resend contract");
+      const descriptor = nativeProviderDescriptor(plan, {
+        callbackUrl: `${origin}/auth/native-connector.html`,
+        apiKey: { available: true },
+        oauth: { available: true },
+        mcp: { available: true, actor: "user" },
+      });
+      expect(
+        descriptor.methods
+          .filter((method) => method.available)
+          .map((method) => method.id),
+      ).toEqual(admitted ? ["mcp"] : []);
+      expect(
+        descriptor.methods.find((method) => method.id === "mcp")?.available,
+      ).toBe(admitted);
+      if (!admitted)
+        expect(
+          descriptor.methods.find((method) => method.id === "mcp")
+            ?.unavailableReason,
+        ).toBe("Resend MCP is unavailable from this site's origin.");
+      for (const method of descriptor.methods.filter(
+        (method) => method.id !== "mcp",
+      ))
+        expect(method.unavailableReason).toContain("Resend");
+    } finally {
+      releaseOrigin();
+    }
+  },
+);
 it("keeps officially browser-supported Notion API configuration available", () => {
   const plan = connectPlan("notion");
   if (!plan) throw new Error("Missing Notion contract");

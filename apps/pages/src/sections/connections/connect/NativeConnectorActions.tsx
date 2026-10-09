@@ -1,10 +1,11 @@
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { NativeInputFields } from "./NativeConnectorFields.js";
 import { NativeMcpArgumentGuide } from "./NativeMcpArgumentGuide.js";
+import { NativeSecretResult } from "./NativeSecretResult.js";
 import {
   nativeDefaults,
   nativeError,
@@ -36,7 +37,12 @@ function NativeActionResults({
             const url = item.url ? nativePublicUrl(item.url, origins) : null;
             return (
               <li key={item.id}>
-                {url ? (
+                {item.secretValue !== undefined ? (
+                  <NativeSecretResult
+                    label={item.label}
+                    value={item.secretValue}
+                  />
+                ) : url ? (
                   <a href={url} target="_blank" rel="noreferrer noopener">
                     {item.label}
                   </a>
@@ -59,6 +65,20 @@ type ActionProps = NativeConnectorCallbacks & {
   disabled: boolean;
 };
 
+function clearedActionSecrets(
+  action: NativeActionDescriptor,
+  values: Record<string, string>,
+) {
+  return {
+    ...values,
+    ...Object.fromEntries(
+      action.fields
+        .filter((field) => field.secret)
+        .map((field) => [field.id, ""]),
+    ),
+  };
+}
+
 function NativeAction({
   action,
   controller,
@@ -71,8 +91,12 @@ function NativeAction({
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState("");
   const [result, setResult] = useState<SafeActionResult | null>(null);
+  const [readRevision, setReadRevision] = useState(0);
   const enabled = connected && action.available && !disabled;
   const missing = nativeMissingField(action.fields, values);
+  useEffect(() => {
+    if (!enabled) setResult(null);
+  }, [enabled]);
 
   async function run(event: FormEvent) {
     event.preventDefault();
@@ -80,6 +104,7 @@ function NativeAction({
     setBusy(true);
     setFailure("");
     setResult(null);
+    setReadRevision((revision) => revision + 1);
     try {
       const found = await controller.invoke(
         action.id,
@@ -91,7 +116,7 @@ function NativeAction({
         ),
       );
       setResult(found);
-      setValues(nativeDefaults(action.fields));
+      setValues((current) => clearedActionSecrets(action, current));
     } catch (error) {
       const text = nativeError(
         errorText(error),
@@ -139,8 +164,12 @@ function NativeAction({
             {failure ? <StatusMark tone="err" label={failure} /> : null}
           </FormCommit>
         </fieldset>
-        {result ? (
-          <NativeActionResults result={result} origins={action.resultOrigins} />
+        {enabled && result ? (
+          <NativeActionResults
+            key={readRevision}
+            result={result}
+            origins={action.resultOrigins}
+          />
         ) : null}
       </form>
     </details>
