@@ -15,7 +15,9 @@ if timeout 60 kimi -p 'reply ok' 2>&1 | grep -qiE '5-hour usage limit|403'; then
   echo "kimi: quota limited" >>"$LOG"
 else
   echo "kimi: ok" >>"$LOG"
-  errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null | grep 'error:' | head -1 | grep -oE '[0-9]+' || echo 9999)
+  errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
+    | grep -E '^[[:space:]]+error:' | head -1 \
+    | sed 's/.*error:[[:space:]]*//' | tr -dc '0-9' || echo 9999)
   if [[ "$errs" -gt 25 ]] && ! pgrep -f deepsec-kimi-error-loop.sh >/dev/null; then
     export DEEPSEC_CONCURRENCY=2 DEEPSEC_THINKING=medium
     nohup "${ROOT}/scripts/audit/deepsec-kimi-error-loop.sh" >>/tmp/deepsec-kimi-error-loop.nohup 2>&1 &
