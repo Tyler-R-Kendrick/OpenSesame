@@ -1,0 +1,2217 @@
+[
+  {
+    "coverage_id": "apps%2Fandroid%2Fios%2FSources%2FOpenSesameAuthenticator%2FWalletView.swift%23onOpenURL::crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift#onOpenURL",
+      "boundary": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+      "subsystem": "apps/android",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift#onOpenURL",
+    "boundary": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+    "subsystem": "apps/android",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletModel.swift",
+      "apps/android/ios/Info.plist",
+      "crates/authenticator-core/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Deep-link, callback, and navigation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The gap is a custom-scheme handoff that skips the invocation policy, not an unsafe decoder or uniffi type confusion."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this URL launch."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "apps%2Fbrowser-extension%2Frunner%2Fhost.ts::apps%2Fbrowser-extension%2Frunner%2Fhost-base.ts::apps%2Fbrowser-extension::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/browser-extension/runner/host.ts",
+      "boundary": "apps/browser-extension/runner/host-base.ts",
+      "subsystem": "apps/browser-extension",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/browser-extension/runner/host.ts",
+    "boundary": "apps/browser-extension/runner/host-base.ts",
+    "subsystem": "apps/browser-extension",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/browser-extension/runner/host.ts",
+      "apps/browser-extension/runner/host-base.ts",
+      "apps/browser-extension-autofill/entrypoints/background.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#Cross-origin messaging and network attack classes",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Webview and native-bridge attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fconnect.rs%23open_url::apps%2Fcli%2Fsrc%2Fconnect.rs%23authorize_oauth::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "apps/cli/src/connect.rs#open_url",
+      "boundary": "apps/cli/src/connect.rs#authorize_oauth",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "apps/cli/src/connect.rs#open_url",
+    "boundary": "apps/cli/src/connect.rs#authorize_oauth",
+    "subsystem": "apps/cli",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/cli/src/connect.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Deep-link, callback, and navigation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#FFI and ABI attack classes",
+        "reason": "Process spawn of a URL opener, not an FFI type confusion."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fpassword_agent%2Fio.rs::crates%2Fconnector-host%2Fsrc%2Fpassword_agent%2Fenv.rs::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "apps/cli/src/password_agent/io.rs",
+      "boundary": "crates/connector-host/src/password_agent/env.rs",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "apps/cli/src/password_agent/io.rs",
+    "boundary": "crates/connector-host/src/password_agent/env.rs",
+    "subsystem": "apps/cli",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/cli/src/password_agent/io.rs",
+      "crates/connector-host/src/password_agent/env.rs",
+      "spec/conformance/2password-policy.json"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Startup-environment scrubbing is safe Rust process setup, not an unsafe decoder or FFI boundary."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/cli/src/plugins_install.rs",
+      "boundary": "apps/cli/src/plugins_install.rs",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/cli/src/plugins_install.rs",
+    "boundary": "apps/cli/src/plugins_install.rs",
+    "subsystem": "apps/cli",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/cli/src/plugins_install.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Universal moves",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Validation rules",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Dependency and build-input attack classes",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Release and update attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fstore.rs::crates%2Fsealed-store%2Fsrc%2Fpath.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/cli/src/store.rs",
+      "boundary": "crates/sealed-store/src/path.rs",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/cli/src/store.rs",
+    "boundary": "crates/sealed-store/src/path.rs",
+    "subsystem": "apps/cli",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/cli/src/store.rs",
+      "crates/sealed-store/src/path.rs",
+      "crates/sealed-store/src/git.rs",
+      "apps/cli/src/main.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Kernel and privileged-interface attack classes",
+        "reason": "User-space path checks, not a kernel interface."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fconnect%2Fcallback.mjs%23handler::apps%2Fpages%2Fserver%2Fallowlist.mjs%23returnToAllowed::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/pages/api/connect/callback.mjs#handler",
+      "boundary": "apps/pages/server/allowlist.mjs#returnToAllowed",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/pages/api/connect/callback.mjs#handler",
+    "boundary": "apps/pages/server/allowlist.mjs#returnToAllowed",
+    "subsystem": "apps/pages",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/pages/api/connect/callback.mjs",
+      "apps/pages/server/allowlist.mjs",
+      "apps/pages/server/callback.mjs",
+      "apps/pages/server/server.mjs",
+      "apps/pages/api/github-app/callback.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "Callback relay does not invoke a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/api/github-app/webhook.mjs#readRaw",
+      "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/api/github-app/webhook.mjs#readRaw",
+    "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/api/github-app/webhook.mjs"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth, not a native memory-safety bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+      "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+    "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/scripts/github-app-relay-plugin.mjs"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth, not a native memory-safety bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgit-backup-put.mjs%23handleGitBackupPut::apps%2Fpages%2Fserver%2Fforge-host-guard.mjs%23vetGiteaBase::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/pages/server/git-backup-put.mjs#handleGitBackupPut",
+      "boundary": "apps/pages/server/forge-host-guard.mjs#vetGiteaBase",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/pages/server/git-backup-put.mjs#handleGitBackupPut",
+    "boundary": "apps/pages/server/forge-host-guard.mjs#vetGiteaBase",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/pages/server/git-backup-put.mjs",
+      "apps/pages/server/forge-host-guard.mjs",
+      "apps/pages/server/pinned-fetch.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-put-contents.mjs::apps%2Fpages%2Fserver%2Fmanage-auth.mjs::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/pages/server/github-app-put-contents.mjs",
+      "boundary": "apps/pages/server/manage-auth.mjs",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/pages/server/github-app-put-contents.mjs",
+    "boundary": "apps/pages/server/manage-auth.mjs",
+    "subsystem": "apps/pages",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/pages/server/github-app-put-contents.mjs",
+      "apps/pages/server/github-app-repos.mjs",
+      "apps/pages/server/connect-manage.mjs",
+      "apps/pages/server/manage-auth.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-webhook.mjs%23handleGithubAppWebhook::apps%2Fpages%2Fserver%2Fwebhook-queue.mjs%23writeFileQueue::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/pages/server/github-app-webhook.mjs#handleGithubAppWebhook",
+      "boundary": "apps/pages/server/webhook-queue.mjs#writeFileQueue",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/pages/server/github-app-webhook.mjs#handleGithubAppWebhook",
+    "boundary": "apps/pages/server/webhook-queue.mjs#writeFileQueue",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/pages/server/github-app-webhook.mjs",
+      "apps/pages/server/webhook-queue.mjs",
+      "apps/pages/server/github-app-contents.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#MCP and sub-agent trust classes",
+        "reason": "Webhook queue is not an MCP boundary."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs%23createServer::apps%2Fpages%2Fserver%2Fmanage.mjs%23readRawBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/server/server.mjs#createServer",
+      "boundary": "apps/pages/server/manage.mjs#readRawBody",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/server/server.mjs#createServer",
+    "boundary": "apps/pages/server/manage.mjs#readRawBody",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/server/manage.mjs"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth, not a native memory-safety bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs::SECURITY.md::apps%2Fpages::ATTACK-CLASSES.md%23Obvious%20things",
+    "canonical_refs": {
+      "surface": "apps/pages/server/server.mjs",
+      "boundary": "SECURITY.md",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Obvious things"
+    },
+    "surface": "apps/pages/server/server.mjs",
+    "boundary": "SECURITY.md",
+    "subsystem": "apps/pages",
+    "attack_class": "Obvious things",
+    "starting_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/public/os-runtime-config.json",
+      "packages/app-core/src/host.ts",
+      "packages/cli/src/bin.ts",
+      "apps/cli/src/main.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Obvious things",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Managed storage, events, and edge attack classes",
+        "reason": "Obvious-things pass is source grep for secrets, debug gates, and open redirects, not a cloud event bus."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fsrc%2Fsw%2Ffetch.ts::apps%2Fpages%2Fsrc%2Fsw%2Fmessages.ts::apps%2Fpages::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "apps/pages/src/sw/fetch.ts",
+      "boundary": "apps/pages/src/sw/messages.ts",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "apps/pages/src/sw/fetch.ts",
+    "boundary": "apps/pages/src/sw/messages.ts",
+    "subsystem": "apps/pages",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/pages/src/sw/fetch.ts",
+      "apps/pages/src/sw/messages.ts",
+      "apps/pages/src/sw/push-handlers.ts",
+      "apps/pages/src/main.tsx"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#Service-worker and browser-storage attack classes",
+      "CLIENT-SIDE.md#DOM and object-state attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/vite.config.ts#handleAgentPage",
+      "boundary": "apps/pages/vite.config.ts#handleAgentPage",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/vite.config.ts#handleAgentPage",
+    "boundary": "apps/pages/vite.config.ts#handleAgentPage",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/vite.config.ts",
+      "apps/pages/src/lib/agent-page-dump.ts"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering of a POST body, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth from Buffer.concat, not a native memory-safety bug."
+      },
+      {
+        "block": "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes",
+        "reason": "The fixed /tmp/agent-page.json write is how the uncapped body is retained. The missing ceiling is the assigned control, not a helper or path traversal."
+      }
+    ],
+    "prior_status": "prior_deferred",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::crates%2Fauthenticator-core%2Fsrc%2Flib.rs::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+      "boundary": "crates/authenticator-core/src/lib.rs",
+      "subsystem": "apps/android",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+    "boundary": "crates/authenticator-core/src/lib.rs",
+    "subsystem": "apps/android",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/authenticator-core/src/lib.rs",
+      "apps/android/android/app/src/main/AndroidManifest.xml"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Deep-link, callback, and navigation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fconnection-broker%2Fsrc%2Fegress.rs%23authorized_json::crates%2Fdomain%2Fsrc%2Fauthority.rs%23allows_url::crates%2Fconnection-broker::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/connection-broker/src/egress.rs#authorized_json",
+      "boundary": "crates/domain/src/authority.rs#allows_url",
+      "subsystem": "crates/connection-broker",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/connection-broker/src/egress.rs#authorized_json",
+    "boundary": "crates/domain/src/authority.rs#allows_url",
+    "subsystem": "crates/connection-broker",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/connection-broker/src/egress.rs",
+      "crates/domain/src/authority.rs",
+      "crates/connection-broker/src/lib.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Egress is safe Rust HTTP with a sealed bearer, not a binary parser."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "The fence is the connection egress allowlist, not a cloud IAM role."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "crates/credential-helpers/src/lib.rs",
+      "boundary": "crates/credential-helpers/src/lib.rs",
+      "subsystem": "crates/credential-helpers",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "crates/credential-helpers/src/lib.rs",
+    "boundary": "crates/credential-helpers/src/lib.rs",
+    "subsystem": "crates/credential-helpers",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "crates/credential-helpers/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+        "reason": "Credential helpers are a local process boundary, not a browser session."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23proxy_loopback::crates%2Fdaemon%2Fsrc%2Fproxy_path.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "crates/daemon/src/lib.rs#proxy_loopback",
+      "boundary": "crates/daemon/src/proxy_path.rs",
+      "subsystem": "crates/daemon",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "crates/daemon/src/lib.rs#proxy_loopback",
+    "boundary": "crates/daemon/src/proxy_path.rs",
+    "subsystem": "crates/daemon",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/daemon/src/proxy_path.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23require_operator::crates%2Fuds-authn%2Fsrc%2Flib.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/daemon/src/lib.rs#require_operator",
+      "boundary": "crates/uds-authn/src/lib.rs",
+      "subsystem": "crates/daemon",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/daemon/src/lib.rs#require_operator",
+    "boundary": "crates/uds-authn/src/lib.rs",
+    "subsystem": "crates/daemon",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/uds-authn/src/lib.rs",
+      "crates/daemon/src/peer_auth.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Ftailscale.rs::crates%2Fdaemon%2Fsrc%2Fstartup.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "crates/daemon/src/tailscale.rs",
+      "boundary": "crates/daemon/src/startup.rs",
+      "subsystem": "crates/daemon",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "crates/daemon/src/tailscale.rs",
+    "boundary": "crates/daemon/src/startup.rs",
+    "subsystem": "crates/daemon",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/daemon/src/tailscale.rs",
+      "crates/daemon/src/startup.rs",
+      "crates/daemon/src/tailnet.rs",
+      "crates/daemon/src/fill/caller.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes",
+      "CLOUD-AND-DEPLOYMENT.md#Core discipline",
+      "CLOUD-AND-DEPLOYMENT.md#Universal moves",
+      "CLOUD-AND-DEPLOYMENT.md#Validation rules",
+      "CLOUD-AND-DEPLOYMENT.md#Ingress, network, and control-plane attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Kernel and privileged-interface attack classes",
+        "reason": "Tailscale serve is a process publish path, not a kernel module."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fbreach%2Fsources.rs%23password_occurrences::crates%2Fbreach-intel%2Fsrc%2Frange.rs%23range_url::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/breach/sources.rs#password_occurrences",
+      "boundary": "crates/breach-intel/src/range.rs#range_url",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "crates/gateway/src/breach/sources.rs#password_occurrences",
+    "boundary": "crates/breach-intel/src/range.rs#range_url",
+    "subsystem": "crates/gateway",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "crates/gateway/src/breach/sources.rs",
+      "crates/breach-intel/src/range.rs",
+      "crates/breach-intel/src/catalogue.rs",
+      "crates/breach-intel/src/event.rs",
+      "crates/gateway/src/routes/security.rs",
+      "crates/gateway/src/security/dispatch.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Derived-data and disclosure attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The corpus client is HTTP and text parsing, not a native memory-safety boundary."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes",
+        "reason": "The catalogue cap is adjacent. The assigned question is which tenant data leaves, not allocation."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23require_session::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23resolve_caller::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/middleware/auth.rs#require_session",
+      "boundary": "crates/gateway/src/middleware/auth.rs#resolve_caller",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/middleware/auth.rs#require_session",
+    "boundary": "crates/gateway/src/middleware/auth.rs#resolve_caller",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/middleware/auth.rs",
+      "crates/gateway/src/session_claims.rs",
+      "crates/gateway/src/middleware/agent_grants.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Auth decision is token lookup, not a binary parser bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fhook_records.rs%23read_hook_records::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs/hook_records.rs#read_hook_records",
+      "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs/hook_records.rs#read_hook_records",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/hook_records.rs",
+      "crates/gateway/src/routes/agent_runs.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The missing recheck is session and role state, not a binary decoder."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on hook-record reads."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "This route returns interceptor verdict records for a run. It does not invoke a model tool. WebMCP and MCP already have units."
+      }
+    ],
+    "prior_status": "prior_deferred",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Flease.rs%23commit::crates%2Fstorage%2Fsrc%2Fhost_authorizations.rs%23control_with_host_authorization::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs/lease.rs#commit",
+      "boundary": "crates/storage/src/host_authorizations.rs#control_with_host_authorization",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Business logic"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs/lease.rs#commit",
+    "boundary": "crates/storage/src/host_authorizations.rs#control_with_host_authorization",
+    "subsystem": "crates/gateway",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/lease.rs",
+      "crates/storage/src/host_authorizations.rs",
+      "crates/gateway/src/routes/host_authorizations.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Business logic",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The transition is a SQL consume-and-update, not a memory-safety boundary."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "This is the human browser control lease, not a model tool call. Agent tool routes already have a unit."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fstream.rs%23observe::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs/stream.rs#observe",
+      "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs/stream.rs#observe",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/stream.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs",
+      "crates/gateway/src/routes/shared_sessions/events.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The stream recheck is session and grant state, not a binary decoder."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on the observation stream."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs.rs%23get_run::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs.rs#get_run",
+      "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs.rs#get_run",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes",
+        "reason": "WEB-PROTOCOL-AND-AUTH.md has no API-authorization heading. The only API-named section is API-key and mTLS, and get_run is a browser DPoP grant or native session, not an API key or client certificate."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+        "reason": "The missing check is role_policy on an already authenticated owner read, not CSRF, cookie scope, or session fixation. That inconsistency is the ordinary Access control block."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes",
+        "reason": "get_run does not split a request parse or cache key."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+        "reason": "No JWT, OAuth callback, or SAML assertion is the decision on this route."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes",
+        "reason": "StreamAuthority::active also checks phishing-resistant assurance, but the uncovered gap is the role and evidence_after comparison, which load never performs."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The missing recheck is session and role state, not a binary decoder."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on GET /api/v1/agent/runs/{id}."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "The handler returns verdict counts. It does not invoke a model tool."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fauthority_grants.rs%23issue::crates%2Fauthz%2Fsrc%2Fauthority_use.rs%23authorize_authority_use::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/authority_grants.rs#issue",
+      "boundary": "crates/authz/src/authority_use.rs#authorize_authority_use",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/authority_grants.rs#issue",
+    "boundary": "crates/authz/src/authority_use.rs#authorize_authority_use",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/authority_grants.rs",
+      "crates/gateway/src/routes/authority_issuance_preflight.rs",
+      "crates/authz/src/authority_use.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Export, backup, restore, and migration attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Export is a grant flag and an authorizer, not a memory-safety boundary."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "WebMCP and MCP tool reach already have units. This unit is the host export bit, not a model tool schema."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbackup.rs::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/backup.rs",
+      "boundary": "crates/gateway/src/middleware/auth.rs",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "crates/gateway/src/routes/backup.rs",
+    "boundary": "crates/gateway/src/middleware/auth.rs",
+    "subsystem": "crates/gateway",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "crates/gateway/src/routes/backup.rs",
+      "crates/gateway/src/routes/admin.rs",
+      "crates/gateway/src/routes/kv_facade.rs",
+      "crates/gateway/src/routes/kv_facade_path.rs",
+      "crates/gateway/src/routes/attachments.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Export, backup, restore, and migration attack classes",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings.rs%23create::crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings%2Fceiling.rs%23verified_ceiling::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/browser_pairings.rs#create",
+      "boundary": "crates/gateway/src/routes/browser_pairings/ceiling.rs#verified_ceiling",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/browser_pairings.rs#create",
+    "boundary": "crates/gateway/src/routes/browser_pairings/ceiling.rs#verified_ceiling",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/browser_pairings.rs",
+      "crates/gateway/src/routes/browser_pairings/ceiling.rs",
+      "crates/gateway/src/routes/browser_pairings/renew.rs",
+      "crates/gateway/src/browser_pairing_proof.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Pairing issuance is safe Rust session state, not a binary parser."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on pairing issuance."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdelegations.rs::crates%2Fauthz%2Fsrc%2Fauthority_use.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/delegations.rs",
+      "boundary": "crates/authz/src/authority_use.rs",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "crates/gateway/src/routes/delegations.rs",
+    "boundary": "crates/authz/src/authority_use.rs",
+    "subsystem": "crates/gateway",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/gateway/src/routes/delegations.rs",
+      "crates/gateway/src/routes/connections.rs",
+      "crates/gateway/src/routes/grant_offers.rs",
+      "crates/gateway/src/routes/ceremonies.rs",
+      "crates/authz/src/authority_use.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/device.rs",
+      "boundary": "crates/gateway/src/routes/device.rs",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Business logic"
+    },
+    "surface": "crates/gateway/src/routes/device.rs",
+    "boundary": "crates/gateway/src/routes/device.rs",
+    "subsystem": "crates/gateway",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "crates/gateway/src/routes/device.rs",
+      "crates/gateway/src/routes/session.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Business logic",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fnats_callout.rs::crates%2Fauthz%2Fsrc%2Fcallout.rs%23evaluate_callout::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/nats_callout.rs",
+      "boundary": "crates/authz/src/callout.rs#evaluate_callout",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/nats_callout.rs",
+    "boundary": "crates/authz/src/callout.rs#evaluate_callout",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/nats_callout.rs",
+      "crates/authz/src/callout.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#RPC identity and authorization attack classes",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Broker and queue isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "crates/human-vault/src/lib.rs",
+      "boundary": "crates/human-vault/src/lib.rs",
+      "subsystem": "crates/human-vault",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "crates/human-vault/src/lib.rs",
+    "boundary": "crates/human-vault/src/lib.rs",
+    "subsystem": "crates/human-vault",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "crates/human-vault/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Derived-data and disclosure attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fsandbox%2Fsrc%2Fcapability.rs::crates%2Fsandbox%2Fsrc%2Fboundary.rs::crates%2Fsandbox::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/sandbox/src/capability.rs",
+      "boundary": "crates/sandbox/src/boundary.rs",
+      "subsystem": "crates/sandbox",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/sandbox/src/capability.rs",
+    "boundary": "crates/sandbox/src/boundary.rs",
+    "subsystem": "crates/sandbox",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/sandbox/src/capability.rs",
+      "crates/sandbox/src/boundary.rs",
+      "crates/sandbox/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "MEMORY-SAFETY-AND-BINARY.md#Core discipline",
+      "MEMORY-SAFETY-AND-BINARY.md#Universal moves",
+      "MEMORY-SAFETY-AND-BINARY.md#Validation rules",
+      "MEMORY-SAFETY-AND-BINARY.md#Binary loading and runtime attack classes",
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "crates%2Fstorage%2Fsrc%2Fauthority%2Fgrants.rs%23issue_authority::crates%2Fstorage%2Fsrc%2Fgrants.rs%23find_grant::crates%2Fstorage::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/storage/src/authority/grants.rs#issue_authority",
+      "boundary": "crates/storage/src/grants.rs#find_grant",
+      "subsystem": "crates/storage",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/storage/src/authority/grants.rs#issue_authority",
+    "boundary": "crates/storage/src/grants.rs#find_grant",
+    "subsystem": "crates/storage",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/storage/src/authority/grants.rs",
+      "crates/storage/src/grants.rs",
+      "crates/connection-broker/src/store.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "crates%2Fsurrogate-proxy%2Fsrc%2Flistener.rs%23outer::crates%2Finvoke-through%2Fsrc%2Fsurrogate.rs%23admit::crates%2Fsurrogate-proxy::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/surrogate-proxy/src/listener.rs#outer",
+      "boundary": "crates/invoke-through/src/surrogate.rs#admit",
+      "subsystem": "crates/surrogate-proxy",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/surrogate-proxy/src/listener.rs#outer",
+    "boundary": "crates/invoke-through/src/surrogate.rs#admit",
+    "subsystem": "crates/surrogate-proxy",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/surrogate-proxy/src/listener.rs",
+      "crates/surrogate-proxy/src/target.rs",
+      "crates/surrogate-proxy/src/broker.rs",
+      "crates/surrogate-proxy/src/passthrough.rs",
+      "crates/invoke-through/src/surrogate.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes",
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The listener and admit path are safe Rust request checks, not an unsafe decoder or FFI boundary."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "The run listener decides a local proxy credential and a provider surrogate, not a SPIFFE or cloud IAM identity."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "ops%2Fcompose%2Fdocker-compose.yml::ops%2Fnats%2Flocal-dev.conf::ops%2Fcompose::ATTACK-CLASSES.md%23Obvious%20things",
+    "canonical_refs": {
+      "surface": "ops/compose/docker-compose.yml",
+      "boundary": "ops/nats/local-dev.conf",
+      "subsystem": "ops/compose",
+      "attack_class": "ATTACK-CLASSES.md#Obvious things"
+    },
+    "surface": "ops/compose/docker-compose.yml",
+    "boundary": "ops/nats/local-dev.conf",
+    "subsystem": "ops/compose",
+    "attack_class": "Obvious things",
+    "starting_paths": [
+      "ops/compose/docker-compose.yml",
+      "ops/nats/local-dev.conf",
+      "ops/ingress/Caddyfile"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Obvious things",
+    "selected_companion_blocks": [
+      "CLOUD-AND-DEPLOYMENT.md#Core discipline",
+      "CLOUD-AND-DEPLOYMENT.md#Universal moves",
+      "CLOUD-AND-DEPLOYMENT.md#Validation rules",
+      "CLOUD-AND-DEPLOYMENT.md#Configuration and secret lifecycle attack classes",
+      "CLOUD-AND-DEPLOYMENT.md#Ingress, network, and control-plane attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Kernel and privileged-interface attack classes",
+        "reason": "Compose and Caddy config, not a kernel path."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/federation-callback.ts",
+      "boundary": "packages/app-core/src/lib/federation-callback.ts#assertSafeReturnTo",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/lib/federation-callback.ts",
+    "boundary": "packages/app-core/src/lib/federation-callback.ts#assertSafeReturnTo",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/federation-callback.ts",
+      "apps/pages/src/screens/FederationReturn.tsx"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23completeSignInDefault::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23readIdentity::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/federation.ts#completeSignInDefault",
+      "boundary": "packages/app-core/src/lib/federation.ts#readIdentity",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/lib/federation.ts#completeSignInDefault",
+    "boundary": "packages/app-core/src/lib/federation.ts#readIdentity",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/federation.ts",
+      "packages/app-core/src/lib/federation-pending.ts",
+      "packages/app-core/src/lib/ambient-auth/oidc.ts",
+      "packages/app-core/src/lib/deployment-profile.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#Service-worker and browser-storage attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "Sign-in completion is a browser OIDC exchange, not a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23guestsAllowed::packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23assertGuestsAllowed::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/guest-access.ts#guestsAllowed",
+      "boundary": "packages/app-core/src/lib/guest-access.ts#assertGuestsAllowed",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/lib/guest-access.ts#guestsAllowed",
+    "boundary": "packages/app-core/src/lib/guest-access.ts#assertGuestsAllowed",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/guest-access.ts",
+      "packages/app-core/src/lib/guest-auth.ts",
+      "packages/app-core/src/lib/local-rbac.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "Guest road is a local vault session, not a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Fs3.ts%23makeWire::packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Ffiles.ts%23checkPath::packages%2Fapp-core::Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/secret-fs/s3.ts#makeWire",
+      "boundary": "packages/app-core/src/lib/secret-fs/files.ts#checkPath",
+      "subsystem": "packages/app-core",
+      "attack_class": "Resource and file handling"
+    },
+    "surface": "packages/app-core/src/lib/secret-fs/s3.ts#makeWire",
+    "boundary": "packages/app-core/src/lib/secret-fs/files.ts#checkPath",
+    "subsystem": "packages/app-core",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "packages/app-core/src/lib/secret-fs/s3.ts",
+      "packages/app-core/src/lib/secret-fs/files.ts",
+      "packages/app-core/src/lib/secret-fs/filesystem-guard.ts",
+      "packages/app-core/src/lib/secret-fs/s3-config.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/sections/vault/import/model.ts",
+      "boundary": "packages/app-core/src/sections/vault/import/model.ts",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "packages/app-core/src/sections/vault/import/model.ts",
+    "boundary": "packages/app-core/src/sections/vault/import/model.ts",
+    "subsystem": "packages/app-core",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "packages/app-core/src/sections/vault/import/model.ts",
+      "packages/app-core/src/lib/vault/import"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#DOM and object-state attack classes",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Computational amplification attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fpassword-workflow-tools.ts::packages%2Fapp-core%2Fsrc%2Flib%2Fvault%2Fpassword-workflows.ts%23reachableItems::packages%2Fapp-core::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "boundary": "packages/app-core/src/lib/vault/password-workflows.ts#reachableItems",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "packages/app-core/src/webmcp/password-workflow-tools.ts",
+    "boundary": "packages/app-core/src/lib/vault/password-workflows.ts#reachableItems",
+    "subsystem": "packages/app-core",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "packages/app-core/src/lib/vault/password-workflows.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes",
+      "AI-AND-LLM.md#Output and disclosure attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fvault-tools.ts::packages%2Fapp-core%2Fsrc%2Fwebmcp%2Ftool-shared.ts%23reachedItem::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/webmcp/vault-tools.ts",
+      "boundary": "packages/app-core/src/webmcp/tool-shared.ts#reachedItem",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/webmcp/vault-tools.ts",
+    "boundary": "packages/app-core/src/webmcp/tool-shared.ts#reachedItem",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/webmcp/vault-tools.ts",
+      "packages/app-core/src/webmcp/tool-shared.ts",
+      "packages/app-core/src/webmcp/tools.ts",
+      "packages/app-core/src/webmcp/wallet-tools.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fbin.ts::packages%2Fcli%2Fsrc%2Fidentity-session.ts::packages%2Fcli::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "packages/cli/src/bin.ts",
+      "boundary": "packages/cli/src/identity-session.ts",
+      "subsystem": "packages/cli",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "packages/cli/src/bin.ts",
+    "boundary": "packages/cli/src/identity-session.ts",
+    "subsystem": "packages/cli",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "packages/cli/src/bin.ts",
+      "packages/cli/src/identity-session.ts",
+      "packages/cli/src/run.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "packages/cli/src/parity-node.ts",
+      "boundary": "packages/cli/src/parity-node.ts",
+      "subsystem": "packages/cli",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "packages/cli/src/parity-node.ts",
+    "boundary": "packages/cli/src/parity-node.ts",
+    "subsystem": "packages/cli",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "packages/cli/src/parity-node.ts",
+      "packages/cli/src/parity-credentials.ts",
+      "packages/cli/src/vault-clipboard.ts",
+      "packages/cli/src/parse.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa-step-up.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/mfa.ts",
+      "boundary": "packages/control-plane/src/routes/mfa-step-up.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/routes/mfa.ts",
+    "boundary": "packages/control-plane/src/routes/mfa-step-up.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/mfa.ts",
+      "packages/control-plane/src/routes/mfa-step-up.ts",
+      "packages/control-plane/src/routes/saml.ts",
+      "packages/control-plane/src/routes/interactions-ldap.ts",
+      "packages/control-plane/src/routes/openid4vci.ts",
+      "packages/control-plane/src/routes/enrollment.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-callbacks.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-channels.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/notification-callbacks.ts",
+      "boundary": "packages/control-plane/src/routes/notification-channels.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "packages/control-plane/src/routes/notification-callbacks.ts",
+    "boundary": "packages/control-plane/src/routes/notification-channels.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "packages/control-plane/src/routes/notification-callbacks.ts",
+      "packages/control-plane/src/routes/notification-channels.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Managed storage, events, and edge attack classes",
+        "reason": "The callback URL is an application field, not a cloud event source."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Foauth-clients.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/oauth-clients.ts",
+      "boundary": "packages/control-plane/src/middleware/auth.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/routes/oauth-clients.ts",
+    "boundary": "packages/control-plane/src/middleware/auth.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/oauth-clients.ts",
+      "packages/control-plane/src/routes/interactions.ts",
+      "packages/control-plane/src/routes/device.ts",
+      "packages/control-plane/src/routes/federated-callback.ts",
+      "packages/control-plane/src/routes/byo-public.ts",
+      "packages/control-plane/src/middleware/auth.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      },
+      {
+        "block": "CLIENT-SIDE.md#DOM and object-state attack classes",
+        "reason": "These routes are server handlers, not a browser DOM."
+      }
+    ],
+    "prior_status": "new",
+    "attempts": [],
+    "wave": null,
+    "status": "planned"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fscim.ts%23authenticate::packages%2Fdatabase%2Fsrc%2Fscim-store.ts%23verify::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/scim.ts#authenticate",
+      "boundary": "packages/database/src/scim-store.ts#verify",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/routes/scim.ts#authenticate",
+    "boundary": "packages/database/src/scim-store.ts#verify",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/scim.ts",
+      "packages/database/src/scim-store.ts",
+      "packages/control-plane/src/routes/scim-effects.ts",
+      "packages/control-plane/src/routes/scim-protocol.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "SCIM authentication is a TypeScript bearer check, not a binary parser."
+      },
+      {
+        "block": "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes",
+        "reason": "The grant unit already covered storage organization binding. This unit is the directory authenticator, not an id-only SQL read."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Fserver.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/server.ts",
+      "boundary": "packages/control-plane/src/middleware/auth.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/server.ts",
+    "boundary": "packages/control-plane/src/middleware/auth.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/middleware/auth.ts",
+      "packages/control-plane/src/middleware/admin-auth.ts",
+      "packages/control-plane/src/routes/organizations.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  },
+  {
+    "coverage_id": "packages%2Fmcp-host%2Fsrc%2Ftransports%2Fstreamable-http.ts::packages%2Fmcp-host%2Fsrc%2Fhost-api.ts::packages%2Fmcp-host::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/mcp-host/src/transports/streamable-http.ts",
+      "boundary": "packages/mcp-host/src/host-api.ts",
+      "subsystem": "packages/mcp-host",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/mcp-host/src/transports/streamable-http.ts",
+    "boundary": "packages/mcp-host/src/host-api.ts",
+    "subsystem": "packages/mcp-host",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/mcp-host/src/transports/streamable-http.ts",
+      "packages/mcp-host/src/host-api.ts",
+      "packages/agent-client/src/index.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#MCP and sub-agent trust classes",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": null,
+    "status": "planned",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates."
+  }
+]

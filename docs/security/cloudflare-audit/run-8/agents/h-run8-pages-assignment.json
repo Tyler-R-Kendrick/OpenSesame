@@ -1,0 +1,112 @@
+[
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fconnect%2Fcallback.mjs%23handler::apps%2Fpages%2Fserver%2Fallowlist.mjs%23returnToAllowed::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "apps/pages/api/connect/callback.mjs#handler",
+    "boundary": "apps/pages/server/allowlist.mjs#returnToAllowed",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/pages/api/connect/callback.mjs",
+      "apps/pages/server/allowlist.mjs",
+      "apps/pages/server/callback.mjs",
+      "apps/pages/server/server.mjs",
+      "apps/pages/api/github-app/callback.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "surface": "apps/pages/api/github-app/webhook.mjs#readRaw",
+    "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/api/github-app/webhook.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "surface": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+    "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/scripts/github-app-relay-plugin.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgit-backup-put.mjs%23handleGitBackupPut::apps%2Fpages%2Fserver%2Fforge-host-guard.mjs%23vetGiteaBase::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "surface": "apps/pages/server/git-backup-put.mjs#handleGitBackupPut",
+    "boundary": "apps/pages/server/forge-host-guard.mjs#vetGiteaBase",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/pages/server/git-backup-put.mjs",
+      "apps/pages/server/forge-host-guard.mjs",
+      "apps/pages/server/pinned-fetch.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-put-contents.mjs::apps%2Fpages%2Fserver%2Fmanage-auth.mjs::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "apps/pages/server/github-app-put-contents.mjs",
+    "boundary": "apps/pages/server/manage-auth.mjs",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/pages/server/github-app-put-contents.mjs",
+      "apps/pages/server/github-app-repos.mjs",
+      "apps/pages/server/connect-manage.mjs",
+      "apps/pages/server/manage-auth.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-webhook.mjs%23handleGithubAppWebhook::apps%2Fpages%2Fserver%2Fwebhook-queue.mjs%23writeFileQueue::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "surface": "apps/pages/server/github-app-webhook.mjs#handleGithubAppWebhook",
+    "boundary": "apps/pages/server/webhook-queue.mjs#writeFileQueue",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/pages/server/github-app-webhook.mjs",
+      "apps/pages/server/webhook-queue.mjs",
+      "apps/pages/server/github-app-contents.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs%23createServer::apps%2Fpages%2Fserver%2Fmanage.mjs%23readRawBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "surface": "apps/pages/server/server.mjs#createServer",
+    "boundary": "apps/pages/server/manage.mjs#readRawBody",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/server/manage.mjs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs::SECURITY.md::apps%2Fpages::ATTACK-CLASSES.md%23Obvious%20things",
+    "surface": "apps/pages/server/server.mjs",
+    "boundary": "SECURITY.md",
+    "attack_class": "Obvious things",
+    "starting_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/public/os-runtime-config.json",
+      "packages/app-core/src/host.ts",
+      "packages/cli/src/bin.ts",
+      "apps/cli/src/main.rs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fsrc%2Fsw%2Ffetch.ts::apps%2Fpages%2Fsrc%2Fsw%2Fmessages.ts::apps%2Fpages::ATTACK-CLASSES.md%23Injection",
+    "surface": "apps/pages/src/sw/fetch.ts",
+    "boundary": "apps/pages/src/sw/messages.ts",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/pages/src/sw/fetch.ts",
+      "apps/pages/src/sw/messages.ts",
+      "apps/pages/src/sw/push-handlers.ts",
+      "apps/pages/src/main.tsx"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "surface": "apps/pages/vite.config.ts#handleAgentPage",
+    "boundary": "apps/pages/vite.config.ts#handleAgentPage",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/vite.config.ts",
+      "apps/pages/src/lib/agent-page-dump.ts"
+    ]
+  }
+]
