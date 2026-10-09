@@ -216,3 +216,15 @@ mod resource_identity;
 
 #[path = "windows_private_files/directory_inventory.rs"]
 mod directory_inventory;
+
+#[cfg(test)]
+#[path = "windows_private_files/provision_tests.rs"]
+mod provision_tests;
+
+#[cfg(test)]
+#[path = "windows_private_files/path_compatibility_tests.rs"]
+mod path_compatibility_tests;
+
+#[cfg(test)]
+#[path = "windows_private_files/create_new_tests.rs"]
+mod create_new_tests;
