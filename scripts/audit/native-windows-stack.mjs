@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream, existsSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   prologueRanges,
   windowsStackReport,
@@ -17,14 +18,14 @@ function environment(name) {
   return value;
 }
 
-function run(tool, args, output, label) {
+function run(tool, args, output, label, timeoutMs = 30_000) {
   const remaining = deadline - Date.now();
   if (remaining <= 0)
     throw new Error("Windows stack diagnostic deadline reached.");
   const result = spawnSync(tool, args, {
     encoding: "utf8",
     maxBuffer: MAX_TOOL_BYTES,
-    timeout: Math.min(30_000, remaining),
+    timeout: Math.min(timeoutMs, remaining),
     windowsHide: true,
   });
   const stdout = result.stdout ?? "";
@@ -127,6 +128,29 @@ async function main() {
     );
     receipts.push(version.receipt);
   }
+  // An observer child records the active first-chance stack. This is a second
+  // unchanged --version execution, not a replacement result for the failed gate.
+  const observer = run(
+    "pwsh",
+    [
+      "-NoLogo",
+      "-NoProfile",
+      "-NonInteractive",
+      "-File",
+      fileURLToPath(
+        new URL("./native-windows-startup-observer.ps1", import.meta.url),
+      ),
+      "-Binary",
+      binary,
+    ],
+    output,
+    "windows-startup-observer",
+    60_000,
+  );
+  receipts.push(observer.receipt);
+  console.log(
+    `Second unchanged --version debugger observation:\n${observer.stdout}`,
+  );
   const headers = run(
     tools["llvm-readobj"],
     ["--file-headers", "--unwind", "--symbols", "--codeview", binary],
@@ -152,6 +176,7 @@ async function main() {
     after,
     report,
     receipts,
+    observer: observer.receipt,
     prologues,
   };
   writeFileSync(
