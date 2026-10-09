@@ -4,7 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repoRoot = process.argv[2] ?? process.cwd();
-const statePath = path.join(repoRoot, ".cache/deepsec-grok-fix/stack-state.json");
+const statePath = path.join(
+  repoRoot,
+  ".cache/deepsec-grok-fix/stack-state.json",
+);
 const logDir = path.join(repoRoot, ".cache/deepsec-grok-fix");
 
 let state = { items: [], nextIndex: 0, basePr: 773 };
@@ -23,4 +26,10 @@ const rows = state.items.map((it) => ({
   ci: "unknown",
 }));
 
-console.log(JSON.stringify({ stack: rows, nextIndex: state.nextIndex, lastExit: state.lastExit }, null, 2));
+console.log(
+  JSON.stringify(
+    { stack: rows, nextIndex: state.nextIndex, lastExit: state.lastExit },
+    null,
+    2,
+  ),
+);

@@ -23,7 +23,10 @@ function inScope(filePath) {
 }
 
 const paths = [];
-for (const entry of fs.readdirSync(filesDir, { withFileTypes: true, recursive: true })) {
+for (const entry of fs.readdirSync(filesDir, {
+  withFileTypes: true,
+  recursive: true,
+})) {
   if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
   const full = path.join(entry.parentPath ?? entry.path, entry.name);
   let data;
