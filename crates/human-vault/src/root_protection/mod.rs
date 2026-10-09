@@ -10,6 +10,7 @@ mod key_file;
 mod legacy;
 mod limits;
 mod native_factor_configuration;
+mod new_password_root;
 mod ops;
 mod parse;
 mod recovery;
@@ -69,3 +70,6 @@ pub mod unix_private_files;
 #[cfg(windows)]
 #[path = "../windows_private_files.rs"]
 pub mod windows_private_files;
+
+#[cfg(any(unix, windows))]
+pub use new_password_root::init_private_versioned_key_file;

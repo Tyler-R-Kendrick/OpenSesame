@@ -1,6 +1,15 @@
 //! Provisioning-only policy for the original Android SDK no_backup directory FD.
 //! A descriptor selects a physical resource; it never proves existing vault ownership.
-use super::*;
+use super::{directory_flags, open_at, refused, same, stat_at, PrivateDirectory};
+use std::{
+    fs::File,
+    io,
+    os::{
+        fd::AsRawFd,
+        unix::{ffi::OsStrExt, fs::MetadataExt},
+    },
+    path::Path,
+};
 
 fn android_parent_path(root: &Path, uid: u32) -> io::Result<()> {
     let app_id = uid % 100_000;

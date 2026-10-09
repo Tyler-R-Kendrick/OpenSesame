@@ -1,6 +1,6 @@
 //! Bounded directory enumeration on the retained original Windows kernel handle.
-use super::*;
-use std::{mem, os::windows::io::AsRawHandle};
+use super::{handles, security, PrivateDirectory};
+use std::{io, mem, os::windows::io::AsRawHandle};
 use windows_sys::Win32::{
     Foundation::ERROR_NO_MORE_FILES,
     Storage::FileSystem::{

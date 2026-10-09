@@ -65,12 +65,33 @@ pub(super) fn component_policy(value: &str) -> io::Result<()> {
     }
     Ok(())
 }
-pub(super) fn wide(path: &Path) -> io::Result<Vec<u16>> {
+fn ordinary_dos_text(path: &Path) -> io::Result<&str> {
     let text = path.to_str().ok_or_else(refused)?;
-    if text.contains('\0') {
+    let bytes = text.as_bytes();
+    if bytes.len() < 3
+        || !bytes[0].is_ascii_alphabetic()
+        || bytes[1] != b':'
+        || bytes[2] != b'\\'
+        || text.encode_utf16().count() > 32760
+    {
         return Err(refused());
     }
-    Ok(text.encode_utf16().chain(Some(0)).collect())
+    if bytes.len() > 3 {
+        for component in text[3..].split('\\') {
+            component_policy(component)?;
+        }
+    }
+    Ok(text)
+}
+// Only internal API spelling changes. Public/captured paths remain strict ordinary DOS;
+// callers cannot supply verbatim/UNC/device/dot aliases to bypass component policy.
+pub(super) fn wide(path: &Path) -> io::Result<Vec<u16>> {
+    let text = ordinary_dos_text(path)?;
+    Ok(r"\\?\"
+        .encode_utf16()
+        .chain(text.encode_utf16())
+        .chain(Some(0))
+        .collect())
 }
 pub(super) fn directory(path: &Path) -> io::Result<File> {
     let path = wide(path)?;
@@ -165,6 +186,9 @@ pub(super) fn child_relation(parent: &File, child: &File, name: &str) -> io::Res
 }
 
 pub(super) fn short_path(path: &str) -> io::Result<String> {
+    // This input comes only from the actual held child's kernel-reported final path.
+    // Convert its known DOS prefix through the same strict encoder, never a public alias.
+    let path = path.strip_prefix(r"\\?\").ok_or_else(refused)?;
     let path = wide(Path::new(path))?;
     let mut buffer = vec![0u16; 32768];
     // SAFETY: retained terminated actual handle path and bounded output stay live.
@@ -179,7 +203,11 @@ pub(super) fn short_path(path: &str) -> io::Result<String> {
     String::from_utf16(&buffer[..length]).map_err(|_| refused())
 }
 pub(super) fn local_ntfs(root: &File, drive: &Path) -> io::Result<()> {
-    let drive = wide(drive)?;
+    let drive = ordinary_dos_text(drive)?;
+    if drive.len() != 3 {
+        return Err(refused());
+    }
+    let drive = drive.encode_utf16().chain(Some(0)).collect::<Vec<_>>();
     // SAFETY: drive is an internally parsed terminated ordinary DOS drive root.
     if unsafe { GetDriveTypeW(drive.as_ptr()) } != DRIVE_FIXED {
         return Err(refused());
