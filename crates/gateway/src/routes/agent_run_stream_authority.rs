@@ -4,8 +4,13 @@ use crate::{
     middleware::auth::require_session,
     session_claims::{parse_principal, Assurance, CredentialKind, HostSessionClaims},
 };
-use axum::{http::HeaderMap, response::Response};
+use axum::{
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
+};
 use chrono::Utc;
+use serde_json::json;
 
 pub(super) struct StreamAuthority {
     digest: String,
@@ -27,35 +32,13 @@ impl StreamAuthority {
         }
         let current = match self.claims.credential_kind {
             CredentialKind::BrowserGrant => {
-                let Ok(Some(grant)) = st.db.browser_grant(&self.digest, now.timestamp()).await
-                else {
-                    return false;
-                };
-                let Ok(claims) = super::super::browser_pairings::session_claims(&grant) else {
-                    return false;
-                };
-                if claims.assurance != Assurance::PhishingResistant
-                    || claims.amr != ["webauthn"]
-                    || !claims
-                        .capability_ceiling
-                        .iter()
-                        .any(|cap| cap == "host.agent.observe")
+                if let Some(claims) =
+                    refreshed_browser_observe_claims(st, &self.digest, now.timestamp()).await
                 {
+                    claims
+                } else {
                     return false;
                 }
-                let Ok(Some(policy)) = opensesame_connection_broker::config_access::role_policy(
-                    st.db.pool(),
-                    &claims.organization_id,
-                    &claims.principal_id,
-                )
-                .await
-                else {
-                    return false;
-                };
-                if policy.role.is_none() || claims.auth_time.timestamp() <= policy.evidence_after {
-                    return false;
-                }
-                claims
             }
             CredentialKind::NativeSession => {
                 let Ok(sessions) = st.sessions.lock() else {
@@ -87,4 +70,63 @@ impl StreamAuthority {
         };
         parse_principal(&run.owner_principal_id) == Some(current.principal_id)
     }
+}
+
+/// One-shot observe reads (`log`, `hook-records`, `get_run`) must meet the same
+/// native membership and role-evidence floor as a live tail.
+pub(super) async fn ensure_view_authority(st: &AppState, headers: &HeaderMap) -> Result<(), Response> {
+    let (digest, claims) = require_session(st, headers)?;
+    if claims.credential_kind != CredentialKind::BrowserGrant {
+        return Ok(());
+    }
+    let now = Utc::now();
+    if !claims.valid_for(&st.resource, now) {
+        return Err(view_refused());
+    }
+    if refreshed_browser_observe_claims(st, &digest, now.timestamp())
+        .await
+        .is_none()
+    {
+        return Err(view_refused());
+    }
+    Ok(())
+}
+
+fn view_refused() -> Response {
+    (StatusCode::NOT_FOUND, Json(json!({"error": "not_found"}))).into_response()
+}
+
+async fn refreshed_browser_observe_claims(
+    st: &AppState,
+    digest: &str,
+    now: i64,
+) -> Option<HostSessionClaims> {
+    let grant = st
+        .db
+        .browser_grant(digest, now)
+        .await
+        .ok()
+        .flatten()?;
+    let claims = super::super::browser_pairings::session_claims(&grant).ok()?;
+    if claims.assurance != Assurance::PhishingResistant
+        || claims.amr != ["webauthn"]
+        || !claims
+            .capability_ceiling
+            .iter()
+            .any(|cap| cap == "host.agent.observe")
+    {
+        return None;
+    }
+    let policy = opensesame_connection_broker::config_access::role_policy(
+        st.db.pool(),
+        &claims.organization_id,
+        &claims.principal_id,
+    )
+    .await
+    .ok()
+    .flatten()?;
+    if policy.role.is_none() || claims.auth_time.timestamp() <= policy.evidence_after {
+        return None;
+    }
+    Some(claims)
 }
