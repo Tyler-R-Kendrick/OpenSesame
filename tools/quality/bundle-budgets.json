@@ -256,12 +256,13 @@
         "2026-10-09: Final self-review fixes a concrete synchronous MCP schema denial of service. The input and output validator preflight bounds regex constructs, local references, expansion, depth, collection and string work under the existing CSP. Fresh canonical build9 including this fix measures 6227/1904 KiB JavaScript raw/gzip (+4/+1 KiB against build8); raise only these canonical ceilings to the measured minimum, with no extra headroom. CSS, all hardened profile ceilings, structural and anti-pattern gates remain unchanged.",
         "2026-10-09: javascript 6227->6231 and javascriptGzip 1904->1905 for persona round 3 sent-drop receipts: local drop claim persistence, sharing receipt rows on Access, and claim-word helpers for device-local pickup. CI on the restacked branch measured 6231/1905 KiB against the ADR 0185 ceiling, which left no headroom; raise only to these measured minimums.",
         "2026-10-09: javascript 6231->6233 and javascriptGzip stays 1905 for persona P2 local identity requests in Access (pending approval rows, revoke confirm on shares, requests tab tree) on top of sent-drop receipts. CI on the pre-merge branch measured 6229/1905; the merged tree is expected at 6233/1905 KiB; raise only to these measured minimums after CI confirms.",
-        "2026-10-09: javascript 6233->6234 because CI on f63424c5 measured 6234/1905 KiB after merging main at f48efc4e; raise only to the measured minimum."
+        "2026-10-09: javascript 6233->6234 because CI on f63424c5 measured 6234/1905 KiB after merging main at f48efc4e; raise only to the measured minimum.",
+        "2026-10-09: javascript ->6250 gzip ->1915 for verification-audit rematch (ECR postgres + greyscale/drops)."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6234,
-        "javascriptGzip": 1905,
+        "javascript": 6250,
+        "javascriptGzip": 1915,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",

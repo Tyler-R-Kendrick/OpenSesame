@@ -8,12 +8,14 @@ import { optionalCapabilityIds } from "@opensesame/app-core/lib/capabilities/cat
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   ENVIRONMENTS_CAPABILITY,
+  ENVIRONMENT_REUSE_NOTICE_ID,
   activeEnvironment,
   assignEnvironmentValue,
   enableVaultEnvironments,
   environmentRequires,
   environmentSnapshot,
   markEnvironmentRequired,
+  notifyEnvironmentValueReuse,
   notifyMissingEnvironmentValues,
   readEnvironmentValue,
   resetVaultEnvironments,
@@ -156,6 +158,29 @@ describe("vault environments", () => {
       "environments-values.log",
       `staging=${staging}\nproduction=${production}\n`,
     );
+  });
+
+  it("warns when production reuses a secret value in another environment", () => {
+    const plan = approvedPlan();
+    enableVaultEnvironments(plan, VAULT);
+    switchEnvironment(plan, VAULT, "production");
+    assignEnvironmentValue(
+      plan,
+      VAULT,
+      "production",
+      ITEMS[0].id,
+      "same-secret",
+    );
+    switchEnvironment(plan, VAULT, "staging");
+    assignEnvironmentValue(plan, VAULT, "staging", ITEMS[0].id, "same-secret");
+    notifyEnvironmentValueReuse(plan, VAULT, ITEMS);
+    expect(listNotices()).toHaveLength(1);
+    expect(listNotices()[0]?.id).toBe(ENVIRONMENT_REUSE_NOTICE_ID);
+    expect(listNotices()[0]?.body).toBe("API_TOKEN");
+
+    assignEnvironmentValue(plan, VAULT, "staging", ITEMS[0].id, "different");
+    notifyEnvironmentValueReuse(plan, VAULT, ITEMS);
+    expect(listNotices()).toHaveLength(0);
   });
 
   it("notifies only for a required item with an empty value", () => {
