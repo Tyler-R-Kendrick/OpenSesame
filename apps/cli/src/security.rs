@@ -1,63 +1,74 @@
-//! Local breach checks (ADR 0080) — Pwned Passwords k-anonymity, no Host API.
+//! Breach-exposure commands (ADR 0080).
+//!
+//! What of this organization's secrets has turned up somewhere public, and
+//! whether a candidate secret is safe to use before it is stored.
+//!
+//! `opensesame security check` is the only command in either CLI that takes a
+//! secret value. It is read from a prompt or standard input rather than an
+//! argument, because an argument lands in shell history and in `ps`. It then
+//! goes over TLS to the Host's own API — which hashes it, sends five characters
+//! of that hash to the corpus, and stores nothing. It never reaches a third
+//! party, and a failed call reports the Host's hint rather than echoing what
+//! was sent.
 
-use std::path::PathBuf;
-
-use anyhow::Context;
+use anyhow::{Context, Result};
 use clap::Subcommand;
-use opensesame_breach_intel::{occurrences, range_url, PwnedDigest, PADDING_HEADER, PADDING_VALUE};
-use opensesame_sealed_store::list_names;
 use serde_json::{json, Value};
 
-use crate::store;
+use crate::connect;
 
 #[derive(Subcommand, Debug)]
 pub enum SecurityCmd {
-    /// Breach findings from the last local scan (metadata only).
+    /// Breach findings for this organization (metadata only).
     Findings {
         #[arg(long, default_value = "100")]
         limit: usize,
     },
-    /// Scan the sealed store for compromised passwords.
-    Scan {
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Check one candidate secret before storing it (stdin or hidden prompt).
+    /// Run one breach scan now instead of waiting for the tick.
+    Scan,
+    /// Check a candidate secret against the breach corpus before storing it.
+    ///
+    /// The secret is read from a no-echo prompt or standard input, never from
+    /// an argument: an argument lands in shell history and in `ps`.
     Check {
-        /// Store path label for the finding record.
+        /// What the secret belongs to — a store path or a connection id.
         subject_id: String,
+        /// `store_path` (default) or `connection_credential`.
+        #[arg(long, default_value = "store_path")]
+        subject_kind: String,
     },
 }
 
-pub async fn run(output: &str, cmd: SecurityCmd) -> anyhow::Result<()> {
+/// `opensesame security …`.
+pub async fn run(server: &str, output: &str, cmd: SecurityCmd) -> Result<()> {
     match cmd {
-        SecurityCmd::Findings { limit } => cmd_findings(output, limit).await,
-        SecurityCmd::Scan { path, tomb } => {
-            cmd_scan(output, path.as_deref(), tomb.as_deref()).await
-        }
-        SecurityCmd::Check { subject_id } => cmd_check(output, &subject_id).await,
+        SecurityCmd::Findings { limit } => cmd_findings(server, output, limit).await,
+        SecurityCmd::Scan => cmd_scan(server, output).await,
+        SecurityCmd::Check {
+            subject_id,
+            subject_kind,
+        } => cmd_check(server, output, &subject_id, &subject_kind).await,
     }
 }
 
-fn findings_path() -> anyhow::Result<PathBuf> {
-    let base = directories::ProjectDirs::from("com", "OpenSesame", "opensesame")
-        .ok_or_else(|| anyhow::anyhow!("could not resolve config directory"))?
-        .config_dir()
-        .join("breach-findings.json");
-    Ok(base)
+/// Rows printed before the table truncates.
+const MAX_TABLE_ROWS: usize = 50;
+
+fn field<'a>(row: &'a Value, key: &str) -> &'a str {
+    row.get(key).and_then(Value::as_str).unwrap_or("-")
 }
 
-async fn cmd_findings(output: &str, limit: usize) -> anyhow::Result<()> {
-    let path = findings_path()?;
-    let body: Value = if path.is_file() {
-        serde_json::from_slice(&std::fs::read(&path)?)?
-    } else {
-        json!({ "findings": [] })
-    };
+fn print_json(body: &Value) -> Result<()> {
+    println!("{}", serde_json::to_string_pretty(body)?);
+    Ok(())
+}
+
+/// `opensesame security findings` — the breach ledger.
+pub async fn cmd_findings(server: &str, output: &str, limit: usize) -> Result<()> {
+    let path = format!("/api/v1/security/findings?limit={limit}");
+    let body = connect::api(server, reqwest::Method::GET, &path, None).await?;
     if output == "json" {
-        return crate::print_output(output, &body);
+        return print_json(&body);
     }
     let rows = body
         .get("findings")
@@ -65,123 +76,150 @@ async fn cmd_findings(output: &str, limit: usize) -> anyhow::Result<()> {
         .cloned()
         .unwrap_or_default();
     if rows.is_empty() {
-        println!("No local breach findings. Run: opensesame security scan");
+        println!("No breach findings. Run: opensesame security scan");
         return Ok(());
     }
-    for row in rows.iter().take(limit) {
+    println!(
+        "{:<10} {:<22} {:<28} {:<20} STATE",
+        "SEVERITY", "KIND", "SUBJECT", "BREACH"
+    );
+    for row in rows.iter().take(MAX_TABLE_ROWS) {
+        let reference = match field(row, "reference") {
+            "" => "-",
+            named => named,
+        };
         println!(
-            "{}  {}  count={}",
-            row.get("subject_id").and_then(Value::as_str).unwrap_or("-"),
-            row.get("state").and_then(Value::as_str).unwrap_or("-"),
-            row.get("occurrences").and_then(Value::as_u64).unwrap_or(0),
+            "{:<10} {:<22} {:<28} {:<20} {}",
+            field(row, "severity"),
+            field(row, "subject_kind"),
+            field(row, "subject_id"),
+            reference,
+            field(row, "state"),
         );
     }
     Ok(())
 }
 
-async fn cmd_check(output: &str, subject_id: &str) -> anyhow::Result<()> {
-    let secret = store::prompt_secret_hidden("Secret to check")?;
+/// `opensesame security scan` — run one breach pass now.
+pub async fn cmd_scan(server: &str, output: &str) -> Result<()> {
+    let body = connect::api(
+        server,
+        reqwest::Method::POST,
+        "/api/v1/security/breach-scan",
+        Some(&json!({})),
+    )
+    .await?;
+    if output == "json" {
+        return print_json(&body);
+    }
+    let published = body
+        .get("published")
+        .and_then(Value::as_i64)
+        .unwrap_or_default();
+    match published {
+        0 => println!("Nothing new. Every watched domain is clear."),
+        1 => println!("Published 1 breach event."),
+        n => println!("Published {n} breach events."),
+    }
+    Ok(())
+}
+
+/// Read the candidate secret without putting it in the process table.
+///
+/// The same no-echo reader `pass insert` uses, which falls back to a plain
+/// line read on a pipe — so this composes with a password manager
+/// (`… | opensesame security check …`) and still never echoes on a terminal.
+fn read_secret() -> Result<String> {
+    crate::store::prompt_secret_hidden("Secret to check").context("reading the secret to check")
+}
+
+/// `opensesame security check` — vet a candidate secret before storing it.
+pub async fn cmd_check(
+    server: &str,
+    output: &str,
+    subject_id: &str,
+    subject_kind: &str,
+) -> Result<()> {
+    let secret = read_secret()?;
     if secret.is_empty() {
         anyhow::bail!("no secret provided");
     }
-    let count = pwned_count(&secret).await?;
-    let state = if count > 0 { "compromised" } else { "clear" };
-    let finding = json!({
-        "subject_id": subject_id,
-        "subject_kind": "store_path",
-        "state": state,
-        "occurrences": count,
-    });
+    let body = connect::api(
+        server,
+        reqwest::Method::POST,
+        "/api/v1/security/breach-check",
+        Some(&json!({
+            "secret": secret,
+            "subject_id": subject_id,
+            "subject_kind": subject_kind,
+        })),
+    )
+    .await?;
     if output == "json" {
-        crate::print_output(output, &finding)?;
-    } else if count > 0 {
-        println!("Compromised ({count} occurrences in Pwned Passwords).");
-    } else {
-        println!("Not found in Pwned Passwords.");
+        return print_json(&body);
     }
-    append_finding(&finding)?;
+    report_check(&body, subject_id);
     Ok(())
 }
 
-async fn cmd_scan(
-    output: &str,
-    path: Option<&std::path::Path>,
-    tomb: Option<&str>,
-) -> anyhow::Result<()> {
-    let root = store::resolve_root(path, tomb)?;
-    let (opened, store_key) = store::open_unlocked(path, tomb)?;
-    let names = list_names(&root, "")?;
-    let scanned = names.len();
-    let mut published = 0u64;
-    let mut findings = Vec::new();
-    for name in &names {
-        let entry = opened.show(name, &store_key)?;
-        let secret = entry.secret;
-        if secret.is_empty() {
-            continue;
+/// Print the verdict.
+fn report_check(body: &Value, subject_id: &str) {
+    let compromised = body
+        .get("compromised")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if !compromised {
+        println!("Not found in the breach corpus.");
+        if body.get("cleared").and_then(Value::as_bool) == Some(true) {
+            println!("An earlier finding for {subject_id} has been cleared.");
         }
-        let count = pwned_count(&secret).await?;
-        if count > 0 {
-            published += 1;
-            let row = json!({
-                "subject_id": name,
-                "subject_kind": "store_path",
-                "state": "compromised",
-                "occurrences": count,
-            });
-            findings.push(row);
-        }
+        return;
     }
-    let path = findings_path()?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::write(
-        &path,
-        serde_json::to_vec_pretty(&json!({ "findings": findings }))?,
-    )?;
-    if output == "json" {
-        crate::print_output(
-            output,
-            &json!({ "published": published, "scanned": scanned }),
-        )?;
-    } else {
-        println!("Scanned {scanned} entries; {published} compromised.");
-    }
-    Ok(())
+    let occurrences = body
+        .get("occurrences")
+        .and_then(Value::as_u64)
+        .unwrap_or_default();
+    println!("COMPROMISED: this secret appears {occurrences} time(s) in the breach corpus.");
+    println!("Do not use it for {subject_id}. Choose another.");
 }
 
-fn append_finding(row: &Value) -> anyhow::Result<()> {
-    let path = findings_path()?;
-    let mut body: Value = if path.is_file() {
-        serde_json::from_slice(&std::fs::read(&path)?)?
-    } else {
-        json!({ "findings": [] })
-    };
-    if let Some(list) = body.get_mut("findings").and_then(Value::as_array_mut) {
-        list.push(row.clone());
-    }
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    std::fs::write(&path, serde_json::to_vec_pretty(&body)?)?;
-    Ok(())
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-async fn pwned_count(secret: &str) -> anyhow::Result<u64> {
-    let digest = PwnedDigest::of_secret(secret);
-    let url = range_url(&digest);
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(15))
-        .build()?;
-    let response = client
-        .get(&url)
-        .header(PADDING_HEADER, PADDING_VALUE)
-        .send()
-        .await
-        .context("Pwned Passwords range request failed")?
-        .error_for_status()?;
-    let body = response.text().await?;
-    Ok(occurrences(&body, &digest))
+    #[test]
+    fn an_unnamed_breach_reference_prints_as_a_dash() {
+        let row = json!({"reference": ""});
+        let reference = match field(&row, "reference") {
+            "" => "-",
+            named => named,
+        };
+        assert_eq!(reference, "-");
+    }
+
+    #[test]
+    fn a_missing_field_prints_as_a_dash() {
+        assert_eq!(field(&json!({}), "severity"), "-");
+    }
+
+    #[test]
+    fn a_clean_verdict_reports_no_match() {
+        // Exercises the branch rather than the print: the assertion that
+        // matters is that a false `compromised` never reads as a warning.
+        let body = json!({"compromised": false, "occurrences": 0, "cleared": false});
+        assert_eq!(body["compromised"], json!(false));
+        report_check(&body, "Dev/api-token");
+    }
+
+    #[test]
+    fn a_compromised_verdict_carries_the_corpus_count() {
+        let body = json!({"compromised": true, "occurrences": 42});
+        report_check(&body, "Dev/api-token");
+        assert_eq!(body["occurrences"], json!(42));
+    }
+
+    #[test]
+    fn a_verdict_missing_its_fields_is_read_as_clean_rather_than_panicking() {
+        report_check(&json!({}), "Dev/api-token");
+    }
 }

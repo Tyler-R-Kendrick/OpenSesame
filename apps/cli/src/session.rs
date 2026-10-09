@@ -74,7 +74,7 @@ pub fn verb() -> anyhow::Result<crate::Cli> {
 }
 
 /// Globals that take a separate value. `--output json pass` is still `pass`.
-const VALUE_FLAGS: &[&str] = &["--output"];
+const VALUE_FLAGS: &[&str] = &["--server", "--output"];
 
 fn legacy_args() -> Vec<OsString> {
     let args: Vec<OsString> = std::env::args_os().collect();
@@ -113,14 +113,33 @@ fn verb_index(args: &[OsString]) -> Option<usize> {
     None
 }
 
-/// Former top-level verbs, now nested under vault / ceremony / rotate.
+/// Former top-level verbs, now under vault, access, or identity.
 fn legacy_path(token: &str) -> Option<&'static [&'static str]> {
     Some(match token {
-        "ceremony" => &["ceremony"],
-        "rotate" => &["rotate"],
+        "local-authority" => &["access", "grants", "local-authority"],
+        "lease" => &["access", "grants", "lease"],
+        "task" => &["access", "grants", "task"],
+        "intent" => &["access", "grants", "intent"],
+        "receipt" => &["access", "sessions", "receipt"],
+        "connect" => &["access", "connectors", "connect"],
+        "connection" | "connector" => &["access", "connectors", "connection"],
+        "export" => &["access", "connectors", "export"],
+        "import" => &["access", "connectors", "import"],
+        "rotate" => &["access", "connectors", "rotate"],
+        "ceremony" => &["access", "connectors", "ceremony"],
+        "invoke" => &["access", "resources", "invoke"],
+        "cert" => &["access", "resources", "cert"],
+        "lifecycle" => &["access", "resources", "lifecycle"],
+        "status" => &["identity", "status"],
+        "whoami" => &["identity", "whoami"],
+        "auth" => &["identity", "auth"],
+        "provider" => &["identity", "providers"],
         "vault-inspect" => &["vault", "inspect"],
         "vault-migrate" => &["vault", "migrate"],
         "pass" => &["vault", "pass"],
+        "secret" => &["vault", "secret"],
+        "sync" => &["vault", "sync"],
+        "crypto" => &["vault", "crypto"],
         _ => return None,
     })
 }

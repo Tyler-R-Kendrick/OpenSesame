@@ -1,4 +1,4 @@
-# Build and push the relay-only `opensesame` image (CLI default: `relay run`) to GHCR.
+# Build and push the native `opensesame` image to GitHub Container Registry.
 #
 # Tyler action: grant the workflow `packages: write` (default GITHUB_TOKEN on
 # private repos may need `permissions` below) and optionally pin
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   ghcr:
-    name: GHCR opensesame (relay)
+    name: GHCR opensesame
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:

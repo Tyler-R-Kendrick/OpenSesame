@@ -1,11 +1,11 @@
-import type { BackupStore } from "./backup";
 /** The runner loop's ports, options and report. */
 import type {
   AgentRunView,
   ClaimedRunnerStep,
   RunnerStepOutcome,
   SettledRunnerStep,
-} from "./host-api-contract.js";
+} from "@opensesame/api-client";
+import type { BackupStore } from "./backup";
 import type { Grants, PagesFactory } from "./ports";
 import type { RunnerSettings } from "./settings";
 import type { RunnerVault } from "./vault";

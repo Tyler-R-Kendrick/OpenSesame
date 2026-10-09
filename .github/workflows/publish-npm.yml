@@ -3,8 +3,7 @@
 # Tyler action: add repository secret NPM_TOKEN (Automation token with
 # publish access to @opensesame scope). Set `NPM_PACKAGES` variable to a
 # comma-separated list of package names to publish, e.g.
-# `@opensesame/os-domain,@opensesame/vault-core`.
-# Identity/control-plane packages were removed 2026-10-08 — do not publish them.
+# `@opensesame/os-domain,@opensesame/api-client`.
 name: Publish npm
 
 on:

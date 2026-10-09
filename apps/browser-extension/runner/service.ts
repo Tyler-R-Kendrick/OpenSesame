@@ -3,7 +3,7 @@
  * give it back, say what is ready, and take one pass over the person's runs.
  * None of it returns a value the runner holds.
  */
-import { RunnerApiError } from "./host-api-contract.js";
+import { RunnerApiError } from "@opensesame/api-client";
 import { type Connection, type TickReport, createRunner } from "./loop";
 import { drivable } from "./origin";
 import type { Grants, PagesFactory } from "./ports";

@@ -1,5 +1,3 @@
-import type { DriverDeps, EpochState } from "./context";
-import { runStep } from "./driver";
 /**
  * One run, driven: claim its outstanding step, run it, settle what it did, and
  * stand down the moment the run is not the agent's to drive.
@@ -9,8 +7,10 @@ import {
   RunnerApiError,
   type RunnerStepOutcome,
   decodeRunnerStepRequest,
-} from "./host-api-contract.js";
-import type { AgentRunView } from "./host-api-contract.js";
+} from "@opensesame/api-client";
+import type { AgentRunView } from "@opensesame/api-client";
+import type { DriverDeps, EpochState } from "./context";
+import { runStep } from "./driver";
 import type {
   Connection,
   HostPort,

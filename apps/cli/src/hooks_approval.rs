@@ -108,7 +108,7 @@ impl Approver {
         };
         let timeout = Duration::from_secs(args.timeout_seconds);
         let approver = InteractionApprover::new(InteractionApproverConfig {
-            interaction_base_url: url.to_owned(),
+            identity_api_url: url.to_owned(),
             bearer: SecretString::from(bearer.to_owned()),
             approver_ref: handle.to_owned(),
             ttl: timeout,

@@ -1,4 +1,3 @@
-import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
 /**
  * What a person has told the runner: which Host session to use, which origins
  * it may drive, and which runs it is in the middle of. All of it rests sealed
@@ -9,7 +8,8 @@ import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
  * completion"). The browser's own host permission is the other half — arming
  * without the grant drives nothing, and a grant without arming drives nothing.
  */
-import type { RunnerStepOutcome } from "./host-api-contract.js";
+import type { RunnerStepOutcome } from "@opensesame/api-client";
+import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
 import type { SealedKv } from "./store";
 import { decodeOutcome } from "./wire";
 

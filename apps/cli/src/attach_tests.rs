@@ -5,7 +5,7 @@ use std::io::Write as _;
 use super::*;
 
 #[test]
-fn units_are_classified_for_local_replication() {
+fn units_are_classified_by_what_the_gateway_needs() {
     let digest = "ab".repeat(32);
     match classify(&format!(".attachments/objects/ab/{digest}.oschunk")) {
         Some(Unit::Chunk { digest: got }) => assert_eq!(got, digest),
@@ -20,6 +20,15 @@ fn units_are_classified_for_local_replication() {
     assert!(classify(".opensesame-key").is_none());
     // A chunk whose name is not a digest is not addressable by the endpoint.
     assert!(classify(".attachments/objects/zz/nothex.oschunk").is_none());
+}
+
+#[test]
+fn query_characters_that_would_reshape_a_url_are_encoded() {
+    assert_eq!(urlencoding_path("Taxes/2025"), "Taxes/2025");
+    assert_eq!(urlencoding_path("a&b"), "a%26b");
+    assert_eq!(urlencoding_path("a b"), "a%20b");
+    assert_eq!(urlencoding_path("a#b"), "a%23b");
+    assert_eq!(urlencoding_path("100%"), "100%25");
 }
 
 #[cfg(unix)]

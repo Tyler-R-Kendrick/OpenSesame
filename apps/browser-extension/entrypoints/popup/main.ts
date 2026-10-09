@@ -1,6 +1,6 @@
+import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
 import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
-import { normalizeLoopbackBaseUrl } from "../../runner/host-api-contract.js";
 
 type HealthResponse = {
   health?: { ok?: boolean };

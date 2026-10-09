@@ -1,6 +1,6 @@
-# Build the relay-only native image on a pull request and do not push it.
-# The publish workflow writes to GHCR. This job checks ops/compose/Dockerfile
-# still builds the `opensesame` CLI image (default CMD: `relay run`).
+# Build the native image on a pull request and do not push it.
+# The publish workflow is the one that writes to GHCR. This job only checks
+# that ops/compose/Dockerfile still builds.
 name: Container build (pull request)
 
 on:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build opensesame relay image
+    name: Build opensesame image
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

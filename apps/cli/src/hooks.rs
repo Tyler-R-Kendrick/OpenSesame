@@ -51,7 +51,31 @@ pub enum HooksCmd {
         #[arg(long, env = "OPENSESAME_HOOK_POLICY")]
         policy: Option<PathBuf>,
     },
+    /// The organization's hook policy on the Host, which its remote
+    /// interceptor (`POST /api/v1/agent-hooks/intercept`) decides under.
+    Policy {
+        #[command(subcommand)]
+        cmd: policy::PolicyCmd,
+    },
+    /// The audit of every verdict the Host's remote interceptor answered,
+    /// newest first, value-blind (no tool names, targets or messages).
+    Decisions(decisions::DecisionsArgs),
+    /// Who the Host puts the organization's escalated agent actions to
+    /// (`GET|PUT /api/v1/agent-hooks/approver`).
+    Approver {
+        #[command(subcommand)]
+        cmd: approver::ApproverCmd,
+    },
 }
+
+#[path = "hooks_policy.rs"]
+mod policy;
+
+#[path = "hooks_decisions.rs"]
+mod decisions;
+
+#[path = "hooks_approver.rs"]
+mod approver;
 
 #[path = "hooks_approval.rs"]
 mod approval;
@@ -123,10 +147,14 @@ fn check(policy: Option<&Path>) -> Result<()> {
     Ok(())
 }
 
-/// `opensesame hooks …` — local interceptor only (no Host HTTP).
-pub async fn run(cmd: HooksCmd) -> Result<()> {
+/// `opensesame hooks …`. Only `policy` and `decisions` talk to the Host at
+/// `server`.
+pub async fn run(server: &str, cmd: HooksCmd) -> Result<()> {
     match cmd {
         HooksCmd::Intercept { policy, approver } => intercept(policy.as_deref(), &approver).await,
         HooksCmd::Check { policy } => check(policy.as_deref()),
+        HooksCmd::Policy { cmd } => policy::run(server, cmd).await,
+        HooksCmd::Decisions(args) => decisions::run(server, args).await,
+        HooksCmd::Approver { cmd } => approver::run(server, cmd).await,
     }
 }

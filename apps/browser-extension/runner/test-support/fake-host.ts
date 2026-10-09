@@ -1,3 +1,10 @@
+import {
+  type AgentRunView,
+  type ClaimedRunnerStep,
+  RunnerApiError,
+  type RunnerStepOutcome,
+  type SettledRunnerStep,
+} from "@opensesame/api-client";
 /**
  * A fake Host that is as strict as the real one about what a driver settles.
  *
@@ -21,13 +28,6 @@ import {
 } from "@opensesame/os-domain";
 import type { BackupStore } from "../backup";
 import { toB64 } from "../bytes";
-import {
-  type AgentRunView,
-  type ClaimedRunnerStep,
-  RunnerApiError,
-  type RunnerStepOutcome,
-  type SettledRunnerStep,
-} from "../host-api-contract.js";
 import type { HostPort } from "../loop";
 
 const ANSWERS = new Map([

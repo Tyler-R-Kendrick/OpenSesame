@@ -1,7 +1,7 @@
+import type { RunnerStepRequest } from "@opensesame/api-client";
 import { describe, expect, it } from "vitest";
 import type { DriverDeps } from "./context";
 import { runStep } from "./driver";
-import type { RunnerStepRequest } from "./host-api-contract.js";
 import { RUN, open, setup } from "./test-support/driver-rig";
 import { refusalFor } from "./test-support/fake-host";
 import { CURRENT } from "./test-support/rig";
