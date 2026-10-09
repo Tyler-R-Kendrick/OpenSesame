@@ -11,16 +11,25 @@ import type {
 } from "@opensesame/vault-core";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
 import type { EnrollableKind, HeldWebauthnPrf } from "./browser-enroll.js";
-import type { RotationKey } from "./browser-lifecycle-ops.js";
+import type { LifecycleHost, RotationKey } from "./browser-lifecycle-ops.js";
+import {
+  type EnrollCandidateResult,
+  type LifecycleOperation,
+  type PendingEnrollment,
+  committedEnrollmentBody,
+  reconciledProjection,
+  stageEnrollmentData,
+} from "./browser-operation-data.js";
+export type { EnrollCandidateResult } from "./browser-operation-data.js";
+import {
+  type ProtectionBrowserHost,
+  captureBrowserOperation,
+} from "./browser-operation-check.js";
+export type { ProtectionBrowserHost } from "./browser-operation-check.js";
 import type { ExternalEnrollment } from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId } from "./ids.js";
-import { reconcileLegacyRecords } from "./legacy-sync.js";
-import {
-  type MutationJournal,
-  assertExpectedRevision,
-  beginMutationJournal,
-} from "./lifecycle.js";
+import { assertExpectedRevision, beginMutationJournal } from "./lifecycle.js";
 import {
   sealAuthenticatedManifest,
   verifyManifestAuth,
@@ -30,38 +39,6 @@ import { resolveProtectionManifest } from "./protection-view.js";
 import { contextForRecord } from "./protector-context.js";
 import type { ProofMaterial } from "./protector-proof.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
-import type { ProtectionSessionGuard } from "./session-guard.js";
-
-export type ProtectionBrowserHost = {
-  isGuestOrEphemeral(): boolean;
-  getHeader(): VaultHeader | null;
-  requireRawRoot(): Uint8Array;
-  isUnlocked(): boolean;
-  persistHeader(next: VaultHeader): Promise<void>;
-  replaceRawVaultKey(next: Uint8Array): Promise<void>;
-  session: ProtectionSessionGuard;
-};
-
-export type EnrollCandidateResult = {
-  operationId: string;
-  expectedRevision: number;
-  sessionGeneration: number;
-  record: ProtectionRecord;
-  /** Shown-once recovery secret; never persisted by this service. */
-  recoverySecretB64?: string;
-  /** Shown-once age identity minted for a new recipient; never persisted. */
-  ageIdentitySecret?: string;
-};
-
-type PendingEnrollment = {
-  operationId: string;
-  sessionGeneration: number;
-  expectedRevision: number;
-  journal: MutationJournal;
-  record: ProtectionRecord;
-  recoverySecretB64?: string;
-  baseManifest: RootProtectionManifest;
-};
 
 function manifestAuthority(header: VaultHeader): RootProtectionManifest | null {
   return resolveProtectionManifest(header, header.protection);
@@ -93,19 +70,27 @@ export class VaultProtectionBrowserService {
    * wrap bytes. Idempotent when protection is already present.
    */
   async ensureProtectionProjected(): Promise<void> {
-    const run = this.#projecting.then(() => this.#project());
+    const pinned = this.#host.isUnlocked()
+      ? this.#operationHost("projection-queued")
+      : null;
+    const run = this.#projecting.then(() => this.#project(pinned));
     this.#projecting = run.catch(() => undefined);
     return run;
   }
 
-  async #project(): Promise<void> {
-    const header = this.#host.getHeader();
-    if (!header || !this.#host.isUnlocked()) return;
-    const raw = this.#host.requireRawRoot();
+  async #project(
+    queued: (LifecycleHost & { check: () => void }) | null,
+  ): Promise<void> {
+    if (!queued) return;
+    queued.check();
+    const pinned = this.#operationHost("projection");
+    const header = pinned.getHeader();
+    if (!header) return;
+    const raw = pinned.requireRawRoot();
     if (!header.protection) {
       const { manifest } = migrateLegacyHeaderToManifest({ header });
       const sealed = await sealAuthenticatedManifest(raw, manifest);
-      await this.#host.persistHeader({ ...header, protection: sealed });
+      await pinned.persistHeader({ ...header, protection: sealed });
       return;
     }
     // Password, PIN and passkey change under Unlock methods, which knows
@@ -114,24 +99,14 @@ export class VaultProtectionBrowserService {
     // to report — housekeeping must not stand between a person and unlock.
     try {
       await verifyManifestAuth(raw, header.protection);
+      pinned.check();
     } catch {
+      pinned.check();
       return;
     }
-    const records = reconcileLegacyRecords(header, header.protection);
-    if (!records) return;
-    const { authB64: _drop, preferredProtectorId, ...rest } = header.protection;
-    const body: Omit<RootProtectionManifest, "authB64"> = {
-      ...rest,
-      revision: header.protection.revision + 1,
-      records,
-    };
-    if (
-      preferredProtectorId !== undefined &&
-      records.some((record) => record.protectorId === preferredProtectorId)
-    ) {
-      body.preferredProtectorId = preferredProtectorId;
-    }
-    await this.#host.persistHeader({
+    const body = reconciledProjection(header, header.protection);
+    if (!body) return;
+    await pinned.persistHeader({
       ...header,
       protection: await sealAuthenticatedManifest(raw, body),
     });
@@ -208,39 +183,22 @@ export class VaultProtectionBrowserService {
     const built = await provenEnrollmentRecord(request);
     assertSessionGeneration(sessionGeneration, this.#host.session.generation);
     assertNotCanceled(this.#host.session.signal);
-    journal.phase = "proven";
-    journal.candidateManifest = {
-      ...base,
-      revision: expectedRevision + 1,
-      records: [...base.records, built.record],
-    };
-    const pending: PendingEnrollment = {
-      operationId,
-      sessionGeneration,
-      expectedRevision,
+    const staged = stageEnrollmentData({
+      base,
       journal,
-      record: built.record,
-      baseManifest: base,
-    };
-    if (built.recoverySecretB64 !== undefined)
-      pending.recoverySecretB64 = built.recoverySecretB64;
-    this.#pending = pending;
-    const result: EnrollCandidateResult = {
       operationId,
-      expectedRevision,
       sessionGeneration,
-      record: built.record,
-    };
-    if (built.recoverySecretB64 !== undefined)
-      result.recoverySecretB64 = built.recoverySecretB64;
-    if (built.ageIdentitySecret !== undefined)
-      result.ageIdentitySecret = built.ageIdentitySecret;
-    return result;
+      expectedRevision,
+      built,
+    });
+    this.#pending = staged.pending;
+    return staged.result;
   }
 
   async commitEnrollment(operationId: string): Promise<void> {
-    this.#assertCanMutate();
+    const pinned = this.#operationHost();
     await this.#assertManifestTrusted();
+    pinned.check();
     const pending = this.#pending;
     if (!pending || pending.operationId !== operationId) {
       throw new ProtectionError(
@@ -258,31 +216,27 @@ export class VaultProtectionBrowserService {
     const current = this.#requireManifest(header);
     assertExpectedRevision(current, pending.expectedRevision);
 
-    const { authB64: _drop, ...rest } = current;
-    const nextBody: Omit<RootProtectionManifest, "authB64"> = {
-      ...rest,
-      revision: pending.expectedRevision + 1,
-      records: [...current.records, pending.record],
-    };
+    const nextBody = committedEnrollmentBody(current, pending);
     const sealed = await sealAuthenticatedManifest(
-      this.#host.requireRawRoot(),
+      pinned.requireRawRoot(),
       nextBody,
     );
     // Persist protection only — wrap / kdf / unlocks bytes stay untouched.
-    await this.#host.persistHeader({ ...header, protection: sealed });
+    await pinned.persistHeader({ ...header, protection: sealed });
+    pinned.check();
     pending.journal.phase = "committed";
     this.#pending = null;
   }
 
   async setPreferred(protectorId: string): Promise<void> {
-    await this.#lifecycle((operations) =>
-      operations.setPreferredProtector(this.#host, protectorId),
+    await this.#lifecycle((operations, pinned) =>
+      operations.setPreferredProtector(pinned, protectorId),
     );
   }
 
   async removeProtector(protectorId: string): Promise<void> {
-    await this.#lifecycle((operations) =>
-      operations.removeProtector(this.#host, protectorId),
+    await this.#lifecycle((operations, pinned) =>
+      operations.removeProtector(pinned, protectorId),
     );
   }
 
@@ -290,14 +244,14 @@ export class VaultProtectionBrowserService {
     protectorId: string,
     material?: ProofMaterial,
   ): Promise<ProtectionRecord> {
-    return this.#lifecycle((operations) =>
-      operations.testProtector(this.#host, protectorId, material),
+    return this.#lifecycle((operations, pinned) =>
+      operations.testProtector(pinned, protectorId, material),
     );
   }
 
   async rotateCompromisedRoot(input: RotationKey): Promise<void> {
-    await this.#lifecycle((operations) =>
-      operations.rotateCompromisedRoot(this.#host, input),
+    await this.#lifecycle((operations, pinned) =>
+      operations.rotateCompromisedRoot(pinned, input),
     );
   }
 
@@ -331,23 +285,30 @@ export class VaultProtectionBrowserService {
     this.#assertCanMutate();
   }
 
-  async #lifecycle<T>(
-    run: (
-      operations: typeof import("./browser-lifecycle-ops.js"),
-    ) => Promise<T>,
-  ): Promise<T> {
-    this.#assertCanMutate();
-    const generation = this.#host.session.generation;
-    const signal = this.#host.session.signal;
+  async #lifecycle<T>(run: LifecycleOperation<T>): Promise<T> {
+    const preflight = this.#operationHost("projection-queued");
     await this.ensureProtectionProjected();
-    this.#assertOperation(generation, signal);
+    preflight.check();
+    const pinned = this.#operationHost();
     await this.#assertManifestTrusted();
-    this.#assertOperation(generation, signal);
+    pinned.check();
     const operations = await import("./browser-lifecycle-ops.js");
-    this.#assertOperation(generation, signal);
+    pinned.check();
     await this.#assertManifestTrusted();
-    this.#assertOperation(generation, signal);
-    return run(operations);
+    pinned.check();
+    return run(operations, pinned);
+  }
+
+  /** Cancellation-only original host; never leaves lexical operation callers. */
+  #operationHost(
+    purpose: "mutation" | "projection" | "projection-queued" = "mutation",
+  ) {
+    return captureBrowserOperation(
+      this.#host,
+      () => this.#host,
+      () => this.#assertCanMutate(),
+      purpose,
+    );
   }
 
   #assertCanMutate(): void {

@@ -71,7 +71,7 @@ function assertOriginalFrame(
   assertOriginalHost(original, current, captured);
 }
 type RootTurnState = {
-  current?: TombWriteTurn;
+  current: TombWriteTurn | undefined;
   check: () => void;
   scope: () => void;
 };
@@ -175,7 +175,7 @@ export function captureBrowserOperation(
       stale("Original protection root or header changed.");
   };
   check();
-  const rotation: RootTurnState = { check, scope };
+  const rotation: RootTurnState = { check, scope, current: undefined };
   return Object.freeze({
     check,
     withRootWriteTurn: (work: () => Promise<void>) =>
