@@ -109,5 +109,7 @@ export function committedEnrollmentBody(
 /** Only private service callers supply this operation; this type creates no admission. */
 export type LifecycleOperation<T> = (
   operations: typeof import("./browser-lifecycle-ops.js"),
-  pinned: LifecycleHost,
+  pinned: LifecycleHost & {
+    withRootWriteTurn(work: () => Promise<void>): Promise<void>;
+  },
 ) => Promise<T>;
