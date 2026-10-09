@@ -68,7 +68,9 @@ describe("ci gates", () => {
       new Set(ALL_GATES),
     );
   });
+});
 
+describe("ci gates, shards and drivers", () => {
   it("runs the relay join walk when the gateway relay or its driver changes", () => {
     expect(gatesOf("apps/pages/scripts/verify-relay-join.mjs")).toEqual([
       "journeys",
