@@ -84,10 +84,7 @@ re-run export after rescan/triage.
 | cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.candidates} |
 
 ${
-  report.stats.core.error +
-    report.stats.pwa.error +
-    report.stats.cli.error >
-  0
+  report.stats.core.error + report.stats.pwa.error + report.stats.cli.error > 0
     ? "> **Incomplete:** errors mean Kimi investigation did not finish for those files (often the 5-hour subscription quota). Re-run `scripts/audit/deepsec-kimi-resume.sh` before treating triage totals as complete.\n"
     : ""
 }
