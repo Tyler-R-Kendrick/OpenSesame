@@ -26,7 +26,7 @@ import {
   cleanText,
 } from "./messages.js";
 import type { NatsSession } from "./nats-route.js";
-import { makeRequestCode, openReplyCode } from "./pairing.js";
+import { type JoinReply, makeRequestCode, openReplyCode } from "./pairing.js";
 import {
   type IceSettings,
   type OfferSide,
@@ -189,6 +189,12 @@ export class LiveGuest {
     const { link, code } = this.options;
     const reply = await openReplyCode(link, code, keys, this.#id, text);
     if (!reply || this.#status.at !== "request") return false;
+    return this.#connectWithReply(text, reply);
+  }
+
+  async #connectWithReply(text: string, reply: JoinReply): Promise<boolean> {
+    const side = this.#side;
+    if (!side) return false;
     const session = this.options.carriers?.session ?? "off";
     this.#relayed = reply.relay === "nats" && session !== "off";
     this.#release();
@@ -199,7 +205,7 @@ export class LiveGuest {
       void this.#toRelay();
       return true;
     }
-    const { pc } = this.#side;
+    const { pc } = side;
     pc.addEventListener("connectionstatechange", () => {
       if (pc.connectionState !== "failed" || this.#status.at !== "connecting")
         return;
@@ -268,11 +274,30 @@ export class LiveGuest {
 
   /** Try the same reply code again after a connect timeout. */
   async retryConnect(): Promise<boolean> {
-    const reply = this.#lastReply;
-    if (this.#status.at !== "connect_timeout" || !reply) return false;
-    this.#to({ at: "connecting" });
-    this.#armConnectTimeout();
-    return this.accept(reply);
+    const text = this.#lastReply;
+    const keys = this.#keys;
+    if (this.#status.at !== "connect_timeout" || !text || !keys) return false;
+    const { link, code, peers, ice } = this.options;
+    const reply = await openReplyCode(link, code, keys, this.#id, text);
+    if (!reply) return false;
+    this.#clearConnectTimeout();
+    if (this.#fallback) clearTimeout(this.#fallback);
+    this.#fallback = null;
+    this.#side?.pc.close();
+    const side = await makeOffer(peers, ice);
+    if (this.#over()) {
+      side.pc.close();
+      side.channel.catch(() => undefined);
+      return false;
+    }
+    this.#side = side;
+    side.channel.then(
+      (channel) => this.#connected(channel),
+      () => {
+        if (!this.#relayed) this.#finish();
+      },
+    );
+    return this.#connectWithReply(text, reply);
   }
 
   #connected(channel: LiveChannel): void {
