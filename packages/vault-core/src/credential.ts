@@ -254,3 +254,24 @@ export function outsideAccounts(items: readonly VaultItem[]): VaultItem[] {
       !accounts.has(item.accountId),
   );
 }
+
+/**
+ * What a vault listing draws. A credential bound to an account that is in the
+ * same place — both live, or both in the trash — is that account's method, not
+ * a second row named "Account · Password". One kept on its own stays. One
+ * removed from a live account stays in the trash, so it can be restored.
+ * The sealed body still holds the credential (`outsideAccounts` is the export
+ * rule; this is only the list).
+ */
+export function listedItems(items: readonly VaultItem[]): VaultItem[] {
+  const accounts = new Map<string, boolean>();
+  for (const item of items) {
+    if (item.kind === "account") accounts.set(item.id, item.deletedAt !== null);
+  }
+  return items.filter((item) => {
+    if (item.kind !== "credential" || item.accountId === null) return true;
+    const accountTrashed = accounts.get(item.accountId);
+    if (accountTrashed === undefined) return true;
+    return accountTrashed !== (item.deletedAt !== null);
+  });
+}

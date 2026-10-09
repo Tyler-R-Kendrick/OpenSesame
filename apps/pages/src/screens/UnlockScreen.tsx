@@ -11,6 +11,7 @@ import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlo
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
 import {
+  MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
   type SecondStepId,
   checkWebauthnHost,
@@ -172,9 +173,7 @@ function UnlockForm({
   } = useVault();
   const store = useVaultStore();
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
-  // The guest tomb is isolated, not keyless: a guest may enroll a gate (ADR
-  // 0091) and those wraps are the key to this tomb. What makes the road guest
-  // is the tomb, so nothing below is gated on it (AGENTS.md §5).
+  // A guest may enroll a gate (ADR 0091). The road is the tomb, so nothing below is gated on it.
   const guestUnlock = activeTomb === GUEST_TOMB && status !== "unlocked";
   const firstRun = status === "empty" && !guestUnlock;
   // Which vault this key opens — shown whenever there is a choice to go back to, or this is not the personal vault.
@@ -653,7 +652,7 @@ function UnlockForm({
                   value={pin}
                   title={
                     firstRun
-                      ? `${MIN_PIN_LENGTH}–12 characters, no repeated character, no sequential digits`
+                      ? `${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters, no repeated character, no sequential digits`
                       : undefined
                   }
                   aria-invalid={pinProblem ? true : undefined}

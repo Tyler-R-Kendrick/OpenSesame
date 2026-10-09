@@ -3,6 +3,7 @@ import {
   type Folder,
   type VaultItem,
   itemTypeId,
+  listedItems,
 } from "@opensesame/vault-core";
 /**
  * The rail's section tree, split out of `AppShell` so the shell file stays
@@ -262,7 +263,8 @@ export function NavTree() {
     section && isBranch(section) && expandFor(section.to).expanded,
   );
   currentToRef.current = section && !sectionOpen ? section.to : selectedTo;
-  const counts = useVaultCounts(items);
+  const listed = useMemo(() => listedItems(items), [items]);
+  const counts = useVaultCounts(listed);
 
   useClaimedDrags(treeRef);
   useRailKeyboard(treeRef, navigateRef, currentToRef);
@@ -302,7 +304,7 @@ export function NavTree() {
           pathname={location.pathname}
           selectedTo={selectedTo}
           counts={counts}
-          items={items}
+          items={listed}
           folders={folders}
           kinds={kinds}
           showHidden={showHidden}

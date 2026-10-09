@@ -34,6 +34,42 @@ async function save(page) {
   await page.waitForURL((url) => /\/vault\/[^/]+$/.test(url.pathname));
 }
 
+/** Bound, not copied: the spare is Second's method, and First keeps its own. */
+async function confirmBound(page, base, check) {
+  await go(page, base, "vault?f=all");
+  await page
+    .getByRole("treeitem", { name: /^Second/ })
+    .first()
+    .waitFor();
+  const rows = await page.getByRole("treeitem").allTextContents();
+  const keys = rows.filter((row) => /API key|Spare key/.test(row));
+  check(
+    keys.length === 0,
+    `a bound key is the account's method, not its own row (${keys.length} API key entries)`,
+  );
+  const unbound = rows.filter((row) => /not bound/.test(row));
+  check(unbound.length === 0, "no credential is left on its own");
+  await page
+    .getByRole("treeitem", { name: /^Second/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Reveal x-api-key value" }).click();
+  check(
+    (await page.locator("body").innerText()).includes("ak_spare"),
+    "Second holds the spare that was bound",
+  );
+  await page
+    .getByRole("treeitem", { name: /^First/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Reveal x-api-key value" }).click();
+  const first = await page.locator("body").innerText();
+  check(
+    first.includes("ak_first") && !first.includes("ak_spare"),
+    "First keeps its own key",
+  );
+}
+
 export async function walkJCredentials({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
@@ -89,19 +125,5 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
   );
   await save(page);
   await snap(page, "J-CREDENTIALS-bound");
-
-  // Bound, not copied: First's key and the spare, and nothing else, are API keys.
-  await go(page, base, "vault?f=all");
-  await page
-    .getByRole("treeitem", { name: /^Second/ })
-    .first()
-    .waitFor();
-  const rows = await page.getByRole("treeitem").allTextContents();
-  const keys = rows.filter((row) => /API key|Spare key/.test(row));
-  check(
-    keys.length === 2,
-    `the spare was bound, not copied (${keys.length} API key entries)`,
-  );
-  const unbound = rows.filter((row) => /not bound/.test(row));
-  check(unbound.length === 0, "no credential is left on its own");
+  await confirmBound(page, base, check);
 }

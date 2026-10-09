@@ -1,5 +1,5 @@
 import type { VaultItem } from "@opensesame/vault-core";
-import { type MutableRefObject, useCallback } from "react";
+import { type MutableRefObject, useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import {
@@ -13,6 +13,7 @@ import {
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ReferenceKeys } from "./ReferenceKeys.js";
+import { TRASH_CONFIRM } from "./vault-menu.js";
 
 /**
  * The Share once key. It is its own component because it is the target a
@@ -125,6 +126,8 @@ export function ItemTools({
   const favoriteRef = useGuideTarget<HTMLButtonElement>("item.favorite");
   const editRef = useGuideTarget<HTMLAnchorElement>("item.edit");
   const trashRef = useGuideTarget<HTMLButtonElement>("item.trash");
+  const [armedTrashId, setArmedTrashId] = useState<string | null>(null);
+  const confirmTrash = armedTrashId === item.id;
   if (item.deletedAt !== null)
     return (
       <TrashedTools
@@ -163,16 +166,31 @@ export function ItemTools({
       <button
         ref={trashRef}
         type="button"
-        className="icon-btn"
+        className={`icon-btn${confirmTrash ? " is-armed" : ""}`}
         onClick={() => {
+          if (!confirmTrash) {
+            setArmedTrashId(item.id);
+            return;
+          }
+          setArmedTrashId(null);
           void store.trashItem(item.id);
           navigate(listPath);
         }}
-        aria-label="Move to trash"
-        title="Move to trash (x)"
+        aria-label={confirmTrash ? TRASH_CONFIRM : "Move to trash"}
+        title={confirmTrash ? TRASH_CONFIRM : "Move to trash (x)"}
       >
         <IconTrash size={17} />
       </button>
+      {confirmTrash ? (
+        <IconKey label="Keep this item" onClick={() => setArmedTrashId(null)}>
+          <IconX size={17} />
+        </IconKey>
+      ) : null}
+      {confirmTrash ? (
+        <p className="visually-hidden" role="alert">
+          Moving to trash. Press the trash key again to confirm.
+        </p>
+      ) : null}
     </div>
   );
 }

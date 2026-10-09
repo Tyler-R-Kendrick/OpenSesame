@@ -93,8 +93,9 @@ describe("new vault draft defaults", () => {
     expect(first.username).not.toBe(second.username);
     expect(accountTotp(first)).toBe("");
     expect(first.uris).toEqual([
-      { id: expect.any(String), uri: "*", match: "wildcard" },
+      { id: expect.any(String), uri: "", match: "domain" },
     ]);
+    expect(first.uris.some((uri) => uri.uri.includes("*"))).toBe(false);
     expect(first.uris[0]?.id).not.toBe(second.uris[0]?.id);
     expect(createItem("account").uris).toEqual([]);
     const secret = newItemDraft("secret");
