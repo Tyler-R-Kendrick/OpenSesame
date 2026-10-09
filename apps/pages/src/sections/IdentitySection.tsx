@@ -172,8 +172,23 @@ export function IdentitySection() {
   const ceremonyOpen = tab === "providers" && params.get("action") === "new";
   const [flash, setFlash] = useState<Flash | null>(null);
 
+  function providersRoute(
+    query: { action?: "new" },
+    recordId?: string,
+  ): { pathname: string; search: string; hash: string } {
+    const search = new URLSearchParams({ view: "providers" });
+    if (query.action === "new") search.set("action", "new");
+    return {
+      pathname: "/identity",
+      search: `?${search.toString()}`,
+      hash: recordId ? `#${encodeURIComponent(recordId)}` : "",
+    };
+  }
+
   function openCeremony() {
-    navigate("/identity?view=providers&action=new");
+    // Drop any record hash — a stale fragment leaves ProviderDetail mounted
+    // beside the ceremony and flakes "Connect your identity provider" checks.
+    navigate(providersRoute({ action: "new" }));
   }
 
   function closeCeremony() {
@@ -181,12 +196,12 @@ export function IdentitySection() {
       // "Set up later" defers adding another upstream; the device IdP remains.
       dismissIdpCeremony();
     }
-    navigate("/identity?view=providers");
+    navigate(providersRoute({}));
   }
 
   function registered(record: IdpRecord, message: string) {
     setProviders(listIdpRegistrations());
-    navigate(`/identity?view=providers#${encodeURIComponent(record.id)}`);
+    navigate(providersRoute({}, record.id));
     setFlash({ tone: "ok", text: message });
   }
 
