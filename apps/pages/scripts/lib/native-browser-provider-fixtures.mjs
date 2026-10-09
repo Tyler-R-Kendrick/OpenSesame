@@ -1,9 +1,9 @@
 /** Synthetic upstream identities for browser protocol tests, never live accounts. */
-import { CONNECT_PLAN_JSON } from "../../../../packages/app-core/src/lib/connect-presets.generated.ts";
 import {
   isJsonObject,
   isString,
 } from "../../../../scripts/lib/json-boundary.mjs";
+import { NATIVE_CONNECT_PLAN_JSON as CONNECT_PLAN_JSON } from "./native-browser-catalog-projection.mjs";
 
 const PARAMETER_VALUES = {
   application_id: "contractapp",

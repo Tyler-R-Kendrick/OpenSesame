@@ -23,6 +23,7 @@ import {
 } from "./native-api-target.js";
 import {
   type NativeApiReadResult,
+  safeNativeConnectorIcon,
   safeProviderText,
   verifyNativeApiResponse,
 } from "./native-api-verify.js";
@@ -208,7 +209,7 @@ export async function configureNativeApiConnector(
       : {};
   const credentials = nativeApiCredentials(target, input.credentials, retained);
   safeProviderText(input.displayName, credentials);
-  safeProviderText(input.icon ?? "", credentials);
+  safeNativeConnectorIcon(input.icon ?? "", credentials);
   for (const value of Object.values(target.parameters))
     safeProviderText(value, credentials);
   const { result, origin } = await configureVerification(
@@ -240,7 +241,10 @@ export async function configureNativeApiConnector(
     origin,
     saved?.runtime.verifiedAt ?? 0,
   );
-  if (!saved) return saveNativeConnector(next, target.classification);
+  if (!saved)
+    return saveNativeConnector(next, target.classification, () =>
+      transport.assertCurrent(),
+    );
   return updateNativeConnector(
     id,
     { revision: saved.revision, fingerprint: saved.configuration.fingerprint },
@@ -249,6 +253,7 @@ export async function configureNativeApiConnector(
       transport.assertCurrent();
       return next;
     },
+    () => transport.assertCurrent(),
   );
 }
 export async function verifyNativeApiConnector(
@@ -307,6 +312,7 @@ export async function verifyNativeApiConnector(
         record.runtime.verifiedAt ?? 0,
       );
     },
+    () => transport.assertCurrent(),
   );
 }
 export async function invokeNativeApiConnector(

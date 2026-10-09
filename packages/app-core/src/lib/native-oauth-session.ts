@@ -16,7 +16,10 @@ import { NativeOAuthError } from "./native-oauth-errors.js";
 
 export function requireNativeOAuthRecord(id: string): NativeConnectorRecord {
   const record = loadNativeConnectorRecord(id);
-  if (!record || !["oauth", "mcp"].includes(record.configuration.method))
+  if (
+    !record ||
+    !["oauth", "oidc", "mcp"].includes(record.configuration.method)
+  )
     throw new NativeOAuthError("callback");
   return record;
 }
@@ -88,7 +91,7 @@ export function parseNativeOAuthCallback(search: string): NativeOAuthCallback {
   const error = query.has("native_error");
   if (
     !state ||
-    state.length < 32 ||
+    state.length < 16 ||
     state.length > 512 ||
     !!code === error ||
     (code?.length ?? 0) > 4096
@@ -135,7 +138,9 @@ export function nativeOAuthObligation(
   };
   return {
     id: `oauth:${pending.state}`,
-    kind: "configure",
+    kind: ["databricks", "discord"].includes(pending.providerId)
+      ? "revoke"
+      : "configure",
     providerId: pending.providerId,
     actor: pending.actor,
     fingerprint: pending.fingerprint,
@@ -168,6 +173,11 @@ export async function claimNativeOAuthPending(
     pending,
     record.runtime.identity?.id,
   );
+  if (pending.providerId === "databricks")
+    obligation.credentials = {
+      ...obligation.credentials,
+      integration_id: record.configuration.parameters.integration_id ?? "",
+    };
   await updateNativeConnector(
     record.connectionId,
     nativeOAuthGuard(record),

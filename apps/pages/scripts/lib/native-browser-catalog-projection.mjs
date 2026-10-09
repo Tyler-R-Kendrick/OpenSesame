@@ -14,6 +14,7 @@ const projection = buildSync({
   stdin: {
     contents: `
       import {getBundledProviders} from './packages/app-core/src/lib/embedded-catalog.ts';
+      export {CONNECT_PLAN_JSON as connectPlanJson} from './packages/app-core/src/lib/connect-presets.generated.ts';
       import {mergeVercelCatalog} from './packages/app-core/src/lib/vercel-connect-catalog.ts';
       import {isConnectionCatalogProvider} from './packages/app-core/src/lib/catalog-provider.ts';
       import {catalogPageSections} from './apps/pages/src/sections/connections/page-tree.ts';
@@ -36,3 +37,4 @@ export const NATIVE_CANONICAL_PROVIDERS = source.all.map((provider) => ({
   name: provider.displayName,
 }));
 export const NATIVE_CANONICAL_CATALOG_IDS = source.listed.map((row) => row.id);
+export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;

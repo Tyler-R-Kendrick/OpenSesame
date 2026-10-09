@@ -239,25 +239,32 @@ function withConfigurationLock<T>(action: () => Promise<T>): Promise<T> {
   return run;
 }
 
-async function commitAtomic(records: AtomicStore): Promise<void> {
+async function commitAtomic(
+  records: AtomicStore,
+  beforeCommit?: () => void,
+): Promise<void> {
   const value = JSON.stringify(records);
   if (new TextEncoder().encode(value).length > MAX_RECORD_BYTES) {
     throw new Error("Connector configuration exceeds the storage size limit");
   }
-  await kvSetDurable(ATOMIC_KEY, value);
+  await kvSetDurable(ATOMIC_KEY, value, beforeCommit);
   notifyDeviceRows();
 }
 
 /** Evaluate compatibility under the lock, then commit metadata and secrets in one sealed file. */
 export function writeDeviceConfigurationDurable(
   make: () => Configuration,
+  beforeCommit?: () => void,
 ): Promise<PublicRow> {
   return withConfigurationLock(async () => {
     const { row, secrets } = make();
-    await commitAtomic({
-      ...readAtomic(),
-      [row.connectionId]: { row, secrets },
-    });
+    await commitAtomic(
+      {
+        ...readAtomic(),
+        [row.connectionId]: { row, secrets },
+      },
+      beforeCommit,
+    );
     return row;
   });
 }
@@ -266,6 +273,7 @@ export function writeDeviceConfigurationDurable(
 export function updateDeviceConfigurationDurable(
   id: string,
   update: (record: DeviceConfiguration) => Promise<DeviceConfiguration>,
+  beforeCommit?: () => void,
 ): Promise<PublicRow> {
   return withConfigurationLock(async () => {
     const records = readAtomic();
@@ -277,7 +285,8 @@ export function updateDeviceConfigurationDurable(
       next.row.providerId !== record.row.providerId
     )
       throw new Error("A provider grant cannot change its connector");
-    if (next !== record) await commitAtomic({ ...records, [id]: next });
+    if (next !== record)
+      await commitAtomic({ ...records, [id]: next }, beforeCommit);
     return next.row;
   });
 }

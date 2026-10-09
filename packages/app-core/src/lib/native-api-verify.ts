@@ -6,6 +6,7 @@ import {
 } from "@opensesame/os-domain";
 import type { ProviderVerification } from "./connect-provider-auth-schema.js";
 import { NativeApiError } from "./native-api-http.js";
+import { NativeConfigurationSchema } from "./native-connector-schema.js";
 
 export type NativeApiReadResult = {
   label: string;
@@ -31,6 +32,21 @@ export function safeProviderText(
 ): string {
   if (
     value.length > 4096 ||
+    Object.values(credentials).some(
+      (secret) => secret && value.includes(secret),
+    )
+  )
+    throw new NativeApiError("response");
+  return value;
+}
+/** Icon bytes use the exact image contract; provider text retains its smaller limit. */
+export function safeNativeConnectorIcon(
+  value: string,
+  credentials: Record<string, string>,
+): string {
+  if (
+    !NativeConfigurationSchema.pick({ icon: true }).safeParse({ icon: value })
+      .success ||
     Object.values(credentials).some(
       (secret) => secret && value.includes(secret),
     )
