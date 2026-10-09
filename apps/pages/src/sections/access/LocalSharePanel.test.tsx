@@ -164,9 +164,11 @@ it("lists a pending agent grant on the requests tab", async () => {
     screen.getByRole("button", { name: "Request approval" }),
   );
   cleanup();
-  render(<LocalRequestsPanel tomb={fixture.tomb} />);
-  await screen.findByRole("button", { name: "Review grant request" });
-  expect(screen.getByText(/Helper →/)).toBeTruthy();
+  render(
+    <LocalRequestsPanel tomb={fixture.tomb} />,
+    "/access?view=requests#local-requests",
+  );
+  await screen.findByRole("treeitem", { name: /Helper →/ });
 });
 
 it("asks for approval before an agent share is active", async () => {
