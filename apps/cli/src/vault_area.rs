@@ -61,7 +61,7 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
             passes,
         } => crate::vault_migration::migrate(&input, &output, memory_kib, passes)?,
         VaultArea::Pass { cmd } => {
-            command_future(move || run_pass(server, cmd.into_inner())).await?
+            command_future(move || run_pass(server, cmd.into_inner())).await?;
         }
         VaultArea::Secret { cmd } => {
             command_future(move || super::secret_cmd(server, cmd)).await?;
