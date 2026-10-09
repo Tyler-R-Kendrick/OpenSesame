@@ -232,3 +232,7 @@ mod path_compatibility_tests;
 #[cfg(test)]
 #[path = "windows_private_files/create_new_tests.rs"]
 mod create_new_tests;
+
+#[path = "windows_private_files/writer_lease.rs"]
+mod writer_lease;
+pub use writer_lease::HeldPrivateWriterLease;

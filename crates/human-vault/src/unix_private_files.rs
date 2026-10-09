@@ -285,3 +285,7 @@ mod android_app_parent;
 #[path = "unix_private_files/read.rs"]
 mod read;
 pub use read::HeldPrivateRead;
+
+#[path = "unix_private_files/writer_lease.rs"]
+mod writer_lease;
+pub use writer_lease::HeldPrivateWriterLease;
