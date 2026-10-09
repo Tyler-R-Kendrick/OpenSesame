@@ -5,11 +5,24 @@ re-run export after rescan/triage.
 
 | Field | Value |
 | --- | --- |
-| Exported (UTC) | 2026-10-09T00:48:25.639Z |
+| Exported (UTC) | 2026-10-09T18:38:57.471Z |
 | Agent | `kimi` |
 | Model | `kimi-code/k3` |
 | Queue | 0 findings |
 | False positives | 0 |
+
+## Scan coverage (process status)
+
+| Area | Analyzed | Pending | Error | Skipped | Candidates |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| core | 1357 | 0 | 0 | 0 | 2365 |
+| pwa | 403 | 0 | 0 | 0 | 529 |
+| cli | 13 | 0 | 0 | 0 | 51 |
+
+| other (outside core/pwa/cli) | 117 | 0 | 0 | 0 | 182 |
+
+
+
 
 ## Triage totals
 

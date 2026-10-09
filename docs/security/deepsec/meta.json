@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-10-09T00:48:25.639Z",
+  "exportedAt": "2026-10-09T18:38:57.471Z",
   "agent": "kimi",
   "model": "kimi-code/k3",
   "triageTotals": {
@@ -9,11 +9,27 @@
     "skip": 0
   },
   "stats": {
-    "core": {
-      "analyzed": 255,
+    "other": {
+      "analyzed": 117,
       "pending": 0,
-      "error": 382,
-      "candidates": 869,
+      "error": 0,
+      "skipped": 0,
+      "candidates": 182,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    },
+    "core": {
+      "analyzed": 1357,
+      "pending": 0,
+      "error": 0,
+      "skipped": 0,
+      "candidates": 2365,
       "bySeverity": {},
       "byVerdict": {},
       "byTriage": {
@@ -24,9 +40,10 @@
       }
     },
     "pwa": {
-      "analyzed": 0,
+      "analyzed": 403,
       "pending": 0,
-      "error": 403,
+      "error": 0,
+      "skipped": 0,
       "candidates": 529,
       "bySeverity": {},
       "byVerdict": {},
@@ -38,9 +55,10 @@
       }
     },
     "cli": {
-      "analyzed": 0,
+      "analyzed": 13,
       "pending": 0,
-      "error": 13,
+      "error": 0,
+      "skipped": 0,
       "candidates": 51,
       "bySeverity": {},
       "byVerdict": {},

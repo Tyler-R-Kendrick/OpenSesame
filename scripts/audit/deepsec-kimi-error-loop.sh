@@ -22,12 +22,14 @@ quota_hit() {
 }
 
 error_count() {
+  local n
   cd "$WS"
-  "$DEEPSEC" status --project-id "$PROJECT_ID" 2>/dev/null \
+  n=$("$DEEPSEC" status --project-id "$PROJECT_ID" 2>/dev/null \
     | grep -E '^[[:space:]]+error:' \
     | head -1 \
     | sed 's/.*error:[[:space:]]*//' \
-    | tr -dc '0-9' || echo 9999
+    | tr -dc '0-9')
+  if [[ -z "$n" ]]; then echo 0; else echo "$n"; fi
 }
 
 kimi_ok() {
