@@ -14,9 +14,16 @@ function validName(name: string): boolean {
 }
 function trimAssignmentName(raw: string): string {
   let name = raw.trim();
-  while (name.length > 0 && nameQuotes.has(name[0])) name = name.slice(1);
-  while (name.length > 0 && nameQuotes.has(name[name.length - 1]))
+  while (name.length > 0) {
+    const lead = name[0];
+    if (lead === undefined || !nameQuotes.has(lead)) break;
+    name = name.slice(1);
+  }
+  while (name.length > 0) {
+    const trail = name[name.length - 1];
+    if (trail === undefined || !nameQuotes.has(trail)) break;
     name = name.slice(0, -1);
+  }
   return name;
 }
 function templateAssignment(
