@@ -8,16 +8,13 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { DeepsecPlugin } from "deepsec/config";
 import {
-  createHeadlessDeepsecAgent,
   DEFAULT_KIMI_MODEL,
-  extractTextFromAgentStdout,
   type RunPromptParams,
+  createHeadlessDeepsecAgent,
+  extractTextFromAgentStdout,
 } from "./deepsec-headless-agent-core.js";
 
-const KIMI_BIN_CANDIDATES = [
-  join(homedir(), ".local", "bin", "kimi"),
-  "kimi",
-];
+const KIMI_BIN_CANDIDATES = [join(homedir(), ".local", "bin", "kimi"), "kimi"];
 
 export function resolveKimiBin(): string | null {
   for (const candidate of KIMI_BIN_CANDIDATES) {
@@ -40,18 +37,22 @@ export function resolveKimiBin(): string | null {
 }
 
 export function kimiCredentialsPresent(): boolean {
-  return existsSync(join(homedir(), ".kimi-code", "credentials", "kimi-code.json"));
+  return existsSync(
+    join(homedir(), ".kimi-code", "credentials", "kimi-code.json"),
+  );
 }
 
 function kimiEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   const localBin = join(homedir(), ".local", "bin");
-  env.PATH = env.PATH?.includes(localBin) ? env.PATH : `${localBin}:${env.PATH ?? ""}`;
-  delete env.MOONSHOT_API_KEY;
-  delete env.XAI_API_KEY;
-  delete env.GROK_DEPLOYMENT_KEY;
-  delete env.OPENAI_API_KEY;
-  delete env.ANTHROPIC_API_KEY;
+  env.PATH = env.PATH?.includes(localBin)
+    ? env.PATH
+    : `${localBin}:${env.PATH ?? ""}`;
+  env.MOONSHOT_API_KEY = undefined;
+  env.XAI_API_KEY = undefined;
+  env.GROK_DEPLOYMENT_KEY = undefined;
+  env.OPENAI_API_KEY = undefined;
+  env.ANTHROPIC_API_KEY = undefined;
   return env;
 }
 
@@ -71,12 +72,16 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
   const bin = resolveKimiBin();
   if (!bin) {
     return Promise.reject(
-      new Error("kimi CLI not found (~/.local/bin/kimi). Install Kimi Code CLI and run kimi login."),
+      new Error(
+        "kimi CLI not found (~/.local/bin/kimi). Install Kimi Code CLI and run kimi login.",
+      ),
     );
   }
   if (!kimiCredentialsPresent()) {
     return Promise.reject(
-      new Error("Kimi Code is not signed in (~/.kimi-code/credentials/kimi-code.json missing)."),
+      new Error(
+        "Kimi Code is not signed in (~/.kimi-code/credentials/kimi-code.json missing).",
+      ),
     );
   }
   return new Promise((resolve, reject) => {
@@ -125,7 +130,9 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
         /quota|rate limit|too many requests|usage limit/i.test(combined) &&
         !/\bOK\b/.test(combined);
       if (quota) {
-        reject(new Error(`kimi quota or rate limit: ${combined.slice(0, 400)}`));
+        reject(
+          new Error(`kimi quota or rate limit: ${combined.slice(0, 400)}`),
+        );
         return;
       }
       const text = stripKimiSessionFooter(combined);

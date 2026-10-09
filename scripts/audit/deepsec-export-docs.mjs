@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 /**
  * Export deepsec queue + report snapshot into docs/security/deepsec/ (tracked).
  */
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 
 const repoRoot = process.argv[2] ?? process.cwd();
 const outDir = path.join(repoRoot, "docs/security/deepsec");
@@ -48,7 +48,10 @@ const meta = {
   falsePositiveCount: queue.falsePositives?.length ?? 0,
 };
 
-fs.writeFileSync(path.join(outDir, "meta.json"), `${JSON.stringify(meta, null, 2)}\n`);
+fs.writeFileSync(
+  path.join(outDir, "meta.json"),
+  `${JSON.stringify(meta, null, 2)}\n`,
+);
 fs.writeFileSync(path.join(outDir, "report-rows.json"), reportJson);
 fs.writeFileSync(path.join(outDir, "fix-queue.json"), queueJson);
 
@@ -103,4 +106,6 @@ ${Object.entries(byVerdict)
 `;
 
 fs.writeFileSync(path.join(outDir, "README.md"), readme);
-process.stdout.write(`deepsec-export-docs: wrote ${outDir} (${queue.total} queued)\n`);
+process.stdout.write(
+  `deepsec-export-docs: wrote ${outDir} (${queue.total} queued)\n`,
+);

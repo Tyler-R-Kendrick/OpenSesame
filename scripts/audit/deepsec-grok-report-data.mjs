@@ -6,7 +6,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repoRoot = process.argv[2] ?? process.cwd();
-const filesRoot = path.join(repoRoot, ".deepsec", "data", "opensesame", "files");
+const filesRoot = path.join(
+  repoRoot,
+  ".deepsec",
+  "data",
+  "opensesame",
+  "files",
+);
 
 const AREAS = {
   core: [

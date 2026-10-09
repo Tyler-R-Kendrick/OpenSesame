@@ -17,7 +17,10 @@ function parseJsonArrayFromAgent(text: string): unknown[] {
   return parsed;
 }
 
-export function parseInvestigateResults(resultText: string, batch: FileRecord[]) {
+export function parseInvestigateResults(
+  resultText: string,
+  batch: FileRecord[],
+) {
   const parsed = parseJsonArrayFromAgent(resultText) as Array<{
     filePath: string;
     findings?: Finding[];
@@ -78,7 +81,10 @@ export function parseRevalidateVerdicts(text: string) {
   }>;
 }
 
-export function buildTriagePrompt(batch: TriageFindingRef[], projectInfo: string): string {
+export function buildTriagePrompt(
+  batch: TriageFindingRef[],
+  projectInfo: string,
+): string {
   const findingsList = batch
     .map(
       (item, idx) =>
@@ -143,7 +149,13 @@ ${findingsList}
 export function parseTriageVerdicts(text: string): TriageVerdict[] {
   const parsed = parseJsonArrayFromAgent(text) as TriageVerdict[];
   for (const v of parsed) {
-    if (!v.title || !v.priority || !v.exploitability || !v.impact || !v.reasoning) {
+    if (
+      !v.title ||
+      !v.priority ||
+      !v.exploitability ||
+      !v.impact ||
+      !v.reasoning
+    ) {
       throw new Error("Triage verdict missing required fields");
     }
   }

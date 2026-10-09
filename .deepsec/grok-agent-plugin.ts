@@ -8,16 +8,16 @@
 import { spawn } from "node:child_process";
 import type { DeepsecPlugin } from "deepsec/config";
 import {
-  createHeadlessDeepsecAgent,
   DEFAULT_GROK_MODEL,
-  extractTextFromAgentStdout,
   type RunPromptParams,
+  createHeadlessDeepsecAgent,
+  extractTextFromAgentStdout,
 } from "./deepsec-headless-agent-core.js";
 
 function grokEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
-  delete env.XAI_API_KEY;
-  delete env.GROK_DEPLOYMENT_KEY;
+  env.XAI_API_KEY = undefined;
+  env.GROK_DEPLOYMENT_KEY = undefined;
   return env;
 }
 
@@ -67,7 +67,8 @@ function runGrokPrompt(params: RunPromptParams): Promise<string> {
         return;
       }
       try {
-        const merged = stdout + (stderr.includes("Not signed in") ? `\n${stderr}` : "");
+        const merged =
+          stdout + (stderr.includes("Not signed in") ? `\n${stderr}` : "");
         resolve(extractTextFromAgentStdout(merged, "Not signed in"));
       } catch (e) {
         reject(e);

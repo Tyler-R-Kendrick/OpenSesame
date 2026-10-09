@@ -10,10 +10,10 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { DeepsecPlugin } from "deepsec/config";
 import {
-  createHeadlessDeepsecAgent,
   DEFAULT_GROK_MODEL,
-  extractTextFromAgentStdout,
   type RunPromptParams,
+  createHeadlessDeepsecAgent,
+  extractTextFromAgentStdout,
 } from "./deepsec-headless-agent-core.js";
 
 const CURSOR_AGENT_CANDIDATES = [
@@ -40,10 +40,10 @@ export function resolveCursorAgentBin(): string | null {
 
 function cursorEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
-  delete env.XAI_API_KEY;
-  delete env.GROK_DEPLOYMENT_KEY;
-  delete env.OPENAI_API_KEY;
-  delete env.ANTHROPIC_API_KEY;
+  env.XAI_API_KEY = undefined;
+  env.GROK_DEPLOYMENT_KEY = undefined;
+  env.OPENAI_API_KEY = undefined;
+  env.ANTHROPIC_API_KEY = undefined;
   return env;
 }
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+import { spawnSync } from "node:child_process";
 /**
  * Ordered queue of deepsec findings Grok should fix (launcher input).
  * Skips false-positive only; includes unrevalidated and true-positive.
  */
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 
 const repoRoot = process.argv[2] ?? process.cwd();
 const proc = spawnSync(
@@ -33,4 +33,6 @@ const queue = rows
   });
 
 const falsePositives = rows.filter((r) => r.verdict === "false-positive");
-process.stdout.write(`${JSON.stringify({ queue, falsePositives, total: queue.length }, null, 2)}\n`);
+process.stdout.write(
+  `${JSON.stringify({ queue, falsePositives, total: queue.length }, null, 2)}\n`,
+);

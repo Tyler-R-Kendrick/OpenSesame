@@ -11,10 +11,9 @@ import {
 } from "./deepsec-headless-agent-prompts.js";
 import {
   DEEPSEC_SYSTEM_NOTE,
-  DEFAULT_GROK_MODEL,
+  type InvestigateParams,
   JSON_ONLY_SUFFIX,
   MAX_ATTEMPTS,
-  type InvestigateParams,
   type RevalidateParams,
   type RunPromptParams,
   type TriageParams,
@@ -46,7 +45,10 @@ export function modelFromConfig(
   return typeof m === "string" && m.length > 0 ? m : defaultModel;
 }
 
-export function extractTextFromAgentStdout(stdout: string, authHint?: string): string {
+export function extractTextFromAgentStdout(
+  stdout: string,
+  authHint?: string,
+): string {
   const trimmed = stdout.trim();
   if (!trimmed) return "";
   const lines = trimmed.split("\n").filter((l) => l.trim());
@@ -59,7 +61,8 @@ export function extractTextFromAgentStdout(stdout: string, authHint?: string): s
       }
       if (typeof obj.result === "string") texts.push(obj.result);
       if (typeof obj.text === "string") texts.push(obj.text);
-      if (typeof obj.message === "string" && obj.type !== "error") texts.push(obj.message);
+      if (typeof obj.message === "string" && obj.type !== "error")
+        texts.push(obj.message);
       const content = obj.content;
       if (Array.isArray(content)) {
         for (const block of content) {
@@ -73,7 +76,8 @@ export function extractTextFromAgentStdout(stdout: string, authHint?: string): s
         }
       }
     } catch (e) {
-      if (authHint && e instanceof Error && e.message.includes(authHint)) throw e;
+      if (authHint && e instanceof Error && e.message.includes(authHint))
+        throw e;
     }
   }
   if (texts.length > 0) return texts.join("\n");
@@ -102,14 +106,20 @@ export function createHeadlessDeepsecAgent(options: {
       const model = modelFromConfig(params.config, defaultModel);
       const fileList = params.batch
         .map((r) => {
-          if (r.candidates.length === 0) return `- **${r.filePath}** (holistic review)`;
+          if (r.candidates.length === 0)
+            return `- **${r.filePath}** (holistic review)`;
           const details = r.candidates
-            .map((m) => `    - [${m.vulnSlug}] L${m.lineNumbers.join(", ")}: ${m.matchedPattern}`)
+            .map(
+              (m) =>
+                `    - [${m.vulnSlug}] L${m.lineNumbers.join(", ")}: ${m.matchedPattern}`,
+            )
             .join("\n");
           return `- **${r.filePath}**\n${details}`;
         })
         .join("\n");
-      const projectInfoBlock = params.projectInfo ? `## Project Context\n\n${params.projectInfo}\n\n` : "";
+      const projectInfoBlock = params.projectInfo
+        ? `## Project Context\n\n${params.projectInfo}\n\n`
+        : "";
       const prompt = `${DEEPSEC_SYSTEM_NOTE}\n\n${params.promptTemplate}\n\n${projectInfoBlock}## Target Files\n\n${fileList}\n\nInvestigate each file; output JSON array per deepsec schema.${JSON_ONLY_SUFFIX}`;
       const start = Date.now();
       yield {
@@ -134,7 +144,10 @@ export function createHeadlessDeepsecAgent(options: {
         } catch (err) {
           lastError = err instanceof Error ? err.message : String(err);
           resultText = "";
-          yield { type: "error", message: `${providerLabel} error: ${lastError.slice(0, 300)}` };
+          yield {
+            type: "error",
+            message: `${providerLabel} error: ${lastError.slice(0, 300)}`,
+          };
           continue;
         }
         if (!resultText) continue;
@@ -145,7 +158,9 @@ export function createHeadlessDeepsecAgent(options: {
           lastParse = e instanceof Error ? e.message : String(e);
           resultText = "";
           if (attempt >= MAX_ATTEMPTS) {
-            throw new Error(`${providerLabel} investigation JSON parse failed: ${lastParse}`);
+            throw new Error(
+              `${providerLabel} investigation JSON parse failed: ${lastParse}`,
+            );
           }
         }
       }
@@ -171,7 +186,10 @@ export function createHeadlessDeepsecAgent(options: {
 
     async *revalidate(params: RevalidateParams) {
       const model = modelFromConfig(params.config, defaultModel);
-      const { prompt, total } = buildRevalidatePrompt(params.batch, params.projectInfo);
+      const { prompt, total } = buildRevalidatePrompt(
+        params.batch,
+        params.projectInfo,
+      );
       const start = Date.now();
       yield {
         type: "started",
@@ -198,7 +216,9 @@ export function createHeadlessDeepsecAgent(options: {
           lastParse = e instanceof Error ? e.message : String(e);
           resultText = "";
           if (attempt >= MAX_ATTEMPTS) {
-            throw new Error(`${providerLabel} revalidation JSON parse failed: ${lastParse}`);
+            throw new Error(
+              `${providerLabel} revalidation JSON parse failed: ${lastParse}`,
+            );
           }
         }
       }
@@ -210,7 +230,13 @@ export function createHeadlessDeepsecAgent(options: {
       return {
         verdicts,
         meta: { durationMs: Date.now() - start, model },
-        rawResponses: [{ kind: "initial", rawText: resultText, parsedCount: verdicts.length }],
+        rawResponses: [
+          {
+            kind: "initial",
+            rawText: resultText,
+            parsedCount: verdicts.length,
+          },
+        ],
         repairAttempts: 0,
       };
     }
@@ -244,7 +270,9 @@ export function createHeadlessDeepsecAgent(options: {
           lastParse = e instanceof Error ? e.message : String(e);
           resultText = "";
           if (attempt >= MAX_ATTEMPTS) {
-            throw new Error(`${providerLabel} triage JSON parse failed: ${lastParse}`);
+            throw new Error(
+              `${providerLabel} triage JSON parse failed: ${lastParse}`,
+            );
           }
         }
       }

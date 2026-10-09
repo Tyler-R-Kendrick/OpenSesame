@@ -5,7 +5,7 @@ export const DEEPSEC_SYSTEM_NOTE =
 export const JSON_ONLY_SUFFIX =
   "\n\n## CRITICAL — output format\n" +
   "Your **entire** final reply must be **only** a JSON array (you may wrap it in a ```json fence). " +
-  "Do **not** write prose before or after the JSON. Do **not** write \"I'll review\", summaries, or markdown outside the fence. " +
+  'Do **not** write prose before or after the JSON. Do **not** write "I\'ll review", summaries, or markdown outside the fence. ' +
   "The first non-whitespace character must be `[` or a backtick starting a json code fence.";
 
 export const DEFAULT_GROK_MODEL = "grok-4.7";

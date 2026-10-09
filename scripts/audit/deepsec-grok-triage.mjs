@@ -5,8 +5,8 @@
  * processor/triage.ts and calls `--agent grok` from our plugin instead.
  */
 import fs from "node:fs";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const repoRoot = process.argv.includes("--root")
@@ -29,16 +29,21 @@ const severities = severityArg
     : ["MEDIUM"];
 
 const BATCH_SIZE = 10;
-const concurrency = Number(process.env.DEEPSEC_CONCURRENCY ?? Math.max(1, os.cpus().length - 1));
+const concurrency = Number(
+  process.env.DEEPSEC_CONCURRENCY ?? Math.max(1, os.cpus().length - 1),
+);
 
-delete process.env.XAI_API_KEY;
-delete process.env.GROK_DEPLOYMENT_KEY;
-delete process.env.MOONSHOT_API_KEY;
+process.env.XAI_API_KEY = undefined;
+process.env.GROK_DEPLOYMENT_KEY = undefined;
+process.env.MOONSHOT_API_KEY = undefined;
 
 function resolveJitiEntry() {
   const pnpm = path.join(ws, "node_modules/.pnpm");
   const dir = fs.readdirSync(pnpm).find((d) => d.startsWith("jiti@"));
-  if (!dir) throw new Error("jiti not found under .deepsec (run pnpm install in .deepsec)");
+  if (!dir)
+    throw new Error(
+      "jiti not found under .deepsec (run pnpm install in .deepsec)",
+    );
   return path.join(pnpm, dir, "node_modules/jiti/lib/jiti.mjs");
 }
 const jitiPkg = resolveJitiEntry();
@@ -50,7 +55,9 @@ const pluginPath =
     : path.join(ws, "grok-agent-plugin.ts");
 const pluginModule = await jiti.import(pluginPath);
 const agentPlugin =
-  agentKind === "kimi" ? pluginModule.kimiAgentPlugin : pluginModule.grokAgentPlugin;
+  agentKind === "kimi"
+    ? pluginModule.kimiAgentPlugin
+    : pluginModule.grokAgentPlugin;
 const agent = agentPlugin.agents[0];
 
 let projectInfo = "";
@@ -115,7 +122,9 @@ async function runAgentTriage(batch) {
 }
 
 async function triageBatch(batch, batchIdx, totalBatches) {
-  console.log(`Batch ${batchIdx + 1}/${totalBatches} (${batch.length} findings)`);
+  console.log(
+    `Batch ${batchIdx + 1}/${totalBatches} (${batch.length} findings)`,
+  );
   let verdicts = [];
   try {
     verdicts = await runAgentTriage(batch);
@@ -190,7 +199,9 @@ async function runSeverity(severity) {
   }
   const workers = Math.min(concurrency, batches.length);
   await Promise.all(Array.from({ length: workers }, () => worker()));
-  console.log(`Triage ${severity}: ${totalTriaged} — P0:${p0} P1:${p1} P2:${p2} skip:${skip}`);
+  console.log(
+    `Triage ${severity}: ${totalTriaged} — P0:${p0} P1:${p1} P2:${p2} skip:${skip}`,
+  );
   return { triaged: totalTriaged, p0, p1, p2, skip };
 }
 
