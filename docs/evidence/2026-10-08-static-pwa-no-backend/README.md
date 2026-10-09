@@ -4,6 +4,16 @@ PR: [#861](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/861)
 Branch tip: `353d7737` (Endpoints removed; Vercelignore api-only)
 Producer: Cursor Agent (Grok Build HTTP 402)
 
+> **Restoration note (2026-10-09).** PR #865 deleted the Host / Identity /
+> daemon planes from the whole product; that was further than requested —
+> only the PWA was meant to be backend-free. The CLI and backend planes are
+> restored on `cursor/restore-cli-backends-b359` (producer: `live_kimi_code`
+> / Kimi K3). `restored-surfaces.md` and `restored-cli-commands.md` replace
+> the removal-era `deleted-surfaces.md` / `removed-cli-commands.md`.
+> Everything proved below about the **static PWA** still stands: `apps/pages`
+> has no backend, no `api/` routes, no Endpoints panel, and serves sessions
+> browser-to-browser over WebRTC.
+
 ## What was proved (no backend processes)
 
 Confirmed with `pgrep` before each run: no `opensesame host`, `opensesame daemon`, or control-plane.

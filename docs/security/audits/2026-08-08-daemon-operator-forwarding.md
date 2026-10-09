@@ -16,7 +16,7 @@ in cleartext over `http://`.
 That secret is the daemon's whole authorization story: every mutating local route
 gates on it. `apps/mcp-host/src/host-api.ts` already refuses to offer it to a
 non-loopback target; the daemon now agrees. Forwards that carry the token go
-through one helper that denies with `503 remote_host` when the base does not
+through one helper that denies with `503 remote_host_api` when the base does not
 name this machine, rather than reaching a remote at the cost of the secret.
 
 The loopback test lives in `crates/host-core` as `daemon::base_url_is_local`,

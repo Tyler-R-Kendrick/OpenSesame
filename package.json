@@ -7,11 +7,12 @@
     "node": ">=22"
   },
   "scripts": {
-    "bootstrap": "pnpm install && bash scripts/dev/setup-hooks.sh",
-    "dev": "turbo run dev --parallel --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta --filter=@opensesame/example-static-rp",
+    "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate && bash scripts/dev/setup-hooks.sh",
+    "dev": "turbo run dev --parallel --filter=@opensesame/control-plane --filter=@opensesame/identity-worker --filter=@opensesame/mock-upstream-idp --filter=@opensesame/example-rp-alpha --filter=@opensesame/example-rp-beta --filter=@opensesame/example-static-rp",
     "dev:cli": "bash scripts/dev/dev-cli.sh",
+    "dev:host": "bash scripts/dev/dev-host.sh",
     "dev:pwa": "pnpm --filter @opensesame/pages dev:web",
-    "dev:relay": "bash scripts/dev/dev-relay.sh",
+    "dev:daemon": "bash scripts/dev/dev-daemon.sh",
     "dev:live-nats": "pnpm --filter @opensesame/cli exec tsx ../../scripts/dev/live-nats-operator.ts",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
@@ -36,7 +37,7 @@
     "test:integration": "turbo run test:integration --concurrency=4",
     "test:e2e": "turbo run test:e2e",
     "test:security": "pnpm --filter @opensesame/testing test:security",
-    "test:redteam": "pnpm --filter @opensesame/redteam test",
+    "test:redteam": "pnpm --filter @opensesame/redteam redteam",
     "test:visual": "pnpm --filter @opensesame/visual-contract test:visual",
     "test:anti-slop": "diff -ru --exclude=.turbo --exclude=LICENSE --exclude=node_modules --exclude=package.json --exclude=vitest.config.ts skills/install-anti-slop/assets/anti-slop tools/oxlint/anti-slop && pnpm typecheck:anti-slop && vitest run --root tools/oxlint/anti-slop",
     "test:rust-lint": "bash scripts/test/rust-lint-contract-test.sh",
@@ -66,6 +67,7 @@
     "audit:gitleaks": "bash ./scripts/audit/gitleaks-gate.sh",
     "audit:semgrep": "bash ./scripts/audit/semgrep-gate.sh",
     "audit:deepsec": "bash ./scripts/audit/deepsec-gate.sh",
+    "audit:daemon-deps": "bash ./scripts/audit/daemon-deps-gate.sh",
     "audit:plugin-boundary": "bash ./scripts/audit/plugin-boundary-gate.sh",
     "audit:fuzz": "bash ./scripts/fuzz/fuzz-pr-gate.sh",
     "audit:fuzz:batch": "bash ./scripts/fuzz/fuzz-batch.sh",
@@ -89,6 +91,9 @@
     "test:all": "pnpm typecheck && pnpm test && pnpm test:integration",
     "test:connect-preflight": "node scripts/test/connect-preflight.mjs",
     "verify:experience": "pnpm --filter @opensesame/pages verify:experience",
+    "db:migrate": "pnpm --filter @opensesame/database db:migrate",
+    "db:reset": "pnpm --filter @opensesame/database db:reset",
+    "generate:openapi": "pnpm --filter @opensesame/control-plane generate:openapi",
     "generate:sbom": "mkdir -p sbom && pnpm --package @cyclonedx/cdxgen@12.8.4 dlx env -u NODE_PATH -u STARSHIP_SESSION_KEY cdxgen -o sbom/bom.json",
     "verify:key-protection": "node scripts/test/verify-key-protection.mjs",
     "verify:duress": "pnpm --filter @opensesame/pages verify:duress",
@@ -163,13 +168,16 @@
       "js-yaml@^5": "5.4.1",
       "log4js": "6.4.0",
       "@modelcontextprotocol/sdk": "1.31.0",
+      "simple-git": "4.0.1",
+      "@simple-git/argv-parser": "2.0.1",
       "source-map-js": "1.2.2",
       "js-yaml@3.15.2>argparse": "2.0.1"
     },
     "patchedDependencies": {
       "braces@3.0.3": "patches/braces@3.0.3.patch",
       "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
-      "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch"
+      "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
+      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch"
     }
   }
 }

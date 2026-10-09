@@ -14,13 +14,8 @@ not told to: the job parks with *no verified recipe for this origin* and says
 so. That is by design — a rotation that guesses at a third party's settings
 page is how an account gets locked.
 
-The Host API, the Identity API and the daemon are gone from the `opensesame`
-binary (2026-10-08; the ADR 0181 relay is what remains). What the binary still
-does from this page is the **local** half — `opensesame rotate signer keygen`
-and `opensesame rotate recipe sign`, which read and write files and talk to no
-Host. The Host-side steps below (pinning signers, `recipe put`, canary runs,
-the routes) are kept here as the design the gateway crate still implements;
-this binary no longer performs them.
+In this document `opensesame rotate …` is `opensesame access connectors rotate
+…`, which is how the binary spells it; the commands below use the full form.
 
 ## What a recipe is
 
@@ -126,25 +121,42 @@ does not.
 
 ## A worked example
 
-Signing is local: the key and the recipe are files, and nothing here talks to
-a Host. `$RECIPE` is the example file above.
+You need the operator token (`OPENSESAME_OPERATOR_TOKEN`) for the step-up, and
+a signed-in native session of an owner or admin, who drives the canary from
+their own browser.
+`$RECIPE` is the example file above.
 
 ```bash
-opensesame rotate signer keygen --out $KEY
-opensesame rotate recipe sign --key $KEY --expires-in-days 60 $RECIPE --out $SIGNED
+opensesame access connectors rotate signer keygen --out $KEY
+opensesame access connectors rotate signer add --key $KEY --label release-signer
+opensesame access connectors rotate recipe sign --key $KEY --expires-in-days 60 $RECIPE --out $SIGNED
+opensesame access connectors rotate recipe put $SIGNED --if-version 0
+opensesame access connectors rotate recipe canary https://login.example
+opensesame access connectors rotate recipe get https://login.example
 ```
 
 1. `signer keygen` writes a private key to `$KEY` (mode `0600`, never
    overwritten) and prints only its public half and id. Signing is a **local**
    act: the key is a file this process reads, never an argument, never printed
    and never sent.
-2. `recipe sign` writes `$SIGNED`: the same document, `expires_at` set 60 days
+2. `signer add` pins the public half. The Host answers with the key's id.
+3. `recipe sign` writes `$SIGNED`: the same document, `expires_at` set 60 days
    out, and a signature. It refuses a recipe outside its window.
+4. `recipe put` stores it. `--if-version` is the version you read (`0` for a
+   new recipe); a recipe someone else changed since is refused, not overwritten.
+   The answer says `trust: candidate` and `runnable.attended: true`: the
+   signature checked, and nothing has proven it yet.
+5. `recipe canary` asks for one attended run, driven from your own browser. The
+   run answers `202` and goes on without the command; follow it with
+   `opensesame access connectors rotate runs`.
+6. `recipe get` now shows `trust: canary_verified`, the canary (`source: run`,
+   the run's id) and `runnable.unattended: true`: the scanner may rotate this
+   login on its own schedule.
 
-To renew before a recipe expires, sign the same file again with
-`--expires-in-days`. Storing the signed document, pinning its signer and
-running the canary were Host steps; with the Host gone from the binary they
-have no `opensesame` spelling.
+To renew before it expires, sign the same file again with `--expires-in-days`
+and `put` it at the version `get` printed. To take a recipe out of service at
+once, revoke its signer (`signer rm KEY_ID`); to remove it, `recipe rm ORIGIN
+--if-version N`.
 
 ## Reading what the Host holds
 

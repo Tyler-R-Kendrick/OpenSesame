@@ -1,4 +1,11 @@
-# Proof runs — plane deletion branch (2026-10-08)
+# Proof runs — static PWA walks (2026-10-08)
+
+> **Restoration note (2026-10-09).** These runs were captured on the plane
+> deletion branch `cursor/delete-host-identity-daemon-b359` (PR #865). That
+> branch went further than requested; the CLI and backend planes are restored
+> on `cursor/restore-cli-backends-b359` (producer: `live_kimi_code` / Kimi K3).
+> The walks below remain valid proof that `apps/pages` runs with **no**
+> Host, Identity, or daemon processes — which is still the product contract.
 
 Branch: `cursor/delete-host-identity-daemon-b359` (PR #865), static `dist/` only — **no** Host, Identity, or daemon processes.
 

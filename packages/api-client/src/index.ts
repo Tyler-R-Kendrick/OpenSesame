@@ -1,0 +1,771 @@
+import type { SyncBlob, SyncCursor } from "@opensesame/client-core";
+import {
+  type SyncPageCursor,
+  pullSyncPages,
+  pushSyncBlobs,
+  readSyncPage,
+} from "./sync-pages.js";
+export { pullSyncPages, readSyncPage } from "./sync-pages.js";
+export type { SyncPageCursor } from "./sync-pages.js";
+import {
+  type AuthorizeRequest,
+  type AuthorizeResponse,
+  AuthorizeResponseSchema,
+  type BranchConfigBody,
+  type CompareConfigsResponse,
+  CompareConfigsResponseSchema,
+  type ConfigKeysResponse,
+  ConfigKeysResponseSchema,
+  type Connection,
+  ConnectionSchema,
+  type CreateBindingRequest,
+  type CreateConnectionRequest,
+  type CreateIntegrationRequest,
+  type CreateSecretConfigBody,
+  type CreateSyncTargetRequest,
+  type DiscoverConnectionsResponse,
+  DiscoverConnectionsResponseSchema,
+  type Integration,
+  IntegrationSchema,
+  type ListConfigSecretVersionsResponse,
+  ListConfigSecretVersionsResponseSchema,
+  type ListConnectionsResponse,
+  ListConnectionsResponseSchema,
+  type ListEventsResponse,
+  ListEventsResponseSchema,
+  type ListIntegrationsResponse,
+  ListIntegrationsResponseSchema,
+  type ListProvidersResponse,
+  ListProvidersResponseSchema,
+  type ListSecretConfigsResponse,
+  ListSecretConfigsResponseSchema,
+  type ListSyncTargetsResponse,
+  ListSyncTargetsResponseSchema,
+  type PutConfigSecretsBody,
+  type RevokeResponse,
+  RevokeResponseSchema,
+  type RollbackConfigSecretResponse,
+  RollbackConfigSecretResponseSchema,
+  type SecretConfigView,
+  SecretConfigViewSchema,
+  type SyncAllResponse,
+  SyncAllResponseSchema,
+  type SyncTarget,
+  type SyncTargetOutcome,
+  SyncTargetOutcomeSchema,
+  type SyncTargetRequest,
+  SyncTargetSchema,
+  type UpdateIntegrationRequest,
+} from "@opensesame/contracts";
+import {
+  type BoundaryValue,
+  ENDPOINTS,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { agentRunsApi } from "./agent-runs.js";
+import { backupApi } from "./backup.js";
+import { certsApi } from "./certs.js";
+import { changelogApi } from "./changelog.js";
+import { delegationsApi } from "./delegations.js";
+import { createDpopKeyPair } from "./dpop.js";
+import type { HostRequestContext } from "./http.js";
+import { receiptsApi } from "./receipts.js";
+import { relayApi } from "./relay.js";
+import { rotationsApi } from "./rotations.js";
+import { tasksApi } from "./tasks.js";
+
+export interface ApiClientOptions {
+  /** Host API base URL, e.g. http://127.0.0.1:8787 */
+  baseUrl: string;
+  /** Optional bearer / capability token */
+  accessToken?: string;
+  /** Supply the key used when pairing a bound token; true generates a new key. */
+  dpop?: boolean | Awaited<ReturnType<typeof createDpopKeyPair>>;
+  fetchImpl?: typeof fetch;
+}
+
+export interface InvokeInput {
+  connectionRef: string;
+  operation: string;
+  resource: string;
+  invokeLevel?: number;
+  input?: unknown;
+}
+
+export interface DaemonProbe {
+  available: boolean;
+  url: string;
+  health?: unknown;
+}
+
+export interface HostDiscovery {
+  resource?: string;
+  authorizationServers?: string[];
+  dpopBound?: boolean;
+  ready?: boolean;
+  source: "prm" | "ready" | "none";
+}
+
+export interface HostHealth {
+  ok: boolean;
+  body: string;
+}
+
+interface ResponseSchema<T> {
+  parse(value: BoundaryValue): T;
+}
+
+async function requestFailure(op: string, res: Response): Promise<Error> {
+  let code = "";
+  try {
+    const body = overlapCast(await res.json());
+    if (isString(body?.error)) code = body.error;
+  } catch {
+    /* non-JSON error body */
+  }
+  return new Error(
+    code ? `${op}_failed:${res.status}:${code}` : `${op}_failed:${res.status}`,
+  );
+}
+
+const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+/**
+ * Host API base URLs must stay on loopback for local-first clients (extension,
+ * PWA, toolbar) — the same fence the daemon and gateway enforce on bind.
+ * Returns a normalized origin+path, or null when the value is not loopback http(s).
+ */
+/**
+ * Base URL for a service that may legitimately be remote (an issuer, a hosted Host
+ * API). Plaintext HTTP is confined to loopback, because these clients send a
+ * session bearer with every call and cleartext hands it to the network.
+ * Returns a normalized origin+path, or null when the value is unusable.
+ */
+export function normalizeHttpBaseUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
+  if (url.search || url.hash) return null;
+  const normalized = `${url.origin}${url.pathname.replace(/\/$/, "")}`;
+  if (
+    url.protocol === "http:" &&
+    normalizeLoopbackBaseUrl(normalized) === null
+  ) {
+    return null;
+  }
+  return normalized;
+}
+
+export function normalizeLoopbackBaseUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw.trim());
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
+  const host = url.hostname.toLowerCase().replace(/\.$/, "");
+  const isLoopbackV4 = /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+  if (
+    !LOOPBACK_HOSTS.has(host) &&
+    !host.endsWith(".localhost") &&
+    !isLoopbackV4
+  ) {
+    return null;
+  }
+  if (url.search || url.hash) return null;
+  return `${url.origin}${url.pathname.replace(/\/$/, "")}`;
+}
+
+export function createApiClient(options: ApiClientOptions) {
+  const fetchFn = options.fetchImpl ?? fetch;
+  // Validate every credential destination once; HTTP is loopback-only.
+  const base = normalizeHttpBaseUrl(options.baseUrl);
+  if (base === null) {
+    throw new Error("baseUrl must be an https URL, or http on loopback");
+  }
+  let dpopFactory: Awaited<ReturnType<typeof createDpopKeyPair>> | null = null;
+
+  /** Most recent nonce this server handed out, for the next proof. */
+  let dpopNonce: string | undefined;
+
+  async function ensureDpop() {
+    if (!options.dpop) return null;
+    if (options.dpop !== true) return options.dpop;
+    if (!dpopFactory) dpopFactory = await createDpopKeyPair();
+    return dpopFactory;
+  }
+
+  /** Retry only an explicit nonce challenge, never another authentication failure. */
+  function asksForNonce(res: Response): boolean {
+    if (res.status !== 401) return false;
+    const challenge = res.headers.get("www-authenticate") ?? "";
+    return (
+      /use_dpop_nonce/iu.test(challenge) ||
+      (res.headers.get("dpop-nonce") !== null && /dpop/iu.test(challenge))
+    );
+  }
+
+  async function request(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    const method = (init.method ?? "GET").toUpperCase();
+    const url = `${base}${path}`;
+    const dpop = await ensureDpop();
+
+    const send = async (): Promise<Response> => {
+      const headers = new Headers(init.headers);
+      headers.set("accept", "application/json");
+      if (options.accessToken) {
+        headers.set(
+          "authorization",
+          `${dpop ? "DPoP" : "Bearer"} ${options.accessToken}`,
+        );
+      }
+      if (init.body && !headers.has("content-type")) {
+        headers.set("content-type", "application/json");
+      }
+      if (dpop) {
+        headers.set(
+          "DPoP",
+          await dpop.createDpopProof(
+            url,
+            method,
+            options.accessToken,
+            dpopNonce,
+          ),
+        );
+      }
+      const res = await fetchFn(url, { ...init, headers, redirect: "error" });
+      const issued = res.headers.get("dpop-nonce");
+      if (issued) dpopNonce = issued;
+      return res;
+    };
+
+    const first = await send();
+    if (dpop && asksForNonce(first) && dpopNonce !== undefined) {
+      // Once. A server that keeps asking will not be satisfied by asking again,
+      // and a loop here is a loop against somebody else's endpoint.
+      await first.body?.cancel();
+      return send();
+    }
+    return first;
+  }
+
+  async function requestParsed<T>(
+    op: string,
+    schema: ResponseSchema<T>,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<T> {
+    const res = await request(path, init);
+    if (!res.ok) throw await requestFailure(op, res);
+    return schema.parse(await res.json());
+  }
+
+  function connectionPath(id: string, suffix = ""): string {
+    return `/api/v1/connections/${encodeURIComponent(id)}${suffix}`;
+  }
+
+  function integrationPath(id: string): string {
+    return `/api/v1/integrations/${encodeURIComponent(id)}`;
+  }
+
+  function configPath(id: string, suffix = ""): string {
+    return `/api/v1/configs/${encodeURIComponent(id)}${suffix}`;
+  }
+
+  const core = {
+    baseUrl: base,
+
+    async health(): Promise<HostHealth> {
+      const res = await request("/health/live");
+      return { ok: res.ok, body: await res.text() };
+    },
+
+    async discover(): Promise<HostDiscovery> {
+      try {
+        const prm = await request("/.well-known/oauth-protected-resource");
+        if (prm.ok) {
+          const body = overlapCast(await prm.json());
+          const discovery: HostDiscovery = {
+            dpopBound: Boolean(
+              body.dpop_bound ?? body.dpop_bound_access_tokens_required,
+            ),
+            source: "prm",
+          };
+          if (isString(body.resource)) {
+            discovery.resource = body.resource;
+          }
+          if (Array.isArray(body.authorization_servers)) {
+            // Where a client goes to be issued tokens is not a free-form string:
+            // a resource that names a cleartext or malformed authorization server
+            // is naming somewhere this client will not send a credential.
+            discovery.authorizationServers = body.authorization_servers
+              .map((value) =>
+                isString(value) ? normalizeHttpBaseUrl(value) : null,
+              )
+              .filter((value): value is string => value !== null);
+          }
+          return discovery;
+        }
+      } catch {
+        /* fall through */
+      }
+      try {
+        const ready = await request("/health/ready");
+        if (ready.ok) {
+          return { ready: true, source: "ready" };
+        }
+      } catch {
+        /* fall through */
+      }
+      return { source: "none" };
+    },
+
+    async whoami(): Promise<BoundaryValue> {
+      const res = await request("/api/v1/whoami");
+      if (!res.ok) throw new Error(`whoami_failed:${res.status}`);
+      return res.json();
+    },
+
+    async listProviders(): Promise<ListProvidersResponse> {
+      return requestParsed(
+        "providers",
+        ListProvidersResponseSchema,
+        "/api/v1/providers",
+      );
+    },
+
+    async listConnections(): Promise<ListConnectionsResponse> {
+      return requestParsed(
+        "connections",
+        ListConnectionsResponseSchema,
+        "/api/v1/connections",
+      );
+    },
+
+    async discoverConnections(): Promise<DiscoverConnectionsResponse> {
+      return requestParsed(
+        "connection discovery",
+        DiscoverConnectionsResponseSchema,
+        "/api/v1/connections/discover",
+        { method: "POST" },
+      );
+    },
+
+    async listIntegrations(): Promise<ListIntegrationsResponse> {
+      return requestParsed(
+        "integrations",
+        ListIntegrationsResponseSchema,
+        "/api/v1/integrations",
+      );
+    },
+
+    async getIntegration(id: string): Promise<Integration> {
+      return requestParsed(
+        "integration",
+        IntegrationSchema,
+        integrationPath(id),
+      );
+    },
+
+    async createIntegration(
+      body: CreateIntegrationRequest,
+    ): Promise<Integration> {
+      return requestParsed(
+        "integration_create",
+        IntegrationSchema,
+        "/api/v1/integrations",
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async updateIntegration(
+      id: string,
+      body: UpdateIntegrationRequest,
+    ): Promise<Integration> {
+      return requestParsed(
+        "integration_update",
+        IntegrationSchema,
+        integrationPath(id),
+        { method: "PATCH", body: JSON.stringify(body) },
+      );
+    },
+
+    async deleteIntegration(id: string): Promise<void> {
+      const res = await request(integrationPath(id), { method: "DELETE" });
+      if (!res.ok) throw await requestFailure("integration_delete", res);
+    },
+
+    async getConnection(id: string): Promise<Connection> {
+      return requestParsed("connection", ConnectionSchema, connectionPath(id));
+    },
+
+    async createConnection(body: CreateConnectionRequest): Promise<Connection> {
+      return requestParsed(
+        "connection_create",
+        ConnectionSchema,
+        "/api/v1/connections",
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async authorizeConnection(
+      id: string,
+      body: AuthorizeRequest = {},
+    ): Promise<AuthorizeResponse> {
+      return requestParsed(
+        "connection_authorize",
+        AuthorizeResponseSchema,
+        connectionPath(id, "/authorize"),
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async refreshConnection(id: string): Promise<Connection> {
+      return requestParsed(
+        "connection_refresh",
+        ConnectionSchema,
+        connectionPath(id, "/refresh"),
+        { method: "POST", body: "{}" },
+      );
+    },
+
+    async setConnectionCredential(
+      id: string,
+      value: string,
+    ): Promise<Connection> {
+      return requestParsed(
+        "connection_credential",
+        ConnectionSchema,
+        connectionPath(id, "/credential"),
+        { method: "POST", body: JSON.stringify({ value }) },
+      );
+    },
+
+    async revokeConnection(id: string): Promise<RevokeResponse> {
+      return requestParsed(
+        "connection_revoke",
+        RevokeResponseSchema,
+        connectionPath(id),
+        { method: "DELETE" },
+      );
+    },
+
+    async bindConnection(
+      id: string,
+      body: CreateBindingRequest,
+    ): Promise<Connection> {
+      return requestParsed(
+        "connection_bind",
+        ConnectionSchema,
+        connectionPath(id, "/bindings"),
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async unbindConnection(id: string, bindingId: string): Promise<Connection> {
+      return requestParsed(
+        "connection_unbind",
+        ConnectionSchema,
+        connectionPath(id, `/bindings/${encodeURIComponent(bindingId)}`),
+        { method: "DELETE" },
+      );
+    },
+
+    async connectionEvents(id: string): Promise<ListEventsResponse> {
+      return requestParsed(
+        "connection_events",
+        ListEventsResponseSchema,
+        connectionPath(id, "/events"),
+      );
+    },
+
+    async listSyncTargets(query?: {
+      projectId?: string;
+      configId?: string;
+    }): Promise<ListSyncTargetsResponse> {
+      const params = new URLSearchParams();
+      if (query?.projectId) params.set("project_id", query.projectId);
+      if (query?.configId) params.set("config_id", query.configId);
+      const qs = params.toString();
+      return requestParsed(
+        "sync_targets",
+        ListSyncTargetsResponseSchema,
+        `/api/v1/sync-targets${qs ? `?${qs}` : ""}`,
+      );
+    },
+
+    async createSyncTarget(body: CreateSyncTargetRequest): Promise<SyncTarget> {
+      return requestParsed(
+        "sync_target_create",
+        SyncTargetSchema,
+        "/api/v1/sync-targets",
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async getSyncTarget(id: string): Promise<SyncTarget> {
+      return requestParsed(
+        "sync_target",
+        SyncTargetSchema,
+        `/api/v1/sync-targets/${encodeURIComponent(id)}`,
+      );
+    },
+
+    async deleteSyncTarget(id: string): Promise<void> {
+      const res = await request(
+        `/api/v1/sync-targets/${encodeURIComponent(id)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw await requestFailure("sync_target_delete", res);
+    },
+
+    async syncTarget(
+      id: string,
+      body: SyncTargetRequest = {},
+    ): Promise<SyncTargetOutcome> {
+      return requestParsed(
+        "sync_target_sync",
+        SyncTargetOutcomeSchema,
+        `/api/v1/sync-targets/${encodeURIComponent(id)}/sync`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async syncAllTargets(configId: string): Promise<SyncAllResponse> {
+      return requestParsed(
+        "sync_targets_sync_all",
+        SyncAllResponseSchema,
+        "/api/v1/sync-targets/sync-all",
+        {
+          method: "POST",
+          body: JSON.stringify({ config_id: configId }),
+        },
+      );
+    },
+
+    async listSecretConfigs(
+      projectId: string,
+    ): Promise<ListSecretConfigsResponse> {
+      return requestParsed(
+        "secret_configs",
+        ListSecretConfigsResponseSchema,
+        `/api/v1/projects/${encodeURIComponent(projectId)}/configs`,
+      );
+    },
+
+    async createSecretConfig(
+      projectId: string,
+      body: CreateSecretConfigBody,
+    ): Promise<SecretConfigView> {
+      return requestParsed(
+        "secret_config_create",
+        SecretConfigViewSchema,
+        `/api/v1/projects/${encodeURIComponent(projectId)}/configs`,
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    async getSecretConfig(id: string): Promise<SecretConfigView> {
+      return requestParsed(
+        "secret_config",
+        SecretConfigViewSchema,
+        configPath(id),
+      );
+    },
+
+    async deleteSecretConfig(id: string): Promise<void> {
+      const res = await request(configPath(id), { method: "DELETE" });
+      if (!res.ok) throw await requestFailure("secret_config_delete", res);
+    },
+
+    /**
+     * The only value-carrying call on this surface: values go up, only key
+     * names + versions come back.
+     */
+    async putConfigSecrets(
+      id: string,
+      body: PutConfigSecretsBody,
+    ): Promise<ConfigKeysResponse> {
+      return requestParsed(
+        "config_secrets_put",
+        ConfigKeysResponseSchema,
+        configPath(id, "/secrets"),
+        { method: "PUT", body: JSON.stringify(body) },
+      );
+    },
+
+    async listConfigKeys(id: string): Promise<ConfigKeysResponse> {
+      return requestParsed(
+        "config_keys",
+        ConfigKeysResponseSchema,
+        configPath(id, "/secrets"),
+      );
+    },
+
+    async deleteConfigSecret(id: string, keyName: string): Promise<void> {
+      const res = await request(
+        configPath(id, `/secrets/${encodeURIComponent(keyName)}`),
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw await requestFailure("config_secret_delete", res);
+    },
+
+    async listConfigSecretVersions(
+      id: string,
+      keyName: string,
+    ): Promise<ListConfigSecretVersionsResponse> {
+      return requestParsed(
+        "config_secret_versions",
+        ListConfigSecretVersionsResponseSchema,
+        configPath(id, `/secrets/${encodeURIComponent(keyName)}/versions`),
+      );
+    },
+
+    async rollbackConfigSecret(
+      id: string,
+      keyName: string,
+      toVersion: number,
+    ): Promise<RollbackConfigSecretResponse> {
+      return requestParsed(
+        "config_secret_rollback",
+        RollbackConfigSecretResponseSchema,
+        configPath(id, `/secrets/${encodeURIComponent(keyName)}/rollback`),
+        { method: "POST", body: JSON.stringify({ to_version: toVersion }) },
+      );
+    },
+
+    async compareConfigs(
+      a: string,
+      b: string,
+    ): Promise<CompareConfigsResponse> {
+      return requestParsed(
+        "config_compare",
+        CompareConfigsResponseSchema,
+        configPath(a, `/compare/${encodeURIComponent(b)}`),
+      );
+    },
+
+    async branchConfig(
+      id: string,
+      body: BranchConfigBody,
+    ): Promise<SecretConfigView> {
+      return requestParsed(
+        "config_branch",
+        SecretConfigViewSchema,
+        configPath(id, "/branch"),
+        { method: "POST", body: JSON.stringify(body) },
+      );
+    },
+
+    /** L1 invoke via Host API. Never sends SecretRef. */
+    async invoke(input: InvokeInput): Promise<BoundaryValue> {
+      const res = await request("/api/v1/intents", {
+        method: "POST",
+        body: JSON.stringify({
+          connection_ref: input.connectionRef,
+          operation: input.operation,
+          resource: input.resource,
+          invoke_level: input.invokeLevel ?? 1,
+          input: input.input ?? {},
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`invoke_failed:${res.status}:${text}`);
+      }
+      return res.json();
+    },
+
+    async syncPush(blobs: SyncBlob[]): Promise<BoundaryValue> {
+      return pushSyncBlobs(request, blobs);
+    },
+
+    syncPullPages(since: SyncCursor) {
+      return pullSyncPages(request, since.epoch, since.deviceId);
+    },
+
+    syncReadPage(after: SyncPageCursor, deviceId?: string) {
+      return readSyncPage(request, after, deviceId);
+    },
+
+    async syncPull(since: SyncCursor): Promise<BoundaryValue> {
+      const page = await readSyncPage(
+        request,
+        { epoch: since.epoch + 1, id: "" },
+        since.deviceId,
+      );
+      return { ...page, plaintext: null };
+    },
+
+    /** Optional local daemon discovery — degrades cleanly if absent. */
+    async probeDaemon(
+      daemonUrl = ENDPOINTS.daemon.default,
+    ): Promise<DaemonProbe> {
+      // Only ever probe this machine: anywhere else learns of this client.
+      if (normalizeLoopbackBaseUrl(daemonUrl) === null) {
+        return { available: false, url: daemonUrl };
+      }
+      try {
+        const res = await fetchFn(`${daemonUrl.replace(/\/$/, "")}/health`, {
+          signal: AbortSignal.timeout?.(800),
+        });
+        if (!res.ok) return { available: false, url: daemonUrl };
+        return { available: true, url: daemonUrl, health: await res.json() };
+      } catch {
+        return { available: false, url: daemonUrl };
+      }
+    },
+  };
+
+  async function requestJson(
+    op: string,
+    path: string,
+    init: RequestInit = {},
+  ): Promise<BoundaryValue> {
+    const res = await request(path, init);
+    if (!res.ok) throw await requestFailure(op, res);
+    return res.json();
+  }
+
+  const requestContext: HostRequestContext = { request, requestJson };
+
+  return {
+    ...core,
+    ...tasksApi(requestContext),
+    ...receiptsApi(requestContext),
+    ...delegationsApi(requestContext),
+    ...relayApi(requestContext),
+    ...certsApi(requestContext),
+    ...rotationsApi(requestContext),
+    ...changelogApi(requestContext),
+    ...backupApi(requestContext),
+    ...agentRunsApi(requestContext),
+  };
+}
+
+export type ApiClient = ReturnType<typeof createApiClient>;
+
+export type { HostRequestContext } from "./http.js";
+export type {
+  CreateTaskIntentRequest,
+  StartTaskRequest,
+  TaskCapability,
+} from "./tasks.js";
+export type { NarrowDelegationRequest } from "./delegations.js";
+export type { IssueCertRequest } from "./certs.js";
+export type { CreateRotationRequest } from "./rotations.js";
+export { accessTokenHash, createDpopKeyPair } from "./dpop.js";
+export type { ProjectChangelogQuery } from "./changelog.js";
+export * from "./agent-runs.js";
+export { decodeAgentRun, decodeRunnerStepRequest } from "./agent-run-wire.js";

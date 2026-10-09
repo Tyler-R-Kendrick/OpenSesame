@@ -1,108 +1,101 @@
-# Inventory — plane deletion (Host / Identity / daemon) — 2026-10-08
+# Inventory — Host / Identity / Daemon surfaces vs static Pages (2026-10-08)
 
-Tyler (follow-up): Host API, daemon API, and Identity API **must not exist**.
-They are not “operator/CLI residuals.” The PWA stays static. Sessions are
-browser WebRTC. The **only** allowed server surface is the optional vault
-relay peer (ADR 0181).
+Tyler correction: the Host API, daemon API, and Identity API must **not** be
+required backends for `apps/pages`. The PWA is a purely static web app. Session
+serving is browser-hosted WebRTC. A relay peer (ADR 0181) is optional durable
+storage only. Grok Build returned HTTP 402 on
+`scripts/dev/grok-headless.sh` (2026-10-08); this inventory and follow-up edits
+are Cursor Agent with honest authorship.
 
-Grok Build: HTTP 402 on `scripts/dev/grok-headless.sh` (2026-10-08). This
-stack is Cursor Agent with honest authorship.
+Status tags: `pages-boot` (must be empty/absent for static) · `optional-relay`
+· `operator-plane` (CLI/compose; not Pages boot) · `vercel-serverless` (must go
+for static Vercel) · `remove-from-pages-wiring`.
 
-Status: **merged intent on branch `cursor/delete-host-identity-daemon-b359`** —
-Host / Identity / daemon planes removed; **GHCR and compose publish one image**
-(`opensesame relay run` only); **npm has no Identity/Host packages** to publish
-(see `docs/operators/publishing.md`).
-
-Tags: `delete` · `keep-relay` · `history-docs` · `cli-remove` · `cli-local`.
-
-## Deleted planes (this PR)
-
-Removed from the tree on branch `cursor/delete-host-identity-daemon-b359`:
-
-- **Rust:** `crates/daemon`, `crates/worker` (workspace members dropped from root
-  `Cargo.toml`). Host API code in `crates/gateway` stripped elsewhere on this
-  branch; **`crates/gateway/src/vault_relay/` kept**.
-- **TypeScript:** `packages/control-plane`, `packages/identity-worker`,
-  `packages/database`, `packages/device-auth`, `packages/api-client`,
-  `packages/webhooks`.
-- **Tools:** `tools/mock-upstream-idp`.
-- **Pages serverless:** `apps/pages/api/` (Vercel functions removed).
-- **Root scripts:** `bootstrap` no longer runs Identity DB; `dev` no longer
-  starts control-plane / identity-worker / mock IdP; removed `dev:host`,
-  `dev:daemon`, `db:migrate`, `db:reset`, `generate:openapi`, `audit:daemon-deps`;
-  added `dev:relay`.
-- **Compose / GHCR:** `ops/compose/docker-compose.yml` defines **only** the
-  `relay` service (`opensesame relay run`). `ops/compose/Dockerfile` default
-  `CMD ["relay", "run"]`. `.github/workflows/publish-containers.yml` and
-  `container-build-pr.yml` build and push **that relay-only image** to GHCR —
-  there is no Host, Identity, or daemon container artifact.
-- **npm:** Identity/control-plane packages are **gone from the tree**; the manual
-  `publish-npm.yml` workflow must not target removed package names (documented in
-  `docs/operators/publishing.md`).
-- **Kept intentionally:** vault relay (`crates/gateway/src/vault_relay/*`),
-  sealed-store, human-vault, app-core, Pages `src/` (not `api/`), relay client
-  in app-core, `sharing.relay` capability. **`@opensesame/oauth-provider` kept**
-  (notification-adapters + fuzz still depend on safe-fetcher helpers).
-
-Deletion log: `docs/evidence/2026-10-08-static-pwa-no-backend/deleted-surfaces.md`.
-
-## 1. Delete — services / crates / packages
+## 1. Env / deploy stamps
 
 | Surface | Paths | Status |
 | --- | --- | --- |
-| Host API (non-relay) | `crates/gateway` Host modules, Host profile | `delete` — crate stripped to vault-relay only (or renamed) |
-| Daemon API | `crates/daemon`, `uds-authn`, `tailscale-authn`, `tailnet-admin` (daemon-side) | `delete` |
-| Identity API | `packages/control-plane` | `delete` |
-| Identity worker | `packages/identity-worker` | `delete` |
-| Identity DB | `packages/database` | `delete` (Identity-plane only) |
-| Mock IdP | `tools/mock-upstream-idp` | `delete` |
-| Pages serverless | `apps/pages/api/**` | `delete` |
-| Host TS client | `packages/api-client` | `delete` |
-| Device-auth (Identity) | `packages/device-auth` | `delete` |
-| Worker host role | `crates/worker` + `opensesame worker run` | `delete` (Host plane) |
-| Compose Host stack | `ops/compose/docker-compose.yml` gateway/worker/deps | `delete` or relay-only |
-| GHCR `opensesame` Host image | `.github/workflows/publish-containers.yml`, `container-build-pr.yml`, `ops/compose/Dockerfile` | retarget relay-only or drop |
+| `PAGES_IDENTITY_API` → `identityApi` | `spec/config/endpoints.json` (`pagesRuntimeKey`); `apps/pages/scripts/write-runtime-config.mjs`; `.github/workflows/deploy-pages.yml`; `scripts/release/deploy-pages.sh`; `docs/operators/publishing.md`; `docs/audit/2026-10-p3-vercel-default-services.md`; `docs/audit/2026-10-publishing-dry-run.md` | `remove-from-pages-wiring` |
+| `PAGES_HOST_API` → `hostApi` | same | `remove-from-pages-wiring` |
+| `PAGES_DAEMON_API` → `daemonApi` | same (`loopbackOnly: true`) | `remove-from-pages-wiring` |
+| `PAGES_CONNECT_CALLBACK_BASE` | `write-runtime-config.mjs`; `apps/pages/vercel.json` buildCommand | `vercel-serverless` (points at `apps/pages/api`) |
+| `PAGES_SUPPORT_AGENT_URL` | `write-runtime-config.mjs` | optional AG-UI; not Identity/Host/daemon |
+| `VITE_HOST_API` / `VITE_IDENTITY_API` / `VITE_DAEMON_API` | `endpoints.json`; `scripts/dev/pages-dev.sh`; `packages/app-core/src/lib/settings.ts` | `operator-plane` local full-stack only |
+| `OPENSESAME_HOST_API` / `OPENSESAME_IDENTITY_API` / `OPENSESAME_DAEMON_API` | `endpoints.json`; CLI / services | `operator-plane` |
 
-## 2. Keep — optional durable peer
+Shipped empty file: `apps/pages/public/os-runtime-config.json` = `{}` (`pages-boot`).
+
+## 2. Runtime config / settings
 
 | Surface | Paths | Status |
 | --- | --- | --- |
-| Vault relay | `crates/gateway/src/vault_relay/*` → relay-only crate/binary | `keep-relay` |
-| Relay client | `packages/app-core/src/lib/vault-relay/` | `keep-relay` |
-| Pages capability | `apps/pages/src/modules/sharing.relay/` | `keep-relay` |
-| ADR 0181 | `docs/adr/0181-*.md` | `keep-relay` |
+| `loadRuntimeConfig` / `applyRuntimeConfig` | `packages/app-core/src/lib/runtime-config.ts`; `apps/pages/src/bootstrap/boot.ts` | `pages-boot` — empty/`absent` OK |
+| Settings keys `hostApi` / `identityApi` / `daemonApi` | `packages/app-core/src/lib/settings.ts`; virtual settings files | `remove-from-pages-wiring` as defaults/suggestions for static |
+| Endpoints UI (Connections service + Local agent) | removed (`EndpointsPanel.tsx` deleted) | done — no Host/daemon fields in Settings |
+| WaysIn identity address | `apps/pages/src/screens/setup/WaysIn.tsx` | remote Identity optional; device plane is default |
+| `useHostConfigured` | `apps/pages/src/lib/use-configured.ts` — already always `false` (ADR 0128) | dead gate |
 
-## 3. Env / stamps — must vanish from live config
+## 3. Services / crates (still in the monorepo)
 
-| Key | Status |
-| --- | --- |
-| `OPENSESAME_HOST_API` / `PAGES_HOST_API` / `VITE_HOST_API` / `hostApi` | `delete` from `endpoints.json` + settings |
-| `OPENSESAME_IDENTITY_API` / `PAGES_IDENTITY_API` / `VITE_IDENTITY_API` / `identityApi` | `delete` |
-| `OPENSESAME_DAEMON_API` / `PAGES_DAEMON_API` / `VITE_DAEMON_API` / `daemonApi` | `delete` |
-| Relay envs (`OPENSESAME_GATEWAY_PROFILE=relay`, bindings, registration JWKS, `OPENSESAME_RELAY_*`) | `keep-relay` (rename off “gateway” where practical) |
+| Service | Paths | Status |
+| --- | --- | --- |
+| Host API | `crates/gateway`, `apps/cli` `opensesame host run`, `:8787` | `operator-plane` — must not be a Pages required backend |
+| Identity API | `packages/control-plane`, `:8788` | `operator-plane` — must not be a Pages required backend |
+| Daemon | `crates/daemon`, `opensesame daemon run`, `:18790` | `operator-plane` / loopback — must not be a Pages required backend |
+| Vault relay profile | `OPENSESAME_GATEWAY_PROFILE=relay`; `/v1/vault-relay/*`; `packages/app-core/src/lib/vault-relay/` | `optional-relay` durable peer (ADR 0181), never required for boot or live join |
+| Mock IdP | `tools/mock-upstream-idp` | `operator-plane` local |
 
-Gate: `rg -i 'identity_api|host_api|daemon_api|PAGES_(IDENTITY|HOST|DAEMON)'` empty outside `docs/audit/` history and this inventory’s history notes.
+## 4. Vercel serverless under `apps/pages` (forbidden for static export)
 
-## 4. CLI verbs
+| Surface | Paths | Status |
+| --- | --- | --- |
+| Connect / GitHub App / git-backup routes | `apps/pages/api/**` | `vercel-serverless` — excluded by `.vercelignore` |
+| Local relay helpers | `apps/pages/server/**` | kept for Pages `tsc` (connect-conformance); not in `dist/` |
+| `vercel.json` → `dist/` only | `apps/pages/vercel.json` | static export; no server functions |
 
-| Verb | Fate |
-| --- | --- |
-| `opensesame host run` | → `opensesame relay run` (relay only) |
-| `opensesame daemon *` | `cli-remove` |
-| `opensesame worker run` | `cli-remove` |
-| Host HTTP clients (`login` device-to-Host, `access *` Host, `config *` Host, `security *` Host, `hooks policy` Host, …) | `cli-remove` unless rewritten to local/P2P/relay |
-| `opensesame-id` Identity verbs | `cli-remove` or local-only vault verbs kept |
-| `pass`, `vault`, local sealed-store | `cli-local` keep |
-
-## 5. Docs / publish
+## 5. Compose / ops
 
 | Path | Status |
 | --- | --- |
-| `docs/audit/2026-10-p3-vercel-default-services.md` | static-only (already) |
-| `docs/operators/publishing.md`, GHCR/npm publish docs | no Host/Identity image; relay-only if any |
-| `docs/operators/local.md`, `health-and-operations.md`, Identity admin docs | rewrite or archive |
-| `docs/audit/2026-10-requested-items.md` P3 | mark deleted |
+| `ops/compose/docker-compose.yml` (gateway + deps; no control-plane) | `operator-plane` |
+| `ops/ingress/`, `ops/nats/` | `operator-plane` |
 
-## 6. Proof
+## 6. Session serving (correct product path)
 
-Static Pages build; no Host/Identity/daemon processes. Full `verify:tutorials` (all shards), checklist walk, `verify:browser-sessions` WebRTC vault sync. Green CI including Rust on this PR and #861.
+| Path | Role | Status |
+| --- | --- | --- |
+| `packages/app-core/src/lib/live/*` | Browser↔browser WebRTC | `pages-boot` path for sessions |
+| `apps/pages` capability `sharing.live` | Join road / live sessions | required product surface |
+| `verify:live-join` / `verify:live-netns` | Playwright WebRTC walks | proof, no app backend for direct |
+| `sharing.relay` + `verify:relay-join*` | Optional durable peer | `optional-relay` |
+
+## 7. Docs that claimed “default services”
+
+| Path | Status |
+| --- | --- |
+| `docs/audit/2026-10-p3-vercel-default-services.md` | Wrong — rewrite to static-only |
+| `docs/operators/publishing.md` § Vercel | Remove Host/Identity/`PAGES_*` requirement |
+| `docs/audit/2026-10-requested-items.md` P3 row | Update |
+| `docs/audit/2026-10-publishing-dry-run.md` | Update |
+
+## 8. Tests / CI that still start backends for Pages-adjacent gates
+
+| Job / script | Backend | Status after this stack |
+| --- | --- | --- |
+| `verify:static` / device-identity / device-inbox / tutorials / checklist walk | none | keep — static proof |
+| `verify:live-join` | none for direct WebRTC | keep — session proof |
+| `verify:push` | in-process control-plane | Identity-plane product; not Pages boot |
+| `verify:relay-join-live` | `opensesame host run --profile relay` | optional relay only; must not be required for P3 |
+
+## Residual (called out, not deleted in the first Pages wiring PRs)
+
+The Host, Identity, and daemon **crates/packages remain in the monorepo** for
+CLI and operator tooling. They are no longer stamped into Pages, no longer
+documented as Vercel default services, and must not be required for
+`apps/pages` boot, session serve, or static deploy.
+
+**Update (2026-10-09):** the plane-removal stack landed as PR #865 and was
+reverted on `cursor/restore-cli-backends-b359` — Tyler asked only for the
+backend-free PWA, not for the planes to leave the git tree. The CLI keeps
+Host (`:8787`), Identity (`:8788`) and daemon (`:18790`); the PWA stays
+static exactly as inventoried here.
