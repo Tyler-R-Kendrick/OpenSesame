@@ -9,6 +9,7 @@ name = "opensesame"
 path = "src/main.rs"
 
 [dependencies]
+opensesame-storage = { path = "../../crates/storage" }
 opensesame-redaction = { path = "../../crates/redaction", features = ["tracing"] }
 opensesame-sealed-log = { path = "../../crates/sealed-log" }
 base64 = { workspace = true }
@@ -26,14 +27,17 @@ opensesame-human-vault = { path = "../../crates/human-vault" }
 opensesame-vault-item-types = { path = "../../crates/vault-item-types" }
 opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
 opensesame-credential-helpers = { path = "../../crates/credential-helpers" }
-opensesame-breach-intel = { path = "../../crates/breach-intel" }
+opensesame-daemon = { path = "../../crates/daemon" }
 opensesame-gateway = { path = "../../crates/gateway" }
 # The recipe document and its Ed25519 signing (ADR 0076 §4): `rotate recipe sign`
 # and `rotate signer keygen` are local acts that never name a Host.
 opensesame-rotation-web = { path = "../../crates/rotation-web" }
+opensesame-host-core = { path = "../../crates/host-core" }
+opensesame-worker = { path = "../../crates/worker" }
 # Settings for optional plugins only (ADR 0150 §7). The plugins themselves are
 # separate executables this binary never links (`pnpm audit:plugin-boundary`).
 opensesame-plugin-settings = { path = "../../crates/plugin-settings" }
+opensesame-tailnet-admin = { path = "../../crates/tailnet-admin" }
 # The run lease's credential hook (ADR 0150 §6.2): a tripwire ends a dev
 # run's plugin session through `RunCredentials`. serde + thiserror only.
 opensesame-session-observe = { path = "../../crates/session-observe" }
@@ -41,7 +45,6 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
-opensesame-storage = { path = "../../crates/storage", optional = true }
 sqlx = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
@@ -77,5 +80,9 @@ browserpass = ["opensesame-pm-bridges/browserpass"]
 gopass = ["opensesame-pm-bridges/gopass"]
 keepassxc = ["opensesame-pm-bridges/keepassxc"]
 # The Bitwarden-compatible server, a password-manager bridge (ADR 0148).
-bitwarden-compat = ["dep:opensesame-bitwarden-server", "dep:opensesame-storage"]
-wasm-connectors = []
+bitwarden-compat = ["opensesame-gateway/bitwarden-compat", "dep:opensesame-bitwarden-server"]
+tailscale = ["opensesame-daemon/tailscale"]
+# End-to-end harness only: a loopback stub stands in for api.tailscale.com
+# (`OPENSESAME_TAILSCALE_API_BASE`). No release enables it.
+tailnet-admin-test-upstream = ["opensesame-daemon/tailnet-admin-test-upstream", "opensesame-tailnet-admin/upstream-override"]
+wasm-connectors = ["opensesame-gateway/wasm-connectors"]

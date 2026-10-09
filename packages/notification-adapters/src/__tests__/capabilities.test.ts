@@ -5,8 +5,8 @@ import {
   defaultApprovalPolicy,
   normalizeApprovalPolicy,
 } from "@opensesame/os-domain";
+import { generateWebhookSecret } from "@opensesame/webhooks";
 import { describe, expect, it } from "vitest";
-import { generateWebhookSecret } from "../webhooks/index.js";
 
 import { createGenericWebhookAdapter } from "../adapters/generic-webhook.js";
 import { createSlackAdapter } from "../adapters/slack.js";

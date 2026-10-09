@@ -263,7 +263,7 @@ fn docker_list_is_empty_and_store_erase_noop() {
 
 #[test]
 fn docker_daemon_5xx_exits_nonzero_with_empty_stdout() {
-    let stub = spawn_stub_daemon(502, r#"{"error":"approval_peer_unreachable"}"#, 1);
+    let stub = spawn_stub_daemon(502, r#"{"error":"host_api_unreachable"}"#, 1);
     let out = run_helper(
         &docker_bin(),
         &["get"],

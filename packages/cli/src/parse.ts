@@ -1,3 +1,4 @@
+import { endpointAddress } from "@opensesame/os-domain";
 import { z } from "zod";
 import { type ParityCommand, parseParity } from "./parity-parse.js";
 import { leftover, takeOption } from "./parse-options.js";
@@ -15,6 +16,35 @@ export type GlobalFlags = z.infer<typeof GlobalFlagsSchema>;
 export type ParsedCommand =
   | ParityCommand
   | { name: "help" }
+  | {
+      name: "login";
+      mode: "device" | "loopback" | "anonymous" | "auto";
+      qrPreference: "auto" | "on" | "off";
+      flags: GlobalFlags;
+    }
+  | { name: "auth-status"; flags: GlobalFlags }
+  | { name: "logout"; flags: GlobalFlags }
+  | { name: "whoami"; flags: GlobalFlags }
+  | {
+      name: "project-create";
+      temporary: boolean;
+      projectName: string;
+      flags: GlobalFlags;
+    }
+  | {
+      name: "claim-poll";
+      claimId: string;
+      claimToken: string;
+      flags: GlobalFlags;
+    }
+  | {
+      name: "agent-init";
+      anonymous: boolean;
+      displayName: string;
+      flags: GlobalFlags;
+    }
+  | { name: "host-health"; hostUrl: string; flags: GlobalFlags }
+  | { name: "host-discover"; hostUrl: string; flags: GlobalFlags }
   | { name: "vault-verify"; file: string; flags: GlobalFlags }
   | { name: "vault-ls"; file: string; flags: GlobalFlags }
   | { name: "vault-list"; flags: GlobalFlags }
@@ -73,6 +103,67 @@ export function parseArgs(argv: string[]): ParsedCommand {
 
   if (cmd === "help" || cmd === "--help" || cmd === "-h") {
     return { name: "help" };
+  }
+
+  if (cmd === "login") return parseLogin(args, flags);
+
+  if (cmd === "auth" && args[0] === "status") {
+    args.shift();
+    return { name: "auth-status", flags };
+  }
+
+  if (cmd === "logout") return { name: "logout", flags };
+  if (cmd === "whoami") return { name: "whoami", flags };
+
+  if (cmd === "project" && args[0] === "create") {
+    args.shift();
+    const temporary = takeFlag(args, "--temporary");
+    const nameOpt = takeOption(args, "--name") ?? args.shift() ?? "tmp-project";
+    return {
+      name: "project-create",
+      temporary,
+      projectName: nameOpt,
+      flags,
+    };
+  }
+
+  if (cmd === "claim" && args[0] === "poll") {
+    args.shift();
+    const claimId = takeOption(args, "--id") ?? args.shift();
+    if (!claimId) throw new Error("claim poll requires claim id");
+    // Claim state is only readable with the claim bearer (osc_clm_…).
+    const claimToken =
+      takeOption(args, "--token") ??
+      process.env.OPENSESAME_CLAIM_TOKEN ??
+      args.shift();
+    if (!claimToken) {
+      throw new Error(
+        "claim poll requires the claim token (--token osc_clm_… or OPENSESAME_CLAIM_TOKEN)",
+      );
+    }
+    return { name: "claim-poll", claimId, claimToken, flags };
+  }
+
+  if (cmd === "agent" && args[0] === "init") {
+    args.shift();
+    const anonymous = takeFlag(args, "--anonymous");
+    const displayName =
+      takeOption(args, "--name") ?? args.shift() ?? "anonymous-agent";
+    return { name: "agent-init", anonymous, displayName, flags };
+  }
+
+  if (cmd === "host" && args[0] === "health") {
+    args.shift();
+    const hostUrl =
+      takeOption(args, "--host") ?? endpointAddress("host", process.env);
+    return { name: "host-health", hostUrl, flags };
+  }
+
+  if (cmd === "host" && args[0] === "discover") {
+    args.shift();
+    const hostUrl =
+      takeOption(args, "--host") ?? endpointAddress("host", process.env);
+    return { name: "host-discover", hostUrl, flags };
   }
 
   if (cmd === "vault") return parseVault(args, flags);
@@ -224,7 +315,7 @@ export const SessionFileSchema = z.object({
 export type SessionFile = z.infer<typeof SessionFileSchema>;
 
 export function helpText(): string {
-  return `opensesame-id — local vault CLI (alias: opensesame-identity)
+  return `opensesame-id — OpenSesame identity CLI (alias: opensesame-identity)
 
 Commands:
   find <query...> [--vault <vault>] [--account <account>]
@@ -241,6 +332,17 @@ Commands:
   lease approve <https-url> --secret <ref> --desktop [--expires-in 10m] [--uses 1]
   lease list|status <id>|revoke <id>
   doctor                      Inspect provider setup without authentication
+  login [--device|--loopback|--no-browser|--anonymous] [--qr|--no-qr]
+                  --anonymous (alias --guest): start as a provisional guest;
+                  link an identity later to keep the same principal id
+  auth status
+  logout
+  whoami
+  project create --temporary [--name <name>]
+  claim poll <claimId> --token <osc_clm_…>   (or OPENSESAME_CLAIM_TOKEN)
+  agent init --anonymous [--name <name>]
+  host health [--host <url>]   Host API (:8787) via api-client
+  host discover [--host <url>] Host PRM / readiness discovery
   vault verify <file>          Open a vault export or offline backup
                                (master password from the terminal only)
   vault ls <file>              List that file: path and kind, never values
@@ -254,9 +356,31 @@ Commands:
   vault share <item>           Share a secret once; prints the link and code
   vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
                                vault here, set it up from the drive first
-  mcp host|client              Serve MCP tools (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
+  mcp host|client              Serve the host- or client-facing MCP tools
+                               (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
 
 Global:
   --json          Machine-readable output (secrets redacted)
+  --issuer <url>  OIDC issuer (default OPENSESAME_ISSUER or http://127.0.0.1:8788)
+  --api <url>     Identity control plane API base
+  --client-id <id>
+  --qr / --no-qr  Device login: print a terminal QR (default: on for TTY)
 `;
+}
+
+function parseLogin(args: string[], flags: GlobalFlags): ParsedCommand {
+  const device = takeFlag(args, "--device");
+  const loopback = takeFlag(args, "--loopback");
+  const noBrowser = takeFlag(args, "--no-browser");
+  const anonymous = takeFlag(args, "--anonymous") || takeFlag(args, "--guest");
+  const qr = takeFlag(args, "--qr");
+  const noQr = takeFlag(args, "--no-qr");
+  let mode: "device" | "loopback" | "anonymous" | "auto" = "auto";
+  if (anonymous) mode = "anonymous";
+  else if (device || noBrowser) mode = "device";
+  else if (loopback) mode = "loopback";
+  let qrPreference: "auto" | "on" | "off" = "auto";
+  if (noQr) qrPreference = "off";
+  else if (qr) qrPreference = "on";
+  return { name: "login", mode, qrPreference, flags };
 }

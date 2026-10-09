@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { assertSourceOrder } from "@opensesame/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockAgentHeaders } from "./agent-headers-fixture.js";
@@ -31,7 +32,7 @@ import {
   setTaskContext,
   updateTaskFromResponse,
 } from "./task-context.js";
-import { assertsNoSecretTools, hostTools } from "./tools.js";
+import { assertsNoSecretTools, hostTools, registerHostTools } from "./tools.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -134,8 +135,18 @@ describe("mcp-host tools", () => {
     expect(forAgent(body, env)).toContain(REDACTED);
   });
 
-  it("registers no Host API tools", () => {
-    expect(hostTools).toEqual([]);
+  it("includes all required task tools", () => {
+    for (const name of [
+      "task_start",
+      "task_status",
+      "task_invoke",
+      "task_terminate",
+      "daemon_health",
+      "host_ready",
+      "task_invoke_l1",
+    ]) {
+      expect(hostTools).toContain(name);
+    }
   });
 
   it("task_invoke_l1 rejects without task_run_id", async () => {
@@ -143,9 +154,8 @@ describe("mcp-host tools", () => {
     expect(() => requireTaskRunId()).toThrow("task_context_required");
   });
 
-  it("hostFetch still pins agent audience when OPENSESAME_HOST_API set", async () => {
+  it("task_start calls Host API when OPENSESAME_HOST_API set", async () => {
     process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
-    process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
     const token = `agent-capability:${randomBytes(32).toString("hex")}`;
     mockAgentHeaders(token);
     const calls: Array<{ url: string; auth?: string | null }> = [];
@@ -154,18 +164,41 @@ describe("mcp-host tools", () => {
       expect(headers.get("x-opensesame-agent-audience")).toBe(
         "urn:opensesame:agent:mcp-host",
       );
+      expect(headers.get("x-opensesame-agent-client")).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      );
       calls.push({
         url: String(input),
         auth: headers.get("authorization"),
       });
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          task_run_id: "task-1",
+          state_version: 1,
+          status: "active",
+        }),
+        { status: 201, headers: { "content-type": "application/json" } },
+      );
     });
-    await hostFetch("/api/v1/tasks", { method: "GET" });
+
+    const server = new McpServer({ name: "test", version: "0.0.0" });
+    registerHostTools(server);
+
+    // Exercise hostFetch wiring (SDK tool handlers are not directly invokable here).
+    const res = await hostFetch("/api/v1/tasks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        principal_id: "p1",
+        organization_id: "o1",
+        capabilities: [{ action: "read", resource: "r1" }],
+      }),
+    });
+    const body = await res.json();
     expect(hostApiBase()).toBe("http://127.0.0.1:8787");
+    expect(calls[0]?.url).toBe("http://127.0.0.1:8787/api/v1/tasks");
     expect(calls[0]?.auth).toBe(`Bearer ${token}`);
+    expect(body.task_run_id).toBe("task-1");
     Reflect.deleteProperty(process.env, "OPENSESAME_HOST_API");
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });
@@ -291,13 +324,17 @@ describe("mcp-host tools", () => {
     expect(hostTools.join(" ")).not.toMatch(/secret|materialize/i);
   });
 
-  it("chaos: Host partition fails closed at hostFetch", async () => {
+  it("chaos: Host partition fails closed and host_ready maps it to toolError", async () => {
     process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
     process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
     setFetchForTests(async () => {
       throw new Error("ECONNREFUSED");
     });
     await expect(hostFetch("/health/ready")).rejects.toThrow(/ECONNREFUSED/);
+    assertSourceOrder(readFileSync(join(here, "tools.ts"), "utf8"), [
+      'const res = await hostFetch("/health/ready")',
+      'toolError("host_unavailable"',
+    ]);
     Reflect.deleteProperty(process.env, "OPENSESAME_HOST_API");
     Reflect.deleteProperty(process.env, "OPENSESAME_OPERATOR_TOKEN");
   });

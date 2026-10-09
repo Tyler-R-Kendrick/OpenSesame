@@ -17,6 +17,7 @@ honest authorship.
 | `live_grok_build` | Grok Build session produced the restack/patch (session logs under the agent store / `/tmp/grok-*.log`); the commit was still created via local `git commit` with Author Grok (committer Cursor Agent). |
 | `grok_labeled_replay` | Cursor agent (or a git cherry-pick/soft-reset) produced or re-applied the tree and stamped Author Grok. Includes post–usage-exhaustion work and batch replays. |
 | `cursor_agent` | Author and committer are Cursor Agent. Honest post-exhaustion authorship. |
+| `live_kimi_code` | Kimi Code CLI (`scripts/dev/kimi-headless.sh`, model `kimi-code/k3`) produced the patch; commits may be GitHub-verified via `createCommitOnBranch` (committer `cursor[bot]`). |
 
 ## Exhaustion evidence
 
@@ -204,4 +205,17 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 | `353d7737` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | static-PWA screenshots and inventory residual note |
 | `e7d30760` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | point evidence README at Vercelignore tip |
 | `028c3035` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | provenance for evidence and Vercelignore commits |
+
+## Kimi Code (2026-10-08 / 2026-10-09)
+
+- **Authenticated** on Cloud Agent via `kimi login` (OAuth). Model pin: `kimi-code/k3`.
+- **#865 CI fixes** after tip `3656aa45` were `live_kimi_code` (verified `cursor[bot]` SHAs
+  `bc815c9e`…`9f780f52`).
+- **Course correction (restore CLI backends):** Kimi K3 started the restore on
+  `cursor/restore-cli-backends-b359` (mechanical checkout from #861 tip, docs
+  `restored-cli-commands.md` / `restored-surfaces.md`). Mid-session it hit the
+  **5-hour usage limit** (`provider.auth_error: 403 You've reached your 5-hour
+  usage limit`, `/tmp/kimi-still-ok.out`, 2026-10-09 ~00:24 UTC). Remaining
+  finish (guard test, GraphQL land, proof, CI) continues as **`cursor_agent`**
+  per Tyler’s rule. Not a payment/quota balance zero — rolling 5-hour window.
 

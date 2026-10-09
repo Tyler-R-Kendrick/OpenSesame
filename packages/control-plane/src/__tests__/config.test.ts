@@ -1,0 +1,271 @@
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  type ControlPlaneConfig,
+  assertListenHostAllowed,
+  assertSecureConfig,
+  loadConfig,
+} from "../config.js";
+
+function prodBase(): ControlPlaneConfig {
+  return {
+    host: "127.0.0.1",
+    port: 8788,
+    publicUrl: "https://id.example",
+    issuer: "https://id.example",
+    claimPepper: "unique-test-only-claim-pepper-at-least-32-characters",
+    databaseUrl: "postgres://test@127.0.0.1/test",
+    provisionalCookieName: "os_provisional",
+    provisionalTtlMs: 86_400_000,
+    logLevel: "info",
+    allowPrincipalBearer: false,
+    allowDevDefaults: false,
+    bootstrapPersonalOrganization: false,
+    isProduction: true,
+    corsOrigins: ["https://app.example"],
+    hostApiUrl: "https://host.example",
+    operatorToken: "operator-secret",
+    mappingResolveToken: "mapping-resolve-secret",
+    trustedUpstreamIssuers: ["https://issuer.example"],
+    protocolFeatures: {
+      oid4vp: false,
+      oid4vci: false,
+      fedcm: false,
+      digitalCredentialsApi: false,
+      openidFederation: false,
+      sdJwtVc: false,
+      tokenStatusList: false,
+      presentationAgentIntents: false,
+    },
+    interactionAutoContinue: true,
+    providers: [],
+    notifications: {
+      availableChannels: ["in_app"],
+      directApprovalChannels: [],
+      directDenialChannels: [],
+      pushPublicKey: "",
+      slackSigningSecret: "",
+      telegramSecretToken: "",
+      allowSelfAssertedBindings: false,
+    },
+    agentAuth: {
+      enabled: true,
+      anonymousEnabled: true,
+      serviceAuthEnabled: true,
+      providerAssertionEnabled: false,
+      eventsEnabled: false,
+      registrationTtlMs: 86_400_000,
+      claimAttemptTtlMs: 600_000,
+      assertionTtlMs: 3_600_000,
+      accessTokenTtlMs: 3_600_000,
+      pollIntervalSeconds: 5,
+      maxUserCodeAttempts: 5,
+      maxLiveAnonymous: 1024,
+      preClaimScopes: ["resource:read"],
+      postClaimScopes: ["resource:read"],
+      resourceScopes: ["resource:read"],
+      trustedProviders: [],
+    },
+  };
+}
+
+describe("loadConfig AgentAuth trusted providers", () => {
+  it("parses an explicit ID-JAG issuer list", () => {
+    const cfg = loadConfig({
+      OPENSESAME_ENV: "test",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      OPENSESAME_PUBLIC_URL: "http://127.0.0.1:8788",
+      OPENSESAME_ISSUER: "http://127.0.0.1:8788",
+      OPENSESAME_AGENT_AUTH_PROVIDER_ASSERTION_ENABLED: "true",
+      OPENSESAME_AGENT_AUTH_TRUSTED_PROVIDERS_JSON: JSON.stringify([
+        {
+          issuer: "https://idp.example",
+          audiences: ["http://127.0.0.1:8788"],
+          maxAuthAgeSeconds: 1800,
+        },
+      ]),
+    });
+    expect(cfg.agentAuth.trustedProviders).toEqual([
+      expect.objectContaining({
+        issuer: "https://idp.example",
+        enabled: true,
+        maxAuthAgeSeconds: 1800,
+      }),
+    ]);
+  });
+});
+
+describe("assertSecureConfig", () => {
+  it("accepts a production config with explicit CORS origins", () => {
+    expect(() => assertSecureConfig(prodBase())).not.toThrow();
+  });
+
+  it("rejects wildcard CORS in production", () => {
+    expect(() =>
+      assertSecureConfig({ ...prodBase(), corsOrigins: ["*"] }),
+    ).toThrow(/CORS_ORIGINS/);
+  });
+
+  it("permits an empty deny-all CORS allowlist in production", () => {
+    expect(() =>
+      assertSecureConfig({ ...prodBase(), corsOrigins: [] }),
+    ).not.toThrow();
+  });
+
+  it("rejects non-loopback listen host without override", () => {
+    expect(() =>
+      assertSecureConfig({ ...prodBase(), host: "0.0.0.0" }),
+    ).toThrow(/not loopback/);
+  });
+
+  it("permits an explicit deny-all upstream trust set in production", () => {
+    expect(() =>
+      assertSecureConfig({ ...prodBase(), trustedUpstreamIssuers: [] }),
+    ).not.toThrow();
+  });
+
+  it("rejects a non-https trusted upstream issuer in production", () => {
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["https://shoo.dev", "http://127.0.0.1:9090"],
+      }),
+    ).toThrow(/must use https in production/);
+  });
+
+  it("permits an empty or http trusted upstream allowlist outside production", () => {
+    const dev: ControlPlaneConfig = {
+      ...prodBase(),
+      isProduction: false,
+      publicUrl: "http://127.0.0.1:8788",
+      issuer: "http://127.0.0.1:8788",
+      hostApiUrl: "http://127.0.0.1:8787",
+      trustedUpstreamIssuers: [],
+    };
+    expect(() => assertSecureConfig(dev)).not.toThrow();
+    expect(() =>
+      assertSecureConfig({
+        ...dev,
+        trustedUpstreamIssuers: ["http://127.0.0.1:9090"],
+      }),
+    ).not.toThrow();
+  });
+
+  it("refuses upstream client credentials for an untrusted issuer", () => {
+    // A secret configured for an issuer we do not trust has nobody it may
+    // legitimately be sent to; failing at boot beats discovering it at runtime.
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["https://shoo.dev"],
+        upstreamClientCredentials: {
+          issuer: "https://elsewhere.example",
+          clientId: "cid",
+          clientSecret: "shh",
+        },
+      }),
+    ).toThrow(/not listed in OPENSESAME_TRUSTED_UPSTREAMS/);
+  });
+
+  it("still rejects an http credentialed issuer in production, via the allowlist scan", () => {
+    // There is no separate https check for credentials: listing the issuer is
+    // mandatory, and the allowlist itself must be https in production. This
+    // pins that the combination cannot slip through either way.
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["http://idp.internal"],
+        upstreamClientCredentials: {
+          issuer: "http://idp.internal",
+          clientId: "cid",
+          clientSecret: "shh",
+        },
+      }),
+    ).toThrow(/must use https in production/);
+  });
+
+  it("accepts credentials for a trusted https issuer", () => {
+    expect(() =>
+      assertSecureConfig({
+        ...prodBase(),
+        trustedUpstreamIssuers: ["https://shoo.dev"],
+        upstreamClientCredentials: {
+          issuer: "https://shoo.dev",
+          clientId: "cid",
+          clientSecret: "shh",
+        },
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("loadConfig upstream client credentials", () => {
+  it("is absent unless issuer, client id and secret are all present", async () => {
+    const { loadConfig } = await import("../config.js");
+    const base = {
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
+      OPENSESAME_UPSTREAM_CLIENT_ID: "cid",
+    };
+    // No secret: this is the origin-profile case, handled by derivation.
+    expect(loadConfig({ ...base }).upstreamClientCredentials).toBeUndefined();
+    // Secret but no client id.
+    expect(
+      loadConfig({
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+        OPENSESAME_UPSTREAM_ISSUER: "http://127.0.0.1:9090",
+        OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
+      }).upstreamClientCredentials,
+    ).toBeUndefined();
+    // All three.
+    expect(
+      loadConfig({
+        ...base,
+        OPENSESAME_UPSTREAM_CLIENT_SECRET: "shh",
+      }).upstreamClientCredentials,
+    ).toEqual({
+      issuer: "http://127.0.0.1:9090",
+      clientId: "cid",
+      clientSecret: "shh",
+    });
+  });
+});
+
+describe("assertListenHostAllowed", () => {
+  afterEach(() => {
+    Reflect.deleteProperty(process.env, "OPENSESAME_ALLOW_NONLOCAL");
+    Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_ALLOW_NONLOCAL");
+  });
+
+  it("allows loopback", () => {
+    expect(() => assertListenHostAllowed("127.0.0.1")).not.toThrow();
+  });
+
+  it("allows 0.0.0.0 when OPENSESAME_ALLOW_NONLOCAL=1", () => {
+    process.env.OPENSESAME_ALLOW_NONLOCAL = "1";
+    expect(() => assertListenHostAllowed("0.0.0.0")).not.toThrow();
+  });
+});
+
+describe("loadConfig personal workspace bootstrap", () => {
+  it("enables personal org bootstrap for local development without DEV_BOOTSTRAP", async () => {
+    const { loadConfig } = await import("../config.js");
+    const config = loadConfig({
+      OPENSESAME_ENV: "development",
+      OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+    });
+    expect(config.bootstrapPersonalOrganization).toBe(true);
+    expect(config.allowDevDefaults).toBe(true);
+  });
+
+  it("keeps personal org bootstrap off in production", async () => {
+    const { loadConfig } = await import("../config.js");
+    const config = loadConfig({
+      OPENSESAME_ENV: "production",
+      NODE_ENV: "production",
+      OPENSESAME_CLAIM_PEPPER: "unique-claim-pepper-not-dev",
+      OPENSESAME_OPERATOR_TOKEN: "operator-secret",
+      OPENSESAME_CORS_ORIGINS: "https://app.example",
+    });
+    expect(config.bootstrapPersonalOrganization).toBe(false);
+  });
+});

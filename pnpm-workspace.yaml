@@ -10,4 +10,5 @@ packages:
   - "tests/visual-contract"
   - "tests/fuzz/jazzer"
   # Development tooling
+  - "tools/mock-upstream-idp"
   - "tools/oxlint/anti-slop"

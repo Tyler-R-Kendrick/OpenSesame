@@ -14,6 +14,8 @@ export const EXPERIENCE_PACKAGES = [
   "@opensesame/app-core",
   "@opensesame/pages",
   "@opensesame/oauth-provider",
+  "@opensesame/control-plane",
+  "@opensesame/database",
 ];
 
 const LINT_PACKAGES = new Set(["@opensesame/pages", "@opensesame/static-auth"]);

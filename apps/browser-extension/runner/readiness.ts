@@ -5,7 +5,7 @@
  * all, did the person arm it, does the browser still grant it, and is
  * everything a step will need already in place.
  */
-import type { AgentRunView } from "./host-api-contract.js";
+import type { AgentRunView } from "@opensesame/api-client";
 import type { RunnerDeps, Skip } from "./loop-types";
 import { drivable } from "./origin";
 

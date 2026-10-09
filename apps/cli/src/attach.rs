@@ -197,7 +197,25 @@ pub fn cmd_attach_gc(path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<
     Ok(())
 }
 
-/// Split a replication-unit path into manifest vs chunk (for tests and local sync).
+/// Local record of what has already been replicated, so a re-run does not
+/// re-upload every chunk. Keyed by remote path; always safe to delete.
+const SYNC_CACHE_FILE: &str = ".opensesame-attachment-sync.json";
+
+fn load_sync_cache(root: &std::path::Path) -> std::collections::BTreeSet<String> {
+    std::fs::read(root.join(SYNC_CACHE_FILE))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+fn save_sync_cache(root: &std::path::Path, cache: &std::collections::BTreeSet<String>) {
+    // Best-effort: a lost cache costs re-uploads, never correctness.
+    if let Ok(bytes) = serde_json::to_vec(cache) {
+        let _ = std::fs::write(root.join(SYNC_CACHE_FILE), bytes);
+    }
+}
+
+/// Split a replication-unit path into what the gateway needs to file it.
 ///
 /// Manifests are addressed by their logical store path, chunks by digest, so
 /// the two take different endpoints. Anything else in the store is not ours to
@@ -224,8 +242,9 @@ fn classify(relative: &str) -> Option<Unit> {
     None
 }
 
-pub fn cmd_attach_sync(
-    to_dir: &Path,
+pub async fn cmd_attach_sync(
+    to_dir: Option<&Path>,
+    server: &str,
     path: Option<&Path>,
     tomb: Option<&str>,
 ) -> anyhow::Result<()> {
@@ -239,7 +258,11 @@ pub fn cmd_attach_sync(
         println!("no attachment ciphertext to replicate");
         return Ok(());
     }
-    sync_to_dir(&units, to_dir)
+
+    match to_dir {
+        Some(dir) => sync_to_dir(&units, dir),
+        None => sync_to_target(&units, &root_path, server).await,
+    }
 }
 
 /// Copy ciphertext to a mounted encrypted volume. No gateway, no ceremony.
@@ -258,6 +281,114 @@ fn sync_to_dir(units: &[(String, PathBuf)], dir: &std::path::Path) -> anyhow::Re
         dir.display()
     );
     Ok(())
+}
+
+/// Push ciphertext through the gateway to the configured provider target.
+///
+/// The gateway injects the provider credential; this side never sees it, and
+/// the gateway never sees a store key. Uploads are idempotent by construction
+/// (digest-addressed, overwrite mode), so a re-run after a partial failure is
+/// safe.
+async fn sync_to_target(
+    units: &[(String, PathBuf)],
+    root_path: &std::path::Path,
+    server: &str,
+) -> anyhow::Result<()> {
+    let token = crate::load_access_token()?;
+    let base = server.trim_end_matches('/');
+    let client = reqwest::Client::new();
+
+    // Fail before uploading anything if there is nowhere to put it.
+    let target: serde_json::Value = client
+        .get(format!("{base}/api/v1/attachments/target"))
+        .bearer_auth(&token)
+        .send()
+        .await?
+        .error_for_status()
+        .map_err(|e| anyhow::anyhow!("could not read the attachment target: {e}"))?
+        .json()
+        .await?;
+    if target.get("target").is_none_or(serde_json::Value::is_null) {
+        anyhow::bail!(
+            "no attachment target configured; set one with PUT {base}/api/v1/attachments/target, \
+             or use --to-dir to copy ciphertext to a mounted encrypted volume"
+        );
+    }
+
+    let mut cache = load_sync_cache(root_path);
+    let mut uploaded = 0usize;
+    let mut skipped = 0usize;
+    let mut failed = 0usize;
+
+    for (rel, source) in units {
+        let Some(unit) = classify(rel) else {
+            continue;
+        };
+        if cache.contains(rel) {
+            skipped += 1;
+            continue;
+        }
+        let body = std::fs::read(source)?;
+        let url = match &unit {
+            Unit::Chunk { digest } => {
+                format!("{base}/api/v1/attachments/replicate/chunk?digest={digest}")
+            }
+            Unit::Manifest { logical } => format!(
+                "{base}/api/v1/attachments/replicate/manifest?path={}",
+                urlencoding_path(logical)
+            ),
+        };
+        let sent = client
+            .post(&url)
+            .bearer_auth(&token)
+            .header("Content-Type", "application/octet-stream")
+            .body(body)
+            .send()
+            .await;
+        match sent {
+            Ok(response) if response.status().is_success() => {
+                cache.insert(rel.clone());
+                uploaded += 1;
+                println!("uploaded {rel}");
+            }
+            Ok(response) => {
+                let status = response.status();
+                let detail = response.text().await.unwrap_or_default();
+                let snippet: String = detail.chars().take(200).collect();
+                eprintln!("failed {rel}: {status} {snippet}");
+                failed += 1;
+            }
+            Err(error) => {
+                eprintln!("failed {rel}: {error}");
+                failed += 1;
+            }
+        }
+    }
+
+    save_sync_cache(root_path, &cache);
+    println!("replicated {uploaded} file(s), skipped {skipped} already uploaded, {failed} failed");
+    if failed > 0 {
+        anyhow::bail!("{failed} attachment object(s) failed to replicate");
+    }
+    Ok(())
+}
+
+/// Percent-encode the few characters that would otherwise change a query
+/// string's shape. Store-logical paths are already restricted to safe
+/// characters, so this is a belt on top of braces.
+fn urlencoding_path(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| match c {
+            '&' => "%26".to_string(),
+            '#' => "%23".to_string(),
+            '?' => "%3F".to_string(),
+            '+' => "%2B".to_string(),
+            ' ' => "%20".to_string(),
+            '%' => "%25".to_string(),
+            other => other.to_string(),
+        })
+        .collect()
 }
 
 #[cfg(test)]

@@ -1,0 +1,241 @@
+//! Backup `TaskBus` wakes (system subjects). Outbox remains `SoT`; bus accelerates.
+//!
+//! When the Host `TaskBus` backend is NATS, a dedicated durable consumer
+//! (`opensesame-backup`) processes `opensesame.events.system.>` and wakes the
+//! outbox actor, acknowledging each wake once the actor has been woken. The actor's `SQLite` claim/lease remains the only claim path —
+//! `JetStream` never becomes a second ledger. Memory backend skips this consumer
+//! and relies on `backup_notify` + tick only (shared in-memory bus must not be
+//! drained here or it would steal sync/rotation events).
+
+use async_trait::async_trait;
+use opensesame_task_bus::{
+    backup_consumer_config, BusEvent, EventHandler, NatsJetStreamTaskBus, NatsRole, TaskBus,
+    TaskBusBackend, DEFAULT_SUBJECT_PREFIX, SYSTEM_SUBJECT_PREFIX,
+};
+use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Notify;
+
+use crate::app_state::AppState;
+use crate::taskbus_config;
+
+pub const BACKUP_WAKE_TYPE: &str = "system.backup.wake";
+
+/// Publish a wake after outbox append. Failures are logged — tick still drains.
+pub async fn publish_backup_wake(st: &AppState, outbox_id: &str) {
+    let event = BusEvent::cloud_event(
+        uuid::Uuid::now_v7().to_string(),
+        "opensesame/gateway/backup",
+        BACKUP_WAKE_TYPE,
+        chrono::Utc::now().to_rfc3339(),
+        json!({
+            "outbox_id": outbox_id,
+            "organization_id": st.connection_organization.to_string(),
+        }),
+    );
+    debug_assert!(
+        event
+            .subject(DEFAULT_SUBJECT_PREFIX)
+            .starts_with(SYSTEM_SUBJECT_PREFIX),
+        "backup wakes must land under {SYSTEM_SUBJECT_PREFIX}",
+    );
+    let bus = st.task_bus.read().await;
+    if let Err(error) = bus.publish(event).await {
+        tracing::warn!(%error, outbox_id, "backup TaskBus wake publish failed; tick will drain");
+    }
+    // Always notify the in-process actor: memory path has no JetStream consumer;
+    // nats path gets an extra wake from the durable consumer as well — claim/lease
+    // makes concurrent passes safe.
+    st.backup_notify.notify_one();
+}
+
+/// Drain system wakes from `JetStream` and wake the outbox actor (nats only).
+pub async fn run_system_wake_consumer(state: AppState) {
+    let Some(bus) = connect_system_wake_bus(&state).await else {
+        return;
+    };
+    tracing::info!("backup JetStream wake consumer started");
+    drain_system_wakes(&state, &bus).await;
+}
+
+async fn connect_system_wake_bus(state: &AppState) -> Option<NatsJetStreamTaskBus> {
+    let Ok(resolved) = taskbus_config::resolve(&state.db).await else {
+        return None;
+    };
+    if !matches!(resolved.backend, TaskBusBackend::Nats) {
+        tracing::info!("backup JetStream wake consumer idle (TaskBus backend is not nats)");
+        return None;
+    }
+    let url = resolved.nats_url.as_deref()?;
+
+    // The backup wake consumer runs as its own least-privilege identity
+    // (`opensesame-backup`, durable `opensesame-backup`, filtered to
+    // `opensesame.events.system.>`) on the *resolved* transport — the same
+    // policy and references as every other NATS client in this process. On a
+    // secure profile it never provisions: the durable is the one-time
+    // provisioning action's to create, and an absent one is `not_provisioned`,
+    // never a silent create with a runtime identity.
+    let provision = !resolved.transport.is_secure();
+    match NatsJetStreamTaskBus::connect(backup_consumer_config(
+        url,
+        resolved.transport.clone(),
+        NatsRole::Backup,
+        provision,
+    ))
+    .await
+    {
+        Ok(bus) => Some(bus),
+        Err(error) => {
+            tracing::warn!(%error, "backup JetStream wake consumer failed to connect");
+            None
+        }
+    }
+}
+
+/// Wakes the outbox actor. It never fails: a wake is only a hint, and the
+/// actor's `SQLite` claim/lease is the one path that does the work.
+struct WakeActor(Arc<Notify>);
+
+#[async_trait]
+impl EventHandler for WakeActor {
+    async fn handle(&self, _event: &BusEvent) -> anyhow::Result<()> {
+        self.0.notify_one();
+        Ok(())
+    }
+}
+
+async fn drain_system_wakes(state: &AppState, bus: &NatsJetStreamTaskBus) {
+    let wake = WakeActor(Arc::clone(&state.backup_notify));
+    loop {
+        match bus.process(32, &wake).await {
+            Ok(report) if report.received() > 0 => {
+                tracing::debug!(count = report.received(), "system TaskBus wakes received");
+            }
+            Ok(_) => {}
+            Err(error) => {
+                tracing::warn!(%error, "backup JetStream wake consumer failed; retrying");
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use opensesame_task_bus::{BusEvent, TaskBus};
+    use std::sync::Arc;
+    use tokio::sync::{Notify, RwLock};
+
+    struct DownBus;
+
+    #[async_trait]
+    impl TaskBus for DownBus {
+        async fn publish(&self, _event: BusEvent) -> anyhow::Result<()> {
+            anyhow::bail!("nats down");
+        }
+
+        async fn drain(&self, _max: usize) -> anyhow::Result<Vec<BusEvent>> {
+            Ok(vec![])
+        }
+    }
+
+    async fn expect_notification(notify: Arc<Notify>) {
+        tokio::time::timeout(std::time::Duration::from_secs(2), notify.notified())
+            .await
+            .expect("backup_notify must fire despite bus failure");
+    }
+
+    #[tokio::test]
+    async fn a_processed_wake_wakes_the_actor_and_is_consumed() {
+        let bus = opensesame_task_bus::InMemoryTaskBus::default();
+        bus.publish(BusEvent::cloud_event(
+            "w1",
+            "test",
+            BACKUP_WAKE_TYPE,
+            "now",
+            json!({}),
+        ))
+        .await
+        .unwrap();
+        let notify = Arc::new(Notify::new());
+        let report = bus
+            .process(32, &WakeActor(Arc::clone(&notify)))
+            .await
+            .unwrap();
+        assert_eq!(report.handled, 1);
+        expect_notification(notify).await;
+        assert!(bus.drain(10).await.unwrap().is_empty());
+    }
+
+    #[test]
+    fn wake_publisher_does_not_use_deployment_seal() {
+        let src = include_str!("backup_bus.rs");
+        let production = src.split("#[cfg(test)]").next().unwrap_or(src);
+        assert!(production.contains("system.backup.wake"));
+        assert!(!production.contains("OPENSESAME_CONNECTION_KEY"));
+        assert!(!production.contains("std::env::var(\"OPENSESAME_CONNECTION"));
+    }
+
+    #[test]
+    fn wake_type_is_system_prefixed() {
+        assert!(BACKUP_WAKE_TYPE.starts_with("system."));
+        let subject = opensesame_task_bus::event_subject(
+            opensesame_task_bus::DEFAULT_SUBJECT_PREFIX,
+            BACKUP_WAKE_TYPE,
+        );
+        assert!(subject.starts_with(opensesame_task_bus::SYSTEM_SUBJECT_PREFIX));
+    }
+
+    #[tokio::test]
+    async fn publish_wake_lands_on_memory_bus() {
+        let _guard = crate::app_state::test_env::lock();
+        std::env::set_var("OPENSESAME_TASKBUS", "memory");
+        let mut state = crate::app_state::build_test(crate::config::Args {
+            listen: "127.0.0.1:0".parse().unwrap(),
+            resource: "https://opensesame.local".into(),
+            issuer: "https://issuer.local".into(),
+            database_url: "sqlite::memory:".into(),
+            task_database_url: String::new(),
+            profile: crate::config::GatewayProfile::Host,
+        })
+        .await
+        .unwrap();
+        let mem = std::sync::Arc::new(opensesame_task_bus::InMemoryTaskBus::default());
+        let as_dyn: std::sync::Arc<dyn opensesame_task_bus::TaskBus> = mem.clone();
+        state.task_bus = std::sync::Arc::new(tokio::sync::RwLock::new(as_dyn));
+        publish_backup_wake(&state, "outbox_test_1").await;
+        let events = mem.drain(10).await.unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].r#type, BACKUP_WAKE_TYPE);
+        assert_eq!(events[0].data["outbox_id"], "outbox_test_1");
+        assert!(!events[0].data.to_string().contains("BEGIN RSA"));
+    }
+
+    /// Chaos: publish failure still wakes the in-process actor via notify.
+    #[tokio::test]
+    async fn publish_wake_notifies_even_when_bus_is_down() {
+        let _guard = crate::app_state::test_env::lock();
+        std::env::set_var("OPENSESAME_TASKBUS", "memory");
+
+        let mut state = crate::app_state::build_test(crate::config::Args {
+            listen: "127.0.0.1:0".parse().unwrap(),
+            resource: "https://opensesame.local".into(),
+            issuer: "https://issuer.local".into(),
+            database_url: "sqlite::memory:".into(),
+            task_database_url: String::new(),
+            profile: crate::config::GatewayProfile::Host,
+        })
+        .await
+        .unwrap();
+        state.task_bus = Arc::new(RwLock::new(Arc::new(DownBus) as Arc<dyn TaskBus>));
+
+        let notified = tokio::spawn(expect_notification(state.backup_notify.clone()));
+        // Yield so the waiter is armed.
+        tokio::task::yield_now().await;
+        publish_backup_wake(&state, "outbox_down").await;
+        notified.await.unwrap();
+    }
+}

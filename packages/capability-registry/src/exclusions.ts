@@ -75,13 +75,6 @@ export const PAGES_HAS_NO_HOST: CapabilityExclusion = {
     "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
   adr: ADR_PAGES_WITHOUT_HOST,
 };
-
-/** Host API, Identity API, and daemon were removed from the client repository. */
-export const CLIENT_NO_HOST_IDENTITY: CapabilityExclusion = {
-  reason:
-    "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-  adr: "0090-static-frontend-complete-without-backend.md",
-};
 /**
  * Host secret configs have no Pages equivalent: ADR 0128 names them among
  * the Host panels whose surface went away with its tests, and nothing in

@@ -33,6 +33,7 @@ const GATES = [
   "build:profile \\\n            --profile capability-profiles/enterprise-selected.json",
   "verify:webmcp",
   "verify:keyboard",
+  "verify:push-worker",
   "verify:mobile",
   "verify:local-iam",
   "verify:siop",

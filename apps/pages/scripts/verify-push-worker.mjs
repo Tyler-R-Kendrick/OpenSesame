@@ -45,6 +45,7 @@ import {
   trackControlledBirth,
   until,
   untilBornControlled,
+  untilHeld,
 } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
@@ -140,14 +141,6 @@ try {
     });
   };
 
-  /** Wait for `script` to hold this scope for the page, with no help. */
-  const untilHeld = (script, what) =>
-    until(
-      () => scriptsFrom(page, base),
-      (s) => same(s.active, script) && same(s.controller, script),
-      what,
-    );
-
   /**
    * Deliver until `ok` holds of what the registration shows, as a push service
    * redelivers what a worker that was starting up missed. Returns what it
@@ -229,6 +222,8 @@ try {
   // Approve Push notifications the way a person does.
   await addCapabilities(page, [TITLE]);
   state = await untilHeld(
+    page,
+    base,
     `${scope}sw-push.js`,
     "approving Push notifications should install and hand the page to sw-push.js",
   );
@@ -342,6 +337,8 @@ try {
     .waitFor({ state: "detached", timeout: 15_000 });
   await capabilityOffSwitch(page, TITLE).waitFor({ timeout: 15_000 });
   state = await untilHeld(
+    page,
+    base,
     core,
     "removing Push notifications should return the scope to the core worker",
   );

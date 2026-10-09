@@ -73,10 +73,10 @@ pub const DEFAULT_POLL_INTERVAL: Duration = Duration::from_secs(2);
 pub enum InteractionConfigError {
     /// The Identity API URL does not parse, or carries credentials, a query
     /// or a fragment.
-    #[error("interaction_base_url is not a usable URL")]
+    #[error("identity_api_url is not a usable URL")]
     InvalidUrl,
-    /// The interaction service URL is plain http to a non-loopback host.
-    #[error("interaction_base_url must be https (loopback http is allowed for tests)")]
+    /// The Identity API URL is plain http to a non-loopback host.
+    #[error("identity_api_url must be https (loopback http is allowed for tests)")]
     InsecureUrl,
     /// The approver handle is not an `inbox_` handle of a plausible length.
     #[error("approver_ref is not an inbox handle")]
@@ -98,8 +98,8 @@ pub enum InteractionConfigError {
 /// Everything an [`InteractionApprover`] needs.
 #[derive(Debug)]
 pub struct InteractionApproverConfig {
-    /// The interaction service origin (`https://…`; loopback http for tests).
-    pub interaction_base_url: String,
+    /// The Identity API origin (`https://…`; loopback http for tests).
+    pub identity_api_url: String,
     /// The requester's Identity API bearer.
     pub bearer: SecretString,
     /// The approver's inbox handle, shared by its owner.
@@ -147,7 +147,7 @@ impl InteractionApprover {
     /// [`InteractionConfigError`] naming the first field that is unusable.
     pub fn new(config: InteractionApproverConfig) -> Result<Self, InteractionConfigError> {
         use secrecy::ExposeSecret;
-        let base = http::parse_base(&config.interaction_base_url)?;
+        let base = http::parse_base(&config.identity_api_url)?;
         let handle = &config.approver_ref;
         if !handle.starts_with("inbox_") || handle.len() < 8 || handle.len() > 256 {
             return Err(InteractionConfigError::InvalidApproverRef);

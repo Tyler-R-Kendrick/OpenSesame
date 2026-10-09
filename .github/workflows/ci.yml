@@ -81,6 +81,22 @@ jobs:
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      # A real server for the repository contract: PGlite accepts a `Date`
+      # in raw SQL that the production driver (postgres-js) rejects.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opensesame
+          POSTGRES_PASSWORD: opensesame
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opensesame"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -116,6 +132,21 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/lib/ci-affected-tests.mjs run-ts
+      - name: Repository contract on a real Postgres
+        # The same suites as the PGlite run, through the production driver.
+        # Each suite creates and drops its own database.
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/database')
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+          OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
+        run: pnpm --filter @opensesame/database test:postgres
+      - name: Worker delivery on a real Postgres
+        # Web Push through the real worker tick and a stand-in push service,
+        # over the production driver. Builds and drops its own database.
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+        run: pnpm --filter @opensesame/identity-worker test:postgres
       - name: Product-experience contracts
         # One block across the experience packages. It runs when the
         # affected set includes any of them.
@@ -209,6 +240,18 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Push worker installs on approval and reverts on removal
+        if: matrix.shard == 'budgets'
+        # A real localhost origin with service workers allowed (context.route
+        # never sees a worker's fetches). A device holding the core worker
+        # approves Push notifications and must end on sw-push.js at the same
+        # scope — one registration, no reload, the vault still open — then a
+        # push delivered over CDP must ring the contract's doorbell; removing
+        # the capability returns the core worker.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push-worker
       - name: Phone and tablet layout and touch contract
         if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
@@ -297,7 +340,7 @@ jobs:
         run: cargo +1.88.0 build -p opensesame-cli --locked
       - name: Relay join
         # ADR 0181. One leg only, so the walk runs once against the gateway
-        # relay binary (`opensesame relay run`).
+        # relay profile (`opensesame host run --profile relay`).
         if: matrix.shard == 'journeys-1'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
@@ -339,6 +382,46 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:device-inbox
+
+  push-e2e:
+    # Its own job: the Bundle budget job's twenty minutes are spent, and this
+    # needs a second Pages build (stamped for its own origin), the control-plane
+    # and a browser. `bundle-check` below folds its result into the required
+    # "Bundle budgets" check, so it gates merges without another required name.
+    name: Web Push end to end
+    needs: changes
+    # The server code verify:push runs (the push area) and the changes the gate
+    # rules send to it (scripts/lib/ci-gates.mjs).
+    if: needs.changes.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages for the loopback origin the walk serves
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:push-verify
+      - name: Push, end to end
+        # The real Identity API (control-plane startServer(), in memory), the
+        # Host's Web Push delivery, and a stand-in push service that verifies
+        # RFC 8292 VAPID and decrypts RFC 8291 aes128gcm, against Pages in a
+        # real browser: approve Push, turn it on (the subscription is recorded
+        # server-side), a real push rings the closed doorbell, turn it off (the
+        # server's row is gone), and the failures a person can meet. Only the
+        # browser's own push subscription is stood in for.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push
 
   device-identity-e2e:
     # Its own job: the Bundle budget job's twenty minutes were spent when this
@@ -617,7 +700,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle, device-identity-e2e, device-inbox, tutorials-e2e]
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -628,6 +711,7 @@ jobs:
           heavy="${{ needs.bundle.result }}"
           tutorials="${{ needs.tutorials-e2e.result }}"
           inbox="${{ needs.device-inbox.result }}"
+          push="${{ needs.push-e2e.result }}"
           identity="${{ needs.device-identity-e2e.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
@@ -644,6 +728,10 @@ jobs:
           case "$inbox" in
             success|skipped) ;;
             *) echo "device inbox result: $inbox"; exit 1 ;;
+          esac
+          case "$push" in
+            success|skipped) ;;
+            *) echo "push end to end result: $push"; exit 1 ;;
           esac
           case "$identity" in
             success|skipped) exit 0 ;;

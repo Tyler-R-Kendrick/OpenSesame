@@ -38,18 +38,32 @@ describe("PACT — mcp-host", () => {
     );
   });
 
-  it("chaos: Host partition fails closed at hostFetch", async () => {
+  it("chaos: Host partition maps to host_unavailable, not an open tool", async () => {
     process.env.OPENSESAME_HOST_API = "http://127.0.0.1:8787";
     process.env.OPENSESAME_OPERATOR_TOKEN = "opensesame-dev-operator";
     setFetchForTests(async () => {
       throw new Error("ECONNREFUSED");
     });
     await expect(hostFetch("/health/ready")).rejects.toThrow(/ECONNREFUSED/);
+    assertSourceOrder(readFileSync(join(here, "tools.ts"), "utf8"), [
+      'const res = await hostFetch("/health/ready")',
+      'toolError("host_unavailable"',
+    ]);
   });
 
-  it("contract: hostTools catalog is empty after Host API removal", () => {
+  it("contract: hostTools JSON has no secret fields", () => {
     assertNoSecretFields({ tools: [...hostTools] });
-    expect(hostTools).toEqual([]);
+    expect(hostTools).toEqual(
+      expect.arrayContaining([
+        "task_start",
+        "task_status",
+        "task_invoke",
+        "task_terminate",
+        "daemon_health",
+        "host_ready",
+        "task_invoke_l1",
+      ]),
+    );
   });
 
   it("human administration and unscoped metadata are absent from the catalog", () => {

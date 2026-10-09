@@ -10,28 +10,35 @@ const CAPABILITIES_JSON: &str =
 
 const CLI_SOURCES: &[&str] = &[
     include_str!("../src/main.rs"),
-    include_str!("../src/pass_cmds.rs"),
-    include_str!("../src/configs.rs"),
-    include_str!("../src/pass_otp.rs"),
-    include_str!("../src/pass_protect.rs"),
-    include_str!("../src/pass_protect/rotate.rs"),
-    include_str!("../src/security.rs"),
-    include_str!("../src/vault_crypto.rs"),
-    include_str!("../src/vault_relay_sync.rs"),
-    include_str!("../src/vault_secret.rs"),
+    include_str!("../src/daemon_cmd.rs"),
+    include_str!("../src/daemon_toolbar.rs"),
+    include_str!("../src/daemon_fill.rs"),
     include_str!("../src/serve.rs"),
     include_str!("../src/entry.rs"),
+    include_str!("../src/connect.rs"),
+    include_str!("../src/configs.rs"),
+    include_str!("../src/certs.rs"),
     include_str!("../src/store.rs"),
     include_str!("../src/attach.rs"),
     include_str!("../src/bridge.rs"),
     include_str!("../src/bridge/bitwarden.rs"),
+    include_str!("../src/lifecycle.rs"),
+    include_str!("../src/security.rs"),
+    include_str!("../src/agent_run_hooks.rs"),
+    include_str!("../src/agent_runs.rs"),
     include_str!("../src/hooks.rs"),
-    include_str!("../src/rotate_local.rs"),
+    include_str!("../src/hooks_policy.rs"),
+    include_str!("../src/hooks_presets.rs"),
+    include_str!("../src/hooks_decisions.rs"),
+    include_str!("../src/rotate_recipes.rs"),
     include_str!("../src/rotate_recipes_sign.rs"),
+    include_str!("../src/sync_commands.rs"),
+    include_str!("../src/local_authority.rs"),
     include_str!("../src/vault_migration.rs"),
     include_str!("../src/vault_file.rs"),
     include_str!("../src/vault_area.rs"),
-    include_str!("../src/ceremony.rs"),
+    include_str!("../src/access_area.rs"),
+    include_str!("../src/identity_area.rs"),
     include_str!("../src/dev_run.rs"),
     include_str!("../src/plugins.rs"),
     include_str!("../src/session.rs"),
@@ -105,7 +112,7 @@ fn registry_cli_surfaces_exist_in_clap_sources() {
 
 /// Verbs that are shell mechanics or another interface over capabilities the
 /// registry already holds, rather than capabilities of their own.
-const INTERFACE_VERBS: &[&str] = &["help", "completion"];
+const INTERFACE_VERBS: &[&str] = &["help", "completion", "tui"];
 
 /// The other direction: every top-level `opensesame` verb is a registry
 /// capability, so a verb cannot ship on the CLI without the registry — and
@@ -125,7 +132,7 @@ fn every_cli_verb_is_a_registry_capability() {
         .filter_map(|line| line.split_whitespace().next())
         .collect();
     assert!(
-        verbs.len() >= 10,
+        verbs.len() > 20,
         "no commands in `opensesame --help`:\n{help}"
     );
 

@@ -183,7 +183,7 @@ pub async fn until(server: &Server, ready: impl Fn(&Seen) -> bool) {
 /// The approver configuration the tests use against `base`.
 pub fn config(base: &str, deadline: Duration) -> InteractionApproverConfig {
     InteractionApproverConfig {
-        interaction_base_url: base.to_owned(),
+        identity_api_url: base.to_owned(),
         bearer: BEARER.to_owned().into(),
         approver_ref: APPROVER_REF.to_owned(),
         ttl: Duration::from_secs(300),

@@ -55,12 +55,12 @@ pub(crate) enum PluginsCmd {
         /// `http://localhost:port` for a page served on this machine.
         #[arg(long)]
         origin: String,
-        /// Where that page reaches the local agent: this machine, or its tailnet
+        /// Where that page reaches this daemon: this machine, or its tailnet
         /// address (its Tailscale Serve URL).
         #[arg(long, default_value = plugins_pair::DEFAULT_DAEMON_URL)]
         url: String,
-        /// What the page calls the local agent.
-        #[arg(long, default_value = "OpenSesame local agent")]
+        /// What the page calls this daemon.
+        #[arg(long, default_value = "OpenSesame daemon")]
         label: String,
     },
     /// Revoke what pages hold: every pairing for one origin, or all of them.
@@ -130,8 +130,7 @@ pub(crate) async fn run(output: &str, cmd: PluginsCmd) -> anyhow::Result<()> {
         PluginsCmd::Notices { id } => {
             let file =
                 opensesame_plugin_settings::notices_path(&path, &id).map_err(|_| unknown(&id))?;
-            // Daemon API removed; notices file is still read as JSON lines if present.
-            json!({ "notices": read_notices_file(&file) })
+            json!({ "notices": opensesame_daemon::plugin_notices(&file) })
         }
     };
     crate::print_output(output, &value)
@@ -195,24 +194,6 @@ pub(crate) fn status(path: &std::path::Path, id: &str) -> anyhow::Result<Value> 
         value["pin"] = json!(pin);
     }
     Ok(value)
-}
-
-/// Recent tripwire notices from the plugin's JSONL file (local; no daemon).
-fn read_notices_file(path: &std::path::Path) -> Vec<Value> {
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    text.lines()
-        .rev()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                return None;
-            }
-            serde_json::from_str::<Value>(trimmed).ok()
-        })
-        .take(50)
-        .collect()
 }
 
 #[path = "plugins_pair.rs"]

@@ -9,7 +9,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 describe("PACT — mcp-client tools", () => {
   it("contract: catalog never advertises secret tools", () => {
-    expect(toolsManifest).toEqual([]);
     expect(() => assertsNoMaterializeTool(toolsManifest)).not.toThrow();
     expect(() =>
       assertsNoMaterializeTool([...toolsManifest, "getSecret"]),
@@ -24,16 +23,27 @@ describe("PACT — mcp-client tools", () => {
     }
   });
 
+  it("Host URL is pinned before any tool runs", () => {
+    assertSourceOrder(readFileSync(join(here, "server.ts"), "utf8"), [
+      "function requireBase",
+      "normalizeHttpBaseUrl(raw)",
+      "throw new Error",
+      'endpointAddress("host", process.env)',
+    ]);
+  });
+
   it("never acquires human Identity authority and guards every model response", () => {
     const source = readFileSync(join(here, "server.ts"), "utf8");
     expect(source).not.toContain("OPENSESAME_IDENTITY_TOKEN");
     expect(source).not.toContain("present_claim");
-    expect(source).not.toContain("createAuthenticatedApiClient");
-    expect(source).not.toContain("createApiClient");
+    expect(source).toContain("createAuthenticatedApiClient");
+    expect(source).not.toContain(
+      "accessToken ?? process.env.OPENSESAME_ACCESS_TOKEN",
+    );
     assertSourceOrder(source, [
       "function modelText",
       "forAgent",
-      "modelText({ error: label, message })",
+      "modelText(data)",
     ]);
   });
 });

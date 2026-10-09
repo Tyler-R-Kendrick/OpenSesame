@@ -98,12 +98,12 @@ describe("directory device approval", () => {
 
   it("maps an unreachable Host to unreachable wording", async () => {
     identityFetch.mockResolvedValue(
-      jsonResponse({ error: "approval_peer_unreachable" }, 502),
+      jsonResponse({ error: "host_api_unreachable" }, 502),
     );
     const error = await failureOf(approveDevice("ABCD-EFGH"));
     if (error instanceof DirectoryError) {
       expect(error.status).toBe(502);
-      expect(error.code).toBe("approval_peer_unreachable");
+      expect(error.code).toBe("host_api_unreachable");
     }
     expect(error.message).toMatch(/Approval could not be delivered/);
   });
@@ -165,11 +165,11 @@ describe("directory device approval", () => {
 
   it("prefers the server's own message when no known code is carried", async () => {
     identityFetch.mockResolvedValue(
-      jsonResponse({ error: "invalid_peer_base_url", message: "Fix it." }, 500),
+      jsonResponse({ error: "invalid_host_api_url", message: "Fix it." }, 500),
     );
     const error = await failureOf(approveDevice("ABCD-EFGH"));
     if (error instanceof DirectoryError) {
-      expect(error.code).toBe("invalid_peer_base_url");
+      expect(error.code).toBe("invalid_host_api_url");
     }
     expect(error.message).toBe("Fix it.");
   });

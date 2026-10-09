@@ -346,7 +346,7 @@ async fn a_dropped_ask_still_withdraws_its_interaction() {
 }
 
 #[tokio::test]
-async fn an_interaction_service_behind_a_path_prefix_is_reached_under_it() {
+async fn an_identity_api_behind_a_path_prefix_is_reached_under_it() {
     // A base with a path (`/idp`), with and without its trailing slash, keeps
     // that path on every route the approver speaks.
     for suffix in ["", "/"] {

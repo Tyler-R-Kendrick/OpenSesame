@@ -68,8 +68,8 @@ export interface ApproveDeviceInput {
  *
  * The body's code outranks the status because the Identity API is a *proxy*
  * here (`packages/control-plane/src/routes/device.ts`): one status covers
- * unrelated causes — `approval_peer_unreachable` (the approval peer is down) and
- * `host_approval_failed` (the peer said no) both arrive as 502,
+ * unrelated causes — `host_api_unreachable` (the Host is down) and
+ * `host_approval_failed` (the Host said no) both arrive as 502,
  * `invalid_request` and `organization_id_required` both as 400 — and a 403
  * carrying `organization_access_denied` is an organization refusal, never a
  * missing sign-in.
@@ -81,7 +81,7 @@ export function deviceApprovalWords(
   switch (code) {
     case "operator_token_unconfigured":
       return "Device approval is not enabled on this sign-in service.";
-    case "approval_peer_unreachable":
+    case "host_api_unreachable":
       return "Approval could not be delivered. Try again when the service is reachable.";
     case "host_approval_failed":
       return status === 404

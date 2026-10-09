@@ -51,25 +51,17 @@ describe("native mobile required checks", () => {
     "Cargo.lock",
     "scripts/test/mobile-apple.sh",
     ".github/workflows/ci.yml",
-  ])(
-    "tests changed native or ABI input %s",
-    (path) => {
-      expect(classify(path)).toBe("native_mobile=true");
-    },
-    30_000,
-  );
+  ])("tests changed native or ABI input %s", (path) => {
+    expect(classify(path)).toBe("native_mobile=true");
+  });
 
   it.each([
     "docs/native.md",
     "apps/android/README.md",
     "apps/pages/src/main.tsx",
-  ])(
-    "does not require native compilers for %s",
-    (path) => {
-      expect(classify(path)).toBe("native_mobile=false");
-    },
-    30_000,
-  );
+  ])("does not require native compilers for %s", (path) => {
+    expect(classify(path)).toBe("native_mobile=false");
+  });
 
   it("fails closed when a diff cannot be determined", () => {
     const output = execFileSync("bash", [script], {

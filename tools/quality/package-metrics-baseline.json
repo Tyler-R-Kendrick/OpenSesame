@@ -10,6 +10,6 @@
     "sdp": 1,
     "unused": 0
   },
-  "sdp": ["rust: opensesame-gateway -> opensesame-host-core"],
+  "sdp": ["rust: opensesame-host-core -> opensesame-broker"],
   "unused": []
 }

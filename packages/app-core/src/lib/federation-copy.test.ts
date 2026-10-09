@@ -20,9 +20,9 @@ describe("describeFederationError", () => {
     expect(text).toContain("Nothing was changed");
   });
 
-  it("maps no_federation_endpoint to the deployment explanation", () => {
+  it("maps no_identity_api to the deployment explanation", () => {
     const text = describeFederationError(
-      new FederationError("no_federation_endpoint", "raw"),
+      new FederationError("no_identity_api", "raw"),
     );
     expect(text).toContain("isn't connected to an identity service");
   });

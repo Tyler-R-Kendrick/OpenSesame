@@ -122,8 +122,7 @@ pnpm test:integration    # turbo run test:integration
 pnpm test:e2e            # turbo run test:e2e; live suites require their URLs
 pnpm test:security       # @opensesame/testing test:security
 pnpm test:task-access    # scripts/test/task-security-battle-test.sh
-pnpm test:redteam        # @opensesame/redteam structural pact suite (mock-upstream
-                          #   fences, agent-surface catalog denylist, duress trees)
+pnpm test:redteam        # @opensesame/redteam structural pact suite
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
@@ -137,8 +136,8 @@ pnpm test:tailnet-sync:real # scripts/test/tailnet-sync-real-tailnet.sh — veri
 pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
-pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — the static app with no certificate
-                          #   and the transport UX, under the pinned Chromium
+pnpm test:mtls:browser   # scripts/mtls/mtls-browser-test.mjs — Playwright clientCertificates against the
+                          #   ingress reference, plus the static app with no certificate
 pnpm test:mtls:fixtures  # scripts/mtls/mtls-fixtures.sh fetch all + verify — sha256-pinned nats-server,
                           #   OpenBao, SPIRE, Caddy under .cache/mtls-fixtures/ (never a browser dep)
 pnpm test:live-fixtures  # scripts/test/live-fixtures.sh — the nats-server pin + ntfy built from pinned

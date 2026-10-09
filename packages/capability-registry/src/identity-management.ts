@@ -1,6 +1,7 @@
-import { identityManagementAgentCapabilities } from "./identity-management-agents.js";
+import { AUTHENTICATOR_HANDOFF, AUTH_CEREMONY } from "./exclusions.js";
 import type { Capability } from "./index.js";
-
+import { localOrganizationCapabilities } from "./local-organizations.js";
+import { orgSignInCapabilities } from "./org-signin.js";
 export const identityManagementCapabilities: readonly Capability[] = [
   {
     id: "identity.local.requests.manage",
@@ -244,5 +245,156 @@ export const identityManagementCapabilities: readonly Capability[] = [
       },
     },
   },
-  ...identityManagementAgentCapabilities,
+  {
+    id: "identity.agent.register",
+    title: "Register a provisional agent identity",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: "opensesame-id agent init",
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      webmcp: {
+        reason:
+          "Navigation opens Identity; directory and lifecycle changes require a human decision",
+        adr: "0065-agent-surface-parity.md",
+      },
+      mcp_host: {
+        reason:
+          "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
+        adr: "0065-agent-surface-parity.md",
+      },
+      mcp_client: {
+        reason:
+          "agent bootstrap is an operator ceremony; an agent must not mint sibling agents",
+        adr: "0065-agent-surface-parity.md",
+      },
+    },
+  },
+  {
+    id: "identity.agent.manage",
+    title: "List, rename and revoke owned agent registrations",
+    plane: "identity",
+    kind: "admin",
+    surfaces: {
+      cli: null,
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      webmcp: {
+        reason:
+          "Navigation opens Identity; directory and lifecycle changes require a human decision",
+        adr: "0065-agent-surface-parity.md",
+      },
+      mcp_host: {
+        reason: "Agent lifecycle changes are human administration",
+        adr: "0065-agent-surface-parity.md",
+      },
+      mcp_client: {
+        reason: "Agent lifecycle changes are human administration",
+        adr: "0065-agent-surface-parity.md",
+      },
+    },
+  },
+  {
+    id: "identity.users.manage",
+    title: "Provision and manage organization directory users",
+    plane: "identity",
+    kind: "admin",
+    surfaces: {
+      cli: null,
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      webmcp: {
+        reason:
+          "Navigation opens Identity; directory and lifecycle changes require a human decision",
+        adr: "0065-agent-surface-parity.md",
+      },
+      mcp_host: {
+        reason: "Directory provisioning requires the organization owner",
+        adr: "0065-agent-surface-parity.md",
+      },
+      mcp_client: {
+        reason: "Directory provisioning requires the organization owner",
+        adr: "0065-agent-surface-parity.md",
+      },
+    },
+  },
+  // A claim link (ADR 0045, ADR 0140): the person holding it reviews what is
+  // claimed and consents with the code its creator read out. The bearer and
+  // the code are a human's; no agent surface may carry either.
+  {
+    id: "identity.claim.accept",
+    title: "Review and accept an ownership claim",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/claim",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
+  // A drop link (ADR 0062; ADR 0140 D2): the recipient opens it once, with
+  // the code the sender shared, and the payload is decrypted under the key
+  // the link carried. The bearer, code and key are a human's.
+  {
+    id: "identity.drop.open",
+    title: "Open a drop someone sent",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/claim",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
+  // An authenticator hand-off link (ADR 0140 plan step 10): an MFA user code
+  // or request id, or a wallet protocol's request URI, handed to the native
+  // app — and a user code to `/device` when the app is not there.
+  {
+    id: "identity.authenticator.invoke",
+    title: "Hand an authenticator request to the native app",
+    plane: "identity",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/invoke/:kind",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: AUTHENTICATOR_HANDOFF,
+      mcp_host: AUTHENTICATOR_HANDOFF,
+      mcp_client: AUTHENTICATOR_HANDOFF,
+      webmcp: AUTHENTICATOR_HANDOFF,
+    },
+  },
+  ...localOrganizationCapabilities,
+  ...orgSignInCapabilities,
 ];

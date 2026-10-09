@@ -2,6 +2,7 @@
  * Extension background: Host API + client-core sync cursor + optional daemon.
  * Never exposes getSecret to webpages.
  */
+import { createApiClient } from "@opensesame/api-client";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
 import { createCursor, persistSealedStore } from "@opensesame/client-core";
 import { browserGrants, browserPages, closeRunTab } from "../runner/browser";
@@ -112,10 +113,21 @@ export default defineBackground(() => {
 
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "opensesame.health") {
-      sendResponse({
-        error: "authority_plane_removed",
-        cursor,
-      });
+      void (async () => {
+        try {
+          const hostBase = await resolveHostBase();
+          const client = createApiClient({ baseUrl: hostBase });
+          const health = await client.health();
+          const daemon = await client.probeDaemon();
+          const discovery = await client.discover();
+          sendResponse({ health, daemon, discovery, cursor, hostBase });
+        } catch (e) {
+          sendResponse({
+            error: e instanceof Error ? e.message : String(e),
+            cursor,
+          });
+        }
+      })();
       return true;
     }
     if (message?.type === "opensesame.sync_cursor") {

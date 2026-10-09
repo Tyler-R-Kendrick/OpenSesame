@@ -1,5 +1,3 @@
-import { WAIT_MS, ctxOf } from "./context";
-import type { DriverDeps, EpochState } from "./context";
 /**
  * One step, executed: the verb in the page, or the custody step in the vault.
  *
@@ -10,7 +8,9 @@ import type { DriverDeps, EpochState } from "./context";
  * the value. Every answer is built by `wire.ts`'s closed constructors and
  * checked by `guard` against the step it answers before it leaves.
  */
-import type { RunnerStepRequest } from "./host-api-contract.js";
+import type { RunnerStepRequest } from "@opensesame/api-client";
+import { WAIT_MS, ctxOf } from "./context";
+import type { DriverDeps, EpochState } from "./context";
 import { withinOrigin } from "./origin";
 import type { StepPages } from "./ports";
 import { verifyByFreshLogin } from "./verify";

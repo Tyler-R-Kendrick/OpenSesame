@@ -22,7 +22,7 @@
       "stdio": 2
     },
     "packages/cli/src/run.ts": {
-      "stdio": 3
+      "stdio": 8
     },
     "packages/cli/src/vault-commands.ts": {
       "stdio": 1
@@ -30,9 +30,24 @@
     "packages/cli/src/vault-items.ts": {
       "stdio": 1
     },
+    "packages/control-plane/src/generate-openapi.ts": {
+      "console": 1
+    },
+    "packages/database/src/migrate.ts": {
+      "console": 2
+    },
+    "packages/database/src/reset.ts": {
+      "console": 2
+    },
     "packages/env-spec-bridge/bin/opensesame-env-parse.mjs": {
       "console": 1,
       "stdio": 1
+    },
+    "tools/mock-upstream-idp/src/cli.ts": {
+      "console": 1
+    },
+    "tools/mock-upstream-idp/src/index.ts": {
+      "console": 6
     }
   }
 }

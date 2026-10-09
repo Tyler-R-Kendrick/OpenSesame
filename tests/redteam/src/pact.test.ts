@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   AGENT_SECRET_NAME_PATTERN,
   assertsNoSecretNames,
@@ -7,11 +10,29 @@ import {
   webmcpCatalog,
 } from "@opensesame/capability-registry";
 import { overlapCast } from "@opensesame/os-domain";
-import { assertDurableSurvivesPartition } from "@opensesame/testing";
+import {
+  assertDurableSurvivesPartition,
+  assertSourceOrder,
+} from "@opensesame/testing";
 import { describe, it } from "vitest";
 import { startMockUpstream } from "./mock-upstream.js";
 
+const here = dirname(fileURLToPath(import.meta.url));
+
 describe("PACT — redteam harness", () => {
+  it("property: corpus covers the four attack classes", () => {
+    const testsDir = join(here, "../tests");
+    const files = readdirSync(testsDir).filter((f) => f.endsWith(".yaml"));
+    for (const required of [
+      "credential-exfiltration.yaml",
+      "confused-deputy.yaml",
+      "malformed-input.yaml",
+      "prompt-injection.yaml",
+    ]) {
+      assert.ok(files.includes(required), required);
+    }
+  });
+
   it("adversarial: 404 mock bodies have no secret fields", async () => {
     const mock = await startMockUpstream([]);
     try {
@@ -46,21 +67,30 @@ describe("PACT — redteam harness", () => {
     }
   });
 
-  it("property: the registry catalogs clear the secret-name denylist", () => {
-    // The mcp_host and mcp_client surfaces went away with the authority plane;
-    // their catalogs must stay empty, and the surviving webmcp catalog stays
-    // non-empty and clean.
-    assert.equal(mcpHostCatalog().length, 0);
-    assert.equal(mcpClientCatalog().length, 0);
-    const catalog = webmcpCatalog();
-    assert.ok(catalog.length > 0);
-    assertsNoSecretNames(catalog);
-    for (const name of catalog) {
-      assert.equal(
-        AGENT_SECRET_NAME_PATTERN.test(name),
-        false,
-        `secret-shaped tool name in registry catalog: ${name}`,
-      );
+  it("property: the full registry catalog clears the secret-name denylist", () => {
+    for (const catalog of [
+      mcpHostCatalog(),
+      mcpClientCatalog(),
+      webmcpCatalog(),
+    ]) {
+      assert.ok(catalog.length > 0);
+      assertsNoSecretNames(catalog);
+      for (const name of catalog) {
+        assert.equal(
+          AGENT_SECRET_NAME_PATTERN.test(name),
+          false,
+          `secret-shaped tool name in registry catalog: ${name}`,
+        );
+      }
     }
+  });
+
+  it("contract: mcp-host structural provider never names a getSecret tool", () => {
+    assertSourceOrder(readFileSync(join(here, "mcp-provider.ts"), "utf8"), [
+      "class McpHostStructuralProvider",
+      "client.callTool",
+    ]);
+    const src = readFileSync(join(here, "mcp-provider.ts"), "utf8");
+    assert.equal(/getSecret/.test(src), false);
   });
 });

@@ -9,13 +9,16 @@
  * value. The one reveal is the recovery of a backed-up candidate, which needs
  * the private key the person holds and shows the value to them alone.
  */
+import { createApiClient } from "@opensesame/api-client";
 import { overlapCast } from "@opensesame/os-domain";
-import { createRecoveryKey } from "../../runner/backup";
+import { backupId, createRecoveryKey, openBackup } from "../../runner/backup";
 import {
   type CredentialForm,
   type FormError,
   entryFromForm,
 } from "../../runner/credential-form";
+import { recoverBackup } from "../../runner/host";
+import { resolveHostBase } from "../../runner/host-base";
 import { matchPattern } from "../../runner/origin";
 import type { RunnerStatus } from "../../runner/service";
 import { RunnerSettings } from "../../runner/settings";
@@ -154,9 +157,34 @@ async function render() {
 
 /** Open a candidate's backup with the private key the person pasted. */
 async function recover(handle: string) {
-  void handle;
-  el("revealed").textContent = "";
-  say("Host API backup recovery is not available in this build.");
+  const out = el("revealed");
+  out.textContent = "";
+  const token = await settings.token();
+  if (!token) {
+    say("Needs a Host session.");
+    return;
+  }
+  try {
+    const client = createApiClient({
+      baseUrl: await resolveHostBase(),
+      accessToken: token,
+    });
+    const bytes = await recoverBackup(client, backupId(handle));
+    if (!bytes) {
+      say("The Host holds no backup for that candidate.");
+      return;
+    }
+    const key: JsonWebKey = JSON.parse(
+      el<HTMLTextAreaElement>("reveal-key").value,
+    );
+    out.textContent = await openBackup(key, bytes);
+    say("Shown for 30 seconds.");
+    setTimeout(() => {
+      out.textContent = "";
+    }, 30_000);
+  } catch {
+    say("That key does not open this backup.");
+  }
 }
 
 function describe(error: FormError): string {

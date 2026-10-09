@@ -1,0 +1,384 @@
+mod a2h;
+mod aauth;
+mod access_domains;
+mod admin;
+pub(crate) mod agent_capabilities;
+mod agent_hooks;
+mod agent_runs;
+mod agents;
+mod attachments;
+mod backup;
+pub(crate) mod browser_pairings;
+mod ceremonies;
+pub(crate) mod certmgr_ca;
+pub(crate) mod certmgr_policy;
+pub(crate) mod certmgr_profile;
+mod certs;
+mod changelog;
+mod connections;
+#[cfg(test)]
+mod contract;
+mod credential_connections;
+mod delegations;
+mod device;
+mod est_enrollment;
+mod est_records;
+pub(crate) mod est_server;
+mod est_wire;
+pub(crate) mod github_app;
+mod grant_offers;
+mod health;
+mod host_authorizations;
+mod intents;
+mod intents_budget;
+mod intents_projection;
+mod kv_facade;
+pub(crate) mod lifecycle;
+mod local_authority_routes;
+mod nats_callout;
+mod protected_resource;
+mod receipts;
+mod relay;
+mod rotation;
+mod secret_config_policy;
+#[cfg(test)]
+mod secret_config_policy_tests;
+mod secret_configs;
+pub(crate) mod security;
+mod session;
+mod session_coordination;
+pub(crate) mod shared_sessions;
+mod sync;
+mod sync_blobs;
+mod sync_page;
+mod sync_targets;
+mod taskbus_config;
+mod tasks;
+mod web_login_recipes;
+mod wire_connections;
+use crate::app_state::AppState;
+use crate::config;
+use crate::github_webhook;
+use axum::extract::DefaultBodyLimit;
+use axum::routing::{delete, get, post};
+use axum::Router;
+use tower_http::trace::TraceLayer;
+#[expect(
+    clippy::too_many_lines,
+    reason = "the router is the single declarative catalog audited against the OpenAPI contract"
+)]
+pub fn router(state: AppState) -> Router {
+    let router = Router::new()
+        .merge(local_authority_routes::router())
+        .merge(health::routes())
+        .merge(crate::transport::routes::routes())
+        .merge(crate::transport_lifecycle::routes::routes())
+        .route("/api/v1/nats/auth/callout", post(nats_callout::callout))
+        .merge(est_server::routes())
+        .route(
+            "/api/v1/operator/taskbus",
+            get(taskbus_config::get_config)
+                .put(taskbus_config::put_config)
+                .layer(DefaultBodyLimit::max(4 * 1024)),
+        )
+        .route("/api/v1/operator/taskbus/ping", post(taskbus_config::ping))
+        .route("/api/v1/certs", get(certs::list_issued))
+        .route("/api/v1/certs/ca", get(certs::get_ca))
+        .route(
+            "/api/v1/certs/issue",
+            post(certs::issue).layer(DefaultBodyLimit::max(8 * 1024)),
+        )
+        .route(
+            "/api/v1/certs/deliveries/{request_id}/ack",
+            post(certs::acknowledge_delivery),
+        )
+        // ADR 0075: reveal a host-custody private key. Human/operator only and
+        // deliberately absent from every agent surface.
+        .route("/api/v1/certs/{id}/key", get(certs::reveal_key))
+        // ADR 0066/0067: certificate-manager authorities — root and
+        // intermediate CAs, externally signed chains, renewal and CRL
+        // distribution settings (plan §5.6, 16 KiB; 512 KiB for chain import).
+        .route(
+            "/api/v1/certmgr/cas",
+            get(certmgr_ca::list_cas)
+                .post(certmgr_ca::create_ca)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/cas/{id}",
+            get(certmgr_ca::get_ca)
+                .patch(certmgr_ca::patch_ca)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        .route("/api/v1/certmgr/cas/{id}/csr", get(certmgr_ca::export_csr))
+        .route(
+            "/api/v1/certmgr/cas/{id}/import-chain",
+            post(certmgr_ca::import_chain)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_IMPORT_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/cas/{id}/renew",
+            post(certmgr_ca::renew_ca).layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/cas/{id}/signing-config",
+            get(certmgr_ca::get_signing_config)
+                .patch(certmgr_ca::patch_signing_config)
+                .layer(DefaultBodyLimit::max(certmgr_ca::MAX_BODY)),
+        )
+        // ADR 0066: certificate-manager policies — the constraint documents an
+        // issuance request is evaluated against (plan §5.4, 16 KiB).
+        .route(
+            "/api/v1/certmgr/policies",
+            get(certmgr_policy::list)
+                .post(certmgr_policy::create)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/policies/{id}",
+            get(certmgr_policy::get)
+                .patch(certmgr_policy::update)
+                .delete(certmgr_policy::delete)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        // ADR 0066: certificate-manager profiles — a CA plus a policy plus the
+        // defaults an application issues with (plan §5.4, 16 KiB).
+        .route(
+            "/api/v1/certmgr/profiles",
+            get(certmgr_profile::list)
+                .post(certmgr_profile::create)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        .route(
+            "/api/v1/certmgr/profiles/{id}",
+            get(certmgr_profile::get)
+                .patch(certmgr_profile::update)
+                .delete(certmgr_profile::delete)
+                .layer(DefaultBodyLimit::max(certmgr_policy::MAX_BODY)),
+        )
+        .route("/api/v1/providers", get(connections::list_providers))
+        .route(
+            "/api/v1/custom-providers",
+            post(connections::create_custom_provider).layer(DefaultBodyLimit::max(16 * 1024)),
+        )
+        .route(
+            "/api/v1/custom-providers/{id}",
+            delete(connections::delete_custom_provider),
+        )
+        .route(
+            "/api/v1/providers/github/app",
+            post(github_app::register_start).layer(DefaultBodyLimit::max(8 * 1024)),
+        )
+        .route(
+            "/api/v1/oauth/github-app/callback",
+            get(github_app::register_callback),
+        )
+        .route(
+            "/api/v1/webhooks/github",
+            get(github_webhook::webhook_get)
+                .post(github_webhook::webhook)
+                .layer(DefaultBodyLimit::max(1024 * 1024)),
+        )
+        .route(
+            "/api/v1/attachments/target",
+            get(attachments::get_target)
+                .put(attachments::put_target)
+                .delete(attachments::delete_target),
+        )
+        .route(
+            "/api/v1/attachments/replicate/chunk",
+            post(attachments::replicate_chunk)
+                .layer(DefaultBodyLimit::max(attachments::MAX_CHUNK_BODY)),
+        )
+        .merge(wire_connections::routes())
+        .route("/api/v1/intents", post(intents::create))
+        // ADR 0044: delegation offer lifecycle. Mint/list/revoke are
+        // owner surfaces; present and claim are the shareable ceremony's.
+        .route(
+            "/api/v1/delegations",
+            get(delegations::list).post(delegations::mint),
+        )
+        .route("/api/v1/delegations/present", post(delegations::present))
+        .route("/api/v1/delegations/claim", post(delegations::claim))
+        .route("/api/v1/delegations/offers", get(delegations::list_offers))
+        .route(
+            "/api/v1/delegations/offers/{id}",
+            delete(delegations::revoke_offer),
+        )
+        .route("/api/v1/delegations/{id}", delete(delegations::revoke))
+        .route("/api/v1/delegations/{id}/narrow", post(delegations::narrow))
+        // ADR 0079: every shared-session road, registered by the feature that
+        // owns it. Presence is a seat rather than a grant, so an observer is in
+        // the room holding nothing.
+        .merge(shared_sessions::routes())
+        // ADR 0046: relayed execution — dual-RPC tier. The holder's runtime
+        // heartbeats, drains, decides, and reports; the delegate submits and
+        // polls. Admission rules run at submit and at result.
+        .route("/api/v1/relay/heartbeat", post(relay::heartbeat))
+        .route("/api/v1/relay/requests", post(relay::submit))
+        .route("/api/v1/relay/requests/pending", get(relay::pending))
+        .route("/api/v1/relay/requests/{id}", get(relay::get))
+        .route("/api/v1/relay/requests/{id}/approve", post(relay::approve))
+        .route("/api/v1/relay/requests/{id}/deny", post(relay::deny))
+        .route("/api/v1/relay/requests/{id}/result", post(relay::result))
+        .route("/api/v1/receipts/keys", get(receipts::keys))
+        .route("/api/v1/receipts/{id}", get(receipts::get))
+        .route("/api/v1/receipts/{id}/verify", post(receipts::verify))
+        .route("/api/v1/agent-identities", post(agents::create_identity))
+        .route("/api/v1/agent-claims/{id}/poll", post(agents::poll))
+        .route("/api/v1/agent-claims/{id}/complete", post(agents::complete))
+        .route("/api/v1/admin/authority", post(admin::set_authority))
+        .merge(sync_page::routes())
+        // WP-D: project secret/config changelog (metadata only).
+        .route(
+            "/api/v1/projects/{project_id}/changelog",
+            get(changelog::list_for_project),
+        )
+        .route("/api/v1/changelog", post(changelog::record))
+        // ADR 0052: project-config secret store — write-only value intake;
+        // every response is key names + version metadata, never values.
+        .route(
+            "/api/v1/projects/{project_id}/configs",
+            get(secret_configs::list_for_project)
+                .post(secret_configs::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{id}",
+            get(secret_configs::get).delete(secret_configs::delete),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets",
+            get(secret_configs::list_keys)
+                .put(secret_configs::put_secrets)
+                .layer(DefaultBodyLimit::max(256 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}",
+            delete(secret_configs::delete_secret),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}/versions",
+            get(secret_configs::list_versions),
+        )
+        .route(
+            "/api/v1/configs/{id}/secrets/{key}/rollback",
+            post(secret_configs::rollback).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
+        .route(
+            "/api/v1/configs/{a}/compare/{b}",
+            get(secret_configs::compare),
+        )
+        .route(
+            "/api/v1/configs/{id}/branch",
+            post(secret_configs::branch).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
+        // WP-C: sync targets — ConnectionRef fan-out; never returns secrets.
+        .route(
+            "/api/v1/sync-targets",
+            get(sync_targets::list)
+                .post(sync_targets::create)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/sync-targets/sync-all",
+            post(sync_targets::sync_all).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route(
+            "/api/v1/sync-targets/{id}",
+            get(sync_targets::get).delete(sync_targets::delete),
+        )
+        .route(
+            "/api/v1/sync-targets/{id}/sync",
+            post(sync_targets::sync_one).layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        // WP-E: credential rotation request (never returns secrets).
+        .route(
+            "/api/v1/rotations",
+            get(rotation::list_jobs)
+                .post(rotation::request)
+                .layer(DefaultBodyLimit::max(32 * 1024)),
+        )
+        .route("/api/v1/rotations/{id}", get(rotation::get_job))
+        // ADR 0074: expiry lifecycle hooks. The read view is any caller; the
+        // subscription surface is integration configuration (owner/admin or
+        // operator), like sync targets and rotation policies.
+        .route("/api/v1/lifecycle/expiring", get(lifecycle::list_expiring))
+        .route(
+            "/api/v1/lifecycle/hooks",
+            get(lifecycle::list_hooks).put(lifecycle::put_hook),
+        )
+        .route(
+            "/api/v1/lifecycle/hooks/{id}",
+            delete(lifecycle::delete_hook),
+        )
+        .route(
+            "/api/v1/lifecycle/deliveries",
+            get(lifecycle::list_deliveries),
+        )
+        .route("/api/v1/lifecycle/scan", post(lifecycle::scan))
+        // ADR 0080: the same subscription surface, under the name that now
+        // describes what it carries. The `/lifecycle/hooks` paths above stay
+        // as they are — they are a published contract with registered
+        // subscribers behind them, and breaking one to tidy a URL would be a
+        // poor trade.
+        .route(
+            "/api/v1/security/hooks",
+            get(lifecycle::list_hooks).put(lifecycle::put_hook),
+        )
+        .route(
+            "/api/v1/security/hooks/{id}",
+            delete(lifecycle::delete_hook),
+        )
+        .route(
+            "/api/v1/security/deliveries",
+            get(lifecycle::list_deliveries),
+        )
+        // ADR 0080: breach exposure.
+        .route("/api/v1/security/findings", get(security::list_findings))
+        .route("/api/v1/security/breach-scan", post(security::scan))
+        .route("/api/v1/security/breach-check", post(security::check))
+        // Unauthenticated by design: the A2H gateway holds no session, and the
+        // request's HMAC is its authentication (see routes/a2h.rs).
+        .route(
+            "/api/v1/a2h/callback",
+            post(a2h::callback).layer(axum::extract::DefaultBodyLimit::max(65536)),
+        )
+        .route("/api/v1/ceremonies", get(ceremonies::list_ceremonies))
+        .merge(agent_runs::routes())
+        // WP-9: durable rotation policies (owner/admin configuration surface).
+        .route(
+            "/api/v1/rotation/policies",
+            get(rotation::list_policies)
+                .put(rotation::put_policy)
+                .layer(DefaultBodyLimit::max(8 * 1024)),
+        )
+        .route(
+            "/api/v1/tasks",
+            get(tasks::list_tasks).post(tasks::start_task),
+        )
+        .route("/api/v1/tasks/intents", post(tasks::freeze_intent))
+        .route("/api/v1/tasks/invoke", post(tasks::invoke_task))
+        .route("/api/v1/tasks/{id}", get(tasks::get_task))
+        .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
+        // ADR 0159: agent-hooks verdicts and the organization's hook policy.
+        .merge(agent_hooks::routes())
+        // ADR 0076 §4, ADR 0159: the recipes a web-login run replays, and their signers.
+        .merge(web_login_recipes::routes())
+        .merge(aauth::routes());
+    // Vault KV v2 read facade (ops plane, default off). Merged rather than
+    // chained so that with the flag unset the routes are absent entirely: an
+    // unmounted surface answers 404, where a mounted-but-disabled one would
+    // answer 403 and confirm it exists.
+    let router = if config::kv_facade_enabled() {
+        router.merge(kv_facade::routes())
+    } else {
+        router
+    };
+    crate::middleware::guard_routes(
+        router
+            .with_state(state.clone())
+            .layer(TraceLayer::new_for_http()),
+        state,
+    )
+}

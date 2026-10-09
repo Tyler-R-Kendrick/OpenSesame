@@ -1,0 +1,2161 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`hosted login page characterization > escapes a hostile issuer and label rather than emitting markup 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://e.test/&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"/>
+         <input type="hidden" name="provider" value="&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;"/>
+         <button type="submit" class="btn btn-primary">Sign in with &lt;img src=x onerror=&quot;alert(1)&quot;&gt;</button>
+       </form></div>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > escapes hostile organization and BYO values echoed back to the visitor 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <details class="method" open>
+       <summary>Your organization</summary>
+       <div class="method-body"><p class="error" role="alert">No organization sign-in is configured for that name.</p><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="org-slug"><span>Organization name</span>
+           <input id="org-slug" name="slug" value="&quot;&gt;&lt;script&gt;alert(5)&lt;/script&gt;" autocomplete="organization" required/>
+         </label>
+         <button type="submit" class="btn">Continue with your organization</button>
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Use your own identity provider</summary>
+       <div class="method-body"><p class="error" role="alert">&lt;img src=x onerror=&quot;alert(4)&quot;&gt;</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/byo">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="byo-issuer"><span>Issuer URL</span>
+           <input id="byo-issuer" name="issuer" type="url" value="&quot;&gt;&lt;script&gt;alert(3)&lt;/script&gt;" placeholder="https://id.example.com" required/>
+         </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>https://identity.example/v1/federated/callback</code></p>
+         <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
+           <input id="byo-client-id" name="client_id" autocomplete="off"/>
+         </label>
+         <label class="field" for="byo-client-secret"><span>Client secret (optional)</span>
+           <input id="byo-client-secret" name="client_secret" type="password" autocomplete="off"/>
+         </label>
+         <button type="submit" class="btn">Continue with your provider</button>
+       </form>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p></div>
+     </details>
+     <div class="panel">
+       <p class="lede">or continue without a provider</p>
+       <p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn btn-primary">Start a session</button>
+       </form>
+     </div>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > leads with a resolved organization's methods 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel">
+       <h2>Your organization</h2>
+       
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://sso.acme.example"/>
+         <button type="submit" class="btn btn-primary">Continue with SSO</button>
+       </form>
+<form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://saml.acme.example"/>
+         <button type="submit" class="btn btn-primary">Continue with SAML</button>
+       </form>
+     </div>
+     <details class="method">
+       <summary>Use a different organization</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="org-slug"><span>Organization name</span>
+           <input id="org-slug" name="slug" value="acme" autocomplete="organization" required/>
+         </label>
+         <button type="submit" class="btn">Continue with your organization</button>
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="realm-email"><span>Work email</span>
+           <input id="realm-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         
+         <button type="submit" class="btn">Continue with your work email</button>
+       </form></div>
+     </details>
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form></div>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > offers native SAML and a directory form for a tenant that has them 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel">
+       <h2>Your organization</h2>
+       
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://sso.acme.example"/>
+         <button type="submit" class="btn btn-primary">Continue with SSO</button>
+       </form>
+<form method="post" action="/interaction/uid-fixed-for-snapshots/federated/saml">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="slug" value="acme"/>
+         <button type="submit" class="btn btn-primary">Continue with SAML</button>
+       </form>
+     </div>
+     <details class="method">
+       <summary>Use a different organization</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="org-slug"><span>Organization name</span>
+           <input id="org-slug" name="slug" value="acme" autocomplete="organization" required/>
+         </label>
+         <button type="submit" class="btn">Continue with your organization</button>
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="realm-email"><span>Work email</span>
+           <input id="realm-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         
+         <button type="submit" class="btn">Continue with your work email</button>
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Sign in with your directory account</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/ldap">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="slug" value="acme"/>
+         <label class="field" for="ldap-username"><span>Username</span>
+           <input id="ldap-username" name="username" autocomplete="username" required/>
+         </label>
+         <label class="field" for="ldap-password"><span>Password</span>
+           <input id="ldap-password" name="password" type="password" autocomplete="current-password" required/>
+         </label>
+         <button type="submit" class="btn btn-primary">Sign in</button>
+       </form></div>
+     </details>
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form></div>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > offers nothing but a session when no upstream is allowlisted 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     
+     <div class="panel">
+       <p class="lede">or continue without a provider</p>
+       <p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn btn-primary">Start a session</button>
+       </form>
+     </div>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > promotes the hinted provider to first and primary 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form></div>
+     <details class="more-options">
+       <summary>More sign-in options</summary>
+       <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="http://127.0.0.1:9090"/>
+         <input type="hidden" name="provider" value="mock"/>
+         <button type="submit" class="btn">Sign in with a local test account</button>
+       </form></div>
+       <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > re-renders each block's own failure without losing the others 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form></div>
+     <details class="method" open>
+       <summary>Your organization</summary>
+       <div class="method-body"><p class="error" role="alert">No organization sign-in is configured for that name.</p><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="org-slug"><span>Organization name</span>
+           <input id="org-slug" name="slug" value="acme" autocomplete="organization" required/>
+         </label>
+         <button type="submit" class="btn">Continue with your organization</button>
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="realm-email"><span>Work email</span>
+           <input id="realm-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         <p class="error" role="alert">No organization uses that email domain.</p>
+         <button type="submit" class="btn">Continue with your work email</button>
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Continue with email</summary>
+       <div class="method-body">
+       <p class="note" role="status">Check your email for a sign-in link.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/email">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="magic-email"><span>Email address</span>
+           <input id="magic-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         <button type="submit" class="btn">Email me a sign-in link</button>
+       </form></div>
+     </details>
+     <details class="method" open>
+       <summary>Use your own identity provider</summary>
+       <div class="method-body"><p class="error" role="alert">That provider could not be reached.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/byo">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="byo-issuer"><span>Issuer URL</span>
+           <input id="byo-issuer" name="issuer" type="url" value="https://id.example.com" placeholder="https://id.example.com" required/>
+         </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>https://identity.example/v1/federated/callback</code></p>
+         <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
+           <input id="byo-client-id" name="client_id" autocomplete="off"/>
+         </label>
+         <label class="field" for="byo-client-secret"><span>Client secret (optional)</span>
+           <input id="byo-client-secret" name="client_secret" type="password" autocomplete="off"/>
+         </label>
+         <button type="submit" class="btn">Continue with your provider</button>
+       </form>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p></div>
+     </details>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > renders a dev stack: the local broker alongside the production one 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form>
+<form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="http://127.0.0.1:9090"/>
+         <input type="hidden" name="provider" value="mock"/>
+         <button type="submit" class="btn">Sign in with a local test account</button>
+       </form></div>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > renders the full entry set: providers, organization, email, BYO 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://accounts.google.com"/>
+         <input type="hidden" name="provider" value="google"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form>
+<form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://github.com"/>
+         <input type="hidden" name="provider" value="github"/>
+         <button type="submit" class="btn">Sign in with GitHub</button>
+       </form></div>
+     <details class="method">
+       <summary>Your organization</summary>
+       <div class="method-body"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/org">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="org-slug"><span>Organization name</span>
+           <input id="org-slug" name="slug" value="" autocomplete="organization" required/>
+         </label>
+         <button type="submit" class="btn">Continue with your organization</button>
+       </form><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/realm">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="realm-email"><span>Work email</span>
+           <input id="realm-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         
+         <button type="submit" class="btn">Continue with your work email</button>
+       </form></div>
+     </details>
+     <details class="method">
+       <summary>Continue with email</summary>
+       <div class="method-body">
+       
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/email">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="magic-email"><span>Email address</span>
+           <input id="magic-email" name="email" type="email" autocomplete="email" required/>
+         </label>
+         <button type="submit" class="btn">Email me a sign-in link</button>
+       </form></div>
+     </details>
+     <details class="method">
+       <summary>Use your own identity provider</summary>
+       <div class="method-body">
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/federated/byo">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <label class="field" for="byo-issuer"><span>Issuer URL</span>
+           <input id="byo-issuer" name="issuer" type="url" value="" placeholder="https://id.example.com" required/>
+         </label>
+         <p class="note">Registering the client yourself? Add this redirect URI to it first — providers match it exactly:</p>
+         <p class="note"><code>https://identity.example/v1/federated/callback</code></p>
+         <label class="field" for="byo-client-id"><span>Client ID (optional)</span>
+           <input id="byo-client-id" name="client_id" autocomplete="off"/>
+         </label>
+         <label class="field" for="byo-client-secret"><span>Client secret (optional)</span>
+           <input id="byo-client-secret" name="client_secret" type="password" autocomplete="off"/>
+         </label>
+         <button type="submit" class="btn">Continue with your provider</button>
+       </form>
+       <p class="note">Leave the client fields empty to let this server register itself with your provider automatically.</p></div>
+     </details>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > renders the production shape: Google above an anonymous session 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form></div>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>No session yet. Start a session to authorize this application.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="start"/>
+         <button type="submit" class="btn">Start a session</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;
+
+exports[`hosted login page characterization > shows the continue path when a session cookie is already held 1`] = `
+"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Sign in — OpenSesame</title>
+  <style>
+  :root {
+    color-scheme: light dark;
+    --bg: #101a2b;
+    --fg: #dbe6f4;
+    --muted: #8ba0bb;
+    --accent: #0d7268;
+    --accent-bright: #2ea99b;
+    --danger: #f07178;
+    --surface: #17253a;
+    --border: #24354e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f9;
+      --fg: #0e1826;
+      --muted: #566880;
+      --accent-bright: #0d7268;
+      --danger: #b32424;
+      --surface: #ffffff;
+      --border: #dce4ef;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.5;
+  }
+  main {
+    max-width: 36rem;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+  .lede { color: var(--muted); margin: 0 0 1.5rem; }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .origin {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    word-break: break-all;
+    font-size: 0.95rem;
+  }
+  .badge {
+    display: inline-block;
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-bright) 16%, transparent);
+    color: var(--fg);
+    font-size: 0.85rem;
+  }
+  .scope-tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--border) 45%, transparent);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    margin-left: 0.35rem;
+  }
+  ul.scopes { margin: 0.75rem 0 0; padding-left: 1.25rem; }
+  ul.scopes li { margin: 0 0 0.5rem; }
+  .scope-detail { color: var(--muted); font-size: 0.875rem; }
+  details.more-options { margin-top: 1rem; }
+  details.more-options > summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0.25rem 0;
+  }
+  details.more-options[open] > summary { margin-bottom: 0.75rem; }
+  details.method {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 0.75rem;
+  }
+  details.method > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0.8rem 1.1rem;
+  }
+  details.method[open] > summary { border-bottom: 1px solid var(--border); }
+  .method-body { padding: 1rem 1.1rem 1.1rem; }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+  }
+  button, .btn {
+    appearance: none;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.65rem 1rem;
+    font: inherit;
+    font-weight: 600;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: #0a5c54; }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button:focus-visible, .btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+    outline-offset: 2px;
+  }
+  h2 { font-size: 1.05rem; margin: 0 0 0.5rem; }
+  .field { display: block; margin-bottom: 0.75rem; }
+  .field span { display: block; font-size: 0.9rem; color: var(--muted); }
+  .field input {
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+  .note { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 0; }
+  .error { color: var(--danger); font-size: 0.9rem; margin: 0 0 0.75rem; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+</head>
+<body>
+  <main>
+    <h1>Sign in</h1>
+     <p class="lede">Authenticate to continue authorization at https://identity.example.</p>
+     
+     <div class="panel"><form method="post" action="/interaction/uid-fixed-for-snapshots/federated/start">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="issuer" value="https://shoo.dev"/>
+         <input type="hidden" name="provider" value="shoo"/>
+         <button type="submit" class="btn btn-primary">Sign in with Google</button>
+       </form></div>
+     <details class="method">
+       <summary>Continue without a provider</summary>
+       <div class="method-body"><p>Signed in as <code>prn_fixed</code>.</p>
+       <form method="post" action="/interaction/uid-fixed-for-snapshots/login">
+         <input type="hidden" name="_csrf" value="csrf-fixed-for-snapshots"/>
+         <input type="hidden" name="action" value="continue"/>
+         <button type="submit" class="btn">Continue</button>
+       </form></div>
+     </details>
+  </main>
+</body>
+</html>"
+`;

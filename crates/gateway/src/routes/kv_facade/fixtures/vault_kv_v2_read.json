@@ -1,0 +1,17 @@
+{
+  "data": {
+    "data": {
+      "foo": "bar"
+    },
+    "metadata": {
+      "created_time": "2018-03-22T02:24:06.945319214Z",
+      "custom_metadata": {
+        "owner": "jdoe",
+        "mission_critical": "false"
+      },
+      "deletion_time": "",
+      "destroyed": false,
+      "version": 2
+    }
+  }
+}

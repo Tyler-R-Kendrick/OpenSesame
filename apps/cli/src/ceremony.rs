@@ -19,8 +19,21 @@
 use std::fmt::Write as _;
 
 use anyhow::Result;
+use clap::Subcommand;
 use opensesame_ceremony::{Catalog, CatalogEntry, Phase, Tier};
 use serde_json::json;
+
+/// `opensesame access connectors ceremony` (and the compiled-in catalog verb).
+#[derive(Subcommand, Debug)]
+pub(crate) enum CeremonyCmd {
+    /// Every provider a ceremony covers, and how far each one gets.
+    List,
+    /// One provider in full: the plan, what it may capture, and its proof.
+    Show {
+        /// A provider id, from `opensesame ceremony list`.
+        provider: String,
+    },
+}
 
 /// Width of one tier column. `c0_provider_native` is the longest name the
 /// ladder has, and a column narrower than it runs the rows together.

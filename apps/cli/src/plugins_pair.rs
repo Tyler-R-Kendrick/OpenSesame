@@ -1,5 +1,5 @@
-//! `opensesame plugins pair | unpair`: let one browser origin reach the local
-//! agent's plugin settings, and take that back (ADR 0150 §7).
+//! `opensesame plugins pair | unpair`: let one browser origin reach this
+//! daemon's plugin settings, and take that back (ADR 0150 §7).
 //!
 //! Pairing writes a one-time code's SHA-256 beside `plugins.json` and prints
 //! the code once, wrapped with the daemon's address as a pairing code the
@@ -17,7 +17,7 @@ use opensesame_plugin_settings::{
 };
 use serde_json::{json, Value};
 
-/// Where a page on this machine reaches the local agent (legacy loopback port).
+/// Where a page on this machine reaches the daemon.
 pub(crate) const DEFAULT_DAEMON_URL: &str = "http://127.0.0.1:18790";
 
 /// Tailscale's CGNAT range, `100.64.0.0/10`.

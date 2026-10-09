@@ -65,8 +65,6 @@ const CORE_INFRA = [
   "opener-policy",
   "bounded-response",
   "urls",
-  // One definition of "loopback" and the base-url normalizer behind `urls`.
-  "http-base-url",
   "agent-page-dump",
   "local-network-fetch",
   "queue",
@@ -98,8 +96,6 @@ const SIGNIN_FILES = [
   "guest-auth",
   "guest-isolation",
   "browser-pairing",
-  // DPoP key pair and proofs for the brokered pairing call.
-  "dpop-client",
   "host-authorization",
   "local-guest",
   "auth-outcome",

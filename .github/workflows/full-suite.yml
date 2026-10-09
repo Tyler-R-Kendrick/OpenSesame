@@ -48,3 +48,12 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Typecheck and test every package
         run: pnpm exec turbo run typecheck test
+      - name: Repository contract on a real Postgres
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+          OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
+        run: pnpm --filter @opensesame/database test:postgres
+      - name: Worker delivery on a real Postgres
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+        run: pnpm --filter @opensesame/identity-worker test:postgres

@@ -1,7 +1,7 @@
 {
   "name": "@opensesame/mcp-client",
   "version": "0.1.0",
-  "description": "Agent-facing MCP server over stdio: password workflow guidance only (Host API tools removed)",
+  "description": "Agent-facing MCP server over stdio: Host API health, discovery and E2EE sync tools under a short-lived agent capability, with no secret-reading tool",
   "private": true,
   "type": "module",
   "bin": {
@@ -18,6 +18,7 @@
   "dependencies": {
     "@opensesame/agent-client": "workspace:*",
     "@modelcontextprotocol/sdk": "1.31.0",
+    "@opensesame/api-client": "workspace:*",
     "@opensesame/observability": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "zod": "3.25.67"

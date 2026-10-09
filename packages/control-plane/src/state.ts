@@ -1,0 +1,381 @@
+import {
+  type AuthorityMembershipEdgeStore,
+  type AuthorityProjectionStateStore,
+  type ClientClaimChallengeStore,
+  type ClientOriginStore,
+  type ConsentStore,
+  type OrgFederationStores,
+  type OrganizationMembershipStore,
+  type OrganizationStore,
+  type OrganizationStores,
+  type ProjectMembershipStore,
+  type ProjectStore,
+  type ProjectStores,
+  type SamlStores,
+  type ScimStores,
+  createMemoryAuthorityMembershipEdgeStore,
+  createMemoryAuthorityProjectionStateStore,
+  createMemoryClientClaimChallengeStore,
+  createMemoryClientOriginStore,
+  createMemoryConsentStore,
+  createMemoryOrgFederationStores,
+  createMemoryOrganizationStores,
+  createMemoryProjectStores,
+  createMemorySamlStores,
+  createMemoryScimStores,
+} from "@opensesame/database";
+import {
+  type ClaimMapping,
+  type ClientRecordStore,
+  MemoryClientRecordStore,
+} from "@opensesame/oauth-provider";
+import type {
+  Agent,
+  AgentInstance,
+  ProvisionalSession,
+} from "@opensesame/os-domain";
+import type { SiopIssuerProfile } from "@opensesame/siop-v2";
+import type { SecurityMap } from "./repos/durable-map.js";
+import type { EnrollmentTicketRecord } from "./repos/enrollment-tickets.js";
+import {
+  type PostgresAgentInstanceStore,
+  PostgresAgentStore,
+} from "./repos/legacy-agent-postgres.js";
+import {
+  type CeremonySubjectStore,
+  createMemoryCeremonySubjectStore,
+} from "./services/ceremony-subjects.js";
+import {
+  type HostSettlementStore,
+  createMemoryHostSettlementStore,
+} from "./services/host-settlement.js";
+
+export interface IdempotencyRecord {
+  status: number;
+  body: unknown;
+  /** Epoch ms after which the cached response is discarded. */
+  expiresAt: number;
+}
+
+export interface UsageSnapshot {
+  temporaryProjects: number;
+  temporaryResources: number;
+  agents: number;
+  organizations: number;
+  oauthClients: number;
+  projects: number;
+  claims: number;
+}
+
+/** Server-issued SIOP link ceremony binding (ADR 0117). Single-use, short TTL. */
+export interface SiopLinkChallenge {
+  id: string;
+  principalId: string;
+  nonce: string;
+  audience: string;
+  profile: SiopIssuerProfile;
+  expiresAt: number;
+}
+
+/**
+ * A code sent out of band and not yet verified. Only its hash is held: the
+ * code itself left with the message, and a memory dump of this process must
+ * not be a second way to read it.
+ */
+export interface MfaCodeChallenge {
+  principalId: string;
+  channel: "email" | "sms";
+  /** Where it went, verbatim — returned masked, never whole. */
+  to: string;
+  /** sha256(challengeId ":" code), hex. */
+  codeHash: string;
+  createdAt: number;
+  expiresAt: number;
+  attempts: number;
+}
+
+/** One rolling send window: a principal's, or a destination digest's. */
+export interface MfaCodeSendWindow {
+  /** When each send in the window happened, epoch ms, oldest first. */
+  sentAt: number[];
+  expiresAt: number;
+}
+
+export interface AppStores {
+  hostAuthorizations: SecurityMap<
+    import("./services/host-authorization.js").HostAuthorizationPending
+  >;
+  provisionalSessions: SecurityMap<ProvisionalSession>;
+  /** session token → session id */
+  provisionalTokens: SecurityMap<string>;
+  /**
+   * Durable project rows (WP-8). Memory-backed in tests/dev, Postgres when a
+   * database is configured — same interface either way.
+   */
+  projects: ProjectStore;
+  /** Durable project memberships, keyed by (projectId, principalId). */
+  projectMemberships: ProjectMembershipStore;
+  /** Durable authority membership edges (GA-I-02 live apply). */
+  authorityMembershipEdges: AuthorityMembershipEdgeStore;
+  /** Identity projector fence (INV-CONSISTENCY). */
+  authorityProjectionState: AuthorityProjectionStateStore;
+  /** project id → tail of serialized membership mutations */
+  projectMembershipMutations: Map<string, Promise<void>>;
+  /** principalId → active (swapped-in) project id */
+  activeProjects: Map<string, string>;
+  /**
+   * Durable organization rows (ADR 0055). Tenant SSO/SAML configuration lives
+   * on this row and is read on the login path, so it cannot stay in process
+   * memory: a restart that forgot an org's issuer silently turned enterprise
+   * sign-in off. Memory-backed in tests/dev, Postgres when a database is
+   * configured — same interface either way.
+   */
+  organizations: OrganizationStore;
+  /** Durable organization memberships, keyed by (organizationId, principalId). */
+  organizationMemberships: OrganizationMembershipStore;
+  /** organization id → tail of serialized membership mutations */
+  organizationMembershipMutations: Map<string, Promise<void>>;
+  /**
+   * SCIM directory rows and provisioning tokens (ADR 0056). Read on the
+   * JIT-join path when an organization marks provisioning authoritative.
+   */
+  scim: ScimStores;
+  /** Org email domains (home-realm discovery) and per-org LDAP configuration. */
+  orgFederation: OrgFederationStores;
+  /** SAML SP-initiated pending requests and the assertion replay cache. */
+  saml: SamlStores;
+  /**
+   * OAuth client records — the same durable store the OIDC provider resolves
+   * clients from (ADR 0050 R-C), never a process-local copy.
+   */
+  oauthClients: ClientRecordStore;
+  /** F5 well-known claim challenges (single-use, short TTL). */
+  clientClaimChallenges: ClientClaimChallengeStore;
+  /** Verified origin aliases attached to claimed applications. */
+  clientOrigins: ClientOriginStore;
+  /**
+   * Durable human consent records (ADR 0034 §3, ADR 0050 F6): remembered,
+   * widening, individually revocable. The oidc-provider Grant decides whether
+   * the consent prompt re-appears; this store is the revocable record.
+   */
+  consents: ConsentStore;
+  agents: Map<string, Agent> | PostgresAgentStore;
+  agentInstances: Map<string, AgentInstance> | PostgresAgentInstanceStore;
+  /** principalId → usage counters */
+  usage: Map<
+    string,
+    { temporaryProjects: number; temporaryResources: number; agents: number }
+  >;
+  /** Idempotency-Key → response */
+  idempotency: Map<string, IdempotencyRecord>;
+  /** principalId → base64 TOTP secret */
+  totpSecrets: SecurityMap<string>;
+  /** principalId → the last TOTP step accepted (RFC 6238 §5.2 replay ledger) */
+  totpSteps: SecurityMap<number>;
+  /** claimId → failed user-code approval attempts (brute-force fence) */
+  claimApprovalAttempts: SecurityMap<number>;
+  /** mfa subject → failed verification attempts (brute-force fence) */
+  mfaFailures: SecurityMap<number>;
+  /** challengeId → a one-time code sent by email or text, until it is spent */
+  mfaCodes: SecurityMap<MfaCodeChallenge>;
+  /** principal / destination digest → code sends this hour (never refunded) */
+  mfaCodeSends: SecurityMap<MfaCodeSendWindow>;
+  /** challengeId → expected nonce/aud/issuer for hosted SIOP link (ADR 0117) */
+  siopLinkChallenges: SecurityMap<SiopLinkChallenge>;
+  /**
+   * Operator-minted first-admin enrollment tickets (ADV-30). Single-use,
+   * hashed, short-lived. DurableMap when a database is configured.
+   */
+  enrollmentTickets: SecurityMap<EnrollmentTicketRecord>;
+  /** Per-client claim mapping used by issuance and unsigned preview. */
+  claimMappings: SecurityMap<ClaimMapping>;
+  /** principalId → serialized quota mutations */
+  principalMutations: Map<string, Promise<void>>;
+  /** Idempotency-Key inflight locks */
+  idempotencyLocks: Map<string, Promise<void>>;
+  /** client fingerprint → provisional mint timestamps */
+  provisionalMints: Map<string, number[]>;
+  /** client fingerprint → AgentAuth anonymous/service_auth mint timestamps */
+  agentAuthMints: Map<string, number[]>;
+  /** unauthenticated MFA fingerprint → attempt timestamps */
+  mfaAnon: Map<string, number[]>;
+  /** authentication-service public ceremony fingerprint → request timestamps */
+  authenticationAnon: Map<string, number[]>;
+  /**
+   * Provider-callback fingerprint → request timestamps.
+   *
+   * A courtesy fence on an unauthenticated route, exactly like `mfaAnon`:
+   * what actually defends `/v1/notification-callbacks` is provenance over the
+   * raw bytes, the binding lookup and the durable replay ledger. Nothing is
+   * refused on security grounds because of this map.
+   */
+  notificationCallbacks: Map<string, number[]>;
+  /** Device / pairing / transaction rows consume applies (F05). */
+  ceremonySubjects: CeremonySubjectStore;
+  /** Host-plane drain of `*.settle` commands (X-05). */
+  hostSettlement: HostSettlementStore;
+}
+
+export function createAppStores(options?: {
+  oauthClients?: ClientRecordStore;
+  clientClaimChallenges?: ClientClaimChallengeStore;
+  clientOrigins?: ClientOriginStore;
+  consents?: ConsentStore;
+  projectStores?: ProjectStores;
+  organizationStores?: OrganizationStores;
+  authorityMembershipEdges?: AuthorityMembershipEdgeStore;
+  authorityProjectionState?: AuthorityProjectionStateStore;
+  scimStores?: ScimStores;
+  orgFederationStores?: OrgFederationStores;
+  samlStores?: SamlStores;
+}): AppStores {
+  const projectStores = options?.projectStores ?? createMemoryProjectStores();
+  const organizationStores =
+    options?.organizationStores ?? createMemoryOrganizationStores();
+  return {
+    provisionalSessions: new Map(),
+    provisionalTokens: new Map(),
+    projects: projectStores.projects,
+    projectMemberships: projectStores.projectMemberships,
+    authorityMembershipEdges:
+      options?.authorityMembershipEdges ??
+      createMemoryAuthorityMembershipEdgeStore(),
+    authorityProjectionState:
+      options?.authorityProjectionState ??
+      createMemoryAuthorityProjectionStateStore(),
+    projectMembershipMutations: new Map(),
+    activeProjects: new Map(),
+    organizations: organizationStores.organizations,
+    organizationMemberships: organizationStores.organizationMemberships,
+    organizationMembershipMutations: new Map(),
+    scim: options?.scimStores ?? createMemoryScimStores(),
+    orgFederation:
+      options?.orgFederationStores ?? createMemoryOrgFederationStores(),
+    saml: options?.samlStores ?? createMemorySamlStores(),
+    oauthClients: options?.oauthClients ?? new MemoryClientRecordStore(),
+    clientClaimChallenges:
+      options?.clientClaimChallenges ?? createMemoryClientClaimChallengeStore(),
+    clientOrigins: options?.clientOrigins ?? createMemoryClientOriginStore(),
+    consents: options?.consents ?? createMemoryConsentStore(),
+    agents: new Map(),
+    agentInstances: new Map(),
+    usage: new Map(),
+    idempotency: new Map(),
+    totpSecrets: new Map(),
+    totpSteps: new Map(),
+    claimApprovalAttempts: new Map(),
+    mfaFailures: new Map(),
+    mfaCodes: new Map(),
+    mfaCodeSends: new Map(),
+    siopLinkChallenges: new Map(),
+    enrollmentTickets: new Map(),
+    claimMappings: new Map(),
+    hostAuthorizations: new Map(),
+    principalMutations: new Map(),
+    idempotencyLocks: new Map(),
+    provisionalMints: new Map(),
+    agentAuthMints: new Map(),
+    mfaAnon: new Map(),
+    authenticationAnon: new Map(),
+    notificationCallbacks: new Map(),
+    ceremonySubjects: createMemoryCeremonySubjectStore(),
+    hostSettlement: createMemoryHostSettlementStore(),
+  };
+}
+
+/** Project states that still occupy a quota slot. */
+const LIVE_PROJECT_STATES = new Set(["provisional", "active"]);
+/** Agent states that still occupy a quota slot. */
+const LIVE_AGENT_STATES = new Set(["provisional", "claimed", "suspended"]);
+export async function getAgentUsage(
+  stores: Pick<AppStores, "agents">,
+  principalId: string,
+): Promise<number> {
+  if (stores.agents instanceof PostgresAgentStore)
+    return stores.agents.countLive(principalId);
+  const agents = await stores.agents.values();
+  return [...agents].filter(
+    (agent) =>
+      agent.ownerPrincipalId === principalId &&
+      LIVE_AGENT_STATES.has(agent.state),
+  ).length;
+}
+/** Organization states that still occupy a quota slot. */
+const LIVE_ORGANIZATION_STATES = new Set([
+  "provisional",
+  "active",
+  "suspended",
+]);
+/** OAuth client states that still occupy a quota slot. */
+const LIVE_OAUTH_CLIENT_STATES = new Set(["active", "suspended"]);
+
+/**
+ * Live quota usage for a principal.
+ *
+ * Projects, agents, organizations and OAuth clients are counted from the stores
+ * rather than from a running total: a cumulative counter turns a quota into a
+ * lifetime cap, so a provisional principal stayed blocked after three temporary
+ * projects even once they had all expired. Resources have no store yet and keep
+ * the counter.
+ */
+export async function getUsage(
+  stores: AppStores,
+  principalId: string,
+  now: Date = new Date(),
+): Promise<UsageSnapshot> {
+  let temporaryProjects = 0;
+  let projects = 0;
+  for (const project of await stores.projects.listByOwner(principalId)) {
+    if (!LIVE_PROJECT_STATES.has(project.state)) continue;
+    if (project.expiresAt && project.expiresAt <= now) continue;
+    // The always-present personal project never spends a quota slot.
+    if (project.kind === "personal") continue;
+    if (project.kind === "temporary") temporaryProjects += 1;
+    else projects += 1;
+  }
+
+  const agents = await getAgentUsage(stores, principalId);
+
+  let organizations = 0;
+  for (const org of await stores.organizations.listByCreator(principalId)) {
+    if (!LIVE_ORGANIZATION_STATES.has(org.state)) continue;
+    organizations += 1;
+  }
+
+  let oauthClients = 0;
+  for (const client of await stores.oauthClients.listByOwner(principalId)) {
+    if (!LIVE_OAUTH_CLIENT_STATES.has(client.state)) continue;
+    oauthClients += 1;
+  }
+
+  return {
+    temporaryProjects,
+    temporaryResources: stores.usage.get(principalId)?.temporaryResources ?? 0,
+    agents,
+    organizations,
+    oauthClients,
+    projects,
+    claims: 0,
+  };
+}
+
+/**
+ * Record resource usage that has no store to count from.
+ *
+ * Projects and agents are deliberately not bumped here — they are derived from
+ * `stores.projects` / `stores.agents`, so a counter would drift from reality and
+ * never come back down.
+ */
+export function bumpUsage(
+  stores: AppStores,
+  principalId: string,
+  patch: { temporaryResources: number },
+): void {
+  const current = stores.usage.get(principalId);
+  stores.usage.set(principalId, {
+    temporaryProjects: 0,
+    temporaryResources:
+      (current?.temporaryResources ?? 0) + patch.temporaryResources,
+    agents: 0,
+  });
+}

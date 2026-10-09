@@ -1,10 +1,8 @@
 import {
   ADR_TAILNET_SYNC,
-  CLIENT_NO_HOST_IDENTITY,
   DEFERRED,
   OPS_PLANE,
   PAGES_HAS_NO_SYNC_TARGETS,
-  PM_PLANE,
 } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
@@ -120,14 +118,13 @@ export const backupSyncCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: null,
+      cli: "opensesame daemon drive create",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
       pwa: DRIVE_SLOTS_OPERATOR_ONLY,
       webmcp: DRIVE_SLOTS_OPERATOR_ONLY,
       mcp_host: OPS_PLANE,
@@ -150,24 +147,6 @@ export const backupSyncCapabilities: readonly Capability[] = [
       webmcp: DRIVE_PAIRING_HUMAN,
       mcp_host: DRIVE_PAIRING_HUMAN,
       mcp_client: DRIVE_PAIRING_HUMAN,
-    },
-  },
-  {
-    id: "sealed_store.tui",
-    title: "Browse the local sealed store, entry names only",
-    plane: "client_local",
-    kind: "read",
-    surfaces: {
-      cli: "opensesame tui",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      mcp_host: PM_PLANE,
-      mcp_client: PM_PLANE,
-      webmcp: PM_PLANE,
     },
   },
   ...tailnetDeviceCapabilities,
