@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "consents_active_principal_client_uidx" ON "consents" USING btree ("principal_id","client_id") WHERE "consents"."revoked_at" is null;
