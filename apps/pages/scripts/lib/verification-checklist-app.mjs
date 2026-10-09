@@ -157,8 +157,44 @@ export async function openShare(page, shot, record, step, checkId) {
   const once = await page
     .getByRole("menuitem", { name: /share once/i })
     .count();
+  const claim = await page
+    .getByRole("menuitem", { name: /accept a claim|open a claim/i })
+    .count();
   if (dropSeen) await shot(step);
-  mark(record, checkId, dropSeen, dropSeen ? "Share submenu" : "no submenu");
+  mark(
+    record,
+    checkId,
+    dropSeen && claim === 0,
+    dropSeen
+      ? claim === 0
+        ? "Share submenu"
+        : "claim entry present"
+      : "no submenu",
+  );
+  // PAM, not only drops, where Access is part of the installation (full).
+  if (checkId === "S5-share" && record.profile === "full") {
+    const grant = await page
+      .getByRole("menuitem", { name: "Person or agent", exact: true })
+      .count();
+    mark(
+      record,
+      "S5-share-pam",
+      grant === 1,
+      grant === 1 ? "Person or agent present" : "no PAM entry",
+    );
+    await page.keyboard.press("Escape");
+    const headerShare = await page
+      .getByRole("link", { name: "Share", exact: true })
+      .count();
+    mark(
+      record,
+      "S5-share-header",
+      headerShare === 1,
+      headerShare === 1
+        ? "vault header Share key"
+        : `header keys ${headerShare}`,
+    );
+  }
   if (checkId === "S5-share") {
     await shot("share-not-once");
     mark(
