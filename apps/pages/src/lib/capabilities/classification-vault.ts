@@ -49,6 +49,11 @@ const CLOUD_ADAPTERS = [
 
 export const VAULT_LIB_RULES = [
   core(
+    `${V}protection/protector-context`,
+    UNLOCK,
+    "pure capsule metadata; management loads only at authenticated operation use",
+  ),
+  core(
     "src/lib/retired-credentials/",
     UNLOCK,
     "bounded retired-credential records and authentication boundaries",

@@ -10,19 +10,8 @@ import type {
   VaultHeader,
 } from "@opensesame/vault-core";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
-import {
-  type EnrollableKind,
-  type HeldWebauthnPrf,
-  contextForRecord,
-  provenEnrollmentRecord,
-} from "./browser-enroll.js";
-import {
-  type RotationKey,
-  removeProtector as removeProtectorOp,
-  rotateCompromisedRoot as rotateCompromisedRootOp,
-  setPreferredProtector as setPreferredProtectorOp,
-  testProtector as testProtectorOp,
-} from "./browser-lifecycle-ops.js";
+import type { EnrollableKind, HeldWebauthnPrf } from "./browser-enroll.js";
+import type { RotationKey } from "./browser-lifecycle-ops.js";
 import type { ExternalEnrollment } from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId } from "./ids.js";
@@ -38,6 +27,7 @@ import {
 } from "./manifest-auth.js";
 import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 import { resolveProtectionManifest } from "./protection-view.js";
+import { contextForRecord } from "./protector-context.js";
 import type { ProofMaterial } from "./protector-proof.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import type { ProtectionSessionGuard } from "./session-guard.js";
@@ -180,30 +170,42 @@ export class VaultProtectionBrowserService {
     external?: ExternalEnrollment | undefined,
   ): Promise<EnrollCandidateResult> {
     this.#assertCanMutate();
-    assertNotCanceled(this.#host.session.signal);
+    const sessionGeneration = this.#host.session.generation;
+    const signal = this.#host.session.signal;
+    assertNotCanceled(signal);
     await this.ensureProtectionProjected();
+    this.#assertOperation(sessionGeneration, signal);
     await this.#assertManifestTrusted();
+    this.#assertOperation(sessionGeneration, signal);
     const header = this.#requireHeader();
     const base = this.#requireManifest(header);
     const expectedRevision = base.revision;
     assertExpectedRevision(base, expectedRevision);
     const operationId = newOpaqueId("op");
-    const sessionGeneration = this.#host.session.generation;
     const journal = beginMutationJournal({
       vaultId: base.vaultId,
       expectedRevision,
       operationId,
     });
-    const built = await provenEnrollmentRecord({
+    const request = {
       kind,
       base,
       rootKey: this.#host.requireRawRoot(),
       operationId,
       sessionGeneration,
-      signal: this.#host.session.signal,
+      signal,
       held,
       external,
-    });
+    };
+    const { provenEnrollmentRecord } = await import("./browser-enroll.js");
+    this.#assertOperation(sessionGeneration, signal);
+    await this.#assertManifestTrusted();
+    this.#assertOperation(sessionGeneration, signal);
+    assertExpectedRevision(
+      this.#requireManifest(this.#requireHeader()),
+      expectedRevision,
+    );
+    const built = await provenEnrollmentRecord(request);
     assertSessionGeneration(sessionGeneration, this.#host.session.generation);
     assertNotCanceled(this.#host.session.signal);
     journal.phase = "proven";
@@ -273,34 +275,30 @@ export class VaultProtectionBrowserService {
   }
 
   async setPreferred(protectorId: string): Promise<void> {
-    this.#assertCanMutate();
-    await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    await setPreferredProtectorOp(this.#host, protectorId);
+    await this.#lifecycle((operations) =>
+      operations.setPreferredProtector(this.#host, protectorId),
+    );
   }
 
   async removeProtector(protectorId: string): Promise<void> {
-    this.#assertCanMutate();
-    await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    await removeProtectorOp(this.#host, protectorId);
+    await this.#lifecycle((operations) =>
+      operations.removeProtector(this.#host, protectorId),
+    );
   }
 
   async testProtector(
     protectorId: string,
     material?: ProofMaterial,
   ): Promise<ProtectionRecord> {
-    this.#assertCanMutate();
-    await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    return testProtectorOp(this.#host, protectorId, material);
+    return this.#lifecycle((operations) =>
+      operations.testProtector(this.#host, protectorId, material),
+    );
   }
 
   async rotateCompromisedRoot(input: RotationKey): Promise<void> {
-    this.#assertCanMutate();
-    await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    await rotateCompromisedRootOp(this.#host, input);
+    await this.#lifecycle((operations) =>
+      operations.rotateCompromisedRoot(this.#host, input),
+    );
   }
 
   /**
@@ -325,6 +323,31 @@ export class VaultProtectionBrowserService {
       record,
       secretB64,
     });
+  }
+
+  #assertOperation(generation: number, signal: AbortSignal): void {
+    assertSessionGeneration(generation, this.#host.session.generation);
+    assertNotCanceled(signal);
+    this.#assertCanMutate();
+  }
+
+  async #lifecycle<T>(
+    run: (
+      operations: typeof import("./browser-lifecycle-ops.js"),
+    ) => Promise<T>,
+  ): Promise<T> {
+    this.#assertCanMutate();
+    const generation = this.#host.session.generation;
+    const signal = this.#host.session.signal;
+    await this.ensureProtectionProjected();
+    this.#assertOperation(generation, signal);
+    await this.#assertManifestTrusted();
+    this.#assertOperation(generation, signal);
+    const operations = await import("./browser-lifecycle-ops.js");
+    this.#assertOperation(generation, signal);
+    await this.#assertManifestTrusted();
+    this.#assertOperation(generation, signal);
+    return run(operations);
   }
 
   #assertCanMutate(): void {
