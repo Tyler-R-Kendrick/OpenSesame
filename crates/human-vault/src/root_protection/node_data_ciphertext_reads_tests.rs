@@ -252,6 +252,9 @@ fn actual_absence_is_distinct_from_a_present_directory_and_original_seal_failure
     assert!(writer.read_optional_generation_ciphertext().is_err());
 }
 
+#[path = "node_data_ciphertext_publications_tests.rs"]
+mod publications;
+
 #[test]
 fn actual_case_alias_presence_never_becomes_false_absence_on_casefolding_filesystems() {
     let (temporary, root) = fixture();

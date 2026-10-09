@@ -215,6 +215,17 @@ impl NativeNodeDataWriter {
     ) -> io::Result<()> {
         file_name(leaf)?;
         let _operation = gate(&self.credential.state.operations)?;
+        self.compare_publish_under_operation(scope, leaf, expected, next)
+    }
+    // Called only while the exact original synchronous operation guard remains held.
+    fn compare_publish_under_operation(
+        &self,
+        scope: NativeNodeDataScope,
+        leaf: &Path,
+        expected: Option<&[u8]>,
+        next: Option<&[u8]>,
+    ) -> io::Result<()> {
+        file_name(leaf)?;
         self.check()?;
         let stages = Arc::new(
             self.credential
