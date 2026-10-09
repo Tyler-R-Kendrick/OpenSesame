@@ -1,6 +1,10 @@
 import { trustedHideRetires } from "@opensesame/app-core/lib/document-lifecycle.js";
 import { endSession } from "@opensesame/app-core/lib/identity.js";
-import { clearNotices } from "@opensesame/app-core/lib/notices.js";
+import {
+  clearNotices,
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 import { clearStagedClaimTokens } from "@opensesame/app-core/lib/queue.js";
 import {
   type VaultState,
@@ -137,11 +141,25 @@ function useSessionGuardsDefault(): void {
 
 export type CopyResult = "copied" | "unavailable";
 
+/**
+ * Said in the tray before `readText`, which otherwise raises a browser
+ * permission prompt with no reason (ADR 0163). Present for the whole read.
+ */
+export const CLIPBOARD_READ_NOTICE = {
+  id: "clipboard-clear",
+  tone: "info" as const,
+  title: "Clipboard",
+  body: "Reading the clipboard to clear a secret this vault copied, if it is still the one there.",
+};
+
 /** Last value this app put on the clipboard, so lock can wipe it. */
 let lastCopied: string | null = null;
 let pendingClear: number | null = null;
 
 async function clearIfOurs(value: string): Promise<void> {
+  // The read is what prompts. The tray sentence is up before it, and leaves
+  // once the read has finished.
+  setStatusNotice(CLIPBOARD_READ_NOTICE);
   try {
     const current = await navigator.clipboard.readText();
     if (current === value) await navigator.clipboard.writeText("");
@@ -153,6 +171,8 @@ async function clearIfOurs(value: string): Promise<void> {
     } catch {
       /* clipboard unavailable — nothing further we can do */
     }
+  } finally {
+    dismissNotice(CLIPBOARD_READ_NOTICE.id);
   }
   if (lastCopied === value) lastCopied = null;
 }

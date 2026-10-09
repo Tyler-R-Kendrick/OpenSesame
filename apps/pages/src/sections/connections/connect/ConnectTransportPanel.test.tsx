@@ -1,10 +1,7 @@
 /** @vitest-environment jsdom */
-import type { Provider } from "@opensesame/app-core/lib/connections.js";
-import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { kvGet } from "@opensesame/app-core/lib/kv.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import {
   CONNECT_AUTH_PATH,
   armVercelConnectAuth,
@@ -16,34 +13,33 @@ import {
   vercelConnectAuth,
 } from "@opensesame/app-core/lib/vercel-connect.js";
 import { lockAllTombs, tombFileKey } from "@opensesame/app-core/lib/vfs.js";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../../bindings/identity.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
-import { ConnectPanels } from "./ConnectPanels.js";
+import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
+import { useConnectTransport } from "./useConnectTransport.js";
 
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 const originalIdentityHookSeams = { ...identityHookSeams };
 
-function resend(): Provider {
-  const found = mergeVercelCatalog(getBundledProviders()).find(
-    (row) => row.id === "resend",
+/** Optional imported-connection transport, separate from provider configuration. */
+function Transport({ onFlash }: { onFlash: (flash: Flash) => void }) {
+  const transport = useConnectTransport();
+  return (
+    <ConnectTransportPanel
+      relay={transport.relay}
+      showForm={!transport.canManage}
+      held={transport.held}
+      onFlash={onFlash}
+    />
   );
-  if (!found) throw new Error("resend not in catalog");
-  return found;
 }
 
 function draw(onFlash = vi.fn()) {
-  render(
-    <ConnectPanels
-      provider={resend()}
-      connection={null}
-      online
-      onFlash={onFlash}
-      onChanged={vi.fn()}
-    />,
-  );
+  render(<Transport onFlash={onFlash} />);
   return onFlash;
 }
 

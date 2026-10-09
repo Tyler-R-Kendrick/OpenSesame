@@ -87,6 +87,7 @@ describe("access.authority runtime", () => {
     );
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual([
       "/access",
+      "/access/shares",
       "/access/requests",
       "/access/resources",
       "/access/policies",

@@ -52,7 +52,12 @@ function useOffered(): boolean {
 type Client = ReturnType<typeof orgSignInClient>;
 
 /** The session's organizations, read again whenever the section's list is. */
-function useOrganizations(client: Client, offered: boolean, known: unknown) {
+function useOrganizations(
+  client: Client,
+  offered: boolean,
+  known: unknown,
+  selectedOrg?: string,
+) {
   const [orgs, setOrgs] = useState<OrgSignInOrganization[] | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
   const [round, setRound] = useState(0);
@@ -76,7 +81,13 @@ function useOrganizations(client: Client, offered: boolean, known: unknown) {
       live = false;
     };
   }, [client, offered, known, round]);
-  return { orgs, refusal, reload: () => setRound((n) => n + 1) };
+  return {
+    orgs: selectedOrg
+      ? (orgs?.filter((org) => org.id === selectedOrg) ?? null)
+      : orgs,
+    refusal,
+    reload: () => setRound((n) => n + 1),
+  };
 }
 
 function Chooser({
@@ -146,6 +157,7 @@ function OwnerPanels({
 export function OrgSignInPanels({
   online,
   known,
+  selectedOrg,
 }: {
   online: boolean;
   /**
@@ -153,10 +165,16 @@ export function OrgSignInPanels({
    * again whenever it changes. `null` while the section is still asking.
    */
   known: unknown;
+  selectedOrg?: string;
 }) {
   const offered = useOffered();
   const client = useMemo(() => orgSignInClient(), []);
-  const { orgs, refusal, reload } = useOrganizations(client, offered, known);
+  const { orgs, refusal, reload } = useOrganizations(
+    client,
+    offered,
+    known,
+    selectedOrg,
+  );
   const [chosen, setChosen] = useState("");
   if (!offered) return null;
   const reloadKey = (

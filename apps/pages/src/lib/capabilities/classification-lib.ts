@@ -1,5 +1,4 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
-
 import { core, each, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
@@ -114,8 +113,11 @@ const SIGNIN_FILES = [
   "orgs",
 ];
 const CONNECTOR_FILES = [
+  "linear-",
   "connector-guidance",
   "connect-",
+  "self-hosted-config",
+  "self-hosted-connectors",
   "github-installation-access",
   "identity-graph",
 ];
@@ -163,14 +165,11 @@ const LOCAL_IAM_FILES = [
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
-  // `orgs-directory` only: `orgs.ts` stays the core sign-in vocabulary and the
-  // Identity-API seams this capability installs.
+  // `orgs.ts` stays core sign-in vocabulary; only its directory is optional.
   "orgs-directory",
 ];
 const LOCAL_AI_FILES = [
   "model-provider",
-  "hosted-inference",
-  "saved-model-agent",
   "model-catalog",
   "model-slugs",
   "browser-inference",
@@ -309,7 +308,6 @@ export const LIB_RULES = [
     CEREMONIES,
     "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
   ),
-  // Settings › Notifications, reached only through notifications.routing (ADR 0140).
   optional(
     `${L}notification-routing/`,
     "notifications.routing",

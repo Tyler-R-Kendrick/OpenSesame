@@ -85,6 +85,8 @@ export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
   Object.freeze({
     // MSAL v5 redirect bridge: never emitted without ambient SSO.
     "auth/redirect.html": "identity.ambient-sso",
+    "auth/linear.html": "connectors.external",
+    "auth/native-connector.html": "connectors.external",
   });
 
 /**
@@ -104,6 +106,7 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
+  "auth/native-client.json": "connectors.external",
   "auth.js": "identity.site-broker",
   "auth.js.sha384": "identity.site-broker",
   "static-auth/**": "identity.site-broker",
@@ -126,6 +129,7 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
  */
 export const GENERATED_PUBLIC_FILES: Readonly<Record<string, string>> =
   Object.freeze({
+    "auth/native-client.json": "scripts/native-client-metadata-plugin.mjs",
     ".well-known/**": "scripts/write-authenticator-associations.mjs",
     // Emitted during the Vite build, for every deployment that can say which
     // origin it is (ADR 0161 §5).

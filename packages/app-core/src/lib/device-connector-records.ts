@@ -1,6 +1,7 @@
 /**
- * The two device records a saved connector uses: public rows, and the
- * secret map that never rides on the connection the page renders.
+ * Legacy device rows and secrets, with an atomic ledger for self-hosted
+ * configuration. Public readers expose only metadata; private credentials
+ * never ride on the connection the page renders.
  */
 
 import {
@@ -8,16 +9,29 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { kvDelete, kvGet, kvSet } from "./kv.js";
+import { lockManager } from "../ports.js";
+import { atRestReady } from "./at-rest/key.js";
+import {
+  kvDelete,
+  kvDurability,
+  kvFlush,
+  kvGet,
+  kvRefresh,
+  kvSet,
+  kvSetDurable,
+} from "./kv.js";
 
 const PUBLIC_KEY = "opensesame.device-connectors.v1";
 const SECRET_KEY = "opensesame.device-connector-secrets.v1";
+const ATOMIC_KEY = "opensesame.self-hosted-connectors.v1";
+const MAX_RECORD_BYTES = 32 * 1024 * 1024;
 
-/** Both records, for a boot that reads a saved connector before anything draws. */
-export const DEVICE_CONNECTOR_KEYS: readonly string[] = [
+/** Hydrate legacy records and the atomic ledger before rendering connections. */
+export const DEVICE_CONNECTOR_KEYS = [
   PUBLIC_KEY,
   SECRET_KEY,
-];
+  ATOMIC_KEY,
+] as const;
 
 export interface StringFields {
   [key: string]: string;
@@ -37,9 +51,25 @@ interface SecretStore {
   [key: string]: StringFields;
 }
 
+const rowListeners = new Set<() => void>();
+
+/** Observe committed public metadata without exposing the private record. */
+export function subscribeDeviceRows(listener: () => void): () => void {
+  rowListeners.add(listener);
+  return () => {
+    rowListeners.delete(listener);
+  };
+}
+
+function notifyDeviceRows(): void {
+  for (const listener of rowListeners) listener();
+}
+
 export function clearDeviceConnectorStore(): void {
   kvDelete(PUBLIC_KEY);
   kvDelete(SECRET_KEY);
+  kvDelete(ATOMIC_KEY);
+  notifyDeviceRows();
 }
 
 function rowFrom(value: BoundaryValue): PublicRow | null {
@@ -76,7 +106,43 @@ function rowFrom(value: BoundaryValue): PublicRow | null {
   };
 }
 
-export function readDeviceRows(): PublicRow[] {
+export type DeviceConfiguration = { row: PublicRow; secrets: StringFields };
+type Configuration = DeviceConfiguration;
+interface AtomicStore {
+  [connectionId: string]: Configuration | null;
+}
+
+function secretFields(value: BoundaryValue): StringFields | null {
+  if (!isJsonObject(value)) return null;
+  const fields: StringFields = {};
+  for (const [name, entry] of Object.entries(value)) {
+    if (isString(entry)) fields[name] = entry;
+  }
+  return fields;
+}
+
+function readAtomic(): AtomicStore {
+  try {
+    const raw = kvGet(ATOMIC_KEY);
+    if (!raw) return {};
+    const parsed: BoundaryValue = JSON.parse(raw);
+    if (!isJsonObject(parsed)) return {};
+    const records: AtomicStore = {};
+    for (const [id, value] of Object.entries(parsed)) {
+      if (value === null) records[id] = null;
+      else if (isJsonObject(value)) {
+        const row = rowFrom(value.row);
+        const secrets = secretFields(value.secrets);
+        if (row?.connectionId === id && secrets) records[id] = { row, secrets };
+      }
+    }
+    return records;
+  } catch {
+    return {};
+  }
+}
+
+function readLegacyRows(): PublicRow[] {
   const raw = kvGet(PUBLIC_KEY);
   if (!raw) return [];
   try {
@@ -93,12 +159,25 @@ export function readDeviceRows(): PublicRow[] {
   }
 }
 
-export function writeDeviceRows(rows: PublicRow[]): void {
-  if (rows.length === 0) kvDelete(PUBLIC_KEY);
-  else kvSet(PUBLIC_KEY, JSON.stringify(rows));
+/** Public readers never include the private half of an atomic configuration. */
+export function readDeviceRows(): PublicRow[] {
+  const atomic = readAtomic();
+  const rows = readLegacyRows().filter((row) => !(row.connectionId in atomic));
+  for (const entry of Object.values(atomic)) {
+    if (entry) rows.push(entry.row);
+  }
+  return rows;
 }
 
-export function readDeviceSecrets(): SecretStore {
+export function writeDeviceRows(rows: PublicRow[]): void {
+  const atomic = readAtomic();
+  const legacy = rows.filter((row) => !(row.connectionId in atomic));
+  if (legacy.length === 0) kvDelete(PUBLIC_KEY);
+  else kvSet(PUBLIC_KEY, JSON.stringify(legacy));
+  notifyDeviceRows();
+}
+
+function readLegacySecrets(): SecretStore {
   const raw = kvGet(SECRET_KEY);
   if (!raw) return {};
   try {
@@ -106,12 +185,8 @@ export function readDeviceSecrets(): SecretStore {
     if (!isJsonObject(parsed)) return {};
     const map: SecretStore = {};
     for (const [id, entry] of Object.entries(parsed)) {
-      if (!isJsonObject(entry)) continue;
-      const secrets: StringFields = {};
-      for (const [name, value] of Object.entries(entry)) {
-        if (isString(value)) secrets[name] = value;
-      }
-      map[id] = secrets;
+      const secrets = secretFields(entry);
+      if (secrets) map[id] = secrets;
     }
     return map;
   } catch {
@@ -119,7 +194,110 @@ export function readDeviceSecrets(): SecretStore {
   }
 }
 
+export function readDeviceSecrets(): SecretStore {
+  const map = readLegacySecrets();
+  for (const [id, entry] of Object.entries(readAtomic())) {
+    if (entry && Object.keys(entry.secrets).length > 0) map[id] = entry.secrets;
+    else delete map[id];
+  }
+  return map;
+}
+
 export function writeDeviceSecrets(map: SecretStore): void {
-  if (Object.keys(map).length === 0) kvDelete(SECRET_KEY);
-  else kvSet(SECRET_KEY, JSON.stringify(map));
+  const atomic = readAtomic();
+  const legacy: SecretStore = {};
+  for (const [id, secrets] of Object.entries(map)) {
+    if (!(id in atomic)) legacy[id] = secrets;
+  }
+  if (Object.keys(legacy).length === 0) kvDelete(SECRET_KEY);
+  else kvSet(SECRET_KEY, JSON.stringify(legacy));
+}
+
+let writes: Promise<unknown> = Promise.resolve();
+
+function withConfigurationLock<T>(action: () => Promise<T>): Promise<T> {
+  const run = writes.then(async () => {
+    await kvFlush();
+    await atRestReady();
+    const refresh = async () => {
+      if (kvDurability() !== "memory") {
+        await Promise.all(
+          DEVICE_CONNECTOR_KEYS.map((key) => kvRefresh(key, MAX_RECORD_BYTES)),
+        );
+      }
+      if (!locks && kvDurability() === "persistent")
+        throw new Error(
+          "Web Locks are required to save shared connector configuration.",
+        );
+      return action();
+    };
+    const locks = lockManager();
+    if (locks) return locks.request("opensesame:device-connectors", refresh);
+    return refresh();
+  });
+  writes = run.catch(() => undefined);
+  return run;
+}
+
+async function commitAtomic(records: AtomicStore): Promise<void> {
+  const value = JSON.stringify(records);
+  if (new TextEncoder().encode(value).length > MAX_RECORD_BYTES) {
+    throw new Error("Connector configuration exceeds the storage size limit");
+  }
+  await kvSetDurable(ATOMIC_KEY, value);
+  notifyDeviceRows();
+}
+
+/** Evaluate compatibility under the lock, then commit metadata and secrets in one sealed file. */
+export function writeDeviceConfigurationDurable(
+  make: () => Configuration,
+): Promise<PublicRow> {
+  return withConfigurationLock(async () => {
+    const { row, secrets } = make();
+    await commitAtomic({
+      ...readAtomic(),
+      [row.connectionId]: { row, secrets },
+    });
+    return row;
+  });
+}
+
+/** Re-read under the same cross-tab lock before changing a provider grant. */
+export function updateDeviceConfigurationDurable(
+  id: string,
+  update: (record: DeviceConfiguration) => Promise<DeviceConfiguration>,
+): Promise<PublicRow> {
+  return withConfigurationLock(async () => {
+    const records = readAtomic();
+    const record = records[id];
+    if (!record) throw new Error("Saved connector not found on this device");
+    const next = await update(record);
+    if (
+      next.row.connectionId !== id ||
+      next.row.providerId !== record.row.providerId
+    )
+      throw new Error("A provider grant cannot change its connector");
+    if (next !== record) await commitAtomic({ ...records, [id]: next });
+    return next.row;
+  });
+}
+
+/** A durable tombstone masks legacy copies even if the browser closes immediately. */
+export function removeDeviceConfigurationDurable(
+  id: string,
+  beforeRemove?: (record: DeviceConfiguration) => void,
+): Promise<boolean> {
+  return withConfigurationLock(async () => {
+    const row = readDeviceRows().find((entry) => entry.connectionId === id);
+    if (!row || row.fields.self_hosted_configuration === undefined)
+      return false;
+    const records = readAtomic();
+    if (beforeRemove) {
+      const record = records[id];
+      if (!record) throw new Error("Saved connector not found on this device");
+      beforeRemove(record);
+    }
+    await commitAtomic({ ...records, [id]: null });
+    return true;
+  });
 }

@@ -10,11 +10,14 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router";
+import { Link, MemoryRouter, useLocation } from "react-router";
 import { afterAll, afterEach, beforeAll, expect, it, vi } from "vitest";
 
 import { registerLegacyShell } from "../../components/legacy-sections.test-support.js";
+import { setRailCursor } from "../../components/rail-cursor.js";
+import * as shareLeaves from "../../sections/access/share-leaves.js";
 import { AccessRailTree } from "./AccessRailTree.js";
 
 import {
@@ -190,5 +193,45 @@ it("scrolls to a panel already named in the address when its row is clicked agai
   } finally {
     panel.remove();
     vi.unstubAllGlobals();
+  }
+});
+
+it("marks the share leaf for canonical and legacy record addresses", async () => {
+  const leafId = "11111111-1111-4111-8111-111111111111";
+  const canonical = `/access?view=grants#identity-shares/${leafId}`;
+  const legacy = `/access?view=grants#share-${leafId}`;
+  const shares = vi
+    .spyOn(shareLeaves, "useShareLeaves")
+    .mockReturnValue([{ id: leafId, label: "Owner → personal" }]);
+  try {
+    render(
+      <MemoryRouter initialEntries={["/access?view=grants"]}>
+        <Page />
+        <Link to={canonical}>Canonical share</Link>
+        <Link to={legacy}>Legacy share</Link>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("treeitem", { name: "Grants" }));
+    fireEvent.click(screen.getByRole("treeitem", { name: "Identity shares" }));
+    // The shell clears its separate keyboard cursor when a page link moves the route.
+    act(() => setRailCursor(null));
+    fireEvent.click(screen.getByRole("link", { name: "Canonical share" }));
+    const leaf = screen.getByRole("treeitem", { name: "Owner → personal" });
+    await waitFor(() =>
+      expect(leaf.getAttribute("aria-selected")).toBe("true"),
+    );
+    expect(
+      screen
+        .getByRole("treeitem", { name: "Identity shares" })
+        .getAttribute("aria-selected"),
+    ).toBe("false");
+    expect(screen.getByLabelText("Current route").textContent).toBe(canonical);
+    fireEvent.click(screen.getByRole("link", { name: "Legacy share" }));
+    await waitFor(() =>
+      expect(leaf.getAttribute("aria-selected")).toBe("true"),
+    );
+  } finally {
+    act(() => setRailCursor(null));
+    shares.mockRestore();
   }
 });

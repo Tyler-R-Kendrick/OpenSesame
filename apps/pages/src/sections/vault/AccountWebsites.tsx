@@ -5,22 +5,22 @@ import { useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconPlus, IconX } from "../../components/Icons.js";
 
-const MATCHES: UriMatch[] = [
+const MATCHES = [
   "domain",
   "host",
   "exact",
   "wildcard",
   "regex",
   "never",
-];
+] as const satisfies readonly UriMatch[];
 
 /** What a rule matches, on the select that picks it — never a line under it. */
-const RULE_TITLES: Partial<Record<UriMatch, string>> = {
+const RULE_TITLES = {
   wildcard:
     "Whole hostname, case-insensitive. *.example.com matches subdomains; * matches any characters, ? matches one.",
   regex:
     "Whole hostname, case-insensitive. Use example\\.com or (.*\\.)?example\\.com, without / delimiters or flags.",
-};
+} satisfies Partial<Record<UriMatch, string>>;
 
 function PatternTest({ uri }: { uri: LoginUri }) {
   const [website, setWebsite] = useState("");
@@ -97,7 +97,11 @@ export function AccountWebsites({
             <select
               value={uri.match}
               aria-label={`Match rule ${index + 1}`}
-              title={RULE_TITLES[uri.match]}
+              title={
+                uri.match === "wildcard" || uri.match === "regex"
+                  ? RULE_TITLES[uri.match]
+                  : undefined
+              }
               onChange={(event) => {
                 const match = MATCHES.find(
                   (candidate) => candidate === event.target.value,

@@ -1,8 +1,9 @@
+import { listShareTargets } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
   SHARE_DURATIONS,
   SHARE_POLICIES,
   type ShareKind,
-  listShareTargets,
+  type ShareScopeLists,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -17,19 +18,39 @@ type SaveInput = {
   durationSeconds: number;
 };
 
+type IdentityChoice = { id: string; name: string; kind?: string };
+
+const KIND_LABEL = {
+  vault: "Vault",
+  connection: "Connector",
+  folder: "Folder",
+  item: "Item",
+} satisfies Record<ShareKind, string>;
+
+const EMPTY_SCOPE = {
+  vault: "No vault on this device.",
+  connection: "No connector to grant.",
+  folder: "No folders in this vault.",
+  item: "No items in this vault.",
+} satisfies Record<ShareKind, string>;
+
 export function ShareGrantForm({
   identities,
+  scopes,
   busy,
   onCancel,
   onSave,
 }: {
-  identities: { id: string; name: string }[];
+  identities: IdentityChoice[];
+  scopes?: ShareScopeLists;
   busy: boolean;
   onCancel: () => void;
   onSave: (input: SaveInput) => void;
 }) {
   const [kind, setKind] = useState<ShareKind>("vault");
-  const resources = listShareTargets().filter((target) => target.kind === kind);
+  const resources = listShareTargets(scopes).filter(
+    (target) => target.kind === kind,
+  );
   const [principalId, setPrincipalId] = useState(identities[0]?.id ?? "");
   const [resourceId, setResourceId] = useState(resources[0]?.id ?? "");
   const [policy, setPolicy] = useState<string>(
@@ -37,10 +58,21 @@ export function ShareGrantForm({
   );
   const [duration, setDuration] = useState<number>(SHARE_DURATIONS[0].seconds);
   useEffect(() => {
-    const next = listShareTargets().filter((target) => target.kind === kind);
-    setResourceId(next[0]?.id ?? "");
     setPolicy(SHARE_POLICIES[kind][0]?.id ?? "open");
   }, [kind]);
+  useEffect(() => {
+    const next = listShareTargets(scopes).filter(
+      (target) => target.kind === kind,
+    );
+    setResourceId((current) =>
+      next.some((entry) => entry.id === current)
+        ? current
+        : (next[0]?.id ?? ""),
+    );
+  }, [kind, scopes]);
+
+  const selected = identities.find((entry) => entry.id === principalId);
+  const commitLabel = selected?.kind === "agent" ? "Request approval" : "Grant";
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -54,6 +86,10 @@ export function ShareGrantForm({
       policy,
       durationSeconds: duration,
     });
+  }
+
+  if (identities.length === 0) {
+    return <p className="hint">No identities.</p>;
   }
 
   return (
@@ -73,7 +109,10 @@ export function ShareGrantForm({
         onPolicy={setPolicy}
         onDuration={setDuration}
       />
-      <FormCommit label="Grant" disabled={busy}>
+      <FormCommit
+        label={commitLabel}
+        disabled={busy || resources.length === 0 || !principalId}
+      >
         <button
           type="button"
           className="icon-btn"
@@ -97,6 +136,22 @@ function options(rows: readonly { id: string | number; label: string }[]) {
   ));
 }
 
+type ShareFieldProps = {
+  identities: IdentityChoice[];
+  busy: boolean;
+  kind: ShareKind;
+  resources: { id: string; label: string }[];
+  principalId: string;
+  resourceId: string;
+  policy: string;
+  duration: number;
+  onKind: (kind: ShareKind) => void;
+  onPrincipal: (id: string) => void;
+  onResource: (id: string) => void;
+  onPolicy: (id: string) => void;
+  onDuration: (seconds: number) => void;
+};
+
 function ShareFields({
   identities,
   busy,
@@ -111,21 +166,8 @@ function ShareFields({
   onResource,
   onPolicy,
   onDuration,
-}: {
-  identities: { id: string; name: string }[];
-  busy: boolean;
-  kind: ShareKind;
-  resources: { id: string; label: string }[];
-  principalId: string;
-  resourceId: string;
-  policy: string;
-  duration: number;
-  onKind: (kind: ShareKind) => void;
-  onPrincipal: (id: string) => void;
-  onResource: (id: string) => void;
-  onPolicy: (id: string) => void;
-  onDuration: (seconds: number) => void;
-}) {
+}: ShareFieldProps) {
+  const resourceLabel = KIND_LABEL[kind];
   return (
     <>
       <Field id="share-identity" label="Identity">
@@ -151,22 +193,25 @@ function ShareFields({
         >
           <option value="vault">Vault</option>
           <option value="connection">Connector</option>
+          <option value="folder">Folder</option>
+          <option value="item">Item</option>
         </select>
       </Field>
-      <Field
-        id="share-resource"
-        label={kind === "vault" ? "Vault" : "Connector"}
-      >
-        <select
-          id="share-resource"
-          required
-          disabled={busy}
-          value={resourceId}
-          onChange={(event) => onResource(event.target.value)}
-        >
-          {options(resources)}
-        </select>
-      </Field>
+      {resources.length === 0 ? (
+        <p className="hint">{EMPTY_SCOPE[kind]}</p>
+      ) : (
+        <Field id="share-resource" label={resourceLabel}>
+          <select
+            id="share-resource"
+            required
+            disabled={busy}
+            value={resourceId}
+            onChange={(event) => onResource(event.target.value)}
+          >
+            {options(resources)}
+          </select>
+        </Field>
+      )}
       <Field id="share-policy" label="Policy">
         <select
           id="share-policy"

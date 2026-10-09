@@ -5,6 +5,12 @@ import { IconRefresh, IconTrash, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { useFocusAfter } from "../../lib/use-focus-after.js";
 import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
+import {
   type LocalAuthorityRow,
   useLocalAuthority,
 } from "./useLocalAuthority.js";
@@ -21,6 +27,11 @@ export function LocalAuthorityPanel({
   const state = useLocalAuthority(tomb);
   const grantsOnly = records === "grant";
   const rows = state.rows?.filter((row) => row.kind === records);
+  const selection = useAccessRecord(
+    grantsOnly ? "local-grants" : "local-sessions",
+    grantsOnly ? "grants" : "sessions",
+  );
+  const selected = rows?.find((row) => row.id === selection.id);
   const [pending, setPending] = useState<LocalAuthorityRow | null>(null);
   const reload = useRef<HTMLButtonElement>(null);
   const trigger = useRef<HTMLButtonElement | null>(null);
@@ -34,14 +45,17 @@ export function LocalAuthorityPanel({
     );
   }
   return (
-    <section
-      className="panel"
-      id={grantsOnly ? "local-grants" : "local-sessions"}
-      aria-label="Local access records"
-      aria-busy={state.busy}
-    >
-      <div className="panel__head">
-        <h2>{grantsOnly ? "Local application grants" : "Local sessions"}</h2>
+    <AccessRecords
+      title={grantsOnly ? "Local application grants" : "Local sessions"}
+      emptyMessage={authorityEmpty(state.error, rows, grantsOnly)}
+      selection={selection}
+      rows={(rows ?? []).map((row) => ({
+        id: row.id,
+        label: row.name,
+        extension: records,
+        to: selection.path(row.id),
+      }))}
+      commands={
         <IconKey
           label="Reload local access records"
           small
@@ -51,35 +65,54 @@ export function LocalAuthorityPanel({
         >
           <IconRefresh size={15} />
         </IconKey>
-      </div>
-      <div className="panel__body">
-        <StatusNote
-          message={state.error ? { tone: "err", text: state.error } : null}
-        />
-        <output>{state.message}</output>
-        {pending ? (
-          <ConfirmRevocation
-            row={pending}
-            busy={state.busy}
-            close={close}
-            revoke={state.revoke}
+      }
+      status={
+        <>
+          <StatusNote
+            message={state.error ? { tone: "err", text: state.error } : null}
           />
-        ) : null}
-        {rows ? (
-          <AuthorityRows
-            rows={rows}
-            grantsOnly={grantsOnly}
-            disabled={state.busy || pending !== null}
-            select={(row, button) => {
-              trigger.current = button;
-              setPending(row);
-            }}
+          <output>{state.message}</output>
+        </>
+      }
+    >
+      {selected ? (
+        <AccessDetail
+          title={selected.name}
+          kind={records}
+          actions={
+            <IconKey
+              label={`Revoke ${records}`}
+              small
+              disabled={state.busy || pending !== null}
+              onClick={(event) => {
+                trigger.current = event.currentTarget;
+                setPending(selected);
+              }}
+            >
+              <IconTrash size={16} />
+            </IconKey>
+          }
+        >
+          <AccessFact label="Access" value={selected.detail} />
+          <AccessFact label="Reference" value={selected.id} />
+          <AccessFact
+            label="Expires"
+            value={new Date(selected.expiresAt).toLocaleString()}
           />
-        ) : !state.error ? (
-          <output>Loading local access records…</output>
-        ) : null}
-      </div>
-    </section>
+          {pending ? (
+            <ConfirmRevocation
+              row={pending}
+              busy={state.busy}
+              close={close}
+              revoke={state.revoke}
+            />
+          ) : null}
+        </AccessDetail>
+      ) : null}
+      {!rows && !state.error ? (
+        <output>Loading local access records…</output>
+      ) : null}
+    </AccessRecords>
   );
 }
 
@@ -124,41 +157,12 @@ function ConfirmRevocation({
   );
 }
 
-function AuthorityRows({
-  rows,
-  grantsOnly,
-  disabled,
-  select,
-}: {
-  rows: readonly LocalAuthorityRow[];
-  grantsOnly: boolean;
-  disabled: boolean;
-  select: (row: LocalAuthorityRow, button: HTMLButtonElement) => void;
-}) {
-  if (!rows.length)
-    return <p className="hint">{grantsOnly ? "No grants." : "No sessions."}</p>;
-  return (
-    <ul className="access-local-records">
-      {rows.map((row) => (
-        <li key={`${row.kind}:${row.id}`}>
-          <strong>{row.name}</strong>
-          <p>{row.detail}</p>
-          <p className="hint">
-            {row.kind} · {row.id} · Expires{" "}
-            {new Date(row.expiresAt).toLocaleString()}
-          </p>
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            disabled={disabled}
-            onClick={(event) => select(row, event.currentTarget)}
-            aria-label={`Revoke ${row.kind}`}
-            title="Revoke"
-          >
-            <IconTrash size={16} />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
+function authorityEmpty(
+  error: string,
+  rows: readonly LocalAuthorityRow[] | null | undefined,
+  grantsOnly: boolean,
+) {
+  if (error) return "Unavailable";
+  if (!rows) return "Loading…";
+  return grantsOnly ? "No grants." : "No sessions.";
 }

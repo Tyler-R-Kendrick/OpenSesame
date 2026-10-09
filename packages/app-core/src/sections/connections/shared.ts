@@ -9,6 +9,7 @@ import type {
   Provider,
   ProviderCategory,
 } from "../../lib/connections.js";
+import { isNativeDeviceConnection } from "../../lib/device-connector-view.js";
 import { VERB_CHIP, VERB_LABEL } from "../../lib/identity-graph.js";
 
 export type Flash = { tone: "ok" | "warn" | "err"; text: string };
@@ -183,7 +184,15 @@ function gitStatusSentence(connection: Connection): string {
     : "Git remote configured.";
 }
 
-export function statusSentence(
+/** Native configurations enter Connected only after the active provider runtime verifies them. */
+export function belongsToConnectedList(connection: Connection): boolean {
+  return (
+    connection.status !== "revoked" &&
+    (!isNativeDeviceConnection(connection) || connection.status === "active")
+  );
+}
+
+function legacyStatusSentence(
   connection: Connection,
   provider?: Provider | null,
 ): string {
@@ -215,4 +224,19 @@ export function statusSentence(
     case "error":
       return connection.statusDetail ?? "The provider returned an error.";
   }
+}
+
+/** Native rows describe provider verification rather than a legacy consent approval. */
+export function statusSentence(
+  connection: Connection,
+  provider?: Provider | null,
+): string {
+  if (isNativeDeviceConnection(connection))
+    return (
+      connection.statusDetail ??
+      (connection.status === "active"
+        ? "Connection verified on this device."
+        : "Provider authorization or verification required before using this connection.")
+    );
+  return legacyStatusSentence(connection, provider);
 }

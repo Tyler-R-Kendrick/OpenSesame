@@ -10,6 +10,7 @@ import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   RECEIPT_KINDS,
   type ReceiptKind,
+  type ReceiptRef,
   flushReceipts,
   grantRef,
   listReceipts,
@@ -49,6 +50,8 @@ const KINDS = [
   "siop.approved",
   "siop.denied",
   "drop.opened",
+  "drop.expired",
+  "drop.revoked",
   "live.granted",
   "share.granted",
   "share.revoked",
@@ -81,6 +84,31 @@ describe("the decisions a receipt can record", () => {
 });
 
 describe("what a receipt names", () => {
+  it.each([
+    { ref: { applicationId: APP }, targetType: "application", targetId: APP },
+    { ref: { sessionOf: PERSON }, targetType: "principal", targetId: PERSON },
+    { ref: { claimId: "claim-id" }, targetType: "claim", targetId: "claim-id" },
+    { ref: { shareId: "share-id" }, targetType: "share", targetId: "share-id" },
+    {
+      ref: { liveSessionId: "live-id" },
+      targetType: "live_session",
+      targetId: "live-id",
+    },
+    { ref: { claimId: "" }, targetType: "claim", targetId: "" },
+  ] satisfies readonly {
+    ref: ReceiptRef;
+    targetType: string;
+    targetId: string;
+  }[])(
+    "preserves the $targetType target chosen by its typed subject",
+    async ({ ref, targetType, targetId }) => {
+      await recordReceipt(tomb, "request.approved", ref);
+      const [receipt] = await listReceipts(tomb, 1);
+      expect(receipt.metadata.targetType).toBe(targetType);
+      expect(receipt.metadata.targetId).toBe(targetId);
+    },
+  );
+
   it("is ids and a closed enum, never a scope, a reason or an address", async () => {
     await recordReceipt(tomb, "request.approved", {
       ...requestRef({

@@ -305,7 +305,7 @@ async function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
-  const device = revokeDeviceConnection(id);
+  const device = await revokeDeviceConnection(id);
   if (device) return device;
   const local = await revokeLocalGitConnection(id);
   if (local) return local;

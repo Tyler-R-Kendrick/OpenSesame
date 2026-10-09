@@ -27,12 +27,13 @@ const originalQueueSeams = { ...queueSeams };
 Object.assign(queueSeams, { clearStagedClaimTokens });
 afterAll(() => Object.assign(queueSeams, originalQueueSeams));
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
+  CLIPBOARD_READ_NOTICE,
   clearCopiedSecret,
   useCopySecret,
   useSessionGuards,
-  useTheme,
   useVault,
   useVaultStore,
 } from "./hooks.js";
@@ -182,6 +183,37 @@ describe("useSessionGuards", () => {
 });
 
 describe("useCopySecret", () => {
+  it("reads the clipboard only after the tray says why", async () => {
+    vi.useFakeTimers();
+    let reasonDuringRead: string | undefined;
+    const clipboard = stubClipboard({
+      readText: vi.fn().mockImplementation(async () => {
+        reasonDuringRead = listNotices().find(
+          (notice) => notice.id === CLIPBOARD_READ_NOTICE.id,
+        )?.body;
+        return "hunter2";
+      }),
+    });
+    act(() => {
+      vaultStore.setPrefs({ clipboardClearSeconds: 30 });
+    });
+
+    const { result } = renderHook(() => useCopySecret());
+    await result.current("hunter2");
+    expect(clipboard.readText).not.toHaveBeenCalled();
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(clipboard.readText).toHaveBeenCalledTimes(1);
+    expect(reasonDuringRead).toBe(CLIPBOARD_READ_NOTICE.body);
+    expect(
+      listNotices().some((notice) => notice.id === CLIPBOARD_READ_NOTICE.id),
+    ).toBe(false);
+    clearNotices();
+  });
+
   it("copies and schedules a clipboard clear", async () => {
     vi.useFakeTimers();
     const clipboard = stubClipboard();
@@ -353,30 +385,5 @@ describe("clearCopiedSecret", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-  });
-});
-
-describe("useTheme", () => {
-  it("applies the theme attribute and removes it for system", async () => {
-    const { setTheme } = await import("../theme.js");
-    const { rerender } = renderHook(() => {
-      useTheme();
-    });
-    act(() => {
-      setTheme("dark");
-    });
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-
-    act(() => {
-      setTheme("light");
-    });
-    rerender();
-    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
-
-    act(() => {
-      setTheme("system");
-    });
-    rerender();
-    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
   });
 });

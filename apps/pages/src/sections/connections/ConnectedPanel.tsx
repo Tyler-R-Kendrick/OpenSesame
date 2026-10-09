@@ -4,6 +4,7 @@ import type {
 } from "@opensesame/app-core/lib/connections.js";
 import {
   STATUS_CHIP,
+  belongsToConnectedList,
   connectorPath,
   statusSentence,
 } from "@opensesame/app-core/sections/connections/shared.js";
@@ -98,7 +99,7 @@ export function ConnectedPanel({
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
   const [limit, setLimit] = useState(CONNECTIONS_PAGE_SIZE);
   const [pending, startTransition] = useTransition();
-  const live = (connections ?? []).filter((c) => c.status !== "revoked");
+  const live = (connections ?? []).filter(belongsToConnectedList);
   const shown = live.slice(0, limit);
   const more = nextPageCount(live.length, limit);
 

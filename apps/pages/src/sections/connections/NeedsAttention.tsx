@@ -7,6 +7,7 @@ import {
   awaitConsent,
   openConsentPopup,
 } from "@opensesame/app-core/lib/connections.js";
+import { isNativeDeviceConnection } from "@opensesame/app-core/lib/device-connector-view.js";
 import {
   VERB_CHIP,
   VERB_LABEL,
@@ -47,34 +48,9 @@ export function NeedsAttention({
   if (open.length === 0) return null;
 
   async function finish(connection: Connection) {
-    const popup = openConsentPopup("about:blank");
     setBusy(connection.connectionId);
     try {
-      const { authorizationUrl } = await authorizeConnection(
-        connection.connectionId,
-      );
-      if (popup) popup.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
-      const outcome = await awaitConsent(connection.connectionId, popup);
-      if (outcome.result === "active") {
-        onFlash({
-          tone: "ok",
-          text: `${connection.displayName} is authorized.`,
-        });
-      } else if (outcome.result === "failed") {
-        onFlash({
-          tone: "err",
-          text:
-            outcome.connection.statusDetail ??
-            "The provider refused the authorization.",
-        });
-      } else {
-        onFlash({ tone: "warn", text: "Authorization was not completed." });
-      }
-      onChanged();
-    } catch (error) {
-      popup?.close();
-      onFlash({ tone: "err", text: errorText(error) });
+      await finishLegacyAuthorization(connection, onFlash, onChanged);
     } finally {
       setBusy(null);
     }
@@ -114,19 +90,11 @@ export function NeedsAttention({
                   tone={statusTone(VERB_CHIP[verb])}
                   label={VERB_LABEL[verb]}
                 />
-                <IconKey
-                  label={
-                    busy === connection.connectionId
-                      ? "Authorizing"
-                      : "Finish authorization"
-                  }
-                  small
-                  disabled={busy !== null}
-                  aria-busy={busy === connection.connectionId}
-                  onClick={() => void finish(connection)}
-                >
-                  <IconArrowRight size={16} />
-                </IconKey>
+                <FinishAuthorization
+                  connection={connection}
+                  busy={busy}
+                  onFinish={finish}
+                />
                 <Link
                   className="btn btn--sm btn--ghost"
                   to={connectorPath(
@@ -143,4 +111,66 @@ export function NeedsAttention({
       </ul>
     </section>
   );
+}
+
+function FinishAuthorization({
+  connection,
+  busy,
+  onFinish,
+}: {
+  connection: Connection;
+  busy: string | null;
+  onFinish: (connection: Connection) => Promise<void>;
+}) {
+  if (isNativeDeviceConnection(connection)) return null;
+  return (
+    <IconKey
+      label={
+        busy === connection.connectionId
+          ? "Authorizing"
+          : "Finish authorization"
+      }
+      small
+      disabled={busy !== null}
+      aria-busy={busy === connection.connectionId}
+      onClick={() => void onFinish(connection)}
+    >
+      <IconArrowRight size={16} />
+    </IconKey>
+  );
+}
+
+async function finishLegacyAuthorization(
+  connection: Connection,
+  onFlash: (flash: Flash | null) => void,
+  onChanged: () => void,
+) {
+  const popup = openConsentPopup("about:blank");
+  try {
+    const { authorizationUrl } = await authorizeConnection(
+      connection.connectionId,
+    );
+    if (popup) popup.location.href = authorizationUrl;
+    else window.location.href = authorizationUrl;
+    const outcome = await awaitConsent(connection.connectionId, popup);
+    if (outcome.result === "active") {
+      onFlash({
+        tone: "ok",
+        text: `${connection.displayName} is authorized.`,
+      });
+    } else if (outcome.result === "failed") {
+      onFlash({
+        tone: "err",
+        text:
+          outcome.connection.statusDetail ??
+          "The provider refused the authorization.",
+      });
+    } else {
+      onFlash({ tone: "warn", text: "Authorization was not completed." });
+    }
+    onChanged();
+  } catch (error) {
+    popup?.close();
+    onFlash({ tone: "err", text: errorText(error) });
+  }
 }

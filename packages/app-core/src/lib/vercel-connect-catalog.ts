@@ -141,7 +141,7 @@ export function catalogTileNote(
   provider: Provider,
   connection: Connection | null,
 ): CatalogTileNote | null {
-  if (isVercelCatalogId(provider.id) && isRefusedPlan(provider.id)) {
+  if (isRefusedPlan(provider.id)) {
     return { label: "Not connectable", tone: "chip--err" };
   }
   const live =

@@ -123,6 +123,40 @@ async fn a_record_has_exactly_the_payload_free_members() {
 }
 
 #[tokio::test]
+async fn hook_records_honor_the_role_evidence_fence() {
+    let f = fixture().await;
+    seeded(&f).await;
+    let path = "/api/v1/agent/runs/run:1/hook-records";
+    assert_eq!(
+        f.browser.send(&f.app, "GET", path, None).await.0,
+        StatusCode::OK
+    );
+    let (_, claims) =
+        crate::middleware::auth::require_session(&f.state, &f.browser.headers("GET", path))
+            .unwrap();
+    let auth_time = claims.auth_time.timestamp();
+    for sql in [
+        format!(
+            "UPDATE config_authorization_roles SET evidence_after={auth_time} WHERE organization_id=? AND principal_id=?"
+        ),
+        "UPDATE config_authorization_roles SET role=NULL WHERE organization_id=? AND principal_id=?"
+            .into(),
+    ] {
+        sqlx::query(&sql)
+            .bind(&f.org)
+            .bind(claims.principal_id.to_string())
+            .execute(f.state.db.pool())
+            .await
+            .unwrap();
+        assert_eq!(
+            f.browser.send(&f.app, "GET", path, None).await.0,
+            StatusCode::NOT_FOUND,
+            "hook records must not skip the observe membership fence: {sql}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn hook_records_follow_the_sealed_logs_entitlement() {
     let f = fixture().await;
     seeded(&f).await;

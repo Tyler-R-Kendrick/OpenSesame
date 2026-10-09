@@ -16,9 +16,11 @@
  * by the person: a WebRTC peer connection to the other browser once the
  * sealed pairing codes have crossed (`lib/live/pairing.ts`,
  * `lib/live/peer.ts`) — directly by default, with no ICE server; the
- * clipboard on a copy. Only what the owner names in Routes adds more, and
- * only for the owner's sessions and joiners who agree to the hosts the link
- * lists: the STUN and TURN servers named, and the carriers named
+ * clipboard on a copy under Show values or Can edit. Copy only does not
+ * place a concealed value on the joiner's clipboard. Only what the owner
+ * names in Routes adds more, and only for the owner's sessions and joiners
+ * who agree to the hosts the link lists: the STUN and TURN servers named,
+ * and the carriers named
  * (`carriers/`: a Nostr relay, an MQTT broker or NATS server over wss, an
  * ntfy server over https, or BroadcastChannel), each client loaded only then
  * and only if the installation allows it: ntfy fetches through this module's

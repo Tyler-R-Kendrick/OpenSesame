@@ -143,6 +143,38 @@ describe("chunk partition", () => {
     );
   });
 
+  test("tailnet pairing stays an explicit optional leaf when small chunks merge", () => {
+    const source =
+      "/repo/packages/app-core/src/lib/tailnet-sync/plugin-pairing.ts";
+    const entry = {
+      classification: "optional",
+      capability: "networking.tailnet",
+    };
+    assert.equal(lazyLeafChunk(source, entry), "tailnet-plugin-pairing");
+    assert.equal(
+      lazyLeafChunk(source.replaceAll("/", "\\"), entry),
+      "tailnet-plugin-pairing",
+    );
+    assert.equal(
+      lazyLeafChunk(source.replace("plugin-pairing", "plugin-daemon"), entry),
+      undefined,
+      "the daemon keeps its runtime's ordinary chunk placement",
+    );
+    assert.equal(
+      lazyLeafChunk(source, { classification: "shared", capability: null }),
+      undefined,
+      "the chunk pin does not reclassify shared code",
+    );
+    assert.equal(
+      lazyLeafChunk(source, {
+        classification: "optional",
+        capability: "networking.tailnet-devices",
+      }),
+      undefined,
+      "the pin is specific to its existing capability owner",
+    );
+  });
+
   test("web-push enrolment joins the capability chunk, not a pure leaf", () => {
     const entry = {
       classification: "optional",

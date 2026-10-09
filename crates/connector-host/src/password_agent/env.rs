@@ -169,7 +169,9 @@ pub fn resolved(lines: &[Line], refs: &[String], values: &Value) -> anyhow::Resu
 mod tests {
     #[test]
     fn startup_assignments_and_templates_are_rejected_before_credentials() {
-        for key in &super::super::policy::policy().credential_startup_env_keys {
+        let keys = &super::super::policy::policy().credential_startup_env_keys;
+        assert!(keys.iter().any(|key| key == "LD_AUDIT"));
+        for key in keys {
             assert!(super::validate_run_assignments(&[format!(
                 "{}=op://Vault/Item/secret",
                 key.to_ascii_lowercase()

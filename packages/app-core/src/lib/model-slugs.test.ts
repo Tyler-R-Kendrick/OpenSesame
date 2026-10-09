@@ -1,12 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  modelMemoryBackend,
+  saveModelFixture,
+} from "./hosted-model.test-support.js";
 import {
   choiceFromSlug,
   choiceToSlug,
+  connectedHarnessProviderIds,
   encodeModelSlug,
   inferenceSlugOptions,
+  modelSlugSeams,
   voiceSlugOptions,
 } from "./model-slugs.js";
 
+afterEach(() => vi.restoreAllMocks());
 describe("model-slugs", () => {
   it("encodes provider/model", () => {
     expect(encodeModelSlug("openai", "gpt-4o")).toBe("openai/gpt-4o");
@@ -37,6 +44,26 @@ describe("model-slugs", () => {
     expect(withOpenAi.some((row) => row.value === "openai/gpt-4o")).toBe(true);
   });
 
+  it("offers verified native Gemini models even when the legacy directory is unavailable", async () => {
+    modelMemoryBackend();
+    await saveModelFixture("gemini");
+    await saveModelFixture("openai", false);
+    vi.spyOn(modelSlugSeams, "listConnections").mockRejectedValue(
+      new Error("Offline"),
+    );
+    const ids = await connectedHarnessProviderIds();
+    expect(ids).toEqual(["gemini"]);
+    const options = inferenceSlugOptions({
+      browserReady: false,
+      connectedProviderIds: ids,
+    });
+    expect(
+      options.some((option) => option.value === "gemini/gemini-2.5-flash"),
+    ).toBe(true);
+    expect(options.some((option) => option.choice.provider === "openai")).toBe(
+      false,
+    );
+  });
   it("round-trips a choice through a slug option list", () => {
     const options = inferenceSlugOptions({
       browserReady: false,

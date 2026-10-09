@@ -9,6 +9,12 @@ import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { LocalApplicationSettings } from "../identity/LocalApplicationSettings.js";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 
 export function LocalPoliciesPanel() {
   const { tomb } = useVault();
@@ -52,59 +58,57 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
   const applications = directory?.entries.filter(
     (entry) => entry.kind === "application",
   );
+  const selection = useAccessRecord("local-policies", "policies");
+  const selected = applications?.find(
+    (application) => application.id === selection.id,
+  );
   return (
-    <section
-      className="panel"
-      id="local-policies"
-      aria-label="Local application policies"
-    >
-      <div className="panel__head">
-        <h2>Local application policies</h2>
-        {error ? <StatusMark tone="err" label={error} /> : null}
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          title="Reload local policies"
-          aria-label="Reload local policies"
-          onClick={() => void reload()}
-        >
-          <IconRefresh size={15} />
-        </button>
-      </div>
-      <div className="panel__body">
+    <AccessRecords
+      title="Local application policies"
+      emptyMessage={
+        error
+          ? "Unavailable"
+          : !directory
+            ? "Loading…"
+            : "No local applications."
+      }
+      selection={selection}
+      rows={(applications ?? []).map((application) => ({
+        id: application.id,
+        label: application.name,
+        extension: "policy",
+        to: selection.path(application.id),
+      }))}
+      commands={
+        <>
+          {error ? <StatusMark tone="err" label={error} /> : null}
+          <button
+            type="button"
+            className="icon-btn icon-btn--sm"
+            title="Reload local policies"
+            aria-label="Reload local policies"
+            onClick={() => void reload()}
+          >
+            <IconRefresh size={15} />
+          </button>
+        </>
+      }
+      status={
         <FailureNotice id="access:policies" title="Policies" message={error} />
-        {!directory && !error ? <output>Loading local policies…</output> : null}
-        {!directory && error ? (
-          <p className="hint" aria-hidden="true">
-            —
-          </p>
-        ) : null}
-        {directory && applications ? (
-          <>
-            {applications.length ? (
-              applications.map((application) => (
-                <div key={application.id} className="access-policy">
-                  <h3>{application.name}</h3>
-                  <p>
-                    <code className="access-ref">{application.id}</code>
-                  </p>
-                  {!application.enabled ? (
-                    <p className="hint">Disabled.</p>
-                  ) : null}
-                  <LocalApplicationSettings
-                    tomb={tomb}
-                    applicationId={application.id}
-                    directory={directory}
-                    disabled={Boolean(error) || !application.enabled}
-                  />
-                </div>
-              ))
-            ) : (
-              <p className="hint">No local applications.</p>
-            )}
-          </>
-        ) : null}
-      </div>
-    </section>
+      }
+    >
+      {!directory && !error ? <output>Loading local policies…</output> : null}
+      {selected && directory ? (
+        <AccessDetail title={selected.name} kind="Application policy">
+          <AccessFact label="Reference" value={selected.id} />
+          <LocalApplicationSettings
+            tomb={tomb}
+            applicationId={selected.id}
+            directory={directory}
+            disabled={Boolean(error) || !selected.enabled}
+          />
+        </AccessDetail>
+      ) : null}
+    </AccessRecords>
   );
 }

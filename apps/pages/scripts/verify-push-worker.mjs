@@ -40,11 +40,13 @@ import {
 } from "./lib/pages-journey.mjs";
 import {
   notificationsOf as notificationsFrom,
+  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,
   until,
   untilBornControlled,
+  untilWorkerHeld,
 } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
@@ -52,16 +54,6 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
-
-/**
- * The same worker script: origin and path. A replacement the controller had to
- * ask for again carries `?r=<n>` in its URL and is still the variant's script.
- */
-const same = (a, b) =>
-  a !== null &&
-  b !== null &&
-  new URL(a).origin === new URL(b).origin &&
-  new URL(a).pathname === new URL(b).pathname;
 
 const failures = [];
 const check = (condition, what) => {
@@ -141,12 +133,7 @@ try {
   };
 
   /** Wait for `script` to hold this scope for the page, with no help. */
-  const untilHeld = (script, what) =>
-    until(
-      () => scriptsFrom(page, base),
-      (s) => same(s.active, script) && same(s.controller, script),
-      what,
-    );
+  const untilHeld = (script, what) => untilWorkerHeld(page, base, script, what);
 
   /**
    * Deliver until `ok` holds of what the registration shows, as a push service

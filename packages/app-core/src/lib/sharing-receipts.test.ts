@@ -9,11 +9,8 @@ import { activitySeams, listActivityEvents } from "./activity-log.js";
 import { dropOpenSeams, presentDrop } from "./claims/drop-open.js";
 import { listReceipts } from "./device-receipts.js";
 import { localRequestFixture } from "./local-request.fixture.js";
-import {
-  createLocalShare,
-  ensureLocalShare,
-  revokeLocalShare,
-} from "./local-share-grants.js";
+import { ensureLocalShare } from "./local-share-grants-approvals.js";
+import { createLocalShare, revokeLocalShare } from "./local-share-grants.js";
 import {
   flushSharingReceipts,
   noteDropOpened,
@@ -24,6 +21,12 @@ import {
   presentLocalDropClaim,
   resetLocalDropClaimsForTests,
 } from "./vault/local-drop-claims.js";
+import {
+  listOutboundDrops,
+  recordOutboundDrop,
+  resetOutboundDropsForTests,
+  revokeOutboundDrop,
+} from "./vault/outbound-drops.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 
 const LABEL = "LABEL-SHOULD-NOT-LEAK";
@@ -37,6 +40,7 @@ beforeEach(() => {
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   resetSharingReceiptsForTest();
   resetLocalDropClaimsForTests();
+  resetOutboundDropsForTests();
   activitySeams.activeTomb = previousTomb;
   dropOpenSeams.presentClaim = previousPresent;
 });
@@ -45,6 +49,7 @@ afterEach(async () => {
   await flushSharingReceipts();
   resetSharingReceiptsForTest();
   resetLocalDropClaimsForTests();
+  resetOutboundDropsForTests();
   activitySeams.activeTomb = previousTomb;
   dropOpenSeams.presentClaim = previousPresent;
   lockAllTombs();
@@ -123,6 +128,43 @@ it("records nothing when the code is wrong or the vault is locked", async () => 
   expect(blob).not.toContain("drop.opened");
   expect(blob).not.toContain(PAYLOAD);
   expect(blob).not.toContain(session.userCode);
+});
+
+it("records a sender revoke and expiry as the claim id only", async () => {
+  const tomb = await unlock();
+  const revoked = await sealedClaim();
+  recordOutboundDrop({
+    claimId: revoked.session.claimId,
+    bearerToken: revoked.session.bearerToken,
+    name: "revoke-me",
+    expiresAt: revoked.session.expiresAt,
+    sourceItemId: "item_1",
+  });
+  await revokeOutboundDrop(
+    revoked.session.claimId,
+    revoked.session.bearerToken,
+  );
+
+  const expired = await sealedClaim();
+  const expiresAt = new Date(Date.now() + 500).toISOString();
+  recordOutboundDrop({
+    claimId: expired.session.claimId,
+    bearerToken: expired.session.bearerToken,
+    name: "expire-me",
+    expiresAt,
+    sourceItemId: "item_2",
+  });
+  listOutboundDrops(Date.now() + 60_000);
+
+  const blob = await trails(tomb);
+  expect(blob).toContain(revoked.session.claimId);
+  expect(blob).toContain(expired.session.claimId);
+  expect(blob).toContain("vault.drop.revoked");
+  expect(blob).toContain("access.drop.revoked");
+  expect(blob).toContain("vault.drop.expired");
+  expect(blob).toContain("access.drop.expired");
+  expect(blob).not.toContain("revoke-me");
+  expect(blob).not.toContain("expire-me");
 });
 
 it("refuses a bearer passed off as a claim id", async () => {

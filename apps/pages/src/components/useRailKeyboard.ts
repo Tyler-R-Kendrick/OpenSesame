@@ -28,6 +28,7 @@ export function railMoveNavigates(
   from: HTMLElement | undefined,
   dest: string,
   here: string,
+  phoneRecordTree = false,
 ): boolean {
   const parentMove =
     from !== undefined &&
@@ -37,6 +38,8 @@ export function railMoveNavigates(
   if (row.getAttribute("aria-expanded") === "false") {
     const path = here.replace(/[?#].*$/, "");
     if (dest.startsWith(`${path}#`)) return false;
+    // A phone record pane hides its tree after navigation; expansion comes first.
+    if (phoneRecordTree && dest.startsWith(`${path}?`)) return false;
   }
   return true;
 }
@@ -49,6 +52,7 @@ export function useRailKeyboard(
   useEffect(() => {
     const tree = treeRef.current;
     if (!tree) return;
+    const phoneRecordTree = tree.closest(".record-workspace") !== null;
     const rows = () => [
       ...tree.querySelectorAll<HTMLElement>('[role="treeitem"]'),
     ];
@@ -72,7 +76,7 @@ export function useRailKeyboard(
       if (to) {
         const here = currentToRef.current || locationHere();
         currentToRef.current = to;
-        if (railMoveNavigates(row, from, to, here)) {
+        if (railMoveNavigates(row, from, to, here, phoneRecordTree)) {
           navigateRef.current(to);
         }
       }

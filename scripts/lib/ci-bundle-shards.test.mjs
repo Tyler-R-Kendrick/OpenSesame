@@ -32,6 +32,9 @@ const GATES = [
   "bundle-budget-gate.mjs",
   "build:profile \\\n            --profile capability-profiles/enterprise-selected.json",
   "verify:webmcp",
+  "verify:self-hosted-connectors",
+  "verify:native-connectors",
+  "verify:native-public-protocol",
   "verify:keyboard",
   "verify:push-worker",
   "verify:mobile",
@@ -165,4 +168,21 @@ describe("the bundle job's shards", () => {
     for (const leg of named) expect(leg.shard).toMatch(/^journeys-\d+$/);
     expect(bundle).toContain("EXPERIENCE_SHARD: ${{ matrix.journeys }}");
   });
+});
+
+it("runs the self-hosted connector contract in budgets with the static build and Chromium", () => {
+  const matching = steps().filter((step) =>
+    step.text.includes("verify:self-hosted-connectors"),
+  );
+  expect(matching).toHaveLength(1);
+  expect(
+    shardsOf(
+      matching[0].when,
+      legs().map((leg) => leg.shard),
+    ),
+  ).toEqual(["budgets"]);
+  expect(matching[0].text).toContain(
+    "PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome",
+  );
+  expect(matching[0].text).toContain("VITE_BASE: /OpenSesame/");
 });

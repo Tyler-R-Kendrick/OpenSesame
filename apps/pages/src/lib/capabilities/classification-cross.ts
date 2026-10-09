@@ -21,7 +21,7 @@
  * tie with the same prefix in `classification-lib.ts` or `-sections.ts`.
  */
 
-import { shared } from "./classification-rule.js";
+import { optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const S = "src/sections/identity/";
@@ -74,6 +74,10 @@ const IDENTITY_PIECES = [
   "ApplicationDiagnostics",
   "ApplicationRecipePanel",
   "ApplicationSetupCard",
+  // Shared record chrome and the directory's publication seam: hosted
+  // provisioning publishes here; the local Identity tree only reads it.
+  "HostedRecordParts",
+  "hosted-identity-rail",
   "LocalAgentAuthentication",
   "LocalAgentEnrollment",
   "LocalAgentKeys",
@@ -99,6 +103,7 @@ const CONNECTOR_RECORDS = [
   "connect-create",
   "connect-plan",
   "connect-presets.generated",
+  "connect-provider-auth-schema",
   "connect-update",
   "connections",
   "connections-integrations",
@@ -115,6 +120,31 @@ const CONNECTOR_RECORDS = [
 ];
 
 export const CROSS_RULES = [
+  shared(
+    `${L}model-provider-record`,
+    "model selections shared by local and remote AI without provider implementations",
+  ),
+  shared(
+    `${L}hosted-model-authority`,
+    "provider authority port shared by model selection and optional provider runtimes",
+  ),
+  ...[
+    "hosted-inference",
+    "saved-model-agent",
+    "hosted-model-protocol",
+    "hosted-model.test-support",
+  ].map((name) =>
+    optional(
+      `${L}${name}`,
+      "support.remote-ai",
+      "closed hosted model protocols and their test fixtures",
+    ),
+  ),
+  optional(
+    `${L}native-`,
+    "connectors.external",
+    "native provider authorization and connection runtime",
+  ),
   ...LOCAL_RECORDS.map((name) =>
     shared(`${L}${name}`, "local directory records Access and Identity share"),
   ),

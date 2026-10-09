@@ -8,6 +8,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { awsKmsConnectDependencies } from "./AwsKmsConnectPanel.js";
 import { ConnectorSettingsPage } from "./SettingsPage.js";
+import {
+  connectorIntegration,
+  installConnectorIntegration,
+} from "./connect/native-connector-integration.test-support.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 
 const originalIdentity = { ...identitySeams };
@@ -22,6 +26,7 @@ afterEach(() => {
 });
 
 declareConnectionsTutorial();
+installConnectorIntegration();
 
 function provider(id: string): Provider {
   const found = getBundledProviders().find((row) => row.id === id);
@@ -109,52 +114,42 @@ describe("a Host opens no road", () => {
 });
 
 describe("a key or a configuration seals on this device", () => {
-  it("draws Better Auth's fields with no Host", () => {
-    draw("better-auth");
-    expect(
-      screen.getByRole("heading", {
-        name: (value: string) => value === "Connect",
-      }),
-    ).toBeTruthy();
-    expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: /Save configuration/ }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("img", { name: "Not available here" }),
-    ).toBeNull();
-  });
-
-  it("draws the same form with a Host named: the form saves on this device", () => {
-    nameAHostWithALiveGrant();
-    draw("better-auth");
-    expect(
-      screen.getByRole("heading", {
-        name: (value: string) => value === "Connect",
-      }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: /Save configuration/ }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("img", { name: "Not available here" }),
-    ).toBeNull();
-  });
+  it.each([false, true])(
+    "refuses unsupported Better Auth configuration with a named Host=%s",
+    (namedHost) => {
+      if (namedHost) nameAHostWithALiveGrant();
+      draw("better-auth");
+      expect(screen.queryByLabelText(/Base URL/)).toBeNull();
+      expect(
+        screen.queryByRole("button", {
+          name: /Save configuration|Verify and connect/,
+        }),
+      ).toBeNull();
+      expect(
+        screen.getByText(/Better Auth has no supported browser driver/),
+      ).toBeTruthy();
+    },
+  );
 
   it("asks for Anthropic's API key when Vercel also lists it", () => {
+    connectorIntegration();
     draw("anthropic");
-    expect(screen.getByLabelText("API key")).toBeTruthy();
+    expect(screen.getByLabelText("Anthropic API key")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Connect Anthropic" }),
+      screen.getByRole("button", { name: "Verify and connect Anthropic" }),
     ).toBeTruthy();
   });
 
-  it("asks for Tailscale's tailnet and auth key", () => {
+  it("explains Tailscale's native daemon requirement without collecting an auth key", () => {
     draw("tailscale");
-    expect(screen.getByLabelText(/Tailnet/)).toBeTruthy();
-    expect(screen.getByLabelText(/Auth key/)).toBeTruthy();
+    expect(screen.queryByLabelText(/Tailnet|Auth key/)).toBeNull();
     expect(
-      screen.getByRole("button", { name: /Save configuration/ }),
+      screen.queryByRole("button", {
+        name: /Save configuration|Verify and connect/,
+      }),
+    ).toBeNull();
+    expect(
+      screen.getByText(/device enrollment requires tailscaled/),
     ).toBeTruthy();
   });
 });

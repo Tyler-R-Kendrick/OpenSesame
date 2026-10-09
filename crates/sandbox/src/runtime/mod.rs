@@ -22,6 +22,7 @@ mod state;
 
 use std::sync::Arc;
 
+use chrono::Utc;
 use wasmtime::{Config, Engine, ExternType, Linker, Module, Store, Trap};
 
 use crate::boundary::{audit_import, Broker, ImportKind, RunContext};
@@ -136,6 +137,9 @@ impl Sandbox {
     /// [`SandboxError::DeadlineExceeded`], [`SandboxError::MemoryLimit`] —
     /// when the run outgrows its profile.
     pub fn spawn(&self, guest: &[u8]) -> Result<RunOutcome, SandboxError> {
+        if Utc::now() > self.profile.expires_at() {
+            return Err(SandboxError::GrantExpired);
+        }
         self.fence.check()?;
         let format = GuestFormat::detect(guest);
         if !format.is_runnable() {
@@ -160,6 +164,9 @@ impl Sandbox {
         // that window bumps an epoch the store has not been armed against
         // yet — so without this check the guest would start anyway and run
         // until some other limit stopped it.
+        if Utc::now() > self.profile.expires_at() {
+            return Err(SandboxError::GrantExpired);
+        }
         self.fence.check()?;
 
         let called = entry.call(&mut store, ());

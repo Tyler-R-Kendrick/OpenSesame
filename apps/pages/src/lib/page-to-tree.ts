@@ -90,6 +90,7 @@ export function pageToTree(
       dir: section.dir,
       count: section.count,
       config: section.config,
+      guide: section.guide,
       children,
       branch: true,
       collection: section.items !== undefined,

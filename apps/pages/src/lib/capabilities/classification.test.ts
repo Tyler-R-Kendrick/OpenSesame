@@ -79,6 +79,11 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/local-access-requests.ts": "access.authority",
       "src/lib/capabilities.ts": "settings.core",
       "src/lib/capabilities/catalog.ts": "core",
+      "src/lib/self-hosted-config.ts": "connectors.external",
+      "src/lib/self-hosted-config.test.ts": "connectors.external",
+      "src/lib/self-hosted-connectors.ts": "connectors.external",
+      "src/lib/self-hosted-connectors.test.ts": "connectors.external",
+      "src/lib/self-hosted-connectors.durable.test.ts": "connectors.external",
       "src/modules/sharing.drops/runtime.ts": "sharing.drops",
     };
     for (const [path, expected] of Object.entries(expectations)) {
@@ -101,6 +106,8 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "src/lib/vercel-connect.ts",
       "src/sections/identity/LocalApplicationSettings.tsx",
       "src/sections/identity/identity-views.ts",
+      "src/sections/identity/HostedRecordParts.tsx",
+      "src/sections/identity/hosted-identity-rail.ts",
       "src/screens/setup/steps/ConnectorCards.tsx",
       "node_modules/@vercel/connect",
       "node_modules/@opensesame/auth-upstream",

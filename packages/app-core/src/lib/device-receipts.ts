@@ -57,6 +57,8 @@ export const RECEIPT_KINDS = {
   "siop.approved": ["access.siop.approved", "succeeded"],
   "siop.denied": ["access.siop.denied", "denied"],
   "drop.opened": ["access.drop.opened", "succeeded"],
+  "drop.expired": ["access.drop.expired", "succeeded"],
+  "drop.revoked": ["access.drop.revoked", "succeeded"],
   "live.granted": ["access.live.granted", "succeeded"],
   "share.granted": ["access.share.granted", "succeeded"],
   "share.revoked": ["access.share.revoked", "succeeded"],
@@ -224,18 +226,23 @@ async function keep(tomb: string, receipt: StoredReceipt): Promise<void> {
   }
 }
 
-function targetOf(ref: ReceiptRef): { targetType: string; targetId: string } {
-  if (typeof ref.claimId === "string")
+type ReceiptTarget = Readonly<{
+  targetType: "claim" | "share" | "live_session" | "principal" | "application";
+  targetId: string;
+}>;
+
+function targetOf(ref: ReceiptRef): ReceiptTarget {
+  if (ref.claimId !== undefined)
     return { targetType: "claim", targetId: ref.claimId };
-  if (typeof ref.shareId === "string")
+  if (ref.shareId !== undefined)
     return { targetType: "share", targetId: ref.shareId };
-  if (typeof ref.liveSessionId === "string")
+  if (ref.liveSessionId !== undefined)
     return { targetType: "live_session", targetId: ref.liveSessionId };
-  if (typeof ref.sessionOf === "string")
+  if (ref.sessionOf !== undefined)
     return { targetType: "principal", targetId: ref.sessionOf };
   return {
     targetType: "application",
-    targetId: typeof ref.applicationId === "string" ? ref.applicationId : "",
+    targetId: ref.applicationId,
   };
 }
 

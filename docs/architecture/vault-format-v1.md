@@ -97,7 +97,7 @@ These wrap the same VK. Listing several methods is any-of, not MFA
 
 | Field | Contents |
 |---|---|
-| `pin` | `{ kdf, wrap }`, with the §3 KDF rules. Written with 1,200,000 iterations. The PIN is 8–12 characters, checked before derivation. `wrap = AES-GCM(PIN KEK, VK)`, no additional data. |
+| `pin` | `{ kdf, wrap }`, with the §3 KDF rules. Written with 1,200,000 iterations. The PIN is 8–64 characters, checked before derivation. Duress codes stay 8–12 digits (ADR 0155). `wrap = AES-GCM(PIN KEK, VK)`, no additional data. |
 | `passkeys[]` / legacy `passkey` | `{ credentialIdB64, userIdB64, prfSaltB64, wrap }`. `wrap = AES-GCM(PRF KEK, VK)`, no additional data. `PRF KEK = HKDF-SHA-256(ikm = PRF output, salt = prfSalt, info = "opensesame/vault/webauthn-prf/v1")`, which matches `crates/human-vault` `kek_from_webauthn_prf`. On read, a lone `passkey` becomes a one-element list, and is prepended when its credential id is not already in `passkeys`. |
 | `totp` | `{ secretWrap: AES-GCM(VK, seed), digits: 6, period: 30, selfItemId? }`. A second step, not an unlock. |
 | `email`, `sms` | `{ toWrap: AES-GCM(VK, address), since }`. |

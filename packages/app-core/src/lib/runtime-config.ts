@@ -50,6 +50,8 @@ export type ParsedRuntimeConfig = Readonly<{
   endpoints: RuntimeEndpoints;
   /** Applied by `identity.ambient-sso`'s runtime, not here. */
   ambientAuth: BoundaryValue | undefined;
+  /** Public registered app ID; no OAuth secret is deployment data. */
+  linearClientId?: string;
   /** Null for a personal-local installation (no section served). */
   capabilityComposition: ParsedCapabilityComposition | null;
   diagnostics: readonly string[];
@@ -144,13 +146,15 @@ export function parseRuntimeConfig(body: BoundaryValue): ParsedRuntimeConfig {
       ? readCapabilityComposition(body.capabilityComposition)
       : null;
   const invalid = composition !== null && composition.diagnostics.length > 0;
-  return {
+  const parsed: ParsedRuntimeConfig = {
     status: invalid ? "invalid" : "ok",
     endpoints: readEndpoints(body),
     ambientAuth: "ambientAuth" in body ? body.ambientAuth : undefined,
     capabilityComposition: composition,
     diagnostics: composition ? [...composition.diagnostics] : [],
   };
+  const linearClientId = readEndpoint(body.linearClientId);
+  return linearClientId ? { ...parsed, linearClientId } : parsed;
 }
 
 async function fetchRuntimeConfigDefault(): Promise<BoundaryValue | null> {

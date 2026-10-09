@@ -134,6 +134,7 @@ function tombSessionKeys(tomb: string): string[] {
     "config/identity-directory",
     "config/identity-devices",
     "config/identity-shares",
+    "config/identity-share-approvals",
     "config/identity-grants",
     "config/identity-sessions",
     "config/identity-credentials",

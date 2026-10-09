@@ -3390,12 +3390,18 @@ button.vault-row__body:hover:not(:disabled) {
 .vault-row__text {
   display: flex;
   flex: 1;
-  min-width: 0;
+  /* A zero minimum let the mark, the status and the chevron take the whole
+     picker row, and the name ellipsised to nothing. Eight characters stay;
+     a longer name still ends in an ellipsis. */
+  min-width: 8ch;
   flex-direction: column;
   gap: 1px;
 }
 
 .vault-row__name {
+  position: relative;
+  z-index: 1;
+  color: var(--ink);
   font-family: var(--mono);
   font-size: 0.875rem;
   font-weight: 600;

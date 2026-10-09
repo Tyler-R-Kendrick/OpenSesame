@@ -7,6 +7,7 @@
  */
 
 import { listConnections } from "./connections.js";
+import { hostedModelAuthority } from "./hosted-model-authority.js";
 import {
   BROWSER_INFERENCE_ENTRY,
   INFERENCE_MODEL_CATALOG,
@@ -28,6 +29,7 @@ export type ModelSlugOption = {
 const HARNESS_PROVIDER_IDS = new Set([
   "anthropic",
   "openai",
+  "gemini",
   "azure-openai",
   "aws-bedrock",
   "openrouter",
@@ -152,16 +154,19 @@ export function inferenceSlugOptions(args: {
 
 /** Active Agent Harness provider ids, or [] when the directory is unreachable. */
 export async function connectedHarnessProviderIds(): Promise<string[]> {
+  const ids = new Set<string>();
+  for (const row of hostedModelAuthority()?.connections() ?? []) {
+    if (HARNESS_PROVIDER_IDS.has(row.providerId) && row.status === "connected")
+      ids.add(row.providerId);
+  }
   try {
     const rows = await modelSlugSeams.listConnections();
-    const ids: string[] = [];
     for (const row of rows) {
-      if (row.status !== "active") continue;
-      if (!HARNESS_PROVIDER_IDS.has(row.providerId)) continue;
-      if (!ids.includes(row.providerId)) ids.push(row.providerId);
+      if (row.status === "active" && HARNESS_PROVIDER_IDS.has(row.providerId))
+        ids.add(row.providerId);
     }
-    return ids;
   } catch {
-    return [];
+    /* Native device connections remain available offline. */
   }
+  return [...ids];
 }
