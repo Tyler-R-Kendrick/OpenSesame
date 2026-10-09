@@ -8,8 +8,13 @@
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
 import type { LiveTransport } from "@opensesame/app-core/lib/live/transport.js";
+import { liveHostStartDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
+import { liveItemPickLabels } from "@opensesame/app-core/lib/live/item-pick-label.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { activeItems } from "@opensesame/vault-core";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useDeviceVaults } from "../../bindings/vaults.js";
+import { FieldRow } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlay } from "../../components/Icons.js";
@@ -89,11 +94,21 @@ function ItemChoice({
 }) {
   const { items } = useVault();
   const live = activeItems(items);
+  const labels = useMemo(() => liveItemPickLabels(live), [live]);
+  const vaults = useDeviceVaults();
+  const vaultLabel = vaults.find(
+    (vault) => vault.id === vaultStore.activeTomb(),
+  )?.label;
   if (live.length === 0)
     return <StatusMark tone="idle" label="This vault has no items" />;
   return (
     <fieldset className="live-choose">
       <legend className="visually-hidden">Items to share</legend>
+      {vaultLabel ? (
+        <FieldRow label="Vault">
+          <span className="frow__value">{vaultLabel}</span>
+        </FieldRow>
+      ) : null}
       {live.map((item) => (
         <label key={item.id} className="join__choice">
           <input
@@ -106,7 +121,7 @@ function ItemChoice({
               onChange(next);
             }}
           />
-          <span>{item.name}</span>
+          <span>{labels.get(item.id) ?? item.name}</span>
         </label>
       ))}
     </fieldset>
@@ -217,6 +232,18 @@ export function LiveHostForm() {
       <FormCommit
         label="Start the live session"
         disabled={!ready}
+        disabledReason={
+          !ready
+            ? liveHostStartDisabledReason({
+                loaded,
+                refused,
+                starting,
+                title,
+                scope,
+                chosenCount: chosen.size,
+              })
+            : undefined
+        }
         icon={<IconPlay size={18} />}
       />
     </form>

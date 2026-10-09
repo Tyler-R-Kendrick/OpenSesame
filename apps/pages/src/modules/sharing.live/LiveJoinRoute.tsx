@@ -31,6 +31,7 @@ import {
   LIVE_SESSION_ENDED_TRAY,
   reportLiveOutcome,
 } from "@opensesame/app-core/lib/live/outcome-notices.js";
+import { liveJoinAskDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
 import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuestCarriers,
@@ -253,6 +254,18 @@ function AskForm({ held }: { held: LiveLink | null }) {
       <FormCommit
         label="Ask to join"
         disabled={!ready || busy}
+        disabledReason={
+          !ready && !busy
+            ? liveJoinAskDisabledReason({
+                link,
+                pasted,
+                needsCode: needsCode ?? false,
+                code,
+                name,
+                busy,
+              })
+            : undefined
+        }
         busy={busy}
         icon={<IconArrowRight size={18} />}
       />
