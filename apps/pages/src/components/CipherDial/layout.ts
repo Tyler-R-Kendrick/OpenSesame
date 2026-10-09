@@ -14,10 +14,11 @@ export function computeDialLayout(input: {
   prev?: RingSpec[];
 }): DialLayout {
   const { w, h, card, notes, narrow, nowMs, prev } = input;
-  // Wide layout clips rings at the divider in apply-dial-layout; only quiet
-  // the notes column on a phone, or the pads eat past the divider (lock-v5).
+  // Wide: clip rings at the notes divider in apply-dial-layout (not a quiet
+  // erase — pads would eat past the column). Narrow: notes stay opaque above
+  // the dial (z-index); do not quiet-mask them or the soft erase collapses the
+  // corner dial to a left-edge sliver (lock-v5 mobile composition).
   const quiet: QuietRect[] = [card];
-  if (narrow && notes) quiet.push(notes);
 
   const geo = computeDialGeometry({ w, h, card, notes, narrow, quiet });
   const rings = buildRingSpecs({ w, h, geo, nowMs, prev });

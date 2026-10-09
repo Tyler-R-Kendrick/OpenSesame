@@ -50,6 +50,7 @@ export function UnlockStage({
           ref={wordmarkRef}
           className="unlock__hero-wordmark"
           size={hero.size}
+          includeMark
           replay
         />
       </div>

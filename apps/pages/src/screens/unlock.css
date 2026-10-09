@@ -22,10 +22,7 @@
   font-weight: 400;
 }
 
-.unlock__hero-wordmark > svg {
-  width: 1.25em;
-  height: 1.25em;
-}
+/* Hero mark is canvas `includeMark` at plate height — no separate SVG. */
 
 /* Reserve the brand-row height the in-card wordmark used to occupy. */
 .unlock__wordmark--reserve {

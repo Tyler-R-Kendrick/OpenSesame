@@ -29,7 +29,10 @@ export type CipherWordmarkProps = {
   static?: boolean;
   className?: string;
   onSettled?: () => void;
-  /** Draw the punched-plate icon mark inside the canvas (standalone demos). */
+  /**
+   * Draw the punched-plate icon mark inside the canvas at plate height with
+   * the prototype 0.28em gap (unlock hero; also LockV5 demos).
+   */
   includeMark?: boolean;
 };
 

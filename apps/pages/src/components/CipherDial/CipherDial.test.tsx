@@ -26,7 +26,7 @@ describe("computeDialLayout", () => {
     expect(layout.quiet).toEqual([{ x: 80, y: 40, w: 400, h: 500 }]);
   });
 
-  it("quiets the notes column only when the layout is narrow", () => {
+  it("never quiets the notes pane — opaque notes sit above the dial", () => {
     const notes = { x: 0, y: 520, w: 390, h: 280 };
     const card = { x: 20, y: 40, w: 350, h: 420 };
     const wide = computeDialLayout({
@@ -46,7 +46,10 @@ describe("computeDialLayout", () => {
       nowMs: 0,
     });
     expect(wide.quiet).toEqual([card]);
-    expect(phone.quiet).toEqual([card, notes]);
+    expect(phone.quiet).toEqual([card]);
+    // Narrow corner dial (prototype cx=-18) stays in the empty band.
+    expect(phone.cx).toBe(-18);
+    expect(phone.cy).toBeGreaterThan(card.y + card.h);
   });
 });
 
