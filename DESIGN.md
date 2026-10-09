@@ -196,13 +196,15 @@ terminal frame: tree on the left, buffer in the middle, one mono strip
 keys and the command bar. The command bar in the statusline is the chrome's
 one typed field: a command runs, and a sentence it cannot parse goes to
 Support as a question, so nothing else in the frame asks to be typed into.
-The vault adds a 21rem list column between rail and detail, giving ranger's three panes;
-the other sections read as a single 60rem flowing document of chapters.
+The vault, Identity, Access and Wallet add a 21rem list column between rail and
+detail, giving ranger's three panes. Their records share the compact file rows,
+pathbar commands, ruled details and explicit create/edit buffer. Connections
+keeps its existing document layout.
 
 Below 900px the rail gives way to a slim top bar: Sections, the current section
 name, Lock, and More. The Sections drawer groups account and vault switching
 with navigation; More holds appearance, installation, and secondary utilities.
-The statusline keeps the command, and the vault collapses to one pane at a
+The statusline keeps the command, and record sections collapse to one pane at a
 time, each with a back key and
 a back swipe: the **section tree** (the rail's own `NavTree`, drawn in the
 buffer where a finger can reach it, and the screen the vault opens on), the

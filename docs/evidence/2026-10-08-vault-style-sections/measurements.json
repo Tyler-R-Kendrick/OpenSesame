@@ -1,0 +1,80 @@
+{
+  "before": {
+    "1280-identity": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["960x34 @280,28", "960x37 @280,86", "960x104 @280,222"]
+    },
+    "1280-access": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["960x34 @280,28", "960x75 @280,321", "960x75 @280,408"]
+    },
+    "1280-wallet": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["960x34 @280,28", "960x37 @280,86"]
+    },
+    "1280-wallet-populated": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["960x34 @280,28", "960x37 @280,86", "960x75 @280,202"]
+    },
+    "390-identity": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["358x34 @16,74", "390x44 @0,132", "358x146 @16,292"]
+    },
+    "390-access": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["358x44 @16,74", "358x76 @16,418", "358x76 @16,506"]
+    },
+    "390-wallet": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["358x34 @16,74", "390x44 @0,132"]
+    },
+    "390-wallet-populated": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["358x34 @16,74", "390x44 @0,132", "358x76 @16,272"]
+    }
+  },
+  "after": {
+    "1280-identity": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": [
+        "336x847 @248,0",
+        "335x35 @248,0",
+        "696x847 @584,0",
+        "640x56 @612,24"
+      ]
+    },
+    "1280-access": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["336x847 @248,0", "335x35 @248,0", "696x847 @584,0"]
+    },
+    "1280-wallet": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["336x847 @248,0", "335x35 @248,0", "696x847 @584,0"]
+    },
+    "1280-wallet-populated": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": [
+        "336x847 @248,0",
+        "335x35 @248,0",
+        "696x847 @584,0",
+        "640x56 @612,24"
+      ]
+    },
+    "390-identity": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["0x0 @0,0", "0x0 @0,0", "390x714 @0,74", "358x56 @16,146"]
+    },
+    "390-access": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["390x714 @0,74", "390x57 @0,74", "0x0 @0,0"]
+    },
+    "390-wallet": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["390x714 @0,74", "390x57 @0,74", "0x0 @0,0"]
+    },
+    "390-wallet-populated": {
+      "selector": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head",
+      "boxes": ["0x0 @0,0", "0x0 @0,0", "390x714 @0,74", "358x56 @16,146"]
+    }
+  }
+}

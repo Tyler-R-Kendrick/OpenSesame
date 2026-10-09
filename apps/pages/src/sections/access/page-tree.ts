@@ -56,6 +56,7 @@ function tab(
   return {
     id,
     label: ACCESS_LABELS[id],
+    guide: `access.${id}`,
     href: `/access?view=${id}`,
     keepEmpty: true,
     sections,

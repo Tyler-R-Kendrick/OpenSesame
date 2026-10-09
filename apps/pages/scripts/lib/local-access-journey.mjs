@@ -20,23 +20,10 @@ export async function localAccessJourney({
     },
   );
   const management = await openLocalAccessPage(context, width, view);
-  const records = management.getByRole("region", {
-    name: "Local access records",
-  });
-  await expect(records).toBeVisible();
+  const records = accessWorkspace(management);
+  await openAuthorityRecord(management, records, view);
   if (view === "sessions") {
-    // Sessions lists sessions and Grants lists grants: the grant this
-    // journey revokes is on Grants, and Sessions shows the passkey session
-    // the consent opened, with no grant rows repeated under it.
-    await expect(
-      records.getByRole("heading", { name: "Local sessions" }),
-    ).toBeVisible();
-    await expect(
-      records.getByText("Local test person", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      records.getByRole("button", { name: "Revoke grant" }),
-    ).toHaveCount(0);
+    await assertIsolatedPasskeySession(records);
     expect(
       await management.evaluate(
         () => document.documentElement.scrollWidth > innerWidth,
@@ -48,15 +35,77 @@ export async function localAccessJourney({
     );
     return;
   }
+  await assertApplicationGrant(records);
+  await revokeApplicationGrant(management, records, width, captures, view);
+  await page.getByRole("button", { name: "Check session" }).click();
+  await expect(page.locator("output")).toHaveText("Session refused");
+  await expect(page.locator("output")).toHaveAttribute(
+    "data-reason",
+    "authorization_unavailable",
+  );
+  const overflow = await management.evaluate(
+    () => document.documentElement.scrollWidth > innerWidth,
+  );
+  expect(overflow).toBe(false);
+  await context.close();
+  console.log(
+    `PASS ${width}px local ${view}: second-tab encrypted ledger, keyboard confirmation/cancel/recovery, custodian revocation blocks the real relying party`,
+  );
+}
+
+async function openAuthorityRecord(management, records, view) {
+  const listTitle =
+    view === "sessions" ? "Local sessions" : "Local application grants";
   await expect(
-    records.getByRole("heading", { name: "Local application grants" }),
+    records.getByRole("tree", { name: `${listTitle} items` }),
+  ).toBeVisible();
+  const record = records.getByRole("treeitem", {
+    name:
+      view === "sessions"
+        ? /^Local test person\b/
+        : /^Local test person → Test application/,
+  });
+  await record.focus();
+  await management.keyboard.press("Enter");
+}
+
+async function assertIsolatedPasskeySession(records) {
+  // Sessions lists sessions and Grants lists grants: the grant this
+  // journey revokes is on Grants, and Sessions shows the passkey session
+  // the consent opened, with no grant rows repeated under it.
+  await expect(
+    records.getByRole("heading", { name: "Local test person", exact: true }),
+  ).toBeVisible();
+  await expect(
+    records.locator(".frow").filter({ hasText: "Passkey session" }),
+  ).toBeVisible();
+  await expect(
+    records.getByRole("button", { name: "Revoke grant" }),
+  ).toHaveCount(0);
+}
+
+async function assertApplicationGrant(records) {
+  await expect(
+    records.getByRole("heading", {
+      name: "Local test person → Test application",
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(
     records.getByRole("button", { name: "Revoke session" }),
   ).toHaveCount(0);
   await expect(
-    records.getByText("Local test person → Test application", { exact: true }),
+    records.locator(".frow").filter({ hasText: "records:read" }),
   ).toBeVisible();
+}
+
+async function revokeApplicationGrant(
+  management,
+  records,
+  width,
+  captures,
+  view,
+) {
   const revoke = records.getByRole("button", {
     name: "Revoke grant",
     exact: true,
@@ -76,24 +125,20 @@ export async function localAccessJourney({
   await management.keyboard.press("Enter");
   await expect(
     records.getByText("Application grant revoked.", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    records.getByRole("button", { name: "Reload local access records" }),
-  ).toBeFocused();
-  await page.getByRole("button", { name: "Check session" }).click();
-  await expect(page.locator("output")).toHaveText("Session refused");
-  await expect(page.locator("output")).toHaveAttribute(
-    "data-reason",
-    "authorization_unavailable",
-  );
-  const overflow = await management.evaluate(
-    () => document.documentElement.scrollWidth > innerWidth,
-  );
-  expect(overflow).toBe(false);
-  await context.close();
-  console.log(
-    `PASS ${width}px local ${view}: second-tab encrypted ledger, keyboard confirmation/cancel/recovery, custodian revocation blocks the real relying party`,
-  );
+  ).toHaveText("Application grant revoked.");
+  await expect(records.locator(".vault__list")).toBeVisible();
+  expect(
+    await records.locator(".vault__list").evaluate((list) => {
+      const active = document.activeElement;
+      return list.contains(active) && active.getClientRects().length > 0;
+    }),
+  ).toBe(true);
+  const reload = records.getByRole("button", {
+    name: "Reload local access records",
+  });
+  await tabToAccessControl(management, reload);
+  await expect(reload).toBeFocused();
+  await management.keyboard.press("Enter");
 }
 
 export { chooseCapabilities };
@@ -170,4 +215,38 @@ async function captureConfirmation(management, width, captures, view) {
     path: `${captures}/${name}-top-${width}.png`,
     fullPage: true,
   });
+}
+
+export function accessWorkspace(page) {
+  return page.locator('.record-workspace[data-section="Access"]');
+}
+
+export async function returnToAccessList(page) {
+  const back = accessWorkspace(page).locator(".record-workspace__back");
+  if (await back.isVisible()) await back.click();
+  await expect(accessWorkspace(page).locator(".vault__list")).toBeVisible();
+}
+
+/** Desktop path-strip keys and the phone's vault action menu execute the same commands. */
+export async function runAccessCommand(page, label) {
+  const key = accessWorkspace(page)
+    .getByRole("button", { name: label, exact: true })
+    .filter({ visible: true });
+  if (await key.count()) return key.click();
+  await returnToAccessList(page);
+  if (await key.count()) return key.click();
+  const add = accessWorkspace(page).locator(".record-workspace__add");
+  await add.focus();
+  await page.keyboard.press("Shift+F10");
+  await page.getByRole("menuitem", { name: label, exact: true }).click();
+}
+
+/** Reach a form field using native Tab after the workspace changes panes. */
+export async function tabToAccessControl(page, target) {
+  for (let step = 0; step < 60; step++) {
+    if (await target.evaluate((node) => node === document.activeElement))
+      return;
+    await page.keyboard.press("Tab");
+  }
+  throw new Error("Keyboard could not reach local access control");
 }

@@ -49,6 +49,15 @@ const LAZY_LEAVES = [
   ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
+  // Plugin pairing is reached by the tailnet sync and device-management
+  // runtimes. Its pure shared leaf can fold into the entry at the 12 KB
+  // merge floor when record navigation changes the surrounding chunks.
+  // Keep the optional pairing parser/store off the bootstrap (ADR 0130 §4).
+  [
+    "/packages/app-core/src/lib/tailnet-sync/plugin-pairing.ts",
+    "networking.tailnet",
+    "tailnet-plugin-pairing",
+  ],
   // Document enrolment (`push-browser`, `push-enrolment`, `push-seams`) is
   // pure. `experimentalMinChunkSize` then folds that small chunk into `main`,
   // which the gate reads as a static import of `notifications.web-push`

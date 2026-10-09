@@ -12,12 +12,20 @@ import {
  * one per `section` contribution, and nothing for a capability that is not
  * approved (ADR 0130).
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useClaimedDrags } from "../lib/use-claimed-drags.js";
 import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useVaultAllTo } from "../lib/vault-list-path.js";
 import { useVault } from "../lib/vault/hooks.js";
+import { SupportContext } from "../tutorial/support-context.js";
 import { IconChevronLeft } from "./Icons.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
@@ -55,10 +63,24 @@ function useSectionExpands(
 ): (to: string) => SectionExpand {
   const mountedAt = useRef(pathname);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const support = useContext(SupportContext);
+  const target = useSyncExternalStore(
+    support?.subscribe ?? (() => () => {}),
+    () => support?.view().guide?.tour?.target ?? null,
+    () => null,
+  );
+  // A guide may point at a category after entering a closed section. Reveal
+  // its children only for that step; ordinary navigation retains its state.
+  const guidedSection = target?.startsWith("access.")
+    ? "/access"
+    : target?.startsWith("identity.")
+      ? "/identity"
+      : null;
   return useCallback(
     (to: string) => {
       const here = pathname.startsWith(to);
-      const expanded = open[to] ?? mountedAt.current.startsWith(to);
+      const expanded =
+        guidedSection === to || (open[to] ?? mountedAt.current.startsWith(to));
       return {
         expanded,
         here,
@@ -70,7 +92,7 @@ function useSectionExpands(
         },
       };
     },
-    [open, pathname, navigate],
+    [open, pathname, navigate, guidedSection],
   );
 }
 

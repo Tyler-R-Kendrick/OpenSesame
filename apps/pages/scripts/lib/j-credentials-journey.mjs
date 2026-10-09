@@ -5,6 +5,7 @@
  * kept on its own is listed under the `+` and, chosen, is bound to the account
  * in the same save: never a copy of it.
  */
+import { expect } from "@playwright/test";
 import { openSettingsCategory, sealWithPin } from "./pages-journey.mjs";
 
 async function switchOn(page, name) {
@@ -29,9 +30,18 @@ async function go(page, base, route) {
   }, `${base}${route}`);
 }
 
-async function save(page) {
-  await page.getByRole("button", { name: "Save item" }).first().click();
+async function save(page, name) {
+  const saveItem = page.getByRole("button", { name: "Save item" }).first();
+  await saveItem.click();
   await page.waitForURL((url) => /\/vault\/[^/]+$/.test(url.pathname));
+  // The address changes before React replaces the editor. A following create
+  // must wait for that replacement or it can fill the previous item's name.
+  await expect(saveItem).toBeHidden();
+  await expect(
+    page
+      .locator(".detail__heading")
+      .getByRole("heading", { name, exact: true }),
+  ).toBeVisible();
 }
 
 /** Bound, not copied: the spare is Second's method, and First keeps its own. */
@@ -94,7 +104,7 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
   await snap(page, "J-CREDENTIALS-picker");
   await page.getByRole("button", { name: "API key", exact: true }).click();
   await page.getByLabel("X-Api-Key value", { exact: true }).fill("ak_first");
-  await save(page);
+  await save(page, "First");
   check(true, "an account saves with an API key of a type it had to switch on");
 
   // The type it switched on stays on (the vault holds a key now), so a
@@ -102,7 +112,7 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
   await go(page, base, "vault/new/api-key");
   await page.getByLabel("Name", { exact: true }).first().fill("Spare key");
   await page.getByLabel("X-Api-Key value", { exact: true }).fill("ak_spare");
-  await save(page);
+  await save(page, "Spare key");
 
   // A second account takes it from under the + and saves it bound, once.
   await go(page, base, "vault/new/account");
@@ -123,7 +133,7 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
       "ak_spare",
     "choosing it brings its value into the account",
   );
-  await save(page);
+  await save(page, "Second");
   await snap(page, "J-CREDENTIALS-bound");
   await confirmBound(page, base, check);
 }
