@@ -32,8 +32,8 @@ while true; do
   if node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
     echo "wave2 complete — triggering finish $(date -u +%Y-%m-%dT%H:%M:%SZ)"
     DEEPSEC_CONCURRENCY=2 DEEPSEC_THINKING=high "${ROOT}/scripts/audit/deepsec-grok-finish.sh" || true
-    if grep -q 'FINISH COMPLETE' /tmp/deepsec-grok-finish.log 2>/dev/null \
-      && ! tail -5 /tmp/deepsec-grok-finish.log | grep -q 'SKIP docs export'; then
+    if tail -30 /tmp/deepsec-grok-finish.log 2>/dev/null | grep -q 'FINISH COMPLETE' \
+      && ! tail -30 /tmp/deepsec-grok-finish.log | grep -q 'SKIP docs export'; then
       echo "=== wave2-watch done $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
       exit 0
     fi
