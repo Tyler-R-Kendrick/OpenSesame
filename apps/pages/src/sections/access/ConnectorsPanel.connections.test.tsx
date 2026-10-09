@@ -205,7 +205,9 @@ it("lists access whose connector is not listed here, so it can be revoked", asyn
     if (!item) throw new Error(`no row for ${name}`);
     const revoke = within(item).getByRole("button", { name: "Revoke" });
     await userEvent.click(revoke);
-    await userEvent.click(within(item).getByRole("button", { name: "Confirm revoke" }));
+    await userEvent.click(
+      within(item).getByRole("button", { name: "Confirm revoke" }),
+    );
     await waitFor(() =>
       expect(screen.queryByRole("heading", { name })).toBeNull(),
     );
