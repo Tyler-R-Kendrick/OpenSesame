@@ -18,17 +18,17 @@ pub(crate) async fn run() -> anyhow::Result<()> {
     let output = cli.output.as_str();
     match cli.command {
         Commands::PasswordAgent(options) => {
-            command_future(move || password_agent::execute(options)).await?
+            command_future(move || password_agent::execute(options)).await?;
         }
         Commands::Session => session::enter()?,
         Commands::Vault { cmd } => {
-            command_future(move || vault_area::run(server, output, cmd)).await?
+            command_future(move || vault_area::run(server, output, cmd)).await?;
         }
         Commands::Access { cmd } => {
-            command_future(move || access_area::run(server, output, cmd)).await?
+            command_future(move || access_area::run(server, output, cmd)).await?;
         }
         Commands::Identity { cmd } => {
-            command_future(move || identity_area::run(server, output, cmd)).await?
+            command_future(move || identity_area::run(server, output, cmd)).await?;
         }
         Commands::Login {
             flow,
@@ -37,7 +37,8 @@ pub(crate) async fn run() -> anyhow::Result<()> {
             qr,
             no_qr,
         } => {
-            command_future(move || login(server, flow, no_browser, open_browser, qr, no_qr)).await?
+            command_future(move || login(server, flow, no_browser, open_browser, qr, no_qr))
+                .await?;
         }
         Commands::Logout => {
             let path = session_path()?;
@@ -56,7 +57,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         }
         Commands::Init { schema } => init_schema(&schema)?,
         Commands::Config { cmd } => {
-            command_future(move || configs::run(server, output, cmd)).await?
+            command_future(move || configs::run(server, output, cmd)).await?;
         }
         Commands::Bridge { cmd } => command_future(move || bridge::run(cmd)).await?,
         Commands::Tui => command_future(move || tui(server)).await?,
@@ -79,7 +80,7 @@ pub(crate) async fn run() -> anyhow::Result<()> {
         Commands::Helpers { cmd } => entry::helpers(cmd)?,
         Commands::Plugins { cmd } => command_future(move || plugins::run(output, cmd)).await?,
         Commands::Security { cmd } => {
-            command_future(move || security::run(server, output, cmd)).await?
+            command_future(move || security::run(server, output, cmd)).await?;
         }
         Commands::Hooks { cmd } => command_future(move || hooks::run(server, cmd)).await?,
     }
