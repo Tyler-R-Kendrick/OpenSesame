@@ -61,7 +61,6 @@ function bundleChunk(id: string): string | undefined {
   ) {
     return "react-router";
   }
-<<<<<<< HEAD
   // The device-identity and device-inbox walks import this chunk by the
   // file name `device-identity-host-*.js`. A pure chunk under
   // `experimentalMinChunkSize` is folded into a neighbour, and the name
@@ -69,8 +68,6 @@ function bundleChunk(id: string): string | undefined {
   if (path.includes("/lib/device-identity-host.ts")) {
     return "device-identity-host";
   }
-=======
->>>>>>> dabbf160 (fix(pages): keep react-dom out of the hardened entry chunk (grok-4.7))
   return undefined;
 }
 
@@ -198,7 +195,6 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-<<<<<<< HEAD
         // Merge a chunk under 12 KB into one that every path loading it
         // already loads. The precache gzips each file alone, and the persona
         // stack's extra leaves put that sum over the 1739 KiB ceiling at
@@ -209,15 +205,6 @@ export default defineConfig({
         // static-import an optional module (ADR 0130 §4) and the device
         // walks can still import the host by file name.
         experimentalMinChunkSize: 12_000,
-=======
-        // Merge a chunk under 5 KB into one that every path loading it
-        // already loads, so the explicit capability chunks (see
-        // `capability-compose-plugin.mjs`) do not leave dozens of tiny
-        // shared chunks that gzip worse apart than together. Larger values
-        // fold small optional chunks (Tailnet sync's) into `main`, which
-        // is "safe" to Rollup — everything loads `main` — and wrong here.
-        experimentalMinChunkSize: 5_000,
->>>>>>> dabbf160 (fix(pages): keep react-dom out of the hardened entry chunk (grok-4.7))
         manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
