@@ -798,9 +798,17 @@ export class VaultStore {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
+    this.#requirePendingChallenge(pending);
     await this.#activateSession(pending);
     // A gate with no registration yet gets one now (ADR 0113).
     if (!gate.selfItemId) await this.#registerSelfAuthenticator(gate);
+  }
+
+  /** Second-step handlers must not activate after cancel/expiry cleared the challenge. */
+  #requirePendingChallenge(pending: CryptoKey): void {
+    if (this.#pendingVaultKey !== pending) {
+      throw new WrongPasswordError("That second step is no longer pending.");
+    }
   }
 
   cancelTotpChallenge(): void {
@@ -851,6 +859,7 @@ export class VaultStore {
       throw error;
     }
     this.#pendingCode = null;
+    this.#requirePendingChallenge(pending);
     await this.#activateSession(pending);
   }
 
@@ -863,6 +872,7 @@ export class VaultStore {
     if (!pending || !header || !record) {
       throw new WrongPasswordError("That recovery code is not valid.");
     }
+    this.#requirePendingChallenge(pending);
     const codesWrap = await spendRecoveryCode(pending, record, code, () =>
       this.#recordFailedUnlock(),
     );
