@@ -2,13 +2,17 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packJsonRows } from "./pack-json.mjs";
 
 export function renderBrowserPolicy(policy) {
   if (policy.schema_version !== 1 || !Array.isArray(policy.rules))
     throw new Error("Invalid browser policy source");
+  const { rows, dictionary } = packJsonRows([JSON.stringify(policy)]);
   return [
     "/** Generated from spec/connectors/browser-policy.json; edit that source. */",
-    `export const NATIVE_BROWSER_POLICY_JSON = ${JSON.stringify(JSON.stringify(policy))};`,
+    'import { unpackGeneratedJson } from "./generated-json.js";',
+    `const dictionary = ${JSON.stringify(dictionary.join("\n"))}.split("\\n");`,
+    `export const NATIVE_BROWSER_POLICY_JSON = unpackGeneratedJson(${JSON.stringify(rows[0])}, dictionary);`,
     "",
   ].join("\n");
 }

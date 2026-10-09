@@ -41,7 +41,7 @@ function authorized(
   )
     return false;
   if (
-    ["api-key", "oauth"].includes(configuration.method) &&
+    ["api-key", "oauth", "oidc"].includes(configuration.method) &&
     runtime.grants.length === 0
   )
     return false;
@@ -105,7 +105,8 @@ export function nativeConnectorView(
   privateState: NativePrivateState,
 ): NativeConnectorView {
   let status: NativeConnectorStatus = "configuration";
-  if (privateState.recovery.length > 0) status = "cleanup";
+  if (activeDeviceConsent(configuration, privateState)) status = "authorizing";
+  else if (privateState.recovery.length > 0) status = "cleanup";
   else if (requiresReauthorization(configuration, runtime))
     status = "reauthorize";
   else if (Object.keys(privateState.pending).length > 0)
@@ -135,4 +136,25 @@ export function nativeConnectorView(
         "Retry provider cleanup before changing or removing this connection.",
     })),
   };
+}
+
+function activeDeviceConsent(
+  configuration: NativeConfiguration,
+  privateState: NativePrivateState,
+): boolean {
+  const pending = privateState.pending.user;
+  const [intent] = privateState.recovery;
+  return (
+    configuration.providerId === "twitch" &&
+    configuration.method === "oauth" &&
+    Object.keys(privateState.pending).length === 1 &&
+    !!pending &&
+    pending.fingerprint === configuration.fingerprint &&
+    pending.expiresAt > Date.now() &&
+    privateState.recovery.length === 1 &&
+    intent?.id === `oauth:${pending.state}` &&
+    intent.fingerprint === pending.fingerprint &&
+    intent.kind === "revoke" &&
+    intent.credentials?.phase === "device-poll"
+  );
 }

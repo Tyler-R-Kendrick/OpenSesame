@@ -125,13 +125,24 @@ export const NativeGrantSchema = NativeBindingSchema.extend({
 }).strict();
 export type NativeGrant = z.infer<typeof NativeGrantSchema>;
 export const NativePendingSchema = NativeBindingSchema.extend({
-  state: z.string().min(32).max(512),
+  state: z
+    .string()
+    .min(16)
+    .max(512)
+    .regex(/^[!-~]+$/),
   verifier: z.string().min(43).max(128),
   redirectUri: text,
   createdAt: timestamp,
   expiresAt: timestamp,
   scopes,
-}).strict();
+})
+  .strict()
+  .refine(
+    (pending) =>
+      pending.state.length >= 32 ||
+      ["vault", "openbao"].includes(pending.providerId),
+    { message: "Use the provider's approved authorization state" },
+  );
 export type NativePending = z.infer<typeof NativePendingSchema>;
 export const NativeRecoverySchema = NativeBindingSchema.extend({
   id: identifier,

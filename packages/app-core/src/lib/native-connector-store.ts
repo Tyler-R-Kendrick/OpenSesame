@@ -203,6 +203,7 @@ function encodeRecord(
 export async function saveNativeConnector(
   record: Omit<NativeConnectorRecord, "revision">,
   classification: NativeFieldClassification,
+  beforeCommit?: () => void,
 ): Promise<NativeConnectorView> {
   const next = { ...record, revision: 1 };
   let committed: NativeConnectorRecord | null = null;
@@ -218,7 +219,7 @@ export async function saveNativeConnector(
     );
     committed = parseRecord(encoded);
     return encoded;
-  });
+  }, beforeCommit);
   if (!committed) throw new Error("Native connector was not committed");
   return view(committed);
 }
@@ -289,28 +290,33 @@ export async function updateNativeConnector(
   guard: NativeRevisionGuard,
   classification: NativeFieldClassification,
   update: (record: NativeConnectorRecord) => NativeConnectorRecord,
+  beforeCommit?: () => void,
 ): Promise<NativeConnectorView> {
   let result: NativeConnectorRecord | null = null;
-  await updateDeviceConfigurationDurable(connectionId, async (stored) => {
-    const current = parseRecord(stored);
-    assertRevision(current, guard);
-    const next = update(structuredClone(current));
-    if (
-      next.connectionId !== connectionId ||
-      next.configuration.providerId !== current.configuration.providerId ||
-      next.revision !== current.revision
-    )
-      throw new Error("A native update cannot replace its connector binding");
-    assertIdentityBinding(current, next);
-    invalidateChangedAuthority(current, next);
-    const encoded = encodeRecord(
-      { ...next, revision: current.revision + 1 },
-      classification,
-      stored.row.createdAt,
-    );
-    result = parseRecord(encoded);
-    return encoded;
-  });
+  await updateDeviceConfigurationDurable(
+    connectionId,
+    async (stored) => {
+      const current = parseRecord(stored);
+      assertRevision(current, guard);
+      const next = update(structuredClone(current));
+      if (
+        next.connectionId !== connectionId ||
+        next.configuration.providerId !== current.configuration.providerId ||
+        next.revision !== current.revision
+      )
+        throw new Error("A native update cannot replace its connector binding");
+      assertIdentityBinding(current, next);
+      invalidateChangedAuthority(current, next);
+      const encoded = encodeRecord(
+        { ...next, revision: current.revision + 1 },
+        classification,
+        stored.row.createdAt,
+      );
+      result = parseRecord(encoded);
+      return encoded;
+    },
+    beforeCommit,
+  );
   if (!result) throw new Error("Native connector update was not committed");
   return view(result);
 }

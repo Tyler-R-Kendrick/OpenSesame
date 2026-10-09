@@ -20,7 +20,7 @@ REPORT_GIT="$OPENSESAME_AUDIT_DIR/gitleaks-git.json"
 echo "==> gitleaks detect --no-git (working tree, allowlisted dirs pruned)"
 set +e
 gitleaks detect \
-  --source "$ROOT" \
+  --source . \
   --no-git \
   --config "$CFG" \
   --report-path "$REPORT_DIR" \

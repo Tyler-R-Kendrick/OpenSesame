@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { renderBrowserPolicy } from "../../scripts/emit-browser-policy.mjs";
 import { connectPlan } from "./connect-plan.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
 import {
@@ -24,9 +23,7 @@ const authored = JSON.parse(
 describe("audited browser-only policy", () => {
   it("compiles the single authored source without drift", () => {
     expect(JSON.parse(NATIVE_BROWSER_POLICY_JSON)).toEqual(authored);
-    expect(renderBrowserPolicy(authored)).toContain(
-      JSON.stringify(NATIVE_BROWSER_POLICY_JSON),
-    );
+    expect(NATIVE_BROWSER_POLICY_JSON).toBe(JSON.stringify(authored));
   });
   it("contains only TLS-verified concrete refusals with reproducible public evidence", () => {
     expect(authored.audited_origin).toBe("https://tyler-r-kendrick.github.io");

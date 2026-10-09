@@ -3,7 +3,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJsonObject } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
-import { renderModule } from "../../scripts/emit-connect-presets.mjs";
+import {
+  renderModule,
+  renderPlanJson,
+} from "../../scripts/emit-connect-presets.mjs";
 import type { WebStorage } from "../ports.js";
 import {
   authorizeBody,
@@ -118,15 +121,7 @@ describe("connector plans", () => {
   it("embeds exactly what the specs say", () => {
     const rendered = renderModule();
     expect(rendered).toContain(`"${services.pinned_at}"`);
-    const fromSpecs = rendered
-      .split("\n")
-      .filter((line: string) => line.startsWith('  "{'))
-      .map((line: string) =>
-        JSON.parse(JSON.parse(line.trim().replace(/,$/, ""))),
-      );
-    expect(CONNECT_PLAN_JSON.map((json) => JSON.parse(json))).toEqual(
-      fromSpecs,
-    );
+    expect(CONNECT_PLAN_JSON).toEqual(renderPlanJson());
   });
 
   it("covers every service in Vercel Connect's registry", () => {
