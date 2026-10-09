@@ -45,3 +45,14 @@ export async function uninstallDefinition(
   }
   return true;
 }
+
+/** An ordinary new-folder value; caller retains all body-write authority. */
+export function newVaultFolder(
+  name: string,
+): import("@opensesame/vault-core").Folder {
+  return {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    createdAt: new Date().toISOString(),
+  };
+}

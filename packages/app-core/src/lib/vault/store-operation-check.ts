@@ -32,15 +32,28 @@ export function captureStoreOperation(
   let key = initial.key;
   let raw = initial.raw;
   let header = operationHeader(initial.header);
-  const active = () => {
-    transport();
+  const sessionContext = () => {
     assertSessionGeneration(generation, session.generation);
     assertNotCanceled(signal);
     const state = current();
     if (
       state.scope !== scope ||
       state.session !== session ||
-      session.signal !== signal ||
+      session.signal !== signal
+    )
+      throw new ProtectionError(
+        "stale_operation",
+        "Original vault operation changed.",
+      );
+  };
+  const context = () => {
+    transport();
+    sessionContext();
+  };
+  const active = () => {
+    context();
+    const state = current();
+    if (
       state.key !== key ||
       state.raw !== raw ||
       operationHeader(state.header) !== header
@@ -52,6 +65,15 @@ export function captureStoreOperation(
   };
   active();
   return Object.freeze({
+    context,
+    closeOriginal: (close: () => void) => {
+      try {
+        sessionContext();
+      } catch {
+        return;
+      }
+      close();
+    },
     scope,
     active,
     adoptHeader: (next: VaultHeader, adopt: () => void) => {
@@ -69,4 +91,15 @@ export function captureStoreOperation(
       active();
     },
   });
+}
+
+/** Existing unlocked state shape only; never a fresh owner or permission proof. */
+export function requireExistingUnlock(
+  vaultKey: CryptoKey | null,
+  header: VaultHeader | null,
+  reason = "changing unlock methods",
+) {
+  if (!vaultKey || !header)
+    throw new Error(`Unlock the vault before ${reason}.`);
+  return { vaultKey, header };
 }
