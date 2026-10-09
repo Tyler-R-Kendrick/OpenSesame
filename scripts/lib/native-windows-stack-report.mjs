@@ -46,14 +46,21 @@ function recordLine(frame, line, depth) {
   );
   if (reserve) frame.explicitReserveBytes += Number(BigInt(reserve[1]));
   if (/PUSH_NONVOL/.test(line)) frame.savedRegisterPushBytes += 8;
-  if (/ALLOC_|PUSH_|SET_FPREG|SAVE_/.test(line)) frame.codes.push(line.trim());
+  if (/ALLOC_|PUSH_|SET_FPREG|SAVE_/.test(line) && frame.codes.length < 300)
+    frame.codes.push(line.trim());
 }
 
-function unwindFrames(raw) {
-  const frames = [];
+/** Incrementally retain only the twenty largest complete, unchained records. */
+export function windowsUnwindCollector() {
+  const largest = [];
   let depth = 0;
   let frame = null;
-  for (const line of raw.split("\n")) {
+  let recordCount = 0;
+  let started = false;
+  let closed = false;
+  function consume(line) {
+    if (!frame && /^\s*UnwindInformation\s*\[/.test(line)) started = true;
+    if (!frame && started && /^\s*\]\s*$/.test(line)) closed = true;
     if (!frame && /^\s*RuntimeFunction\s*\{/.test(line)) {
       frame = {
         start: null,
@@ -62,19 +69,40 @@ function unwindFrames(raw) {
         savedRegisterPushBytes: 0,
         chained: false,
         codes: [],
+        rawLines: [],
+        rawRecordTruncated: false,
       };
       depth = 0;
     }
-    if (!frame) continue;
+    if (!frame) return;
+    if (frame.rawLines.length < 300) frame.rawLines.push(line);
+    else frame.rawRecordTruncated = true;
     recordLine(frame, line, depth);
     depth +=
       (line.match(/\{/g) ?? []).length - (line.match(/\}/g) ?? []).length;
-    if (depth === 0) {
-      frames.push(frame);
-      frame = null;
+    if (depth !== 0) return;
+    recordCount++;
+    if (!frame.chained) {
+      largest.push(frame);
+      largest.sort((a, b) => b.explicitReserveBytes - a.explicitReserveBytes);
+      largest.length = Math.min(largest.length, 20);
     }
+    frame = null;
   }
-  return frames;
+  function finish() {
+    return {
+      frames: largest,
+      recordCount,
+      complete: started && closed && !frame,
+    };
+  }
+  return { consume, finish };
+}
+
+function unwindFrames(raw) {
+  const collector = windowsUnwindCollector();
+  for (const line of raw.split("\n")) collector.consume(line);
+  return collector.finish();
 }
 
 function namedStartup(raw, pe) {
@@ -101,7 +129,11 @@ function namedStartup(raw, pe) {
   return result;
 }
 
-export function windowsStackReport(headersAndUnwind, symbols) {
+export function windowsStackReport(
+  headersAndUnwind,
+  symbols,
+  collected = null,
+) {
   const pe = {
     imageBase: numberField(headersAndUnwind, "ImageBase"),
     imageBytes: numberField(headersAndUnwind, "SizeOfImage"),
@@ -109,7 +141,13 @@ export function windowsStackReport(headersAndUnwind, symbols) {
     stackReserveBytes: numberField(headersAndUnwind, "SizeOfStackReserve"),
     stackCommitBytes: numberField(headersAndUnwind, "SizeOfStackCommit"),
   };
-  const frames = unwindFrames(headersAndUnwind).map((frame) => ({
+  const tableBytes = numberField(headersAndUnwind, "ExceptionTableSize");
+  const expectedUnwindRecords =
+    tableBytes && BigInt(tableBytes) % 12n === 0n
+      ? Number(BigInt(tableBytes) / 12n)
+      : null;
+  const unwind = collected ?? unwindFrames(headersAndUnwind);
+  const frames = unwind.frames.map((frame) => ({
     ...frame,
     imageStart: imageAddress(frame.start, pe),
     imageEnd: imageAddress(frame.end, pe),
@@ -121,7 +159,9 @@ export function windowsStackReport(headersAndUnwind, symbols) {
   const startup = namedStartup(symbols, pe);
   return {
     pe,
-    unwindRecords: frames.length,
+    unwindRecords: unwind.recordCount,
+    expectedUnwindRecords,
+    unwindComplete: unwind.complete,
     largest,
     startup,
     symbolQualification: startup.length
