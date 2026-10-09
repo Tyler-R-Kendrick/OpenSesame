@@ -89,7 +89,6 @@ export const Wordmark = forwardRef<
         <CipherWordmark
           ref={cipherRef}
           text={DISPLAY_WORD}
-          size={size}
           animateOnMount={animate}
           replay={replay}
           static={settled && !replay}

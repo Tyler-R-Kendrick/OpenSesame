@@ -9,7 +9,7 @@ import { noWayIn } from "@opensesame/app-core/lib/settings.js";
 import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
-import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
+import { GUEST_TOMB, vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   MIN_PIN_LENGTH,
   type SecondStepId,
@@ -36,7 +36,7 @@ import {
   IconSettings,
   IconShield,
 } from "../components/Icons.js";
-import { Wordmark } from "../components/Wordmark.js";
+import { Wordmark, type WordmarkHandle } from "../components/Wordmark.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
@@ -73,7 +73,9 @@ import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
 import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
 import { useCountdown } from "./unlock/useCountdown.js";
+import { UnlockLockV5 } from "./unlock/UnlockLockV5.js";
 import "./unlock.css";
+import "../components/VaultDoors/vault-doors.css";
 
 export const unlockScreenDependencies = {
   currentSession,
@@ -272,6 +274,12 @@ function UnlockForm({
   const goRef = useRef<HTMLButtonElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const acceptRef = useRef<HTMLInputElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLElement>(null);
+  const wordmarkRef = useRef<WordmarkHandle>(null);
+  const [ceremonyToken, setCeremonyToken] = useState(0);
+  const vaultUnlocked = status === "unlocked";
 
   const lockedFor = useCountdown(lockedOutUntil);
   const { passkeyAbort, cancelPasskeyCeremony } = usePasskeyCeremony(
@@ -338,8 +346,9 @@ function UnlockForm({
     };
   }, [awaitingSecondStep, activeSecondStep, recoveryMode, store]);
 
-  function onSubmit(event: FormEvent) {
-    void submitUnlockForm({
+  async function onSubmit(event: FormEvent) {
+    const before = status;
+    await submitUnlockForm({
       event,
       busy,
       setBusy,
@@ -372,6 +381,15 @@ function UnlockForm({
       totpRef,
       pendingFocus,
     });
+    const after = vaultStore.getSnapshot().status;
+    if (
+      before !== "unlocked" &&
+      after === "unlocked" &&
+      !signInStage &&
+      !showSignIn
+    ) {
+      setCeremonyToken((n) => n + 1);
+    }
   }
 
   const pinProblems =
@@ -411,11 +429,24 @@ function UnlockForm({
   });
 
   return (
-    <div className="unlock">
-      <div className="unlock__card">
+    <div className="unlock unlock--lock-v5" ref={paneRef}>
+      <UnlockLockV5
+        paneRef={paneRef}
+        cardRef={cardRef}
+        notesRef={notesRef}
+        wordmarkRef={wordmarkRef}
+        ceremonyToken={ceremonyToken}
+        vaultUnlocked={vaultUnlocked}
+      />
+      <div className="unlock__card" ref={cardRef}>
         <PendingLinkBanner />
         <div className="unlock__brand">
-          <Wordmark className="unlock__wordmark" size={28} replay />
+          <Wordmark
+            ref={wordmarkRef}
+            className="unlock__wordmark"
+            size={28}
+            replay
+          />
           <div className="unlock__brand-tools">
             <GateTools />
           </div>
@@ -835,7 +866,7 @@ function UnlockForm({
           {showReset ? null : <ResetBrowser />}
         </div>
       </div>
-      <ReleaseNotes />
+      <ReleaseNotes ref={notesRef} />
     </div>
   );
 }

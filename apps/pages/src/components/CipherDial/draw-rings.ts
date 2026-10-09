@@ -1,0 +1,181 @@
+import { RING_FONT } from "./constants.js";
+import { inkAlpha } from "./ink.js";
+import type { DialLayout, RingSpec } from "./layout.js";
+
+function drawRingGlyphs(
+  g: CanvasRenderingContext2D,
+  layout: DialLayout,
+  q: RingSpec,
+  k: number,
+  ink: [number, number, number],
+  dpr: number,
+): void {
+  const { cx, cy, idx, quiet } = layout;
+  g.setTransform(dpr, 0, 0, dpr, -q.bx0 * dpr, -q.by0 * dpr);
+  g.clearRect(q.bx0, q.by0, q.bx1 - q.bx0, q.by1 - q.by0);
+  const base = idx - k * q.pa;
+  const under = ((Math.round(k) % q.N) + q.N) % q.N;
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const font = `${q.fs}px ${RING_FONT}`;
+
+  if (q.isTick) {
+    g.strokeStyle = inkAlpha(ink, q.alpha * 0.9);
+    g.lineWidth = 1;
+    g.beginPath();
+    for (let j = 0; j < q.N; j += 1) {
+      const a = base + j * q.pa;
+      const L = j % 4 ? 3 : 6;
+      g.moveTo(
+        cx + Math.cos(a) * (q.r - L / 2),
+        cy + Math.sin(a) * (q.r - L / 2),
+      );
+      g.lineTo(
+        cx + Math.cos(a) * (q.r + L / 2),
+        cy + Math.sin(a) * (q.r + L / 2),
+      );
+    }
+    g.stroke();
+    return;
+  }
+
+  const m = q.fs;
+  const box = Math.ceil(q.fs * 1.3);
+  const half = box / 2;
+  if (!q.atlas) {
+    q.atlas = new Map();
+    for (const ch of new Set(q.cipher)) {
+      const c = document.createElement("canvas");
+      c.width = Math.ceil(box * dpr);
+      c.height = Math.ceil(box * dpr);
+      const x = c.getContext("2d");
+      if (!x) continue;
+      x.scale(dpr, dpr);
+      x.font = font;
+      x.textAlign = "center";
+      x.textBaseline = "middle";
+      x.fillStyle = inkAlpha(ink, q.alpha);
+      x.fillText(ch, half, half);
+      q.atlas.set(ch, c);
+    }
+  }
+
+  for (let j = 0; j < q.N; j += 1) {
+    if (j === under) continue;
+    const a = base + j * q.pa;
+    const ca = Math.cos(a);
+    const sa = Math.sin(a);
+    const x = cx + ca * q.r;
+    const y = cy + sa * q.r;
+    if (x < q.bx0 - m || x > q.bx1 + m || y < q.by0 - m || y > q.by1 + m) {
+      continue;
+    }
+    if (
+      quiet.some(
+        (r) =>
+          x > r.x - 6 && x < r.x + r.w + 6 && y > r.y - 6 && y < r.y + r.h + 6,
+      )
+    ) {
+      continue;
+    }
+    const sprite = q.atlas.get(q.cipher[j]);
+    if (!sprite) continue;
+    g.setTransform(
+      -sa * dpr,
+      ca * dpr,
+      -ca * dpr,
+      -sa * dpr,
+      (x - q.bx0) * dpr,
+      (y - q.by0) * dpr,
+    );
+    g.drawImage(sprite, -half, -half, box, box);
+  }
+  g.setTransform(dpr, 0, 0, dpr, -q.bx0 * dpr, -q.by0 * dpr);
+
+  const a = base + under * q.pa;
+  const x = cx + Math.cos(a) * q.r;
+  const y = cy + Math.sin(a) * q.r;
+  if (Math.abs(k - Math.round(k)) >= 0.02) {
+    g.font = font;
+    g.fillStyle = inkAlpha(ink, q.alpha);
+    g.translate(x, y);
+    g.rotate(a + Math.PI / 2);
+    g.fillText(q.cipher[under], 0, 0);
+  }
+}
+
+export function drawOverlay(
+  g: CanvasRenderingContext2D,
+  layout: DialLayout,
+  rings: RingSpec[],
+  lit: number,
+  ink: [number, number, number],
+  dpr: number,
+): void {
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, layout.w, layout.h);
+  const { cx, cy, idx, fs, outer } = layout;
+  const ca = Math.cos(idx);
+  const sa = Math.sin(idx);
+  const r0 = layout.R0 - layout.dr * 0.7;
+  const r1 = outer + layout.dr * 0.6 + 26;
+  const half = fs * 0.9;
+  const px = -sa * half;
+  const py = ca * half;
+  g.strokeStyle = inkAlpha(ink, 0.18 + 0.6 * lit);
+  g.lineWidth = 1;
+  g.beginPath();
+  for (const s of [-1, 1]) {
+    g.moveTo(Math.round(cx + ca * r0 + px * s) + 0.5, cy + sa * r0 + py * s);
+    g.lineTo(
+      Math.round(cx + ca * (r1 + 10) + px * s) + 0.5,
+      cy + sa * (r1 + 10) + py * s,
+    );
+  }
+  g.stroke();
+  g.fillStyle = inkAlpha(ink, 0.24 + 0.6 * lit);
+  g.beginPath();
+  const tx = cx + ca * (r1 + 12);
+  const ty = cy + sa * (r1 + 12);
+  g.moveTo(tx, ty);
+  g.lineTo(tx + ca * 7 + px * 0.6, ty + sa * 7 + py * 0.6);
+  g.lineTo(tx + ca * 7 - px * 0.6, ty + sa * 7 - py * 0.6);
+  g.closePath();
+  g.fill();
+
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  for (const q of rings) {
+    const k = q.lastK ?? q.to;
+    if (Math.abs(k - Math.round(k)) >= 0.02) continue;
+    const under = ((Math.round(k) % q.N) + q.N) % q.N;
+    const x = cx + ca * q.r;
+    const y = cy + sa * q.r;
+    if (q.isTick) {
+      const L = 3 + 2 * lit;
+      g.strokeStyle = inkAlpha(ink, 0.3 + 0.6 * lit);
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(x - L, Math.round(y) + 0.5);
+      g.lineTo(x + L, Math.round(y) + 0.5);
+      g.stroke();
+      continue;
+    }
+    g.font = `${fs * (1 + 0.12 * lit)}px ${RING_FONT}`;
+    g.fillStyle = inkAlpha(ink, 0.55 + 0.42 * lit);
+    g.fillText(q.plain[under], x, y);
+  }
+}
+
+export function paintRingLayer(
+  g: CanvasRenderingContext2D,
+  layout: DialLayout,
+  q: RingSpec,
+  k: number,
+  ink: [number, number, number],
+  dpr: number,
+): void {
+  if (!g) return;
+  drawRingGlyphs(g, layout, q, k, ink, dpr);
+  q.lastK = k;
+}

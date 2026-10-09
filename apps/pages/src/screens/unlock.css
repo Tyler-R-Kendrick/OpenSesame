@@ -1,3 +1,14 @@
+.unlock--lock-v5 {
+  position: relative;
+  overflow: hidden;
+}
+
+.unlock--lock-v5 .unlock__card,
+.unlock--lock-v5 .unlock__notes {
+  position: relative;
+  z-index: 1;
+}
+
 .unlock {
   min-height: 100dvh;
   display: grid;
