@@ -26,7 +26,7 @@ export function UnlockStage({
   vaultUnlocked,
   children,
 }: UnlockStageProps) {
-  const hero = useUnlockHeroLayout(paneRef, cardRef);
+  const hero = useUnlockHeroLayout(paneRef, cardRef, notesRef);
   return (
     <div className="unlock unlock--lock-v5" ref={paneRef}>
       <UnlockLockV5

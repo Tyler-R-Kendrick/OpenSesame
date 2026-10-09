@@ -33,9 +33,15 @@ import {
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
-import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
+import {
+  lockVault,
+  openSection,
+  sealLocalOnly,
+  unlockWithPin,
+} from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
+import { checkUnlockHero } from "./lib/unlock-hero-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
 import { checkWordmark } from "./lib/wordmark-contract.mjs";
 
@@ -87,6 +93,12 @@ const browser = await launch();
     "the local seal landed inside the app",
   );
   check(!/Claim this guest session/.test(inApp), "no claim notice");
+  // Lock-v5 hero: inside the left column (≥24px from the notes divider) and
+  // non-zero ink in both themes (desktop dark used to stay blank after flip).
+  setStep("B-unlock-hero");
+  await lockVault(page);
+  await checkUnlockHero(page, check);
+  await unlockWithPin(page);
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
   // What this installation carries, and how it changes (ADR 0130). This runs
