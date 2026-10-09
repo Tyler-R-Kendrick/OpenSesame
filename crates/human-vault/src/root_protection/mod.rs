@@ -65,3 +65,7 @@ mod native_factor_producer_tests;
 #[cfg(unix)]
 #[path = "../unix_private_files.rs"]
 pub mod unix_private_files;
+
+#[cfg(windows)]
+#[path = "../windows_private_files.rs"]
+pub mod windows_private_files;
