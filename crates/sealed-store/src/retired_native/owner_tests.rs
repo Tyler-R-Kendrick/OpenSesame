@@ -6,6 +6,8 @@ use opensesame_human_vault::root_protection::{
 };
 use opensesame_human_vault::wrap_vrk_with_password;
 use std::fs;
+#[cfg(unix)]
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 
 const PASSWORD: &[u8] = b"actual native private owner credential";
