@@ -308,12 +308,17 @@ describe("the codes' keys", () => {
 });
 
 describe("policies and endings", () => {
-  it("under `use`, copies but never reveals", async () => {
+  it("under `use`, neither reveals nor hands the secret over to copy", async () => {
     const r = await room({ policy: "use" });
     const g = guest(r, r.host.code);
     await pair(r, g);
     expect(await g.request("reveal", "item-1", "password")).toBeNull();
-    expect(await g.request("copy", "item-1", "password")).toBe(SECRET_VALUE);
+    expect(await g.request("copy", "item-1", "password")).toBeNull();
+    expect(JSON.stringify(g.status)).not.toContain(SECRET_VALUE);
+    expect(r.host.state.log.map((entry) => entry.what)).toEqual([
+      "denied",
+      "denied",
+    ]);
   });
 
   it("an open session asks for no code and answers at once", async () => {
