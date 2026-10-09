@@ -26,9 +26,8 @@ import { persistedRestoreRefuses } from "../document-lifecycle.js";
 import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
-import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
-import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
+import { LiveHost } from "./host.js";
 import type { HostState } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
@@ -42,17 +41,13 @@ import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import {
   guestCarriersFor,
-  hostRoutes,
   openCarriers,
   poster,
   rtcServers,
 } from "./session-carriers.js";
-import {
-  type CarrierSpec,
-  DIRECT_TRANSPORT,
-  type LiveTransport,
-} from "./transport.js";
-import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
+import { type CarrierSpec, type LiveTransport } from "./transport.js";
+import { type ShareScope } from "./vault-share.js";
+import { buildLiveHost } from "./session-build-host.js";
 
 export const liveSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
@@ -143,48 +138,6 @@ export type HostInput = Readonly<{
   carriers?: CarrierFactory;
 }>;
 
-/** Where an admission asks for a seat's relay, once the carriers are open. */
-type RelaySource = { carriers: Rendezvous | null };
-
-/** The session's host and the routes its link carries, built but not yet live. */
-async function buildHost(
-  input: HostInput,
-  post: (code: string) => void,
-  source: RelaySource,
-) {
-  // The host clamps the lifetime; the catalog states the clamped one.
-  const expiresAt = Math.min(
-    Date.now() + input.minutes * 60_000,
-    Date.now() + MAX_SESSION_MS,
-  );
-  const items = liveSeams.items;
-  const transport = input.transport ?? DIRECT_TRANSPORT;
-  const { secret, routes, own, ice } = await hostRoutes(transport, expiresAt);
-  const next = await LiveHost.start({
-    admission: input.admission,
-    ice,
-    routes,
-    secret,
-    relay: (name) => source.carriers?.seat(name) ?? null,
-    post,
-    expiresAt,
-    catalog: () =>
-      vaultCatalog({
-        title: input.title,
-        policy: input.policy,
-        expiresAt,
-        scope: input.scope,
-        items,
-      }),
-    readField: vaultField({ scope: input.scope, items }),
-    writeField: vaultWrite({ scope: input.scope, items }, (item) =>
-      vaultStore.saveItem(item),
-    ),
-    peers: input.peers,
-  });
-  return { next, routes, own };
-}
-
 function authorityStands(): boolean {
   return host !== null || guest !== null;
 }
@@ -234,7 +187,12 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
   let post: ((code: string) => Promise<void>) | null = null;
   const source: RelaySource = { carriers: null };
   try {
-    const built = await buildHost(input, (code) => void post?.(code), source);
+    const built = await buildLiveHost(
+      input,
+      liveSeams.items,
+      (code) => void post?.(code),
+      source,
+    );
     const made = built.next;
     started = made;
     // A session another start installed while this one was building ends.
