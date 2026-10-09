@@ -2,8 +2,7 @@
 //! binary: after a rotation the store still opens with its passphrase, and the
 //! key file as git history keeps it no longer opens anything in the store.
 
-use std::io::{Read, Write};
-use std::os::unix::io::FromRawFd;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -83,58 +82,32 @@ fn given_a_store_with_an_entry_and_a_document() -> Fixture {
     Fixture { dir, store }
 }
 
-/// A person at a terminal: stdin and stdout are both the slave side of a pty.
-/// Piped `Command` output is the agent shape, and the reveal gate refuses it.
-fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
-    let mut master_fd: libc::c_int = -1;
-    let mut slave_fd: libc::c_int = -1;
-    let opened = unsafe {
-        libc::openpty(
-            &raw mut master_fd,
-            &raw mut slave_fd,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
-    assert_eq!(opened, 0, "openpty");
-    let master = unsafe { std::fs::File::from_raw_fd(master_fd) };
-    let slave = unsafe { std::fs::File::from_raw_fd(slave_fd) };
-    let slave_in = slave.try_clone().expect("dup slave for stdin");
-    let slave_out = slave.try_clone().expect("dup slave for stdout");
-    drop(slave);
+fn shell_single_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
 
-    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+/// A person at a terminal: `script` allocates the pty. Piped `Command::output`
+/// is the agent shape, and the reveal gate refuses it.
+fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
+    let bin = env!("CARGO_BIN_EXE_opensesame");
+    let mut script_cmd = format!("exec {}", shell_single_quote(bin));
+    for arg in args {
+        script_cmd.push(' ');
+        script_cmd.push_str(&shell_single_quote(arg));
+    }
+    script_cmd.push_str(" --path ");
+    script_cmd.push_str(&shell_single_quote(&store.to_string_lossy()));
+
+    let mut command = Command::new("script");
     command
-        .args(args)
-        .arg("--path")
-        .arg(store)
-        .env("OPENSESAME_STORE_PASSWORD", password)
-        .stdin(Stdio::from(slave_in))
-        .stdout(Stdio::from(slave_out))
-        .stderr(Stdio::piped());
+        .args(["-q", "-e", "-c", &script_cmd, "/dev/null"])
+        .env("OPENSESAME_STORE_PASSWORD", password);
     opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
         &mut command,
     );
-    let mut child = command.spawn().expect("failed to run the opensesame binary");
-    let stdout_thread = std::thread::spawn(move || {
-        let mut master = master;
-        let mut buf = Vec::new();
-        let _ = master.read_to_end(&mut buf);
-        buf
-    });
-    let mut stderr_pipe = child.stderr.take().expect("stderr");
-    let stderr_thread = std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = stderr_pipe.read_to_end(&mut buf);
-        buf
-    });
-    let status = child.wait().expect("wait for opensesame");
-    Output {
-        status,
-        stdout: stdout_thread.join().expect("stdout thread"),
-        stderr: stderr_thread.join().expect("stderr thread"),
-    }
+    command
+        .output()
+        .expect("failed to run opensesame under a pty")
 }
 
 fn shows(store: &Path, password: &str) -> Option<String> {
