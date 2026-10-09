@@ -31,7 +31,21 @@ error_count() {
 }
 
 kimi_ok() {
-  timeout 60 kimi -p 'reply ok' 2>&1 | grep -qiE '5-hour usage limit|provider\.auth_error:\s*403|kimi quota or rate limit' && return 1
+  local out
+  out="$(mktemp /tmp/deepsec-kimi-ok-probe.XXXXXX.log)"
+  set +e
+  timeout 90 kimi -p 'reply ok' >"$out" 2>&1
+  local ec=$?
+  set -e
+  if grep -qiE '5-hour usage limit|provider\.auth_error:\s*403|kimi quota or rate limit' "$out"; then
+    rm -f "$out"
+    return 1
+  fi
+  if [[ "$ec" -ne 0 ]]; then
+    rm -f "$out"
+    return 1
+  fi
+  rm -f "$out"
   return 0
 }
 
