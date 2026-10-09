@@ -4,9 +4,9 @@ import {
 } from "./deepsec-headless-agent-prompts.js";
 import {
   MAX_ATTEMPTS,
-  modelFromConfig,
   type RunPromptParams,
   type TriageParams,
+  modelFromConfig,
 } from "./deepsec-headless-agent-types.js";
 
 export async function* runHeadlessTriage(

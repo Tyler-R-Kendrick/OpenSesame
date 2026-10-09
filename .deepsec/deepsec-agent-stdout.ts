@@ -20,10 +20,7 @@ function collectTextFromParsedObject(obj: Record<string, unknown>): string[] {
   return texts;
 }
 
-function parseAgentStdoutLine(
-  line: string,
-  authHint?: string,
-): string[] {
+function parseAgentStdoutLine(line: string, authHint?: string): string[] {
   try {
     const obj = JSON.parse(line) as Record<string, unknown>;
     if (obj.type === "error" && typeof obj.message === "string") {
@@ -31,8 +28,7 @@ function parseAgentStdoutLine(
     }
     return collectTextFromParsedObject(obj);
   } catch (e) {
-    if (authHint && e instanceof Error && e.message.includes(authHint))
-      throw e;
+    if (authHint && e instanceof Error && e.message.includes(authHint)) throw e;
     return [];
   }
 }

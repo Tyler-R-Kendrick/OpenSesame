@@ -5,9 +5,9 @@ import {
 import {
   DEEPSEC_SYSTEM_NOTE,
   MAX_ATTEMPTS,
-  modelFromConfig,
   type RevalidateParams,
   type RunPromptParams,
+  modelFromConfig,
 } from "./deepsec-headless-agent-types.js";
 
 export async function* runHeadlessRevalidate(
