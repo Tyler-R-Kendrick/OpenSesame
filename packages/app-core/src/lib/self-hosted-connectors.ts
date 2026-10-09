@@ -11,6 +11,7 @@ import {
   type DeviceConnectorConfiguration,
   saveDeviceConnectorConfigurationDurable,
 } from "./device-connectors.js";
+import { revokeLinearConnector } from "./linear-revoke.js";
 import { selfHostedConfig } from "./self-hosted-config.js";
 import {
   DraftSchema,
@@ -342,6 +343,16 @@ export async function saveSelfHostedConnectorDurable(
 export async function revokeSelfHostedConnectorDurable(
   connectionId: string,
 ): Promise<void> {
+  const row = readDeviceRows().find(
+    (entry) => entry.connectionId === connectionId,
+  );
+  if (
+    row?.providerId === "linear" &&
+    row.fields.linear_authorization !== undefined
+  ) {
+    await revokeLinearConnector(connectionId);
+    return;
+  }
   if (!(await removeDeviceConfigurationDurable(connectionId))) {
     throw new Error("Saved connector not found on this device");
   }

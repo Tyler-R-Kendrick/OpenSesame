@@ -42,6 +42,8 @@ const tryToScriptActiveTab = () =>
 const tryToReachDaemon = () =>
   worker.evaluate(async () => {
     try {
+      // Negative test: the browser must block the loopback daemon without a host grant.
+      // nosemgrep: typescript.react.security.react-insecure-request.react-insecure-request
       await fetch("http://127.0.0.1:18790/v1/fill/pair", {
         method: "POST",
         headers: {

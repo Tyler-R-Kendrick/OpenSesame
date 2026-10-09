@@ -35,20 +35,19 @@ async function createDirectoryRecord(page, panel, tabTo, kind) {
   await expect(create).toBeEnabled();
   await tabTo(page, create);
   await page.keyboard.press("Enter");
-  await expect(
-    panel.getByRole("textbox", { name: "Name", exact: true }),
-  ).toBeFocused();
+  const name = panel.getByRole("textbox", { name: "Name", exact: true });
+  await expect(name).toBeFocused();
   if (kind === "person") {
     await page.keyboard.insertText("invalid\u202ename");
     await page.keyboard.press("Enter");
-    await expectIdentityRefusal(page, tabTo, /without control characters/);
-    await tabTo(
+    await expectIdentityRefusal(
       page,
-      panel.getByRole("textbox", { name: "Name", exact: true }),
+      tabTo,
+      /without control characters/,
+      name,
     );
-    await expect(
-      panel.getByRole("textbox", { name: "Name", exact: true }),
-    ).toBeFocused();
+    await tabTo(page, name);
+    await expect(name).toBeFocused();
     await page.keyboard.press("ControlOrMeta+A");
   }
   await page.keyboard.type(`Keyboard ${kind}`);

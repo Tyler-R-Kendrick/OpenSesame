@@ -757,7 +757,6 @@ describe("IdentitySection", () => {
     await openTab("Providers");
     expect(await screen.findByText("Shoo")).toBeTruthy();
 
-    // Second registration: the ceremony opens from the tab and appends.
     await userEvent.click(firstButton("Register an IdP"));
     await screen.findByText("Connect your identity provider");
     await userEvent.click(
@@ -767,7 +766,6 @@ describe("IdentitySection", () => {
     expect(await screen.findByText(/Sign-in started with Google/)).toBeTruthy();
     expect(listIdpRegistrations()).toHaveLength(3);
 
-    // Third: same path, registry still appends, and the tabs never re-gate.
     await userEvent.click(firstButton("Register an IdP"));
     await screen.findByText("Connect your identity provider");
     await userEvent.click(
@@ -777,7 +775,9 @@ describe("IdentitySection", () => {
     expect(await screen.findByText(/Sign-in started with GitHub/)).toBeTruthy();
     expect(listIdpRegistrations()).toHaveLength(4);
     expect(screen.getByRole("tree", { name: "Providers items" })).toBeTruthy();
-    expect(screen.queryByText("Connect your identity provider")).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByText("Connect your identity provider")).toBeNull(),
+    );
   });
 
   it("keeps every tab within the one-sentence prose budget", async () => {

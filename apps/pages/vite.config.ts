@@ -213,6 +213,9 @@ export default defineConfig({
       // modules into `cap-<capability>` chunks. `main` is always kept.
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        linearRedirect: fileURLToPath(
+          new URL("./auth/linear.html", import.meta.url),
+        ),
         msalRedirect: fileURLToPath(
           new URL("./auth/redirect.html", import.meta.url),
         ),

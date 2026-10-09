@@ -101,6 +101,11 @@ export const SHELL_RULES = [
     "purpose cards, capability cards, review (S09)",
   ),
   optional(
+    "auth/linear",
+    "connectors.external",
+    "Linear public PKCE return document",
+  ),
+  optional(
     "auth/",
     "identity.ambient-sso",
     "MSAL redirect bridge HTML entry + script",

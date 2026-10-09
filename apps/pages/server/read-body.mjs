@@ -4,6 +4,9 @@
  * dropped before JSON parsing or any secret, manage-key, or origin check.
  */
 
+import { isGeneratorFunction } from "node:util/types";
+import { isFunction, isString } from "./json-boundary.mjs";
+
 export const MAX_INBOUND_BODY_BYTES = 5 * 1024 * 1024;
 
 export class PayloadTooLargeError extends Error {
@@ -19,7 +22,11 @@ export function isPayloadTooLarge(error) {
 }
 
 function asBuffer(chunk) {
-  return typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+  return isString(chunk) ? Buffer.from(chunk) : chunk;
+}
+
+function isRequestMethod(value) {
+  return isFunction(value) || isGeneratorFunction(value);
 }
 
 function withinCeiling(raw) {
@@ -38,7 +45,7 @@ function readEvents(req) {
       if (failed) return;
       failed = true;
       chunks.length = 0;
-      if (typeof req.destroy === "function") req.destroy();
+      if (isRequestMethod(req.destroy)) req.destroy();
       reject(error);
     };
     req.on("data", (chunk) => {
@@ -69,7 +76,7 @@ async function readAsync(req) {
       size += buf.length;
       if (size > MAX_INBOUND_BODY_BYTES) {
         chunks.length = 0;
-        if (typeof req.destroy === "function") req.destroy();
+        if (isRequestMethod(req.destroy)) req.destroy();
         throw new PayloadTooLargeError();
       }
       chunks.push(buf);
@@ -83,7 +90,7 @@ async function readAsync(req) {
 
 /** Read a UTF-8 body, or reject with {@link PayloadTooLargeError}. */
 export function readRawBody(req) {
-  if (typeof req.body === "string") {
+  if (isString(req.body)) {
     return Promise.resolve().then(() => withinCeiling(req.body));
   }
   if (Buffer.isBuffer(req.body)) {
@@ -91,8 +98,8 @@ export function readRawBody(req) {
       withinCeiling(req.body.toString("utf8")),
     );
   }
-  if (req && typeof req.on === "function") return readEvents(req);
-  if (req && typeof req[Symbol.asyncIterator] === "function") {
+  if (req && isRequestMethod(req.on)) return readEvents(req);
+  if (req && isRequestMethod(req[Symbol.asyncIterator])) {
     return readAsync(req);
   }
   return Promise.resolve("");

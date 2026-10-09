@@ -203,9 +203,7 @@ async fn load(
     )
     .map_err(refusal)?;
     if attachment == Attachment::View {
-        if let Err(response) = stream_authority::ensure_view_authority(st, headers).await {
-            return Err(response);
-        }
+        stream_authority::ensure_view_authority(st, headers).await?;
     }
     Ok((who, organization_id, run))
 }

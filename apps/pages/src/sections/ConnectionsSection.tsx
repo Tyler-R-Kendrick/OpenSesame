@@ -40,6 +40,7 @@ import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
+import { useLinearCallback } from "./connections/connect/useLinearCallback.js";
 import { useScopedState } from "./connections/use-scoped-state.js";
 import { useFlashNotice } from "./connections/useFlashNotice.js";
 import "./connections.css";
@@ -52,8 +53,8 @@ export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
   const { hash, search } = useLocation();
   const online = useOnline();
-  // Live connections go through Vercel Connect. The catalog below is
-  // embedded and stays browsable with no backend at all (ADR 0090).
+  // Device connections and imported hosted connections share this list.
+  // The embedded catalog stays browsable offline (ADR 0090).
   const connectConfigured = useVercelConnectConfigured();
   const session = useIdentitySession();
   const { tomb } = useVault();
@@ -177,6 +178,8 @@ export function ConnectionsSection() {
       if (connectionRun.current === id) setLoading(false);
     }
   }, []);
+
+  useLinearCallback(search, loadConnections, setFlash);
 
   // Re-run after Identity changes because the catalog can differ per session.
   // biome-ignore lint/correctness/useExhaustiveDependencies: session is the retry trigger.

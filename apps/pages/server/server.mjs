@@ -17,6 +17,7 @@ import {
   handleGithubAppInstallations,
   handleGithubAppLookup,
 } from "./github-app.mjs";
+import { isString } from "./json-boundary.mjs";
 import { handleManage, readJsonBody, readRawBody } from "./manage.mjs";
 import { isPayloadTooLarge } from "./read-body.mjs";
 
@@ -233,7 +234,7 @@ export function handleRelayRequest(req, res) {
 const server = createServer(handleRelayRequest);
 
 if (
-  typeof process.argv[1] === "string" &&
+  isString(process.argv[1]) &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   server.listen(port, host, () => {

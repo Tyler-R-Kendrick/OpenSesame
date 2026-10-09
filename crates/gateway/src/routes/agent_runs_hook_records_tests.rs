@@ -137,8 +137,7 @@ async fn hook_records_honor_the_role_evidence_fence() {
     let auth_time = claims.auth_time.timestamp();
     for sql in [
         format!(
-            "UPDATE config_authorization_roles SET evidence_after={} WHERE organization_id=? AND principal_id=?",
-            auth_time
+            "UPDATE config_authorization_roles SET evidence_after={auth_time} WHERE organization_id=? AND principal_id=?"
         ),
         "UPDATE config_authorization_roles SET role=NULL WHERE organization_id=? AND principal_id=?"
             .into(),
