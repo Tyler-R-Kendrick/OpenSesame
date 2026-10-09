@@ -6,7 +6,7 @@ import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settin
 import type { PendingShare } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import type { LocalShare } from "@opensesame/app-core/lib/local-share-grants.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { ConnectorMark } from "../connections/ConnectorMark.js";
+import { AccessDetail, AccessFact } from "./AccessRecords.js";
 import { ConnectorBindForm } from "./ConnectorBindForm.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { RowActions } from "./connector-row-actions.js";
@@ -90,33 +90,31 @@ export function ConnectorRowItem({
 }: ConnectorRowItemProps) {
   const displayName = setting.alias || row.name;
   return (
-    <li className="identity-row">
-      <div className="identity-row__main">
-        <ConnectorMark
-          providerId={row.providerId}
-          displayName={displayName}
-          size={32}
-        />
-        <div className="identity-row__id">
-          <h3>{displayName}</h3>
-          <code className="identity-ref">{row.detail}</code>
-        </div>
-        <RowChips
-          row={row}
-          setting={setting}
-          bindings={bindings}
-          showSource={showSource}
-        />
-        {binding || configuring ? null : (
-          <RowActions
+    <AccessDetail
+      title={displayName}
+      kind="Connector access"
+      actions={
+        <>
+          <RowChips
             row={row}
             setting={setting}
-            busy={busy}
-            onOpenBind={onOpenBind}
-            onOpenSettings={onOpenSettings}
+            bindings={bindings}
+            showSource={showSource}
           />
-        )}
-      </div>
+          {binding || configuring ? null : (
+            <RowActions
+              row={row}
+              setting={setting}
+              busy={busy}
+              onOpenBind={onOpenBind}
+              onOpenSettings={onOpenSettings}
+            />
+          )}
+        </>
+      }
+    >
+      <AccessFact label="Connection" value={row.detail} />
+      <AccessFact label="Reference" value={row.id} />
       {binding ? (
         <ConnectorBindForm
           connector={displayName}
@@ -154,6 +152,6 @@ export function ConnectorRowItem({
         onApprove={onApprove}
         onDeny={onDeny}
       />
-    </li>
+    </AccessDetail>
   );
 }

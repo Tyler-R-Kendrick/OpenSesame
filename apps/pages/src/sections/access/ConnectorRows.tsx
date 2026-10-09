@@ -44,7 +44,7 @@ export function ConnectorRows({
 }) {
   if (rows.length === 0) return null;
   return (
-    <ul className="identity-rows" aria-label="Connector access">
+    <section aria-label="Connector access">
       {rows.map((row) => (
         <ConnectorRowItem
           key={row.id}
@@ -68,6 +68,6 @@ export function ConnectorRows({
           onDeny={(id) => void state.deny(id)}
         />
       ))}
-    </ul>
+    </section>
   );
 }

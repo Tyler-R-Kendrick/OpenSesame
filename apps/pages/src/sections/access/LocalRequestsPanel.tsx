@@ -1,18 +1,9 @@
 import "./local-authority.css";
 import type { InboxStatusFilter } from "@opensesame/app-core/lib/configuration/inbox-triage.js";
-import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconPlus, IconRefresh } from "../../components/Icons.js";
-import { LocalRequestForm } from "./LocalRequestForm.js";
-import {
-  AccessRequestDecision,
-  AccessRequestRows,
-  useRequestSelection,
-} from "./local-access-request-inbox.js";
-import {
-  PendingGrantDecision,
-  PendingGrantRows,
-} from "./local-pending-grant-inbox.js";
+import { useRequestSelection } from "./local-access-request-inbox.js";
+import { LocalRequestsBody } from "./local-requests-body.js";
 import { useLocalRequestsInboxUi } from "./use-local-requests-inbox-ui.js";
 import { useLocalRequests } from "./useLocalRequests.js";
 
@@ -81,65 +72,14 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           </IconKey>
         </div>
       </div>
-      <div className="panel__body">
-        <FailureNotice
-          id="access:requests"
-          title="Requests"
-          message={model.error}
-        />
-        <output>{model.message}</output>
-        {creating && model.data ? (
-          <LocalRequestForm
-            tomb={tomb}
-            directory={model.data.directory}
-            applications={model.data.applications}
-            busy={ui.disabled}
-            run={model.run}
-            close={close}
-          />
-        ) : null}
-        {selected && model.data ? (
-          <AccessRequestDecision
-            key={selected.id}
-            tomb={tomb}
-            row={selected}
-            directory={model.data.directory}
-            busy={ui.disabled}
-            run={model.run}
-            close={close}
-          />
-        ) : null}
-        {ui.selectedGrant && model.data ? (
-          <PendingGrantDecision
-            key={ui.selectedGrant.id}
-            tomb={tomb}
-            pending={ui.selectedGrant}
-            directory={model.data.directory}
-            busy={ui.disabled}
-            run={model.run}
-            close={ui.closeGrant}
-          />
-        ) : null}
-        {model.data ? (
-          <>
-            <PendingGrantRows
-              grants={model.data.pendingGrants}
-              directory={model.data.directory}
-              filter={ui.statusFilter}
-              disabled={ui.listDisabled}
-              select={(row, button) => ui.selectGrant(row.id, button)}
-            />
-            <AccessRequestRows
-              data={model.data}
-              filter={ui.statusFilter}
-              disabled={ui.listDisabled}
-              select={(row, button) => ui.selectRequest(row.id, button)}
-            />
-          </>
-        ) : !model.error ? (
-          <output>Loading local requests…</output>
-        ) : null}
-      </div>
+      <LocalRequestsBody
+        tomb={tomb}
+        model={model}
+        ui={ui}
+        creating={creating}
+        selected={selected}
+        close={close}
+      />
     </section>
   );
 }
