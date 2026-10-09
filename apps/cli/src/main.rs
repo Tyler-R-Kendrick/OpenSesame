@@ -158,6 +158,11 @@ enum Commands {
         #[command(subcommand)]
         cmd: serve::WorkerCmd,
     },
+    /// Serve the optional vault-relay peer (ADR 0181). Host/daemon stay available.
+    Relay {
+        #[command(subcommand)]
+        cmd: serve::RelayCmd,
+    },
     /// Link or run the helper programs this binary also answers as.
     Helpers {
         #[command(subcommand)]
@@ -891,6 +896,7 @@ async fn real_main() -> anyhow::Result<()> {
         Commands::Daemon(args) => daemon_cmd::run(args).await?,
         Commands::Host { cmd } => serve::host(cmd).await?,
         Commands::Worker { cmd } => serve::worker(cmd).await?,
+        Commands::Relay { cmd } => serve::relay(cmd).await?,
         Commands::Helpers { cmd } => entry::helpers(cmd)?,
         Commands::Plugins { cmd } => plugins::run(&cli.output, cmd).await?,
         Commands::Security { cmd } => security::run(&cli.server, &cli.output, cmd).await?,

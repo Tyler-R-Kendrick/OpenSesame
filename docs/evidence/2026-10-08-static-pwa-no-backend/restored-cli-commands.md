@@ -38,8 +38,7 @@ optional ADR 0181 vault-relay peer beside them.
 | `relay run` | Optional vault-relay peer (ADR 0181) |
 | `vault pass …` | Git-native sealed password store (`pass` parity) |
 | `vault verify` / `ls` / `inspect` / `migrate` | Pages vault export / offline backup file |
-| `ceremony list` / `show` | Compiled connector ceremony catalog |
-| `rotate recipe sign`, `rotate signer keygen` | Local Ed25519 web-login recipe signing |
+| `ceremony` / `rotate` (under `access connectors`) | Host-backed connector ceremonies and web-login rotate recipes |
 | `bridge …` | Password-manager bridges (feature-gated, ADR 0053) |
 | `plugins …` | Runtime plugin install / enable (ADR 0150) |
 | `hooks intercept` / `check` | Agent-hooks interceptor (ADR 0159) |

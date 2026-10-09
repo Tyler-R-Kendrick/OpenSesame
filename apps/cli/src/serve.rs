@@ -1,6 +1,7 @@
 //! The long-running roles of this binary: the Host API (`opensesame host run`),
-//! the local agent daemon (`opensesame daemon run`) and the workload connector
-//! host (`opensesame worker run`). One binary serves every native role; the
+//! the local agent daemon (`opensesame daemon run`), the workload connector
+//! host (`opensesame worker run`), and the optional vault-relay peer
+//! (`opensesame relay run`, ADR 0181). One binary serves every native role; the
 //! role is the subcommand, not a separate executable (ADR 0138).
 use crate::Commands;
 use clap::Subcommand;
@@ -20,6 +21,13 @@ pub enum WorkerCmd {
     Run(Box<opensesame_worker::Args>),
 }
 
+/// `opensesame relay` — optional vault-relay peer beside Host (ADR 0181).
+#[derive(Subcommand, Debug)]
+pub enum RelayCmd {
+    /// Serve the optional vault-relay peer until it is stopped.
+    Run(Box<opensesame_gateway::Args>),
+}
+
 pub async fn host(cmd: HostCmd) -> anyhow::Result<()> {
     match cmd {
         HostCmd::Run(args) => opensesame_gateway::run(*args).await,
@@ -29,6 +37,12 @@ pub async fn host(cmd: HostCmd) -> anyhow::Result<()> {
 pub async fn worker(cmd: WorkerCmd) -> anyhow::Result<()> {
     match cmd {
         WorkerCmd::Run(args) => opensesame_worker::run(*args).await,
+    }
+}
+
+pub async fn relay(cmd: RelayCmd) -> anyhow::Result<()> {
+    match cmd {
+        RelayCmd::Run(args) => opensesame_gateway::run(*args).await,
     }
 }
 
@@ -43,7 +57,7 @@ pub async fn worker(cmd: WorkerCmd) -> anyhow::Result<()> {
 /// instead of written to stdout.
 pub fn init_tracing(command: &Commands) {
     match command {
-        Commands::Host { .. } => init_host(),
+        Commands::Host { .. } | Commands::Relay { .. } => init_host(),
         Commands::Worker { .. } => init_text(),
         Commands::Daemon(args) if args.is_run() => init_text(),
         _ => tracing_subscriber::fmt()
