@@ -73,17 +73,19 @@ async function noteBodyRev(
   header: VaultHeader | null,
   rev: number,
   check: () => void,
-  strictCompletion: boolean,
+  deferPublication: boolean,
 ): Promise<VaultHeader | null> {
   check();
   if (!header || (header.bodyRev ?? 0) >= rev) return header;
   const next: VaultHeader = { ...header, bodyRev: rev };
+  // The root turn publishes its complete HEADER after the new BODY/wrap.
+  // Keep intermediate revision witnesses in memory until that publication.
+  if (deferPublication) return next;
   try {
     await writePlaintextFile(tomb, HEADER_PATH, JSON.stringify(next), check);
     check();
-  } catch (error) {
+  } catch {
     check();
-    if (strictCompletion) throw error;
     // The body is safely stored; only the rollback witness is behind. Losing
     // it costs detection, not data, and the next write will catch it up.
     return header;
