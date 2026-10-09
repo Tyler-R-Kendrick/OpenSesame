@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - '.github/workflows/native-platform-validation.yml'
+      - 'scripts/audit/native-windows-stack.mjs'
+      - 'scripts/lib/native-windows-stack-report.mjs'
       - 'crates/**'
       - 'apps/cli/**'
       - 'Cargo.toml'
@@ -207,10 +209,12 @@ jobs:
           set -euo pipefail
           cargo +1.88.0 fmt --all -- --check 2>&1 | tee "$NATIVE_AUDIT_DIR/format.log"
       - name: Exercise actual CLI startup before command journeys
+        id: startup
         run: |
           set -euo pipefail
           cargo +1.88.0 test --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --test entry_startup -- --nocapture 2>&1 | tee "$NATIVE_AUDIT_DIR/startup.log"
       - name: Execute actual cli tests on this host
+        id: journeys
         run: |
           set -euo pipefail
           cargo +1.88.0 test --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --all-targets -- --nocapture 2>&1 | tee "$NATIVE_AUDIT_DIR/tests.log"
@@ -218,6 +222,12 @@ jobs:
         run: |
           set -euo pipefail
           cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --all-targets -- -D warnings 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
+      - name: Inspect the actual Windows executable after a failed CLI journey
+        if: ${{ failure() && matrix.platform == 'Windows' && (steps.startup.outcome == 'failure' || steps.journeys.outcome == 'failure') }}
+        run: |
+          set -euo pipefail
+          rustup component add llvm-tools-preview --toolchain 1.88.0
+          node scripts/audit/native-windows-stack.mjs
       - name: Recheck the original source after success or failure
         if: always()
         run: |
