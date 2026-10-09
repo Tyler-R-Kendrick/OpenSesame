@@ -23,9 +23,9 @@ fn fixture(legacy: bool, payload: &[u8]) -> Vec<u8> {
     } else {
         // Independently construct the documented original Node envelope with actual crypto.
         let binding = serde_json::to_vec(&["opensesame.at-rest.v2", "origin-file", name]).unwrap();
-        let mut kek = [0u8; 32];
+        let mut wrapping_secret = [0u8; 32];
         Hkdf::<Sha256>::new(Some(b"opensesame.at-rest.v2.kek"), &key)
-            .expand(&binding, &mut kek)
+            .expand(&binding, &mut wrapping_secret)
             .unwrap();
         let dek = [71u8; 32];
         let wrap_nonce = [51u8; 24];
@@ -34,7 +34,7 @@ fn fixture(legacy: bool, payload: &[u8]) -> Vec<u8> {
             serde_json::to_vec(&["osr2", "wrap", &URL_SAFE_NO_PAD.encode(&binding)]).unwrap();
         let data_aad =
             serde_json::to_vec(&["osr2", "data", &URL_SAFE_NO_PAD.encode(&binding)]).unwrap();
-        let wrapper = XChaCha20Poly1305::new_from_slice(&kek).unwrap();
+        let wrapper = XChaCha20Poly1305::new_from_slice(&wrapping_secret).unwrap();
         let cipher = XChaCha20Poly1305::new_from_slice(&dek).unwrap();
         let mut bytes = wrap_nonce.to_vec();
         bytes.extend(
