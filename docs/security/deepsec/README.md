@@ -5,21 +5,25 @@ re-run export after rescan/triage.
 
 | Field | Value |
 | --- | --- |
-| Exported (UTC) | 2026-10-09T18:38:57.471Z |
+| Exported (UTC) | 2026-10-09T18:52:23.174Z |
 | Agent | `kimi` |
 | Model | `kimi-code/k3` |
-| Queue | 0 findings |
+| Queue | 1 findings |
 | False positives | 0 |
 
 ## Scan coverage (process status)
 
-| Area | Analyzed | Pending | Error | Skipped | Candidates |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| core | 1357 | 0 | 0 | 0 | 2365 |
-| pwa | 403 | 0 | 0 | 0 | 529 |
-| cli | 13 | 0 | 0 | 0 | 51 |
+| Area | Analyzed | Pending | Error | Skipped | Candidates | Findings | Cleared† |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| core | 1 | 0 | 0 | 1356 | 2365 | 1 | 0 |
+| pwa | 0 | 0 | 0 | 403 | 529 | 0 | 0 |
+| cli | 0 | 0 | 0 | 13 | 51 | 0 | 0 |
 
-| other (outside core/pwa/cli) | 117 | 0 | 0 | 0 | 182 |
+
+
+† **Cleared** = analyzed files that still had scanner candidates but Kimi promoted zero findings (dismissed at investigate).
+
+> **Investigate wave 2 in progress:** 4/1890 files re-investigated with the fixed Kimi JSON schema. Severity/verdict/triage counts below reflect **persisted findings only**; most files still show empty `findings[]` from the earlier unparsed wave until wave 2 finishes (`scripts/audit/deepsec-grok-reinvestigate-wave.sh`).
 
 
 
@@ -28,19 +32,19 @@ re-run export after rescan/triage.
 
 | P0 | P1 | P2 | skip |
 | ---: | ---: | ---: | ---: |
-| 0 | 0 | 0 | 0 |
+| 0 | 0 | 1 | 0 |
 
 ## Severity (all rows)
 
 | Severity | Count |
 | --- | ---: |
-
+| LOW | 1 |
 
 ## Verdict
 
 | Verdict | Count |
 | --- | ---: |
-
+| true-positive | 1 |
 
 ## Files
 
