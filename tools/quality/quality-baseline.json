@@ -6,6 +6,20 @@
     "Do not hand-edit, and do not raise a number to make the gate pass.",
     "max-lines records the file's line count; every other rule counts occurrences."
   ],
+  "thresholds": {
+    "max-lines": 400,
+    "max-lines-per-function": 100,
+    "complexity": 15,
+    "max-params": 7,
+    "max-depth": 4,
+    "max-nested-callbacks": 4,
+    "max-statements": 40
+  },
+  "totals": {
+    "files": 422,
+    "violations": 649,
+    "oversizedLines": 214631
+  },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
@@ -27,9 +41,6 @@
     },
     "apps/cli/src/store.rs": {
       "max-lines": 945
-    },
-    "apps/pages/scripts/lib/j-app-recipe-journey.mjs": {
-      "max-statements": 1
     },
     "apps/pages/server/github-app.mjs": {
       "complexity": 3,
@@ -124,11 +135,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 816
+      "max-lines": 815
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
-      "max-lines": 1920,
-      "max-lines-per-function": 8
+      "max-lines": 804,
+      "max-lines-per-function": 2
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
       "complexity": 1
@@ -140,9 +151,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/ConnectorBindForm.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/access/LocalRequestsPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/LocalSharePanel.tsx": {
@@ -200,12 +208,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/wallet/PassesPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
@@ -986,7 +988,7 @@
     },
     "packages/control-plane/src/routes/organizations.ts": {
       "complexity": 1,
-      "max-lines": 954
+      "max-lines": 873
     },
     "packages/control-plane/src/routes/principals.ts": {
       "complexity": 2,
@@ -1443,19 +1445,5 @@
     "tools/oxlint/anti-slop/shared/reflect-method.ts": {
       "complexity": 1
     }
-  },
-  "thresholds": {
-    "complexity": 15,
-    "max-depth": 4,
-    "max-lines": 400,
-    "max-lines-per-function": 100,
-    "max-nested-callbacks": 4,
-    "max-params": 7,
-    "max-statements": 40
-  },
-  "totals": {
-    "files": 426,
-    "oversizedLines": 215848,
-    "violations": 659
   }
 }
