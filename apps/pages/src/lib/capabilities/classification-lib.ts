@@ -238,4 +238,3 @@ export const LIB_RULES = [
   ...VAULT_RELAY_RULES,
   ...LIB_CEREMONY_RULES,
 ];
-
