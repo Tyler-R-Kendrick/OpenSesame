@@ -124,9 +124,13 @@ async function startup(browser) {
   setStep("drop-claim");
   await page.goto(`${origin}${base}claim`, { waitUntil: "networkidle" });
   await expect(
-    page.getByRole("heading", { level: 1, name: "Accept a claim" }),
+    page.getByRole("heading", { level: 1, name: "Open a drop" }),
   ).toBeVisible();
-  check(true, "Drop claim: empty device reached the claim ceremony passed");
+  check(
+    !(await page.locator("body").innerText()).includes("Accept a claim"),
+    "Drop receive: no Accept a claim copy",
+  );
+  check(true, "Drop receive: empty device reached Open a drop passed");
   await page.close();
 }
 
