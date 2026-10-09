@@ -131,19 +131,33 @@ describe("runs the runner does not claim", () => {
       if (read > 1) await r.settings.arm(RP, -1);
       return view;
     };
-    const navigate = enqueue(r, "run:1", {
-      step: "navigate",
-      url: `${RP}/x`,
-    });
-    const submit = enqueue(r, "run:1", { step: "submit" }, 50);
-    const report = await r.runner.tick();
-    expect((await navigate)?.outcome).toBe("done");
-    expect(await submit).toBeNull();
-    expect(r.host.claims).toBe(1);
-    expect(report.skipped).toContainEqual({
-      runId: "run:1",
-      reason: "not_armed",
-    });
+    // Dispatch expiry waits for observed runner completion. Keep Date.now real
+    // so the authority arm still expires, and keep vault/page crypto unchanged.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const navigate = enqueue(r, "run:1", {
+        step: "navigate",
+        url: `${RP}/x`,
+      });
+      const submit = enqueue(r, "run:1", { step: "submit" }, 50);
+      const report = await r.runner.tick();
+      expect((await navigate)?.outcome).toBe("done");
+      expect(r.host.claims).toBe(1);
+      expect(report.settled).toBe(1);
+      expect(await r.settings.isArmed(RP)).toBe(false);
+      expect(r.host.settled.map((row) => row.request.step)).toEqual([
+        "navigate",
+      ]);
+      expect(report.skipped).toContainEqual({
+        runId: "run:1",
+        reason: "not_armed",
+      });
+      await vi.advanceTimersByTimeAsync(50);
+      expect(await submit).toBeNull();
+      expect(r.host.claims).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("an arm that ran out drives nothing and gives its grant back", async () => {
@@ -264,13 +278,28 @@ describe("steps the runner will not run", () => {
   it("a ceremony capture is answered as a failure, never as something sealed", async () => {
     const r = await rig();
     r.host.openRun("run:1", RP);
-    const pending = enqueue(r, "run:1", {
-      step: "capture_credential",
-      slot: "client_secret",
-      selector: "#secret",
-      recipient: "host-key",
-    });
-    await r.runner.tick();
-    expect(await pending).toEqual({ outcome: "failed", error: "transport" });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const pending = enqueue(r, "run:1", {
+        step: "capture_credential",
+        slot: "client_secret",
+        selector: "#secret",
+        recipient: "host-key",
+      });
+      const ticking = r.runner.tick();
+      expect(await pending).toEqual({ outcome: "failed", error: "transport" });
+      // Stop after the observed settlement, rather than racing a dispatch
+      // deadline against real encryption and the runner's idle polling.
+      r.host.handOff("run:1");
+      const report = await ticking;
+      expect(report.settled).toBe(1);
+      expect(r.host.claims).toBe(1);
+      expect(r.host.settled.map((row) => row.request.step)).toEqual([
+        "capture_credential",
+      ]);
+      expect(r.host.blobs.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
