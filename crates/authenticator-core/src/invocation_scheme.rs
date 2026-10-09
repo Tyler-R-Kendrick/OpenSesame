@@ -1,5 +1,7 @@
-use super::{AuthenticatorError, InvocationPolicy};
 use url::Url;
+
+use crate::request_host::host_is_private;
+use crate::{single_value, AuthenticatorError, InvocationPolicy};
 
 impl InvocationPolicy {
     /// Custom-scheme OID4VCI entry points must carry only a by-reference offer URI.
@@ -35,15 +37,11 @@ impl InvocationPolicy {
         if !matches!(url.scheme(), "openid4vp" | "haip-vp" | "mdoc") {
             return Err(AuthenticatorError::UnsupportedInvocation);
         }
-        self.validate_scheme_request_uri_only(
-            &url,
-            "request_uri",
-            &["openid4vp", "haip-vp", "mdoc"],
-        )?;
+        self.validate_scheme_request_uri_only(&url, "request_uri", &["openid4vp", "haip-vp", "mdoc"])?;
         Ok(raw.to_owned())
     }
 
-    pub(super) fn validate_scheme_request_uri_only(
+    fn validate_scheme_request_uri_only(
         &self,
         url: &Url,
         uri_key: &str,
@@ -70,7 +68,7 @@ impl InvocationPolicy {
         }) {
             return Err(AuthenticatorError::ForbiddenInvocationParameter);
         }
-        let request_uri = crate::single_value(&pairs, uri_key)?;
+        let request_uri = single_value(&pairs, uri_key)?;
         if pairs.iter().any(|(key, _)| key.as_ref() != uri_key) {
             return Err(AuthenticatorError::ForbiddenInvocationParameter);
         }
@@ -79,5 +77,19 @@ impl InvocationPolicy {
         };
         self.validate_request_uri(request_uri_value)?;
         Ok(())
+    }
+
+    pub(crate) fn validate_request_uri(&self, raw: &str) -> Result<Url, AuthenticatorError> {
+        let uri = Url::parse(raw).map_err(|_| AuthenticatorError::InvalidInvocationPayloadValue)?;
+        if uri.scheme() != "https" || uri.host_str().is_none() {
+            return Err(AuthenticatorError::InsecureRequestUri);
+        }
+        if !uri.username().is_empty() || uri.password().is_some() || uri.fragment().is_some() {
+            return Err(AuthenticatorError::InvalidInvocationPayloadValue);
+        }
+        if !self.allow_private_request_uris && host_is_private(&uri) {
+            return Err(AuthenticatorError::PrivateRequestUri);
+        }
+        Ok(uri)
     }
 }
