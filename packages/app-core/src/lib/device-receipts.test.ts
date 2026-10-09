@@ -51,6 +51,7 @@ const KINDS = [
   "siop.denied",
   "drop.opened",
   "drop.expired",
+  "drop.locked_out",
   "drop.revoked",
   "live.granted",
   "share.granted",
@@ -79,7 +80,7 @@ describe("the decisions a receipt can record", () => {
     }
     expect(
       [...byType.values()].filter((value) => value === "denied"),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
   });
 });
 
