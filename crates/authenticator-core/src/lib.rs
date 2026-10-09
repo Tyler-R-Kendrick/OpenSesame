@@ -12,7 +12,6 @@ use thiserror::Error;
 use url::Url;
 
 mod request_host;
-use request_host::host_is_private;
 
 mod invocation_scheme;
 
@@ -292,20 +291,6 @@ impl InvocationPolicy {
 
         Ok(VerifiedInvocation { kind, payload })
     }
-
-    fn validate_request_uri(&self, raw: &str) -> Result<Url, AuthenticatorError> {
-        let uri = Url::parse(raw).map_err(|_| AuthenticatorError::InvalidInvocationPayloadValue)?;
-        if uri.scheme() != "https" || uri.host_str().is_none() {
-            return Err(AuthenticatorError::InsecureRequestUri);
-        }
-        if !uri.username().is_empty() || uri.password().is_some() || uri.fragment().is_some() {
-            return Err(AuthenticatorError::InvalidInvocationPayloadValue);
-        }
-        if !self.allow_private_request_uris && host_is_private(&uri) {
-            return Err(AuthenticatorError::PrivateRequestUri);
-        }
-        Ok(uri)
-    }
 }
 
 /// Enforce a fresh platform prompt for every provider or wallet operation.
@@ -357,46 +342,5 @@ fn validate_handle(raw: &str, max_len: usize) -> Result<String, AuthenticatorErr
 }
 
 #[cfg(test)]
-#[path = "invocation_scheme_tests.rs"]
-mod invocation_scheme_tests;
-
-#[cfg(test)]
-#[path = "invocation_link_tests.rs"]
-mod invocation_link_tests;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn policy() -> InvocationPolicy {
-        InvocationPolicy::new("https://auth.opensesame.example").unwrap()
-    }
-
-    #[test]
-    fn accepts_only_verified_secret_free_links() {
-        let request = policy()
-            .validate_link("https://auth.opensesame.example/invoke/mfa?request_id=req_123")
-            .unwrap();
-        assert_eq!(request.kind, InvocationKind::MfaApproval);
-        assert_eq!(
-            request.payload,
-            InvocationPayload::RequestId("req_123".into())
-        );
-
-        assert_eq!(
-            policy().validate_link("https://evil.example/invoke/mfa?request_id=req_123"),
-            Err(AuthenticatorError::UnverifiedInvocationOrigin)
-        );
-        assert_eq!(
-            policy()
-                .validate_link("https://auth.opensesame.example/invoke/oid4vp?request_id=req_123"),
-            Err(AuthenticatorError::InvalidInvocationPayload)
-        );
-        assert_eq!(
-            policy().validate_link(
-                "https://auth.opensesame.example/invoke/oid4vci?credential_offer=secret"
-            ),
-            Err(AuthenticatorError::ForbiddenInvocationParameter)
-        );
-    }
-}
+#[path = "lib_tests.rs"]
+mod tests;

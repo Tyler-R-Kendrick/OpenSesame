@@ -1,10 +1,35 @@
-use super::{
-    require_fresh_user_verification, validate_platform_invocation, AuthenticatorError,
-    InvocationKind, InvocationPayload, InvocationPolicy, UserVerification, UserVerificationMethod,
-};
+use super::*;
 
 fn policy() -> InvocationPolicy {
     InvocationPolicy::new("https://auth.opensesame.example").unwrap()
+}
+
+#[test]
+fn accepts_only_verified_secret_free_links() {
+    let request = policy()
+        .validate_link("https://auth.opensesame.example/invoke/mfa?request_id=req_123")
+        .unwrap();
+    assert_eq!(request.kind, InvocationKind::MfaApproval);
+    assert_eq!(
+        request.payload,
+        InvocationPayload::RequestId("req_123".into())
+    );
+
+    assert_eq!(
+        policy().validate_link("https://evil.example/invoke/mfa?request_id=req_123"),
+        Err(AuthenticatorError::UnverifiedInvocationOrigin)
+    );
+    assert_eq!(
+        policy()
+            .validate_link("https://auth.opensesame.example/invoke/oid4vp?request_id=req_123"),
+        Err(AuthenticatorError::InvalidInvocationPayload)
+    );
+    assert_eq!(
+        policy().validate_link(
+            "https://auth.opensesame.example/invoke/oid4vci?credential_offer=secret"
+        ),
+        Err(AuthenticatorError::ForbiddenInvocationParameter)
+    );
 }
 
 #[test]
@@ -26,6 +51,36 @@ fn validates_by_reference_protocol_requests() {
             "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2F127.0.0.1%2Frequest"
         ),
         Err(AuthenticatorError::PrivateRequestUri)
+    );
+}
+
+#[test]
+fn custom_scheme_offers_require_a_public_by_reference_uri() {
+    let policy = policy();
+    let ok = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example%2Foffer";
+    assert_eq!(policy.validate_credential_offer_scheme(ok).unwrap(), ok);
+    assert_eq!(
+        policy.validate_credential_offer_scheme(
+            "openid-credential-offer://?credential_offer=https%3A%2F%2Fissuer.example%2Foffer"
+        ),
+        Err(AuthenticatorError::ForbiddenInvocationParameter)
+    );
+    assert_eq!(
+        policy.validate_credential_offer_scheme(
+            "openid-credential-offer://?credential_offer_uri=https%3A%2F%2F127.0.0.1%2Foffer"
+        ),
+        Err(AuthenticatorError::PrivateRequestUri)
+    );
+}
+
+#[test]
+fn custom_scheme_presentment_requires_a_public_request_uri() {
+    let policy = policy();
+    let ok = "openid4vp://?request_uri=https%3A%2F%2Fverifier.example%2Frequest";
+    assert_eq!(policy.validate_presentation_scheme(ok).unwrap(), ok);
+    assert_eq!(
+        policy.validate_presentation_scheme("openid4vp://?request_id=req_123"),
+        Err(AuthenticatorError::ForbiddenInvocationParameter)
     );
 }
 

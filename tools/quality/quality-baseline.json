@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 420,
-    "violations": 647,
-    "oversizedLines": 214475
+    "files": 419,
+    "violations": 646,
+    "oversizedLines": 214073
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -220,9 +220,6 @@
     },
     "crates/agent-events/src/lib.rs": {
       "max-lines": 493
-    },
-    "crates/authenticator-core/src/lib.rs": {
-      "max-lines": 402
     },
     "crates/breach-intel/src/event.rs": {
       "max-lines": 452
