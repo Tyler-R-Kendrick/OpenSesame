@@ -279,5 +279,9 @@ fn subject_of(who: &Caller) -> Option<String> {
 mod tests;
 
 #[cfg(test)]
+#[path = "agent_runs_tests_tail.rs"]
+mod tests_tail;
+
+#[cfg(test)]
 #[path = "agent_run_credentials_tests.rs"]
 mod credentials_tests;
