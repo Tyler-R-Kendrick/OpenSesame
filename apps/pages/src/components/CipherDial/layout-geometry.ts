@@ -49,10 +49,14 @@ export function computeDialGeometry(input: {
       order: 1,
     };
   }
-  const bottom = Math.max(...quiet.map((q) => q.y + q.h));
+  // Corner dial in the empty band below the card (and above collapsed notes).
+  // Prototype lock-v5-mobile: cx=-18, cy toward the lower-left under notes.
+  const cardBottom = card.y + card.h;
+  const notesTop = notes ? notes.y : h;
+  const band = Math.max(cardBottom + 48, Math.min(notesTop + 36, h - 48));
   return {
     cx: -18,
-    cy: Math.max(bottom + 70, h - 60),
+    cy: Math.max(band, h - 60),
     R0: 62,
     dr: 16,
     fs: 10,

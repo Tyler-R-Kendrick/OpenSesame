@@ -56,7 +56,8 @@ export function useUnlockHeroLayout(
 
       if (narrow) {
         // Reserve a band above the card for the hero (prototype paddingTop).
-        pane.style.paddingTop = `${NARROW_BASE_PAD_TOP + height + gap}px`;
+        // Extra 16px keeps plates clear of the brand-tools (theme / help).
+        pane.style.paddingTop = `${NARROW_BASE_PAD_TOP + height + gap + 16}px`;
         const pr2 = pane.getBoundingClientRect();
         cr = card.getBoundingClientRect();
         cardX = cr.left - pr2.left;

@@ -13,8 +13,9 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build; the newest opens on arrival (lock-v5).
- * Choosing a row toggles it and collapses the rest.
+ * One accordion row per build. On wide layouts the newest opens on arrival
+ * (lock-v5 desktop). On narrow, all rows start collapsed so the corner dial
+ * keeps the empty band under the opaque notes (lock-v5 mobile).
  */
 
 type ReleaseNote = {
@@ -134,11 +135,16 @@ function ReleasePanel({
   );
 }
 
+function initialOpenVersion(): string | null {
+  if (typeof window === "undefined") return RELEASES[0]?.version ?? null;
+  // Narrow: collapsed accordion — empty band for the corner dial.
+  if (window.matchMedia("(max-width: 1099px)").matches) return null;
+  return RELEASES[0]?.version ?? null;
+}
+
 export const ReleaseNotes = forwardRef<HTMLElement>(
   function ReleaseNotes(_props, ref) {
-    const [active, setActive] = useState<string | null>(
-      () => RELEASES[0]?.version ?? null,
-    );
+    const [active, setActive] = useState<string | null>(initialOpenVersion);
     return (
       <aside ref={ref} className="unlock__notes" aria-label="Release notes">
         <div className="unlock__notes-stack">
