@@ -244,8 +244,8 @@ export function validateShareInput(
 
 /**
  * A person writing a share: the `manage_grants` check, then the write.
- * An agent is refused here. `submitLocalShare` records a pending approval,
- * and `approvePendingShare` is what writes that share.
+ * An agent or application is refused here. `submitLocalShare` records a
+ * pending approval, and `approvePendingShare` is what writes that share.
  */
 export function createLocalShare(
   tomb: string,
@@ -254,21 +254,19 @@ export function createLocalShare(
 ): Promise<LocalShare[]> {
   return name(tomb, async (named) => {
     const authority = await requireManageGrants(named);
-    await refuseUnapprovedAgent(named.value, input.principalId);
+    await refuseUnapprovedPrincipal(named.value, input.principalId);
     return createLocalShareAs(named, input, authority, options);
   });
 }
 
-async function refuseUnapprovedAgent(
+async function refuseUnapprovedPrincipal(
   tomb: string,
   principalId: string,
 ): Promise<void> {
   const directory = await readLocalDirectory(tomb);
   const entry = directory.entries.find((row) => row.id === principalId);
-  if (entry?.kind === "agent")
-    throw new LocalDirectoryError(
-      "Approve the agent grant before it takes effect.",
-    );
+  if (entry?.kind === "agent" || entry?.kind === "application")
+    throw new LocalDirectoryError("Approve the grant before it takes effect.");
 }
 
 /**

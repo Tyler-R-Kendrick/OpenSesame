@@ -183,7 +183,7 @@ describe("ensureDefaultAccess", () => {
     );
     expect(ownerGrant).toBeTruthy();
     const provider = ownerGrant?.resourceId ?? "";
-    await createLocalShare(tomb, {
+    const applicationGrant = await submitLocalShare(tomb, {
       principalId: PAGES_APPLICATION_ID,
       resourceKind: "connection",
       resourceId: provider,
@@ -191,6 +191,9 @@ describe("ensureDefaultAccess", () => {
       policy: "use",
       durationSeconds: 3600,
     });
+    if (applicationGrant.outcome !== "pending")
+      throw new Error("expected pending application grant");
+    await approvePendingShare(tomb, applicationGrant.pending.id);
 
     await revokeLocalShare(tomb, ownerGrant?.id ?? "");
     await ensureDefaultAccess(tomb);

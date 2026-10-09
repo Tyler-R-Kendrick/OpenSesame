@@ -1,6 +1,7 @@
 import type { PendingShare } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import { policyLabel } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import type { LocalShare } from "@opensesame/app-core/lib/local-share-grants.js";
+import { useEffect, useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconTrash, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -75,6 +76,11 @@ export function ShareRow({
   canRevoke: boolean;
   onRevoke: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!busy) setConfirming(false);
+  }, [busy]);
+  const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
   return (
     <AccessDetail
       title={`${name} → ${share.resourceLabel}`}
@@ -86,10 +92,16 @@ export function ShareRow({
             label={`Until ${new Date(share.expiresAt).toLocaleString()}`}
           />
           <IconKey
-            label="Revoke"
+            label={revokeLabel}
             small
             disabled={busy || !canRevoke}
-            onClick={onRevoke}
+            onClick={() => {
+              if (!confirming) {
+                setConfirming(true);
+                return;
+              }
+              onRevoke();
+            }}
           >
             <IconTrash size={16} />
           </IconKey>
