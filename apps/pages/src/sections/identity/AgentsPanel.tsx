@@ -59,7 +59,7 @@ function useAgents() {
     };
   }, [load]);
 
-  async function save() {
+  async function save(afterCommit?: (id: string) => void) {
     if (!draft) return;
     setBusy(true);
     setError("");
@@ -68,6 +68,7 @@ function useAgents() {
         ? await updateManagedAgent(draft.id, { displayName: draft.name.trim() })
         : await registerManagedAgent(draft.name.trim(), draft.jkt.trim());
       setDraft(null);
+      afterCommit?.(saved.id);
       await load();
       return saved.id;
     } catch {
@@ -206,9 +207,7 @@ function AgentsForm({
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        void save().then((id) => {
-          if (id) onSaved(id);
-        });
+        void save(onSaved);
       }}
     >
       <div className="field">

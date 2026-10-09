@@ -12,6 +12,14 @@ import { IconPlus } from "../../components/Icons.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
 import { ConnectIdentityNote } from "./ConnectIdentityNote.js";
 
+function stripEditorFlags(search: string) {
+  const params = new URLSearchParams(search);
+  params.delete("new");
+  params.delete("edit");
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 /** Hosted records use the same addressable selection and editor as the vault. */
 export function useHostedRecord(view: string, extra = "") {
   const location = useLocation();
@@ -31,15 +39,27 @@ export function useHostedRecord(view: string, extra = "") {
     creating: params.get("new") === "1",
     editing: params.get("edit") === "1",
     listPath,
-    open: (id: string) => navigate(`${listPath}#${encodeURIComponent(id)}`),
-    leave: () => navigate(listPath),
+    open: (id: string) =>
+      navigate({
+        pathname: location.pathname,
+        search: stripEditorFlags(location.search),
+        hash: `#${encodeURIComponent(id)}`,
+      }),
+    leave: () =>
+      navigate({
+        pathname: location.pathname,
+        search: stripEditorFlags(location.search),
+        hash: "",
+      }),
     create: () => navigate(`${listPath}&new=1`),
     edit: (id: string) =>
       navigate(`${listPath}&edit=1#${encodeURIComponent(id)}`),
     close: () =>
-      navigate(
-        selectedId ? `${listPath}#${encodeURIComponent(selectedId)}` : listPath,
-      ),
+      navigate({
+        pathname: location.pathname,
+        search: stripEditorFlags(location.search),
+        hash: selectedId ? `#${encodeURIComponent(selectedId)}` : "",
+      }),
   };
 }
 
