@@ -9,6 +9,12 @@
  */
 
 import { unlockVault } from "./choose-capabilities.mjs";
+import {
+  accessWorkspace,
+  returnToAccessList,
+  tabToAccessControl,
+} from "./local-access-journey.mjs";
+import { openRequest } from "./local-request-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
 export const ORIGIN = "https://tyler-r-kendrick.github.io";
@@ -142,11 +148,15 @@ export async function expectFocusLanded(page, where) {
 }
 
 export async function raiseRequest(main, panel, reason) {
-  const create = panel.getByRole("button", {
-    name: "New local request",
-    exact: true,
-  });
+  await returnToAccessList(main);
+  const create = panel
+    .getByRole("button", {
+      name: "New local request",
+      exact: true,
+    })
+    .filter({ visible: true });
   await press(main, create);
+  await tabToAccessControl(main, panel.getByLabel("Requesting identity"));
   await expect(panel.getByLabel("Requesting identity")).toBeFocused();
   // Signed in is the condition. A person who already is has no key to press;
   // one whose session is still being read has a key that is not yet enabled,
@@ -193,12 +203,86 @@ export async function raiseRequest(main, panel, reason) {
   );
   await expect(
     panel.getByText("Local request created. No access was granted."),
-  ).toBeVisible({ timeout: PATIENCE });
+  ).toHaveText("Local request created. No access was granted.", {
+    timeout: PATIENCE,
+  });
+  await openRequest(main, reason, "pending");
+  await returnToAccessList(main);
+}
+
+/** Navigate through the section tree without reloading the issuer's document. */
+export async function accessCollection(page, view, collection) {
+  await revealAccessTree(page);
+  const branch = page
+    .locator(`.railtree__row[data-rail-open="/access?view=${view}"]`)
+    .filter({ visible: true });
+  if ((await branch.getAttribute("aria-expanded")) === "false") {
+    await railCursor(page, branch);
+    await expect(branch).toHaveClass(/is-active/);
+    await page.keyboard.press("ArrowRight");
+    await expect(page).toHaveURL(`${BASE}/access?view=${view}`);
+    await expect(accessWorkspace(page).locator(".vault__list")).toBeVisible();
+    await revealAccessTree(page);
+  }
+  const target = page
+    .locator(
+      `.railtree__row[data-rail-open="/access?view=${view}#${collection}"]`,
+    )
+    .filter({ visible: true });
+  await railCursor(page, target);
+  await expect(page).toHaveURL(`${BASE}/access?view=${view}#${collection}`);
+  await expect(accessWorkspace(page).locator(".vault__list")).toBeVisible({
+    timeout: PATIENCE,
+  });
+}
+
+/** Open an inbox record through its listing's cursor, as vault rows are opened. */
+export async function openInboxRecord(page, row) {
+  const record = await row.evaluate((node) =>
+    CSS.escape(node.dataset.recordId),
+  );
+  await railCursor(page, row);
+  await expect(row).toHaveClass(/is-cursor/);
+  await page.keyboard.press("Enter");
+  // The phone hides its listing when the selected detail opens.
+  await expect(page.locator(`[data-record-id="${record}"]`)).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+}
+
+/** Select the real rail cursor; a row anchor itself is not the tree's tab stop. */
+async function railCursor(page, row) {
+  const index = await row.evaluate((node) =>
+    [
+      ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
+    ].indexOf(node),
+  );
+  if (index < 0) throw new Error("Rail row has no native tree cursor position");
+  await row.locator("xpath=ancestor::*[@role='tree'][1]").focus();
+  await page.keyboard.type(`${index + 1}gg`);
+}
+
+async function revealAccessTree(page) {
+  const phoneTree = accessWorkspace(page).locator(".vault__tree");
+  if (await phoneTree.isVisible()) return;
+  const back = accessWorkspace(page).getByRole("link", {
+    name: "Back to sections",
+    exact: true,
+  });
+  if (await page.locator(".rail__scroll .railtree").isVisible()) return;
+  await returnToAccessList(page);
+  await press(page, back);
+  await expect(page).toHaveURL(`${BASE}/access`);
+  await expect(accessWorkspace(page)).toHaveAttribute("data-pane", "tree");
+  await expect(phoneTree).toBeVisible();
 }
 
 export async function receipts(main, width) {
-  await press(main, main.getByRole("tab", { name: /^Sessions/ }));
-  const list = main.locator("#access-receipts");
+  await accessCollection(main, "sessions", "access-receipts");
+  const list = accessWorkspace(main).getByRole("tree", {
+    name: "Receipts items",
+  });
   await expect(list).toBeVisible({ timeout: PATIENCE });
   expect(
     await main.evaluate(

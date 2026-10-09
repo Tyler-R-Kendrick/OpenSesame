@@ -23,17 +23,24 @@ import {
   BASE,
   ORIGIN,
   PATIENCE,
+  accessCollection,
   asked,
   bell,
   clickNotification,
   expectFocusLanded,
   notified,
+  openInboxRecord,
   openTab,
   press,
   raiseRequest,
   receipts,
   tabAndEnter,
 } from "./device-inbox-tabs.mjs";
+import {
+  accessWorkspace,
+  tabToAccessControl,
+} from "./local-access-journey.mjs";
+import { openRequest } from "./local-request-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
 export const INBOX_CAPABILITIES = [
@@ -95,12 +102,15 @@ async function allowSystemNotifications(t) {
 /** B. A request is raised in front; the background tab is told, and says only that. */
 async function raisedAndTold(t) {
   const { main, background, panel, width } = t;
-  await expect(main.getByRole("img", { name: /waiting/ })).toHaveCount(0);
+  await expect
+    .poll(() => main.title(), { timeout: PATIENCE })
+    .not.toMatch(/^\(\d+\)/);
   await expect(bell(background, width)).toHaveCount(0);
   await raiseRequest(main, panel, REASON);
-  await expect(
-    main.getByRole("img", { name: "1 request waiting" }),
-  ).toBeVisible();
+  await expect(panel.getByRole("treeitem")).toHaveCount(1);
+  await expect
+    .poll(() => main.title(), { timeout: PATIENCE })
+    .toMatch(/^\(1\) /);
   await expect
     .poll(() => background.title(), { timeout: PATIENCE })
     .toMatch(/^\(1\) /);
@@ -134,7 +144,7 @@ async function arrivedFromTheDoorbell(t) {
   await expect(background).toHaveURL(onView("requests"));
   await expectFocusLanded(background, "a click on the notification");
   // From elsewhere in the page, then by the bell.
-  await press(background, background.getByRole("tab", { name: /^Sessions/ }));
+  await accessCollection(background, "sessions", "local-sessions");
   await expect(background).toHaveURL(onView("sessions"));
   await bell(background, width).first().click();
   // A phone has no strip: its bell is a row of the More sheet.
@@ -148,10 +158,8 @@ async function arrivedFromTheDoorbell(t) {
 /** C. Approved with the keyboard and the passkey: the marks go, a receipt stays. */
 async function approvedAndReceipted(t) {
   const { main, background, panel, width } = t;
-  await press(
-    main,
-    panel.getByRole("button", { name: "Review request", exact: true }).first(),
-  );
+  await openRequest(main, REASON);
+  await tabToAccessControl(main, panel.getByLabel("Approving person"));
   await expect(panel.getByLabel("Approving person")).toBeFocused();
   await tabAndEnter(
     main,
@@ -161,8 +169,14 @@ async function approvedAndReceipted(t) {
     panel.getByText(
       "Request approved; awaiting single-use consumption by its requester.",
     ),
-  ).toBeVisible({ timeout: PATIENCE });
-  await expect(main.getByRole("img", { name: /waiting/ })).toHaveCount(0);
+  ).toHaveText(
+    "Request approved; awaiting single-use consumption by its requester.",
+    { timeout: PATIENCE },
+  );
+  await openRequest(main, REASON, "approved");
+  await expect
+    .poll(() => main.title(), { timeout: PATIENCE })
+    .not.toMatch(/^\(\d+\)/);
   await expect
     .poll(() => background.title(), { timeout: PATIENCE })
     .not.toMatch(/^\(\d+\)/);
@@ -175,41 +189,46 @@ async function approvedAndReceipted(t) {
 /** D. Withdrawn, then a second request refused with the keyboard. */
 async function withdrawnAndDenied(t) {
   const { main, background, panel, width } = t;
-  await press(main, main.getByRole("tab", { name: /^Requests/ }));
-  await press(
-    main,
-    panel.getByRole("button", { name: "Review request", exact: true }).first(),
-  );
+  await accessCollection(main, "requests", "local-requests");
+  await openRequest(main, REASON, "approved");
   await press(main, panel.getByRole("button", { name: "Withdraw request" }));
   await press(main, panel.getByRole("button", { name: "Confirm withdrawal" }));
-  await expect(panel.getByText("Request withdrawn.")).toBeVisible({
-    timeout: PATIENCE,
-  });
+  await expect(panel.getByText("Request withdrawn.")).toHaveText(
+    "Request withdrawn.",
+    {
+      timeout: PATIENCE,
+    },
+  );
+  await openRequest(main, REASON, "revoked");
   await raiseRequest(main, panel, "Deny this request");
   await expect
     .poll(async () => (await notified(background)).length, {
       timeout: PATIENCE,
     })
     .toBe(2);
-  await press(
-    main,
-    panel
-      .getByRole("listitem")
-      .filter({ hasText: "Deny this request" })
-      .getByRole("button", { name: "Review request", exact: true }),
-  );
+  await openRequest(main, "Deny this request");
+  await tabToAccessControl(main, panel.getByLabel("Approving person"));
   await expect(panel.getByLabel("Approving person")).toBeFocused();
   await tabAndEnter(
     main,
     panel.getByRole("button", { name: "Deny with passkey" }),
   );
-  await expect(panel.getByText("Request denied.", { exact: true })).toBeVisible(
+  await expect(panel.getByText("Request denied.", { exact: true })).toHaveText(
+    "Request denied.",
     { timeout: PATIENCE },
   );
+  await openRequest(main, "Deny this request", "denied");
   const list = await receipts(main, width);
   await expect(list).toContainText(WITHDRAWN);
   await expect(list).toContainText(DENIED);
-  await expect(list.getByRole("img", { name: "denied" }).first()).toBeVisible();
+  const denied = list.getByRole("treeitem", {
+    name: /^Request denied · Test application/,
+  });
+  await openInboxRecord(main, denied);
+  await expect(
+    panel.getByRole("img", { name: "denied", exact: true }),
+  ).toBeVisible();
+  await receipts(main, width);
 }
 
 export async function deviceInboxJourney({ width, rig }) {
@@ -226,10 +245,7 @@ export async function deviceInboxJourney({ width, rig }) {
   });
   const main = await openTab(context, width, "requests");
   const mainDevice = await rig.authenticator(main, credentials);
-  const panel = main.getByRole("region", {
-    name: "Local requests",
-    exact: true,
-  });
+  const panel = accessWorkspace(main);
   const t = {
     main,
     background,

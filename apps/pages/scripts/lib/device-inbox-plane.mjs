@@ -12,7 +12,9 @@ import { BASE, PATIENCE } from "./device-inbox-tabs.mjs";
 import { lockVault } from "./pages-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
-const DIST = fileURLToPath(new URL("../../dist", import.meta.url));
+const DIST =
+  process.env.PAGES_VERIFY_DIST ??
+  fileURLToPath(new URL("../../dist", import.meta.url));
 
 export const hostChunk = () =>
   fs

@@ -4,6 +4,7 @@ import { type PageTreeNode, pageTreeItemCount } from "../lib/page-to-tree.js";
 import { useOptionalGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconChevronRight } from "./Icons.js";
 import { TreeRow } from "./RailRows.js";
+import { usePageBranchExpand } from "./page-tree-expansion.js";
 
 /**
  * Subtrees start closed. Right/click opens, Left/click closes. Arriving on
@@ -104,7 +105,7 @@ export function PageTreeBranch({
   empty?: ReactNode;
 }) {
   const navigate = useNavigate();
-  const { expanded, toggle } = useBranchExpand();
+  const { expanded, toggle } = usePageBranchExpand(node.href);
   // A closed directory stands in for its own `config.yaml` while you are
   // in it, so the rail still marks where you are.
   const selected =

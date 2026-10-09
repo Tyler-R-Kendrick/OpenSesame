@@ -93,7 +93,11 @@ function CrumbsDefault() {
   // phone and the rail marks it on a desktop. Drawing "Vault" under a "Vault"
   // tab spent a row of the frame saying nothing. Two or more is a path, which
   // neither nav shows, so that row stays.
-  if (crumbs.length < 2) return null;
+  if (
+    crumbs.length < 2 ||
+    /^\/(identity|access|wallet)(?:\/|$)/.test(location.pathname)
+  )
+    return null;
   // Nor is "Settings › Vaults" or "Vault › Accounts" when the page already
   // marks that second step — the selected tab under the title, the filter
   // the list is showing. Drawn only on those sub-views, it pushed the title

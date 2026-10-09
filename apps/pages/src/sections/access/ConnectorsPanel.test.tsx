@@ -105,16 +105,20 @@ async function granted() {
 
 function mount(tomb: string) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      initialEntries={[
+        "/access?view=connectors#local-connectors/nango%3Agithub%2Foctocat",
+      ]}
+    >
       <ConnectorsPanel tomb={tomb} />
     </MemoryRouter>,
   );
 }
 
 function accessRow(name: string) {
-  const list = screen.getByRole("list", { name: "Connector access" });
+  const list = screen.getByRole("region", { name: "Connector access" });
   const heading = within(list).getByRole("heading", { name });
-  const item = heading.closest("li");
+  const item = heading.closest<HTMLElement>(".detail");
   if (!item) throw new Error(`${name} is not in a row`);
   return within(item);
 }
@@ -140,7 +144,9 @@ it("never asks for a directory, a key or a sync: that is the Connections page's"
   expect(screen.queryByLabelText("Directory endpoint")).toBeNull();
   expect(screen.queryByLabelText("Environment key")).toBeNull();
   expect(
-    screen.queryByRole("button", { name: /sync|import|export/i }),
+    screen.queryByRole("button", {
+      name: /sync connectors|import connectors|export connectors/i,
+    }),
   ).toBeNull();
   expect(screen.queryByText(/api\.nango\.dev/)).toBeNull();
   expect(
@@ -357,6 +363,9 @@ it("configures a granted connector: alias, disable, and bind defaults", async ()
     "Invoke",
   );
   await userEvent.click(within(form).getByRole("button", { name: "Save" }));
+  await waitFor(() =>
+    expect(screen.queryByRole("group", { name: /^Configure/ })).toBeNull(),
+  );
   const renamed = await waitFor(() => accessRow("CI mirror"));
   expect(await renamed.findByRole("img", { name: "Disabled" })).toBeTruthy();
   // A disabled connector refuses new grants, here and in the choices.

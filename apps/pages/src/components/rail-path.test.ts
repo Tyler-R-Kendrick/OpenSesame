@@ -50,3 +50,36 @@ describe("the rail path for password health", () => {
     ).toBe("/vault?f=favorites");
   });
 });
+
+it("keeps canonical share URLs and legacy access routes on the actual rail entry", () => {
+  expect(
+    selectedRailPath(
+      "/access",
+      "#identity-shares/share-1",
+      "grants",
+      "all",
+      null,
+      "general",
+    ),
+  ).toBe("/access?view=grants#share-share-1");
+  expect(
+    selectedRailPath(
+      "/access/sessions",
+      "#local-sessions/session-1",
+      null,
+      "all",
+      null,
+      "general",
+    ),
+  ).toBe("/access?view=sessions#local-sessions");
+  expect(
+    selectedRailPath(
+      "/wallet/budgets",
+      "#budget-1",
+      null,
+      "all",
+      null,
+      "general",
+    ),
+  ).toBe("/wallet/budgets#budget-1");
+});

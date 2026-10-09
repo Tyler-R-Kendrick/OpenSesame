@@ -16,7 +16,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.grants",
     description:
-      "The Grants tab: local application grants and optional delegations, their scope and expiry, with confirmed revocation.",
+      "The Grants branch: local application grants and optional delegations, their scope and expiry, with confirmed revocation.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "delegations.list",
@@ -24,7 +24,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.requests",
     description:
-      "The Requests tab: authorization asks waiting on a decision, alongside the offers this deployment has minted.",
+      "The Requests branch: authorization asks waiting on a decision, alongside the offers this deployment has minted.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "relay.inbox",
@@ -32,7 +32,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.sessions",
     description:
-      "The Sessions tab: agent task runs currently executing on this device, and the way to terminate one.",
+      "The Sessions branch: agent task runs currently executing on this device, and the way to terminate one.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "tasks.list",
@@ -40,7 +40,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.connectors",
     description:
-      "The Connectors tab: who may use which connector. Each row is a connector someone holds a grant on; Add chooses one Connections configured or imported, then who, which policy, until when.",
+      "The Connectors branch: who may use which connector. Each record is a connector someone holds a grant on; Add chooses one Connections configured or imported, then who, which policy, until when.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "connectors.bind",
@@ -48,7 +48,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.resources",
     description:
-      "The Resources tab: the connections and registered sites that a grant can be pointed at.",
+      "The Resources branch: the connections and registered sites that a grant can be pointed at.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "connections.list",
@@ -56,7 +56,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "access.policies",
     description:
-      "The Policies tab: how broadly each authorization may be delegated and invoked.",
+      "The Policies branch: how broadly each authorization may be delegated and invoked.",
     role: "navigation",
     routes: ["/access"],
     capabilityId: "connections.update",
@@ -97,6 +97,7 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
 
 export const ACCESS_ROUTES: readonly GuideRouteDescriptor[] = [
   { id: "/access", title: "Access — delegations, offers and running tasks" },
+  { id: "/access/shares", title: "Access — identity shares and their add key" },
   { id: "/access/requests", title: "Access — requests waiting on a decision" },
   {
     id: "/access/resources",

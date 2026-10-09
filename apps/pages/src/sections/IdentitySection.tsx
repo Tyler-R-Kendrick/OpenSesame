@@ -4,32 +4,11 @@ import {
   registerByoProvider,
 } from "@opensesame/app-core/lib/byo.js";
 import {
-  type DirectoryPrincipal,
-  type LinkedIdentity,
-  type OAuthClient,
-  type OrgMember,
-  addOrgMember,
-  createOAuthClient,
-  createOrganization,
-  getMe,
-  listLinkedIdentities,
-  listOAuthClients,
-  listOrgMembers,
-  removeOrgMember,
-  revokeOAuthClient,
-  rotateOAuthClient,
-  unlinkIdentity,
-} from "@opensesame/app-core/lib/directory.js";
-import {
   beginSignIn,
   defaultUpstream,
 } from "@opensesame/app-core/lib/federation.js";
 import { isGuestSession } from "@opensesame/app-core/lib/guest-isolation.js";
-import {
-  type IdentitySession,
-  identityBase,
-  remoteIdentityApi,
-} from "@opensesame/app-core/lib/identity.js";
+import { remoteIdentityApi } from "@opensesame/app-core/lib/identity.js";
 import {
   IDP_PRESETS,
   type IdpPreset,
@@ -45,13 +24,6 @@ import {
   removeIdpRegistration,
 } from "@opensesame/app-core/lib/idp-registry.js";
 import {
-  GUEST_PROFILE_ID,
-  ORG_SLUG_RE,
-  type OrgMembership,
-  activeOrgProfileId,
-  listOrgMemberships,
-} from "@opensesame/app-core/lib/orgs.js";
-import {
   type FederatedProviderSummary,
   listFederatedProviders,
   providerUpstream,
@@ -59,56 +31,46 @@ import {
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import {
   type FormEvent,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { EmptyTip } from "../components/EmptyTip.js";
+import { useNavigate, useSearchParams } from "react-router";
 import { FailureNotice } from "../components/FailureNotice.js";
-import { IconKey, ReloadKey } from "../components/IconKey.js";
+import { IconKey } from "../components/IconKey.js";
 import {
   IconCheck,
   IconCopy,
-  IconEdit,
   IconLogin,
-  IconPasskey,
-  IconPlus,
-  IconRefresh,
-  IconShield,
   IconSite,
-  IconTrash,
-  IconUser,
-  IconX,
 } from "../components/Icons.js";
-import { StatusMark, statusTone } from "../components/StatusMark.js";
 import { StatusNote } from "../components/StatusNote.js";
 import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
 import { monogram } from "./connections/connector-marks.js";
-import { ConnectIdentityNote } from "./identity/ConnectIdentityNote.js";
 import * as Directory from "./identity/DirectoryTabs.js";
-import { EditApplication } from "./identity/EditApplication.js";
-import { type IdentityTab, IdentityTabs } from "./identity/IdentityTabs.js";
-import { LocalDirectoryPanel } from "./identity/LocalDirectoryPanel.js";
-import { ProvidersPanel } from "./identity/ProvidersPanel.js";
+import {
+  OrganizationPanel,
+  PeoplePanel,
+  ServiceAccountsPanel,
+} from "./identity/HostedIdentityPanels.js";
+import { HostedConnectWorkspace } from "./identity/HostedRecordParts.js";
+import type { IdentityTab } from "./identity/IdentityTabs.js";
+import { LocalDirectoryWorkspace } from "./identity/LocalDirectoryWorkspace.js";
+import { ProvidersWorkspace } from "./identity/ProvidersWorkspace.js";
 import { useEnabledIdentityViews } from "./identity/identity-views.js";
 // Brand button treatments (.signin__social, .signin__provider--*) come from the sign-in hub's stylesheet; the ceremony reuses them verbatim.
 import "../screens/unlock.css";
 import "./identity.css";
 
-import {
-  formatTime,
-  identityErrorText,
-  stateChip,
-  truncateId,
-} from "@opensesame/app-core/sections/identity-section-model.js";
+import { identityErrorText } from "@opensesame/app-core/sections/identity-section-model.js";
 import { useIdentitySession } from "../bindings/identity.js";
 import { FormCommit } from "../components/FormCommit.js";
-import { useHashTarget } from "../lib/hash-target.js";
 /**
  * Browser-local identity management, with optional hosted Identity
  * surfaces. Provider registration is an explicit ceremony, not an entry gate.
@@ -123,6 +85,7 @@ function IdentityTabPanels({
   onSelectTab,
   onProvidersChanged,
   onOpenCeremony,
+  ceremony,
 }: {
   tab: IdentityTab;
   online: boolean;
@@ -133,27 +96,28 @@ function IdentityTabPanels({
   onSelectTab: (tab: IdentityTab) => void;
   onProvidersChanged: (next: IdpRecord[]) => void;
   onOpenCeremony: () => void;
+  ceremony?: ReactNode;
 }) {
   // Guest sessions are local-vault IAM only — never hide Guest N behind a
   // hosted People panel the guest cannot see themselves in.
   const localOnly = isGuestSession() || !configured;
   return (
     <>
-      <IdentityTabs selected={tab} onSelect={onSelectTab} />
       <StatusNote title="Identity" message={flash} />
       {tab === "people" ? (
         localOnly ? (
-          <LocalDirectoryPanel kind="person" />
+          <LocalDirectoryWorkspace kind="person" />
         ) : (
           <PeoplePanel online={online} session={session} />
         )
       ) : null}
       {tab === "providers" ? (
-        <ProvidersPanel
+        <ProvidersWorkspace
           online={online}
           providers={providers}
           onChanged={onProvidersChanged}
           onOpenCeremony={onOpenCeremony}
+          editor={ceremony}
         />
       ) : null}
       {tab === "devices" ? (
@@ -161,23 +125,27 @@ function IdentityTabPanels({
       ) : null}
       {tab === "agents" ? (
         localOnly ? (
-          <LocalDirectoryPanel kind="agent" />
+          <LocalDirectoryWorkspace kind="agent" />
         ) : session ? (
           <Directory.DirectoryAgents online={online} />
         ) : (
-          <ConnectIdentityNote online={online} what="agent identities" />
+          <HostedConnectWorkspace
+            online={online}
+            title="Agents"
+            view="agents"
+          />
         )
       ) : null}
       {tab === "service-accounts" ? (
         localOnly ? (
-          <LocalDirectoryPanel kind="application" />
+          <LocalDirectoryWorkspace kind="application" />
         ) : (
           <ServiceAccountsPanel online={online} session={session} />
         )
       ) : null}
       {tab === "organization" ? (
         localOnly ? (
-          <LocalDirectoryPanel kind="organization" />
+          <LocalDirectoryWorkspace kind="organization" />
         ) : (
           <OrganizationPanel
             online={online}
@@ -196,15 +164,16 @@ export function IdentitySection() {
   const session = useIdentitySession();
   const views = useEnabledIdentityViews();
   const [tab, setTab] = useSectionView(views, views[0] ?? "service-accounts");
-  useHashTarget();
   const [providers, setProviders] = useState<IdpRecord[]>(() =>
     listIdpRegistrations(),
   );
-  const [ceremonyOpen, setCeremonyOpen] = useState(false);
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const ceremonyOpen = tab === "providers" && params.get("action") === "new";
   const [flash, setFlash] = useState<Flash | null>(null);
 
   function openCeremony() {
-    setCeremonyOpen(true);
+    navigate("/identity?view=providers&action=new");
   }
 
   function closeCeremony() {
@@ -212,13 +181,12 @@ export function IdentitySection() {
       // "Set up later" defers adding another upstream; the device IdP remains.
       dismissIdpCeremony();
     }
-    setCeremonyOpen(false);
+    navigate("/identity?view=providers");
   }
 
   function registered(record: IdpRecord, message: string) {
     setProviders(listIdpRegistrations());
-    setCeremonyOpen(false);
-    setTab("providers");
+    navigate(`/identity?view=providers#${encodeURIComponent(record.id)}`);
     setFlash({ tone: "ok", text: message });
   }
 
@@ -227,30 +195,26 @@ export function IdentitySection() {
   }
 
   return (
-    <div className="section__inner">
-      <header className="section__head">
-        <h1>Identity</h1>
-      </header>
-      {ceremonyOpen ? (
-        <IdpCeremony
-          online={online}
-          onRegistered={registered}
-          onDismiss={closeCeremony}
-        />
-      ) : (
-        <IdentityTabPanels
-          tab={tab}
-          online={online}
-          configured={configured}
-          session={session}
-          providers={providers}
-          flash={flash}
-          onSelectTab={setTab}
-          onProvidersChanged={providersChanged}
-          onOpenCeremony={openCeremony}
-        />
-      )}
-    </div>
+    <IdentityTabPanels
+      tab={tab}
+      online={online}
+      configured={configured}
+      session={session}
+      providers={providers}
+      flash={flash}
+      onSelectTab={setTab}
+      onProvidersChanged={providersChanged}
+      onOpenCeremony={openCeremony}
+      ceremony={
+        ceremonyOpen ? (
+          <IdpCeremony
+            online={online}
+            onRegistered={registered}
+            onDismiss={closeCeremony}
+          />
+        ) : undefined
+      }
+    />
   );
 }
 
@@ -337,14 +301,14 @@ function IdpCeremony({
   }
 
   return (
-    <section className="panel identity-ceremony">
-      <div className="panel__head">
+    <section className="detail identity-ceremony">
+      <div className="detail__head">
         <div>
-          <h2>Connect your identity provider</h2>
+          <h1>Connect your identity provider</h1>
         </div>
       </div>
 
-      <div className="panel__body">
+      <div className="detail__group">
         {preset ? (
           <IdpPresetForm
             preset={preset}
@@ -815,1084 +779,6 @@ function CustomOidcCard({
 }
 
 /* ------------------------------------------------------------------ people */
-
-function PeoplePanel({
-  online,
-  session,
-}: {
-  online: boolean;
-  session: IdentitySession | null;
-}) {
-  if (!session) {
-    return (
-      <ConnectIdentityNote
-        online={online}
-        what="Who you are here, which providers vouch for you, and who shares your organizations"
-      />
-    );
-  }
-
-  return (
-    <>
-      <Directory.DirectoryPeople online={online} />
-      <MeCard online={online} />
-      <LinkedIdentitiesCard online={online} />
-      <OrgMembersCard online={online} />
-    </>
-  );
-}
-
-function MeCard({ online }: { online: boolean }) {
-  const [me, setMe] = useState<DirectoryPrincipal | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const run = useRef(0);
-  const { copy, copied } = useCopy();
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const principal = await getMe();
-      if (run.current !== id) return;
-      setMe(principal);
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setMe(null);
-      setError(identityErrorText(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>You</h2>
-        </div>
-        <ReloadKey
-          label="Reload"
-          onReload={() => void load()}
-          disabled={!online}
-        />
-      </div>
-
-      <div className="panel__body">
-        <FailureNotice id="identity:me" title="Account" message={error} />
-
-        {me === null && !error ? (
-          <output className="note">Asking Identity…</output>
-        ) : null}
-
-        {me ? (
-          <dl className="kv">
-            <div>
-              <dt>Principal</dt>
-              <dd>
-                <code title={me.id}>{truncateId(me.id)}</code>{" "}
-                <IconKey
-                  label="Copy principal id"
-                  onClick={() => copy(me.id, "principal")}
-                >
-                  {copied === "principal" ? <IconCheck /> : <IconCopy />}
-                </IconKey>
-              </dd>
-            </div>
-            <div>
-              <dt>State</dt>
-              <dd>
-                <StatusMark
-                  tone={statusTone(stateChip(me.state).tone)}
-                  label={stateChip(me.state).label}
-                />
-              </dd>
-            </div>
-            <div>
-              <dt>Assurance</dt>
-              <dd>
-                <span className="chip">{me.assurance}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Created</dt>
-              <dd>{formatTime(me.createdAt)}</dd>
-            </div>
-          </dl>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-/** One principal, many IdPs — the model Tailscale does not have, made visible. */
-function LinkedIdentitiesCard({ online }: { online: boolean }) {
-  const [identities, setIdentities] = useState<LinkedIdentity[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const run = useRef(0);
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const rows = await listLinkedIdentities();
-      if (run.current !== id) return;
-      setIdentities(rows);
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setIdentities(null);
-      setError(identityErrorText(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function unlink(identity: LinkedIdentity) {
-    setBusyId(identity.id);
-    setFlash(null);
-    try {
-      await unlinkIdentity(identity.id);
-      setFlash({
-        tone: "ok",
-        text: `${identity.displayHint ?? identity.issuer} was unlinked.`,
-      });
-      setConfirmId(null);
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Linked identities</h2>
-        </div>
-        <ReloadKey
-          label="Reload identities"
-          onReload={() => void load()}
-          disabled={!online}
-        />
-      </div>
-
-      <div className="panel__body">
-        <FailureNotice
-          id="identity:linked-identities"
-          title="Linked identities"
-          message={error}
-        />
-
-        {identities === null && !error ? (
-          <output className="note">Asking Identity…</output>
-        ) : null}
-
-        {identities && identities.length > 0 ? (
-          <ul className="identity-rows">
-            {identities.map((identity) => {
-              const KindIcon = kindIcon(identity.kind);
-              return (
-                <li className="identity-row" key={identity.id}>
-                  <div className="identity-row__main">
-                    <span className="identity-row__mark">
-                      <KindIcon size={18} />
-                    </span>
-                    <div className="identity-row__id">
-                      <h3>{identity.displayHint ?? identity.issuer}</h3>
-                      <code className="identity-ref">{identity.issuer}</code>
-                    </div>
-                    <span className="chip">{identity.kind}</span>
-                    <span className="chip">{identity.assurance}</span>
-                    {identity.linkedAt ? (
-                      <span className="identity-row__when">
-                        linked {formatTime(identity.linkedAt)}
-                      </span>
-                    ) : null}
-                    <div className="actions">
-                      {confirmId === identity.id ? (
-                        <>
-                          <IconKey
-                            label="Unlink"
-                            small
-                            disabled={busyId !== null || !online}
-                            onClick={() => void unlink(identity)}
-                          >
-                            <IconTrash size={16} />
-                          </IconKey>
-                          <IconKey
-                            label="Keep it"
-                            small
-                            onClick={() => setConfirmId(null)}
-                          >
-                            <IconX size={16} />
-                          </IconKey>
-                        </>
-                      ) : (
-                        <IconKey
-                          label="Unlink"
-                          small
-                          disabled={busyId !== null || !online}
-                          onClick={() => setConfirmId(identity.id)}
-                        >
-                          <IconTrash size={16} />
-                        </IconKey>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-
-        {identities && identities.length === 0 ? (
-          <div className="empty">
-            <h3>No linked identities</h3>
-            <EmptyTip tip="rail" />
-          </div>
-        ) : null}
-
-        <StatusNote title="Linked identities" message={flash} />
-      </div>
-    </section>
-  );
-}
-
-function kindIcon(kind: string): typeof IconUser {
-  if (kind === "passkey") return IconPasskey;
-  if (kind === "oidc") return IconLogin;
-  return IconUser;
-}
-
-/**
- * Members of the active org profile. The API knows principal ids and roles —
- * nothing else: there is no invite-by-email and no last-seen to show.
- */
-function OrgMembersCard({ online }: { online: boolean }) {
-  const profileId = activeOrgProfileId();
-  const [members, setMembers] = useState<OrgMember[] | null>(null);
-  const [myRole, setMyRole] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [principalId, setPrincipalId] = useState("");
-  const [role, setRole] = useState("member");
-  const [busy, setBusy] = useState(false);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const run = useRef(0);
-
-  const load = useCallback(async () => {
-    if (profileId === GUEST_PROFILE_ID) return;
-    const id = ++run.current;
-    try {
-      const [rows, memberships] = await Promise.all([
-        listOrgMembers(profileId),
-        listOrgMemberships(),
-      ]);
-      if (run.current !== id) return;
-      setMembers(rows);
-      setMyRole(memberships.find((org) => org.id === profileId)?.role ?? null);
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setMembers(null);
-      setError(identityErrorText(caught));
-    }
-  }, [profileId]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function add(event: FormEvent) {
-    event.preventDefault();
-    const id = principalId.trim();
-    if (!id) return;
-    setBusy(true);
-    setFlash(null);
-    try {
-      await addOrgMember(profileId, id, role);
-      setFlash({ tone: "ok", text: `${id} was added as ${role}.` });
-      setPrincipalId("");
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function remove(member: OrgMember) {
-    setBusy(true);
-    setFlash(null);
-    try {
-      await removeOrgMember(member.organizationId, member.principalId);
-      setFlash({
-        tone: "ok",
-        text: `${member.principalId} was removed from the organization.`,
-      });
-      setConfirmId(null);
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (profileId === GUEST_PROFILE_ID) return null;
-
-  const owner = myRole === "owner";
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Organization members</h2>
-        </div>
-        <ReloadKey
-          label="Reload members"
-          onReload={() => void load()}
-          disabled={!online}
-        />
-      </div>
-
-      <div className="panel__body">
-        <FailureNotice id="identity:members" title="Members" message={error} />
-
-        {members === null && !error ? (
-          <output className="note">Asking Identity…</output>
-        ) : null}
-
-        {members && members.length > 0 ? (
-          <ul className="identity-rows">
-            {members.map((member) => (
-              <li className="identity-row" key={member.principalId}>
-                <div className="identity-row__main">
-                  <span className="identity-row__mark">
-                    <IconUser size={18} />
-                  </span>
-                  <div className="identity-row__id">
-                    <h3>
-                      <code className="identity-ref">
-                        {truncateId(member.principalId)}
-                      </code>
-                    </h3>
-                  </div>
-                  <span className="chip">{member.role}</span>
-                  {owner ? (
-                    <div className="actions">
-                      {confirmId === member.principalId ? (
-                        <>
-                          <IconKey
-                            label="Remove them"
-                            small
-                            disabled={busy || !online}
-                            onClick={() => void remove(member)}
-                          >
-                            <IconTrash size={16} />
-                          </IconKey>
-                          <IconKey
-                            label="Keep them"
-                            small
-                            onClick={() => setConfirmId(null)}
-                          >
-                            <IconX size={16} />
-                          </IconKey>
-                        </>
-                      ) : (
-                        <IconKey
-                          label="Remove"
-                          small
-                          disabled={busy || !online}
-                          onClick={() => setConfirmId(member.principalId)}
-                        >
-                          <IconTrash size={16} />
-                        </IconKey>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {members && members.length === 0 ? (
-          <p className="hint">No other members.</p>
-        ) : null}
-
-        {owner ? (
-          <form className="identity-addmember" onSubmit={(e) => void add(e)}>
-            <div className="field">
-              <label className="label" htmlFor="identity-member-principal">
-                Add a member by principal id
-              </label>
-              <input
-                id="identity-member-principal"
-                value={principalId}
-                onChange={(event) => setPrincipalId(event.target.value)}
-                placeholder="prn_…"
-                spellCheck={false}
-                autoComplete="off"
-                disabled={busy}
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="identity-member-role">
-                Role
-              </label>
-              <select
-                id="identity-member-role"
-                value={role}
-                onChange={(event) => setRole(event.target.value)}
-                disabled={busy}
-              >
-                <option value="member">member</option>
-                <option value="admin">admin</option>
-                <option value="owner">owner</option>
-              </select>
-            </div>
-            <div className="actions actions--end">
-              <FormCommit
-                label={busy ? "Adding…" : "Add member"}
-                disabled={busy || !online || !principalId.trim()}
-                icon={<IconPlus size={18} />}
-              />
-            </div>
-          </form>
-        ) : members !== null ? (
-          <p className="hint">Owner only.</p>
-        ) : null}
-
-        <StatusNote title="Members" message={flash} />
-      </div>
-    </section>
-  );
-}
-
-/* -------------------------------------------------------- service accounts */
-
-/** Registered relying parties on the OpenSesame OIDC issuer. */
-function ServiceAccountsPanel({
-  online,
-  session,
-}: {
-  online: boolean;
-  session: IdentitySession | null;
-}) {
-  const [clients, setClients] = useState<OAuthClient[] | null>(null);
-  const [editing, setEditing] = useState<OAuthClient | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [flash, setFlash] = useState<Flash | null>(null);
-  const [rotated, setRotated] = useState<OAuthClient | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
-  const run = useRef(0);
-  const { copy, copied } = useCopy();
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const rows = await listOAuthClients();
-      if (run.current !== id) return;
-      setClients(rows);
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setClients(null);
-      setError(identityErrorText(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!session) return;
-    void load();
-  }, [load, session]);
-
-  async function rotate(client: OAuthClient) {
-    setBusyId(client.id);
-    setFlash(null);
-    setRotated(null);
-    try {
-      const next = await rotateOAuthClient(client.id);
-      // The old client id is revoked server-side; the new one is the whole
-      // response, so it is shown once here and then lives only in the list.
-      setRotated(next);
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function revoke(client: OAuthClient) {
-    setBusyId(client.id);
-    setFlash(null);
-    try {
-      await revokeOAuthClient(client.id);
-      setFlash({
-        tone: "ok",
-        text: `${client.displayName} was revoked. Tokens it issued die with it.`,
-      });
-      setConfirmId(null);
-      setRotated(null);
-      void load();
-    } catch (caught) {
-      setFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  if (!session) {
-    return (
-      <ConnectIdentityNote
-        online={online}
-        what="The service identities this principal owns"
-      />
-    );
-  }
-
-  return (
-    <>
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>OIDC applications</h2>
-          </div>
-          <ReloadKey
-            label="Reload clients"
-            onReload={() => void load()}
-            disabled={!online}
-          />
-        </div>
-
-        <div className="panel__body">
-          <FailureNotice
-            id="identity:applications"
-            title="Applications"
-            message={error}
-          />
-
-          {clients === null && !error ? (
-            <output className="note">Asking Identity…</output>
-          ) : null}
-
-          {clients && clients.length > 0 ? (
-            <ul className="identity-rows">
-              {clients.map((client) => (
-                <li className="identity-row" key={client.id}>
-                  <div className="identity-row__main">
-                    <span className="identity-row__mark">
-                      <IconSite size={18} />
-                    </span>
-                    <div className="identity-row__id">
-                      <h3>{client.displayName}</h3>
-                      <code className="identity-ref">{client.id}</code>
-                    </div>
-                    <span className="chip">{client.admissionMode}</span>
-                    <StatusMark
-                      tone={client.state === "active" ? "ok" : "warn"}
-                      label={client.state}
-                    />
-                    <span className="identity-row__when">
-                      created {formatTime(client.createdAt)}
-                    </span>
-                    <div className="actions">
-                      <IconKey
-                        label="Edit application"
-                        small
-                        disabled={
-                          busyId !== null ||
-                          !online ||
-                          client.state === "revoked"
-                        }
-                        onClick={() => setEditing(client)}
-                      >
-                        <IconEdit size={16} />
-                      </IconKey>
-                      <IconKey
-                        label={
-                          busyId === client.id
-                            ? "Rotating client ID"
-                            : "Rotate client ID"
-                        }
-                        small
-                        disabled={busyId !== null || !online}
-                        onClick={() => void rotate(client)}
-                      >
-                        <IconRefresh size={16} />
-                      </IconKey>
-                      {confirmId === client.id ? (
-                        <>
-                          <IconKey
-                            label="Revoke it"
-                            small
-                            disabled={busyId !== null || !online}
-                            onClick={() => void revoke(client)}
-                          >
-                            <IconTrash size={16} />
-                          </IconKey>
-                          <IconKey
-                            label="Keep it"
-                            small
-                            onClick={() => setConfirmId(null)}
-                          >
-                            <IconX size={16} />
-                          </IconKey>
-                        </>
-                      ) : (
-                        <IconKey
-                          label="Revoke"
-                          small
-                          disabled={busyId !== null || !online}
-                          onClick={() => setConfirmId(client.id)}
-                        >
-                          <IconTrash size={16} />
-                        </IconKey>
-                      )}
-                    </div>
-                  </div>
-                  {confirmId === client.id ? (
-                    <p className="hint">Assertions keep their expiry.</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {clients && clients.length === 0 ? (
-            <div className="empty">
-              <h3>No applications registered.</h3>
-              <EmptyTip tip="navigate" />
-            </div>
-          ) : null}
-
-          {rotated ? (
-            <output className="note note--ok">
-              <IconCheck />
-              <p>
-                Rotated — the new client id: <code>{rotated.id}</code>{" "}
-                <IconKey
-                  label="Copy new client id"
-                  onClick={() => copy(rotated.id, "rotated")}
-                >
-                  {copied === "rotated" ? <IconCheck /> : <IconCopy />}
-                </IconKey>{" "}
-                The previous client id is revoked.
-              </p>
-            </output>
-          ) : null}
-
-          <StatusNote title="Applications" message={flash} />
-        </div>
-      </section>
-
-      {editing ? (
-        <section className="panel">
-          <div className="panel__body">
-            <EditApplication
-              key={editing.id}
-              client={editing}
-              online={online}
-              onSaved={() => {
-                setEditing(null);
-                void load();
-              }}
-              onCancel={() => setEditing(null)}
-            />
-          </div>
-        </section>
-      ) : null}
-      <CreateClientForm
-        online={online}
-        onCreated={() => void load()}
-        onFlash={setFlash}
-      />
-
-      <p className="hint">
-        <a
-          href={`${identityBase()}/.well-known/openid-configuration`}
-          title="Open OIDC discovery to configure this issuer in your application"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Open OIDC discovery
-        </a>
-      </p>
-    </>
-  );
-}
-
-function CreateClientForm({
-  online,
-  onCreated,
-  onFlash,
-}: {
-  online: boolean;
-  onCreated: () => void;
-  onFlash: (flash: Flash) => void;
-}) {
-  const [displayName, setDisplayName] = useState("");
-  const [redirectUris, setRedirectUris] = useState("");
-  const [sectorIdentifier, setSectorIdentifier] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const uris = redirectUris
-      .split("\n")
-      .map((uri) => uri.trim())
-      .filter((uri) => uri.length > 0);
-    if (!displayName.trim() || uris.length === 0 || !sectorIdentifier.trim()) {
-      onFlash({
-        tone: "err",
-        text: "A display name, at least one redirect URI, and a sector identifier are all required.",
-      });
-      return;
-    }
-    setBusy(true);
-    try {
-      const created = await createOAuthClient({
-        displayName: displayName.trim(),
-        redirectUris: uris,
-        sectorIdentifier: sectorIdentifier.trim(),
-      });
-      onFlash({
-        tone: "ok",
-        text: `${created.displayName} registered as ${created.id}.`,
-      });
-      setDisplayName("");
-      setRedirectUris("");
-      setSectorIdentifier("");
-      onCreated();
-    } catch (caught) {
-      onFlash({ tone: "err", text: identityErrorText(caught) });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Register an application</h2>
-        </div>
-      </div>
-
-      <div className="panel__body">
-        <form onSubmit={(event) => void submit(event)}>
-          <div className="field">
-            <label className="label" htmlFor="identity-client-name">
-              Display name
-            </label>
-            <input
-              id="identity-client-name"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Release pipeline"
-              maxLength={128}
-              disabled={busy}
-            />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="identity-client-uris">
-              Redirect URIs — one per line
-            </label>
-            <textarea
-              id="identity-client-uris"
-              value={redirectUris}
-              onChange={(event) => setRedirectUris(event.target.value)}
-              placeholder="https://ci.example.com/callback"
-              rows={3}
-              spellCheck={false}
-              disabled={busy}
-            />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="identity-client-sector">
-              Sector identifier
-            </label>
-            <input
-              id="identity-client-sector"
-              value={sectorIdentifier}
-              onChange={(event) => setSectorIdentifier(event.target.value)}
-              placeholder="https://ci.example.com"
-              title="An https URL naming the sector pairwise subjects are computed for"
-              spellCheck={false}
-              autoComplete="off"
-              disabled={busy}
-            />
-          </div>
-          <div className="actions actions--end">
-            <FormCommit
-              label={busy ? "Registering…" : "Register client"}
-              disabled={busy || !online}
-              busy={busy}
-            />
-          </div>
-        </form>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------ organization */
-
-/**
- * The tailnet analog: organizations this principal belongs to, with the
- * server-side IdP lock (ssoIssuer / samlIssuer) shown for what it is.
- */
-function OrganizationPanel({
-  online,
-  session,
-  onOpenPeople,
-}: {
-  online: boolean;
-  session: IdentitySession | null;
-  onOpenPeople: () => void;
-}) {
-  const [orgs, setOrgs] = useState<OrgMembership[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const run = useRef(0);
-
-  const load = useCallback(async () => {
-    const id = ++run.current;
-    try {
-      const rows = await listOrgMemberships();
-      if (run.current !== id) return;
-      setOrgs(rows);
-      setError(null);
-    } catch (caught) {
-      if (run.current !== id) return;
-      setOrgs(null);
-      setError(identityErrorText(caught));
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!session) return;
-    void load();
-  }, [load, session]);
-
-  if (!session) {
-    return (
-      <ConnectIdentityNote
-        online={online}
-        what="The organizations this principal belongs to"
-      />
-    );
-  }
-
-  return (
-    <>
-      <section className="panel">
-        <div className="panel__head">
-          <div>
-            <h2>Organizations</h2>
-          </div>
-          <ReloadKey
-            label="Reload organizations"
-            onReload={() => void load()}
-            disabled={!online}
-          />
-        </div>
-
-        <div className="panel__body">
-          <FailureNotice
-            id="identity:organizations"
-            title="Organizations"
-            message={error}
-          />
-
-          {orgs === null && !error ? (
-            <output className="note">Asking Identity…</output>
-          ) : null}
-
-          {orgs && orgs.length > 0 ? (
-            <ul className="identity-rows">
-              {orgs.map((org) => (
-                <li className="identity-row" key={org.id}>
-                  <div className="identity-row__main">
-                    <span className="identity-row__mark">
-                      <IconShield size={18} />
-                    </span>
-                    <div className="identity-row__id">
-                      <h3>{org.displayName}</h3>
-                      <code className="identity-ref">{org.slug}</code>
-                    </div>
-                    <span className="chip">{org.role}</span>
-                    <div className="actions">
-                      <IconKey label="View people" small onClick={onOpenPeople}>
-                        <IconUser size={16} />
-                      </IconKey>
-                    </div>
-                  </div>
-                  {org.ssoIssuer || org.samlIssuer ? (
-                    <p className="hint">
-                      Server-side IdP lock:{" "}
-                      <code>{org.ssoIssuer ?? org.samlIssuer}</code>
-                    </p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {orgs && orgs.length === 0 ? (
-            <div className="empty">
-              <h3>No organizations yet</h3>
-              <EmptyTip tip="navigate" />
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      <Directory.DirectoryOrgSignIn online={online} known={orgs} />
-      <CreateOrgForm online={online} onCreated={() => void load()} />
-    </>
-  );
-}
-
-function CreateOrgForm({
-  online,
-  onCreated,
-}: {
-  online: boolean;
-  onCreated: () => void;
-}) {
-  const [slug, setSlug] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [ssoIssuer, setSsoIssuer] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState<string | null>(null);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setCreated(null);
-    const normalized = slug.trim().toLowerCase();
-    // The same shape the server enforces, checked here so a bad slug never
-    // leaves the device.
-    if (!ORG_SLUG_RE.test(normalized)) {
-      setError(
-        "Use a slug like acme-corp — lowercase letters, numbers, and dashes.",
-      );
-      return;
-    }
-    if (!displayName.trim()) {
-      setError("Give the organization a display name.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const org = await createOrganization({
-        slug: normalized,
-        displayName: displayName.trim(),
-        ...(ssoIssuer.trim() ? { ssoIssuer: ssoIssuer.trim() } : undefined),
-      });
-      setCreated(`${org.displayName} was created — you are its owner.`);
-      setSlug("");
-      setDisplayName("");
-      setSsoIssuer("");
-      onCreated();
-    } catch (caught) {
-      setError(identityErrorText(caught));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="panel">
-      <div className="panel__head">
-        <div>
-          <h2>Create an organization</h2>
-        </div>
-      </div>
-
-      <div className="panel__body">
-        <form onSubmit={(event) => void submit(event)}>
-          <div className="field">
-            <label className="label" htmlFor="identity-org-slug">
-              Slug
-            </label>
-            <input
-              id="identity-org-slug"
-              value={slug}
-              onChange={(event) => setSlug(event.target.value)}
-              placeholder="acme-corp"
-              spellCheck={false}
-              autoComplete="off"
-              disabled={busy}
-            />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="identity-org-name">
-              Display name
-            </label>
-            <input
-              id="identity-org-name"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Acme Corp"
-              maxLength={128}
-              disabled={busy}
-            />
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="identity-org-sso">
-              SSO issuer (optional)
-            </label>
-            <input
-              id="identity-org-sso"
-              value={ssoIssuer}
-              onChange={(event) => setSsoIssuer(event.target.value)}
-              placeholder="https://login.acme.com"
-              title="The OIDC issuer this organization locks sign-ins to"
-              spellCheck={false}
-              autoComplete="off"
-              disabled={busy}
-            />
-          </div>
-
-          <FailureNotice
-            id="identity:create-organization"
-            title="Organization"
-            message={error}
-          />
-          {created ? (
-            <output className="note note--ok">
-              <IconCheck /> {created}
-            </output>
-          ) : null}
-
-          <div className="actions actions--end">
-            <FormCommit
-              label={busy ? "Creating…" : "Create organization"}
-              disabled={busy || !online}
-              busy={busy}
-              icon={<IconPlus size={18} />}
-            />
-          </div>
-        </form>
-      </div>
-    </section>
-  );
-}
-
-/* ----------------------------------------------------------------- helpers */
 
 function useCopy() {
   const [copied, setCopied] = useState<string | null>(null);

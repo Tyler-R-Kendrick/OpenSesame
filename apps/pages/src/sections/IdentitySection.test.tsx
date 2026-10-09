@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import type { IdpRecord } from "@opensesame/app-core/lib/idp-registry.js";
 import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 import {
@@ -5,10 +6,8 @@ import {
   IDENTITY_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-/** @vitest-environment jsdom */
-import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { declareTutorialForTest } from "../modules/tutorial-test-realm.js";
 import { contributeIdentityForTests } from "./identity/identity-test-support.js";
@@ -35,7 +34,6 @@ import {
   registerIdp,
 } from "@opensesame/app-core/lib/idp-registry.js";
 import { expectInTray } from "../components/tray.test-support.js";
-import { IdentitySection } from "./IdentitySection.js";
 
 function makeRecord(overrides: Partial<IdpRecord> = {}): IdpRecord {
   return {
@@ -48,32 +46,13 @@ function makeRecord(overrides: Partial<IdpRecord> = {}): IdpRecord {
   };
 }
 
-function renderIdentity() {
-  return render(
-    <MemoryRouter>
-      <IdentitySection />
-    </MemoryRouter>,
-  );
-}
-
-async function openProviderCeremony() {
-  await openTab("Providers");
-  await userEvent.click(firstButton("Register an IdP"));
-}
-
-async function openTab(name: string) {
-  await userEvent.click(screen.getByRole("tab", { name }));
-}
-
-/** A device approval answers with a mark; its words are the mark's name. */
-const mark = (name: string | RegExp) => screen.findByRole("img", { name });
-
-function firstButton(name: string): HTMLElement {
-  const matches = screen.getAllByRole("button", { name });
-  const found = matches[0];
-  if (!found) throw new Error(`no button named ${name}`);
-  return found;
-}
+import {
+  firstButton,
+  mark,
+  openProviderCeremony,
+  openTab,
+  renderIdentity,
+} from "./identity/workspace-test-support.js";
 
 describe("IdentitySection", () => {
   // The Identity tabs belong to three capabilities (local IAM, federation,
@@ -167,9 +146,10 @@ describe("IdentitySection", () => {
 
   it("opens administration without an upstream binding and offers an explicit provider ceremony", async () => {
     renderIdentity();
-    expect(screen.getByRole("tab", { name: "People" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Applications" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Agents" })).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(
+      await screen.findByRole("tree", { name: "People items" }),
+    ).toBeTruthy();
     expect(screen.queryByText("Connect your identity provider")).toBeNull();
     await openProviderCeremony();
     expect(
@@ -183,15 +163,10 @@ describe("IdentitySection", () => {
     // secondary "Sign-in providers" section.
     expect(screen.getByLabelText(/Custom OIDC issuer/i)).toBeTruthy();
     expect(screen.getByText("Sign-in providers")).toBeTruthy();
-    // `find`, not `get`: the heading above renders immediately but the row
-    // beneath it waits on the provider catalog, which is a *second* async
-    // resolution this test never awaited. Locally both settle in the same
-    // flush and it passes; under CI load it does not.
     expect(
       await screen.findByRole("button", { name: "Continue with Google" }),
     ).toBeTruthy();
     expect(screen.getByText("Set up later")).toBeTruthy();
-    // No tabs behind the gate.
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
@@ -212,7 +187,6 @@ describe("IdentitySection", () => {
       expect.objectContaining({ id: "opensesame-device", kind: "device" }),
       expect.objectContaining({ id: "google", kind: "first-class" }),
     ]);
-    // The gate lifts onto the Providers tab with the success line.
     expect(await screen.findByText(/Sign-in started with Google/)).toBeTruthy();
   });
 
@@ -402,38 +376,20 @@ describe("IdentitySection", () => {
     expect(registerByoProvider).not.toHaveBeenCalled();
   });
 
-  it("renders one tab at a time with aria-selected once the gate is lifted", async () => {
+  it("navigates the subtree list and record buffer without top tabs", async () => {
     registerIdp(makeRecord());
     renderIdentity();
-
-    for (const name of [
-      "People",
-      "Providers",
-      "Devices",
-      "Applications",
-      "Organizations",
-    ]) {
-      expect(screen.getByRole("tab", { name })).toBeTruthy();
-    }
-    expect(
-      screen.getByRole("tab", { name: "People" }).getAttribute("aria-selected"),
-    ).toBe("true");
-    expect(
-      screen
-        .getByRole("tab", { name: "Providers" })
-        .getAttribute("aria-selected"),
-    ).toBe("false");
-    expect(await screen.findByText("You")).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Providers" })).toBeNull();
-
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(await screen.findByRole("treeitem", { name: /You/ })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "You" })).toBeNull();
+    await userEvent.click(screen.getByRole("treeitem", { name: /You/ }));
+    expect(await screen.findByRole("heading", { name: "You" })).toBeTruthy();
     await openTab("Providers");
-    await screen.findByRole("heading", { name: "Providers" });
-    expect(screen.queryByText("Linked identities")).toBeNull();
-    expect(
-      screen
-        .getByRole("tab", { name: "Providers" })
-        .getAttribute("aria-selected"),
-    ).toBe("true");
+    await userEvent.click(
+      await screen.findByRole("treeitem", { name: /Google/ }),
+    );
+    expect(await screen.findByRole("heading", { name: "Google" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "You" })).toBeNull();
   });
 
   it("shows a connect note in People when there is no session", async () => {
@@ -462,14 +418,16 @@ describe("IdentitySection", () => {
     registerIdp(makeRecord());
     renderIdentity();
 
-    expect(await screen.findByText("Linked identities")).toBeTruthy();
-    // The me card: state mark, assurance chip, copyable principal id.
+    await userEvent.click(await screen.findByRole("treeitem", { name: /You/ }));
     expect(await mark("active")).toBeTruthy();
-    // "verified" appears on both the me card and the identity row.
-    expect(screen.getAllByText("verified").length).toBeGreaterThan(0);
+    expect(screen.getByText("verified")).toBeTruthy();
     expect(screen.getByText("prn_op")).toBeTruthy();
-    // The linked identity row.
-    expect(await screen.findByText("ada@example.com")).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("treeitem", { name: /ada@example.com/ }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "ada@example.com" }),
+    ).toBeTruthy();
     expect(screen.getByText("https://accounts.google.com")).toBeTruthy();
   });
 
@@ -483,6 +441,7 @@ describe("IdentitySection", () => {
     });
     registerIdp(makeRecord());
     renderIdentity();
+    await userEvent.click(await screen.findByRole("treeitem", { name: /You/ }));
     expect((await mark("Guest")).className).toContain("status-mark--warn");
     expect(
       screen.queryByText(/No identity provider vouches for this identity yet/),
@@ -505,15 +464,22 @@ describe("IdentitySection", () => {
     ]);
     registerIdp(makeRecord());
     renderIdentity();
-    await screen.findByText("ada@example.com");
-    for (const key of ["Unlink", "Keep it", "Unlink"])
+    await userEvent.click(
+      await screen.findByRole("treeitem", { name: /ada@example.com/ }),
+    );
+    for (const key of ["Unlink identity", "Keep it", "Unlink identity"])
       await userEvent.click(firstButton(key)); // arm, disarm, arm again
     expect(directory.unlinkIdentity).not.toHaveBeenCalled();
-    await userEvent.click(firstButton("Unlink"));
+    directory.listLinkedIdentities.mockResolvedValue([]);
+    await userEvent.click(firstButton("Confirm removal"));
     await waitFor(() =>
       expect(directory.unlinkIdentity).toHaveBeenCalledWith("xid_1"),
     );
-    expect(await screen.findByText(/was unlinked/)).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", { name: "ada@example.com" }),
+      ).toBeNull(),
+    );
   });
 
   it("lists registry rows in Providers and removes the local mirror", async () => {
@@ -529,7 +495,12 @@ describe("IdentitySection", () => {
     renderIdentity();
     await openTab("Providers");
 
-    expect(await screen.findByText("Example IdP")).toBeTruthy();
+    await userEvent.click(
+      await screen.findByRole("treeitem", { name: /Example IdP/ }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Example IdP" }),
+    ).toBeTruthy();
     expect(screen.getByText("Custom OIDC")).toBeTruthy();
     expect(screen.getByText("https://auth.example.dev")).toBeTruthy();
 
@@ -550,11 +521,19 @@ describe("IdentitySection", () => {
     renderIdentity();
     await openTab("Applications");
 
-    expect(await screen.findByText("Release pipeline")).toBeTruthy();
+    await userEvent.click(
+      await screen.findByRole("treeitem", { name: /Release pipeline/ }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Release pipeline" }),
+    ).toBeTruthy();
     expect(screen.getByText("cli_1")).toBeTruthy();
     expect(screen.getByText("pre_registered")).toBeTruthy();
 
     // Create.
+    await userEvent.click(
+      screen.getByRole("button", { name: "New application" }),
+    );
     await userEvent.type(
       screen.getByLabelText(/Display name/i),
       "Nightly sync",
@@ -580,37 +559,47 @@ describe("IdentitySection", () => {
 
     // Rotate: the new client id is displayed with copy.
     await userEvent.click(
+      await screen.findByRole("treeitem", { name: /Release pipeline/ }),
+    );
+    directory.listOAuthClients.mockResolvedValue([makeClient({ id: "cli_3" })]);
+    await userEvent.click(
       screen.getByRole("button", { name: /Rotate client ID/i }),
     );
     await waitFor(() =>
       expect(directory.rotateOAuthClient).toHaveBeenCalledWith("cli_1"),
     );
-    expect(await screen.findByText(/the new client id:/)).toBeTruthy();
-    expect(screen.getByText("cli_3")).toBeTruthy();
+    expect(await screen.findByText(/New client id:/)).toBeTruthy();
+    expect(screen.getAllByText("cli_3").length).toBeGreaterThan(0);
 
     // Revoke, after confirmation.
-    await userEvent.click(screen.getByRole("button", { name: /^Revoke$/i }));
+    const revoke = await screen.findByRole("button", { name: /^Revoke$/i });
+    await waitFor(() => expect(revoke).toHaveProperty("disabled", false));
+    await userEvent.click(revoke);
     expect(directory.revokeOAuthClient).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: /Revoke it/i }));
     await waitFor(() =>
-      expect(directory.revokeOAuthClient).toHaveBeenCalledWith("cli_1"),
+      expect(directory.revokeOAuthClient).toHaveBeenCalledWith("cli_3"),
     );
 
-    // Agents are cross-linked, not duplicated.
-    expect(screen.getByText("Agents")).toBeTruthy();
+    expect(screen.queryByRole("tablist")).toBeNull();
   });
 
   it("shows the empty service-identities state", async () => {
     registerIdp(makeRecord());
     renderIdentity();
     await openTab("Applications");
-    expect(await screen.findByText("No applications registered.")).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Nothing here" }),
+    ).toBeTruthy();
   });
 
   it("validates the org slug client-side before calling the API", async () => {
     registerIdp(makeRecord());
     renderIdentity();
     await openTab("Organizations");
+    await userEvent.click(
+      screen.getByRole("button", { name: "New organization" }),
+    );
 
     await userEvent.type(screen.getByLabelText(/^Slug$/i), "Bad Slug!");
     await userEvent.type(screen.getByLabelText(/Display name/i), "Acme Corp");
@@ -622,6 +611,16 @@ describe("IdentitySection", () => {
 
     await userEvent.clear(screen.getByLabelText(/^Slug$/i));
     await userEvent.type(screen.getByLabelText(/^Slug$/i), "acme-corp");
+    listOrgMemberships.mockResolvedValue([
+      {
+        id: "org:2",
+        slug: "acme-corp",
+        displayName: "Acme Corp",
+        state: "active",
+        role: "owner",
+        createdAt: "2026-08-29T00:00:00Z",
+      },
+    ]);
     await userEvent.click(
       screen.getByRole("button", { name: /Create organization/i }),
     );
@@ -632,7 +631,7 @@ describe("IdentitySection", () => {
       }),
     );
     expect(
-      await screen.findByText(/Acme Corp was created — you are its owner/),
+      await screen.findByRole("heading", { name: "Acme Corp" }),
     ).toBeTruthy();
   });
 
@@ -777,7 +776,7 @@ describe("IdentitySection", () => {
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/Sign-in started with GitHub/)).toBeTruthy();
     expect(listIdpRegistrations()).toHaveLength(4);
-    expect(screen.getByRole("tab", { name: "Providers" })).toBeTruthy();
+    expect(screen.getByRole("tree", { name: "Providers items" })).toBeTruthy();
     expect(screen.queryByText("Connect your identity provider")).toBeNull();
   });
 
@@ -785,12 +784,12 @@ describe("IdentitySection", () => {
     registerIdp(makeRecord());
     const { container } = renderIdentity();
 
+    await userEvent.click(await screen.findByRole("treeitem", { name: /You/ }));
     await screen.findByText("prn_op");
-    await screen.findByText("You");
     expectProseBudget(container);
 
     await openTab("Providers");
-    await screen.findByRole("heading", { name: "Providers" });
+    await screen.findByRole("tree", { name: "Providers items" });
     await screen.findByText("OpenSesame (this device)");
     expectProseBudget(container);
 
@@ -799,11 +798,11 @@ describe("IdentitySection", () => {
     expectProseBudget(container);
 
     await openTab("Applications");
-    await screen.findByText("No applications registered.");
+    await screen.findByRole("heading", { name: "Nothing here" });
     expectProseBudget(container);
 
     await openTab("Organizations");
-    await screen.findByText("No organizations yet");
+    await screen.findByRole("heading", { name: "Nothing here" });
     expectProseBudget(container);
   });
 

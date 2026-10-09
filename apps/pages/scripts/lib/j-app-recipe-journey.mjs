@@ -2,19 +2,9 @@
  * J-APP / J-RECIPE (local plane): register an application, inspect setup
  * copy, export a recipe without secrets, bind an organization, apply twice.
  */
-import { addCapabilities, openSection, sealWithPin } from "./pages-journey.mjs";
+import { addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
-async function openApplications(page) {
-  const region = page.getByRole("region", {
-    name: "Local applications",
-    exact: true,
-  });
-  if (!(await region.isVisible().catch(() => false))) {
-    await openSection(page, "identity/");
-    await page.getByRole("tab", { name: "Applications", exact: true }).click();
-    await region.waitFor({ timeout: 15000 });
-  }
-}
+import { createApplication, openApplications } from "./j-local-application.mjs";
 
 export async function walkJAppRecipe({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
@@ -26,26 +16,8 @@ export async function walkJAppRecipe({ page, origin, base, check, snap }) {
     "Browser-local IAM",
     "Directory provisioning",
   ]);
-  await openApplications(page);
-  const panel = page.getByRole("region", {
-    name: "Local applications",
-    exact: true,
-  });
-  await panel
-    .getByRole("button", { name: "New application", exact: true })
-    .click();
-  const nameField = panel.getByRole("textbox", { name: "Name", exact: true });
-  await nameField.waitFor({ timeout: 8000 });
-  await nameField.click();
-  await page.keyboard.type("Recipe relying party", { delay: 15 });
-  // The name field commits on Enter: there is no separate Create button.
-  await page.keyboard.press("Enter");
-  await nameField.waitFor({ state: "hidden", timeout: 10000 });
-  const row = panel
-    .getByRole("listitem")
-    .filter({ hasText: "Recipe relying party" });
-  await row.waitFor({ timeout: 10000 });
-  await row.locator("summary", { hasText: "Application registration" }).click();
+  const panel = await openApplications(page);
+  const row = await createApplication(page, "Recipe relying party");
   const organization = row.getByRole("combobox", {
     name: "Organization",
     exact: true,
@@ -101,7 +73,7 @@ export async function walkJAppRecipe({ page, origin, base, check, snap }) {
     `repeat import stays idempotent: ${last}`,
   );
   const apps = panel
-    .getByRole("listitem")
+    .getByRole("treeitem")
     .filter({ hasText: "Recipe relying party" });
   check(
     (await apps.count()) === 1,

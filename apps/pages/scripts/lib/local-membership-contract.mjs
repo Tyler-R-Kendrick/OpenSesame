@@ -1,4 +1,10 @@
 import { expect } from "@playwright/test";
+import {
+  expectIdentityRefusal,
+  identityList,
+  openIdentityRecord,
+  openIdentityView,
+} from "./local-directory-navigation.mjs";
 
 // The refusal a guest meets once a claimed operator exists
 // (`assertAccessCapability`, packages/app-core/src/lib/local-rbac.ts).
@@ -6,20 +12,16 @@ const OPERATOR_ONLY =
   "Only an operator can change Access or Identity administration once an operator identity is assigned.";
 
 async function selectTab(page, tabTo, name) {
-  await tabTo(page, page.getByRole("tab", { name, exact: true }));
-  await page.keyboard.press("Enter");
+  await openIdentityView(page, tabTo, name);
 }
-
 function organizationsPanel(page) {
-  return page.getByRole("region", {
-    name: "Local organizations",
-    exact: true,
-  });
+  return page.locator('.record-workspace[data-section="Identity"]');
 }
 
 /** People and an organization, created while the guest is still operator. */
 export async function localMembershipSetup(page, tabTo) {
   async function create(panel, kind, name) {
+    await identityList(page, tabTo);
     const createButton = panel.getByRole("button", {
       name: `New ${kind}`,
       exact: true,
@@ -37,10 +39,7 @@ export async function localMembershipSetup(page, tabTo) {
     ).toBeVisible();
   }
   await selectTab(page, tabTo, "People");
-  const people = page.getByRole("region", {
-    name: "Local people",
-    exact: true,
-  });
+  const people = page.locator('.record-workspace[data-section="Identity"]');
   await create(people, "person", "Membership owner");
   await create(people, "person", "Membership member");
   await selectTab(page, tabTo, "Organizations");
@@ -60,9 +59,8 @@ export async function localMembershipSetup(page, tabTo) {
 export async function localMembershipContract(page, tabTo) {
   await selectTab(page, tabTo, "Organizations");
   const panel = organizationsPanel(page);
-  const org = panel
-    .getByRole("listitem")
-    .filter({ hasText: "Keyboard organization" });
+  await openIdentityRecord(page, tabTo, "Keyboard organization");
+  const org = panel.locator(".vault__detail");
   const { person, role, rows, disclosure, owner } = await assignOwner(
     page,
     org,
@@ -77,8 +75,8 @@ export async function localMembershipContract(page, tabTo) {
     owner.getByRole("button", { name: "Confirm removal", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("alert")).toContainText(OPERATOR_ONLY);
   await expect(disclosure).toBeFocused();
+  await expectIdentityRefusal(page, tabTo, OPERATOR_ONLY);
   await expect(owner).toContainText("Owner (operator)");
   await tabTo(page, person);
   await page.keyboard.press("End");
@@ -91,7 +89,7 @@ export async function localMembershipContract(page, tabTo) {
     org.getByRole("button", { name: "Add member", exact: true }),
   );
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("alert")).toContainText(OPERATOR_ONLY);
+  await expectIdentityRefusal(page, tabTo, OPERATOR_ONLY);
   await expect(rows.filter({ hasText: "Membership member" })).toHaveCount(0);
   await expect(owner).toContainText("Owner (operator)");
   await panel.scrollIntoViewIfNeeded();

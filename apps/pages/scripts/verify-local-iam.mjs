@@ -16,7 +16,9 @@ const origin = "https://tyler-r-kendrick.github.io";
 const rp = "https://rp.example.test";
 const issuerUrl = `${origin}/OpenSesame/identity/authorize`;
 const harness = createHarness({
-  dist: fileURLToPath(new URL("../dist", import.meta.url)),
+  dist:
+    process.env.PAGES_VERIFY_DIST ??
+    fileURLToPath(new URL("../dist", import.meta.url)),
   origin,
   base: "/OpenSesame/",
   out: "/tmp/local-iam",
@@ -155,6 +157,7 @@ try {
     });
   }
 } catch (error) {
+  console.error("Local IAM failure:", error);
   for (const [index, context] of browser.contexts().entries()) {
     for (const [tab, page] of context.pages().entries()) {
       console.error(

@@ -1,11 +1,14 @@
 import {
-  AUDIENCE_TEMPLATE_IDS,
   type AudienceTemplate,
-  type AudienceTemplateId,
   listAudienceTemplates,
 } from "@opensesame/os-domain/authority-templates";
-import { useId, useState } from "react";
 import { StatusMark } from "../../components/StatusMark.js";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 
 function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return "—";
@@ -26,27 +29,27 @@ function SupportStatus({ status }: { status: string }) {
 
 function TemplateDetail({ template }: { template: AudienceTemplate }) {
   return (
-    <div className="panel__body">
-      <p className="hint">{template.summary}</p>
-      <p className="hint">
-        Vocabulary: {template.vocabulary.domain} ·{" "}
-        {template.vocabulary.participant}
-        {template.vocabulary.supervisor
-          ? ` · ${template.vocabulary.supervisor}`
-          : null}
-      </p>
-      <p className="hint">
-        Defaults: {template.defaults.lifetimeKind},{" "}
-        {template.defaults.inheritance}, default{" "}
-        {formatDuration(template.defaults.defaultLifetimeMs)}, max{" "}
-        {formatDuration(template.defaults.maxLifetimeMs)}
-        {template.defaults.usageAccounting
-          ? `, usage ${template.defaults.usageAccounting.replaceAll("_", " ")}`
-          : null}
-      </p>
-      <p className="hint">
-        Suggested verbs: {template.defaults.suggestedVerbs.join(", ")}
-      </p>
+    <>
+      <AccessFact label="Summary" value={template.summary} />
+      <AccessFact
+        label="Vocabulary"
+        value={[
+          template.vocabulary.domain,
+          template.vocabulary.participant,
+          template.vocabulary.supervisor,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      />
+      <AccessFact
+        label="Lifetime"
+        value={`${template.defaults.lifetimeKind} · ${formatDuration(template.defaults.defaultLifetimeMs)} default · ${formatDuration(template.defaults.maxLifetimeMs)} maximum`}
+      />
+      <AccessFact label="Inheritance" value={template.defaults.inheritance} />
+      <AccessFact
+        label="Suggested verbs"
+        value={template.defaults.suggestedVerbs.join(", ")}
+      />
       <h3 className="access-policy-title">Support matrix</h3>
       <ul className="access-domain-list">
         {template.supportMatrix.map((claim) => (
@@ -58,8 +61,8 @@ function TemplateDetail({ template }: { template: AudienceTemplate }) {
           </li>
         ))}
       </ul>
-      <p className="hint">Workflow: {template.workflowHints.join(" · ")}</p>
-    </div>
+      <AccessFact label="Workflow" value={template.workflowHints.join(" · ")} />
+    </>
   );
 }
 
@@ -69,47 +72,24 @@ function TemplateDetail({ template }: { template: AudienceTemplate }) {
  */
 export function LocalAuthorityTemplates() {
   const templates = listAudienceTemplates();
-  const [selectedId, setSelectedId] = useState<AudienceTemplateId>(
-    templates[0]?.id ?? "family",
-  );
-  const labelId = useId();
-  const selected =
-    templates.find((template) => template.id === selectedId) ?? templates[0];
-
+  const selection = useAccessRecord("local-authority-templates", "sessions");
+  const selected = templates.find((template) => template.id === selection.id);
   return (
-    <section
-      className="panel"
-      id="local-authority-templates"
-      aria-labelledby={labelId}
+    <AccessRecords
+      title="Audience templates"
+      selection={selection}
+      rows={templates.map((template) => ({
+        id: template.id,
+        label: template.label,
+        extension: "template",
+        to: selection.path(template.id),
+      }))}
     >
-      <div className="panel__head">
-        <h2 id={labelId}>Audience templates</h2>
-      </div>
-      <div className="panel__body">
-        <label className="field">
-          <span className="label">Template</span>
-          <select
-            className="input"
-            value={selected?.id ?? ""}
-            onChange={(event) => {
-              const next = event.target.value;
-              for (const id of AUDIENCE_TEMPLATE_IDS) {
-                if (id === next) {
-                  setSelectedId(id);
-                  return;
-                }
-              }
-            }}
-          >
-            {templates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.label} (v{template.version})
-              </option>
-            ))}
-          </select>
-        </label>
-        {selected ? <TemplateDetail template={selected} /> : null}
-      </div>
-    </section>
+      {selected ? (
+        <AccessDetail title={selected.label} kind="Audience template">
+          <TemplateDetail template={selected} />
+        </AccessDetail>
+      ) : null}
+    </AccessRecords>
   );
 }
