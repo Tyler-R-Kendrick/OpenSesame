@@ -55,7 +55,7 @@
 
 .command-bar__form:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .command-bar__mic,

@@ -35,7 +35,9 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  color: var(--accent);
+  /* Secondary ink: the folder and type read as the path around the name, not
+     as the name. The accent is ink now, so it would draw them alike. */
+  color: var(--ink-2);
   font-family: var(--mono);
   font-size: max(0.9375rem, var(--field-min));
   font-weight: 500;
