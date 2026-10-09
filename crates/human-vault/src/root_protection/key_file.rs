@@ -240,7 +240,9 @@ pub fn password_wrapper_from_manifest(
     Err(ProtectionError::ProtectorNotFound)
 }
 
-fn validate_manifest_bounds(manifest: &RootProtectionManifest) -> Result<(), ProtectionError> {
+pub(super) fn validate_manifest_bounds(
+    manifest: &RootProtectionManifest,
+) -> Result<(), ProtectionError> {
     if manifest.schema_version != MANIFEST_SCHEMA_VERSION {
         return Err(ProtectionError::UnsupportedVersion(manifest.schema_version));
     }

@@ -38,3 +38,12 @@ pub(crate) fn deserialize_present<'de, D: Deserializer<'de>>(
 ) -> Result<Option<FactorConfigurationBinding>, D::Error> {
     FactorConfigurationBinding::deserialize(input).map(Some)
 }
+
+impl FactorConfigurationBinding {
+    pub(super) fn native_from_digest(digest: &[u8; 32]) -> Self {
+        Self {
+            version: 1,
+            digest_b64: STANDARD.encode(digest),
+        }
+    }
+}

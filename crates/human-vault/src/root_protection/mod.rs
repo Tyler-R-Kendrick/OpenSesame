@@ -9,6 +9,7 @@ mod factor_configuration;
 mod key_file;
 mod legacy;
 mod limits;
+mod native_factor_configuration;
 mod ops;
 mod parse;
 mod recovery;
@@ -38,6 +39,9 @@ pub use legacy::{
     unlock_legacy_password_wrapper,
 };
 pub use limits::*;
+pub use native_factor_configuration::{
+    assert_native_factor_configuration, prepare_native_factor_configuration,
+};
 pub use ops::{
     ensure_versioned_manifest, protect_add_age_recipient, protect_add_recovery, protect_list,
     protect_remove, protect_rewrap_password, protect_test_password, protect_test_recovery,
