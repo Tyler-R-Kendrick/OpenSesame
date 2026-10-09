@@ -351,7 +351,8 @@ impl ConnectionBroker {
         secrets: Arc<dyn SyncSecretSource>,
     ) -> Result<SyncOutcome> {
         let row = self.sync_target_in_org(organization_id, id).await?;
-        self.require_sync_target_authority(organization_id, &row).await?;
+        self.require_sync_target_authority(organization_id, &row)
+            .await?;
         if SyncTargetStatus::parse(&row.status) == SyncTargetStatus::Syncing {
             return Err(BrokerError::Invalid(
                 "sync already in progress for this target".into(),
@@ -492,7 +493,8 @@ impl ConnectionBroker {
     ) -> Result<String> {
         let target = self.sync_target_in_org(organization_id, target_id).await?;
         let key = *self.sealing_key()?;
-        self.require_sync_target_authority(organization_id, &target).await?;
+        self.require_sync_target_authority(organization_id, &target)
+            .await?;
         let entries = secrets
             .load_config_secrets(
                 &organization_id.to_string(),
@@ -500,7 +502,8 @@ impl ConnectionBroker {
                 &target.config_id,
             )
             .await?;
-        self.require_sync_target_authority(organization_id, &target).await?;
+        self.require_sync_target_authority(organization_id, &target)
+            .await?;
         Ok(content_version_for(&key, &target.id, &entries))
     }
 
@@ -552,7 +555,8 @@ impl ConnectionBroker {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
 
-        self.require_sync_target_authority(organization_id, target).await?;
+        self.require_sync_target_authority(organization_id, target)
+            .await?;
         let entries = secrets
             .load_config_secrets(
                 &organization_id.to_string(),
@@ -561,7 +565,8 @@ impl ConnectionBroker {
             )
             .await?;
         // Do not export a snapshot when authority was revoked during loading.
-        self.require_sync_target_authority(organization_id, target).await?;
+        self.require_sync_target_authority(organization_id, target)
+            .await?;
         let key_names: Vec<String> = entries.keys().cloned().collect();
         let content_version = content_version_for(&key, &target.id, &entries);
 
@@ -646,7 +651,7 @@ impl ConnectionBroker {
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect();
         let body = json!({
-            "query": "mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: VariableCollectionUpsertInput!) }",
+            "query": "mutation variableCollectionUpsert($input: VariableCollectionUpsertInput!) { variableCollectionUpsert(input: $input) }",
             "variables": {
                 "input": {
                     "projectId": project_id,
