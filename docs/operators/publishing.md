@@ -23,26 +23,22 @@ Packages remain private in the monorepo until you remove `"private": true` from
 their `package.json` and set `"publishConfig": { "access": "public" }` where
 appropriate.
 
-## Vercel (static Pages only)
+## Vercel (Pages + default service URLs)
 
 Static Pages already deploy on every push to `main` via
 `.github/workflows/deploy-pages.yml` (GitHub Pages).
 
-`apps/pages` is a **purely static** export (ADR 0090). There is no default
-Identity, Host, or daemon service for the PWA. Sessions are browser-hosted
-WebRTC; a relay peer (ADR 0181) is optional and never required for deploy.
-
 For Vercel:
 
-1. Link the repository (root directory `apps/pages`, settings in
-   `apps/pages/vercel.json`).
-2. Set **no** required environment variables. Do **not** stamp
-   `PAGES_IDENTITY_API`, `PAGES_HOST_API`, or `PAGES_DAEMON_API`.
-3. Deploy must serve `dist/` only — **no** Vercel serverless functions under
-   `api/`.
-4. Optional: Git integration; the checked-in `vercel.json` runs the same turbo
-   build as CI.
+1. Link the repository in the Vercel dashboard (root directory `apps/pages`,
+   build settings in `apps/pages/vercel.json`).
+2. Set **Actions variables** on GitHub (see `deploy-pages.yml` header):
+   `PAGES_IDENTITY_API`, `PAGES_HOST_API`, `PAGES_DAEMON_API` — these stamp
+   `os-runtime-config.json` so the PWA boots against your hosted Identity and
+   Host APIs.
+3. Optional: add a Vercel Git integration deploy; the checked-in `vercel.json`
+   runs the same turbo build as CI.
 
-Operator notes: [`docs/audit/2026-10-p3-vercel-default-services.md`](../audit/2026-10-p3-vercel-default-services.md).
-The GHCR image and compose stack remain for CLI/operator roles; they are not
-Pages backends.
+Hosted Identity and Host themselves are the GHCR image (`opensesame host run`,
+control-plane via `pnpm --filter @opensesame/control-plane start`) plus
+operator compose under `ops/compose/`.
