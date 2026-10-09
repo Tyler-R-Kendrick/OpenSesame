@@ -120,7 +120,7 @@ import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
 import { rebindTombSeals, rekeyTomb } from "./seal-rebind.js";
-import { CodeSendGuard, PendingChallenge } from "./second-step-guard.js";
+import { assertSecondStepPending, CodeSendGuard, finishSecondStepUnlock, PendingChallenge } from "./second-step-guard.js";
 import {
   UnguardedTotpEnrollment,
   heldTotpCode,
@@ -798,17 +798,9 @@ export class VaultStore {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
-    this.#requirePendingChallenge(pending);
-    await this.#activateSession(pending);
+    await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) => this.#activateSession(k));
     // A gate with no registration yet gets one now (ADR 0113).
     if (!gate.selfItemId) await this.#registerSelfAuthenticator(gate);
-  }
-
-  /** Second-step handlers must not activate after cancel/expiry cleared the challenge. */
-  #requirePendingChallenge(pending: CryptoKey): void {
-    if (this.#pendingVaultKey !== pending) {
-      throw new WrongPasswordError("That second step is no longer pending.");
-    }
   }
 
   cancelTotpChallenge(): void {
@@ -859,8 +851,7 @@ export class VaultStore {
       throw error;
     }
     this.#pendingCode = null;
-    this.#requirePendingChallenge(pending);
-    await this.#activateSession(pending);
+    await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) => this.#activateSession(k));
   }
 
   /** Spend a recovery code as the second step (see `recovery-codes.ts`). */
@@ -872,7 +863,7 @@ export class VaultStore {
     if (!pending || !header || !record) {
       throw new WrongPasswordError("That recovery code is not valid.");
     }
-    this.#requirePendingChallenge(pending);
+    assertSecondStepPending(pending, this.#pendingVaultKey);
     const codesWrap = await spendRecoveryCode(pending, record, code, () =>
       this.#recordFailedUnlock(),
     );
@@ -1596,7 +1587,6 @@ export class VaultStore {
 }
 
 export const vaultStore = bindGuestSessionStore(new VaultStore());
-
 // The device identity host mints through this store's body (ADR 0160 §5).
 installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
 
