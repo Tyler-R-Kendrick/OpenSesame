@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/native-platform-validation.yml'
       - 'scripts/audit/native-windows-stack.mjs'
+      - 'scripts/audit/native-windows-startup-observer.ps1'
       - 'scripts/lib/native-windows-stack-report.mjs'
       - 'crates/**'
       - 'apps/cli/**'
