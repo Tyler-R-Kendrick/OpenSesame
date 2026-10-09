@@ -14,12 +14,12 @@ function stubContext(): CanvasRenderingContext2D {
     fillText: vi.fn(),
   };
   // SAFETY: test double implements only the methods ensureRingAtlas calls.
-  return ctx as CanvasRenderingContext2D;
+  return ctx as unknown as CanvasRenderingContext2D;
 }
 
 beforeEach(() => {
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
-    () => stubContext(),
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(() =>
+    stubContext(),
   );
 });
 
