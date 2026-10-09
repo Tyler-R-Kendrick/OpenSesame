@@ -12,6 +12,10 @@ LOG=/tmp/deepsec-grok-finish.log
 exec > >(tee -a "$LOG") 2>&1
 
 echo "=== deepsec finish start $(date -u +%Y-%m-%dT%H:%M:%SZ) agent=$AGENT model=$MODEL ==="
+if ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2; then
+  echo "SKIP finish: investigate wave 2 not complete (see deepsec-wave2-progress.mjs)"
+  exit 2
+fi
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 export DEEPSEC_THINKING="${DEEPSEC_THINKING:-high}"
 export DEEPSEC_CONCURRENCY="${DEEPSEC_CONCURRENCY:-2}"

@@ -16,18 +16,22 @@ const filesRoot = path.join(
 
 /** core = host/client TS+Rust outside PWA and CLI surfaces (matches scan manifest scope). */
 const PWA_PREFIXES = ["apps/pages/"];
-const CLI_PREFIXES = ["apps/cli/", "packages/cli/"];
+const CLI_NATIVE_PREFIXES = ["apps/cli/"];
+const CLI_TS_PREFIXES = ["packages/cli/"];
 
 function areaOf(filePath) {
   if (PWA_PREFIXES.some((p) => filePath.startsWith(p))) return "pwa";
-  if (CLI_PREFIXES.some((p) => filePath.startsWith(p))) return "cli";
+  if (CLI_NATIVE_PREFIXES.some((p) => filePath.startsWith(p))) {
+    return "cliNative";
+  }
+  if (CLI_TS_PREFIXES.some((p) => filePath.startsWith(p))) return "cliTs";
   if (filePath.startsWith("crates/") || filePath.startsWith("packages/")) {
     return "core";
   }
   return "other";
 }
 
-const AREAS = { core: true, pwa: true, cli: true };
+const AREAS = { core: true, pwa: true, cliNative: true, cliTs: true };
 
 function walk(dir) {
   const out = [];

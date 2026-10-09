@@ -87,13 +87,16 @@ re-run export after rescan/triage.
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | core | ${report.stats.core.analyzed} | ${report.stats.core.pending} | ${report.stats.core.error} | ${report.stats.core.skipped} | ${report.stats.core.candidates} | ${report.stats.core.findings} | ${report.stats.core.filesClearedAtInvestigate} |
 | pwa | ${report.stats.pwa.analyzed} | ${report.stats.pwa.pending} | ${report.stats.pwa.error} | ${report.stats.pwa.skipped} | ${report.stats.pwa.candidates} | ${report.stats.pwa.findings} | ${report.stats.pwa.filesClearedAtInvestigate} |
-| cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.skipped} | ${report.stats.cli.candidates} | ${report.stats.cli.findings} | ${report.stats.cli.filesClearedAtInvestigate} |
+| cli (native \`apps/cli/\`) | ${report.stats.cliNative.analyzed} | ${report.stats.cliNative.pending} | ${report.stats.cliNative.error} | ${report.stats.cliNative.skipped} | ${report.stats.cliNative.candidates} | ${report.stats.cliNative.findings} | ${report.stats.cliNative.filesClearedAtInvestigate} |
+| cli (TS \`packages/cli/\`) | ${report.stats.cliTs.analyzed} | ${report.stats.cliTs.pending} | ${report.stats.cliTs.error} | ${report.stats.cliTs.skipped} | ${report.stats.cliTs.candidates} | ${report.stats.cliTs.findings} | ${report.stats.cliTs.filesClearedAtInvestigate} |
 
 ${
   report.stats.other.analyzed + report.stats.other.error > 0
     ? `| other (outside core/pwa/cli) | ${report.stats.other.analyzed} | ${report.stats.other.pending} | ${report.stats.other.error} | ${report.stats.other.skipped} | ${report.stats.other.candidates} |\n`
     : ""
 }
+
+Native CLI (\`apps/cli/\`) uses the Rust \`opensesame\` binary; regex matchers often report 0 hits (clap, not axum) so those files are ingested via \`scripts/audit/deepsec-ingest-native-cli.mjs\` and reviewed holistically in investigate.
 
 † **Cleared** = analyzed files that still had scanner candidates but Kimi promoted zero findings (dismissed at investigate).
 
@@ -104,7 +107,7 @@ ${
 }
 
 ${
-  report.stats.core.error + report.stats.pwa.error + report.stats.cli.error > 0
+  report.stats.core.error + report.stats.pwa.error + report.stats.cliNative.error + report.stats.cliTs.error > 0
     ? "> **Incomplete:** errors mean Kimi investigation did not finish for those files (often the 5-hour subscription quota). Re-run `scripts/audit/deepsec-kimi-resume.sh` before treating triage totals as complete.\n"
     : ""
 }

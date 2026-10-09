@@ -19,12 +19,16 @@ const AREAS = {
     "packages/vault-core/",
   ],
   pwa: ["apps/pages/"],
-  cli: ["apps/cli/", "packages/cli/"],
+  cliNative: ["apps/cli/"],
+  cliTs: ["packages/cli/"],
 };
 
 function areaOf(filePath) {
   for (const [name, prefixes] of Object.entries(AREAS)) {
     if (prefixes.some((p) => filePath.startsWith(p))) return name;
+  }
+  if (filePath.startsWith("crates/") || filePath.startsWith("packages/")) {
+    return "core";
   }
   return "other";
 }

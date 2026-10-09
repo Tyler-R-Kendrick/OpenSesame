@@ -26,11 +26,19 @@ else
 fi
 errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
   | grep -E '^[[:space:]]+error:' | head -1 \
-  | sed 's/.*error:[[:space:]]*//' | tr -dc '0-9' || echo 9999)
+  | sed 's/.*error:[[:space:]]*//' | tr -dc '0-9' || true)
+errs="${errs:-0}"
+if [[ -z "$errs" ]]; then errs=0; fi
 if [[ "$errs" -le 25 ]] && ! pgrep -f deepsec-kimi-error-loop.sh >/dev/null; then
-  if ! grep -q 'FINISH COMPLETE' /tmp/deepsec-grok-finish.log 2>/dev/null \
-    || tail -5 /tmp/deepsec-grok-finish.log | grep -q 'SKIP docs export'; then
+  if node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null \
+    && { ! grep -q 'FINISH COMPLETE' /tmp/deepsec-grok-finish.log 2>/dev/null \
+      || tail -5 /tmp/deepsec-grok-finish.log | grep -q 'SKIP docs export'; }; then
     echo "errors=$errs — running finish $(date -u +%H:%M:%SZ)" >>"$LOG"
     DEEPSEC_CONCURRENCY=2 DEEPSEC_THINKING=high "${ROOT}/scripts/audit/deepsec-grok-finish.sh" >>/tmp/deepsec-grok-finish.nohup 2>&1 &
   fi
+fi
+if ! pgrep -f deepsec-grok-reinvestigate-wave.sh >/dev/null \
+  && ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
+  echo "wave2 incomplete — starting reinvestigate $(date -u +%H:%M:%SZ)" >>"$LOG"
+  nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
 fi
