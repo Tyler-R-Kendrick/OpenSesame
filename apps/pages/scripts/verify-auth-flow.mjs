@@ -9,6 +9,10 @@
 // Guest enrollment walks through a PIN first; password enrollment starts at MFA.
 // Journey 3 (lib/auth-flow-protector.mjs) opens a vault from an enrolled
 // recovery key (ADR 0152): exact tabs, wrong key refused, code still asked.
+// Journeys 4 and 5 (lib/auth-flow-passkey.mjs) seal with a passkey over a CDP
+// virtual authenticator: with PRF results stubbed the vault seals, locks and
+// unlocks again; with PRF off (ctap2 and ctap2_1) the corner shows the
+// failure's card and the seal screen stays in place.
 // The vault is its own authenticator (ADR 0113): the guest road opens with the
 // code supplied in memory — never shown — while the password road trashes the
 // registered entry first and walks the manual code road it leaves behind.
@@ -30,6 +34,7 @@ import {
   withdrawSelfAuthenticator,
 } from "./lib/auth-flow-enroll.mjs";
 import { lock, openSecurity } from "./lib/auth-flow-nav.mjs";
+import { passkeyJourneys } from "./lib/auth-flow-passkey.mjs";
 import { protectorJourney } from "./lib/auth-flow-protector.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
 import { observeHttpFailures } from "./lib/http-failures.mjs";
@@ -363,6 +368,22 @@ await protectorJourney({
   ORIGIN,
   BASE,
   totp,
+});
+
+// ---- 4 & 5: passkey seal over a CDP virtual authenticator — PRF results
+// stubbed (seal, lock, unlock again), then PRF off on ctap2 and ctap2_1 (the
+// corner shows the failure's card, the seal screen stays).
+await passkeyJourneys({
+  browser,
+  newPage,
+  check,
+  snap,
+  setStep: (name) => {
+    step = name;
+  },
+  lock,
+  ORIGIN,
+  BASE,
 });
 
 await browser.close();
