@@ -23,6 +23,7 @@ import {
   requireManageGrants,
   systemShareWrite,
 } from "./proofs/share-write.js";
+import { vaultStore } from "./vault/store.js";
 import { listDeviceVaults } from "./vaults.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -369,6 +370,12 @@ export async function ensureLocalShare(
   );
 }
 
+/**
+ * A folder's synthetic share-target id (`item` kind): folder PAM is recorded
+ * as a grant on the folder's own scope, labelled with its path.
+ */
+export const FOLDER_TARGET_PREFIX = "folder:";
+
 export function listShareTargets(): ShareTarget[] {
   const vaults = listDeviceVaults().map((vault) => ({
     kind: "vault" as const,
@@ -380,7 +387,27 @@ export function listShareTargets(): ShareTarget[] {
     id: provider.id,
     label: provider.displayName,
   }));
-  return [...vaults, ...connectors];
+  // The open vault's folders and items, so a share can name what a person is
+  // looking at, not only the vault whole. Nothing here while it is locked.
+  const snapshot = vaultStore.getSnapshot();
+  const open =
+    snapshot.status === "unlocked"
+      ? ([
+          ...snapshot.folders.map((folder) => ({
+            kind: "item" as const,
+            id: `${FOLDER_TARGET_PREFIX}${folder.id}`,
+            label: `Folder · ${folder.name}`,
+          })),
+          ...snapshot.items
+            .filter((item) => item.deletedAt === null)
+            .map((item) => ({
+              kind: "item" as const,
+              id: item.id,
+              label: item.name || item.id,
+            })),
+        ] satisfies ShareTarget[])
+      : [];
+  return [...vaults, ...connectors, ...open];
 }
 
 export function policyLabel(kind: ShareKind, policy: string): string {
