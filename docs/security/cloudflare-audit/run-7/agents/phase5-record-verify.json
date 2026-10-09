@@ -1,0 +1,36 @@
+{
+  "verified_at": "2026-10-08T17:17:05Z",
+  "agent_id": "v-run7-record-verify",
+  "model": "composer-2.5",
+  "findings": {
+    "count": 23,
+    "confirmed": 0,
+    "needs_validation": 0,
+    "rejected": 23
+  },
+  "coverage_ledger": {
+    "units": 54,
+    "covered": 54
+  },
+  "checks": [
+    {
+      "name": "no_open_needs_validation_in_findings",
+      "ok": true
+    },
+    {
+      "name": "no_confirmed_in_findings",
+      "ok": true
+    },
+    {
+      "name": "six_run3_nv_units_phase3_rejected",
+      "ok": true,
+      "detail": "Wallet, egress, sandbox, cli open_url, gateway fence, compose NATS units carry phase3_verdict rejected with v-run7-* verifiers."
+    },
+    {
+      "name": "phase3_verifier_log_present",
+      "ok": true,
+      "artifact": "docs/security/cloudflare-audit/run-7/agents/phase3-verifier-transcript.txt"
+    }
+  ],
+  "notes": "Carry-forward rejected findings are not duplicated as per-unit result_fingerprints; phase-5 spot-checks verdict table and NV closure only."
+}
