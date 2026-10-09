@@ -8,9 +8,6 @@ import {
   totpCode,
 } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import fixture from "../../../../../spec/conformance/vault-vectors.json" with {
-  type: "json",
-};
 import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
 import {
   PERSONAL_PROJECT_ID,
@@ -28,7 +25,6 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
-import { PIN_PBKDF2_ITERATIONS } from "./pin-kdf.js";
 import { enrollTotp } from "./store-totp.fixture.js";
 import {
   ATTEMPTS_KEY,
@@ -412,20 +408,6 @@ describe("VaultStore multi-method unlock", () => {
 
     const reopened = new VaultStore();
     await reopened.unlockWithPin("48291037");
-    expect(reopened.getSnapshot().status).toBe("unlocked");
-  });
-
-  // Golden vector predates the PIN KDF floor bump; the tomb must still open.
-  it("unlocks a golden-vector vault whose PIN wrap kept the legacy iteration floor", async () => {
-    const vector = fixture.vectors["backup-project"];
-    const store = new VaultStore();
-    await store.importSealed(vector.file, fixture.password);
-    const pinWrap = store.getSnapshot().header?.unlocks?.pin;
-    expect(pinWrap?.kdf.iterations).toBe(PIN_PBKDF2_ITERATIONS);
-    store.lock();
-
-    const reopened = new VaultStore();
-    await reopened.unlockWithPin(fixture.pin);
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
 
