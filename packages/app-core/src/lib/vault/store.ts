@@ -99,7 +99,6 @@ import {
 import {
   VAULT_PREFS_REVISION,
   type VaultPrefs,
-  defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
@@ -151,6 +150,7 @@ import {
   type SnapshotMerge,
   mergeSnapshotInto,
 } from "./store-merge.js";
+import { StorePreferences } from "./store-preferences.js";
 import { writeBody } from "./store-seal.js";
 import {
   discardTombCaches,
@@ -223,7 +223,7 @@ export class VaultStore {
   #pendingCodeAddress: { channel: CodeChannel; to: string } | null = null;
   #body: VaultBody = emptyBody();
   #header: VaultHeader | null = null;
-  #prefs: VaultPrefs = defaultPrefs;
+  #preferences = new StorePreferences();
   #listeners = new Set<Listener>();
   #snapshot: VaultState;
   #idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -379,9 +379,7 @@ export class VaultStore {
     });
   }
 
-  #readHeader(): VaultHeader | null {
-    return readTombHeader(this.#scope.tomb);
-  }
+  #readHeader = (): VaultHeader | null => readTombHeader(this.#scope.tomb);
 
   #readAttempts() {
     return readAttempts(this.#scope.attempts);
@@ -390,18 +388,18 @@ export class VaultStore {
   #persistPrefs(): void {
     if (!this.#vaultKey) return;
     const { tomb } = this.#scope;
-    const prefs = this.#prefs;
+    const prefs = this.#preferences.prefs;
     this.#writeChain = this.#writeChain.then(() =>
       writePrefsJson(tomb, prefs).catch(() => this.#restorePrefs(prefs)),
     );
   }
 
   async #restorePrefs(prefs: VaultPrefs): Promise<void> {
-    if (this.#prefs !== prefs) return;
+    if (this.#preferences.prefs !== prefs) return;
     const durable: Partial<VaultPrefs> = overlapCast(
       await readPrefsJson(this.#scope.tomb).catch(() => ({})),
     );
-    this.#prefs = normalizeVaultPrefs(durable);
+    this.#preferences.prefs = normalizeVaultPrefs(durable);
     this.#armIdleTimer();
     this.#emit();
   }
@@ -411,9 +409,9 @@ export class VaultStore {
       const stored: Partial<VaultPrefs> = overlapCast(
         await readPrefsJson(this.#scope.tomb),
       );
-      this.#prefs = normalizeVaultPrefs(stored);
+      this.#preferences.prefs = normalizeVaultPrefs(stored);
       if ((stored.prefsRevision ?? 0) < VAULT_PREFS_REVISION) {
-        await writePrefsJson(this.#scope.tomb, this.#prefs).catch(
+        await writePrefsJson(this.#scope.tomb, this.#preferences.prefs).catch(
           () => undefined,
         );
       }
@@ -433,7 +431,7 @@ export class VaultStore {
       items: resolveAccounts(this.#body.items),
       rawItems: this.#body.items,
       folders: this.#body.folders,
-      prefs: this.#prefs,
+      prefs: this.#preferences.prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
       failedAttempts: attempts.fails,
       awaitingSecondStep:
@@ -1537,8 +1535,8 @@ export class VaultStore {
   // —— preferences and auto-lock ————————————————————————————
 
   setPrefs(next: Partial<VaultPrefs>): void {
-    this.#prefs = normalizeVaultPrefs({
-      ...this.#prefs,
+    this.#preferences.prefs = normalizeVaultPrefs({
+      ...this.#preferences.prefs,
       ...next,
       prefsRevision: VAULT_PREFS_REVISION,
     });
@@ -1551,7 +1549,7 @@ export class VaultStore {
     if (!this.#vaultKey)
       throw new Error("Unlock the vault before saving preferences.");
     this.setPrefs(next);
-    await writePrefsJson(this.#scope.tomb, this.#prefs);
+    await writePrefsJson(this.#scope.tomb, this.#preferences.prefs);
   }
 
   async writePrefsSource(source: string): Promise<void> {
@@ -1571,8 +1569,8 @@ export class VaultStore {
   #armIdleTimer(): void {
     if (this.#idleTimer) clearTimeout(this.#idleTimer);
     this.#idleTimer = null;
-    if (!this.#vaultKey || this.#prefs.autoLockMinutes <= 0) return;
-    const windowMs = this.#prefs.autoLockMinutes * 60_000;
+    if (!this.#vaultKey || this.#preferences.prefs.autoLockMinutes <= 0) return;
+    const windowMs = this.#preferences.prefs.autoLockMinutes * 60_000;
     const tick = () => {
       const idleFor = Date.now() - this.#lastActivity;
       if (idleFor >= windowMs) {
