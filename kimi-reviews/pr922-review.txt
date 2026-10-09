@@ -1,0 +1,828 @@
+kimi version 2.1.1
+• Let me read the diff and the PR review file context. There's kimi-reviews/pr922-review.txt in the repo — but the task is to do a persona P2 review. Let me read the diff.722 /tmp/pr922.diff
+diff --git a/apps/pages/src/components/FormCommit.test.tsx b/apps/pages/src/components/FormCommit.test.tsx
+new file mode 100644
+index 000000000..3c03aae97
+--- /dev/null
++++ b/apps/pages/src/components/FormCommit.test.tsx
+@@ -0,0 +1,22 @@
++/** @vitest-environment jsdom */
++import { cleanup, render, screen } from "@testing-library/react";
++import { afterEach, describe, expect, it } from "vitest";
++import { FormCommit } from "./FormCommit.js";
++
++afterEach(() => cleanup());
++
++describe("FormCommit", () => {
++  it("puts the disabled reason on the commit key's accessible name", () => {
++    render(
++      <FormCommit
++        label="Ask to join"
++        disabled
++        disabledReason="Enter your name"
++      />,
++    );
++    const key = screen.getByRole("button", {
++      name: "Ask to join. Enter your name",
++    });
++    expect(key.hasAttribute("disabled")).toBe(true);
++  });
++});
+diff --git a/apps/pages/src/components/FormCommit.tsx b/apps/pages/src/components/FormCommit.tsx
+index 86e64b081..4a16b4214 100644
+--- a/apps/pages/src/components/FormCommit.tsx
++++ b/apps/pages/src/components/FormCommit.tsx
+@@ -17,6 +17,7 @@ import { IconCheck } from "./Icons.js";
+ export function FormCommit({
+   label,
+   disabled = false,
++  disabledReason,
+   busy = false,
+   icon,
+   buttonRef,
+@@ -26,6 +27,8 @@ export function FormCommit({
+   /** The verb, as the square's accessible name and as the words beside it. */
+   label: string;
+   disabled?: boolean;
++  /** When disabled, spoken on long-press / hover — not drawn as page copy. */
++  disabledReason?: string;
+   busy?: boolean;
+   icon?: ReactNode;
+   buttonRef?: Ref<HTMLButtonElement>;
+@@ -33,6 +36,8 @@ export function FormCommit({
+   onClick?: () => void;
+   children?: ReactNode;
+ }) {
++  const named =
++    disabled && disabledReason ? `${label}. ${disabledReason}` : label;
+   return (
+     <div className="go-row">
+       <button
+@@ -41,8 +46,8 @@ export function FormCommit({
+         className="go"
+         disabled={disabled}
+         aria-busy={busy || undefined}
+-        aria-label={label}
+-        title={label}
++        aria-label={named}
++        title={named}
+         onClick={onClick}
+       >
+         {icon ?? <IconCheck size={18} />}
+diff --git a/apps/pages/src/modules/identity.ceremonies/DropClaimScreen.test.tsx b/apps/pages/src/modules/identity.ceremonies/DropClaimScreen.test.tsx
+index e1cf22f6b..3a0ebdf69 100644
+--- a/apps/pages/src/modules/identity.ceremonies/DropClaimScreen.test.tsx
++++ b/apps/pages/src/modules/identity.ceremonies/DropClaimScreen.test.tsx
+@@ -10,7 +10,7 @@ import {
+  */
+ import {
+   CLAIM_NOTICE,
+-  DROP_FAILURE_MARK,
++  DROP_FAILURE_MARK_WITH_TRAY,
+ } from "@opensesame/app-core/lib/claims/route-model.js";
+ import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+ import { sealDrop } from "@opensesame/app-core/lib/vault/drop.js";
+@@ -75,7 +75,9 @@ describe("DropClaimScreen", () => {
+     );
+     await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
+     await waitFor(() => expect(trayed()?.title).toBe("Drop"));
+-    expect(screen.getByRole("img", { name: DROP_FAILURE_MARK })).toBeTruthy();
++    expect(
++      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
++    ).toBeTruthy();
+     expect(trayed()?.body).toBe("That code did not match.");
+     expect(container.querySelector(".note")).toBeNull();
+     expect(onSettled).not.toHaveBeenCalled();
+@@ -102,7 +104,9 @@ describe("DropClaimScreen", () => {
+         "That code does not match this drop. 3 tries left.",
+       ),
+     );
+-    expect(screen.getByRole("img", { name: DROP_FAILURE_MARK })).toBeTruthy();
++    expect(
++      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
+Now let me check the repo context. There's a kimi-reviews/pr922-review.txt file — but that might be prior work. I should review independently per persona P2: "disabled form commit labels, live join name label". Actually the task says "persona P2: disabled form commit labels, live join name label" — this is the persona's focus/scope of the PR. The PR goals are presumably: (1) disabled form commit buttons carry their reason in the accessible name/title (not in-page copy, per ADR 0163), (2) live join/host forms: name label? Actually "live join name label" — the "Name is required" reason for the ask-to-join form.
+
+  I need to list findings vs stated PR goals. Let me verify the diff against the actual codebase to check for issues:
+
+  1. Check whether `LiveHostForm.tsx`'s `ready` computation matches the reason function's inputs — the reason function should agree with the `ready` predicate. Let me look at the actual file to see `ready` definition.
+
+  2. In LiveJoinRoute, `ready` definition — check whether the reason function matches the ready conditions. E.g., the reason checks `!input.name.trim()` before `needsCode && code empty`. Is name required in the join form? The persona title says "live join name label" — yes.
+
+  3. Check `ItemChoice` refactor: it moved to live-host-form-parts.tsx, added `useDeviceVaults`, `vaultStore.activeTomb()`, `FieldRow` — new "Vault" row added. Wait, was adding a Vault label part of PR goals? The persona scope is "disabled form commit labels, live join name label". The vault label row in ItemChoice may be out of scope — but could be part of "live join name label"? Hmm, the ItemChoice now shows which vault the items belong to. That's a new feature not covered by the stated goals — potential scope creep finding. Also does `vaultStore.activeTomb()` exist as an export? Need to check. Also `useDeviceVaults` from `../../bindings/vaults.js` — check existence.
+
+  4. DROP_FAILURE_MARK_WITH_TRAY — the glyph label is now "Drop could not open. Full message in the bell". ADR 0163 says a failure is a StatusMark on the row and a notice in the tray. The StatusMark label becomes spoken text. Is it within the stated goals? It's tangential — changing the drop failure mark label. Could be fine but is out of the persona's stated scope.
+
+  5. LiveHostForm deleted the comment "// A profile that is there and cannot be read..." — comment removal.
+
+  6. FormCommit: when disabled with reason, aria-label and title include reason. But note: a disabled button doesn't receive hover/focus, so `title` on disabled button never shows in most browsers. aria-label on disabled button — screen readers may not focus disabled buttons in forms mode, but browse mode reads them. The doc comment says "spoken on long-press / hover" — but disabled buttons don't fire hover in most browsers (actually Chrome does show title on hover of disabled button? Historically, tooltips don't show on disabled buttons in some browsers; Chrome shows them I believe... Firefox doesn't show title tooltip on disabled elements). Minor.
+
+  7. In LiveJoinRoute, disabledReason is only passed when `!ready && !busy`. But `disabled={!ready || busy}` — when busy, disabled with no reason, ok.
+
+  8. Potential mismatch: `ready` in AskForm — need to check its definition. Does ready include name.trim()? Let me check the actual files in the repo (main branch) to see what ready is. The diff doesn't show the ready definition change for AskForm, so it presumably already includes name. The persona goal "live join name label" suggests the name field label.
+
+  Let me check the actual repo files to verify: LiveJoinRoute.tsx ready definition, LiveHostForm ready definition, vaultStore.activeTomb existence, useDeviceVaults, FieldRow existence, typeLabel/itemTypeId exports from vault-core.
+
+  Also check 400-line budget: live-host-form-parts.tsx is 134 lines, fine. LiveHostForm.tsx shrunk.
+
+  Also whether the quality gate baseline requires updating (files moved — baseline entries for LiveHostForm.tsx etc. would change; new files get zero baseline).
+
+  Let me look at the repo files. The diff is against some branch; the workspace checkout is /workspace. Let me read relevant files.
+
+• I have the full diff. Now let me verify the claims against the actual codebase — the `ready` predicates, the new imports, and whether the refactor matches existing APIs.
+
+• Now verify the new APIs used in the diff:
+
+  1. `liveJoinAskDisabledReason` vs `ready` in AskForm: ready = `link !== null && cleanedName.length > 0 && (!needsCode || normalized !== null)`. Note `cleanedName = cleanText(name)`, and `normalized = needsCode ? normalizeInviteCode(code) : null`. The reason function checks `!input.name.trim()` — does `cleanText` differ from `trim`? If cleanText strips more than whitespace (e.g., control chars), there could be a mismatch: `cleanText(name).length === 0` but `name.trim()` non-empty → ready=false but reason=undefined → disabled with no reason (falls back to plain label). Minor gap. Let me check cleanText.
+
+  Also, reason checks code: `input.needsCode && input.code.trim() === ""`. But ready requires `normalized !== null` where normalized = normalizeInviteCode(code). normalizeInviteCode may return null for a non-empty but malformed code (not matching XXXX-XXXX format). In that case ready=false, but reason function: code.trim() !== "" so it falls through to undefined → disabled without a reason. That's a mismatch: malformed code → no reason spoken. That's a genuine finding: the reason function doesn't mirror the ready predicate for malformed invite codes.
+
+  2. `liveHostStartDisabledReason` vs ready in LiveHostForm: ready = loaded && refused===null && !starting && title.trim().length>0 && (scope==="vault" || chosen.size>0). Reason mirrors this well. But note in LiveHostForm, `disabled={!ready}` and disabledReason passed when `!ready`. When starting=true, reason returns undefined. Fine.
+
+  3. Check exports used by new file live-host-form-parts.tsx:
+     - `vaultStore` from `@opensesame/app-core/lib/vault/store.js` — check that vaultStore is exported and has `activeTomb()`.
+     - `useDeviceVaults` from `../../bindings/vaults.js` — check existence and shape (items with `id` and `label`).
+     - `FieldRow` from `../../components/FieldRow.js` with props `label` and children, and class `frow__value`.
+     - `itemTypeId`, `typeLabel` from `@opensesame/vault-core`.
+     - `VaultItem` type fields in the test (kind: "typed", typeId, values, folderId, favorite, notes, fields, createdAt, updatedAt, deletedAt) — check the actual VaultItem shape.
+
+  4. Also check kimi-reviews/pr922-review.txt — there's an existing review file. It may be from a previous persona. Should I look? The task: "Review PR #922 (persona P2...)". The repo has kimi-reviews/pr918-922 review files — probably earlier personas' reviews. Could be useful context but I should review independently. A quick peek may reveal what other personas found; not required. I'll do my own verification.
+
+  5. DROP_FAILURE_MARK_WITH_TRAY — check the drop screen; the change replaces glyph label with "...Full message in the bell". Is this in stated goals? The persona P2 scope is "disabled form commit labels, live join name label". The drop mark change is out of scope but arguably aligned with ADR 0163. Also check whether other consumers of DROP_FAILURE_MARK remain — test file updated. Check if DROP_FAILURE_MARK still used elsewhere; route-model still exports it and defines WITH_TRAY from it. Fine.
+
+  6. FormCommit: `aria-busy={busy || undefined}` unchanged. The named label uses `${label}. ${disabledReason}`. When disabled without reason, label plain. OK. One issue: `title` on disabled buttons doesn't show on hover in many browsers (Firefox doesn't fire mouse events on disabled buttons, so no tooltip). The comment claims "spoken on long-press / hover". This is a limitation but aria-label still works for screen reader browse mode. Worth noting as minor.
+
+  7. Check quality gate: module size. LiveHostForm.tsx shrinks from 224 to ~140 — the baseline must be tightened in the same commit per ADR 0093 ("a file that improves must have its baseline tightened in the same commit"). The diff doesn't touch tools/quality/quality-baseline.json. Finding: baseline not updated. Let me check whether LiveHostForm.tsx has a baseline entry.
+
+  8. Also verify `ItemChoice`'s new vault label row — the vault label: ADR 0089 says a project's name is sealed inside its tomb, nothing may show it before unlock; but here vault is unlocked (LiveHostForm requires vault). useDeviceVaults labels — check the shape. Also note: showing "Vault" row in ItemChoice is a new UI element beyond the stated goals — but persona title mentions "live join name label" — hmm, actually "live join name label" probably refers to the disabled reason "Name is required" on join. The vault row in the host item picker is extra scope. Also potential problem: `vaultStore.activeTomb()` — non-hook read of store; won't re-render on vault switch. Minor.
+
+  9. Test at LiveSession.test.tsx line 369: name regex "Ask to join\. Paste a live-session link that parses" — matches reason function when pasted non-empty but unparseable. OK.
+
+  10. Check the checkbox label uses `labels.get(item.id) ?? item.name` — fine.
+
+  11. `useDeviceVaults` binding: check file apps/pages/src/bindings/vaults.ts.
+
+  Let me grep for these.
+
+• Now let me verify the new APIs the diff depends on.
+
+
+/**
+ * Normalize the out-of-band code to the Host's spelling, or null. The Host
+ * counts every mismatch toward burning the offer, so a code that cannot be
+ * right never leaves the page: case, spaces and the dash are forgiven,
+ * anything outside the alphabet is not.
+ */
+export function normalizeInviteCode(raw: string): string | null {
+  const letters = raw.toUpperCase().replace(/[\s-]/g, "");
+  if (!CODE_ALPHABET.test(letters)) return null;
+  return `${letters.slice(0, 4)}-${letters.slice(4)}`;
+}
+
+/** A public session's id, in the Host's canonical spelling, or null. */
+export function normalizeSessionId(raw: string): string | null {
+  const match = SESSION_ID.exec(raw.trim().toLowerCase());
+  return match ? `session:${match[1]}` : null;
+}
+
+let captured: CapturedInvite | null = null;
+
+/** A Host invite or a live-session link in the fragment, or neither. */
+function fromHash(hash: string): CapturedInvite | null {
+  const live = new URLSearchParams(hash.replace(/^#/, "")).get("live");
+  const link = live ? readLiveValue(live) : null;
+  if (link) return { kind: "live", link };
+---
+const INVISIBLE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}ᅟᅠ⠀ㅤﾠ]/gu;
+
+/**
+ * A joiner's name or note as the owner may be shown it: nothing that hides
+ * or reorders the text around it, runs of space collapsed, none at the ends.
+ * The joiner's page applies the same, so both sides read one string.
+ */
+export function cleanText(text: string): string {
+  return text
+    .replace(BREAKS, " ")
+    .replace(INVISIBLE, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/** Clean text within `max` characters, or null; the raw text is bounded first. */
+function readText(value: BoundaryValue, max: number): string | null {
+  if (!bounded(value, max * 4)) return null;
+---
+import {
+  type DeviceVault,
+  deviceVaultsVersion,
+  listDeviceVaults,
+  subscribeDeviceVaults,
+} from "@opensesame/app-core/lib/vaults.js";
+import { useMemo, useSyncExternalStore } from "react";
+
+/** The one device-vault list (ADR 0089), re-read only when the store or projects emit. */
+export function useDeviceVaults(): DeviceVault[] {
+  const version = useSyncExternalStore(
+    subscribeDeviceVaults,
+    deviceVaultsVersion,
+    () => -1,
+  );
+  return useMemo(() => (version < 0 ? [] : listDeviceVaults()), [version]);
+}
+---
+      }
+    },
+    [copySecret],
+  );
+
+  return { copied, failed, copy };
+}
+
+export function FieldRow({
+  label,
+  children,
+  actions,
+}: {
+  label: string;
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="frow">
+      <div className="frow__text">
+        <span className="frow__label">{label}</span>
+        {children}
+      </div>
+      {actions ? <div className="frow__actions">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function CopyButton({
+  value,
+  label,
+  fieldKey,
+  copied,
+  failed,
+  onCopy,
+  guideRef,
+---
+      armIdleTimer: () => this.#armIdleTimer(),
+      emit: () => this.#emit(),
+      nextScope: scopedVaultScope,
+    });
+  }
+
+  /** The tomb this session is scoped to. */
+  activeTomb(): string {
+    return this.#scope.tomb;
+  }
+
+  /** Await in-flight body persists before duress activation or scope carries. */
+  async flushPendingWrites(): Promise<void> {
+    await this.#writeChain.catch(() => undefined);
+  }
+
+  #sessionRootDigest(): Promise<string | null> {
+    return sessionRootDigestFromKey(this.#vaultKey, this.#ephemeral);
+  }
+
+  /** Host surface for duress activation coordination (STORE-E). */
+  duressActivationHost() {
+    return createDuressVaultActivationHost({
+      activeTomb: () => this.#scope.tomb,
+      ephemeral: () => this.#ephemeral,
+      header: () => this.#header,
+      vaultKey: () => this.#vaultKey,
+      flushPendingWrites: () => this.flushPendingWrites(),
+      cancelPendingOps: () => this.#protection.cancelPendingOps(),
+      sessionGeneration: () => this.#sessionGuard.generation,
+    });
+• All APIs exist. Now key checks:
+
+  1. `normalizeInviteCode` — returns a normalized code even for short strings? Look: letters = raw uppercase minus spaces/dashes. `CODE_ALPHABET.test(letters)` — need to check what CODE_ALPHABET is. If it just checks alphabet membership (not length), then "A" normalizes to "A-" hmm — `${letters.slice(0,4)}-${letters.slice(4)}`. Need to check CODE_ALPHABET — does it enforce length 8?
+
+  Let me check. Also DeviceVault has `id` and `label` fields? Check vaults.ts DeviceVault type. And the VaultItem test fixture shape vs actual model.
+
+  2. The ready predicate mismatch for the join form: ready uses `normalized !== null` for invite codes. If user types a malformed code (non-alphabet chars), ready=false but `liveJoinAskDisabledReason` returns undefined (since code.trim() !== ""). Result: disabled button with no reason → plain "Ask to join" label. Gap vs the goal "disabled form commit labels" — the reason doesn't cover malformed-code case. Actually the persona title says "live join name label" — name label part is fine. The malformed code case is an edge.
+
+  Let me check CODE_ALPHABET.Confirmed:
+
+  - `normalizeInviteCode` requires exactly 8 consonants. So a typed-but-incomplete code (e.g., "AB") → normalized = null → ready=false. But `liveJoinAskDisabledReason` checks only `input.code.trim() === ""` → returns undefined for a partially typed or malformed code. Result: the button is disabled with NO reason — exactly the thing the PR claims to fix. That's a real gap in coverage of the stated goal. The code field has placeholder "XXXX-XXXX"; a person typing 4 characters sees a disabled key with the plain "Ask to join" name.
+
+  Wait — actually look at the call site in the diff:
+
+  ```
+  disabledReason={
+    !ready && !busy
+      ? liveJoinAskDisabledReason({...})
+      : undefined
+  }
+  ```
+
+  So when ready=false due to malformed/partial code with non-empty code, liveJoinAskDisabledReason returns undefined → disabledReason prop undefined → FormCommit's `named` = label only. Confirmed gap.
+
+  Also check: LiveJoinRoute passes `needsCode: needsCode ?? false` — needsCode is `link?.admission === "invite"` which is boolean, not undefined. The `?? false` is dead code. Minor slop.
+
+  - FormCommit doc comment says "spoken on long-press / hover" — disabled buttons don't fire mouse events in Firefox/Safari, so title tooltip never appears; on touch there is no hover. The comment overstates. Also `aria-label` on a disabled button is still reachable in browse mode, so screen readers get it. Minor doc inaccuracy.
+
+  - ItemChoice refactor adds a "Vault" FieldRow — new visible UI beyond stated goals (scope creep), and uses non-reactive `vaultStore.activeTomb()` — if the vault switches while form mounted, label stale. Minor. Also is this reachable? LiveHostForm is in sharing.live module; vault is unlocked there, so label shown is fine per ADR 0089 (vault open, name known).
+
+  Wait — actually, is the "Vault" row within stated goals? Persona P2 scope: "disabled form commit labels, live join name label". Hmm, "live join name label" could arguably cover item-pick labels (name labels in live join/host item picker). The liveItemPickLabels disambiguation ("GitHub · Password") — that's a "name label" for live. And the vault row... possibly part of the same goal. I'll note the vault row as adjacent, and check the test coverage for the Vault row — no test covers the new FieldRow/vault-label path in ItemChoice (item-pick-label.test.ts covers labels only). LiveRoutesPanel.test may exercise ItemChoice... unknown. Minor.
+
+  - DROP_FAILURE_MARK_WITH_TRAY: out of persona scope but consistent with ADR 0163 (tray carries full message). The label "Drop could not open. Full message in the bell" — is "the bell" appropriate in-copy? The AGENTS.md design language uses "the tray (the bell)". Fine.
+
+  - Quality gate: LiveHostForm.tsx goes from 224 lines to ~125. Per ADR 0093, a file that improves must have its baseline tightened in the same commit. Diff doesn't include tools/quality/quality-baseline.json changes. Let me check whether LiveHostForm.tsx has a recorded baseline number. Also new file live-host-form-parts.tsx at 134 lines < 400, new baseline zero fine.
+
+  Let me check the baseline.---
+/workspace/apps/pages/src/components/FieldRow.test.tsx
+/workspace/apps/pages/src/components/FieldRow.tsx
+/workspace/apps/pages/src/components/TotpCode.tsx
+/workspace/apps/pages/src/modules/sharing.live/LiveCatalog.tsx
+/workspace/apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx
+/workspace/apps/pages/src/modules/sharing.live/LiveHostSession.tsx
+/workspace/apps/pages/src/modules/sharing.live/LiveJoinPairing.tsx
+/workspace/apps/pages/src/modules/sharing.live/LiveCarriers.tsx
+/workspace/apps/pages/src/sections/vault.css
+/workspace/apps/pages/src/sections/vault/TypedFields.tsx
+Baseline has no entry for LiveHostForm.tsx (grep returned nothing before the ---), so no baseline tightening needed (files with no recorded number... actually the gate: "New files get a recorded number of zero". If LiveHostForm.tsx has no entry, it may be under threshold already or recorded... it returned no matches, so nothing to tighten. Fine — drop that potential finding.
+
+  `frow__value` class — check it exists in CSS. FieldRow.test.tsx references it? LiveCatalog uses frow__value? Let me quickly check the class exists in CSS. Grep showed files containing either pattern; frow__value appears in FieldRow.test.tsx and maybe vault.css. Let me verify quickly./workspace/apps/pages/src/sections/vault.css:576:.frow__value {
+/workspace/apps/pages/src/sections/vault.css:581:.frow__value--mono {
+/workspace/apps/pages/src/sections/vault.css:586:.frow__value--muted {
+/workspace/apps/pages/src/sections/vault.css:591:.frow__value--wrap {
+/workspace/apps/pages/src/sections/vault.css:1281:  .frow__text:has(> .icon-btn) > :is(.conceal, .frow__value) {
+All APIs check out. Now compile findings vs stated PR goals.
+
+  Stated goals (persona P2): "disabled form commit labels, live join name label". From the diff, the work:
+  1. FormCommit gains `disabledReason` → reason folded into aria-label/title of the disabled `.go` square (ADR 0163: not drawn as page copy).
+  2. Live host start form: disabled reason via `liveHostStartDisabledReason` — mirrors `ready` predicate.
+  3. Live join ask form: disabled reason via `liveJoinAskDisabledReason`, including the name ("Name is required") — the "live join name label".
+  4. Item picker labels disambiguate colliding item names with type (`liveItemPickLabels`).
+  5. Drop failure mark label now says "Full message in the bell".
+
+  Findings:
+
+  **F1 (gap, medium): join ask reason does not cover a malformed/partial invite code.** `ready` requires `normalizeInviteCode(code) !== null` (exactly 8 consonants), but the reason only fires when `code.trim() === ""`. Type a partial or wrong-alphabet code → button disabled, reason undefined, accessible name stays plain "Ask to join" — the exact dead-end the PR exists to remove. Fix: mirror the predicate (`needsCode && normalizeInviteCode(code) === null` → "Enter the invite code as XXXX-XXXX" or similar).
+
+  **F2 (minor): reason/name mismatch via cleanText vs trim.** `ready` uses `cleanText(name).length > 0` (strips invisible/control chars); the reason checks `name.trim()`. A name of only invisible characters (e.g. U+3164) → ready=false, but name.trim() non-empty → reason undefined → disabled with no reason. Edge case, same class as F1 but lower likelihood.
+
+  **F3 (minor): FormCommit doc comment overstates delivery.** "spoken on long-press / hover" — disabled buttons fire no mouse events in Firefox/Safari (no tooltip), and touch has no hover. The aria-label is the reliable channel (browse mode); the title is best-effort. Comment should be accurate.
+
+  **F4 (minor/scope): ItemChoice "Vault" FieldRow is new visible UI not covered by goals or tests.** Uses non-reactive `vaultStore.activeTomb()` — won't update on vault switch while mounted. `useDeviceVaults` is reactive, so the pairing of reactive list + non-reactive active tomb is inconsistent. No test covers the vault row. Also note the row only appears in host form; goal "live join name label" arguably covered by F-goal #3.
+
+  **F5 (minor): `needsCode: needsCode ?? false`** — `needsCode` is already a boolean (`link?.admission === "invite"`); the `?? false` is dead.
+
+  **F6 (positive): DROP_FAILURE_MARK_WITH_TRAY** — out of the persona's stated lane but consistent with ADR 0163 and tests updated; no issue.
+
+  **F7 (positive checks that passed):** host reason mirrors `ready` exactly; test updates consistent (`/^Start the live session/`, reason-bearing name); new pure helpers in app-core (not the shell) per layering; file split keeps both files under 400 lines; no baseline entry for LiveHostForm.tsx so no tightening owed; all imports resolve (vaultStore.activeTomb, useDeviceVaults, FieldRow, itemTypeId/typeLabel, liveItemPickLabels).
+
+  Also check: FormCommit.test asserts accessible name "Ask to join. Enter your name" — matches named template. Good.
+
+  Does the disabledReason fire when `disabled` but no reason (e.g. busy)? LiveJoinRoute: `disabled={!ready || busy}`, disabledReason only when `!ready && !busy`. When busy, `busy` prop renders — check FormCommit busy handling... the diff shows busy → aria-busy only. Fine.
+
+  Verdict: the core mechanism lands and works, but the join ask form's reason has holes (F1, arguably F2) meaning "every disabled commit says why" is not fully true. For persona scope "disabled form commit labels, live join name label" — the name label works. F1 is a genuine gap in the stated goal's completeness. I'll say VERDICT: GAPS due to F1.
+
+• ## PR #922 review — persona P2 (disabled form commit labels, live join name label)
+
+  I read the full diff (722 lines) and verified every new API against the tree: `vaultStore.activeTomb()` (store.ts:322), `useDeviceVaults` (bindings/vaults.ts:10), `FieldRow`/`frow__value` (FieldRow.tsx:48, vault.css:576), `itemTypeId`/`typeLabel` (vault-core item-types.ts), `cleanText` (messages.ts:145), `normalizeInviteCode` (invite.ts:97, `CODE_ALPHABET = /^[BCDFGHJKLMNPQRSTVWXZ]{8}$/`).
+
+  ### What the PR sets out to do
+  1. A disabled `.go` commit key says *why* it is disabled — through its accessible name/title, never as in-page copy (ADR 0163), via a new `FormCommit.disabledReason`.
+  2. Live join's Ask form and the Live host's Start form each get a reason function in app-core (`form-disabled-reason.ts`), including the "Name is required" case.
+  3. Item-picker labels disambiguate same-named items by type (`item-pick-label.ts`).
+  4. Drop failure glyph label points at the bell (`DROP_FAILURE_MARK_WITH_TRAY`).
+
+  ### FINDINGS
+
+  - **F1 (gap): the join Ask reason silently gives up on a malformed or partial invite code.** `ready` requires `normalizeInviteCode(code) !== null` (LiveJoinRoute.tsx:138-141) — exactly 8 consonants. But `liveJoinAskDisabledReason` only reports a code problem when `code.trim() === ""`. Type 4 characters, or a letter outside the alphabet, and the button is disabled with `disabledReason: undefined` — the accessible name falls back to a bare "Ask to join", precisely the unexplained-disabled dead end this PR exists to eliminate. The reason function must mirror the predicate (`needsCode && normalizeInviteCode(code) === null` → e.g. "Enter the invite code, eight letters"). The new test only covers the empty-code path, so this hole is not pinned.
+
+  - **F2 (minor, same class): `cleanText` vs `trim` mismatch on the name.** `ready` uses `cleanText(name).length > 0`, which strips invisible/format characters (U+3164, Braille blank, etc.); the reason checks `name.trim()`. A name made only of invisible characters disables the button with no reason. Low likelihood, but one line to fix by reusing `cleanText`.
+
+  - **F3 (minor): the `disabledReason` doc comment overstates the channel.** "spoken on long-press / hover" — disabled buttons fire no mouse events in Firefox/Safari, so the `title` tooltip often never appears, and touch has no hover. The `aria-label` (browse mode) is the reliable path; the comment should not promise hover.
+
+  - **F4 (minor, scope): the new "Vault" `FieldRow` in `ItemChoice` is visible UI beyond the stated goals and untested.** It also mixes reactive (`useDeviceVaults()`) with non-reactive (`vaultStore.activeTomb()`, read once per render outside any subscription) — a vault switch while the form is mounted leaves a stale label. Either subscribe or drop the row; no test covers it either way.
+
+  - **F5 (trivial): `needsCode: needsCode ?? false` in LiveJoinRoute is dead** — `needsCode` is already a boolean (`link?.admission === "invite"`).
+
+  - **F6 (out of lane, no issue): `DROP_FAILURE_MARK_WITH_TRAY`** is outside the persona's stated scope but consistent with ADR 0163, and both the screen and its tests were updated together.
+
+  ### Verified as correct
+  - The host-side `liveHostStartDisabledReason` mirrors its `ready` predicate exactly (loaded → refused → title → items), and the call site suppresses the reason only while `starting`.
+  - Test updates are coherent: `/^Start the live session/` where a reason may append, `/^Ask to join$/` for the enabled case, and the reason-bearing name for the disabled one.
+  - New pure helpers live in app-core, not the shell; both resulting files stay under the 400-line gate; no quality-baseline entry exists for `LiveHostForm.tsx`, so no tightening is owed; all imports resolve.
+  - `FormCommit.test.tsx` pins the accessible-name shape (`"Ask to join. Enter your name"`).
+
+  The mechanism and the host form fully meet the goal. The join Ask form — the persona's headline surface — ships its "Name is required" label but leaves the disabled button unexplained in the common partial/bad-code state (F1), with F2 a smaller hole of the same kind.
+
+  VERDICT: GAPS
+
+To resume this session: kimi -r session_052bed47-e0df-4e02-bcdc-4e470cc3ecee
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Join `ready` = `link !== null && cleanedName.length > 0 && (!needsCode || normalized !== null)`.
+
+  The disabled-reason function checks:
+  1. busy → undefined
+  2. !link → "Paste a live-session link [that parses]"
+  3. !name.trim() → "Name is required"
+  4. needsCode && code.trim() === "" → "Enter the invite code"
+
+  Subtle mismatch: `ready` uses `normalizeInviteCode(code)` — the code may be non-empty but fail to normalize (invalid format). In that case ready=false but `liveJoinAskDisabledReason` returns undefined (because code.trim() !== ""). Then `named` = label since disabledReason is undefined — no reason given even though disabled. Edge case: typed an invalid code like "ZZZ" — normalized is null → ready false → disabled, but no reason. That's a real gap in completeness of item 8 ("name the first missing prerequisite"): a malformed invite code gives a disabled button with no reason. Hmm — but how strict? Check normalizeInviteCode. Also cleanText(name) vs name.trim() — cleanText may strip more; probably equivalent for emptiness.
+
+  Also ordering: form field order is Link → Code → Name. The reason order is link → name → code. Minor, not a real gap.
+
+  Also `held && !link` case: held is set but doesn't parse — pasted would be "" (field not drawn when held), so reason = "Paste a live-session link"? Actually when held, the Link field isn't rendered and pasted is "". candidate = held ?? parse → held, routes = linkRoutes(held); if routes null → link null. Then disabledReason: !link, pasted.trim() is "" → "Paste a live-session link" — but the Link field is not drawn when held! So the reason tells the user to paste into a field that doesn't exist. However there's a StatusMark "Not a live-session link" shown in that case. Minor edge. Test LiveSession.test.tsx line 358 checks exactly this: joiner with bad held link sees button name /Ask to join\. Paste a live-session link that parses/ — wait, that test expects "that parses" variant. Let me check: the test does `joiner.getByRole("button", { name: /Ask to join\. Paste a live-session link that parses/ })`. In that test, is it held or pasted? It says joiner... Not a live-session link img. If pasted = "not-a-link" typed, then pasted.trim() truthy → "that parses". OK.
+
+  Now check normalizeInviteCode to see whether non-empty invalid codes are possible.97:export function normalizeInviteCode(raw: string): string | null {
+98-  const letters = raw.toUpperCase().replace(/[\s-]/g, "");
+99-  if (!CODE_ALPHABET.test(letters)) return null;
+100-  return `${letters.slice(0, 4)}-${letters.slice(4)}`;
+101-}
+102-
+103-/** A public session's id, in the Host's canonical spelling, or null. */
+104-export function normalizeSessionId(raw: string): string | null {
+105-  const match = SESSION_ID.exec(raw.trim().toLowerCase());
+106-  return match ? `session:${match[1]}` : null;
+107-}
+108-
+109-let captured: CapturedInvite | null = null;
+110-
+111-/** A Host invite or a live-session link in the fragment, or neither. */
+112-function fromHash(hash: string): CapturedInvite | null {
+113-  const live = new URLSearchParams(hash.replace(/^#/, "")).get("live");
+114-  const link = live ? readLiveValue(live) : null;
+115-  if (link) return { kind: "live", link };
+116-  const invite = fromFragment(hash);
+117-  return invite ? { kind: "invite", invite } : null;
+origin/cursor/persona-p2-form-disabled-b5a1:packages/app-core/src/lib/live/messages.ts:145:export function cleanText(text: string): string {
+28:const CODE_ALPHABET = /^[BCDFGHJKLMNPQRSTVWXZ]{8}$/;
+99:  if (!CODE_ALPHABET.test(letters)) return null;
+/**
+ * A joiner's name or note as the owner may be shown it: nothing that hides
+ * or reorders the text around it, runs of space collapsed, none at the ends.
+ * The joiner's page applies the same, so both sides read one string.
+ */
+export function cleanText(text: string): string {
+  return text
+    .replace(BREAKS, " ")
+    .replace(INVISIBLE, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/** Clean text within `max` characters, or null; the raw text is bounded first. */
+function readText(value: BoundaryValue, max: number): string | null {
+  if (!bounded(value, max * 4)) return null;
+Confirmed: a non-empty but malformed code (e.g. "AAAA" — 4 chars, or containing vowels) → `normalizeInviteCode` returns null → `ready` false → button disabled, but `liveJoinAskDisabledReason` returns `undefined` since `code.trim() !== ""`. So the button is disabled with no reason — a gap against item 8's "name the first missing prerequisite". Is this a real gap or nitpick? It's a reachable user state: type a wrong code. The Code field has no StatusMark for invalid code either (only link has "Not a live-session link"). So the user gets a disabled button whose title/aria says just "Ask to join". That's a genuine partial gap.
+
+  Wait — actually check: FormCommit `named = disabled && disabledReason ? ... : label`. If disabledReason undefined → title/aria = label only. Yes.
+
+  Now check cleanText(name) vs name.trim(): cleanText removes invisible chars too. A name of only invisible chars: cleanText → "" → not ready, but name.trim() → non-empty → reason returns "Enter the invite code" or undefined. Edge, very minor.
+
+  Now item 11: live host item picker. Check live-host-form-parts.tsx ItemChoice on the branch — uses `useDeviceVaults` from `../../bindings/vaults.js`, `vaultStore.activeTomb()`, `FieldRow`. Check these exist and behavior: ADR 0089 says project's name is sealed inside its tomb, nothing may show it before unlock — vaultLabel says `project · 4f2a`. In the host form the vault is unlocked (items are shown), so showing label is fine.
+
+  Concern: `vaultStore.activeTomb()` called during render — is it reactive? If the active tomb changes without re-render... The form is within an open vault session; activeTomb is stable during the session. Fine.
+
+  Check `useDeviceVaults` exists in bindings/vaults and what label it returns. Also check FieldRow component exists. Also check `itemTypeId` and `typeLabel` exported from vault-core.
+
+  Also check ADR 0087: "a concealed field may never reach subtitle, search, or a VFS filename" — not relevant.
+
+  Also check quality gate: LiveHostForm was 140 lines removed to ~116 lines? The refactor moved parts to live-host-form-parts.tsx (134 lines) — 400-line budget fine.
+
+  Check FormCommit other usages: are there other disabled commit keys in the app that persona item 8 might cover? Item 8 says "disabled commit keys say why" — PR scopes to the two live forms. Check other FormCommit usages with disabled to see if the finding plausibly covered only live forms. The PR body explicitly scopes items 8 and 11 to live forms. The persona finding (P2 item 8) — we don't have the original audit doc; the PR body defines scope. Strictly, the PR fulfills what it states.
+
+  Check whether `title` attribute on disabled button is actually shown on hover — disabled buttons don't fire mouse events in some browsers, so title tooltip may not show. That's a known limitation but the aria-label works. Not a code gap.
+
+  Also check DROP_FAILURE_MARK remaining usages — if the constant is now unused except in the WITH_TRAY composition, fine.
+
+  Check the removed comment in LiveHostForm — the "A profile that is there and cannot be read..." comment was dropped in refactor. Minor comment loss, not a regression per se.
+
+  Check LiveRoutesPanel.test.tsx still consistent, and that tests pass. Let me run the test suites. First check the worktree state — current checkout is on a different branch (cursor/persona-r3-live-join-b5a1) with dirty file. I shouldn't disturb it much. Running vitest against the branch requires checking out the branch. The working tree has modifications (packages/app-core/src/lib/live/guest.ts modified, untracked kimi-reviews/). Hmm, this workspace is mid other work. AGENTS.md says leave dirty work alone.
+
+  Option: create a temp worktree for the branch and run tests there. But pnpm install needed? node_modules exists in /workspace; a new worktree wouldn't have node_modules. AGENTS.md says don't copy node_modules; pnpm install hardlinks from store. That could take a while but is doable.
+
+  Alternatively, verify statically + run vitest with the current node_modules but branch files? Vitest needs the files on disk.
+
+  Let me create a worktree at /tmp/pr922-wt and run pnpm install there, then run the targeted vitest suites. Actually `pnpm install` in a worktree of the same repo — the workspace root. It should hardlink from the store. Let me try; time-box it.
+
+  Actually wait — is there a shared target/node setup? The AGENTS.md describes /home/codex/repos paths, but we're in /workspace. The environment here is the Cursor cloud VM with /workspace as the checkout. pnpm store path should exist. Let's do it.
+
+• The branch matches the diff. Now let me verify supporting pieces exist and run the tests in a scratch worktree.import {
+  type DeviceVault,
+  deviceVaultsVersion,
+  listDeviceVaults,
+  subscribeDeviceVaults,
+} from "@opensesame/app-core/lib/vaults.js";
+import { useMemo, useSyncExternalStore } from "react";
+
+/** The one device-vault list (ADR 0089), re-read only when the store or projects emit. */
+export function useDeviceVaults(): DeviceVault[] {
+  const version = useSyncExternalStore(
+    subscribeDeviceVaults,
+    deviceVaultsVersion,
+    () => -1,
+  );
+  return useMemo(() => (version < 0 ? [] : listDeviceVaults()), [version]);
+}
+---
+import {
+  type ReactNode,
+  type Ref,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { useCopySecret } from "../lib/vault/hooks.js";
+import { IconCheck, IconCopy, IconEye, IconEyeOff } from "./Icons.js";
+
+export function useCopyFeedback() {
+  const copySecret = useCopySecret();
+  const [copied, setCopied] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  const timer = useRef<number | null>(null);
+
+  // The flash timers are the only thing still running after this row goes
+  // away: clear them on unmount so a copy can never call back into a torn-down
+  // tree (which surfaces as an unhandled error after the tests finish).
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  const copy = useCallback(
+    async (key: string, value: string) => {
+      const result = await copySecret(value);
+origin/cursor/persona-p2-form-disabled-b5a1:packages/app-core/src/lib/claims/route-model.ts:27:export const DROP_FAILURE_MARK = "Drop could not open";
+---
+
+
+• DROP_FAILURE_MARK only remains as the base of WITH_TRAY — no stale usages. Good.
+
+  Check itemTypeId/typeLabel exports in vault-core:origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/credential.test.ts:18:import { itemTypeId } from "./item-types.js";
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/credential.test.ts:63:    expect(itemTypeId(credential)).toBe("api-key");
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/credential.test.ts:64:    expect(itemTypeId(createCredential(password("c2"), "P", null, T0))).toBe(
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/item-types.ts:124:export function itemTypeId(item: VaultItem): string {
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/item-types.ts:131:  return itemTypeRegistry().get(itemTypeId(item));
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/item-types.ts:210:export function typeLabel(id: string): string {
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/item-types.ts:237:  if (definition === undefined) return [itemTypeId(item)];
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/kind-labels.ts:3: * comes from its definition through `typeLabel()`; these tables remain as the
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/model.ts:17: * `itemTypeId()` bridges both shapes without rewriting existing vaults (ADR 0087).
+origin/cursor/persona-p2-form-disabled-b5a1:packages/vault-core/src/paths.ts:1:import { itemTypeId, typeExtension } from "./item-types.js";
+1:origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/FieldRow.tsx:48:export function FieldRow({
+All exports exist. Now check the FieldRow signature: `FieldRow({label, children...})` — the usage `<FieldRow label="Vault"><span className="frow__value">{vaultLabel}</span></FieldRow>`. Check FieldRow props accept children. Also check `frow__value` class exists in CSS. Minor styling.
+
+  Also — check `DeviceVault.label`: does it include the `project · 4f2a` obfuscation? Check `listDeviceVaults` / vaultLabel in app-core vaults.ts.
+
+  Also check ADR 0089 test: "a project's name is sealed inside its tomb, so nothing may show it before unlock (vaultLabel says project · 4f2a)". In ItemChoice, the vault is unlocked (items listed), so showing the label is fine.
+
+  Now the typeLabel for twin disambiguation: `typeLabel(itemTypeId(item))` — for kind "typed", itemTypeId returns item.typeId. In the test fixture, typeId "account" and "secret" → labels differ. Good.
+
+  Now run the tests. Set up a scratch worktree.      }
+    },
+    [copySecret],
+  );
+
+  return { copied, failed, copy };
+}
+
+export function FieldRow({
+  label,
+  children,
+  actions,
+}: {
+  label: string;
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="frow">
+      <div className="frow__text">
+        <span className="frow__label">{label}</span>
+        {children}
+      </div>
+      {actions ? <div className="frow__actions">{actions}</div> : null}
+    </div>
+  );
+}
+
+export function CopyButton({
+  value,
+  label,
+  fieldKey,
+  copied,
+  failed,
+  onCopy,
+  guideRef,
+---
+57:  /** What to call it — a sealed name once known, else a label from the id. */
+58:  readonly label: string;
+59:  /** True when `label` is a real name rather than derived from the id. */
+73:    label: guestVaultLabel(),
+83: * inside it, so its label is the tomb kind and the tail of its id — enough to
+132:    label: vaultLabel(project),
+Updating files:  43% (5095/11845)Updating files:  44% (5212/11845)Updating files:  45% (5331/11845)Updating files:  46% (5449/11845)Updating files:  47% (5568/11845)Updating files:  48% (5686/11845)Updating files:  49% (5805/11845)Updating files:  49% (5860/11845)Updating files:  50% (5923/11845)Updating files:  51% (6041/11845)Updating files:  52% (6160/11845)Updating files:  53% (6278/11845)Updating files:  54% (6397/11845)Updating files:  55% (6515/11845)Updating files:  56% (6634/11845)Updating files:  57% (6752/11845)Updating files:  58% (6871/11845)Updating files:  59% (6989/11845)Updating files:  60% (7107/11845)Updating files:  61% (7226/11845)Updating files:  62% (7344/11845)Updating files:  63% (7463/11845)Updating files:  64% (7581/11845)Updating files:  65% (7700/11845)Updating files:  66% (7818/11845)Updating files:  67% (7937/11845)Updating files:  68% (8055/11845)Updating files:  69% (8174/11845)Updating files:  70% (8292/11845)Updating files:  71% (8410/11845)Updating files:  72% (8529/11845)Updating files:  73% (8647/11845)Updating files:  74% (8766/11845)Updating files:  75% (8884/11845)Updating files:  76% (9003/11845)Updating files:  77% (9121/11845)Updating files:  78% (9240/11845)Updating files:  79% (9358/11845)Updating files:  80% (9476/11845)Updating files:  81% (9595/11845)Updating files:  82% (9713/11845)Updating files:  83% (9832/11845)Updating files:  84% (9950/11845)Updating files:  85% (10069/11845)Updating files:  86% (10187/11845)Updating files:  87% (10306/11845)Updating files:  88% (10424/11845)Updating files:  89% (10543/11845)Updating files:  90% (10661/11845)Updating files:  91% (10779/11845)Updating files:  92% (10898/11845)Updating files:  93% (11016/11845)Updating files:  94% (11135/11845)Updating files:  95% (11253/11845)Updating files:  96% (11372/11845)Updating files:  97% (11490/11845)Updating files:  98% (11609/11845)Updating files:  99% (11727/11845)Updating files: 100% (11845/11845)Updating files: 100% (11845/11845), done.
+HEAD is now at ee0fb158 test(live): complete VaultItem fixture fields in item-pick-label
+While install runs, let me check a few more things statically:
+
+  1. Other FormCommit usages with disabled — do they need reasons per item 8? PR scopes to the two live forms. Check.
+  2. `frow__value` CSS class exists?
+  3. LiveRoutesPanel.test.tsx — check the "does not start on a profile it cannot read, and says why" test still matches with the new reason naming. The start button lookup changed to `/^Start the live session/` — because now when refused, the aria-label is "Start the live session. relay needs at least one TURN server." Good.
+  4. Check the vaultLabel logic: `vaults.find(v => v.id === vaultStore.activeTomb())?.label`. Check `vaultStore.activeTomb` exists and what it returns (tomb id string). Check DeviceVault.id corresponds to tomb id.
+
+• While install runs, let me check remaining details statically.origin/cursor/persona-p2-form-disabled-b5a1:packages/app-core/src/lib/vault/store.ts:322:  activeTomb(): string {
+origin/cursor/persona-p2-form-disabled-b5a1:packages/app-core/src/lib/vault/store.ts:338:      activeTomb: () => this.#scope.tomb,
+origin/cursor/persona-p2-form-disabled-b5a1:packages/app-core/src/lib/vault/store.ts:1594:activitySeams.activeTomb = () => {
+---
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/FieldRow.test.tsx:194:    expect(container.querySelector(".frow__value--mono")).toBeTruthy();
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/FieldRow.tsx:133:      <span className={revealed ? "frow__value frow__value--mono" : "conceal"}>
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/TotpCode.tsx:100:      <span className="frow__value frow__value--muted">
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/sharing.live/LiveCarriers.tsx:49:            <span className="frow__value frow__value--mono">
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/sharing.live/LiveCatalog.tsx:156:      <span className="frow__value">{saved ?? field.value}</span>
+---
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/CeremonyShell.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/ConnectorDirectoryForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/FormCommit.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/IdentityCeremony.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/components/PepperPrompt.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/identity.ceremonies/ApproveReview.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/identity.ceremonies/ClaimSteps.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/identity.ceremonies/DropClaimScreen.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/identity.ceremonies/InteractionScreen.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/sharing.live/LiveCarriers.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/sharing.live/LiveHostForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/sharing.live/LiveJoinRoute.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/modules/sharing.live/LiveRoutesPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/screens/BrokerAuthorize.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/screens/LocalAuthorize.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/screens/SiopAuthorize.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/screens/setup/WaysIn.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/screens/unlock/ByoProviderSheet.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/IdentitySection.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/access/ConnectorBindForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/access/ConnectorSettingsForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/access/LocalRequestForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/access/ShareGrantForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/access/VaultSessionsPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/ApiKeyForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/AwsKmsConnectPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/ConfigurationForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/GcpKmsConnectPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/GitConnectFields.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/GithubAppRegistrationPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/OauthConnectBody.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/connect/ConnectCreateForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/connect/ConnectTransportForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/connect/ConnectorSettingsForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/connections/connect/SelfHostedConnectorForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/AgentsPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/ApplicationRecipePanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/ApplicationSetupCard.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/DeviceApproval.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/EditApplication.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/LocalAgentEnrollment.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/
+sections/identity/LocalApplicationSettings.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/LocalDeviceRows.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/LocalDirectoryViews.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/LocalMemberships.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/UsersPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/identity/org-signin/UpstreamPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/settings/VaultKeyProtectionCeremonies.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/settings/VaultKeyProtectionExternalCeremonies.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/settings/keybindings/MacroEditor.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/vault/ShareForm.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/sections/wallet/BudgetsPanel.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/styles.css
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/tutorial/ui/RemoteSupportPreview.tsx
+origin/cursor/persona-p2-form-disabled-b5a1:apps/pages/src/tutorial/ui/SupportPanelChrome.tsx
+
+
+• Install done fast. Now run the targeted vitest suites stated in the PR plus the live-module tests in apps/pages (LiveRoutesPanel, LiveSession) and DropClaimScreen.
+
+• Install finished. Now run the PR's stated test suites plus the affected live-module tests.
+ RUN  v4.1.11 /tmp/pr922-wt
+
+
+ Test Files  4 passed (4)
+      Tests  11 passed (11)
+   Start at  04:17:07
+   Duration  2.89s (transform 2.45s, setup 0ms, import 3.40s, tests 425ms, environment 952ms)
+
+
+
+    328|   it("says why when this browser cannot make a request, and keeps what…
+    329|     const { panel } = await startHosting();
+    330|     await panel.findByRole("img", { name: "Live" });
+       |                 ^
+    331|     holdLiveLink(currentHost()?.link ?? null);
+    332|     liveUiSeams.peers = () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/23]⎯
+
+
+ Test Files  4 failed | 12 passed (16)
+      Tests  23 failed | 66 passed (89)
+   Start at  04:17:19
+   Duration  17.42s (transform 8.08s, setup 0ms, import 16.35s, tests 25.45s, environment 4.06s)
+
+• 23 failures in the sharing.live module tests. Need to determine whether these failures are caused by this PR or pre-existing on main. Let me see the failures first, then run the same tests on main worktree.
+
+• 23 failures in the live module — I need to check whether these are caused by the PR or pre-existing on main. FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the host's swaps > lands on the copy key when Start opens the session, and on the form when End closes it
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the host's swaps > brings the copy key out from under the phone's sticky strip when Start shortens the page
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the host's swaps > leaves a mouse user where they are when the session starts
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the host's swaps > returns to the request field after a paste, and lands on the reply code after Let in
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the host's swaps > returns to the request field after Turn away, and after a code it cannot read
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the host's swaps > does not move a mouse user's focus when a guest is turned away
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > lands on the request code's copy key after asking
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > does not move a mouse user's focus when asking
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > lands on the joined status after Connect, so the next Tab is the first shared field
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > returns to the reply field, error and all, after a wrong reply
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > lands on Start over when the session ends under a removed control, and on the form after it
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > leaves a focus the person chose when the session ends
+ FAIL  apps/pages/src/modules/sharing.live/LiveFocus.test.tsx > the keyboard after the joiner's swaps > returns the keyboard to the form when this browser cannot make a request
+ FAIL  apps/pages/src/modules/sharing.live/LiveRoutes.test.tsx > joining through the owner's routes > lists every host before contacting any, and pairs with nothing pasted
+ FAIL  apps/pages/src/modules/sharing.live/LiveRoutes.test.tsx > joining through the owner's routes > the person keeps to a direct route: no carrier hears of them
+ FAIL  apps/pages/src/modules/sharing.live/LiveRoutesPanel.test.tsx > the start form > says when a link cannot carry the routes, and starts nothing
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > lets in a joiner who holds the link and the code, and hands over one value on request
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > counts a request made with the wrong code, and says so
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > refuses a reply that is not for this request
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > copy only does not write secret plaintext to the guest clipboard
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > asks for no code in an open session, and replies at once
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > keeps what the joiner typed when the screen mounts again
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > says why when this browser cannot make a request, and keeps what was typed
+
+
+
+ RUN  v4.1.11 /tmp/pr922-wt
+
+ ❯ apps/pages/src/modules/sharing.live/LiveSession.test.tsx (8 tests | 7 failed) 7344ms
+     × lets in a joiner who holds the link and the code, and hands over one value on request 1129ms
+     × counts a request made with the wrong code, and says so 1037ms
+     × refuses a reply that is not for this request 1032ms
+     × copy only does not write secret plaintext to the guest clipboard 1035ms
+     × asks for no code in an open session, and replies at once 1034ms
+     × keeps what the joiner typed when the screen mounts again 1032ms
+     × says why when this browser cannot make a request, and keeps what was typed 1028ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > lets in a joiner who holds the link and the code, and hands over one value on request
+TestingLibraryElementError: Unable to find role="img" and name "Live"
+
+Ignored nodes: comments, script, style
+[36m<div>[39m
+  [36m<span[39m
+    [33mclass[39m=[32m"guide-target"[39m
+    [33mdata-guide-target[39m=[32m"settings.live-session"[39m
+    [33mdata-guide-targets[39m=[32m"settings.live-session"[39m
+  [36m>[39m
+    [36m<section[39m
+      [33mclass[39m=[32m"panel"[39m
+      [33mid[39m=[32m"live-session"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__head"[39m
+      [36m>[39m
+        [36m<div>[39m
+          [36m<h2>[39m
+            [0mLive session[0m
+          [36m</h2>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__body"[39m
+      [36m>[39m
+--
+  [36m</span>[39m
+[36m</div>[39m
+ ❯ waitForWrapper node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/wait-for.js:163:27
+ ❯ node_modules/.pnpm/@testing-library+dom@10.4.2/node_modules/@testing-library/dom/dist/query-helpers.js:86:33
+ ❯ apps/pages/src/modules/sharing.live/LiveSession.test.tsx:143:17
+    141|   it("lets in a joiner who holds the link and the code, and hands over…
+    142|     const { owner, panel } = await startHosting();
+    143|     await panel.findByRole("img", { name: "Live" });
+       |                 ^
+    144|     const host = currentHost();
+    145|     expect(host?.code).toMatch(/^[A-Z]{4}-[A-Z]{4}$/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  apps/pages/src/modules/sharing.live/LiveSession.test.tsx > a live session, owner to joiner, paired by hand > counts a request made with the wrong code, and says so
+TestingLibraryElementError: Unable to find role="img" and name "Live"
+
+Ignored nodes: comments, script, style
+[36m<div>[39m
+• Tests fail at "startHosting" — the session never starts. Is this caused by the PR? The host form's start requires ready; the disabledReason shouldn't affect clicking. But maybe these tests fail on main too (environment-related, e.g., jsdom WebRTC seams). Let me create a main worktree and run the same suite to compare.
+
+• Now the critical comparison — same suite on `origin/main`:HEAD is now at b83b6c8d fix(security): pin federation code exchange to the compiled token endpoint (cf-audit run 1, grok) (#811)
+Done in 8s
+
+
+• Wait — origin/main is at b83b6c8d, but the PR body says base is 96b09b74. The diff's three-dot comparison earlier worked. Anyway, run the live tests on main.
+ Test Files  4 failed | 12 passed (16)
+      Tests  23 failed | 66 passed (89)
+   Start at  04:18:56
+   Duration  16.04s (transform 5.49s, setup 0ms, import 11.09s, tests 24.52s, environment 2.68s)
+
+Identical failure count on main: 23 failed / 66 passed, 4 failed files
