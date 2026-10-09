@@ -188,7 +188,9 @@ describe("a live session, owner to joiner, paired by hand", () => {
         name: "End the session for everyone",
       }),
     );
-    fireEvent.click(ownerPanel.getByRole("button", { name: "End for everyone" }));
+    fireEvent.click(
+      ownerPanel.getByRole("button", { name: "End for everyone" }),
+    );
     await joiner.findByRole("img", { name: "The session ended" });
     expect(joiner.queryByText(SECRET)).toBeNull();
     expect(joiner.queryByText("octo")).toBeNull();
