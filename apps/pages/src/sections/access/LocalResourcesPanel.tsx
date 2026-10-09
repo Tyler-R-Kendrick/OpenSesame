@@ -6,42 +6,16 @@ import {
 } from "@opensesame/app-core/sections/access/local-resources-panel-model.js";
 import { useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
-
-function ResourceList({
-  rows,
-  names,
-}: {
-  rows: ResourceRow[];
-  names: Map<string, string>;
-}) {
-  if (rows.length === 0) {
-    return <p className="hint">Vault locked.</p>;
-  }
-  return (
-    <ul className="access-resources">
-      {rows.map((row) => (
-        <li className="access-resource" key={row.id}>
-          <div className="access-resource__main">
-            <div className="access-resource__id">
-              <h3>{row.title}</h3>
-              <code className="access-ref">
-                {row.kind} · {row.detail}
-              </code>
-            </div>
-            <span className="access-resource__meta">
-              {row.kind === "vault" || row.kind === "connection"
-                ? shareSummary(row.shares, names)
-                : "dogfooded"}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 
 export function LocalResourcesPanel() {
   const { tomb } = useVault();
+  const selection = useAccessRecord("local-resources", "resources");
   const [rows, setRows] = useState<ResourceRow[]>([]);
   const [names, setNames] = useState<Map<string, string>>(new Map());
 
@@ -66,18 +40,32 @@ export function LocalResourcesPanel() {
     };
   }, [tomb]);
 
+  const selected = rows.find((row) => row.id === selection.id);
   return (
-    <section
-      className="panel"
-      id="local-resources"
-      aria-label="Local resources"
+    <AccessRecords
+      title="Local resources"
+      selection={selection}
+      rows={rows.map((row) => ({
+        id: row.id,
+        label: row.title,
+        extension: row.kind,
+        to: selection.path(row.id),
+      }))}
     >
-      <div className="panel__head">
-        <h2>Local resources</h2>
-      </div>
-      <div className="panel__body">
-        <ResourceList rows={rows} names={names} />
-      </div>
-    </section>
+      {selected ? (
+        <AccessDetail title={selected.title} kind={selected.kind}>
+          <AccessFact label="Resource" value={selected.detail} />
+          <AccessFact label="Reference" value={selected.id} />
+          <AccessFact
+            label="Shares"
+            value={
+              selected.kind === "vault" || selected.kind === "connection"
+                ? shareSummary(selected.shares, names)
+                : "dogfooded"
+            }
+          />
+        </AccessDetail>
+      ) : null}
+    </AccessRecords>
   );
 }

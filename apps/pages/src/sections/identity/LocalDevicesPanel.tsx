@@ -106,7 +106,10 @@ function useDeviceRows() {
   return { devices, armed, setArmed, error, setError, showRows };
 }
 
-function useDevices(tomb: string): DevicesModel & { reload: () => void } {
+export function useDevices(
+  tomb: string,
+  onSaved?: (next: LocalDevice[]) => void,
+): DevicesModel & { reload: () => void } {
   const rows = useDeviceRows();
   const { showRows, setError, setArmed } = rows;
   const [draft, setDraft] = useState<DeviceDraft | null>(null);
@@ -158,6 +161,7 @@ function useDevices(tomb: string): DevicesModel & { reload: () => void } {
       showRows(next);
       setDraft(null);
       setArmed(null);
+      onSaved?.(next);
       if (focus) focusAfter(focus);
     } catch (caught) {
       setError(

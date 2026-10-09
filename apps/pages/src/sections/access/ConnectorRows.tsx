@@ -18,7 +18,7 @@ import type { LocalShare } from "@opensesame/app-core/lib/local-share-grants.js"
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconTrash, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { ConnectorMark } from "../connections/ConnectorMark.js";
+import { AccessDetail, AccessFact } from "./AccessRecords.js";
 import { ConnectorBindForm } from "./ConnectorBindForm.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { RowActions, bindButtonId } from "./connector-row-actions.js";
@@ -248,33 +248,31 @@ function ConnectorRowItem({
 }: ConnectorRowItemProps) {
   const displayName = setting.alias || row.name;
   return (
-    <li className="identity-row">
-      <div className="identity-row__main">
-        <ConnectorMark
-          providerId={row.providerId}
-          displayName={displayName}
-          size={32}
-        />
-        <div className="identity-row__id">
-          <h3>{displayName}</h3>
-          <code className="identity-ref">{row.detail}</code>
-        </div>
-        <RowChips
-          row={row}
-          setting={setting}
-          bindings={bindings}
-          showSource={showSource}
-        />
-        {binding || configuring ? null : (
-          <RowActions
+    <AccessDetail
+      title={displayName}
+      kind="Connector access"
+      actions={
+        <>
+          <RowChips
             row={row}
             setting={setting}
-            busy={busy}
-            onOpenBind={onOpenBind}
-            onOpenSettings={onOpenSettings}
+            bindings={bindings}
+            showSource={showSource}
           />
-        )}
-      </div>
+          {binding || configuring ? null : (
+            <RowActions
+              row={row}
+              setting={setting}
+              busy={busy}
+              onOpenBind={onOpenBind}
+              onOpenSettings={onOpenSettings}
+            />
+          )}
+        </>
+      }
+    >
+      <AccessFact label="Connection" value={row.detail} />
+      <AccessFact label="Reference" value={row.id} />
       {binding ? (
         <ConnectorBindForm
           connector={displayName}
@@ -312,7 +310,7 @@ function ConnectorRowItem({
         onApprove={onApprove}
         onDeny={onDeny}
       />
-    </li>
+    </AccessDetail>
   );
 }
 
@@ -349,7 +347,7 @@ export function ConnectorRows({
 }) {
   if (rows.length === 0) return null;
   return (
-    <ul className="identity-rows" aria-label="Connector access">
+    <section aria-label="Connector access">
       {rows.map((row) => (
         <ConnectorRowItem
           key={row.id}
@@ -373,6 +371,6 @@ export function ConnectorRows({
           onDeny={(id) => void state.deny(id)}
         />
       ))}
-    </ul>
+    </section>
   );
 }

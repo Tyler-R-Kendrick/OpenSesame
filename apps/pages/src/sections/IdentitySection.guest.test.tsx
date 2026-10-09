@@ -74,13 +74,15 @@ it("lists this Guest N on People even when a hosted Identity API is configured",
   await ensureDefaultAccess(GUEST_TOMB);
 
   render(
-    <MemoryRouter initialEntries={["/identity?view=people"]}>
+    <MemoryRouter
+      initialEntries={[`/identity?view=people#${encodeURIComponent(guest.id)}`]}
+    >
       <IdentitySection />
     </MemoryRouter>,
   );
 
   await waitFor(() => {
-    expect(screen.getByText(guest.name)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: guest.name })).toBeTruthy();
   });
   expect(document.getElementById(guest.id)).toBeTruthy();
 

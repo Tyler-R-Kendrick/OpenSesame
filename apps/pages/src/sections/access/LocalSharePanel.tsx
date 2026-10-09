@@ -5,7 +5,6 @@ import {
   approvePendingShare,
   denyPendingShare,
   listPendingShares,
-  policyLabel,
   submitLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
@@ -18,17 +17,15 @@ import {
 import type { Folder, VaultItem } from "@opensesame/vault-core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
-import { IconKey } from "../../components/IconKey.js";
-import {
-  IconCheck,
-  IconPlus,
-  IconRefresh,
-  IconTrash,
-  IconX,
-} from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
+import {
+  AccessDetail,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
+import { PendingRow, ShareRow } from "./ShareDetail.js";
 import { ShareGrantForm } from "./ShareGrantForm.js";
 
 async function readApprovals(tomb: string): Promise<PendingShare[]> {
@@ -142,7 +139,9 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
     { id: string; name: string; kind: string; role: string }[]
   >([]);
   const [canGrant, setCanGrant] = useState(false);
-  const [draft, setDraft] = useState(false);
+  const selection = useAccessRecord("identity-shares", "grants", "share-");
+  const draft = selection.creating;
+  const setDraft = selection.setCreating;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const names = new Map(identities.map((entry) => [entry.id, entry.name]));
@@ -205,7 +204,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
     setError("");
     try {
       await action();
-      setDraft(false);
+
       reload();
     } catch (caught) {
       setError(
@@ -216,14 +215,31 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
     }
   }
 
+  const selectedShare = shares.find((share) => share.id === selection.id);
+  const selectedPending = pending.find(
+    (row) => row.id === selection.id || `pending-${row.id}` === selection.id,
+  );
+  const name = (principal: string) => names.get(principal) ?? principal;
   return (
-    <section
-      className="panel"
-      id="identity-shares"
-      aria-label="Identity shares"
-    >
-      <div className="panel__head">
-        <h2>Identity shares</h2>
+    <AccessRecords
+      title="Identity shares"
+      createGuide="access.grant-access"
+      selection={selection}
+      rows={[
+        ...pending.map((row) => ({
+          id: row.id,
+          label: `${name(row.principalId)} → ${row.resourceLabel}`,
+          extension: "pending",
+          to: selection.path(row.id),
+        })),
+        ...shares.map((row) => ({
+          id: row.id,
+          label: `${name(row.principalId)} → ${row.resourceLabel}`,
+          extension: "share",
+          to: selection.path(row.id),
+        })),
+      ]}
+      commands={
         <ShareCommands
           busy={busy || !canGrant}
           onGrant={() => setDraft(true)}
@@ -232,11 +248,13 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
             reload();
           }}
         />
-      </div>
-      <div className="panel__body">
-        {!canGrant ? <p className="hint">View only.</p> : null}
+      }
+      status={
         <FailureNotice id="access:shares" title="Shares" message={error} />
-        {draft && canGrant ? (
+      }
+    >
+      {draft && canGrant ? (
+        <AccessDetail title="New identity share" kind="Share">
           <GuideTarget id="access.grant-ceremony">
             <ShareGrantForm
               identities={identities}
@@ -245,156 +263,59 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
               onCancel={() => setDraft(false)}
               onSave={(input) =>
                 void run(async () => {
-                  await submitLocalShare(tomb, input);
+                  const result = await submitLocalShare(tomb, input);
+                  const record =
+                    result.outcome === "pending"
+                      ? result.pending.id
+                      : result.shares[0]?.id;
+                  if (record) selection.select(record);
+                  else selection.close();
                 })
               }
             />
           </GuideTarget>
-        ) : null}
-        <ul className="identity-rows">
-          {pending.map((row) => (
-            <PendingRow
-              key={row.id}
-              pending={row}
-              name={names.get(row.principalId) ?? row.principalId}
-              role={
-                identities.find((entry) => entry.id === row.principalId)?.role
-              }
-              busy={busy}
-              canDecide={canGrant}
-              onApprove={() =>
-                void run(async () => {
-                  await approvePendingShare(tomb, row.id);
-                })
-              }
-              onDeny={() =>
-                void run(async () => {
-                  await denyPendingShare(tomb, row.id);
-                })
-              }
-            />
-          ))}
-          {shares.map((share) => (
-            <ShareRow
-              key={share.id}
-              share={share}
-              name={names.get(share.principalId) ?? share.principalId}
-              role={
-                identities.find((row) => row.id === share.principalId)?.role
-              }
-              busy={busy}
-              canRevoke={canGrant}
-              onRevoke={() =>
-                void run(async () => {
-                  await revokeLocalShare(tomb, share.id);
-                })
-              }
-            />
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-function PendingRow({
-  pending,
-  name,
-  role,
-  busy,
-  canDecide,
-  onApprove,
-  onDeny,
-}: {
-  pending: PendingShare;
-  name: string;
-  role: string | undefined;
-  busy: boolean;
-  canDecide: boolean;
-  onApprove: () => void;
-  onDeny: () => void;
-}) {
-  return (
-    <li className="identity-row" id={`pending-${pending.id}`}>
-      <div className="identity-row__main">
-        <div className="identity-row__id">
-          <h3>
-            {name} → {pending.resourceLabel}
-          </h3>
-          <code className="identity-ref">
-            {pending.resourceKind} ·{" "}
-            {policyLabel(pending.resourceKind, pending.policy)}
-            {role ? ` · ${role}` : ""}
-          </code>
-        </div>
-        <StatusMark tone="warn" label="Awaiting approval" />
-        <div className="actions">
-          <IconKey
-            label={`Approve ${name}`}
-            small
-            disabled={busy || !canDecide}
-            onClick={onApprove}
-          >
-            <IconCheck size={16} />
-          </IconKey>
-          <IconKey
-            label={`Deny ${name}`}
-            small
-            disabled={busy || !canDecide}
-            onClick={onDeny}
-          >
-            <IconX size={16} />
-          </IconKey>
-        </div>
-      </div>
-    </li>
-  );
-}
-function ShareRow({
-  share,
-  name,
-  role,
-  busy,
-  canRevoke,
-  onRevoke,
-}: {
-  share: LocalShare;
-  name: string;
-  role: string | undefined;
-  busy: boolean;
-  canRevoke: boolean;
-  onRevoke: () => void;
-}) {
-  return (
-    <li className="identity-row" id={`share-${share.id}`}>
-      <div className="identity-row__main">
-        <div className="identity-row__id">
-          <h3>
-            {name} → {share.resourceLabel}
-          </h3>
-          <code className="identity-ref">
-            {share.resourceKind} ·{" "}
-            {policyLabel(share.resourceKind, share.policy)}
-            {role ? ` · ${role}` : ""}
-          </code>
-        </div>
-        <StatusMark
-          tone="idle"
-          label={`Until ${new Date(share.expiresAt).toLocaleString()}`}
+        </AccessDetail>
+      ) : null}
+      {!draft && selectedShare ? (
+        <ShareRow
+          share={selectedShare}
+          name={name(selectedShare.principalId)}
+          role={
+            identities.find((row) => row.id === selectedShare.principalId)?.role
+          }
+          busy={busy}
+          canRevoke={canGrant}
+          onRevoke={() =>
+            void run(async () => {
+              await revokeLocalShare(tomb, selectedShare.id);
+              selection.close();
+            })
+          }
         />
-        <div className="actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !canRevoke}
-            aria-label="Revoke"
-            title="Revoke"
-            onClick={onRevoke}
-          >
-            <IconTrash size={16} />
-          </button>
-        </div>
-      </div>
-    </li>
+      ) : null}
+      {!draft && selectedPending ? (
+        <PendingRow
+          pending={selectedPending}
+          name={name(selectedPending.principalId)}
+          role={
+            identities.find((row) => row.id === selectedPending.principalId)
+              ?.role
+          }
+          busy={busy}
+          canDecide={canGrant}
+          onApprove={() =>
+            void run(async () => {
+              await approvePendingShare(tomb, selectedPending.id);
+            })
+          }
+          onDeny={() =>
+            void run(async () => {
+              await denyPendingShare(tomb, selectedPending.id);
+              selection.close();
+            })
+          }
+        />
+      ) : null}
+    </AccessRecords>
   );
 }

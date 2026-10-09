@@ -11,10 +11,11 @@ import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalPolicyEditor } from "./LocalPoliciesPanel.js";
+import { renderAccess as render } from "./workspace-test-support.js";
 
 let tomb: string;
 beforeEach(async () => {
@@ -76,7 +77,13 @@ async function seed() {
 
 it("edits the same encrypted role policy as Identity without a backend", async () => {
   const app = await seed();
-  render(<LocalPolicyEditor tomb={tomb} />);
+  render(
+    <LocalPolicyEditor tomb={tomb} />,
+    "/access?view=policies#local-policies",
+  );
+  await userEvent.click(
+    await screen.findByRole("treeitem", { name: /Test application.*policy/ }),
+  );
   await screen.findByRole("heading", { name: "Test application" });
   await userEvent.click(
     screen.getByText("Application registration", { exact: true }),
@@ -112,18 +119,26 @@ it("distinguishes applications with the same name using public references", asyn
   const applications = (await readLocalDirectory(tomb)).entries.filter(
     (entry) => entry.kind === "application",
   );
-  render(<LocalPolicyEditor tomb={tomb} />);
+  render(
+    <LocalPolicyEditor tomb={tomb} />,
+    "/access?view=policies#local-policies",
+  );
   await waitFor(() =>
     expect(
-      screen.getAllByRole("heading", { name: "Test application" }),
+      screen.getAllByRole("treeitem", { name: /Test application.*policy/ }),
     ).toHaveLength(2),
   );
-  for (const application of applications)
+  for (const [index, application] of applications.entries()) {
+    await userEvent.click(screen.getAllByRole("treeitem")[index]);
     expect(screen.getByText(application.id, { exact: true })).toBeTruthy();
+  }
 });
 
 it("shows a true empty state and a dash count", async () => {
-  render(<LocalPolicyEditor tomb={tomb} />);
+  render(
+    <LocalPolicyEditor tomb={tomb} />,
+    "/access?view=policies#local-policies",
+  );
   await screen.findByText("No local applications.");
   expect(screen.getByText(/No local applications\./)).toBeTruthy();
   expect(listNotices()).toHaveLength(0);
@@ -132,7 +147,10 @@ it("shows a true empty state and a dash count", async () => {
 it("does not report unread locked storage as an empty policy set", async () => {
   await seed();
   lockAllTombs();
-  render(<LocalPolicyEditor tomb={tomb} />);
+  render(
+    <LocalPolicyEditor tomb={tomb} />,
+    "/access?view=policies#local-policies",
+  );
   await waitFor(() =>
     expect(
       listNotices().some(

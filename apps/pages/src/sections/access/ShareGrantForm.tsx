@@ -89,12 +89,7 @@ export function ShareGrantForm({
   }
 
   if (identities.length === 0) {
-    return (
-      <p className="hint">
-        No person, agent, or application in this vault yet. Create one under
-        Identity.
-      </p>
-    );
+    return <p className="hint">No identities.</p>;
   }
 
   return (

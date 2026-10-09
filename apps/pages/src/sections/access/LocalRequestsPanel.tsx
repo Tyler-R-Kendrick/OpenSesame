@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { type Ref, useLayoutEffect, useRef, useState } from "react";
 import "./local-authority.css";
+import "./access-record-choices.css";
 import {
   type InboxStatusFilter,
   filterInboxRows,
@@ -13,26 +14,40 @@ import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
-  IconArrowRight,
   IconPlus,
   IconRefresh,
   IconTrash,
   IconX,
 } from "../../components/Icons.js";
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
 import { RequestApproval } from "./RequestApproval.js";
 import { useLocalRequests } from "./useLocalRequests.js";
 
 function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
-  const [creating, setCreating] = useState(false);
-  const [selectedId, setSelected] = useState<string | null>(null);
+  const selection = useAccessRecord("local-requests", "requests");
+  const {
+    creating,
+    setCreating,
+    id: selectedId,
+    select: setSelected,
+  } = selection;
   const selected = requests?.find((row) => row.id === selectedId) ?? null;
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const reload = useRef<HTMLButtonElement>(null);
   useLayoutEffect(() => {
-    if (selectedId && requests && !selected) setSelected(null);
+    if (selectedId && requests && !selected) {
+      if (keyboardIsIdle()) landFocus(reload.current);
+      setSelected(null);
+      return;
+    }
     if (!trigger.current) return;
     if (!keyboardIsIdle() && document.activeElement !== trigger.current) return;
     if (creating || selected)
@@ -45,16 +60,15 @@ function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
       landFocus(
         trigger.current?.isConnected ? trigger.current : reload.current,
       );
-  }, [creating, selected, selectedId, requests]);
+  }, [creating, selected, selectedId, requests, setSelected]);
   function close() {
-    setCreating(false);
-    setSelected(null);
+    selection.close();
   }
   return {
+    selection,
     creating,
     setCreating,
     selected,
-    setSelected,
     root,
     trigger,
     reload,
@@ -66,80 +80,63 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const model = useLocalRequests(tomb);
   const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>("all");
   const {
+    selection,
     creating,
     setCreating,
     selected,
-    setSelected,
     root,
     trigger,
     reload,
     close,
   } = useRequestSelection(model.data?.requests);
   const disabled = model.busy || Boolean(model.error);
+  const rows = visibleRequests(model.data?.requests, statusFilter);
   return (
-    <section
-      className="panel"
-      id="local-requests"
-      aria-label="Local requests"
-      ref={root}
-    >
-      <div className="panel__head">
-        <h2>Local requests</h2>
-        <div className="actions">
-          <select
-            className="head-filter"
-            aria-label="Local request status filter"
-            value={statusFilter}
-            onChange={(event) =>
-              // SAFETY: test/fixture or boundary-checked value matches InboxStatusFilter).
-              setStatusFilter(event.target.value as InboxStatusFilter)
-            }
-          >
-            <option value="pending">pending</option>
-            <option value="expired">expired</option>
-            <option value="decided">decided</option>
-            <option value="all">all</option>
-          </select>
-          <IconKey
-            small
-            label="New local request"
-            disabled={disabled || !model.data || creating || selected !== null}
-            onClick={(event) => {
-              trigger.current = event.currentTarget;
-              setCreating(true);
-            }}
-          >
-            <IconPlus size={15} />
-          </IconKey>
-          <IconKey
-            small
-            label="Reload local requests"
-            keyRef={reload}
-            disabled={model.busy}
-            onClick={() => void model.reload()}
-          >
-            <IconRefresh size={15} />
-          </IconKey>
-        </div>
-      </div>
-      <div className="panel__body">
-        <FailureNotice
-          id="access:requests"
-          title="Requests"
-          message={model.error}
+    <AccessRecords
+      title="Local requests"
+      selection={selection}
+      rows={requestWorkspaceRows(rows, model.data?.directory, selection.path)}
+      commands={
+        <RequestCommands
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          disabled={disabled}
+          loaded={Boolean(model.data)}
+          creating={creating}
+          busy={model.busy}
+          reloadRef={reload}
+          onReload={() => void model.reload()}
+          onCreate={(button) => {
+            trigger.current = button;
+            setCreating(true);
+          }}
         />
-        <output>{model.message}</output>
-        {creating && model.data ? (
-          <LocalRequestForm
-            tomb={tomb}
-            directory={model.data.directory}
-            applications={model.data.applications}
-            busy={disabled}
-            run={model.run}
-            close={close}
+      }
+      status={
+        <>
+          <FailureNotice
+            id="access:requests"
+            title="Requests"
+            message={model.error}
           />
+          <output>{model.message}</output>
+        </>
+      }
+    >
+      <div ref={root}>
+        {creating && model.data ? (
+          <AccessDetail title="New local request" kind="Request">
+            <LocalRequestForm
+              tomb={tomb}
+              directory={model.data.directory}
+              applications={model.data.applications}
+              busy={disabled}
+              run={model.run}
+              close={close}
+            />
+          </AccessDetail>
         ) : null}
-        {selected && model.data ? (
+        {!creating && selected && model.data ? (
           <RequestDecision
             key={selected.id}
             tomb={tomb}
@@ -150,78 +147,11 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             close={close}
           />
         ) : null}
-        {model.data ? (
-          <RequestRows
-            data={model.data}
-            filter={statusFilter}
-            disabled={disabled || creating || selected !== null}
-            select={(row, button) => {
-              trigger.current = button;
-              setSelected(row.id);
-            }}
-          />
-        ) : !model.error ? (
+        {!model.data && !model.error ? (
           <output>Loading local requests…</output>
         ) : null}
       </div>
-    </section>
-  );
-}
-
-function RequestRows({
-  data,
-  filter,
-  disabled,
-  select,
-}: {
-  data: NonNullable<ReturnType<typeof useLocalRequests>["data"]>;
-  filter: InboxStatusFilter;
-  disabled: boolean;
-  select: (row: LocalAccessRequest, button: HTMLButtonElement) => void;
-}) {
-  const visibleIds = new Set(
-    filterInboxRows(
-      data.requests.map((row) => ({
-        id: row.id,
-        status: row.status,
-        expiresAt: new Date(row.expiresAt).toISOString(),
-        plane: "local" as const,
-      })),
-      filter,
-    ).map((row) => row.id),
-  );
-  const rows = data.requests.filter((row) => visibleIds.has(row.id));
-  return (
-    <>
-      <ul className="access-local-records">
-        {rows.map((row) => (
-          <li key={row.id}>
-            <strong>
-              {data.directory.entries.find(
-                (entry) => entry.id === row.applicationId,
-              )?.name ?? row.applicationId}
-            </strong>
-            <p>{row.reason}</p>
-            <p className="hint">
-              {row.status} · {row.scopes.join(", ")} · Expires{" "}
-              {new Date(row.expiresAt).toLocaleTimeString()}
-            </p>
-            <p>
-              <code className="access-ref">{row.id}</code>
-            </p>
-            <IconKey
-              label="Review request"
-              small
-              disabled={disabled}
-              onClick={(event) => select(row, event.currentTarget)}
-            >
-              <IconArrowRight size={16} />
-            </IconKey>
-          </li>
-        ))}
-      </ul>
-      {!rows.length ? <p className="hint">No local requests.</p> : null}
-    </>
+    </AccessRecords>
   );
 }
 
@@ -271,35 +201,143 @@ function RequestDecision({
       close();
   }
   return (
-    <fieldset className="access-local-confirmation" disabled={busy}>
-      <legend>Review local request</legend>
-      <p>
-        {name(row.requesterId)} → {name(row.applicationId)} ·{" "}
-        {name(row.organizationId)}
-      </p>
-      <p>{row.reason}</p>
-      <p>
-        <code className="access-ref">{row.id}</code> · {row.status}
-      </p>
-      <p>Scopes: {row.scopes.join(", ")}</p>
-      <p className="hint">Callback: {row.redirectUri}</p>
-      {row.status === "pending" ? (
-        <RequestApproval
-          tomb={tomb}
-          row={row}
-          directory={directory}
-          run={run}
-          close={close}
-        />
-      ) : null}
-      <div className="actions">
-        <IconKey label={removeLabel} onClick={() => void remove()}>
-          <IconTrash size={16} />
-        </IconKey>
-        <IconKey label="Close request" onClick={close}>
-          <IconX size={16} />
-        </IconKey>
-      </div>
-    </fieldset>
+    <AccessDetail
+      title={name(row.applicationId)}
+      kind="Request"
+      actions={
+        <>
+          <IconKey
+            label={removeLabel}
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            <IconTrash size={16} />
+          </IconKey>
+          <IconKey label="Close request" onClick={close}>
+            <IconX size={16} />
+          </IconKey>
+        </>
+      }
+    >
+      <fieldset className="access-record-review" disabled={busy}>
+        <legend className="visually-hidden">Review local request</legend>
+        <AccessFact label="Requester" value={name(row.requesterId)} />
+        <AccessFact label="Organization" value={name(row.organizationId)} />
+        <AccessFact label="Reason" value={row.reason} />
+        <AccessFact label="Reference" value={row.id} />
+        <AccessFact label="Status" value={row.status} />
+        <AccessFact label="Scopes" value={row.scopes.join(", ")} />
+        <AccessFact label="Callback" value={row.redirectUri} />
+        {row.status === "pending" ? (
+          <RequestApproval
+            tomb={tomb}
+            row={row}
+            directory={directory}
+            run={run}
+            close={close}
+          />
+        ) : null}
+      </fieldset>
+    </AccessDetail>
   );
+}
+
+function RequestCommands({
+  statusFilter,
+  setStatusFilter,
+  disabled,
+  loaded,
+  creating,
+  busy,
+  reloadRef,
+  onReload,
+  onCreate,
+}: {
+  statusFilter: InboxStatusFilter;
+  setStatusFilter: (next: InboxStatusFilter) => void;
+  disabled: boolean;
+  loaded: boolean;
+  creating: boolean;
+  busy: boolean;
+  reloadRef: Ref<HTMLButtonElement>;
+  onReload: () => void;
+  onCreate: (button: HTMLButtonElement) => void;
+}) {
+  return (
+    <>
+      <select
+        className="head-filter"
+        aria-label="Local request status filter"
+        value={statusFilter}
+        onChange={(event) => {
+          const next = event.target.value;
+          if (
+            next === "pending" ||
+            next === "expired" ||
+            next === "decided" ||
+            next === "all"
+          )
+            setStatusFilter(next);
+        }}
+      >
+        <option value="pending">pending</option>
+        <option value="expired">expired</option>
+        <option value="decided">decided</option>
+        <option value="all">all</option>
+      </select>
+      <IconKey
+        small
+        label="New local request"
+        disabled={disabled || !loaded || creating}
+        onClick={(event) => {
+          onCreate(event.currentTarget);
+        }}
+      >
+        <IconPlus size={15} />
+      </IconKey>
+      <IconKey
+        small
+        label="Reload local requests"
+        keyRef={reloadRef}
+        disabled={busy}
+        onClick={onReload}
+      >
+        <IconRefresh size={15} />
+      </IconKey>
+    </>
+  );
+}
+
+function requestWorkspaceRows(
+  rows: readonly LocalAccessRequest[],
+  directory: LocalDirectory | undefined,
+  path: (id: string) => string,
+) {
+  return rows.map((row) => ({
+    id: row.id,
+    label:
+      directory?.entries.find((entry) => entry.id === row.applicationId)
+        ?.name ?? row.applicationId,
+    extension: "request",
+    to: path(row.id),
+  }));
+}
+
+function visibleRequests(
+  requests: LocalAccessRequest[] | undefined,
+  statusFilter: InboxStatusFilter,
+) {
+  const visibleIds = new Set(
+    filterInboxRows(
+      (requests ?? []).map((row) => ({
+        id: row.id,
+        status: row.status,
+        expiresAt: new Date(row.expiresAt).toISOString(),
+        plane: "local" as const,
+      })),
+      statusFilter,
+    ).map((row) => row.id),
+  );
+  const rows = (requests ?? []).filter((row) => visibleIds.has(row.id));
+  return rows;
 }

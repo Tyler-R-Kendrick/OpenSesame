@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 426,
-    "violations": 659,
-    "oversizedLines": 215848
+    "files": 422,
+    "violations": 649,
+    "oversizedLines": 214714
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -41,9 +41,6 @@
     },
     "apps/cli/src/store.rs": {
       "max-lines": 945
-    },
-    "apps/pages/scripts/lib/j-app-recipe-journey.mjs": {
-      "max-statements": 1
     },
     "apps/pages/server/github-app.mjs": {
       "complexity": 3,
@@ -138,11 +135,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 816
+      "max-lines": 815
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
-      "max-lines": 1920,
-      "max-lines-per-function": 8
+      "max-lines": 806,
+      "max-lines-per-function": 2
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
       "complexity": 1
@@ -154,9 +151,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/ConnectorBindForm.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/access/LocalRequestsPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/access/LocalSharePanel.tsx": {
@@ -214,12 +208,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/VaultTree.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/wallet/BudgetsPanel.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/sections/wallet/PassesPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {

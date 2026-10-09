@@ -101,16 +101,20 @@ async function granted() {
 
 function mount(tomb: string) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter
+      initialEntries={[
+        "/access?view=connectors#local-connectors/nango%3Agithub%2Foctocat",
+      ]}
+    >
       <ConnectorsPanel tomb={tomb} />
     </MemoryRouter>,
   );
 }
 
 function accessRow(name: string) {
-  const list = screen.getByRole("list", { name: "Connector access" });
+  const list = screen.getByRole("region", { name: "Connector access" });
   const heading = within(list).getByRole("heading", { name });
-  const item = heading.closest("li");
+  const item = heading.closest<HTMLElement>(".detail");
   if (!item) throw new Error(`${name} is not in a row`);
   return within(item);
 }
@@ -173,6 +177,7 @@ it("one bind form at a time: a row's Bind closes the choices", async () => {
   );
   await userEvent.click(screen.getByRole("button", { name: /Slack/ }));
   expect(screen.getAllByLabelText("Identity")).toHaveLength(1);
+  await userEvent.click(screen.getByRole("treeitem", { name: /GitHub/ }));
   await userEvent.click(
     accessRow("GitHub · octo@example.com").getByRole("button", {
       name: "Bind",
