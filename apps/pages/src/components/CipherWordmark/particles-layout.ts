@@ -8,10 +8,7 @@ import {
   lcg,
 } from "./particles-model.js";
 
-function measureFont(ctx: CanvasRenderingContext2D): {
-  adv: number;
-  asc: number;
-} {
+function measureFont(ctx: CanvasRenderingContext2D) {
   ctx.font = `100px ${FONT_FAMILY}`;
   const adv = ctx.measureText("0").width / 100;
   const asc =
@@ -167,7 +164,7 @@ let maskCanvas: HTMLCanvasElement | null = null;
 let maskCtx: CanvasRenderingContext2D | null = null;
 
 function maskSurface(): CanvasRenderingContext2D | null {
-  if (typeof document === "undefined") return null;
+  if (globalThis.document === undefined) return null;
   if (!maskCanvas) {
     maskCanvas = document.createElement("canvas");
     maskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });

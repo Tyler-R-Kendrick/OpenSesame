@@ -40,10 +40,34 @@ function knowTheSearchElement(): void {
   });
 }
 
-function makeStubCanvas2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+type StubCanvas2d = {
+  canvas: HTMLCanvasElement;
+  font: string;
+  fillStyle: string;
+  strokeStyle: string;
+  lineWidth: number;
+  textAlign: CanvasTextAlign;
+  textBaseline: CanvasTextBaseline;
+  lineJoin: CanvasLineJoin;
+  globalCompositeOperation: GlobalCompositeOperation;
+  setTransform: () => undefined;
+  clearRect: () => undefined;
+  fillRect: () => undefined;
+  fillText: () => undefined;
+  strokeText: () => undefined;
+  beginPath: () => undefined;
+  fill: () => undefined;
+  rect: () => undefined;
+  moveTo: () => undefined;
+  arc: () => undefined;
+  measureText: (text: string) => TextMetrics;
+  getImageData: () => ImageData;
+};
+
+function makeStubCanvas2d(canvas: HTMLCanvasElement): StubCanvas2d {
   const measureText = (text: string): TextMetrics => {
     const width = text.length * 6;
-    const metrics = {
+    return {
       width,
       actualBoundingBoxAscent: 8,
       actualBoundingBoxDescent: 2,
@@ -57,9 +81,8 @@ function makeStubCanvas2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
       alphabeticBaseline: 0,
       ideographicBaseline: -2,
     };
-    return metrics;
   };
-  const stub = {
+  return {
     canvas,
     font: "10px monospace",
     fillStyle: "#000",
@@ -87,29 +110,35 @@ function makeStubCanvas2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
       colorSpace: "srgb",
     }),
   };
-  // SAFETY: jsdom stub implements only the 2d methods CipherWordmark touches in tests.
-  return stub as CanvasRenderingContext2D;
 }
 
 function stubCanvas2d(): void {
   const proto = HTMLCanvasElement.prototype;
   if (!proto.getContext) return;
   const original = proto.getContext;
-  proto.getContext = function getContext(
+  function getContext(
     this: HTMLCanvasElement,
     type: string,
     options?: CanvasRenderingContext2DSettings,
-  ): RenderingContext | null {
+  ) {
     if (type !== "2d") {
       return original.call(this, type, options);
     }
     // jsdom logs "Not implemented" even when the throw is caught — skip it.
-    return makeStubCanvas2d(this);
-  };
+    const stub = makeStubCanvas2d(this);
+    // @ts-expect-error intentional partial stub vs full CanvasRenderingContext2D
+    // SAFETY: StubCanvas2d implements the Canvas methods CipherWordmark/Dial call; Vitest/jsdom is the test boundary.
+    return stub as CanvasRenderingContext2D;
+  }
+  Object.defineProperty(proto, "getContext", {
+    configurable: true,
+    writable: true,
+    value: getContext,
+  });
 }
 
 function stubResizeObserver(): void {
-  if (typeof globalThis.ResizeObserver !== "undefined") return;
+  if (globalThis.ResizeObserver !== undefined) return;
   class ResizeObserverStub {
     observe(): void {
       /* jsdom has no layout */

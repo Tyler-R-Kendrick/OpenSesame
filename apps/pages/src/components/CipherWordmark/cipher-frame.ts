@@ -21,7 +21,7 @@ export function paintCipherFrame(args: {
   settled: boolean;
   includeMark: boolean;
   showCursor: boolean;
-}): { runs: DecryptRun[]; justSettled: boolean } {
+}) {
   const {
     root,
     canvas,
@@ -33,7 +33,7 @@ export function paintCipherFrame(args: {
     showCursor,
   } = args;
   const ctx = readCanvas2d(canvas);
-  if (!ctx) return { runs: args.runs, justSettled: false };
+  if (!ctx) return { runs: args.runs, justSettled: false as const };
   const runs = pruneRuns(args.runs, timeMs);
   drawWordmark({
     ctx,
@@ -49,8 +49,10 @@ export function paintCipherFrame(args: {
     accent: readAccent(document.documentElement),
     showCursor,
   });
-  const justSettled = (motionOff || isSettled(runs, timeMs)) && !settled;
-  return { runs, justSettled };
+  return {
+    runs,
+    justSettled: (motionOff || isSettled(runs, timeMs)) && !settled,
+  };
 }
 
 export function scheduleCipherLoop(args: {

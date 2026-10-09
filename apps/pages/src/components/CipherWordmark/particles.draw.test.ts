@@ -3,30 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { DISPLAY_WORD, FRAME_MS, createSlotRuns } from "./cipher.js";
 import { DRAW_CALIBRATION, drawWordmark, layoutWordmark } from "./particles.js";
 
-function paintAt(
-  ctx: CanvasRenderingContext2D,
-  layout: ReturnType<typeof layoutWordmark>,
-  runs: { t0: number; slots: ReturnType<typeof createSlotRuns> }[],
-  timeMs: number,
-  inkRgb: [number, number, number],
-  frozenField: boolean,
-): void {
-  drawWordmark({
-    ctx,
-    layout,
-    runs,
-    timeMs,
-    dpr: 1,
-    pad: 4,
-    inkRgb,
-    calibration: DRAW_CALIBRATION,
-    frozenField,
-    showMark: true,
-    accent: "#2fb3a3",
-    showCursor: true,
-  });
-}
-
 describe("drawWordmark", () => {
   it("never uses strokeRect for the brightness cursor", () => {
     const canvas = document.createElement("canvas");
@@ -40,10 +16,51 @@ describe("drawWordmark", () => {
     const runs = [{ t0: 0, slots }];
     const midMs =
       slots[0].delay * FRAME_MS + Math.floor(slots[0].duration / 2) * FRAME_MS;
-    paintAt(ctx, layout, runs, midMs, [20, 20, 20], false);
-    paintAt(ctx, layout, runs, 60_000, [230, 230, 230], true);
+    const darkInk = [20, 20, 20] satisfies [number, number, number];
+    const lightInk = [230, 230, 230] satisfies [number, number, number];
+    drawWordmark({
+      ctx,
+      layout,
+      runs,
+      timeMs: midMs,
+      dpr: 1,
+      pad: 4,
+      inkRgb: darkInk,
+      calibration: DRAW_CALIBRATION,
+      frozenField: false,
+      showMark: true,
+      accent: "#2fb3a3",
+      showCursor: true,
+    });
+    drawWordmark({
+      ctx,
+      layout,
+      runs,
+      timeMs: 60_000,
+      dpr: 1,
+      pad: 4,
+      inkRgb: lightInk,
+      calibration: DRAW_CALIBRATION,
+      frozenField: true,
+      showMark: true,
+      accent: "#2fb3a3",
+      showCursor: true,
+    });
     const smallLayout = layoutWordmark(ctx, letters, 10, 0, 4, true);
-    paintAt(ctx, smallLayout, runs, midMs, [20, 20, 20], false);
+    drawWordmark({
+      ctx,
+      layout: smallLayout,
+      runs,
+      timeMs: midMs,
+      dpr: 1,
+      pad: 4,
+      inkRgb: darkInk,
+      calibration: DRAW_CALIBRATION,
+      frozenField: false,
+      showMark: true,
+      accent: "#2fb3a3",
+      showCursor: true,
+    });
     expect(strokeRect).not.toHaveBeenCalled();
   });
 });

@@ -26,20 +26,20 @@ export function useCipherLifecycle({
     const canvas = canvasRef.current;
     if (!root || !canvas) return;
     const ro =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => {
+      globalThis.ResizeObserver === undefined
+        ? null
+        : new ResizeObserver(() => {
             resize();
             paint(nowMs());
-          })
-        : null;
+          });
     ro?.observe(root);
     const io =
-      typeof IntersectionObserver !== "undefined"
-        ? new IntersectionObserver((entries) => {
+      globalThis.IntersectionObserver === undefined
+        ? null
+        : new IntersectionObserver((entries) => {
             visibleRef.current = entries[0]?.isIntersecting ?? true;
             if (visibleRef.current) scheduleFrame();
-          })
-        : null;
+          });
     io?.observe(canvas);
     const onVis = () => {
       visibleRef.current = document.visibilityState === "visible";
