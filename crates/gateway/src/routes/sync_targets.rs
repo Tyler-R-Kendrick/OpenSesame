@@ -27,7 +27,7 @@ use serde_json::json;
 use crate::app_state::AppState;
 use crate::middleware::auth::{resolve_caller, resolve_caller_organization, Caller};
 use crate::routes::connections::broker_error;
-use crate::routes::secret_config_access;
+use crate::routes::secret_configs::access as secret_config_access;
 
 #[allow(clippy::result_large_err)]
 fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, Response> {
