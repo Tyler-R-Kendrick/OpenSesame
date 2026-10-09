@@ -15,6 +15,18 @@ impl PrivateDirectory {
     /// # Errors
     /// Refuses changed provenance, unsupported/reparse nodes, invalid names or enumeration bounds.
     pub fn original_directory_entries(&self) -> io::Result<Vec<(String, bool)>> {
+        self.original_bounded_directory_entries(128)
+    }
+    /// Bounded actual generic ciphertext DATA census; native callers keep the strict128 wrapper.
+    /// # Errors
+    /// Refuses zero/over4096, changed original handles, unsafe nodes and malformed rows.
+    pub fn original_bounded_directory_entries(
+        &self,
+        maximum: usize,
+    ) -> io::Result<Vec<(String, bool)>> {
+        if maximum == 0 || maximum > 4096 {
+            return Err(security::refused());
+        }
         self.validate()?;
         let mut buffer = vec![0u64; 8192]; // aligned64KiB, no caller-controlled allocation.
         let mut result = Vec::new();
@@ -26,7 +38,7 @@ impl PrivateDirectory {
                 break;
             }
             class = FileIdBothDirectoryInfo;
-            consume_directory_rows(&buffer, &mut result)?;
+            consume_directory_rows(&buffer, &mut result, maximum)?;
             self.validate()?;
         }
         self.validate()?;
@@ -65,7 +77,11 @@ fn read_directory_batch(
     Err(error)
 }
 
-fn consume_directory_rows(buffer: &[u64], result: &mut Vec<(String, bool)>) -> io::Result<()> {
+fn consume_directory_rows(
+    buffer: &[u64],
+    result: &mut Vec<(String, bool)>,
+    maximum: usize,
+) -> io::Result<()> {
     if buffer.len() != 8192 {
         return Err(security::refused());
     }
@@ -100,7 +116,7 @@ fn consume_directory_rows(buffer: &[u64], result: &mut Vec<(String, bool)>) -> i
         if name != "." && name != ".." {
             handles::component_policy(&name)?;
             result.push((name, row.FileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0));
-            if result.len() > 128 {
+            if result.len() > maximum {
                 return Err(security::refused());
             }
         }
@@ -115,3 +131,7 @@ fn consume_directory_rows(buffer: &[u64], result: &mut Vec<(String, bool)>) -> i
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "generic_directory_inventory_tests.rs"]
+mod tests;

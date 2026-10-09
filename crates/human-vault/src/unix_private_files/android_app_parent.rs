@@ -94,6 +94,7 @@ impl PrivateDirectory {
         }
         held.names.push(leaf);
         held.files.push(child);
+        held.private_start = held.files.len().checked_sub(1).ok_or_else(refused)?;
         // From here onward the existing unchanged strict final-root policy applies.
         held.private_root()?;
         held.root().sync_all()?;

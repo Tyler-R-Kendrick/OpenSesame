@@ -84,6 +84,7 @@ fn directory_flags(readable: bool) -> libc::c_int {
 pub struct PrivateDirectory {
     files: Vec<File>,
     names: Vec<CString>,
+    private_start: usize,
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     aliases: Vec<(CString, libc::stat)>,
 }
@@ -114,6 +115,7 @@ impl PrivateDirectory {
         let mut pinned = Self {
             files: vec![root],
             names: Vec::new(),
+            private_start: 0,
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             aliases: Vec::new(),
         };
@@ -136,6 +138,7 @@ impl PrivateDirectory {
                 _ => return Err(refused()),
             }
         }
+        pinned.private_start = pinned.files.len().checked_sub(1).ok_or_else(refused)?;
         pinned.validate_entries()?;
         Ok((pinned, leaf))
     }
@@ -247,6 +250,7 @@ impl PrivateDirectory {
         }
         parent.names.push(component);
         parent.files.push(child);
+        parent.private_start = parent.files.len().checked_sub(1).ok_or_else(refused)?;
         parent.private_root()?;
         parent.root().sync_all()?;
         parent.private_root()?;
@@ -264,8 +268,19 @@ impl PrivateDirectory {
 
     fn private_root(&self) -> io::Result<()> {
         self.validate()?;
-        if self.root().metadata()?.mode() & 0o7777 != 0o700 {
+        let private = self.files.get(self.private_start..).ok_or_else(refused)?;
+        if private.is_empty() {
             return Err(refused());
+        }
+        for original in private {
+            let metadata = original.metadata()?;
+            // SAFETY: geteuid takes no pointer arguments.
+            if !metadata.is_dir()
+                || metadata.mode() & 0o7777 != 0o700
+                || metadata.uid() != unsafe { libc::geteuid() }
+            {
+                return Err(refused());
+            }
         }
         Ok(())
     }
@@ -289,3 +304,8 @@ pub use read::HeldPrivateRead;
 #[path = "unix_private_files/writer_lease.rs"]
 mod writer_lease;
 pub use writer_lease::HeldPrivateWriterLease;
+
+#[path = "unix_private_files/child.rs"]
+mod child;
+#[path = "unix_private_files/directory_inventory.rs"]
+mod directory_inventory;
