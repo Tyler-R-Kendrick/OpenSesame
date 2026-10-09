@@ -1,4 +1,115 @@
-/* Connector pages on Vercel Connect (ADR 0147). */
+/* Provider configuration on this device, plus imported connection settings. */
+
+.cx-setup {
+  display: grid;
+  gap: 1rem;
+  max-width: 40rem;
+}
+
+.cx-step {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-right: 0.6rem;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.8rem;
+}
+
+.cx-pending-step {
+  color: var(--ink-2);
+}
+
+.cx-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--line);
+}
+
+.cx-mode {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.cx-mode:has(input:checked) {
+  background: var(--surface-2);
+}
+
+.cx-selection {
+  border-bottom: 1px solid var(--line);
+}
+
+.cx-selection > summary,
+.cx-application > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.cx-selection__count {
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.cx-selection__count::after {
+  content: " ▾";
+}
+
+.cx-selection__choices {
+  display: grid;
+  gap: 0.5rem;
+  border: 0;
+  padding: 0.5rem 0 1rem;
+  margin: 0;
+}
+
+.cx-selection__choices .check {
+  min-height: 44px;
+}
+
+.cx-application > .cx-form {
+  padding-block: 0.75rem;
+}
+
+.cx-icon-field {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.cx-icon-field__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.cx-icon-field__row input {
+  min-height: 44px;
+  min-width: 0;
+  max-width: var(--field-max);
+  font-size: 1rem;
+}
+
+.cx-icon-field__row input::file-selector-button {
+  min-height: 44px;
+  background: var(--surface-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.cx-icon-field__row img {
+  object-fit: cover;
+}
 
 .cx-form {
   display: grid;

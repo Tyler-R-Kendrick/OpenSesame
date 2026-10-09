@@ -1,87 +1,91 @@
-# Connectors on Vercel Connect (ADR 0147)
+# Configure self-hosted connectors
 
-Every service on the Connections page opens with its whole configuration
-filled in — the OAuth server, client authentication, PKCE, scopes and their
-meaning, extra authorization parameters, where to register a client or issue
-a key — from [`spec/connectors/connect-presets.json`](../../spec/connectors/connect-presets.json)
-and Vercel Connect's own service registry
-([`connect-services.json`](../../spec/connectors/connect-services.json)).
-This runbook takes one connector from nothing to a proven user token.
+The Connections page uses the configuration pattern of Vercel Connect while
+keeping connector configuration on your device. You can serve Pages from your
+own origin or use its static build. Creating a local connector requires no
+Vercel account, access token, team or project.
 
-## 1. The relay (once per deployment)
+Provider endpoints, authentication settings and OAuth scope descriptions
+come from [`spec/connectors/connect-presets.json`](../../spec/connectors/connect-presets.json)
+through the connector plans. Optional form fields and provider-specific
+defaults come from
+[`self-hosted-config.json`](../../spec/connectors/self-hosted-config.json).
+See [ADR 0183](../adr/0183-self-hosted-connector-configuration.md).
 
-A Vercel deployment of `apps/pages` serves the relay at `/api/connect/*`
-(ADR 0127). Set on the project:
+## Configure Linear
 
-| Variable | What it is |
-| --- | --- |
-| `VERCEL_TOKEN` | An access token for the team that owns the connectors. The page never sees it. |
-| `VERCEL_TEAM_ID` | That team (`team_…`). |
-| `VERCEL_PROJECT_ID` | Optional: link new connectors to this project. |
-| `OPENSESAME_CONNECT_MANAGE_KEY` | ≥ 32 characters (`openssl rand -base64 48`). Every create, edit, authorize, revoke and token proof needs it. Unset, those routes answer 403. |
-| `OPENSESAME_CONNECT_APP_ORIGINS` | The https origins the app is served from, comma-separated. |
+1. Unlock your vault and open **Connections › Add a connection › Linear**.
+2. Choose **Managed** for a provider application owned by your deployment,
+   or **Bring Your Own** for an application you register yourself. Managed
+   does not supply a Vercel-owned application or create a Linear OAuth app.
+   A self-hosted deployment must provide its own application credentials.
+3. Enter your Linear workspace name or ID and the connector name. Workspace
+   suggestions, where present, come from your saved local configurations;
+   they are not a list discovered from Linear.
+4. Review **App Scopes**, **User Scopes** and **Webhook Resource Types**.
+   Initial selections match the supplied configuration reference: four app
+   scopes (`read`, `write`, `issues:create`, `comments:create`), two user
+   scopes (`read`, `write`) and two webhook resources (`Issue`, `Comment`).
+   You can narrow the selected permissions. These are product configuration
+   defaults, not provider-recommended defaults or permissions granted by
+   Linear. Linear's OAuth default is `read`.
+5. Review the application settings for the selected method. For your own
+   OAuth client, register an application in
+   [Linear's developer settings](https://linear.app/settings/api/applications/new).
+   Supply your client ID and secret, and use the callback URL supported by
+   the authority that will run authorization.
+6. Optionally choose an icon and press **Create connector**. Reopen the row
+   to review or update its saved configuration.
 
-On a deployment with no relay (GitHub Pages), the connector page asks for a
-Vercel access token and team instead and uses Connect's API directly. It can
-create, edit and authorize connectors that way, but it cannot run the token
-proof: that would put a provider token in the page (ADR 0005).
+Linear's [OAuth documentation](https://linear.app/developers/oauth-2-0-authentication)
+defines the scope vocabulary and distinguishes user and app actors. Its
+[webhook documentation](https://linear.app/developers/webhooks) explicitly
+lists `Comment`, `Issue`, `IssueLabel`, `Project`, `Cycle` and `Reaction`
+as resource type identifiers. Form selections are saved intent; saving does
+not register a webhook. Linear requires a workspace admin or an application
+with `admin` scope to create or read webhooks. The form does not request
+`admin` by default. These source pages were checked on 2026-10-08.
 
-## 2. Seal the management key
+## Storage and status
 
-Open **Connections › any service**. With no key sealed, the page opens with a
-**Vercel Connect** panel: paste the management key and seal it. It lives in
-the vault (`config/vercel-connect-auth`), never in plaintext storage.
+Local configuration and credentials commit together in an encrypted device
+record. Public row readers and saved form drafts exclude client secrets and
+API keys. A blank secret on an edit preserves the stored credential only for
+the same application and method. Existing device records remain readable.
 
-## 3. Create the connector
+Create and Save wait for the configured storage backend to finish before
+clearing credentials from the form or reporting success. A failed write
+shows an error and keeps the draft for retry. Configuration and its credential
+cannot be split by a crash between writes. Saves serialize and refresh records
+under a browser lock so concurrent tabs do not overwrite each other. Removal
+also waits for storage and masks legacy copies to prevent reload resurrection.
+When the storage backend is memory-only, the success
+message says the configuration is kept for this session; persistence across
+a reload is not claimed.
 
-Pick the connection method the service offers — **Vercel app** (managed),
-**OAuth**, **MCP server** or **API key** — and review the filled-in fields:
+A configured connector remains **pending**, with the detail
+**Configured on this device; authorization required** and no granted scopes.
+Create saves configuration. It does not perform provider consent, exchange
+an OAuth code, validate an API key or prove a usable token. Complete those
+steps through the authority that will invoke the provider before treating
+the connector as authorized. This local flow makes no hosted Connect API
+request.
 
-- **OAuth, you register the client.** Open the linked developer console,
-  create an OAuth app, paste its client ID and secret. After creation the page
-  shows the **Redirect URI** Connect uses; register that exact value at the
-  provider (copy key beside it).
-- **OAuth or MCP where the server registers clients itself** (RFC 7591 or a
-  client ID metadata document — Resend, Linear's MCP server, most MCP
-  servers): leave the client ID empty and Vercel registers one.
-- **Placeholders** (`{domain}` for Okta, Auth0 and Databricks, `{shop}` for
-  Shopify, Workday's host and tenant): fill the field and every endpoint that
-  uses it follows.
-- **API key:** by default each person pastes their own key when they
-  authorize (`subjectType: user`); choose **One shared key** to store one.
+## Optional Vercel relay
 
-**Create connector** sends the whole configuration; nothing is created blank.
+The legacy Vercel relay is an optional integration described in
+[ADR 0127](../adr/0127-connect-callback-backend.md) and
+[ADR 0147](../adr/0147-connector-plans-and-user-token-proof.md).
+Its deployment variables (`VERCEL_TOKEN`, `VERCEL_TEAM_ID`, optional
+`VERCEL_PROJECT_ID`, `OPENSESAME_CONNECT_MANAGE_KEY` and
+`OPENSESAME_CONNECT_APP_ORIGINS`) belong to that integration. They are not
+prerequisites for configuring Linear or another local connector.
 
-## 4. Authorize as yourself, then prove the token
+## Verification
 
-On the created connector's page, **User token**:
-
-1. **Authorize as you** opens the provider's consent in a popup, on behalf of
-   your principal (`subject: { type: "user", id }`).
-2. **Test user token** asks the relay to acquire your token from Connect. The
-   relay fingerprints it, calls the service's own read-only verify endpoint
-   with it, and shows: subject, `sha256` fingerprint, expiry, scopes, and the
-   service's answer (**Token accepted** with the account it names, or the
-   refusal status). The token itself never reaches the page.
-
-The CLI equivalent is `vercel connect token <uid>` (it prints the token; the
-page does not).
-
-## 5. Grant access
-
-**Access** on the same page grants a person or agent from this vault's
-directory the right to use the connector (`use` / `invoke`) until a time.
-These are the same `connection` shares Access › Resources lists (ADR 0115).
-
-## What is proven, and where
-
-| Check | Command | Covers |
-| --- | --- | --- |
-| Every plan × method ends in a person's token | `pnpm --filter @opensesame/pages exec vitest run src/lib/connect-conformance` | 220 paths across 185 services, through the real relay handlers, a schema-strict Connect emulator and a strict OAuth provider emulator; every one confirmed by the service's verify call (Linq and Snowflake, Vercel-only, excepted). Negative controls fail as a provider would. |
-| Every real endpoint is live | `pnpm test:connect-preflight` | 47 OAuth authorization servers, 98 MCP servers, 67 API-key verify endpoints; 9 need the customer's own host. |
-| The presets agree with the catalog | `pnpm --filter @opensesame/app-core exec vitest run src/lib/connect-presets.test.ts` | Endpoints and client authentication match `catalog.json` wherever both describe a provider; every create body satisfies Vercel's create schema. |
-| A live user token | Steps 1–4 above | Needs a person at the provider's consent screen; nothing in the repository can stand in for that. |
-
-Re-pin the registry with `node scripts/release/pin-connect-services.mjs`,
-then `pnpm --filter @opensesame/app-core generate:connect` and
-`pnpm --filter @opensesame/pages generate:connect`.
+`packages/app-core/src/lib/self-hosted-config.test.ts` validates Linear
+fields and default selections, derives scope choices from every connector
+plan, rejects unknown providers and unsupported defaults, and checks that
+editing one form cannot mutate source metadata. This verifies local
+configuration behavior; live provider consent requires a provider app and
+a person who can authorize it.

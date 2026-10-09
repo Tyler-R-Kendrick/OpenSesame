@@ -42,6 +42,7 @@ pub fn agent_context_detected() -> bool {
     policy().agent_context_env.iter().any(rule_matches)
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct HumanRevealRequest<'a> {
     pub verb: &'static str,
     pub reveal: bool,
@@ -68,8 +69,7 @@ fn refusal_message(request: &HumanRevealRequest<'_>) -> Option<String> {
     if agent_context_detected() {
         return Some(format!(
             "Refusing plaintext {} in an agent context. {}",
-            request.verb,
-            policy.migration_hint
+            request.verb, policy.migration_hint
         ));
     }
     if !stdin_tty(request) || !stdout_tty(request) {
@@ -82,15 +82,13 @@ fn refusal_message(request: &HumanRevealRequest<'_>) -> Option<String> {
     if !request.reveal {
         return Some(format!(
             "Refusing plaintext {}: pass --reveal after reviewing the risk. {}",
-            request.verb,
-            policy.migration_hint
+            request.verb, policy.migration_hint
         ));
     }
     if let Some(reference) = request.reference {
         if reference.starts_with("op://") && !request.desktop {
             return Some(
-                "Refusing op:// reveal without --desktop (1Password app integration)."
-                    .to_string(),
+                "Refusing op:// reveal without --desktop (1Password app integration).".to_string(),
             );
         }
     }
@@ -98,6 +96,9 @@ fn refusal_message(request: &HumanRevealRequest<'_>) -> Option<String> {
 }
 
 /// Gate for `password-agent read` / `env resolve` and sealed-store reveal.
+///
+/// # Errors
+/// Returns an error when the request fails the human-only reveal policy.
 pub fn assert_human_reveal(request: HumanRevealRequest<'_>) -> anyhow::Result<()> {
     if let Some(message) = refusal_message(&request) {
         anyhow::bail!("{message}");
@@ -106,6 +107,9 @@ pub fn assert_human_reveal(request: HumanRevealRequest<'_>) -> anyhow::Result<()
 }
 
 /// Sealed-store plaintext (`pass show`, attach get, kdbx export).
+///
+/// # Errors
+/// Returns an error unless a human explicitly reveals in an interactive terminal.
 pub fn assert_pass_reveal(reveal: bool) -> anyhow::Result<()> {
     assert_human_reveal(HumanRevealRequest {
         verb: "pass-reveal",
@@ -129,7 +133,7 @@ pub fn emit_reveal_receipt(verb: &'static str, reference: Option<&str>) {
             .map_or(0, |d| d.as_secs())
             .to_string(),
     });
-    let _ = writeln!(std::io::stderr(), "{}", receipt);
+    let _ = writeln!(std::io::stderr(), "{receipt}");
 }
 
 #[cfg(test)]
@@ -139,10 +143,17 @@ mod tests {
 
     #[derive(Debug, Deserialize)]
     #[serde(rename_all = "camelCase")]
-    struct Case {
-        id: String,
+    struct TerminalState {
         stdin_tty: bool,
         stdout_tty: bool,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Case {
+        id: String,
+        #[serde(flatten)]
+        terminal: TerminalState,
         reveal: bool,
         desktop: bool,
         agent_context: bool,
@@ -170,8 +181,8 @@ mod tests {
                 reveal: case.reveal,
                 desktop: case.desktop,
                 reference: case.reference.as_deref(),
-                stdin_tty: Some(case.stdin_tty),
-                stdout_tty: Some(case.stdout_tty),
+                stdin_tty: Some(case.terminal.stdin_tty),
+                stdout_tty: Some(case.terminal.stdout_tty),
             };
             let refused = refusal_message(&request).is_some();
             match case.expect.as_str() {

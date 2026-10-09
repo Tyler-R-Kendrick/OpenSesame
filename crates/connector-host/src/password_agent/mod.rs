@@ -3,8 +3,8 @@ pub mod discover;
 pub mod env;
 pub mod lease;
 pub mod policy;
-pub mod reveal_gate;
 pub mod request;
+pub mod reveal_gate;
 pub mod service;
 pub mod writes;
 

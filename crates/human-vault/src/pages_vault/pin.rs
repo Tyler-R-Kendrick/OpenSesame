@@ -13,12 +13,12 @@ const MAX_PIN_LENGTH: usize = 64;
 const PIN_LENGTH_ERROR: &str = "a PIN is 8-64 characters";
 
 /// A wrapping digit run long enough to contain a PIN of `MAX_PIN_LENGTH`.
-fn digit_run(start: u8, step: i8) -> String {
+fn digit_run(start: u8, step: u8) -> String {
     let mut digit = start;
     let mut out = String::with_capacity(MAX_PIN_LENGTH + 10);
     while out.len() < MAX_PIN_LENGTH + 10 {
         out.push(char::from(b'0' + digit));
-        digit = (digit as i8 + step).rem_euclid(10) as u8;
+        digit = (digit + step) % 10;
     }
     out
 }
@@ -48,7 +48,7 @@ pub(super) fn check_policy(pin: &str) -> Result<()> {
         }
     }
     if digit_run(0, 1).contains(normalized.as_str())
-        || digit_run(9, -1).contains(normalized.as_str())
+        || digit_run(9, 9).contains(normalized.as_str())
     {
         return Err(VaultFileError::Rejected(
             "a PIN cannot be a sequential run of digits",

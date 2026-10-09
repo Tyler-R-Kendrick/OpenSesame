@@ -53,6 +53,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-08-self-hosted-connectors/`](2026-10-08-self-hosted-connectors/README.md) | Self-hosted provider configuration |
 | [`2026-10-08-s3-setup-step/`](2026-10-08-s3-setup-step/README.md) | S3-compatible bucket in the Custom setup ceremony |
 | [`2026-10-08-s3-bucket-connector/`](2026-10-08-s3-bucket-connector/README.md) | S3-compatible bucket connector — Settings › Capabilities › Local storage |
 | [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |

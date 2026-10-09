@@ -270,9 +270,13 @@
           "2026-09-25: 165 -> 168 for ADR 0147: the connector pages' method",
           "picker, OAuth client/server grids, facts and access rows add one",
           "stylesheet (connect.css, ~1.4 KiB minified). Measured 165.9 KiB; the",
-          "budget keeps ~1% headroom."
+          "budget keeps ~1% headroom.",
+          "2026-10-08: 168 -> 170 for ADR 0183: provider configuration adds",
+          "mode controls, scope disclosures, step markers and icon upload",
+          "styles (~1.1 KiB minified). The full Pages build measures 169 KiB",
+          "CSS. JavaScript, gzip and profile budgets remain unchanged."
         ],
-        "css": 168,
+        "css": 170,
         "largestAsset": 12800
       }
     }

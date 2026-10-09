@@ -88,6 +88,7 @@ export const DRIVER_GATES = {
   "verify-webmcp.mjs": ["budgets"],
   "verify-push-worker.mjs": ["budgets"],
   "verify-capability-graph.mjs": ["budgets"],
+  "verify-self-hosted-connectors.mjs": ["budgets"],
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],
@@ -345,6 +346,8 @@ function gatesByPath(path, reach) {
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
+  if (path === "spec/connectors/self-hosted-config.json")
+    return gates("budgets");
   if (path.startsWith(`${PAGES_SRC}/`)) return pagesSource(path);
   if (path.startsWith("apps/pages/")) return pagesOther(path, reach);
   if (path.startsWith(`${CORE_SRC}/`)) return coreSource(path);

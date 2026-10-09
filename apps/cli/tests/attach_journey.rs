@@ -45,8 +45,8 @@ fn run_as_person(store: &Path, args: &[&str]) -> Output {
     let mut slave_fd: libc::c_int = -1;
     let opened = unsafe {
         libc::openpty(
-            &mut master_fd,
-            &mut slave_fd,
+            &raw mut master_fd,
+            &raw mut slave_fd,
             std::ptr::null_mut(),
             std::ptr::null_mut(),
             std::ptr::null_mut(),
