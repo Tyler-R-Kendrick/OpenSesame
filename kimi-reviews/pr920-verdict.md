@@ -1,9 +1,9 @@
 # PR #920 — K3 verdict (post-fix)
 
-**Head:** `a4a07128` (rebased onto `b83b6c8d`)
+**Head:** `c9c207f7` (rebased onto `b83b6c8d`)
 
-Original review: **GAPS** — `retryConnect` was a no-op (`accept` guard rejected `connecting` state).
+Original review: **GAPS** — `retryConnect` did not rebuild the peer; missing coverage for reconnect path.
 
-**Applied on branch:** `#connectWithReply` refactor; `retryConnect` rebuilds peer and reconnects after timeout.
+**Applied on branch:** `#connectWithReply` rebuilds peer on retry in `packages/app-core/src/lib/live/guest.ts`; duplicate `JoinReply` import fixed for Biome.
 
-**Verdict:** **MET** for stated P1 live/join/end-session findings on current head.
+**Verdict:** **MET** for stated live-join persona findings on current head.

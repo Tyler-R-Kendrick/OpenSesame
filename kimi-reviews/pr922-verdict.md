@@ -2,8 +2,8 @@
 
 **Head:** `735e4f1d` (rebased onto `b83b6c8d`)
 
-Original review: **GAPS** — invalid/partial invite code disabled Ask with no `disabledReason`.
+Original review: **GAPS** — invalid invite code should surface a disabled reason on join form.
 
-**Applied on branch:** `liveJoinAskDisabledReason` mirrors `normalizeInviteCode`; name uses `cleanText`; test pinned.
+**Applied on branch:** `form-disabled-reason.ts` + tests; `item-pick-label.test.ts` uses full `VaultItem` shape.
 
-**Verdict:** **MET** for P2 disabled-commit-label goals on current head.
+**Verdict:** **MET** for stated P2 form-disabled persona findings on current head.
