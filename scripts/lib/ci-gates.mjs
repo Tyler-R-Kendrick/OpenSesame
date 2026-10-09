@@ -27,7 +27,7 @@ export {
 export { driverReach, scriptGates } from "./ci-gates-reach.mjs";
 
 import { ALL_GATES, gateOfShard } from "./ci-gates-drivers.mjs";
-import { driverReach, scriptGates } from "./ci-gates-reach.mjs";
+import { scriptGates } from "./ci-gates-reach.mjs";
 
 const everyGate = () => new Set(ALL_GATES);
 const gates = (...names) => new Set(names);
