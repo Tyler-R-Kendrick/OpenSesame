@@ -12,16 +12,13 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
+import { noteDropExpired, noteDropRevoked } from "../sharing-receipts.js";
 import {
   LocalDropClaimError,
   type LocalDropRevocation,
   disposeExpiredLocalDropClaims,
   revokeLocalDropClaim,
 } from "./local-drop-claims.js";
-import {
-  noteDropExpired,
-  noteDropRevoked,
-} from "../sharing-receipts.js";
 import { originKvSlot } from "./origin-kv-slot.js";
 
 export const OUTBOUND_DROPS_STORAGE_KEY = "opensesame.outbound-drops.v1";
