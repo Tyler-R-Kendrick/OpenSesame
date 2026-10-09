@@ -163,32 +163,6 @@ impl NativeNodeCredentialLease {
         let _operation = gate(&self.state.operations)?;
         self.check()
     }
-    /// Acquire an actual selected BODY exclusive lease while this credential lease remains held.
-    /// The returned DATA writer retains both exact kernel objects and original directory ancestry.
-    /// # Errors
-    /// Refuses invalid tombs, contention, missing directories, stale keys/state or unsafe storage.
-    pub fn capture_existing_writer(
-        self: &Arc<Self>,
-        tomb: &str,
-    ) -> io::Result<NativeNodeDataWriter> {
-        tomb_name(tomb)?;
-        let _operation = gate(&self.state.operations)?;
-        self.check()?;
-        let logical = format!("opensesame:vault-body:{tomb}");
-        let body = HeldPrivateWriterLease::exclusive(Arc::clone(&self.state.locks), &logical)?;
-        let vaults = self.state.root.open_child(Path::new("vault"))?;
-        let vault = Arc::new(vaults.open_child(Path::new(tomb))?);
-        let origin = Arc::new(self.state.root.open_child(Path::new("origin-files"))?);
-        self.check()?;
-        body.validate_exclusive_for(&self.state.locks, &logical)?;
-        Ok(NativeNodeDataWriter {
-            body,
-            credential: Arc::clone(self),
-            logical,
-            vault,
-            origin,
-        })
-    }
 }
 /// Selection of the two already retained Node DATA directories.
 #[derive(Clone, Copy)]
@@ -345,3 +319,9 @@ pub use device_inventory::NativeNodeDeviceInventory;
 
 #[path = "node_data_bootstrap.rs"]
 mod bootstrap;
+
+#[path = "node_data_ciphertext_reads.rs"]
+mod ciphertext_reads;
+
+#[path = "node_data_existing_writer.rs"]
+mod existing_writer;
