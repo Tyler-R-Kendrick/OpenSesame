@@ -1,12 +1,12 @@
-import { runHeadlessInvestigate } from "./deepsec-headless-investigate.js";
-import { runHeadlessRevalidate } from "./deepsec-headless-revalidate.js";
-import { runHeadlessTriage } from "./deepsec-headless-triage.js";
 import type {
   InvestigateParams,
   RevalidateParams,
   RunPromptParams,
   TriageParams,
 } from "./deepsec-headless-agent-types.js";
+import { runHeadlessInvestigate } from "./deepsec-headless-investigate.js";
+import { runHeadlessRevalidate } from "./deepsec-headless-revalidate.js";
+import { runHeadlessTriage } from "./deepsec-headless-triage.js";
 
 export function createHeadlessDeepsecAgent(options: {
   type: string;
