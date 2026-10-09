@@ -1,7 +1,31 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RingSpec } from "./layout-types.js";
 import { ensureRingAtlas } from "./ring-atlas.js";
+
+/** Minimal 2d context: jsdom's has no `scale`. */
+function stubContext(): CanvasRenderingContext2D {
+  const ctx = {
+    scale: vi.fn(),
+    font: "",
+    textAlign: "center" as CanvasTextAlign,
+    textBaseline: "middle" as CanvasTextBaseline,
+    fillStyle: "",
+    fillText: vi.fn(),
+  };
+  // SAFETY: test double implements only the methods ensureRingAtlas calls.
+  return ctx as CanvasRenderingContext2D;
+}
+
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    () => stubContext(),
+  );
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function stubRing(): RingSpec {
   return {

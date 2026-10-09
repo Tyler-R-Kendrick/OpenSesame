@@ -46,9 +46,25 @@ export function useCipherLifecycle({
       if (visibleRef.current) scheduleFrame();
     };
     document.addEventListener("visibilitychange", onVis);
+    // verify:static / Settings theme flips `data-theme` without resizing;
+    // re-read ink and repaint so dark plates get light ink.
+    const onTheme = () => {
+      resize();
+      paint(nowMs());
+      if (visibleRef.current) scheduleFrame();
+    };
+    const mo =
+      globalThis.MutationObserver === undefined
+        ? null
+        : new MutationObserver(onTheme);
+    mo?.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     return () => {
       ro?.disconnect();
       io?.disconnect();
+      mo?.disconnect();
       document.removeEventListener("visibilitychange", onVis);
       cancelAnimationFrame(rafRef.current);
     };
