@@ -127,8 +127,9 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
         return;
       }
       const quota =
-        /quota|rate limit|too many requests|usage limit/i.test(combined) &&
-        !/\bOK\b/.test(combined);
+        /5-hour usage limit|provider\.auth_error:\s*403|too many requests/i.test(
+          combined,
+        ) && !/\bOK\b/.test(combined);
       if (quota) {
         reject(
           new Error(`kimi quota or rate limit: ${combined.slice(0, 400)}`),

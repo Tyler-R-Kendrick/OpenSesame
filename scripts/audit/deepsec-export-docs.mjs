@@ -75,6 +75,23 @@ re-run export after rescan/triage.
 | Queue | ${queue.total} findings |
 | False positives | ${queue.falsePositives?.length ?? 0} |
 
+## Scan coverage (process status)
+
+| Area | Analyzed | Pending | Error | Candidates |
+| --- | ---: | ---: | ---: | ---: |
+| core | ${report.stats.core.analyzed} | ${report.stats.core.pending} | ${report.stats.core.error} | ${report.stats.core.candidates} |
+| pwa | ${report.stats.pwa.analyzed} | ${report.stats.pwa.pending} | ${report.stats.pwa.error} | ${report.stats.pwa.candidates} |
+| cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.candidates} |
+
+${
+  report.stats.core.error +
+    report.stats.pwa.error +
+    report.stats.cli.error >
+  0
+    ? "> **Incomplete:** errors mean Kimi investigation did not finish for those files (often the 5-hour subscription quota). Re-run `scripts/audit/deepsec-kimi-resume.sh` before treating triage totals as complete.\n"
+    : ""
+}
+
 ## Triage totals
 
 | P0 | P1 | P2 | skip |
