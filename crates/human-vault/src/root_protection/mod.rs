@@ -73,3 +73,6 @@ pub mod windows_private_files;
 
 #[cfg(any(unix, windows))]
 pub use new_password_root::init_private_versioned_key_file;
+
+/// Shared native physical lease name protocol; metadata grants no owner authority.
+pub mod physical_writer_lease;
