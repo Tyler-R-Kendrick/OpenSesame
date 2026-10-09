@@ -1,4 +1,11 @@
-import { type ReactElement, memo, useEffect, useRef, useState } from "react";
+import {
+  type ReactElement,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import {
   CipherWordmark,
   type CipherWordmarkHandle,
@@ -32,24 +39,39 @@ export {
   MAX_STEPS as WORDMARK_MAX_STEPS,
 };
 
+export type WordmarkHandle = {
+  replayCipher: () => void;
+};
+
 /**
  * Brand wordmark: IconMark + lock-v5 particle-plate CipherWordmark. Visual
  * line is {@link DISPLAY_WORD}; assistive name is {@link WORDMARK}.
  */
-export const Wordmark = memo(function Wordmark({
-  className,
-  size = 16,
-  as: Tag = "p",
-  replay = false,
-}: {
-  className?: string;
-  size?: number;
-  as?: "p" | "h1";
-  replay?: boolean;
-}): ReactElement {
+export const Wordmark = forwardRef<
+  WordmarkHandle,
+  {
+    className?: string;
+    size?: number;
+    as?: "p" | "h1";
+    replay?: boolean;
+  }
+>(function Wordmark(
+  { className, size = 16, as: Tag = "p", replay = false },
+  ref,
+): ReactElement {
   const cipherRef = useRef<CipherWordmarkHandle>(null);
   const [animate] = useState(() => (replay ? true : !wordmarkSeams.revealed));
   const [settled] = useState(() => (replay ? false : wordmarkSeams.revealed));
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      replayCipher: () => {
+        cipherRef.current?.replay();
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     wordmarkSeams.revealed = true;
@@ -67,6 +89,7 @@ export const Wordmark = memo(function Wordmark({
         <CipherWordmark
           ref={cipherRef}
           text={DISPLAY_WORD}
+          size={size}
           animateOnMount={animate}
           replay={replay}
           static={settled && !replay}
