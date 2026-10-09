@@ -1,12 +1,22 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 /** Failure-only inspection of the already tested executable, without rebuilding. */
 import { createHash } from "node:crypto";
-import { createReadStream, existsSync, statSync, writeFileSync } from "node:fs";
+import {
+  createReadStream,
+  createWriteStream,
+  existsSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
+import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
+import { createGzip } from "node:zlib";
 import {
   prologueRanges,
   windowsStackReport,
+  windowsUnwindCollector,
 } from "../lib/native-windows-stack-report.mjs";
 
 const MAX_TOOL_BYTES = 32 * 1024 * 1024;
@@ -41,6 +51,112 @@ function run(tool, args, output, label, timeoutMs = 30_000) {
       signal: result.signal,
       errorCode: result.error?.code ?? null,
       outputLimitBytes: MAX_TOOL_BYTES,
+    },
+  };
+}
+
+function unwindRecords(child, collector, state) {
+  const decoder = new StringDecoder("utf8");
+  let pending = "";
+  let parserStopped = false;
+  return async function* records(source) {
+    for await (const chunk of source) {
+      const remaining = 512 * 1024 * 1024 - state.bytes;
+      const captured = chunk.subarray(0, Math.max(0, remaining));
+      if (captured.length !== chunk.length) {
+        state.toolError = "STDOUT_LIMIT";
+        child.kill();
+      }
+      state.bytes += captured.length;
+      state.hash.update(captured);
+      if (!parserStopped) {
+        pending += decoder.write(captured);
+        let newline = pending.indexOf("\n");
+        while (newline >= 0) {
+          collector.consume(pending.slice(0, newline));
+          pending = pending.slice(newline + 1);
+          newline = pending.indexOf("\n");
+        }
+        if (pending.length > 65536) {
+          state.toolError = "LINE_LIMIT";
+          parserStopped = true;
+          pending = "";
+          child.kill();
+        }
+      }
+      yield captured;
+      if (captured.length !== chunk.length) return;
+    }
+    pending += decoder.end();
+    if (pending && !parserStopped) collector.consume(pending);
+  };
+}
+
+/** Preserve complete raw bytes compressed, while parsing bounded records. */
+async function streamUnwind(tool, binary, output) {
+  const args = ["--unwind", binary];
+  const rawPath = path.join(output, "windows-pe-unwind.stdout.log.gz");
+  const timeoutMs = Math.min(90_000, deadline - Date.now());
+  if (timeoutMs <= 0)
+    throw new Error("Windows unwind diagnostic deadline reached.");
+  const child = spawn(tool, args, { windowsHide: true });
+  const collector = windowsUnwindCollector();
+  const state = { hash: createHash("sha256"), bytes: 0, toolError: null };
+  let timedOut = false;
+  let stderr = "";
+  const stopped = new Promise((resolve) => {
+    child.once("error", (error) => {
+      state.toolError = error.code ?? error.message;
+    });
+    child.once("close", (status, signal) => resolve({ status, signal }));
+  });
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString("utf8");
+    if (Buffer.byteLength(stderr) > 1024 * 1024) {
+      state.toolError = "STDERR_LIMIT";
+      child.kill();
+      stderr = stderr.slice(0, 1024 * 1024);
+    }
+  });
+  const timer = setTimeout(() => {
+    timedOut = true;
+    child.kill();
+  }, timeoutMs);
+  const records = unwindRecords(child, collector, state);
+  let captureError = null;
+  try {
+    await pipeline(
+      child.stdout,
+      records,
+      createGzip(),
+      createWriteStream(rawPath),
+    );
+  } catch (error) {
+    captureError = error.message;
+    child.kill();
+  }
+  const stoppedReceipt = await stopped;
+  clearTimeout(timer);
+  writeFileSync(path.join(output, "windows-pe-unwind.stderr.log"), stderr);
+  return {
+    summary: collector.finish(),
+    receipt: {
+      tool: path.basename(tool),
+      args,
+      ...stoppedReceipt,
+      errorCode: state.toolError,
+      timedOut,
+      captureError,
+      rawStdoutBytes: state.bytes,
+      rawStdoutSha256: state.hash.digest("hex"),
+      rawArchive: path.basename(rawPath),
+      rawArchiveComplete: captureError === null,
+      rawStdoutHashQualification: captureError
+        ? "Bytes read for compression; archive may be incomplete"
+        : "Exact decompressed archive bytes",
+      rawArchiveSha256: await digest(rawPath),
+      rawByteLimit: 512 * 1024 * 1024,
+      timeoutMs,
     },
   };
 }
@@ -101,6 +217,23 @@ function disassemble(tools, binary, output, report, receipts) {
   return { requested: ranges.length, attempted: index, withInstructions };
 }
 
+function assertCompleteUnwind(headers, unwind, report) {
+  if (
+    headers.receipt.status !== 0 ||
+    unwind.receipt.status !== 0 ||
+    unwind.receipt.errorCode ||
+    unwind.receipt.captureError ||
+    unwind.receipt.timedOut ||
+    !report.pe.stackReserveBytes ||
+    !report.unwindRecords ||
+    !report.unwindComplete ||
+    report.unwindRecords !== report.expectedUnwindRecords
+  )
+    throw new Error(
+      "PE/unwind diagnostics are incomplete; raw bounded outputs are preserved.",
+    );
+}
+
 async function main() {
   if (process.platform !== "win32")
     throw new Error("This diagnostic requires the actual Windows runner.");
@@ -153,18 +286,23 @@ async function main() {
   );
   const headers = run(
     tools["llvm-readobj"],
-    ["--file-headers", "--unwind", "--symbols", "--codeview", binary],
+    ["--file-headers", "--codeview", binary],
     output,
-    "windows-pe-unwind",
+    "windows-pe-headers",
   );
+  const unwind = await streamUnwind(tools["llvm-readobj"], binary, output);
   const symbols = run(
     tools["llvm-nm"],
     ["--numeric-sort", "--demangle", "--defined-only", binary],
     output,
     "windows-symbols",
   );
-  const report = windowsStackReport(headers.stdout, symbols.stdout);
-  receipts.push(headers.receipt, symbols.receipt);
+  const report = windowsStackReport(
+    headers.stdout,
+    symbols.stdout,
+    unwind.summary,
+  );
+  receipts.push(headers.receipt, unwind.receipt, symbols.receipt);
   console.log(JSON.stringify({ actualExecutable: before, ...report }, null, 2));
   const prologues = disassemble(tools, binary, output, report, receipts);
   const after = { bytes: statSync(binary).size, sha256: await digest(binary) };
@@ -185,14 +323,7 @@ async function main() {
   );
   if (before.sha256 !== after.sha256 || before.bytes !== after.bytes)
     throw new Error("Executable changed during diagnostics.");
-  if (
-    headers.receipt.status !== 0 ||
-    !report.pe.stackReserveBytes ||
-    !report.unwindRecords
-  )
-    throw new Error(
-      "PE/unwind diagnostics are incomplete; raw bounded outputs are preserved.",
-    );
+  assertCompleteUnwind(headers, unwind, report);
   if (!prologues.withInstructions)
     throw new Error(
       "Executable disassembly has no recorded instructions; raw bounded outputs are preserved.",
