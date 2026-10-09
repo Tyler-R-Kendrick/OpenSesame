@@ -110,8 +110,13 @@ function handlePagesDevRequest(
 
 export default defineConfig({
   test: {
-    // The relay's suites under `server/` are `node --test` (`test:relay`).
-    exclude: [...configDefaults.exclude, "server/**"],
+    // `server/` and the Pages backend-free guard are `node --test` (see
+    // `package.json` `test` / `test:relay`), not Vitest.
+    exclude: [
+      ...configDefaults.exclude,
+      "server/**",
+      "scripts/pages-backend-free-guard.test.mjs",
+    ],
     testTimeout: 20_000,
     hookTimeout: 20_000,
     setupFiles: ["./src/host/test-setup.ts", "./src/host/test-queries.ts"],

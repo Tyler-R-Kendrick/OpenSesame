@@ -691,6 +691,29 @@
     }
   },
   {
+    "id": "relay.serve",
+    "title": "Run the optional vault-relay peer",
+    "plane": "host",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame relay run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      },
+      "mcp_client": {
+        "reason": "operator/device lifecycle surface, not an agent capability",
+        "adr": "0065-agent-surface-parity.md"
+      }
+    }
+  },
+  {
     "id": "worker.serve",
     "title": "Run the workload connector host",
     "plane": "host",

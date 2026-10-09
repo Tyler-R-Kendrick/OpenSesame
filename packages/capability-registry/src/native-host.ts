@@ -87,6 +87,20 @@ export const nativeHostCapabilities: readonly Capability[] = [
     excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
+    id: "relay.serve",
+    title: "Run the optional vault-relay peer",
+    plane: "host",
+    kind: "admin",
+    surfaces: {
+      cli: "opensesame relay run",
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
+  },
+  {
     id: "worker.serve",
     title: "Run the workload connector host",
     plane: "host",
