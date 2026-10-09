@@ -11,8 +11,22 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { createItem } from "@opensesame/vault-core";
+import { describe, expect, it, vi } from "vitest";
 import { mayUseVaultIdentities } from "../../sections/settings/sops/identities.js";
+import { kvDelete } from "../kv.js";
+import { ATTEMPTS_KEY, VaultStore } from "../vault/store.js";
+import {
+  BODY_PATH,
+  HEADER_PATH,
+  INDEX_PATH,
+  MIGRATION_MARKER_PATH,
+  PERSONAL_TOMB,
+  readSealedFile,
+  tombFileKey,
+  vfsFlush,
+  vfsSeams,
+} from "../vfs.js";
 import { SopsError, redactError } from "./errors.js";
 
 const sopsDir = __dirname;
@@ -175,15 +189,57 @@ describe("SB-069 a vault import lands whole or not at all", () => {
     expect(batch.match(/host\.mutate\(/gu)).toHaveLength(1);
   });
 
-  it("a failed write restores the previous body rather than leaving memory ahead", () => {
-    const store = readFileSync(join(coreSrc, "lib/vault/store.ts"), "utf8");
-    // Every write is queued (`#mutate` goes through `#exclusive`, on the write
-    // chain), and the write itself (`#apply`) keeps the body it will put back.
-    const mutate = store.slice(store.indexOf("#mutate(change"));
-    expect(mutate.slice(0, 400)).toMatch(/#exclusive/u);
-    const exclusive = store.slice(store.indexOf("#exclusive<T>("));
-    expect(exclusive.slice(0, 1600)).toMatch(/#writeChain/u);
-    const apply = store.slice(store.indexOf("async #apply("));
-    expect(apply.slice(0, 1600)).toMatch(/previous/u);
+  it("a failed write restores the previous body rather than leaving memory ahead", async () => {
+    // Genuine Store, PIN derivation, AES and reopening; only physical delivery
+    // uses TestHost KV, with an injected refusal before the batch BODY lands.
+    await vfsFlush();
+    const paths = [BODY_PATH, HEADER_PATH, INDEX_PATH, MIGRATION_MARKER_PATH];
+    for (const path of paths) kvDelete(tombFileKey(PERSONAL_TOMB, path));
+    kvDelete(ATTEMPTS_KEY);
+    const store = new VaultStore();
+    let reopened: VaultStore | undefined;
+    const pin = "48291037";
+    const originalWrite = vfsSeams.writeRaw;
+    const bodyKey = tombFileKey(PERSONAL_TOMB, BODY_PATH);
+    try {
+      await store.createWithPin(pin);
+      await store.saveItem(createItem("note", "Kept"));
+      const before = readSealedFile(PERSONAL_TOMB, BODY_PATH);
+      expect(before).not.toBeNull();
+      const refusal = vi
+        .spyOn(vfsSeams, "writeRaw")
+        .mockImplementation(async (key, value) => {
+          if (key === bodyKey) throw new Error("storage refused the batch");
+          return originalWrite(key, value);
+        });
+      try {
+        await expect(
+          store.saveItems([
+            createItem("note", "Uncommitted first"),
+            createItem("note", "Uncommitted second"),
+          ]),
+        ).rejects.toThrow("storage refused the batch");
+        expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
+          "Kept",
+        ]);
+        expect(readSealedFile(PERSONAL_TOMB, BODY_PATH)).toEqual(before);
+      } finally {
+        refusal.mockRestore();
+      }
+      await store.saveItem(createItem("note", "After refusal"));
+      store.lock();
+      reopened = new VaultStore();
+      await reopened.unlockWithPin(pin);
+      expect(reopened.getSnapshot().items.map((item) => item.name)).toEqual([
+        "Kept",
+        "After refusal",
+      ]);
+    } finally {
+      store.lock();
+      reopened?.lock();
+      await vfsFlush();
+      for (const path of paths) kvDelete(tombFileKey(PERSONAL_TOMB, path));
+      kvDelete(ATTEMPTS_KEY);
+    }
   });
 });
