@@ -38,7 +38,7 @@ import {
 } from "./store.js";
 import { LEGACY_PREFS_KEY } from "./tomb-migration.js";
 
-/** Enroll an authenticator code the way Settings does: begin, then confirm. */
+vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
 const PASSWORD = "correct horse battery staple";
 
 /** The personal tomb's vault files — where header/body live now (ADR 0063). */
@@ -173,8 +173,6 @@ describe("VaultStore rollback detection", () => {
 });
 
 describe("VaultStore multi-method unlock", () => {
-  vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
-
   beforeEach(async () => {
     await vfsFlush();
     kvDelete(ATTEMPTS_KEY);
