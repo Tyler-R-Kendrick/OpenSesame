@@ -204,7 +204,7 @@ export {
   normalizeVaultPrefs,
 } from "./prefs.js";
 
-import type { VaultState } from "./store-state.js";
+import { type VaultState, bindGuestSessionStore } from "./store-state.js";
 export type { VaultState, VaultStatus } from "./store-state.js";
 
 type Listener = () => void;
@@ -1585,7 +1585,7 @@ export class VaultStore {
   }
 }
 
-export const vaultStore = new VaultStore();
+export const vaultStore = bindGuestSessionStore(new VaultStore());
 
 // The device identity host mints through this store's body (ADR 0160 §5).
 installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
