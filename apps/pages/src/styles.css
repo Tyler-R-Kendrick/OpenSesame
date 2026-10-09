@@ -783,7 +783,11 @@ input[type="radio"] {
 /* Needs you: a 45-degree hatch behind the alert. */
 .status-mark--warn {
   color: var(--ink);
-  background-image: repeating-linear-gradient(45deg, var(--ink) 0 1px, transparent 1px 6px);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--ink) 0 1px,
+    transparent 1px 6px
+  );
   background-color: transparent;
   opacity: 0.85;
 }
