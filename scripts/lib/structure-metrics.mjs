@@ -27,6 +27,7 @@ const IGNORED_PREFIXES = [
   ".claude/",
   ".codex/",
   ".cursor/",
+  ".grok/",
   "skills/install-anti-slop/",
 ];
 
