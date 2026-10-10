@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |
 | [`2026-10-10-lock-v5-restored/`](2026-10-10-lock-v5-restored/README.md) | Lock-v5 title screen restored |
 | [`2026-10-10-live-join-greeting/`](2026-10-10-live-join-greeting/README.md) | Live join: the catalog answers a greeting (ADR 0186) |
 | [`2026-10-10-frontdoor-contract/`](2026-10-10-frontdoor-contract/README.md) | Front-door visual contract after the merged brand update |
