@@ -1,7 +1,7 @@
 {
   "$schema": "opensesame-capability-profile/1",
   "name": "minimal-local",
-  "notes": "Personal-local installation: no instance policy, nothing optional selected. Only the core tier resolves.",
+  "notes": "Personal-local installation: Access and browser-local IAM on by default so Sent drops, Receipts and grants are visible; other optional roots stay off until selected.",
   "instancePolicy": null,
   "installationSelection": {
     "schemaVersion": 1,
@@ -11,7 +11,10 @@
     "basePolicyRevision": "personal-local",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": [],
+    "selectedOptional": [
+      "access.authority",
+      "identity.local-iam"
+    ],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",

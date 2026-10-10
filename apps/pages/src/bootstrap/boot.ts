@@ -19,6 +19,7 @@ import {
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { ensurePwaDefaultCapabilities } from "./ensure-pwa-default-capabilities.js";
 import { captureAliasArrivalFromPage } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import {
   bindClaimLockReset,
@@ -162,6 +163,7 @@ export async function bootCore(): Promise<CoreBoot> {
       now: bootSeams.now(),
     }),
   });
+  await ensurePwaDefaultCapabilities();
   const stopInvalidation = startInvalidationWatch(compositionStore);
   const stopWatching = () => {
     stopTypes();

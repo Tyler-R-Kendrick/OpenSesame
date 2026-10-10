@@ -20,6 +20,7 @@
 
 import type { InstallationCapabilitySelection } from "@opensesame/capability-composition";
 import { overlapCast } from "@opensesame/os-domain";
+import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import {
   commitInstallationSelectionSource,
   commitInstancePolicySource,
@@ -159,7 +160,7 @@ export function starterSelection(
       "0",
     revision: STARTER_REVISION,
     acceptedRequired: [],
-    selectedOptional: [],
+    selectedOptional: [...PWA_DEFAULT_OPTIONALS],
     chosenAlternatives: {},
     delivery: { prefetch: "none", offlineCache: "shell-only" },
   };
