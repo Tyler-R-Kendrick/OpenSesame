@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOG=/tmp/deepsec-wave2-kimi-watch.log
 RELOG="${DEEPSEC_REINVESTIGATE_LOG:-/tmp/deepsec-reinvestigate-wave.log}"
-INTERVAL="${DEEPSEC_KIMI_WATCH_INTERVAL_SEC:-1200}"
+INTERVAL="${DEEPSEC_KIMI_WATCH_INTERVAL_SEC:-900}"
 STALL_TICKS="${DEEPSEC_STALL_TICKS:-3}"
 HANG_SEC="${DEEPSEC_WAVE2_HANG_SEC:-1800}"
 export PATH="${HOME}/.local/bin:${PATH}"
@@ -34,12 +34,22 @@ reinvestigate_running() {
     || pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null
 }
 
-batch_complete_count() {
+reinvestigate_start_line() {
   if [[ ! -f "$RELOG" ]]; then
     echo 0
     return
   fi
-  grep -cE 'Batch [0-9]+/[0-9]+ complete:' "$RELOG" 2>/dev/null || echo 0
+  grep -n '^=== reinvestigate wave 2 start ' "$RELOG" | tail -1 | cut -d: -f1 || echo 0
+}
+
+batch_complete_count() {
+  local start_line
+  start_line="$(reinvestigate_start_line)"
+  if [[ ! -f "$RELOG" ]] || [[ "$start_line" -le 0 ]]; then
+    echo 0
+    return
+  fi
+  tail -n +"$start_line" "$RELOG" | grep -cE 'Batch [0-9]+/[0-9]+ complete:' || true
 }
 
 last_complete=-1

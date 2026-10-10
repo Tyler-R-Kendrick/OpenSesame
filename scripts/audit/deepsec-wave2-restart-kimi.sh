@@ -5,9 +5,11 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export PATH="${HOME}/.local/bin:${PATH}"
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 
-pkill -f 'deepsec/dist/cli.mjs process.*--agent kimi' 2>/dev/null || true
-pkill -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
-sleep 2
+pkill -9 -f 'deepsec/dist/cli.mjs process.*--agent kimi' 2>/dev/null || true
+pkill -9 -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
+sleep 3
+# Orphan shells sometimes survive pkill -f on the parent only.
+pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' | xargs -r kill -9 2>/dev/null || true
 
 if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
   echo "deepsec-wave2-restart-kimi: quota limited — not starting" >&2
