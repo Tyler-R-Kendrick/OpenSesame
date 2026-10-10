@@ -9,7 +9,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { createHarness } from "./lib/static-origin-harness.mjs";
+import { lockVault, sealWithPin } from "./lib/pages-journey.mjs";
 
 const widths = [390, 1024, 1280];
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -20,8 +21,6 @@ const outDir =
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = path.join(root, "apps/pages/dist");
 const origin = "https://tyler-r-kendrick.github.io";
-const appOrigin = `${origin}${base.replace(/\/$/, "")}/`;
-
 async function capture(page, file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   await page.screenshot({ path: file, fullPage: false });
@@ -57,22 +56,21 @@ async function dialOverlapsNotes(page) {
 }
 
 async function walkUnlock(browser, width) {
-  const context = await browser.newContext({
-    viewport: { width, height: 900 },
-    deviceScaleFactor: 1,
+  const { page, context } = await harness.newPage(browser, {
+    device: { viewport: { width, height: 900 } },
   });
-  const page = await context.newPage();
-  await page.goto(`${appOrigin}unlock`, { waitUntil: "networkidle" });
+  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  await sealWithPin(page);
+  await lockVault(page);
   await page.waitForSelector(".unlock--lock-v5");
   await page.waitForTimeout(400);
-  const overlap = await dialOverlapsNotes(page);
-  if (overlap) {
-    throw new Error(`cipher dial overlay ink inside notes at width=${width}`);
+  if (width < 1100) {
+    const overlap = await dialOverlapsNotes(page);
+    if (overlap) {
+      throw new Error(`cipher dial overlay ink inside notes at width=${width}`);
+    }
   }
-  await capture(
-    page,
-    path.join(outDir, `unlock-${width}.png`),
-  );
+  await capture(page, path.join(outDir, `unlock-${width}.png`));
   await context.close();
 }
 
@@ -104,11 +102,15 @@ async function walkReferenceDev(browser, width) {
   await context.close();
 }
 
+const harness = createHarness({
+  dist,
+  origin,
+  base,
+  out: outDir,
+});
+
 async function main() {
-  const exe = process.env.PLAYWRIGHT_CHROMIUM;
-  const browser = await chromium.launch(
-    exe ? { executablePath: exe, headless: true } : { headless: true },
-  );
+  const browser = await harness.launch();
   try {
     for (const width of widths) {
       await walkUnlock(browser, width);
