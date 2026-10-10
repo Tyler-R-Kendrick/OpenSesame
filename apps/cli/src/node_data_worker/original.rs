@@ -1,8 +1,9 @@
 use super::{framing, wire, Path};
+#[cfg(test)]
 use base64::{engine::general_purpose::STANDARD, Engine};
 use opensesame_human_vault::root_protection::node_data_state::{
-    NativeNodeCredentialLease, NativeNodeDataScope, NativeNodeDataState, NativeNodeDataWriter,
-    NativeNodeDeviceInventory,
+    NativeNodeCredentialLease, NativeNodeDataReader, NativeNodeDataScope, NativeNodeDataState,
+    NativeNodeDataWriter, NativeNodeDeviceInventory,
 };
 #[cfg(unix)]
 use opensesame_human_vault::root_protection::unix_private_files::{
@@ -16,6 +17,13 @@ use std::{
     io::{self, Read, Write},
     sync::Arc,
 };
+
+#[path = "readonly.rs"]
+mod readonly;
+use readonly::OriginalReadScope;
+#[path = "ciphertext_codec.rs"]
+mod ciphertext_codec;
+use ciphertext_codec::{bytes_reply, ciphertext_input};
 
 #[path = "custody.rs"]
 mod custody;
@@ -32,31 +40,6 @@ fn scope(scope: &wire::Scope) -> NativeNodeDataScope {
         wire::Scope::Origin => NativeNodeDataScope::Origin,
     }
 }
-fn bytes_reply(bytes: Option<Vec<u8>>) -> io::Result<wire::Reply> {
-    if bytes
-        .as_ref()
-        .is_some_and(|value| value.len() > wire::MAX_DATA_BYTES)
-    {
-        return Err(refused());
-    }
-    Ok(wire::Reply::Bytes {
-        base64: bytes.map(|value| STANDARD.encode(value)),
-    })
-}
-// Decode only bounded canonical ciphertext; the genuine private producer authenticates its fixed lane.
-fn ciphertext_input(value: Option<String>) -> io::Result<Option<Vec<u8>>> {
-    let Some(text) = value else {
-        return Ok(None);
-    };
-    if text.len() > 4 * wire::MAX_DATA_BYTES.div_ceil(3) {
-        return Err(refused());
-    }
-    let bytes = STANDARD.decode(&text).map_err(|_| refused())?;
-    if bytes.len() > wire::MAX_DATA_BYTES || STANDARD.encode(&bytes) != text {
-        return Err(refused());
-    }
-    Ok(Some(bytes))
-}
 // Human/device-plane private child only: no connector, MCP, agent or Host API route.
 // A phase ACK is DATA custody, never authentication, production principal or REAL.
 struct OriginalSession {
@@ -64,9 +47,17 @@ struct OriginalSession {
     lease: Option<HeldPrivateWriterLease>,
     credential: Option<Arc<NativeNodeCredentialLease>>,
     body: Option<NativeNodeDataWriter>,
+    reader: Option<NativeNodeDataReader>,
     inventory: Option<NativeNodeDeviceInventory>,
 }
 impl OriginalSession {
+    fn read_scope(&self) -> io::Result<OriginalReadScope<'_>> {
+        match (self.body.as_ref(), self.reader.as_ref()) {
+            (Some(writer), None) => Ok(OriginalReadScope::Writer(writer)),
+            (None, Some(reader)) => Ok(OriginalReadScope::Reader(reader)),
+            _ => Err(refused()),
+        }
+    }
     fn writer(&self) -> io::Result<&NativeNodeDataWriter> {
         self.body.as_ref().ok_or_else(refused)
     }
@@ -74,6 +65,7 @@ impl OriginalSession {
         if self.lease.is_some()
             || self.credential.is_some()
             || self.body.is_some()
+            || self.reader.is_some()
             || self.inventory.is_some()
         {
             return Err(refused());
@@ -90,6 +82,7 @@ impl OriginalSession {
         if self.lease.is_some()
             || self.credential.is_some()
             || self.body.is_some()
+            || self.reader.is_some()
             || self.inventory.is_some()
         {
             return Err(refused());
@@ -100,7 +93,7 @@ impl OriginalSession {
         })
     }
     fn try_body(&mut self, tomb: &str) -> io::Result<wire::Reply> {
-        if self.body.is_some() {
+        if self.body.is_some() || self.reader.is_some() {
             return Err(refused());
         }
         let credential = self.credential.as_ref().ok_or_else(refused)?;
@@ -115,6 +108,8 @@ impl OriginalSession {
         }
         self.validate_lease()?;
         let reply = match request.op {
+            operation @ (wire::Operation::CaptureBodyReader { .. }
+            | wire::Operation::BodyReaderClose {}) => self.apply_readonly(operation)?,
             wire::Operation::LeaseTry { logical, mode } => self.try_lease(&logical, mode)?,
             wire::Operation::CredentialTry {} => self.try_credential()?,
             wire::Operation::BodyTry { tomb } => self.try_body(&tomb)?,
@@ -125,13 +120,10 @@ impl OriginalSession {
             wire::Operation::Body { tomb } => self.capture_body(&tomb)?,
             operation @ (wire::Operation::PublishGeneration { .. }
             | wire::Operation::PublishDevice { .. }) => self.publish_ciphertext(operation)?,
-            wire::Operation::ReadGeneration {} => {
-                bytes_reply(self.writer()?.read_optional_generation_ciphertext()?)?
+            wire::Operation::ReadGeneration {} => bytes_reply(self.read_scope()?.generation()?)?,
+            wire::Operation::ReadDevice { logical_key } => {
+                bytes_reply(self.read_scope()?.device(&logical_key)?)?
             }
-            wire::Operation::ReadDevice { logical_key } => bytes_reply(
-                self.writer()?
-                    .read_optional_modern_device_ciphertext(&logical_key)?,
-            )?,
             operation @ (wire::Operation::CaptureInventory {}
             | wire::Operation::ReadRetired { .. }
             | wire::Operation::InventoryTombs {}
@@ -145,11 +137,11 @@ impl OriginalSession {
                     return Err(refused());
                 }
                 wire::Reply::Inventory {
-                    entries: self.writer()?.inventory(scope(&selected), maximum)?,
+                    entries: self.read_scope()?.inventory(scope(&selected), maximum)?,
                 }
             }
             wire::Operation::Identity { scope: selected } => wire::Reply::Identity {
-                value: self.writer()?.resource_identity(scope(&selected))?,
+                value: self.read_scope()?.identity(scope(&selected))?,
             },
             wire::Operation::BodyClose {} => {
                 if self.body.take().is_none() {
@@ -167,12 +159,37 @@ impl OriginalSession {
         self.validate_lease()?;
         Ok((reply, false))
     }
+    fn apply_readonly(&mut self, operation: wire::Operation) -> io::Result<wire::Reply> {
+        let reply = match operation {
+            wire::Operation::CaptureBodyReader { tomb } => {
+                if self.body.is_some()
+                    || self.reader.is_some()
+                    || self.credential.is_some()
+                    || self.inventory.is_some()
+                {
+                    return Err(refused());
+                }
+                let lease = self.lease.take().ok_or_else(refused)?;
+                self.reader = Some(self.state.capture_body_reader(&tomb, lease)?);
+                wire::Reply::Ack
+            }
+            wire::Operation::BodyReaderClose {} => {
+                if self.reader.take().is_none() {
+                    return Err(refused());
+                }
+                wire::Reply::Ack
+            }
+            _ => return Err(refused()),
+        };
+        Ok(reply)
+    }
     fn apply_generic_lease(&mut self, operation: wire::Operation) -> io::Result<wire::Reply> {
         let reply = match operation {
             wire::Operation::Lease { logical, mode } => {
                 if self.lease.is_some()
                     || self.credential.is_some()
                     || self.body.is_some()
+                    || self.reader.is_some()
                     || self.inventory.is_some()
                 {
                     return Err(refused());
@@ -259,6 +276,9 @@ impl OriginalSession {
     // Generic lease custody never constructs or lends an ordered credential/body writer.
     fn validate_lease(&self) -> io::Result<()> {
         self.state.validate()?;
+        if let Some(reader) = self.reader.as_ref() {
+            reader.validate()?;
+        }
         if let Some(lease) = self.lease.as_ref() {
             lease.validate()?;
         }
@@ -269,6 +289,7 @@ impl OriginalSession {
         self.lease.take();
         // Kernel BODY closes before the final retained credential reference.
         self.body.take();
+        self.reader.take();
         self.inventory.take();
         self.credential.take();
         sealed
@@ -289,6 +310,7 @@ fn serve(
         lease: None,
         credential: None,
         body: None,
+        reader: None,
         inventory: None,
     };
     let result = (|| {

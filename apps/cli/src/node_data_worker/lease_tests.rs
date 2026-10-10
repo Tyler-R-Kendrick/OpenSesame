@@ -27,6 +27,7 @@ fn session(state: Arc<NativeNodeDataState>) -> OriginalSession {
         lease: None,
         credential: None,
         body: None,
+        reader: None,
         inventory: None,
     }
 }
@@ -202,4 +203,55 @@ fn actual_try_busy_body_preserves_original_credential_and_acquires_after_release
         .apply(request(wire::Operation::CredentialClose {}))
         .unwrap();
     original.drain().unwrap();
+}
+
+#[test]
+fn actual_named_body_shared_reader_has_fixed_ciphertext_without_credential_or_publication() {
+    let (_temporary, root) = fixture();
+    let state = NativeNodeDataState::capture(Arc::clone(&root)).unwrap();
+    let initialize = state.credential_writer().unwrap();
+    drop(initialize.bootstrap_writer("selected").unwrap());
+    drop(initialize);
+    let mut original = session(state);
+    original
+        .apply(request(wire::Operation::Lease {
+            logical: "opensesame:vault-body:selected".into(),
+            mode: wire::LeaseMode::Shared,
+        }))
+        .unwrap();
+    original
+        .apply(request(wire::Operation::CaptureBodyReader {
+            tomb: "selected".into(),
+        }))
+        .unwrap();
+    assert!(original.lease.is_none());
+    assert!(original.credential.is_none());
+    assert!(original.body.is_none());
+    assert!(matches!(
+        original
+            .apply(request(wire::Operation::ReadGeneration {}))
+            .unwrap()
+            .0,
+        wire::Reply::Bytes { base64: None }
+    ));
+    assert!(original
+        .apply(request(wire::Operation::PublishGeneration {
+            expected: None,
+            next: Some(STANDARD.encode("controlled invalid ciphertext")),
+        }))
+        .is_err());
+    assert!(original
+        .apply(request(wire::Operation::CredentialTry {}))
+        .is_err());
+    original.reader.as_ref().unwrap().validate().unwrap();
+    original
+        .apply(request(wire::Operation::BodyReaderClose {}))
+        .unwrap();
+    original.drain().unwrap();
+    NativeNodeDataState::capture(root)
+        .unwrap()
+        .exclusive_lease("opensesame:vault-body:selected")
+        .unwrap()
+        .validate()
+        .unwrap();
 }

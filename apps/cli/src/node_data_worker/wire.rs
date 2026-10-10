@@ -37,6 +37,10 @@ pub(super) enum Operation {
     BodyTry {
         tomb: String,
     },
+    CaptureBodyReader {
+        tomb: String,
+    },
+    BodyReaderClose {},
     LeaseClose {},
     Credential {},
     Body {
@@ -97,6 +101,7 @@ mod tests {
     fn every_empty_command_refuses_unknown_held_metadata() {
         for kind in [
             "lease_close",
+            "body_reader_close",
             "credential",
             "credential_try",
             "read_generation",
