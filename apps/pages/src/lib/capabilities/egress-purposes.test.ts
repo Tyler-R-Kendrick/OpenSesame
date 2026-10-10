@@ -18,11 +18,11 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CLI_APP_INTEGRATION_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on-local.js";
 import {
   LINEAR_API_PURPOSE,
   NATIVE_PROVIDER_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
-import { CLI_APP_INTEGRATION_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on-local.js";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
 import {
   TAILNET_DEVICES_PURPOSE,
