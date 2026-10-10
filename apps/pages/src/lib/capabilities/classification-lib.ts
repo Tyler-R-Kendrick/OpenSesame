@@ -71,6 +71,10 @@ const CORE_INFRA = [
   "local-network-fetch",
   "queue",
   "pact",
+  // Playwright harness clock shared by CipherDial, VaultDoors, CipherWordmark.
+  "injected-clock",
+  "unlock-ceremony-store",
+  "unlock-ceremony-arm",
   "__tests__/",
   "__snapshots__/",
 ];

@@ -1,18 +1,26 @@
 .unlock--lock-v5 {
   position: relative;
+  overflow: visible;
+}
+
+.unlock--lock-v5.unlock--doors {
   overflow: hidden;
 }
 
-.unlock--lock-v5 .unlock__card,
 .unlock--lock-v5 .unlock__notes {
   position: relative;
   z-index: 1;
 }
 
+.unlock--lock-v5 .unlock__card {
+  position: relative;
+  z-index: 3;
+}
+
 /* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
 .unlock__hero {
   position: absolute;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   /* font-size drives CipherWordmark em; kill the strut so the box is the canvas. */
   line-height: 0;

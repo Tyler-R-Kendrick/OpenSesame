@@ -71,8 +71,12 @@ export function useUnlockHeroLayout(
         avail0 = Math.max(120, alignRight - WIDE_LEFT_INSET);
       }
 
-      const size = Math.max(28, Math.min(MAX_EM, avail0 / WORD_UNITS));
-      const width = size * WORD_UNITS;
+      let size = Math.max(28, Math.min(MAX_EM, avail0 / WORD_UNITS));
+      let width = size * WORD_UNITS;
+      if (width > avail0) {
+        size = avail0 / WORD_UNITS;
+        width = avail0;
+      }
       // Canvas plate height ≈ 1.25 * asc * em (asc < 1 for OS Logo); 1.05 covers
       // pad + measured glyph box without oversizing the reserved band.
       const height = size * 1.05;
