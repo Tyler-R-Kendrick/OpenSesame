@@ -57,10 +57,12 @@ function receiptsForClaim(events: readonly AuditEvent[], claimId: string) {
 function SentDropRow({
   drop,
   events,
+  tomb,
   onRevoked,
 }: {
   drop: OutboundDrop;
   events: readonly AuditEvent[];
+  tomb: string;
   onRevoked: () => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -74,7 +76,7 @@ function SentDropRow({
     setBusy(true);
     setRevokeError(null);
     try {
-      const outcome = await revokeOutboundDropById(drop.claimId);
+      const outcome = await revokeOutboundDropById(drop.claimId, tomb);
       if (outcome === "revoked") {
         onRevoked();
         return;
@@ -148,7 +150,7 @@ export function SentDropsPanel() {
   const [failed, setFailed] = useState(false);
 
   const reload = useCallback(() => {
-    setSends(listOutboundDrops());
+    setSends(listOutboundDrops(tomb));
     void listReceipts(tomb, 80)
       .then((rows) => {
         setEvents(rows);
@@ -204,6 +206,7 @@ export function SentDropsPanel() {
               key={drop.claimId}
               drop={drop}
               events={events}
+              tomb={tomb}
               onRevoked={reload}
             />
           ))}
