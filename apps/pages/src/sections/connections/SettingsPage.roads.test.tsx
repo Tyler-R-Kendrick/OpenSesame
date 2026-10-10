@@ -180,12 +180,15 @@ describe("a connector page the browser acts on alone", () => {
     expect(screen.getByLabelText(/Remote URL/i)).toBeTruthy();
   });
 
-  it("offers GitHub's App, and nothing that needs a Host", () => {
+  it("keeps GitHub unavailable without its browser driver and never offers server-backed App registration", () => {
     draw("github");
     expect(
-      screen.getByRole("button", {
+      screen.queryByRole("button", {
         name: /Create GitHub App for this organization/i,
       }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("img", { name: "Not available here" }),
     ).toBeTruthy();
     expect(screen.queryByLabelText(/personal access token/i)).toBeNull();
     expect(
