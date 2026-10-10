@@ -33,6 +33,17 @@ export function detectAgentContext(
   return gate.agentContextEnv.some((rule) => ruleMatches(rule, env));
 }
 
+/** Copy `source` with verified agent-context markers removed (tests, subprocess fixtures). */
+export function envWithoutAgentContext(
+  source: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const env = { ...source };
+  for (const rule of gate.agentContextEnv) {
+    Reflect.deleteProperty(env, rule.name);
+  }
+  return env;
+}
+
 function ttyPair(request: HumanRevealRequest) {
   const stdin =
     request.stdinIsTty !== undefined

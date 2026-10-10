@@ -7,6 +7,12 @@
  */
 
 import {
+  type BoundaryValue,
+  isJsonObject,
+  isNumber,
+  isString,
+} from "@opensesame/os-domain";
+import {
   type LocalNetworkFetchInit,
   localNetworkFetch,
 } from "../local-network-fetch.js";
@@ -101,40 +107,37 @@ function headers(target: RelayTarget): Headers {
   return value;
 }
 
-async function readJson(response: Response): Promise<unknown> {
+async function readJson(response: Response): Promise<BoundaryValue> {
   const text = await response.text();
   if (!text) return null;
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(text);
   } catch {
     return null;
   }
 }
 
-function generationOf(body: unknown): number | null {
-  if (!body || typeof body !== "object" || !("generation" in body)) return null;
+function generationOf(body: BoundaryValue): number | null {
+  if (!isJsonObject(body)) return null;
   const generation = body.generation;
-  return typeof generation === "number" ? generation : null;
+  return isNumber(generation) ? generation : null;
 }
 
-function isSnapshot(value: unknown): value is RelaySnapshot {
-  if (!value || typeof value !== "object") return false;
-  const snapshot = value as Record<string, unknown>;
+function isSnapshot(snapshot: BoundaryValue): snapshot is RelaySnapshot {
+  if (!isJsonObject(snapshot)) return false;
   const body = snapshot.body;
   const header = snapshot.header;
   return (
     snapshot.format === RELAY_SNAPSHOT_FORMAT &&
     snapshot.v === 1 &&
-    typeof snapshot.tomb === "string" &&
-    !!header &&
-    typeof header === "object" &&
-    (header as { v?: unknown }).v === 1 &&
-    typeof (header as { createdAt?: unknown }).createdAt === "string" &&
-    !!body &&
-    typeof body === "object" &&
-    typeof (body as { ivB64?: unknown }).ivB64 === "string" &&
-    typeof (body as { ctB64?: unknown }).ctB64 === "string" &&
-    typeof snapshot.rev === "number"
+    isString(snapshot.tomb) &&
+    isJsonObject(header) &&
+    header.v === 1 &&
+    isString(header.createdAt) &&
+    isJsonObject(body) &&
+    isString(body.ivB64) &&
+    isString(body.ctB64) &&
+    isNumber(snapshot.rev)
   );
 }
 
@@ -192,7 +195,7 @@ export async function pullRelaySnapshot(
   if (!response.ok) {
     throw new RelayRequestError(response.status, generationOf(body));
   }
-  if (!body || typeof body !== "object" || !("snapshot" in body)) {
+  if (!isJsonObject(body) || !("snapshot" in body)) {
     throw new RelayRequestError(response.status, null);
   }
   const snapshot = body.snapshot;
@@ -203,17 +206,16 @@ export async function pullRelaySnapshot(
   return { generation, snapshot };
 }
 
-function isOwnerKind(value: unknown): value is RelayOwnerKind {
+function isOwnerKind(value: BoundaryValue): value is RelayOwnerKind {
   return value === "user" || value === "organization";
 }
 
-function isOrgVault(value: unknown): value is OrgVaultRecord {
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
+function isOrgVault(record: BoundaryValue): record is OrgVaultRecord {
+  if (!isJsonObject(record)) return false;
   return (
     isOwnerKind(record.ownerKind) &&
-    typeof record.owner === "string" &&
-    typeof record.slug === "string"
+    isString(record.owner) &&
+    isString(record.slug)
   );
 }
 
@@ -256,7 +258,7 @@ export async function createOrgVault(
   if (!response.ok) {
     throw new RelayRequestError(response.status, generationOf(body));
   }
-  if (!body || typeof body !== "object" || !("vault" in body)) {
+  if (!isJsonObject(body)) {
     throw new RelayRequestError(response.status, null);
   }
   if (!isOrgVault(body.vault))
@@ -292,7 +294,7 @@ export async function listOrgVaults(
   if (!response.ok) {
     throw new RelayRequestError(response.status, generationOf(body));
   }
-  if (!body || typeof body !== "object" || !("vaults" in body)) {
+  if (!isJsonObject(body)) {
     throw new RelayRequestError(response.status, null);
   }
   const vaults = body.vaults;

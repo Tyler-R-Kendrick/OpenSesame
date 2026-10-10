@@ -284,9 +284,10 @@
           "mode controls, scope disclosures, step markers and icon upload",
           "styles (~1.1 KiB minified). The full Pages build measures 169 KiB",
           "CSS. JavaScript, gzip and profile budgets remain unchanged.",
-          "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration."
+          "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration.",
+          "2026-10-10: 172 -> 174 for restoring the approved lock-v5 title screen (#946, #947): the CipherDial, VaultDoors and particle-wordmark stylesheets and the OS Logo @font-face rejoin the always-loaded Pages graph, net of the reverted plate-tier rules and the dead release-notes title rules. Measured 172.8 KiB; the ceiling keeps 1 KiB of headroom."
         ],
-        "css": 172,
+        "css": 174,
         "largestAsset": 12800
       }
     }

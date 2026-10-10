@@ -116,46 +116,41 @@ decorative but the brand's own plates.
 
 The mark is **the door ajar**: the vault slab slid aside with a slit of
 light where it opened — Open Sesame's own story, drawn as two sharp
-rectangles. One geometry, pinned in `components/CipherWordmark/mark-geometry.ts`
-in units of the mark's height divided by 17 — slab 12u, gap 2.7u, slit 2.3u —
-so the footprint is a square; `IconMark`, `public/icon.svg` and the slab the
-wordmark paints all derive from it, and `mark-geometry.test.ts` holds the icon
-to it. The slab is ink; the slit is `--mark-slit`, a mid grey (#8f8f8f on
-paper, #666666 at night), decorative and the one thing that colour is used
-for. It was teal once; nothing in the brand carries a hue now. In the chrome
-the mark is bare — no tile, no circle, no badge — beside the uppercase name.
-The app icon is a square #141414 tile with the mark 36 tall at a 14 inset; a
-platform rounds its icons itself.
+rectangles. The slab is ink; the slit is `--mark-slit`, a mid grey (#8f8f8f
+on paper, #666666 at night), decorative and the one thing that colour is
+used for. It was teal once; nothing in the brand carries a hue now. In the
+chrome the mark is bare — no tile, no circle, no badge. The app icon puts it
+on a #141414 tile.
 
-The wordmark is the name, `OPEN SESAME`, punched out of eleven plates on a
-canvas (`components/CipherWordmark`), set in OS Logo at weight 800 — the one
-display face and the one weight past 600, used nowhere else. The brand spells
-it with the letter O: a zero is one word to change (`DISPLAY_WORD`), and the
-default stays the letter because a zero makes the eye and the screen reader
-disagree. One plate grid, three renderings by em (`particles-model.ts`):
+The title screen is **lock-v5** (#946, #947), and it is approved as built: do
+not redesign it.
 
-| Tier | Em | Drawn | Where |
-| --- | --- | --- | --- |
-| field | 48px and up | ink particles with the letter cut out; the field drifts while the name decrypts, then freezes | the front door, fitted to its card (`fit`: em = width / 7.78, at most 90) |
-| solid | 16 to 48px | a solid ink plate with the letter cut out, stroked so it survives 1× | the unlock card, the setup bar at tablet width |
-| type | under 16px | the letters in ink, no plates | the rail (12px), the setup bar (13px) |
+- **The wordmark** (`components/CipherWordmark`) is the name, `0PEN SESAME`
+  (`DISPLAY_WORD`), punched out of eleven plates on a canvas and set in OS
+  Logo. Each plate is a field of ink particles with its letter cut out. The
+  name decrypts on arrival: every cell starts as hex ciphertext, a cursor
+  walks the cells left to right, the active plate brightening (never a
+  stroked frame) while its glyph steps, then locks on its letter. The dots
+  shimmer while the name decrypts, then hold still once it settles. Below about
+  14px cap height the plates turn solid so the rail and the setup bar stay
+  legible. The plates are decorative; assistive technology reads
+  `open-sesame` once. Reduced motion shows the settled name at once.
+- **The unlock hero** draws the mark and the name together at hero size above
+  the card (`UnlockStage`, `use-unlock-hero-layout.ts`), and replays the
+  decrypt on each mount.
+- **The CipherDial** (`components/CipherDial`) is the astrolabe behind the
+  gate: cipher rings, a bezel, an index line and the decoded readout on the
+  column divider, quiet-masked under the card and clipped at the notes.
+- **The VaultDoors** (`components/VaultDoors`) guard the vault: after a
+  successful unlock the dial aligns, the wordmark replays, and the doors
+  split at the divider onto the vault behind them. The gate is held on
+  screen until the doors finish (`unlock-ceremony-store.ts`,
+  `unlock-ceremony-arm.ts`), and the card keeps its locked face meanwhile.
+  Reduced motion crossfades instead of sliding.
 
-An 11px particle plate keeps 290 of its 1,400 cut-out pixels and reads as
-redacted blocks, so the small tiers exist. The element's font-size is the
-plate em, so a stylesheet sizes the wordmark the way it sizes text.
-
-The name decrypts on arrival: every cell starts as hex ciphertext — the
-glyphs a digest is written in — and a cursor walks the cells left to right,
-the active plate brightening (never a stroked frame) while its glyph steps at
-35ms a frame for 6–12 frames, then locks on its letter and flashes once.
-2.31–4.62s in all, once per session: the gate a person arrives on owns the
-moment, and every wordmark mounted after it — the setup ceremony, the rail —
-stands still on its letters. The unlock screen's wordmark replays it on each
-mount. The plates are decorative; assistive technology reads `open-sesame`
-once. Reduced motion shows the finished word at once, the field frozen.
-`verify:static` samples the real page (`scripts/lib/wordmark-contract.mjs`):
-the published slot timings, one cursor cell at an injected clock, the settled
-plates under reduced motion.
+`verify:static` samples the real page: the slot timings and the cursor
+(`scripts/lib/wordmark-contract.mjs`), and the hero's ink and placement in
+both themes (`scripts/lib/unlock-hero-contract.mjs`).
 
 ## Colors
 

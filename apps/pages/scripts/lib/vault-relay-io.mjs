@@ -1,8 +1,16 @@
 /**
  * Loopback HTTP helpers shared by the in-process relay and the live join page.
  */
+import { z } from "zod";
+import { isString } from "../../../../scripts/lib/json-boundary.mjs";
 
 const MAX_BYTES = 16 * 1024 * 1024;
+const addressSchema = z.object({ port: z.number().int().nonnegative() });
+
+export function listeningPort(server) {
+  const address = addressSchema.safeParse(server.address());
+  return address.success ? address.data.port : 0;
+}
 
 export function readBody(request) {
   return new Promise((resolve, reject) => {
@@ -23,10 +31,10 @@ export function readBody(request) {
 }
 
 export function send(response, status, body, type) {
-  const payload = typeof body === "string" ? body : JSON.stringify(body);
+  const payload = isString(body) ? body : JSON.stringify(body);
   response.writeHead(status, {
     "content-type":
-      type ?? (typeof body === "string" ? "text/plain" : "application/json"),
+      type ?? (isString(body) ? "text/plain" : "application/json"),
     "cache-control": "no-store",
   });
   response.end(payload);
@@ -36,8 +44,7 @@ export function listen(server) {
   return new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
+      const port = listeningPort(server);
       resolve(`http://127.0.0.1:${port}`);
     });
   });
