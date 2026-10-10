@@ -1,10 +1,10 @@
-/** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { act } from "react";
 import {
   dismissClaimDropBanner,
   showClaimDropBanner,
 } from "@opensesame/app-core/lib/claims/claim-drop-banner.js";
+/** @vitest-environment jsdom */
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ClaimDropAnnouncement } from "./ClaimDropAnnouncement.js";
 
