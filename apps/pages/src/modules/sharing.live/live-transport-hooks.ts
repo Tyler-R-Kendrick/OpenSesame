@@ -4,7 +4,9 @@
  * viewer writes it.
  *
  * Edits are functions of the profile, and each is applied to the profile
- * as it is when its turn comes: read, edit, write, one at a time. A second
+ * as it is when its turn comes: read, edit, write, one at a time, as one
+ * turn of the store's writes, so the file viewer's save is never put back by
+ * an edit that read the profile before it (`editLiveTransport`). A second
  * edit made while the first is still being sealed builds on the first, not
  * on what the screen showed before it, and no slow write lands after a fast
  * one. What the screen draws meanwhile is the kept profile with the pending
@@ -17,13 +19,14 @@
 
 import {
   TransportRefused,
+  editLiveTransport,
   onTransportChange,
   readLiveTransport,
-  writeLiveTransport,
 } from "@opensesame/app-core/lib/live/transport-store.js";
 import {
   DIRECT_TRANSPORT,
   type LiveTransport,
+  type TransportRead,
   readTransport,
   transportFileText,
 } from "@opensesame/app-core/lib/live/transport.js";
@@ -33,8 +36,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export const transportSeams = {
   tomb: (): string => vaultStore.activeTomb(),
   read: (tomb: string): Promise<LiveTransport> => readLiveTransport(tomb),
-  write: (tomb: string, transport: LiveTransport): Promise<void> =>
-    writeLiveTransport(tomb, transport),
+  /** Read, edit and seal as one turn of the tomb's writes (`editLiveTransport`). */
+  edit: (
+    tomb: string,
+    apply: (current: LiveTransport) => TransportRead,
+  ): Promise<TransportRead> => editLiveTransport(tomb, apply),
 };
 
 /** A change to the profile, made against the profile as it is by then. */
@@ -120,12 +126,11 @@ export function useLiveTransport(): TransportView {
       epoch.current += 1;
       let outcome: string | null = null;
       try {
-        const tomb = transportSeams.tomb();
-        const checked = check(entry.edit(await transportSeams.read(tomb)));
-        if (checked.ok) {
-          await transportSeams.write(tomb, checked.transport);
-          kept.current = checked.transport;
-        } else outcome = checked.errors[0] ?? "Refused";
+        const next = await transportSeams.edit(transportSeams.tomb(), (now) =>
+          check(entry.edit(now)),
+        );
+        if (next.ok) kept.current = next.transport;
+        else outcome = next.errors[0] ?? "Refused";
       } catch (error) {
         outcome = error instanceof TransportRefused ? error.message : NOT_KEPT;
       }

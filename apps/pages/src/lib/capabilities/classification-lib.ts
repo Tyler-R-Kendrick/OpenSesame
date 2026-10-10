@@ -76,6 +76,8 @@ const CORE_INFRA = [
   "injected-clock",
   "unlock-ceremony-store",
   "unlock-ceremony-arm",
+  // zod runs jitless under the CSP, set once at boot before anything parses (ADR 0187).
+  "zod-jitless",
   "__tests__/",
   "__snapshots__/",
 ];

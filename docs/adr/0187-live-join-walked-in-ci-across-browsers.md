@@ -81,6 +81,11 @@ the three walks that must not connect and fails the run anywhere else.
 - The features the walk found broken are fixed with it: the Routes heading
   opens its file, zod runs jitless under the CSP, the wordmark resizes on the
   next frame, and the MQTT carrier keeps its timers on the page.
+- An edit of the transport profile from Routes reads and seals as one turn of
+  the store's writes (`editLiveTransport`). Before, an edit queued by the Form
+  could read the profile, then seal its result after the file viewer had saved,
+  putting back what "Saved" had just written; a loaded run of the walk lost
+  the TURN REST secret that way.
 - A check reads what the browser itself selected (the transport's
   `selectedCandidatePairId`, or the pair Firefox marks `selected`) and waits
   for the stats to name it, rather than taking a nominated pair at one

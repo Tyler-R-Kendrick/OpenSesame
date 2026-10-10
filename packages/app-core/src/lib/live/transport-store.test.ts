@@ -9,13 +9,19 @@ import { VfsError } from "../vfs.js";
 import {
   TRANSPORT_PATH,
   TransportRefused,
+  editLiveTransport,
   onTransportChange,
   readLiveTransport,
   readTransportText,
   storeSeams,
   writeLiveTransport,
 } from "./transport-store.js";
-import { DIRECT_TRANSPORT } from "./transport.js";
+import {
+  DIRECT_TRANSPORT,
+  type LiveTransport,
+  readTransport,
+  transportFileText,
+} from "./transport.js";
 
 const files = new Map<string, Uint8Array>();
 type Control = {
@@ -144,5 +150,48 @@ describe("writing it", () => {
     expect((await readLiveTransport("personal")).addresses).toEqual([
       "100.64.0.3",
     ]);
+  });
+});
+
+describe("editing it", () => {
+  /** An edit's outcome, checked as the Form checks one. */
+  const as = (next: LiveTransport) =>
+    readTransport(JSON.parse(transportFileText(next)));
+
+  it("applies the edit to what a write asked for earlier left, in turn", async () => {
+    control.delays = [60, 0];
+    const first = writeLiveTransport("personal", {
+      ...DIRECT_TRANSPORT,
+      addresses: ["100.64.0.1"],
+    });
+    const edited = editLiveTransport("personal", (now) =>
+      as({ ...now, addresses: [...now.addresses, "100.64.0.2"] }),
+    );
+    await Promise.all([first, edited]);
+    expect((await readLiveTransport("personal")).addresses).toEqual([
+      "100.64.0.1",
+      "100.64.0.2",
+    ]);
+  });
+
+  it("writes nothing for a refused edit, and says why", async () => {
+    put('{"addresses":["100.64.0.1"]}');
+    const heard: string[] = [];
+    const stop = onTransportChange(() => heard.push("changed"));
+    const outcome = await editLiveTransport("personal", (now) =>
+      as({ ...now, relay: true }),
+    );
+    stop();
+    expect(outcome.ok).toBe(false);
+    expect(heard).toEqual([]);
+    expect(control.calls).toBe(0);
+  });
+
+  it("refuses to edit a profile it cannot read", async () => {
+    put("{nope");
+    await expect(
+      editLiveTransport("personal", (now) => as(now)),
+    ).rejects.toThrow(TransportRefused);
+    expect(control.calls).toBe(0);
   });
 });

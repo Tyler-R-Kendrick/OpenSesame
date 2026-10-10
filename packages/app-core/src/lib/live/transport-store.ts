@@ -96,8 +96,28 @@ export async function readLiveTransport(tomb: string): Promise<LiveTransport> {
   return read.transport;
 }
 
-/** Writes to one tomb settle in the order they were asked for. */
+/** Writes and edits to one tomb settle in the order they were asked for. */
 const chains = new Map<string, Promise<void>>();
+
+function inTurn<T>(tomb: string, task: () => Promise<T>): Promise<T> {
+  const run = (chains.get(tomb) ?? Promise.resolve()).then(task);
+  chains.set(
+    tomb,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return run;
+}
+
+async function seal(tomb: string, transport: LiveTransport): Promise<void> {
+  const text = transportFileText(transport);
+  const checked = parseTransportText(text);
+  if (!checked.ok) throw new Error(checked.errors[0] ?? "Refused.");
+  await storeSeams.write(tomb, new TextEncoder().encode(text));
+  for (const listener of listeners) listener();
+}
 
 /**
  * Seal a profile, written in its canonical form. Two writes never overlap:
@@ -108,16 +128,24 @@ export function writeLiveTransport(
   tomb: string,
   transport: LiveTransport,
 ): Promise<void> {
-  const run = (chains.get(tomb) ?? Promise.resolve()).then(async () => {
-    const text = transportFileText(transport);
-    const checked = parseTransportText(text);
-    if (!checked.ok) throw new Error(checked.errors[0] ?? "Refused.");
-    await storeSeams.write(tomb, new TextEncoder().encode(text));
-    for (const listener of listeners) listener();
+  return inTurn(tomb, () => seal(tomb, transport));
+}
+
+/**
+ * Apply `edit` to the profile as sealed when its turn comes, and seal what it
+ * gives: the read and the write are one turn, so a write from elsewhere (the
+ * file viewer) lands before the read or after the write, never between them
+ * to be put back by an edit computed from what was there before it. A refused
+ * edit writes nothing; a profile that cannot be read throws
+ * `TransportRefused`, as `readLiveTransport` does.
+ */
+export function editLiveTransport(
+  tomb: string,
+  edit: (current: LiveTransport) => TransportRead,
+): Promise<TransportRead> {
+  return inTurn(tomb, async () => {
+    const next = edit(await readLiveTransport(tomb));
+    if (next.ok) await seal(tomb, next.transport);
+    return next;
   });
-  chains.set(
-    tomb,
-    run.catch(() => undefined),
-  );
-  return run;
 }

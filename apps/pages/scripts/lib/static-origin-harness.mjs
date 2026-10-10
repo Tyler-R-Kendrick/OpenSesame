@@ -288,6 +288,8 @@ export function createHarness({ dist, origin, base, out }) {
     failures,
     record,
     setStep,
+    /** Where the walk is standing now, for a failure that is not a check. */
+    step: () => step,
     check(condition, what) {
       if (!condition) failures.push(`[${step}] ${what}`);
       record(condition ? "PASS" : "FAIL", what);

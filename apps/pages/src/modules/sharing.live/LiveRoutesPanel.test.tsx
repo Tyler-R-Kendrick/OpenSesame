@@ -12,6 +12,7 @@ import { TransportRefused } from "@opensesame/app-core/lib/live/transport-store.
 import {
   DIRECT_TRANSPORT,
   type LiveTransport,
+  type TransportRead,
 } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { TRANSPORT_FILE } from "@opensesame/app-core/sections/settings/live-transport-files.js";
@@ -62,8 +63,14 @@ beforeEach(() => {
       if (readError) throw readError;
       return stored;
     },
-    write: async (_tomb: string, next: LiveTransport) => {
-      stored = next;
+    edit: async (
+      _tomb: string,
+      apply: (current: LiveTransport) => TransportRead,
+    ) => {
+      if (readError) throw readError;
+      const next = apply(stored);
+      if (next.ok) stored = next.transport;
+      return next;
     },
   });
 });
