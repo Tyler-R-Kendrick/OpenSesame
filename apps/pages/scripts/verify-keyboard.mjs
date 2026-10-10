@@ -8,6 +8,7 @@ import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
 import { settingsFileKeyboardContract } from "./lib/settings-file-keyboard-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { trustedContactsKeyboardContract } from "./lib/trusted-contacts-keyboard-contract.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -333,6 +334,15 @@ try {
       origin,
       base,
       width,
+    });
+    // Trusted contacts (ADR 0186): the tab, its five sheets, focus in and back.
+    await trustedContactsKeyboardContract({
+      harness,
+      browser,
+      origin,
+      base,
+      width,
+      tabTo,
     });
   }
 } finally {

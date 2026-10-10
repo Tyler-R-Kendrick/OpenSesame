@@ -28,6 +28,7 @@ import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
 import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { sizesToWalk } from "./lib/mobile-sizes.mjs";
+import { trustedContactsStops } from "./lib/mobile-trusted-contacts.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
 import {
   backOutStops,
@@ -269,6 +270,22 @@ async function protectorUnlock(browser, phone) {
   await context.close();
 }
 
+/** Settings › Trusted contacts: the tab, its five sheets and a refused paste. */
+async function trustedContacts(browser, phone) {
+  const { page, context } = await harness.newPage(browser, {
+    device: phoneContext(phone),
+  });
+  await trustedContactsStops(page, {
+    harness,
+    audit,
+    openTab,
+    stop: (name) => `${phone.name}-${name}`,
+    origin,
+    base,
+  });
+  await context.close();
+}
+
 /**
  * A finger above 900px: the arrangement the phone roads never reach.
  *
@@ -348,6 +365,7 @@ try {
   for (const phone of walked.phones) {
     await walk(browser, phone);
     await protectorUnlock(browser, phone);
+    await trustedContacts(browser, phone);
   }
   for (const size of walked.tablets) await tablet(browser, size);
 } finally {

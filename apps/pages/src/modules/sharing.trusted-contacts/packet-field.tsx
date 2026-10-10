@@ -328,6 +328,7 @@ export function FileIn({
 }: FileInProps) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<string | null>(null);
   const failure = useCeremonyFailure(
     failureId ?? `trusted-contacts:${id}`,
     failureTitle ?? label,
@@ -335,40 +336,50 @@ export function FileIn({
 
   async function take(file: File): Promise<void> {
     setBusy(true);
-    await failure.run(async () =>
+    const done = await failure.run(async () =>
       onText(await textOf(file, maxBytes), file.name),
     );
+    setPicked(done.ok ? fileName(file.name) : null);
     setBusy(false);
   }
 
   return (
-    <div className="actions">
-      <IconKey
-        id={id}
-        label={label}
-        aria-busy={busy || undefined}
-        onClick={() => input.current?.click()}
-      >
-        <IconUpload size={17} />
-      </IconKey>
-      <input
-        ref={input}
-        type="file"
-        accept={accept}
-        className="visually-hidden"
-        tabIndex={-1}
-        aria-label={label}
-        onChange={(event) => {
-          const picked = event.target.files?.[0];
-          // Cleared so the same file can be picked again after a refusal.
-          event.target.value = "";
-          if (picked && !busy) void take(picked);
-        }}
-      />
-      {failure.message ? (
-        <StatusMark tone="err" label={failure.message} />
+    <FieldRow
+      label={label}
+      actions={
+        <>
+          <IconKey
+            id={id}
+            label={label}
+            aria-busy={busy || undefined}
+            onClick={() => input.current?.click()}
+          >
+            <IconUpload size={17} />
+          </IconKey>
+          <input
+            ref={input}
+            type="file"
+            accept={accept}
+            className="visually-hidden"
+            tabIndex={-1}
+            aria-label={label}
+            onChange={(event) => {
+              const chosen = event.target.files?.[0];
+              // Cleared so the same file can be picked again after a refusal.
+              event.target.value = "";
+              if (chosen && !busy) void take(chosen);
+            }}
+          />
+          {failure.message ? (
+            <StatusMark tone="err" label={failure.message} />
+          ) : null}
+        </>
+      }
+    >
+      {picked ? (
+        <span className="frow__value frow__value--mono">{picked}</span>
       ) : null}
-    </div>
+    </FieldRow>
   );
 }
 
