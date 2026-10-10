@@ -40,7 +40,7 @@ export function LockV5Demo() {
           </div>
           <div>
             <p className="lock-v5-demo__label">Rail size</p>
-            <CipherWordmark static size={11} includeMark />
+            <CipherWordmark static size={11} theme="rail" includeMark />
           </div>
         </div>
         <div className="lock-v5-demo--dark" data-theme="dark">

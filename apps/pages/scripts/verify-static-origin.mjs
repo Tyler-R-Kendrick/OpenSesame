@@ -85,7 +85,7 @@ const browser = await launch();
   // the local seal. The full-size guest button is not on that screen.
   await sealLocalOnly(page);
   const inApp = await snap(page, "B-sealed-in-app");
-  // The lock is an icon key. Its name is the accessible name, not innerText.
+  // Lock is an icon key (accessible name). Then lock-v5 hero geometry + ink.
   check(
     (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
     "the local seal landed inside the app",
@@ -95,12 +95,7 @@ const browser = await launch();
   await walkUnlockHero(page, check);
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
-  // What this installation carries, and how it changes (ADR 0130). This runs
-  // before the surface contracts below, because those describe an
-  // installation that has the capabilities they measure: the statusline's
-  // Support key is guided help's, and the sections are their capabilities'.
-  // Absence is checked first, so a surface that is missing for the wrong
-  // reason cannot pass as one that was never chosen.
+  // Capabilities: absence first, then add what the surface contracts need (ADR 0130).
   setStep("E-gated");
   await checkGatedSectionsAbsent(page, check);
   for (const [title, rail] of [

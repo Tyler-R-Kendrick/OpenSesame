@@ -5,9 +5,10 @@
  * Two vocabularies:
  *
  * - **pairing** — inside the sealed codes two people pass each other: the
- *   joiner's request (a name, a note, its WebRTC offer) and the owner's
- *   reply (the answer to that offer).
- * - **channel** — the WebRTC data channel once connected: the shared items'
+ *   joiner's request (a name, a note, the offer its transport made) and the
+ *   owner's reply (the answer to that offer). An offer and an answer are
+ *   opaque here: the session's transport reads them (`p2p.ts`).
+ * - **channel** — the transport's channel once connected: the shared items'
  *   catalog, one-field-at-a-time reveals and copies, and an authorized edit.
  *
  * Every reader bounds every string and list, and a message that does not
@@ -22,13 +23,14 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
-import { SDP_MAX, isDataChannelSdp } from "./sdp.js";
 
 export const NAME_MAX = 64;
 export const NOTE_MAX = 280;
 const REQUEST_ID = /^[A-Za-z0-9_-]{22}$/;
 const REQ = /^[A-Za-z0-9_-]{1,32}$/;
 const ID = /^[A-Za-z0-9._:-]{1,128}$/;
+/** The most an offer or answer may be, in characters: a WebRTC description fits. */
+export const HANDSHAKE_MAX = 48 * 1024;
 
 export const MAX_ITEMS = 200;
 export const MAX_FIELDS = 32;
@@ -40,15 +42,20 @@ export type JoinRequest = Readonly<{
   id: string;
   name: string;
   note: string;
-  /** The joiner's WebRTC offer. */
+  /** The offer the joiner's transport made, opaque here. */
   offer: string;
+  /**
+   * The joiner greets until it holds the catalog, and the owner answers each
+   * greeting (ADR 0186). A request from before that has no such field.
+   */
+  greets: boolean;
 }>;
 
 /** The owner's reply, as sealed in its reply code. */
 export type JoinReply = Readonly<{
   /** The request it answers. */
   id: string;
-  /** The owner's WebRTC answer. */
+  /** The answer the owner's transport made, opaque here. */
   answer: string;
   /**
    * The owner also listens for this seat on a NATS carrier the link names:
@@ -88,7 +95,7 @@ export type ChannelMessage =
   | Readonly<{ t: "value"; req: string; value: string }>
   | Readonly<{ t: "denied"; req: string }>
   | Readonly<{ t: "end" }>
-  /** The joiner's first frame on a relayed seat: the owner answers it. */
+  /** The joiner, until it holds the catalog: the owner answers with it. */
   | Readonly<{ t: "hello" }>
   | Readonly<{
       t: "reveal" | "copy";
@@ -123,9 +130,26 @@ function parse(raw: string, limit: number): JsonObject | null {
   }
 }
 
-function readSdp(body: JsonObject, key: "offer" | "answer"): string | null {
-  const sdp = body[key];
-  return isString(sdp) && isDataChannelSdp(sdp) ? sdp : null;
+/** Whether a transport could take a handshake (`PeerTransport.readsOffer`). */
+export type HandshakeReader = (handshake: string) => boolean;
+
+function readHandshake(
+  body: JsonObject,
+  key: "offer" | "answer",
+  reads: HandshakeReader,
+): string | null {
+  const handshake = body[key];
+  return isString(handshake) &&
+    handshake.length <= HANDSHAKE_MAX &&
+    reads(handshake)
+    ? handshake
+    : null;
+}
+
+/** Absent in a request from before ADR 0186; anything but a boolean refuses it. */
+function readGreets(value: BoundaryValue): boolean | null {
+  if (value === undefined) return false;
+  return value === true || value === false ? value : null;
 }
 
 /** Line breaks in a name or note read as the space they stand for. */
@@ -157,26 +181,33 @@ function readText(value: BoundaryValue, max: number): string | null {
   return characters(cleaned) <= max ? cleaned : null;
 }
 
-/** The request inside a request code, or null. */
-export function readJoinRequest(raw: string): JoinRequest | null {
-  const body = parse(raw, SDP_MAX + 2048);
+/** The request inside a request code, or null; `reads` judges its offer. */
+export function readJoinRequest(
+  raw: string,
+  reads: HandshakeReader,
+): JoinRequest | null {
+  const body = parse(raw, HANDSHAKE_MAX + 2048);
   if (!body) return null;
   const { id } = body;
   if (!isString(id) || !REQUEST_ID.test(id)) return null;
   const name = readText(body.name, NAME_MAX);
   const note = readText(body.note, NOTE_MAX);
-  if (!name || note === null) return null;
-  const offer = readSdp(body, "offer");
-  return offer ? { id, name, note, offer } : null;
+  const greets = readGreets(body.greets);
+  if (!name || note === null || greets === null) return null;
+  const offer = readHandshake(body, "offer", reads);
+  return offer ? { id, name, note, offer, greets } : null;
 }
 
-/** The reply inside a reply code, or null. */
-export function readJoinReply(raw: string): JoinReply | null {
-  const body = parse(raw, SDP_MAX + 1024);
+/** The reply inside a reply code, or null; `reads` judges its answer. */
+export function readJoinReply(
+  raw: string,
+  reads: HandshakeReader,
+): JoinReply | null {
+  const body = parse(raw, HANDSHAKE_MAX + 1024);
   if (!body) return null;
   const { id } = body;
   if (!isString(id) || !REQUEST_ID.test(id)) return null;
-  const answer = readSdp(body, "answer");
+  const answer = readHandshake(body, "answer", reads);
   if (!answer) return null;
   if (body.relay === undefined) return { id, answer };
   return body.relay === "nats" ? { id, answer, relay: "nats" } : null;

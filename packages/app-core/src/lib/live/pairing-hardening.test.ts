@@ -10,7 +10,7 @@ import { LiveHost } from "./host.js";
 import { liveValue, parseLiveLink, readLiveValue } from "./link.js";
 import { FakeNet, fakeSdp } from "./live-fakes.js";
 import { NAME_MAX, NOTE_MAX, readJoinRequest } from "./messages.js";
-import { DIRECT_ONLY } from "./peer.js";
+import { isDataChannelSdp } from "./sdp.js";
 import { newKeypair, newLinkSecret } from "./seal.js";
 
 const ALPHABET =
@@ -75,6 +75,7 @@ describe("a joiner's name and note", () => {
         note,
         offer: fakeSdp(),
       }),
+      isDataChannelSdp,
     );
   }
 
@@ -117,19 +118,17 @@ describe("a joiner's name and note", () => {
     const net = new FakeNet();
     const host = await LiveHost.start({
       admission: "open",
-      ice: DIRECT_ONLY,
       expiresAt: Date.now() + 60_000,
       catalog: () => ({ title: "T", policy: "read", expiresAt: 1, items: [] }),
       readField: async () => null,
-      peers: net.factory(),
+      transport: net.transport(),
     });
     const guest = new LiveGuest({
       link: host.link,
       code: null,
       name: "‮gnorw‬ Ada​",
       note: "hi\u0000",
-      ice: DIRECT_ONLY,
-      peers: net.factory(),
+      transport: net.transport(),
     });
     expect((await host.receive(await guest.start())).kind).toBe("guest");
     expect(host.state.guests[0]).toMatchObject({
@@ -141,8 +140,7 @@ describe("a joiner's name and note", () => {
       code: null,
       name: "​",
       note: "",
-      ice: DIRECT_ONLY,
-      peers: net.factory(),
+      transport: net.transport(),
     });
     await expect(blank.start()).rejects.toThrow("join_name_required");
     host.end();
