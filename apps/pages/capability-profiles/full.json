@@ -16,7 +16,6 @@
       "agents.surrogate-credentials",
       "agents.webmcp",
       "ai.password-reset",
-      "cli.app-integration",
       "connectors.external",
       "enterprise.ca-administration",
       "enterprise.directory-provisioning",
