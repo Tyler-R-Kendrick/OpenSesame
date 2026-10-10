@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { NativeConnectorRecovery } from "./NativeConnectorRecovery.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
+import type { NativeConnectorController } from "./native-connector-ui.js";
 import {
   nativeUiController,
   nativeUiView,
@@ -78,6 +79,45 @@ it("requires an explicit human statement and separate confirmation before cleari
   expect(nativeVerified(view)).toBe(false);
   expect(onChanged).toHaveBeenCalledWith(
     expect.objectContaining({ status: "configuration", verifiedAt: null }),
+  );
+});
+
+it("uses the provider's token acknowledgement and requires an explicit confirmation", async () => {
+  const context = revocationContext();
+  const controller: NativeConnectorController = {
+    ...context.controller,
+    revocationInstructions: () => ({
+      url: "https://openbao.org/api-docs/auth/token/#revoke-a-token",
+      message:
+        "Ask the instance administrator to revoke this connection token.",
+      canConfirm: true,
+      acknowledgementLabel:
+        "An administrator revoked this connection token or confirmed it is expired",
+    }),
+  };
+  render(
+    <NativeConnectorRecovery
+      view={context.view}
+      controller={controller}
+      onChanged={vi.fn()}
+      onFlash={vi.fn()}
+    />,
+  );
+  const confirm = screen.getByRole("button", {
+    name: "Confirm provider revocation",
+  });
+  expect(confirm).toHaveProperty("disabled", true);
+  await userEvent.click(
+    screen.getByRole("checkbox", {
+      name: "An administrator revoked this connection token or confirmed it is expired",
+    }),
+  );
+  expect(context.controller.confirmRevocation).not.toHaveBeenCalled();
+  await userEvent.click(confirm);
+  await waitFor(() =>
+    expect(context.controller.confirmRevocation).toHaveBeenCalledWith(
+      "authorization-1",
+    ),
   );
 });
 

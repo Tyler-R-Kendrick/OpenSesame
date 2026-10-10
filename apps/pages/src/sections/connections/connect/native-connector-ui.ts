@@ -103,6 +103,7 @@ export type NativeConnectorController = {
     url: string;
     message: string;
     canConfirm: boolean;
+    acknowledgementLabel?: string;
   } | null;
   confirmRevocation?: (recoveryId: string) => Promise<NativeConnectorView>;
   remove: () => Promise<void>;

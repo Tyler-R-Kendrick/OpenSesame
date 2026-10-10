@@ -6,6 +6,10 @@ import { requestJson } from "../../../scripts/test/provider-auth-services.mjs";
 import { checkNothingInTheClear } from "./lib/at-rest-contract.mjs";
 import { nativeEnableConnections } from "./lib/native-browser-catalog-journey.mjs";
 import { unlockWithPin } from "./lib/pages-journey.mjs";
+import {
+  proveAlreadyRevokedProviderCleanup,
+  proveDeniedProviderCleanup,
+} from "./lib/provider-vault-cleanup-policy.mjs";
 import { refuseUnsolicitedProviderCallbacks } from "./provider-auth-callback-probes.mjs";
 import {
   captureVerifiedProviderMenu,
@@ -121,38 +125,57 @@ async function proveSealedProviderAndReplay({
   );
   await replay.close();
 }
-async function reloadAndRemoveProviders({
+async function removeProvidersWithPolicyDenial({
   page,
-  secondary,
   providers,
   base,
   grantServices,
   grants,
+  services,
+  idp,
+  out,
+  label,
 }) {
-  await secondary.close();
-  // Fresh document loses every in-memory grant and must unlock sealed state.
-  await page.reload();
-  await unlockWithPin(page);
-  await nativeEnableConnections(page, base);
+  const policyCleanup = [];
   for (const provider of providers) {
     await openProvider(page, base, provider);
     await page
       .getByRole("button", { name: "Remove connector", exact: true })
       .waitFor();
     await readAuthorizedSecret(page);
-    await page
-      .getByRole("button", { name: "Remove connector", exact: true })
-      .click();
-    await page
-      .getByRole("button", { name: "Confirm remove connector", exact: true })
-      .click();
-    await expect(
-      page.getByRole("button", {
-        name: "Confirm remove connector",
-        exact: true,
+    const service = services[provider.id];
+    const token = grants.find((token) => grantServices.get(token) === service);
+    assert.ok(
+      service && token,
+      "The browser connection must own a real provider-issued token",
+    );
+    policyCleanup.push(
+      await proveDeniedProviderCleanup({
+        page,
+        service,
+        provider,
+        token,
+        base,
+        out,
+        label,
       }),
-    ).toHaveCount(0);
+    );
+    policyCleanup.push(
+      await proveAlreadyRevokedProviderCleanup({
+        page,
+        service,
+        provider,
+        idp,
+        grants,
+        out,
+        label,
+      }),
+    );
   }
+  return policyCleanup;
+}
+
+async function assertActualProviderRevocation({ grants, grantServices }) {
   for (const token of grants) {
     const bao = grantServices.get(token);
     assert.ok(
@@ -169,6 +192,17 @@ async function reloadAndRemoveProviders({
       "Removing a connector revokes its actual OIDC-issued provider token",
     );
   }
+}
+
+async function reloadAndRemoveProviders(input) {
+  const { page, secondary, providers, base } = input;
+  await secondary.close();
+  // Fresh document loses every in-memory grant and must unlock sealed state.
+  await page.reload();
+  await unlockWithPin(page);
+  await nativeEnableConnections(page, base);
+  const policyCleanup = await removeProvidersWithPolicyDenial(input);
+  await assertActualProviderRevocation(input);
   await page.reload();
   await unlockWithPin(page);
   await nativeEnableConnections(page, base);
@@ -182,7 +216,30 @@ async function reloadAndRemoveProviders({
       "Removed connection remains absent after cold reload",
     );
   }
+  return policyCleanup;
 }
+function providerAuthReceipt(label, policyCleanup, errors) {
+  return {
+    label,
+    productionUi: true,
+    locallyRunningRealServices: true,
+    fabricatedProviderResponses: 0,
+    concurrentOriginators: 2,
+    strictCoop: true,
+    providerOpenerNull: true,
+    userCancellationBeforeConsent: true,
+    lockedOwnerCannotActivate: true,
+    wrongStateNoExchange: true,
+    wrongSourceNoExchange: true,
+    replayNoExchange: true,
+    actualKvRead: true,
+    sealedColdReload: true,
+    actualIssuedGrantRevokedOnRemoval: true,
+    policyCleanup,
+    browserErrors: errors.length,
+  };
+}
+
 export async function providerAuthBrowserJourney(input) {
   const { browser, services, idp, site, base, out, label, device } = input;
   const context = await browser.newContext({
@@ -238,10 +295,14 @@ export async function providerAuthBrowserJourney(input) {
     });
     step = "cold-reload-and-provider-revocation";
     await captureVerifiedProviderMenu({ page, base, out, label });
-    await reloadAndRemoveProviders({
+    const policyCleanup = await reloadAndRemoveProviders({
       page,
       providers,
       base,
+      out,
+      label,
+      services,
+      idp,
       ...originators,
       ...observed,
     });
@@ -251,24 +312,7 @@ export async function providerAuthBrowserJourney(input) {
       [],
       "No browser script errors during real authentication",
     );
-    return {
-      label,
-      productionUi: true,
-      locallyRunningRealServices: true,
-      fabricatedProviderResponses: 0,
-      concurrentOriginators: 2,
-      strictCoop: true,
-      providerOpenerNull: true,
-      userCancellationBeforeConsent: true,
-      lockedOwnerCannotActivate: true,
-      wrongStateNoExchange: true,
-      wrongSourceNoExchange: true,
-      replayNoExchange: true,
-      actualKvRead: true,
-      sealedColdReload: true,
-      actualIssuedGrantRevokedOnRemoval: true,
-      browserErrors: errors.length,
-    };
+    return providerAuthReceipt(label, policyCleanup, errors);
   } catch (error) {
     await saveProviderFailure({ page, out, label, step, error, observed });
     throw error;
