@@ -1,0 +1,48 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "enable": "Identity" },
+        { "enable": "Access" },
+        { "visit": "access?view=grants#identity-shares" },
+        { "measure": "footer.statusline" },
+        { "shot": "share-grants-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "enable": "Identity" },
+        { "enable": "Access" },
+        { "visit": "access?view=grants#identity-shares" },
+        { "measure": "footer.statusline" },
+        { "shot": "share-grants-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "share-grants-1280",
+      "width": 1280,
+      "title": "Identity shares (desktop)",
+      "caption": "Revoke on an active grant arms before confirming.",
+      "before": "Revoke revoked on first press",
+      "after": "First press arms; Confirm revoke on second"
+    },
+    {
+      "shot": "share-grants-390",
+      "width": 390,
+      "title": "Identity shares (phone)",
+      "caption": "Same two-step revoke at phone width.",
+      "before": "Revoke revoked on first press",
+      "after": "First press arms; Confirm revoke on second"
+    }
+  ]
+}

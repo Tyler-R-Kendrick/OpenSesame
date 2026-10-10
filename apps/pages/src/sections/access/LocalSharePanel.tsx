@@ -280,7 +280,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         <ShareRow
           share={selectedShare}
           name={name(selectedShare.principalId)}
-          role={
+          principalRole={
             identities.find((row) => row.id === selectedShare.principalId)?.role
           }
           busy={busy}
