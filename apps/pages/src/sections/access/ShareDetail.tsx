@@ -80,6 +80,11 @@ export function ShareRow({
   useEffect(() => {
     if (!busy) setConfirming(false);
   }, [busy]);
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
   const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
   return (
     <AccessDetail
@@ -94,12 +99,18 @@ export function ShareRow({
           <IconKey
             label={revokeLabel}
             small
+            armed={confirming}
             disabled={busy || !canRevoke}
+            onBlur={() => setConfirming(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setConfirming(false);
+            }}
             onClick={() => {
               if (!confirming) {
                 setConfirming(true);
                 return;
               }
+              setConfirming(false);
               onRevoke();
             }}
           >
