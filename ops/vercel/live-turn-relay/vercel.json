@@ -1,4 +1,6 @@
 {
   "version": 2,
-  "routes": [{ "src": "/api/turn-credentials", "dest": "/api/turn-credentials.js" }]
+  "routes": [
+    { "src": "/api/turn-credentials", "dest": "/api/turn-credentials.js" }
+  ]
 }

@@ -4,10 +4,7 @@
  */
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import {
-  SAME_MACHINE_LOOPBACK_HINTS,
-  withAddressHints,
-} from "./candidates.js";
+import { SAME_MACHINE_LOOPBACK_HINTS, withAddressHints } from "./candidates.js";
 import { formatLiveLink, parseLiveLink } from "./link.js";
 import { linkRoutes, routesSegment } from "./routes.js";
 import { newKeypair, newLinkSecret } from "./seal.js";
