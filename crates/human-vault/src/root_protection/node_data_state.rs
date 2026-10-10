@@ -343,3 +343,7 @@ mod try_lease;
 #[path = "node_data_body_reader.rs"]
 mod body_reader;
 pub use body_reader::NativeNodeDataReader;
+
+#[path = "node_data_bootstrap_lease.rs"]
+mod bootstrap_lease;
+pub use bootstrap_lease::{NativeNodeBodyCustody, NativeNodeBootstrapLease};
