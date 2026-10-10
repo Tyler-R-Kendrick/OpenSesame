@@ -32,11 +32,7 @@ export function ClaimDropAnnouncement() {
   if (!banner) return null;
 
   return (
-    <div
-      className="claim-drop-announcement"
-      role="alert"
-      aria-live="assertive"
-    >
+    <div className="claim-drop-announcement" role="alert" aria-live="assertive">
       <p className="claim-drop-announcement__text">
         <span className="claim-drop-announcement__title">{banner.title}</span>
         {banner.body}
