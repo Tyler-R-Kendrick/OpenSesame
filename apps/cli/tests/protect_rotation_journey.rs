@@ -5,6 +5,11 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::Mutex;
+
+/// `script` drives a single pty session; parallel journey tests must not nest
+/// several sessions at once (CI has hung with concurrent `script` invocations).
+static SCRIPT_PTY: Mutex<()> = Mutex::new(());
 
 const PASSPHRASE: &str = "correct horse battery staple";
 
@@ -89,6 +94,9 @@ fn shell_single_quote(value: &str) -> String {
 /// A person at a terminal: `script` allocates the pty. Piped `Command::output`
 /// is the agent shape, and the reveal gate refuses it.
 fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
+    let _serial = SCRIPT_PTY
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let bin = env!("CARGO_BIN_EXE_opensesame");
     let mut script_cmd = format!("exec {}", shell_single_quote(bin));
     for arg in args {
@@ -100,7 +108,8 @@ fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
 
     let mut command = Command::new("script");
     command
-        .args(["-q", "-e", "-c", &script_cmd, "/dev/null"])
+        .args(["-q", "-e", "-f", "-c", &script_cmd, "/dev/null"])
+        .stdin(Stdio::null())
         .env("OPENSESAME_STORE_PASSWORD", password);
     opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
         &mut command,
