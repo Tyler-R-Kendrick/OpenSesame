@@ -258,11 +258,12 @@
         "2026-10-09: javascript 6231->6233 and javascriptGzip stays 1905 for persona P2 local identity requests in Access (pending approval rows, revoke confirm on shares, requests tab tree) on top of sent-drop receipts. CI on the pre-merge branch measured 6229/1905; the merged tree is expected at 6233/1905 KiB; raise only to these measured minimums after CI confirms.",
         "2026-10-09: javascript 6233->6234 because CI on f63424c5 measured 6234/1905 KiB after merging main at f48efc4e; raise only to the measured minimum.",
         "2026-10-09: javascript ->6250 gzip ->1915 for verification-audit rematch (ECR postgres + greyscale/drops).",
-        "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main."
+        "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main.",
+        "2026-10-10: javascript 6250 -> 6251 for ADR 0186, the live session catalog greeting and transport port: the joiner's greeting schedule, the owner's answer and per-seat cap, the Ask to join again road and the PeerTransport seam with its WebRTC adapter. Two production builds measure main at a99018e 6249.70 KiB and this branch 6250.92 KiB (+1.22 KiB raw, +0.54 KiB gzip); main had no headroom left. Raise only to the measured minimum; gzip, CSS and profile ceilings are unchanged."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6250,
+        "javascript": 6251,
         "javascriptGzip": 1915,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
