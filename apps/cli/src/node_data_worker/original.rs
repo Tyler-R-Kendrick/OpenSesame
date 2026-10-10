@@ -70,12 +70,54 @@ impl OriginalSession {
     fn writer(&self) -> io::Result<&NativeNodeDataWriter> {
         self.body.as_ref().ok_or_else(refused)
     }
+    fn try_lease(&mut self, logical: &str, mode: wire::LeaseMode) -> io::Result<wire::Reply> {
+        if self.lease.is_some()
+            || self.credential.is_some()
+            || self.body.is_some()
+            || self.inventory.is_some()
+        {
+            return Err(refused());
+        }
+        self.lease = match mode {
+            wire::LeaseMode::Shared => self.state.try_shared_lease(logical)?,
+            wire::LeaseMode::Exclusive => self.state.try_exclusive_lease(logical)?,
+        };
+        Ok(wire::Reply::Available {
+            acquired: self.lease.is_some(),
+        })
+    }
+    fn try_credential(&mut self) -> io::Result<wire::Reply> {
+        if self.lease.is_some()
+            || self.credential.is_some()
+            || self.body.is_some()
+            || self.inventory.is_some()
+        {
+            return Err(refused());
+        }
+        self.credential = self.state.try_credential_writer()?;
+        Ok(wire::Reply::Available {
+            acquired: self.credential.is_some(),
+        })
+    }
+    fn try_body(&mut self, tomb: &str) -> io::Result<wire::Reply> {
+        if self.body.is_some() {
+            return Err(refused());
+        }
+        let credential = self.credential.as_ref().ok_or_else(refused)?;
+        self.body = credential.try_capture_existing_writer(tomb)?;
+        Ok(wire::Reply::Available {
+            acquired: self.body.is_some(),
+        })
+    }
     fn apply(&mut self, request: wire::Request) -> io::Result<(wire::Reply, bool)> {
         if request.v != 1 {
             return Err(refused());
         }
         self.validate_lease()?;
         let reply = match request.op {
+            wire::Operation::LeaseTry { logical, mode } => self.try_lease(&logical, mode)?,
+            wire::Operation::CredentialTry {} => self.try_credential()?,
+            wire::Operation::BodyTry { tomb } => self.try_body(&tomb)?,
             operation @ (wire::Operation::Lease { .. } | wire::Operation::LeaseClose {}) => {
                 self.apply_generic_lease(operation)?
             }

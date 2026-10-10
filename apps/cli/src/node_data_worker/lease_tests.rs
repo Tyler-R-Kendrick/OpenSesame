@@ -121,3 +121,85 @@ fn actual_protocol_failure_drops_generic_lease_and_refuses_caller_supplied_held_
         .validate()
         .unwrap();
 }
+
+#[test]
+fn actual_try_kernel_contention_returns_absence_without_generic_writer_promotion() {
+    let (_temporary, root) = fixture();
+    let state = NativeNodeDataState::capture(Arc::clone(&root)).unwrap();
+    let other = NativeNodeDataState::capture(root).unwrap();
+    let held = other
+        .exclusive_lease("opensesame:activity-log:selected")
+        .unwrap();
+    let mut original = session(state);
+    let try_request = || {
+        request(wire::Operation::LeaseTry {
+            logical: "opensesame:activity-log:selected".into(),
+            mode: wire::LeaseMode::Exclusive,
+        })
+    };
+    assert!(matches!(
+        original.apply(try_request()).unwrap().0,
+        wire::Reply::Available { acquired: false }
+    ));
+    assert!(original.lease.is_none());
+    held.validate().unwrap();
+    drop(held);
+    assert!(matches!(
+        original.apply(try_request()).unwrap().0,
+        wire::Reply::Available { acquired: true }
+    ));
+    assert!(original
+        .apply(request(wire::Operation::CredentialTry {}))
+        .is_err());
+    assert!(original.credential.is_none());
+    original
+        .apply(request(wire::Operation::LeaseClose {}))
+        .unwrap();
+    original.drain().unwrap();
+}
+#[test]
+fn actual_try_busy_body_preserves_original_credential_and_acquires_after_release() {
+    let (_temporary, root) = fixture();
+    let state = NativeNodeDataState::capture(Arc::clone(&root)).unwrap();
+    let initializer = state.credential_writer().unwrap();
+    drop(initializer.bootstrap_writer("selected").unwrap());
+    drop(initializer);
+    let other = NativeNodeDataState::capture(root).unwrap();
+    let held = other
+        .exclusive_lease("opensesame:vault-body:selected")
+        .unwrap();
+    let mut original = session(state);
+    assert!(matches!(
+        original
+            .apply(request(wire::Operation::CredentialTry {}))
+            .unwrap()
+            .0,
+        wire::Reply::Available { acquired: true }
+    ));
+    let try_body = || {
+        request(wire::Operation::BodyTry {
+            tomb: "selected".into(),
+        })
+    };
+    assert!(matches!(
+        original.apply(try_body()).unwrap().0,
+        wire::Reply::Available { acquired: false }
+    ));
+    assert!(original.body.is_none());
+    original.credential.as_ref().unwrap().validate().unwrap();
+    held.validate().unwrap();
+    drop(held);
+    assert!(matches!(
+        original.apply(try_body()).unwrap().0,
+        wire::Reply::Available { acquired: true }
+    ));
+    original.writer().unwrap().validate().unwrap();
+    original
+        .apply(request(wire::Operation::BodyClose {}))
+        .unwrap();
+    original.credential.as_ref().unwrap().validate().unwrap();
+    original
+        .apply(request(wire::Operation::CredentialClose {}))
+        .unwrap();
+    original.drain().unwrap();
+}

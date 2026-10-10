@@ -29,6 +29,14 @@ pub(super) enum Operation {
         logical: String,
         mode: LeaseMode,
     },
+    LeaseTry {
+        logical: String,
+        mode: LeaseMode,
+    },
+    CredentialTry {},
+    BodyTry {
+        tomb: String,
+    },
     LeaseClose {},
     Credential {},
     Body {
@@ -75,6 +83,7 @@ pub(super) struct Response {
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(super) enum Reply {
     Ack,
+    Available { acquired: bool },
     Bytes { base64: Option<String> },
     Names { values: Vec<String> },
     Inventory { entries: Vec<(String, bool)> },
@@ -89,6 +98,7 @@ mod tests {
         for kind in [
             "lease_close",
             "credential",
+            "credential_try",
             "read_generation",
             "capture_inventory",
             "inventory_tombs",
