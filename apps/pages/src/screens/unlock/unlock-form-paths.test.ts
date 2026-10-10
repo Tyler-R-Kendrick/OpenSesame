@@ -1,8 +1,12 @@
 import type { PasskeyCreateOptions } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
+import { PrfCeremonyError } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-output.js";
 import { overlapCast } from "@opensesame/os-domain";
 import type { MutableRefObject } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { submitFirstRunUnlock } from "./unlock-form-paths.js";
+import {
+  stepPastUnsupported,
+  submitFirstRunUnlock,
+} from "./unlock-form-paths.js";
 
 /** The two ways a new vault is sealed, and nothing else (ADR 0180). */
 function setup() {
@@ -113,3 +117,41 @@ function overlap(
 ): Parameters<typeof submitFirstRunUnlock>[0]["store"] {
   return overlapCast(store);
 }
+
+describe("stepping past an authenticator that cannot seal", () => {
+  const unsupported = new PrfCeremonyError("prf_missing_output", "x");
+  it("moves on, naming the kind that could not, for a first-run passkey seal", () => {
+    const onSealUnsupported = vi.fn();
+    expect(
+      stepPastUnsupported(
+        {
+          firstRun: true,
+          activeMethod: "passkey",
+          attachment: "platform",
+          onSealUnsupported,
+        },
+        unsupported,
+      ),
+    ).toBe(true);
+    expect(onSealUnsupported).toHaveBeenCalledWith("platform");
+  });
+
+  it("leaves every other failure, and every other form, to be reported", () => {
+    const onSealUnsupported = vi.fn();
+    const base = {
+      firstRun: true,
+      activeMethod: "passkey" as const,
+      attachment: "platform" as const,
+      onSealUnsupported,
+    };
+    const cancelled = new PrfCeremonyError("canceled", "x");
+    expect(stepPastUnsupported(base, cancelled)).toBe(false);
+    expect(stepPastUnsupported({ ...base, firstRun: false }, unsupported)).toBe(
+      false,
+    );
+    expect(
+      stepPastUnsupported({ ...base, activeMethod: "pin" }, unsupported),
+    ).toBe(false);
+    expect(onSealUnsupported).not.toHaveBeenCalled();
+  });
+});

@@ -3,7 +3,11 @@ import type {
   PasskeyProbe,
   PasskeyProbeOptions,
 } from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
-import type { PasskeyCreateOptions } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
+import type {
+  PasskeyAttachment,
+  PasskeyCreateOptions,
+} from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
+import { isPrfUnsupported } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-output.js";
 import {
   type UnlockTabId,
   isProtectorUnlockMethod,
@@ -78,6 +82,25 @@ export async function submitFirstRunUnlock(input: {
   }
   await input.store.createWithPin(input.pin);
   input.setPin("");
+}
+
+/**
+ * A passkey seal that an authenticator cannot answer is stepped past, not
+ * reported: the form moves to the next road and says so in the tray.
+ */
+export function stepPastUnsupported<Thrown>(
+  input: {
+    firstRun: boolean;
+    activeMethod: UnlockTabId;
+    attachment: PasskeyAttachment;
+    onSealUnsupported: (kind: PasskeyAttachment) => void;
+  },
+  caught: Thrown,
+): boolean {
+  if (!input.firstRun || input.activeMethod !== "passkey") return false;
+  if (!isPrfUnsupported(caught)) return false;
+  input.onSealUnsupported(input.attachment);
+  return true;
 }
 
 export async function submitSecondStepUnlock(input: {

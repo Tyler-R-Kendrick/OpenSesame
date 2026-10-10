@@ -48,6 +48,7 @@ import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { LockFoot } from "./unlock/LockFoot.js";
 import { MethodIcon } from "./unlock/MethodIcon.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
+import { DurabilityNote, LockoutNote } from "./unlock/Notes.js";
 import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
@@ -71,6 +72,7 @@ import {
 } from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
+import { usePasskeyRoad } from "./unlock/use-passkey-road.js";
 import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
@@ -184,6 +186,7 @@ function UnlockForm({
           .find((vault) => vault.id === activeTomb)?.label ?? activeTomb)
       : null;
   const passkeyHost = checkWebauthnHost();
+  const passkeyOk = usePasskeyRoad(passkeyHost.ok);
   // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
   const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
@@ -197,8 +200,8 @@ function UnlockForm({
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
 
   const methods = useMemo<UnlockTabId[]>(
-    () => unlockMethodTabs({ firstRun, header, passkeyOk: passkeyHost.ok }),
-    [firstRun, header, passkeyHost.ok],
+    () => unlockMethodTabs({ firstRun, header, passkeyOk }),
+    [firstRun, header, passkeyOk],
   );
   // A guest tomb that enrolled no key at all: guest entry itself is the road
   // in, and the commit says so rather than pretending to unlock something.
@@ -219,7 +222,7 @@ function UnlockForm({
   const fallbackMethod = fallbackUnlockMethod({
     firstRun,
     header,
-    passkeyOk: passkeyHost.ok,
+    passkeyOk,
     methods,
   });
   const activeMethod =
@@ -272,8 +275,13 @@ function UnlockForm({
   const acceptRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const { passkeyAbort, cancelPasskeyCeremony, attachment, pickAttachment } =
-    usePasskeyCeremony(setAwaitingPasskeyDuressCode, setBusy, setError);
+  const ceremony = usePasskeyCeremony(
+    setAwaitingPasskeyDuressCode,
+    setBusy,
+    setError,
+    setMethod,
+  );
+  const { passkeyAbort, cancelPasskeyCeremony, attachment } = ceremony;
 
   const formGated = lockedFor > 0;
   const pendingFocus = useUnlockFormFocus({
@@ -351,6 +359,7 @@ function UnlockForm({
       store,
       passkeyAbort,
       attachment,
+      onSealUnsupported: ceremony.sealUnsupported,
       pin,
       confirm,
       password,
@@ -623,7 +632,7 @@ function UnlockForm({
                 host={passkeyHost}
                 seals={firstRun && activeMethod === "passkey"}
                 value={attachment}
-                onPick={pickAttachment}
+                onPick={ceremony.pickAttachment}
               />
             ) : null}
 
@@ -747,26 +756,14 @@ function UnlockForm({
               </p>
             ) : null}
 
-            {!durable ? (
-              <output className="note note--warn">
-                <span>
-                  This browser gives this app no persistent storage, so the
-                  vault will be gone when the tab closes — private windows and
-                  some embedded browsers do this. Do not put your only copy of
-                  anything in here.
-                </span>
-              </output>
-            ) : null}
+            <DurabilityNote durable={durable} />
 
             <FailureNotice id="unlock:error" title="Unlock" message={error} />
 
-            {lockedFor > 0 ? (
-              <output className="note note--warn">
-                <span>
-                  {failedAttempts} failed attempts. Try again in {lockedFor}s.
-                </span>
-              </output>
-            ) : null}
+            <LockoutNote
+              lockedFor={lockedFor}
+              failedAttempts={failedAttempts}
+            />
 
             {noPrimary ? null : (
               <div className="go-row">

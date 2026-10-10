@@ -11,6 +11,7 @@ import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protec
 import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import type { FormEvent, MutableRefObject } from "react";
 import {
+  stepPastUnsupported,
   submitFirstRunUnlock,
   submitGuestUnlock,
   submitPasskeyDuressCode,
@@ -64,6 +65,7 @@ export async function submitUnlockForm(input: {
   passkeyAbort: MutableRefObject<AbortController | null>;
   /** The kind of authenticator a first-run passkey seal asks for. */
   attachment: PasskeyAttachment;
+  onSealUnsupported: (kind: PasskeyAttachment) => void;
   pin: string;
   confirm: string;
   password: string;
@@ -110,6 +112,7 @@ export async function submitUnlockForm(input: {
     }
     input.setConfirm("");
   } catch (caught) {
+    if (stepPastUnsupported(input, caught)) return;
     applyUnlockSubmitFailure({
       caught,
       awaitingSecondStep: input.awaitingSecondStep,

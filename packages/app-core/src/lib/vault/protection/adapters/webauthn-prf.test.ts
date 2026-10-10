@@ -14,6 +14,7 @@ import {
   wrapVaultKeyWithPrf,
 } from "../../unlock-methods.js";
 import { protectorFromPrfMaterial } from "./webauthn-prf-ops.js";
+import { isPrfUnsupported } from "./webauthn-prf-output.js";
 import { webauthnPrfCapabilities } from "./webauthn-prf.js";
 
 afterEach(() => {
@@ -48,6 +49,23 @@ describe("multi-cred passkey unlock records", () => {
       listPasskeyUnlockRecords(merged).map((row) => row.credentialIdB64),
     ).toEqual(["YQ==", "Yg=="]);
     expect(merged.passkey?.credentialIdB64).toBe("YQ==");
+  });
+});
+
+describe("an authenticator that cannot answer PRF", () => {
+  it("is told apart from a cancelled or misrouted ceremony", () => {
+    for (const code of ["prf_missing_output", "prf_enabled_without_output"]) {
+      expect(isPrfUnsupported(new PrfCeremonyError(code as never, "x"))).toBe(
+        true,
+      );
+    }
+    for (const code of ["canceled", "wrong_credential", "invalid_host"]) {
+      expect(isPrfUnsupported(new PrfCeremonyError(code as never, "x"))).toBe(
+        false,
+      );
+    }
+    expect(isPrfUnsupported(new Error("prf_missing_output"))).toBe(false);
+    expect(isPrfUnsupported(undefined)).toBe(false);
   });
 });
 
