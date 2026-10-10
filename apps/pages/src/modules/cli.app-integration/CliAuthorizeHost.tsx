@@ -1,6 +1,6 @@
 import {
-  listCliIntegrationPending,
   type PendingRequest,
+  listCliIntegrationPending,
 } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy.js";
 import { mayPairLocalAuthority } from "@opensesame/app-core/lib/deployment-profile.js";
@@ -14,7 +14,11 @@ export const cliAuthorizeHostSeams = {
 };
 
 /** Polls the daemon while the vault is unlocked and opens the authorize sheet. */
-export function CliAuthorizeHost({ children }: { children: ReactNode }) {
+export function CliAuthorizeHost({
+  children,
+}: {
+  children?: ReactNode;
+}) {
   const { status } = useVault();
   const [pending, setPending] = useState<PendingRequest | null>(null);
 
@@ -30,7 +34,9 @@ export function CliAuthorizeHost({ children }: { children: ReactNode }) {
         setPending((current) => {
           if (rows.length === 0) return null;
           if (current) {
-            const still = rows.find((row) => row.requestId === current.requestId);
+            const still = rows.find(
+              (row) => row.requestId === current.requestId,
+            );
             return still ?? rows[0] ?? null;
           }
           return rows[0] ?? null;
@@ -38,10 +44,7 @@ export function CliAuthorizeHost({ children }: { children: ReactNode }) {
       });
     };
     tick();
-    const timer = setInterval(
-      tick,
-      cliAppIntegrationPolicy.pollIntervalMs,
-    );
+    const timer = setInterval(tick, cliAppIntegrationPolicy.pollIntervalMs);
     return () => {
       cancelled = true;
       clearInterval(timer);

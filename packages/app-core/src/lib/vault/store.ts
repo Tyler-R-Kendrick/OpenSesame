@@ -95,7 +95,6 @@ import {
   unlockVaultWithPasskey,
   wrapVaultKeyWithCeremony,
 } from "./passkey-unlock-session.js";
-import { vaultKeysMatch } from "./vault-key-compare.js";
 import {
   readPrefsJson,
   readPrefsSourceFile,
@@ -184,6 +183,7 @@ import {
   wrapVaultKeyWithPin,
 } from "./unlock-methods.js";
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
+import { vaultKeysMatch } from "./vault-key-compare.js";
 import {
   withBodyWriteLock,
   withBodyWriteLockOrBare,

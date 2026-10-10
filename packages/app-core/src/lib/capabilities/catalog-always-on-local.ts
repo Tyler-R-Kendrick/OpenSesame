@@ -96,10 +96,7 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "CLI integration",
     "Approve OpenSesame CLI requests from this browser while the vault is unlocked (1Password-style terminal sessions).",
     {
-      operationIds: [
-        "cli.app_integration.list",
-        "cli.app_integration.respond",
-      ],
+      operationIds: ["cli.app_integration.list", "cli.app_integration.respond"],
       egress: [
         {
           class: "peer-or-local-network",
