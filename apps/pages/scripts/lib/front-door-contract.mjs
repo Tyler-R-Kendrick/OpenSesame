@@ -42,6 +42,7 @@ export async function checkFrontDoor(page, check, text, base) {
   for (const [name, label] of [
     ["Continue with Google", "no Google button on the door"],
     ["Continue as guest", "no full-size guest button on the door"],
+    ["Skip to the guest vault", "no unlock-footer guest link on the door"],
     ["Use without an account", "no local-only road on the door"],
   ]) {
     check((await count(page, "button", name, true)) === 0, label);

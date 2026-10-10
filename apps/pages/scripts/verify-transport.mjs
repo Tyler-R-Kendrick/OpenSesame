@@ -11,9 +11,9 @@
 //
 //   AT-STATIC-EMPTY     guest → Settings › Security draws no Transport panel,
 //                       and the tab makes zero requests to any other origin
-//   AT-STATIC-BADREMOTE an endpoint set through the settings file is not
-//                       probed from the page; guest, vault and settings stay
-//                       complete
+//   AT-STATIC-BADREMOTE a hostApi planted only in os-runtime-config.json is
+//                       not probed from the page; guest, vault and settings
+//                       stay complete (no Endpoints UI — ADR 0090)
 //   AT-BROWSER-CACHE    the vault copy claims no erasure and no TLS gate
 //   AT-BROWSER-UX       the phone contract holds on Security at 320/390/430
 //                       and landscape, with no transport control to measure
@@ -22,7 +22,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { addCapability } from "./lib/capability-walk-contract.mjs";
 import {
   AUDIT,
   PHONES,
@@ -30,7 +29,6 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
-import { openConfigFile, openConfigForm } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { createEmptyJourney } from "./lib/transport-empty-journey.mjs";
 import {
@@ -87,31 +85,24 @@ const emptyJourney = createEmptyJourney({
   measured,
 });
 
-/** AT-STATIC-BADREMOTE, part one: an endpoint that cannot answer, set through the settings file. */
+/**
+ * AT-STATIC-BADREMOTE, part one: plant a hostApi that cannot answer via the
+ * same-origin runtime config only. There is no Settings › Endpoints panel.
+ */
 async function configureBadRemote(page, step = "badremote-configure") {
   setStep(step);
+  await page.route("**/os-runtime-config.json", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "access-control-allow-origin": "*" },
+      body: JSON.stringify({ hostApi: BAD_REMOTE }),
+    });
+  });
   await guest(page, ORIGIN, BASE);
-  await openSection(page, "settings/");
-  // Connections is always on and folded into Settings › Capabilities
-  // (ADR 0135): the endpoints are rows on that page (its config.yaml's view).
-  await addCapability(page, check, snap, "External connectors", "connections/");
-  // The capability snapshot names its own step and leaves it current. The
-  // endpoint write and the status probe belong to this journey, so Chromium's
-  // connection-refused line stays on the step the allowlist already names.
-  setStep(step);
-  await openConfigFile(page, "capabilities");
-  const endpoint = page.getByLabel("Connections service", { exact: true });
-  await endpoint.fill(BAD_REMOTE);
-  await endpoint.press("Tab");
-  await page.waitForTimeout(400);
-  check(
-    (await endpoint.inputValue()) === BAD_REMOTE,
-    "the endpoint was accepted by the page",
-  );
-  await openConfigForm(page, "Capabilities");
   check(
     externalDuring(step).length === 0,
-    "setting an endpoint asks it nothing",
+    "a stamped hostApi asks the page nothing on guest entry",
   );
 }
 

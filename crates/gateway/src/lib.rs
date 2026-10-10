@@ -46,6 +46,7 @@ mod taskbus_config;
 mod test_principals;
 mod transport;
 mod transport_lifecycle;
+mod vault_relay;
 mod web_login;
 
 pub use config::Args;
@@ -59,6 +60,9 @@ pub use config::Args;
 /// be opened, a configured secure listener is broken, or a listener cannot
 /// be bound. Nothing is served in any of those cases.
 pub async fn run(args: Args) -> anyhow::Result<()> {
+    if args.profile == config::GatewayProfile::Relay {
+        return vault_relay::run(&args).await;
+    }
     config::assert_cors_origins().map_err(anyhow::Error::msg)?;
     let state = app_state::build(args.clone()).await?;
     let state_for_serve = state.clone();

@@ -99,9 +99,10 @@ export function CeremonyShell({
   primary?: CeremonyPrimary;
   /**
    * A peer of the primary, for the rare connector with two genuine front
-   * doors — Identity has sign-in and guest, and both are first-class. Demoting
-   * one into an alternative would cost a click on a path people take daily,
-   * which is the whole complaint this shape exists to answer.
+   * doors — Identity has sign-in and "Use this device", and both are
+   * first-class. Demoting one into an alternative would cost a click on a
+   * path people take daily, which is the whole complaint this shape exists
+   * to answer. The guest tomb is not this door: that is Skip.
    */
   secondary?: CeremonyPrimary;
   alts?: CeremonyAlt[];

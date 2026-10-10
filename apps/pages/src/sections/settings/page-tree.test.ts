@@ -86,16 +86,15 @@ describe("settingsPageTree", () => {
     expect(capabilitiesSettingsSections().map((s) => s.label)).toEqual([
       "Guests",
       ...FEATURES.map((feature) => feature.title),
-      "Endpoints",
     ]);
     expect(capabilitiesSettingsSections()[1]?.href).toBe(
       "/settings/capabilities#feature-identity",
     );
-    // The operator's section is listed only where it draws, before Endpoints.
+    // The operator's section is listed only where it draws, last when present.
     expect(
       capabilitiesSettingsSections(true, true)
         .map((s) => s.label)
-        .at(-2),
+        .at(-1),
     ).toBe("Instance policy");
   });
 

@@ -48,7 +48,7 @@ const CHOICES: ReadonlyArray<{
   {
     id: "custom",
     name: "Custom",
-    kind: "the full setup",
+    kind: "pick individual capabilities",
     Icon: IconSettings,
   },
 ];

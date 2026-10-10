@@ -23,6 +23,7 @@ import {
   provideGuideDeviceForm,
   provideGuideInstallOffer,
   provideGuidePluginPanel,
+  provideGuideSupportModelPicks,
   registerGuidePredicates,
 } from "./predicates.js";
 import {
@@ -186,6 +187,16 @@ describe("reading a predicate", () => {
       expect(read("shell.keys")).toBe(false);
     } finally {
       provideGuideDeviceForm(() => ({ narrow: false, keys: true }));
+    }
+  });
+
+  it("says the model picks are drawn only while the shell says the on-device model is approved", () => {
+    expect(readGuidePredicate("support.model-picks")).toBe(false);
+    provideGuideSupportModelPicks(() => true);
+    try {
+      expect(readGuidePredicate("support.model-picks")).toBe(true);
+    } finally {
+      provideGuideSupportModelPicks(() => false);
     }
   });
 

@@ -15,7 +15,7 @@ export const DURESS_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "vaults.duress-code",
     title: "Set up a duress code",
-    routes: [],
+    routes: ["/settings/security"],
     guide: [
       "guide/1",
       'goal "vaults.duress-code"',
@@ -30,7 +30,7 @@ export const DURESS_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "vaults.travel",
     title: "Prepare a vault for travel",
-    routes: [],
+    routes: ["/settings/security"],
     guide: [
       "guide/1",
       'goal "vaults.travel"',
@@ -50,7 +50,7 @@ export const DURESS_HELP: readonly HelpTopic[] = [
     title: "How do I set a duress code?",
     answer:
       "Settings → Security → Duress. A duress code is a second code: typed where a vault unlocks, it opens something else instead of your vault. Add on the Duress code row chooses it; Change and Clear replace or remove it. Only the owner of an open vault can do this.",
-    routes: [],
+    routes: ["/settings/security"],
     goal: "vaults.duress-code",
     keywords: [
       "duress",
@@ -67,7 +67,7 @@ export const DURESS_HELP: readonly HelpTopic[] = [
     title: "How do I protect my vaults when I travel?",
     answer:
       "Settings → Security → Travel, beside Duress. Leave for a trip sends the vaults that are not safe to carry off this device, and Come home from a trip brings them back. It appears once you are in a vault you own.",
-    routes: [],
+    routes: ["/settings/security"],
     goal: "vaults.travel",
     keywords: [
       "travel",

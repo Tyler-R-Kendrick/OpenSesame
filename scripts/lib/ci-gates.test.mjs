@@ -68,6 +68,23 @@ describe("ci gates", () => {
       new Set(ALL_GATES),
     );
   });
+});
+
+describe("ci gates, shards and drivers", () => {
+  it("runs the relay join walk when the gateway relay or its driver changes", () => {
+    expect(gatesOf("apps/pages/scripts/verify-relay-join.mjs")).toEqual([
+      "journeys",
+    ]);
+    expect(gatesOf("apps/pages/scripts/lib/vault-relay-http.mjs")).toEqual([
+      "journeys",
+    ]);
+    expect(gatesOf("crates/gateway/src/vault_relay.rs")).toEqual(["journeys"]);
+    expect(
+      gatesOf(
+        "apps/pages/src/modules/sharing.relay/OrgVaultDirectoryPanel.tsx",
+      ),
+    ).toContain("journeys");
+  });
 
   it("maps the split shards to their one gate", () => {
     expect(gateOfShard("journeys-2")).toBe("journeys");
@@ -169,6 +186,17 @@ describe("ci gate selection", () => {
       pushPackageDirs(root),
     );
     expect([...gates].sort()).toEqual(["budgets", "journeys", "sign-in"]);
+  });
+
+  it("starts journeys for the gateway relay, which is not a Pages bundle", async () => {
+    const { selectGates } = await import("./ci-changed-areas.mjs");
+    const gates = selectGates(
+      root,
+      ["crates/gateway/src/vault_relay.rs"],
+      [],
+      [],
+    );
+    expect([...gates]).toEqual(["journeys"]);
   });
 });
 

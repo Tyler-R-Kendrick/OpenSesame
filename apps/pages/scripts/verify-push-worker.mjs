@@ -38,6 +38,7 @@ import {
   openSettingsCategory,
   waitOpen,
 } from "./lib/pages-journey.mjs";
+import { openGuestAgain } from "./lib/push-worker-guest.mjs";
 import {
   notificationsOf as notificationsFrom,
   sameScript as same,
@@ -194,7 +195,7 @@ try {
     (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
-  await other.getByRole("button", { name: "Continue as guest" }).click();
+  await openGuestAgain(other);
   await waitOpen(other);
   await other.waitForTimeout(500);
   const otherBefore = await other.evaluate(() => performance.timeOrigin);
@@ -312,7 +313,7 @@ try {
 
   // Taking the capability away reverts to the core worker. A load locks the
   // vault, so come back in as the guest the walk began as.
-  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await openGuestAgain(page);
   await waitOpen(page);
   await openSettingsCategory(page, "Capabilities");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });

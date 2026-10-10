@@ -11,8 +11,9 @@
  * The no-account road is a single one, "Use without an account" — the local
  * seal — and it is offered on first run only. It used to sit beside a
  * full-size "Continue as guest" button and a corner "Skip", three controls
- * for one intent; guest has its own placements (the front door's Skip and the
- * unlock form's footer) and is not duplicated here.
+ * for one intent; the guest tomb has its own placements (the front door's
+ * Skip, and "Skip to the guest vault" beside a sealed vault) and is not
+ * duplicated here.
  *
  * Two placements, because a returning visitor is not a new one:
  *
@@ -24,9 +25,9 @@
  *    the passkey, PIN, or password on the unlock form, so signing in here
  *    attaches an account rather than opening anything —
  *    `adoptFederatedIdentity` says exactly that when it comes back to a locked
- *    vault. Neither the local seal nor guest is offered here: the guest road
- *    beside a sealed vault is the unlock form's own footer, which stays
- *    untouched. Who is signed in, and the way out of it, is the user menu —
+ *    vault. Neither the local seal nor the guest tomb is offered here: the
+ *    guest road beside a sealed vault is the unlock form's own footer, which
+ *    stays untouched. Who is signed in, and the way out of it, is the user menu —
  *    not this panel's.
  *
  * Every federated entry ends in a navigation, so success never returns here —

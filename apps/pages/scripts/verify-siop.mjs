@@ -335,12 +335,12 @@ try {
     .filter({ visible: true });
   await lock.click();
   await expect(
-    page.getByRole("button", { name: "Continue as guest", exact: true }),
+    page.getByRole("button", { name: "Skip to the guest vault", exact: true }),
   ).toBeVisible();
   await page.goto(replayUrl, { waitUntil: "networkidle" });
   await expect(page).not.toHaveURL(new RegExp(`^${SIOP_RP}/`));
   await expect(
-    page.getByRole("button", { name: "Continue as guest", exact: true }),
+    page.getByRole("button", { name: "Skip to the guest vault", exact: true }),
   ).toBeVisible();
   console.log(
     "PASS lock fail-closed: locked vault refuses the SIOP ceremony without a callback",

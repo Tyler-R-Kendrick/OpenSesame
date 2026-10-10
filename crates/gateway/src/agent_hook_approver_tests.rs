@@ -243,6 +243,7 @@ async fn a_partial_approver_refuses_to_build_the_host() {
         issuer: "https://identity.test".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     };
 
     std::env::set_var(ENV_URL, "https://identity.example.com");

@@ -34,6 +34,7 @@ async fn state_with_webhook_secret(secret: &str) -> AppState {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -277,6 +278,7 @@ async fn malformed_signature_is_rejected_before_app_lookup() {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();

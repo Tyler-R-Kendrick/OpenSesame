@@ -56,6 +56,19 @@ describe("describeVaultRow — one line of truth", () => {
     expect(describeVaultRow(guest)).toBe(
       "no key · this tab only · nothing here is touched",
     );
+    expect(
+      describeVaultRow({
+        ...work,
+        address: { ownerKind: "organization", owner: "acme", slug: "ledger" },
+      }),
+    ).toMatch(/acme\/ledger$/);
+    const publishedUnnamed = {
+      ...unnamed,
+      label: "ada/personal",
+      address: { ownerKind: "user" as const, owner: "ada", slug: "personal" },
+    };
+    expect(describeVaultRow(publishedUnnamed)).not.toContain("ada/personal");
+    expect(publishedUnnamed.label).toBe("ada/personal");
   });
 });
 

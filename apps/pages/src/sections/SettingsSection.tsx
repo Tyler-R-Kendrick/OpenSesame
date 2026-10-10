@@ -17,7 +17,6 @@ import {
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
-import { EndpointsPanel } from "./settings/EndpointsPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
@@ -166,12 +165,7 @@ export function SettingsSection({
         {form && category !== "security"
           ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
           : null}
-        {form && category === "capabilities" ? (
-          <>
-            <CapabilitiesPanel />
-            <EndpointsPanel />
-          </>
-        ) : null}
+        {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
         {form && category === "danger" ? <SettingsDangerPanel /> : null}
       </div>
     </SettingsFileContext.Provider>

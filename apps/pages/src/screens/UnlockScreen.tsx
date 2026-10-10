@@ -812,15 +812,15 @@ function UnlockForm({
               Sign in instead
             </button>
           ) : null}
-          {/* The guest road on the unlock form itself (GuestRoad.tsx): never
-              gated on anything but the operator's "Allow guests" switch
-              (AGENTS.md §5) — including beside the guest tomb, where it
-              resumes rather than gates. */}
+          {/* Guest tomb beside a sealed vault (GuestRoad.tsx). Not on
+              sign-in or a keyless tomb — Unlock resumes that tomb. Allow
+              guests is the only gate (AGENTS.md §5). */}
           {!firstRun && !showSignIn && !showReset ? (
             <GuestUnlockSwitch
               busy={busy}
               setBusy={setBusy}
               setError={setError}
+              hidden={guestKeyless}
             />
           ) : null}
           {!firstRun && !showSignIn ? (

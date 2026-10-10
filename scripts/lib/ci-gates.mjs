@@ -17,7 +17,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { DRIVER_GATES } from "./ci-gate-drivers.mjs";
 export { DRIVER_GATES } from "./ci-gate-drivers.mjs";
-
+import { relayJoinPath, relayProcessGate } from "./ci-relay-join.mjs";
+export { relayJoinPath };
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
 export const SHARD_GATES = [
   "budgets",
@@ -316,6 +317,7 @@ function isNativeConnectorPath(path) {
 
 function gatesByPath(path, reach) {
   if (isDocPath(path) || isTestPath(path)) return gates();
+  if (relayProcessGate(path)) return gates("journeys");
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();

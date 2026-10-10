@@ -164,6 +164,8 @@ fn the_probe_advertises_no_authority_it_does_not_enforce() {
             BindingPurpose::TrustedIngress => "host: forwarded-evidence layer",
             // crates/connection-broker transport client identity
             BindingPurpose::UpstreamConnector => "broker: upstream connector invoke",
+            // crates/gateway/src/vault_relay.rs — slot key, not a client cert.
+            BindingPurpose::VaultRelay => "host: vault relay snapshot routes",
         }
     }
     for purpose in [
@@ -172,6 +174,7 @@ fn the_probe_advertises_no_authority_it_does_not_enforce() {
         BindingPurpose::IdentityMappingClient,
         BindingPurpose::TrustedIngress,
         BindingPurpose::UpstreamConnector,
+        BindingPurpose::VaultRelay,
     ] {
         assert!(!admission_receiver(purpose).is_empty());
     }

@@ -22,10 +22,12 @@ describe("capabilities with no Pages code behind them", () => {
     }
     expect(isSwitchable(featureById("telemetry"))).toBe(false);
     expect(isSwitchable(featureById("certificates"))).toBe(false);
-    // Live sessions keep Sharing switchable. Household sharing does not.
+    // Live sessions and org-vault relay keep Sharing switchable. Household
+    // sharing does not (NO_SURFACE until a plan names it).
     expect(isSwitchable(featureById("sharing"))).toBe(true);
     expect(shown(featureById("sharing")).capabilities).toEqual([
       "sharing.live",
+      "sharing.relay",
     ]);
   });
 
@@ -35,6 +37,7 @@ describe("capabilities with no Pages code behind them", () => {
     expect(shown(sharing, approved).capabilities).toEqual([
       "sharing.live",
       "sharing.household",
+      "sharing.relay",
     ]);
     expect(isSwitchable(sharing, approved)).toBe(true);
     // The section switch Settings draws is the shown feature, so turning
@@ -47,7 +50,7 @@ describe("capabilities with no Pages code behind them", () => {
         planWith([]),
         CAPABILITY_CATALOG,
       ).roots,
-    ).toEqual(["sharing.live"]);
+    ).toEqual(["sharing.live", "sharing.relay"]);
   });
 
   it("leave a section's other capabilities alone", () => {

@@ -242,6 +242,7 @@ looks arbitrary, the ADR it cites explains it.
 | [0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) | Authorization checks are proofs the compiler can see | Accepted |
 | [0179](0179-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |
 | [0180](0180-vaults-are-sealed-by-passkey-not-password.md) | A new vault is sealed by a passkey, never a master password | Accepted |
+| [0181](0181-relay-host-org-vaults-and-join-sync.md) | Relay host, org-scoped vaults, and durable join sync | Proposed |
 | [0181](0181-the-title-row-is-one-path-control.md) | The editor's title row is one path control, and every field has a cap | Accepted |
 | [0182](0182-secrets-are-files-one-vfs-contract-on-effect.md) | Secrets are files: one VFS contract over an emulated store, a real directory and a private store, written on Effect | Accepted |
 | [0183](0183-self-hosted-connector-configuration.md) | Self-hosted connector configuration follows the Connect experience | Accepted |

@@ -54,6 +54,7 @@ export const BINDING_PURPOSES = [
   "identity_mapping_client",
   "trusted_ingress",
   "upstream_connector",
+  "vault_relay",
 ] as const;
 export type BindingPurpose = (typeof BINDING_PURPOSES)[number];
 
@@ -86,6 +87,8 @@ export const TRANSPORT_OPERATIONS = {
   principalsMappingResolve: "principals.mapping.resolve",
   ingressForward: "ingress.forward",
   connectorInvoke: "connector.invoke",
+  vaultRelaySnapshotRead: "vault.relay.snapshot.read",
+  vaultRelaySnapshotWrite: "vault.relay.snapshot.write",
 } as const;
 
 export interface TransportErrorView {

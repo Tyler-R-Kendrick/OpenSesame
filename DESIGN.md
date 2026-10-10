@@ -685,8 +685,9 @@ the rail, the command bar and an old link open by path, and opening any of them
 draws the designed page that writes it: the same tiles, switches and fields as
 the page itself, never the file's text. There is no Form/source switch and no
 page that is a text editor. Where a configuration has no designed row, give it
-one (Capabilities draws an Endpoints panel for the addresses `config.yaml`
-holds); do not fall back to showing YAML.
+one (add the designed row on the page that owns the key); do not fall back to
+showing YAML. Host/Identity/daemon are not Pages backends — there is no
+Endpoints panel for those addresses (ADR 0090).
 
 Only a file a provider keeps *for authoring* opens in the file viewer: an item
 type's `installed/<id>.json` and read-only `builtin/<id>.json`,

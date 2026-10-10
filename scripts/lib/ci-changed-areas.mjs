@@ -15,6 +15,7 @@ import {
   driverReach,
   gatesForPaths,
   loadShards,
+  relayJoinPath,
 } from "./ci-gates.mjs";
 import { bundlePackageDirs, pushPackageDirs } from "./ci-package-dirs.mjs";
 
@@ -356,6 +357,7 @@ export function selectGates(root, kept, dirs, pushDirs) {
   const inBundle = kept.filter(
     (path) =>
       path === ".github/workflows/ci.yml" ||
+      relayJoinPath(path) ||
       areasForPaths([path], dirs, pushDirs).bundle,
   );
   const read = (path) => {

@@ -325,6 +325,7 @@ describe("advertised authority", () => {
       "identity_mapping_client",
       "trusted_ingress",
       "upstream_connector",
+      "vault_relay",
     ]);
   });
 
@@ -339,6 +340,8 @@ describe("advertised authority", () => {
       "principals.mapping.resolve",
       "ingress.forward",
       "connector.invoke",
+      "vault.relay.snapshot.read",
+      "vault.relay.snapshot.write",
     ]);
   });
 });
