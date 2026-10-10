@@ -54,10 +54,10 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-10-lock-v5-restored/`](2026-10-10-lock-v5-restored/README.md) | Lock-v5 title screen restored |
 | [`2026-10-10-frontdoor-contract/`](2026-10-10-frontdoor-contract/README.md) | Front-door visual contract after the merged brand update |
 | [`2026-10-10-design-tooling/`](2026-10-10-design-tooling/README.md) | Design tooling: Storybook on the app's own CSS |
 | [`2026-10-10-connector-self-review/`](2026-10-10-connector-self-review/README.md) | Connector self-review |
-| [`2026-10-10-brand-plates/`](2026-10-10-brand-plates/README.md) | The brand on plates: one mark, one wordmark, three size tiers |
 | [`2026-10-09-provider-authentication/`](2026-10-09-provider-authentication/README.md) | Provider authentication and connector actions |
 | [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |
 | [`2026-10-09-native-connectors/`](2026-10-09-native-connectors/README.md) | Native connector configuration evidence |
