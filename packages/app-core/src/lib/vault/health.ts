@@ -190,7 +190,6 @@ export type BreachWatch =
       checked: number;
       breached: number;
       twoStep: number;
-      fingerprint: string;
       lines: readonly BreachWatchLine[];
     }>;
 

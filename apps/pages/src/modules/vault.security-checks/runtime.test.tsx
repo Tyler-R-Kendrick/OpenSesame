@@ -100,8 +100,8 @@ async function mountedPanel() {
   const [entry] = t.entries("settings-panel");
   if (!entry) throw new Error("no panel registered");
   const Panel: ComponentType = entry.Panel;
-  render(<Panel />);
-  return { t, handle };
+  const view = render(<Panel />);
+  return { t, handle, Panel, view };
 }
 
 describe("vault.security-checks runtime", () => {
@@ -146,7 +146,7 @@ describe("vault.security-checks runtime", () => {
       }),
     );
     await waitFor(() =>
-      expect(screen.getByText(/2 logins checked/)).toBeTruthy(),
+      expect(screen.getByText("2 logins checked")).toBeTruthy(),
     );
     expect(
       screen.getByText(
@@ -191,6 +191,35 @@ describe("vault.security-checks runtime", () => {
       "This site takes an authenticator code; none is stored",
     );
     expect(screen.queryByText("Shop")).toBeNull();
+    await handle.dispose();
+  });
+
+  it("clears a finished check when vault logins change", async () => {
+    let items = ITEMS;
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({
+        ...vaultStore.getSnapshot(),
+        status,
+        items,
+      }),
+    });
+    const { handle, Panel, view } = await mountedPanel();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Check logins against breaches and two-step sites",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("2 logins checked")).toBeTruthy(),
+    );
+    items = [
+      ...ITEMS,
+      login("Added", "fresh-secret", "https://added.example"),
+    ];
+    view.rerender(<Panel />);
+    await waitFor(() =>
+      expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy(),
+    );
     await handle.dispose();
   });
 

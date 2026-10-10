@@ -35,6 +35,7 @@ import {
 import {
   type BreachWatch,
   type BreachWatchLine,
+  breachWatchSnapshot,
   publishBreachWatch,
 } from "./health.js";
 
@@ -61,21 +62,7 @@ export type SecurityReport = {
   /** Logins with a password, each checked. */
   checked: number;
   findings: SecurityFinding[];
-  /** Id-only digest so Password health can tell a vault edit staleates a report. */
-  fingerprint: string;
 };
-
-/** Stable, value-blind digest of a finished report's rows. */
-export function securityReportFingerprint(
-  report: Pick<SecurityReport, "checked" | "findings">,
-): string {
-  const rows = report.findings.map(
-    (finding) =>
-      `${finding.item.id}\t${finding.breaches}\t${finding.twoFactorAvailable}`,
-  );
-  rows.sort();
-  return `${report.checked}\t${rows.join("\n")}`;
-}
 
 /** Shown in Settings and on Password health while the capability is on and no check has finished. */
 export const SECURITY_CHECKS_IDLE =
@@ -145,25 +132,37 @@ function checkedWatch(report: SecurityReport): BreachWatch {
     checked: report.checked,
     breached,
     twoStep,
-    fingerprint: report.fingerprint,
     lines: report.findings.map(watchLine),
   };
 }
+
+/** Value-blind digest of which logins would be checked (id and revision only). */
+export function securityCheckInputsFingerprint(
+  items: readonly VaultItem[],
+): string {
+  const checked = logins(items);
+  const rows = checked.map((item) => `${item.id}\t${item.updatedAt}`).sort();
+  return `${checked.length}\t${rows.join("\n")}`;
+}
+
+let checkedInputsFingerprint: string | null = null;
 
 export type SecurityWatchNote =
   | { phase: "off" }
   | { phase: "idle" }
   | { phase: "checking" }
   | { phase: "error"; message: string }
-  | { phase: "checked"; report: SecurityReport };
+  | { phase: "checked"; report: SecurityReport; items: readonly VaultItem[] };
 
 /** Publish the standing Password health and the settings panel both read. */
 export function noteSecurityWatch(note: SecurityWatchNote): void {
   switch (note.phase) {
     case "off":
+      checkedInputsFingerprint = null;
       publishBreachWatch({ phase: "off" });
       return;
     case "idle":
+      checkedInputsFingerprint = null;
       publishBreachWatch({ phase: "idle", label: SECURITY_CHECKS_IDLE });
       return;
     case "checking":
@@ -176,9 +175,21 @@ export function noteSecurityWatch(note: SecurityWatchNote): void {
       publishBreachWatch({ phase: "error", label: note.message });
       return;
     case "checked":
+      checkedInputsFingerprint = securityCheckInputsFingerprint(note.items);
       publishBreachWatch(checkedWatch(note.report));
       return;
   }
+}
+
+/** Drop a finished check when logins change or the vault switches. */
+export function reconcileSecurityWatchWithVault(
+  items: readonly VaultItem[],
+): void {
+  if (checkedInputsFingerprint === null) return;
+  const watch = breachWatchSnapshot();
+  if (watch.phase !== "checked") return;
+  if (securityCheckInputsFingerprint(items) === checkedInputsFingerprint) return;
+  noteSecurityWatch({ phase: "idle" });
 }
 
 /** Capability off: Password health drops the breach block. */
@@ -346,10 +357,9 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
-  const report = {
+  return {
     checkedAt: now().toISOString(),
     checked: checked.length,
     findings,
   };
-  return { ...report, fingerprint: securityReportFingerprint(report) };
 }

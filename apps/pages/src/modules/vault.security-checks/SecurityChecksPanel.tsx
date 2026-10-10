@@ -15,9 +15,10 @@ import type { CheckFetch } from "@opensesame/app-core/lib/vault/security-checks.
 import {
   SECURITY_CHECKS_IDLE,
   noteSecurityWatch,
+  reconcileSecurityWatchWithVault,
   runSecurityChecks,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
-import { type ComponentType, useSyncExternalStore } from "react";
+import { type ComponentType, useEffect, useSyncExternalStore } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconShield } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
@@ -52,6 +53,9 @@ export function securityChecksPanel(
 ): ComponentType {
   return function SecurityChecksPanel() {
     const vault = useVault();
+    useEffect(() => {
+      reconcileSecurityWatchWithVault(vault.items);
+    }, [vault.items]);
     const watch = useSyncExternalStore(
       subscribeBreachWatch,
       breachWatchSnapshot,
@@ -69,7 +73,8 @@ export function securityChecksPanel(
       if (busy || !open) return;
       noteSecurityWatch({ phase: "checking" });
       runSecurityChecks(vault.items, fetches.range, fetches.twoFactor).then(
-        (report) => noteSecurityWatch({ phase: "checked", report }),
+        (report) =>
+          noteSecurityWatch({ phase: "checked", report, items: vault.items }),
         (caught) =>
           noteSecurityWatch({
             phase: "error",
@@ -95,7 +100,7 @@ export function securityChecksPanel(
             label="Logins in this vault"
             sub={
               watch.phase === "checked"
-                ? `${plural(watch.checked, "login checked", "logins checked")} · ${watch.fingerprint}`
+                ? plural(watch.checked, "login checked", "logins checked")
                 : watch.phase === "checking"
                   ? "Checking"
                   : "Not checked"
