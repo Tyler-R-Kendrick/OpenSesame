@@ -17,6 +17,7 @@ export * from "./grant.js";
 export * from "./guardian.js";
 export * from "./hpke.js";
 export * from "./ledger.js";
+export * from "./packets.js";
 export * from "./policy.js";
 export * from "./records.js";
 export * from "./recover.js";
