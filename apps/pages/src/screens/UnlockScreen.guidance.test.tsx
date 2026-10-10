@@ -76,10 +76,13 @@ describe("UnlockScreen — guidance is drawn in the page, not trayed", () => {
     expect(statusNotices()).toEqual([]);
     expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Unlock/ })).toBeNull();
-    // The roads that still work stay: guest, and deleting to seal again.
+    // The roads that still work stay: the guest tomb, and deleting to seal again.
     expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
+      screen.getByRole("button", { name: "Skip to the guest vault" }),
     ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
     expect(
       screen.getByRole("button", { name: "Forgotten how to unlock?" }),
     ).toBeTruthy();

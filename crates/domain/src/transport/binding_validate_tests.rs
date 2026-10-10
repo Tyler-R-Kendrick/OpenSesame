@@ -154,3 +154,62 @@ fn parse_json_refuses_unknown_fields_and_coercion() {
     assert!(ServiceBindingSet::parse_json("not json").is_err());
     assert!(ServiceBindingSet::parse_json("[]").is_err());
 }
+
+fn relay_binding(peer: serde_json::Value, purpose: &str, operations: serde_json::Value) -> String {
+    json!({
+        "revision": 1,
+        "bindings": [{
+            "id": "relay-1",
+            "revision": 1,
+            "enabled": true,
+            "revoked": false,
+            "scope": "deployment",
+            "trust_profile": { "name": "private-root" },
+            "peer": peer,
+            "service_principal": "svc:relay",
+            "purpose": purpose,
+            "allowed_operations": operations,
+            "allowed_audiences": [],
+            "denied_thumbprints": []
+        }]
+    })
+    .to_string()
+}
+
+#[test]
+fn relay_profile_accepts_an_exact_vault_relay_binding_and_refuses_a_wildcard() {
+    let exact = relay_binding(
+        json!({ "dns_name": "client.example" }),
+        "vault_relay",
+        json!(["vault.relay.snapshot.read", "vault.relay.snapshot.write"]),
+    );
+    let set = ServiceBindingSet::parse_json(&exact).expect("exact vault_relay binding");
+    assert!(validate_relay_profile(&set).is_ok());
+    assert!(validate_relay_profile(&ServiceBindingSet::empty()).is_ok());
+
+    let wildcard = relay_binding(
+        json!({ "dns_name": "*.example" }),
+        "vault_relay",
+        json!(["vault.relay.snapshot.read"]),
+    );
+    assert!(
+        ServiceBindingSet::parse_json(&wildcard).is_err(),
+        "a wildcard selector is not a peer"
+    );
+
+    let foreign = relay_binding(
+        json!({ "dns_name": "client.example" }),
+        "upstream_connector",
+        json!(["connector.invoke"]),
+    );
+    let foreign = ServiceBindingSet::parse_json(&foreign).expect("structurally valid");
+    assert!(validate_relay_profile(&foreign).is_err());
+
+    let extra_op = relay_binding(
+        json!({ "dns_name": "client.example" }),
+        "vault_relay",
+        json!(["vault.relay.snapshot.read", "connector.invoke"]),
+    );
+    let extra_op = ServiceBindingSet::parse_json(&extra_op).expect("structurally valid");
+    assert!(validate_relay_profile(&extra_op).is_err());
+}

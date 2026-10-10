@@ -1,0 +1,4 @@
+# Static export only (Tyler 2026-10-08). Do not upload serverless /api routes.
+# Keep `server/` for the Pages typecheck (connect-conformance imports its
+# generated targets); it is not deployed — output is `dist/` only.
+api

@@ -254,6 +254,17 @@ describe("what a tutorial needs before it is offered", () => {
     expect(ids({ holds: () => true })).toContain("vault.second-step.code");
   });
 
+  it("offers the model tour only while the on-device model draws the picks", () => {
+    const holds = (predicate: string) => predicate !== "support.model-picks";
+    const sectionDrawn = () => true;
+    expect(ids({ holds, sectionDrawn })).not.toContain(
+      "settings.model-provider",
+    );
+    expect(ids({ holds: () => true, sectionDrawn })).toContain(
+      "settings.model-provider",
+    );
+  });
+
   it("points the model and tailnet tours at their sections, so an undrawn one hides them", () => {
     const sectionDrawn = (feature: string) =>
       feature !== "ai" && feature !== "networking";
@@ -265,6 +276,35 @@ describe("what a tutorial needs before it is offered", () => {
     expect(drawn).toContain("settings.tailnet-sync");
   });
 
+  it("hides a tour until one capability it names is installed", () => {
+    const health = guideGoal("vault.health.review");
+    const install = guideGoal("vault.item-types.install");
+    expect(health).not.toBeNull();
+    expect(install).not.toBeNull();
+    if (!health || !install) return;
+    expect(health.capabilities).toEqual(["vault.security-checks"]);
+    expect(install.capabilities).toEqual([
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ]);
+    const absent = () => false;
+    expect(goalOffered(health, { installed: absent })).toBe(false);
+    expect(
+      goalOffered(health, {
+        installed: (id) => id === "vault.security-checks",
+      }),
+    ).toBe(true);
+    expect(goalOffered(install, { installed: absent })).toBe(false);
+    expect(
+      goalOffered(install, {
+        installed: (id) => id === "vault.passkey-records",
+      }),
+    ).toBe(true);
+    expect(goalOffered(health)).toBe(true);
+    expect(goalOffered(install)).toBe(true);
+  });
+
   it("applies one gate to the library and to any other list of goals", () => {
     const tour = guideGoal("settings.model-provider");
     expect(tour).not.toBeNull();
@@ -272,6 +312,8 @@ describe("what a tutorial needs before it is offered", () => {
     expect(goalOffered(tour, { sectionDrawn: () => false })).toBe(false);
     expect(goalOffered(tour, { sectionDrawn: () => true })).toBe(true);
     expect(goalOffered(tour)).toBe(true);
+    expect(tour.capabilities).toEqual(["support.local-ai"]);
+    expect(goalOffered(tour, { installed: () => false })).toBe(false);
   });
 });
 

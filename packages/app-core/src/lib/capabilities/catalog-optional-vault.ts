@@ -115,4 +115,14 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       offlineLimits: "Sharing waits until the chosen transport is reachable.",
     },
   ),
+  optional(
+    "sharing.relay",
+    "Vault relay",
+    "Publish a sealed vault snapshot to a relay the owner pairs, and pull it onto another device. The relay stores ciphertext and a generation. It does not hold a vault key.",
+    {
+      keyAccess: "none",
+      offlineLimits:
+        "A push or pull waits until the paired relay answers. The vault stays on this device either way.",
+    },
+  ),
 ];

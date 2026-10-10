@@ -4,6 +4,7 @@ export const HEALTH_REVIEW_GOAL = {
   id: "vault.health.review",
   title: "Review password health",
   routes: [],
+  capabilities: ["vault.security-checks"],
   guide: [
     "guide/1",
     'goal "vault.health.review"',

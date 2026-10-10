@@ -36,6 +36,14 @@ process-level granularity), or a certificate the browser or OS holds
 no TLS; browser packages carry only the pure TypeScript mirror of the
 contracts. Two TLS hops through an ingress are two hops, not one session.
 
+A process started with `OPENSESAME_GATEWAY_PROFILE=relay` is not this map.
+It draws the health listener and the vault-relay slot routes only
+(`GET /health/live`, `GET /health/relay`, snapshot read and write, `GET` and `POST /v1/org-vaults`).
+It does not open the Host database, and it does not serve Identity, NATS, or
+`/api/v1/sync/*`. The authority it installs when
+`OPENSESAME_SERVICE_BINDINGS_FILE` is unset is an empty `vault_relay` binding
+set. Operator steps are in `docs/operators/local.md`.
+
 - Operator reference: `docs/operators/mtls.md`
 - Trust boundaries and abuse cases: `docs/security/mtls-threat-model.md`
 - Executed evidence: `docs/validation/mtls-implementation.md`

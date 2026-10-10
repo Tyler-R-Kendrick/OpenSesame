@@ -84,6 +84,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "vault.item.create",
       "vault.item.find",
+      "vault.item.accounts",
       "vault.item.favorite",
       "vault.item.edit",
       "vault.item.copy",
@@ -286,11 +287,18 @@ export type LibraryOptions = {
   readonly sectionDrawn?: (feature: string) => boolean;
   /** Whether a state predicate holds now; omitted, every requirement is met. */
   readonly holds?: (predicate: string) => boolean;
+  /**
+   * Whether an optional capability is approved on the effective plan.
+   * Omitted, every capability counts as installed, so a list that does not
+   * know the plan still offers the tours the corpus names.
+   */
+  readonly installed?: (capability: string) => boolean;
 };
 
 /**
  * The one gate every list of walkthroughs shares — the library and the Ask
- * tab: the sections it points at are drawn, and what it requires holds.
+ * tab: the sections it points at are drawn, what it requires holds, and at
+ * least one capability it names is installed.
  */
 export function goalOffered(
   goal: GuideGoalDescriptor,
@@ -298,8 +306,12 @@ export function goalOffered(
 ): boolean {
   const drawn = options.sectionDrawn ?? (() => true);
   const holds = options.holds ?? (() => true);
+  const installed = options.installed ?? (() => true);
+  const capabilities = goal.capabilities ?? [];
   return (
-    goalSections(goal.guide).every(drawn) && (goal.requires ?? []).every(holds)
+    goalSections(goal.guide).every(drawn) &&
+    (goal.requires ?? []).every(holds) &&
+    (capabilities.length === 0 || capabilities.some(installed))
   );
 }
 

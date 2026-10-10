@@ -1,6 +1,7 @@
 /**
- * One edit to the ways in (Settings → Endpoints): the identity API and the
+ * One edit to the ways in: an optional remote identity address and the
  * sign-in methods. Everything a patch does not name is left as it stands.
+ * Host/daemon are not Pages backends (ADR 0090).
  */
 import {
   type OperatorIdp,

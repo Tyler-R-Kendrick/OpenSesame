@@ -159,11 +159,15 @@ describe("sections — one list, one style, a switch only where something is opt
     expect(
       screen.queryByRole("switch", { name: "Household sharing" }),
     ).toBeNull();
-    // Live sessions are not in this fixture's distribution, so Sharing has
-    // nothing a switch can change and draws no capability tiles.
-    expect(
-      screen.queryByRole("list", { name: "Sharing capabilities" }),
-    ).toBeNull();
+    // Live + relay tiles appear (ADR 0181); household stays NO_SURFACE until
+    // a plan names it. This fixture's distribution does not arm a Sharing
+    // section switch until household is approved (see the off-path below).
+    const sharingCaps = screen.getByRole("list", {
+      name: "Sharing capabilities",
+    });
+    expect(sharingCaps.textContent).toContain("sharing.live");
+    expect(sharingCaps.textContent).toContain("sharing.relay");
+    expect(sharingCaps.textContent).not.toContain("sharing.household");
     expect(screen.queryByRole("switch", { name: "Sharing" })).toBeNull();
   });
 

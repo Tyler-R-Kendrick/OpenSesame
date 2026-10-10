@@ -1,36 +1,42 @@
 #!/usr/bin/env node
 /**
- * Write `dist/os-runtime-config.json`, the deployment's endpoints, from the
- * `PAGES_*` environment. The one step every host of the built app runs:
+ * Write `dist/os-runtime-config.json` from optional `PAGES_*` environment.
  * GitHub Pages (`deploy-pages.yml`) and Vercel (`vercel.json`) alike.
  *
- * With none of the variables set the empty file from the build stays, and
- * the app is complete without a backend (ADR 0090). `PAGES_CONNECT_CALLBACK_BASE=/`
- * means the relay is served by this same deployment (`apps/pages/api`).
+ * Host / Identity / daemon are **not** stamped here (Tyler 2026-10-08): the
+ * PWA is static (ADR 0090). Sessions are browser WebRTC; a relay peer is
+ * optional (ADR 0181). With none of the remaining variables set the empty
+ * file from the build stays.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The service endpoints and their variable names are defined once
-// (spec/config/endpoints.json, ADR 0139); the rest are Pages' own.
-const { endpoints } = JSON.parse(
-  readFileSync(
-    new URL("../../../spec/config/endpoints.json", import.meta.url),
-    "utf8",
-  ),
-);
-
+// Only non-backend optional stamps. Host/Identity/daemon `pagesRuntimeKey`
+// rows were removed from spec/config/endpoints.json. Linear's public OAuth
+// client id is a connector stamp, not a plane URL (#934).
 const KEYS = {
-  ...Object.fromEntries(
-    Object.values(endpoints).map((e) => [e.setting, e.pagesRuntimeKey]),
-  ),
   supportAgentUrl: "PAGES_SUPPORT_AGENT_URL",
-  connectCallbackBase: "PAGES_CONNECT_CALLBACK_BASE",
   linearClientId: "PAGES_LINEAR_CLIENT_ID",
 };
 
+/** Refused if someone still exports the old backend stamps in CI. */
+const FORBIDDEN = [
+  "PAGES_IDENTITY_API",
+  "PAGES_HOST_API",
+  "PAGES_DAEMON_API",
+  "PAGES_CONNECT_CALLBACK_BASE",
+];
+
 export function runtimeConfig(environment) {
+  for (const name of FORBIDDEN) {
+    const value = environment[name]?.trim();
+    if (value) {
+      throw new Error(
+        `${name} is set but Pages is a static app with no Identity/Host/daemon backend and no serverless connect relay. Unset it.`,
+      );
+    }
+  }
   return Object.fromEntries(
     Object.entries(KEYS)
       .map(([key, name]) => [key, environment[name]?.trim()])
@@ -42,7 +48,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = runtimeConfig(process.env);
   if (Object.keys(config).length === 0) {
     console.log(
-      "no PAGES_* variables set — keeping the empty os-runtime-config.json",
+      "no optional PAGES_* variables set — keeping the empty os-runtime-config.json",
     );
   } else {
     const dist = resolve(dirname(fileURLToPath(import.meta.url)), "../dist");

@@ -115,7 +115,7 @@ async function unlockFromRecoveryKey(page, h, { key, seed }) {
     /1 · Key/.test(locked) && /2 · Authenticator code/.test(locked),
     "the code is announced as step 2 before any key is taken",
   );
-  const guest = page.getByRole("button", { name: "Continue as guest" });
+  const guest = page.getByRole("button", { name: "Skip to the guest vault" });
   check((await guest.count()) === 1, "guest stays offered beside the new tab");
 
   await page.getByRole("tab", { name: "Recovery key" }).click();

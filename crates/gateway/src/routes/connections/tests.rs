@@ -45,6 +45,7 @@ async fn operator_can_select_org_but_session_cannot_spoof_it() {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -369,6 +370,7 @@ async fn harness() -> (AppState, AuthServer) {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");
@@ -399,7 +401,6 @@ fn operator(state: &AppState) -> (&'static str, String) {
         format!("Bearer operator:{}", state.operator_token),
     )
 }
-
 async fn send(state: &AppState, request: Request<Body>) -> (StatusCode, String) {
     let response = super::super::router(state.clone())
         .oneshot(request)
@@ -411,7 +412,6 @@ async fn send(state: &AppState, request: Request<Body>) -> (StatusCode, String) 
         .expect("body");
     (status, String::from_utf8_lossy(&bytes).to_string())
 }
-
 async fn call(
     state: &AppState,
     method: &str,
@@ -434,7 +434,6 @@ async fn call(
     let parsed = serde_json::from_str(&raw).unwrap_or(Value::String(raw));
     (status, parsed)
 }
-
 /// The denylist in `crates/authz/src/authority_use.rs` in literal form: nothing a
 /// route emits may carry credential material or the values used to obtain it.
 fn assert_no_credential_material(label: &str, body: &str, verifier: &str) {
@@ -1534,6 +1533,7 @@ async fn github_harness(api_base: &str) -> AppState {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");

@@ -80,7 +80,7 @@ describe("the tab that resets", () => {
         <UnlockScreen />
       </ResetGate>,
     );
-    expect(screen.getByRole("button", { name: "Continue as guest" }));
+    expect(screen.getByRole("button", { name: "Skip to the guest vault" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Reset this browser?" }),
     );

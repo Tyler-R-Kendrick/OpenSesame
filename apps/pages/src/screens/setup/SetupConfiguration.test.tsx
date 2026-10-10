@@ -85,6 +85,13 @@ describe("the configuration choice (ADR 0154)", () => {
     });
   });
 
+  it("describes custom as picking capabilities, apart from full", () => {
+    render(<SetupScreen onDone={vi.fn()} />);
+    expect(screen.getByText("pick individual capabilities")).toBeTruthy();
+    expect(screen.getByText("everything enabled")).toBeTruthy();
+    expect(screen.queryByText("the full setup")).toBeNull();
+  });
+
   it("walks the configuration choices with the arrow keys", () => {
     const onDone = vi.fn();
     render(<SetupScreen onDone={onDone} />);

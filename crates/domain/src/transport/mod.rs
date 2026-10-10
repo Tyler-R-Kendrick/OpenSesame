@@ -39,7 +39,8 @@ mod source_contract_tests;
 mod status_tests;
 
 pub use binding::{
-    BindingPurpose, BindingScope, ServiceBinding, ServiceBindingSet, MAX_BINDINGS, MAX_LIST_ENTRIES,
+    validate_relay_profile, BindingPurpose, BindingScope, ServiceBinding, ServiceBindingSet,
+    MAX_BINDINGS, MAX_LIST_ENTRIES,
 };
 pub use capability::{
     browser_vault_key_injection, CapabilityOutcome, TransportCapabilities, MAX_REASON_BYTES,
@@ -63,6 +64,8 @@ pub mod operations {
     pub const PRINCIPALS_MAPPING_RESOLVE: &str = "principals.mapping.resolve";
     pub const INGRESS_FORWARD: &str = "ingress.forward";
     pub const CONNECTOR_INVOKE: &str = "connector.invoke";
+    pub const VAULT_RELAY_SNAPSHOT_READ: &str = "vault.relay.snapshot.read";
+    pub const VAULT_RELAY_SNAPSHOT_WRITE: &str = "vault.relay.snapshot.write";
 
     // There is deliberately no `transport.probe`: see the note beside
     // [`super::BindingPurpose`]. The enforcement probe authorizes nothing,
@@ -79,6 +82,8 @@ pub mod operations {
         PRINCIPALS_MAPPING_RESOLVE,
         INGRESS_FORWARD,
         CONNECTOR_INVOKE,
+        VAULT_RELAY_SNAPSHOT_READ,
+        VAULT_RELAY_SNAPSHOT_WRITE,
     ];
 }
 

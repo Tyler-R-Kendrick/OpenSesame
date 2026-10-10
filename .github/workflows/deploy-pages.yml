@@ -5,13 +5,10 @@
 # Requires the repository's Pages source to be set to "GitHub Actions"
 # (Settings → Pages → Build and deployment → Source).
 #
-# Deployment endpoints ride beside the bundle as os-runtime-config.json,
-# read by the app at boot (packages/app-core/src/lib/runtime-config.ts). Set them
-# as repository Actions *variables* (Settings → Secrets and variables →
-# Actions → Variables): PAGES_IDENTITY_API, PAGES_HOST_API,
-# PAGES_DAEMON_API. All optional — with none set the
-# build still ships `{}` from apps/pages/public/ so the boot fetch is a
-# 200, and the offline app remains complete without an Identity service.
+# Pages is a static export (ADR 0090). Do not stamp Identity/Host/daemon into
+# os-runtime-config.json — those are not Pages backends (Tyler 2026-10-08).
+# The build ships `{}` from apps/pages/public/; write-runtime-config.mjs only
+# accepts optional non-backend stamps (e.g. support agent URL).
 name: Deploy Pages
 
 on:
@@ -58,12 +55,7 @@ jobs:
         # GitHub Pages has no SPA rewrite; serving index.html as 404.html
         # makes deep links load the app instead of a dead page.
         run: cp apps/pages/dist/index.html apps/pages/dist/404.html
-      - name: Write os-runtime-config.json (deployment endpoints)
-        env:
-          PAGES_IDENTITY_API: ${{ vars.PAGES_IDENTITY_API }}
-          PAGES_HOST_API: ${{ vars.PAGES_HOST_API }}
-          PAGES_DAEMON_API: ${{ vars.PAGES_DAEMON_API }}
-          PAGES_LINEAR_CLIENT_ID: ${{ vars.PAGES_LINEAR_CLIENT_ID }}
+      - name: Write os-runtime-config.json (optional non-backend stamps only)
         run: node apps/pages/scripts/write-runtime-config.mjs
       - name: Stamp exact release and served-file digests
         run: node scripts/release/pages-release.mjs stamp apps/pages/dist "$GITHUB_SHA"

@@ -14,6 +14,11 @@ OPENSESAME_SMTP_URL=smtps://user:password@smtp.example.com \
 pnpm --filter @opensesame/control-plane start
 ```
 
+The Pages PWA is static and does **not** take `PAGES_IDENTITY_API` (Tyler
+2026-10-08). Authentication-service admin UI for relying parties is an
+Identity-plane operator concern on the control-plane origin itself, not a
+required stamp on the static vault.
+
 With an Identity session whose principal is verified, create an application for
 each relying party with `POST /v1/authentication/applications`: a display name,
 its exact RP ID, its origins (HTTPS, or loopback HTTP, matching the RP ID) and,
