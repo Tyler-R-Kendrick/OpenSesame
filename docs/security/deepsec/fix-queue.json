@@ -1,0 +1,18 @@
+{
+  "queue": [
+    {
+      "area": "core",
+      "id": "finding_4300c6fb5550b0a2",
+      "severity": "LOW",
+      "filePath": "packages/app-core/src/lib/vault/store.ts",
+      "lines": "788,801,840,854,858,874,714,806",
+      "title": "In-flight second-step confirmation survives challenge cancellation/expiry and activates the session anyway",
+      "slug": "other-race-condition",
+      "verdict": "true-positive",
+      "reasoning": "Verified against packages/app-core/src/lib/vault/store.ts. confirmTotp (L788-804), confirmRemoteCode (L840-855) and rede",
+      "triage": "P2"
+    }
+  ],
+  "falsePositives": [],
+  "total": 1
+}
