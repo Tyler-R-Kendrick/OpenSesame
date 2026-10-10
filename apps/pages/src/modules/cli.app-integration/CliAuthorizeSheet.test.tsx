@@ -28,8 +28,7 @@ vi.mock("./cli-step-up.js", () => ({
 vi.mock("../../lib/vault/hooks.js", () => ({
   useVaultStore: () => ({
     getSnapshot: () => ({ header: {}, status: "unlocked" }),
-    noteFailedUnlock: vi.fn(),
-    assertMatchesOpenVaultKey: vi.fn(async () => {}),
+    stepUpSeam: vi.fn(() => ({ key: null, onMiss: vi.fn() })),
   }),
 }));
 

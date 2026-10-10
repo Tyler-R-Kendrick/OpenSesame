@@ -99,7 +99,7 @@
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 817,
+      "max-lines": 821,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -675,7 +675,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1593
+      "max-lines": 1583
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 575
