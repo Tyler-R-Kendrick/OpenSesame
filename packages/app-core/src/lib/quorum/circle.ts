@@ -189,16 +189,23 @@ function seatShares(draft: CircleDraft, mnemonics: string[][]) {
   return shares;
 }
 
+/** Where a policy sits in a circle's history: epoch 1, or the one it replaces. */
+export type Succession = Readonly<{
+  epoch: number;
+  supersedes?: Readonly<{ epoch: number; digest: string }>;
+}>;
+
 function basePolicy(
   draft: CircleDraft,
   owner: OwnerKeys,
   now: Date,
   shareCommitments: Readonly<Record<string, string>>,
+  succession: Succession,
 ): CirclePolicy {
-  return {
+  const policy: CirclePolicy = {
     v: 1,
     circleId: draft.circleId,
-    epoch: 1,
+    epoch: succession.epoch,
     label: draft.label,
     collection: draft.collection,
     rpId: draft.rpId,
@@ -215,22 +222,37 @@ function basePolicy(
     requireUserVerification: draft.requireUserVerification,
     createdAt: now.toISOString(),
   };
+  if (succession.supersedes) policy.supersedes = { ...succession.supersedes };
+  return policy;
 }
+
+export type CircleInput = Readonly<{
+  draft: CircleDraft;
+  owner: OwnerKeys;
+  payload?: Json;
+  now: Date;
+}>;
 
 /**
  * A circle with shares (it governs `recover-collection`) or without (it only
  * approves actions). The first needs a payload to protect; the second has none.
  */
-export async function createCircle(input: {
-  draft: CircleDraft;
-  owner: OwnerKeys;
-  payload?: Json;
-  now: Date;
-}): Promise<CreatedCircle> {
-  const { draft, owner } = input;
+export function createCircle(input: CircleInput): Promise<CreatedCircle> {
+  return assembleCircle({ ...input, succession: { epoch: 1 } });
+}
+
+/**
+ * The one assembly of a policy, its bundle and its deliveries, for a first
+ * epoch and for each one after (`epoch.ts`). Every call draws a fresh
+ * recovery secret, so a later epoch's shares open nothing of an earlier one.
+ */
+export async function assembleCircle(
+  input: CircleInput & Readonly<{ succession: Succession }>,
+): Promise<CreatedCircle> {
+  const { draft, owner, succession } = input;
   if (!draft.operations.includes("recover-collection")) {
     const signedPolicy = signPolicy(
-      basePolicy(draft, owner, input.now, {}),
+      basePolicy(draft, owner, input.now, {}, succession),
       owner.secretKey,
     );
     return { signedPolicy, bundle: null, deliveries: [] };
@@ -260,6 +282,7 @@ export async function createCircle(input: {
           shareCommitment(draft.circleId, id, m),
         ]),
       ),
+      succession,
     );
     const signedPolicy = signPolicy(policy, owner.secretKey);
     const deliveries = draft.guardians.map((guardian) => {

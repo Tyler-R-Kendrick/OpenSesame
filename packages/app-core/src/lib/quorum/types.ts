@@ -108,6 +108,15 @@ export const CirclePolicySchema = z
       .max(120 * 86400),
     requireUserVerification: z.boolean(),
     createdAt: ISO,
+    /**
+     * The policy this one replaces: from epoch 2, the digest of epoch - 1. A
+     * guardian holding an older epoch checks the link before taking a new
+     * share, and never goes back.
+     */
+    supersedes: z
+      .object({ epoch: z.number().int().min(1), digest: DIGEST })
+      .strict()
+      .optional(),
   })
   .strict();
 export type CirclePolicy = z.infer<typeof CirclePolicySchema>;

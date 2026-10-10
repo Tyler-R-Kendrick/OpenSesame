@@ -162,6 +162,41 @@ Settings draws no switch (ADR 0158) until the ceremony screens exist. An
 operator can still name it in a policy, prohibit it, or leave it out of a
 distribution.
 
+### 9. Changing a circle is a new epoch
+
+Refreshing the shares, replacing a guardian, adding one and changing the rule
+are one operation, `reissueCircle` (`epoch.ts`): the owner signs a **new
+policy** one epoch later that names the digest of the one it replaces
+(`supersedes`, checked by `assertPolicySound`: epoch 1 replaces nothing, every
+later epoch names the one before), draws a **fresh recovery secret**, seals the
+payload again under it, and deals every guardian in the new roster a new share.
+Nothing is edited in place.
+
+- *Shares of different epochs never combine.* The secret is new, so a guardian
+  who was removed, or a share that leaked, opens nothing of the new bundle; a
+  share of each epoch does not even recombine (the SLIP-0039 digest fails).
+- *It does not take back what the old quorum could already read.* The old
+  bundle is a file: whoever kept it and enough old shares can still open it
+  (pinned by a test, so the limit stays stated). Replacing a guardian protects
+  the future; a secret that was exposed still needs rotating at its provider.
+- *A guardian never goes back* (`succession.ts`). Before a new policy replaces
+  the one a device holds it must verify under the key pinned at the invitation,
+  belong to the same circle and RP ID, and be **later**; the very next epoch
+  must name the digest held. A device that was away for several epochs can check
+  only the owner's signature on the one it is shown. An older or repeated policy
+  is `rollback`; a delivery is checked this way before any key is touched
+  (`acceptDelivery({ replaces })`), and a request for an old epoch is not one a
+  device holding the new policy will sign (`checkRequest`).
+- *Who stays and who goes.* `applyEpoch` answers a guardian: `retired` (not in
+  the new roster: drop the share, they get no delivery), `awaiting_share`
+  (take the new share, then delete the old one) or `adopted` (an action-only
+  circle has no share, so the new policy is simply held).
+- *What stays fixed*, because guardians' keys are registered against it: the
+  circle id, the RP ID, and the receiving key of anyone who stays. A person who
+  lost their device enrolls again as a new guardian and the old entry is retired.
+- A request in flight at the old epoch is abandoned: the new policy's digest is
+  in every request, so approvals do not carry across.
+
 ## What this does not do
 
 State these to the people who rely on it.
@@ -176,10 +211,10 @@ State these to the people who rely on it.
   recovery page cannot enforce a delay against a quorum that already holds
   shares; the static shares carry no timing. A cancellation reaches only ledgers
   and guardians that hear of it.
-- **Changing guardians does not erase old shares.** A new guardian set is a new
-  circle (new shares, new epoch). Old shares still open the old bundle. Rotating
-  a wrapping key does not rotate the secret; a secret already revealed needs
-  rotating at its provider.
+- **Changing guardians does not erase old shares.** A new epoch (§9) deals new
+  shares and the old ones open nothing of the new bundle, but they still open
+  the old bundle if someone kept it. Rotating a wrapping key does not rotate
+  the secret; a secret already revealed needs rotating at its provider.
 - **A quorum approval is not a downstream session.** A service that issues its
   own bearer session outlives it.
 - **No consensus.** Mutable policy (revocation, owner replacement) needs a
@@ -248,6 +283,5 @@ State these to the people who rely on it.
 2. A hardware pass (YubiKey, platform passkeys) across browsers.
 3. A Rust consumer of `spec/conformance/slip39` and
    `hpke-rfc9180-vectors.json`, for `opensesame pass` recovery export.
-4. Share refresh and guardian replacement as an epoch change.
 5. Optionally carry a request as an Interaction when an Identity API is
    configured; the digest framing is the same family.

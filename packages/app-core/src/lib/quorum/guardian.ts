@@ -24,6 +24,7 @@ import {
 } from "./circle.js";
 import { openBase } from "./hpke.js";
 import { credentialOf, guardianById, verifySignedPolicy } from "./policy.js";
+import { checkSuccession } from "./succession.js";
 import {
   AssertionProofSchema,
   type SignedPolicy,
@@ -173,8 +174,16 @@ export async function acceptDelivery(input: {
   ceremony: Ceremony;
   /** Wrap for these credentials. Defaults to every PRF-capable one. */
   credentialIds?: readonly string[];
+  /**
+   * The policy this guardian already holds for the circle. Given, the new one
+   * must be a later epoch of it (`checkSuccession`): a share of an older or
+   * unrelated policy is refused before any key is touched.
+   */
+  replaces?: SignedPolicy;
 }): Promise<AcceptedDelivery> {
-  const signed = verifySignedPolicy(input.signedPolicy, input.pinnedOwnerKey);
+  const signed = input.replaces
+    ? checkSuccession(input.replaces, input.signedPolicy, input.pinnedOwnerKey)
+    : verifySignedPolicy(input.signedPolicy, input.pinnedOwnerKey);
   const { policy } = signed;
   const guardian = guardianIn(signed, input.guardianId);
   const delivery = ShareDeliverySchema.parse(input.delivery);

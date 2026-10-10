@@ -232,8 +232,22 @@ function checkOriginsAndTime(policy: CirclePolicy): void {
   }
 }
 
+function checkChain(policy: CirclePolicy): void {
+  const { epoch, supersedes } = policy;
+  if (epoch === 1 && supersedes) {
+    throw new PolicyError("chain", "the first epoch replaces nothing");
+  }
+  if (epoch > 1 && supersedes?.epoch !== epoch - 1) {
+    throw new PolicyError(
+      "chain",
+      "a later epoch must name the epoch before it",
+    );
+  }
+}
+
 /** Structural soundness: a failure here means the policy cannot be used. */
 export function assertPolicySound(policy: CirclePolicy): void {
+  checkChain(policy);
   checkGraph(policy);
   checkCredentials(policy);
   checkOriginsAndTime(policy);
