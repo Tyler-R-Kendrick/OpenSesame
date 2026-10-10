@@ -62,7 +62,6 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         "vault.interop-formats",
         // Browser-local, always on (ADR 0142). Identity is optional (ADR 0153).
         "backup.git-remote",
-        "cli.app-integration",
         "identity.site-broker",
         "sharing.drops",
       ].sort(),

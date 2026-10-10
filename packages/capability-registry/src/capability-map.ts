@@ -50,8 +50,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vaults.travel": "vault.local-unlock",
     "vaults.travel_items": "vault.local-unlock",
     "vaults.duress_code": "vault.local-unlock",
-    "cli.app_integration.list": "cli.app-integration",
-    "cli.app_integration.respond": "cli.app-integration",
     "vault.second_step.code": "vault.local-unlock",
     "vault.recovery_codes": "vault.local-unlock",
     "vault.protectors.manage": "vault.local-unlock",

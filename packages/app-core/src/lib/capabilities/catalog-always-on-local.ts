@@ -13,6 +13,9 @@
 
 import { type AuthoredDescriptor, alwaysOn, optional } from "./descriptor.js";
 
+export const CLI_APP_INTEGRATION_PURPOSE =
+  "the local daemon's CLI app-integration routes while OpenSesame is unlocked";
+
 export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "identity.local-iam",
@@ -91,7 +94,7 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "Snapshots queue locally and push when the remote is reachable.",
     },
   ),
-  alwaysOn(
+  optional(
     "cli.app-integration",
     "CLI integration",
     "Approve OpenSesame CLI requests from this browser while the vault is unlocked (1Password-style terminal sessions).",
