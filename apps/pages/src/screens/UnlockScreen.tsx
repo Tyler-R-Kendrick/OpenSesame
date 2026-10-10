@@ -32,10 +32,8 @@ import {
   IconArrowRight,
   IconEye,
   IconEyeOff,
-  IconLock,
   IconPasskey,
   IconSettings,
-  IconShield,
 } from "../components/Icons.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
@@ -48,8 +46,9 @@ import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { LockFoot } from "./unlock/LockFoot.js";
+import { MethodIcon } from "./unlock/MethodIcon.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
-import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
+import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
@@ -273,10 +272,8 @@ function UnlockForm({
   const acceptRef = useRef<HTMLInputElement>(null);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const { passkeyAbort, cancelPasskeyCeremony } = usePasskeyCeremony(
-    setAwaitingPasskeyDuressCode,
-    setBusy,
-  );
+  const { passkeyAbort, cancelPasskeyCeremony, attachment, pickAttachment } =
+    usePasskeyCeremony(setAwaitingPasskeyDuressCode, setBusy, setError);
 
   const formGated = lockedFor > 0;
   const pendingFocus = useUnlockFormFocus({
@@ -353,6 +350,7 @@ function UnlockForm({
       activeSecondStep,
       store,
       passkeyAbort,
+      attachment,
       pin,
       confirm,
       password,
@@ -565,13 +563,7 @@ function UnlockForm({
                       setReveal(false); // one toggle serves every field
                     }}
                   >
-                    {isCeremonyMethod(id) ? (
-                      <IconPasskey size={16} />
-                    ) : id === "pin" ? (
-                      <IconLock size={16} />
-                    ) : (
-                      <IconShield size={16} />
-                    )}
+                    <MethodIcon id={id} />
                     {METHOD_LABEL[id]}
                   </button>
                 ))}
@@ -626,9 +618,13 @@ function UnlockForm({
             ) : null}
 
             {(firstRun || !awaitingSecondStep) &&
-            isCeremonyMethod(activeMethod) &&
-            !passkeyHost.ok ? (
-              <PasskeyHostNote host={passkeyHost} />
+            isCeremonyMethod(activeMethod) ? (
+              <PasskeyChoice
+                host={passkeyHost}
+                seals={firstRun && activeMethod === "passkey"}
+                value={attachment}
+                onPick={pickAttachment}
+              />
             ) : null}
 
             {showsPinField ? (

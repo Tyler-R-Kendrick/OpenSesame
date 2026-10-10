@@ -3,6 +3,7 @@ import type {
   PasskeyProbe,
   PasskeyProbeOptions,
 } from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
+import type { PasskeyCreateOptions } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
 import {
   type UnlockTabId,
   isProtectorUnlockMethod,
@@ -20,7 +21,10 @@ import { unlockSecondStepAfterDuressGate } from "@opensesame/app-core/screens/un
 import type { MutableRefObject } from "react";
 
 type UnlockStore = Readonly<{
-  createWithPasskey: (signal?: AbortSignal) => Promise<void>;
+  createWithPasskey: (
+    signal?: AbortSignal,
+    options?: PasskeyCreateOptions,
+  ) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
   createGuest: (options?: { resume?: boolean }) => Promise<void>;
   cancelTotpChallenge: () => void;
@@ -46,6 +50,7 @@ export async function submitFirstRunUnlock(input: {
   activeMethod: UnlockTabId;
   store: UnlockStore;
   passkeyAbort: MutableRefObject<AbortController | null>;
+  attachment?: PasskeyCreateOptions["attachment"];
   pin: string;
   confirm: string;
   setPin: (value: string) => void;
@@ -54,7 +59,9 @@ export async function submitFirstRunUnlock(input: {
     const controller = new AbortController();
     input.passkeyAbort.current = controller;
     try {
-      await input.store.createWithPasskey(controller.signal);
+      await input.store.createWithPasskey(controller.signal, {
+        attachment: input.attachment,
+      });
     } finally {
       if (input.passkeyAbort.current === controller)
         input.passkeyAbort.current = null;

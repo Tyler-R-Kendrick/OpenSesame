@@ -48,6 +48,18 @@ export function readPrfFirst(
   return prf?.results?.first ?? null;
 }
 
+/**
+ * The authenticator took the PRF extension at creation but computed nothing
+ * (`enabled: true`, no `results`). It can still answer an assertion; it is not
+ * a key until it does.
+ */
+export function prfExtensionEnabled(
+  results: AuthenticationExtensionsClientOutputs | undefined,
+): boolean {
+  const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
+  return prf?.enabled === true && !prf.results?.first;
+}
+
 /** True only when `results.first` has a usable PRF byte length. `enabled` alone is false. */
 export function hasUsablePrfOutput(
   results: AuthenticationExtensionsClientOutputs | undefined,

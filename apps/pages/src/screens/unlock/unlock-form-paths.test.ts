@@ -1,3 +1,4 @@
+import type { PasskeyCreateOptions } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
 import { overlapCast } from "@opensesame/os-domain";
 import type { MutableRefObject } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +7,9 @@ import { submitFirstRunUnlock } from "./unlock-form-paths.js";
 /** The two ways a new vault is sealed, and nothing else (ADR 0180). */
 function setup() {
   const store = {
-    createWithPasskey: vi.fn(async (_signal?: AbortSignal) => {}),
+    createWithPasskey: vi.fn(
+      async (_signal?: AbortSignal, _options?: PasskeyCreateOptions) => {},
+    ),
     createWithPin: vi.fn(async (_pin: string) => {}),
   };
   const passkeyAbort: MutableRefObject<AbortController | null> = {
@@ -35,6 +38,23 @@ describe("sealing a new vault from the first-run form", () => {
     expect(during).toBeInstanceOf(AbortController);
     expect(passkeyAbort.current).toBeNull();
     expect(store.createWithPin).not.toHaveBeenCalled();
+  });
+
+  it("names the kind of authenticator the person chose", async () => {
+    const { store, passkeyAbort, setPin } = setup();
+    await submitFirstRunUnlock({
+      activeMethod: "passkey",
+      store: overlap(store),
+      passkeyAbort,
+      attachment: "cross-platform",
+      pin: "",
+      confirm: "",
+      setPin,
+    });
+    expect(store.createWithPasskey).toHaveBeenCalledWith(
+      expect.any(AbortSignal),
+      { attachment: "cross-platform" },
+    );
   });
 
   it("seals with a PIN once both entries match, and forgets the PIN", async () => {

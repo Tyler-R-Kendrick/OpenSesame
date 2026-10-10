@@ -1,5 +1,6 @@
+import type { PasskeyAttachment } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
 import { cancelPasskeyDuressCode } from "@opensesame/app-core/screens/unlock/unlock-passkey-duress.js";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * The pending platform prompt and what a ceremony held for its complete code —
@@ -15,8 +16,12 @@ import { useCallback, useEffect, useRef } from "react";
 export function usePasskeyCeremony(
   setAwaitingCode: (value: boolean) => void,
   setBusy: (value: boolean) => void,
+  setError: (message: string | null) => void,
 ) {
   const passkeyAbort = useRef<AbortController | null>(null);
+  // Where a first-run passkey is made. Choosing the other kind is how a person
+  // leaves a prompt that will never answer, so it cancels the pending one.
+  const [attachment, setAttachment] = useState<PasskeyAttachment>("platform");
   const cancelPasskeyCeremony = useCallback(() => {
     if (passkeyAbort.current) {
       passkeyAbort.current.abort();
@@ -34,5 +39,13 @@ export function usePasskeyCeremony(
     },
     [],
   );
-  return { passkeyAbort, cancelPasskeyCeremony };
+  const pickAttachment = useCallback(
+    (kind: PasskeyAttachment) => {
+      cancelPasskeyCeremony();
+      setAttachment(kind);
+      setError(null);
+    },
+    [cancelPasskeyCeremony, setError],
+  );
+  return { passkeyAbort, cancelPasskeyCeremony, attachment, pickAttachment };
 }
