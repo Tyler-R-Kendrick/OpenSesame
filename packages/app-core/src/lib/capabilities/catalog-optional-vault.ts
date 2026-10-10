@@ -127,6 +127,24 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Trusted contacts",
     TRUSTED_CONTACTS_SUMMARY,
     {
+      operationIds: [
+        "quorum.circle.manage",
+        "quorum.share.ask",
+        "quorum.guardian.hold",
+        "quorum.request.approve",
+        "quorum.recover",
+      ],
+      // Security keys do the approving; a packet is copied by hand. No request
+      // is made by this capability: people carry the packets themselves.
+      browserPermissions: ["webauthn", "clipboard-write"],
+      egress: [
+        {
+          class: "user-mediated-navigation",
+          purpose:
+            "the invitations, requests and approvals a person copies and hands to another person over a road they already trust",
+          automatic: false,
+        },
+      ],
       keyAccess: ["item-plaintext", "protector-wrap"],
       offlineLimits:
         "Works offline. A request waits for enough of the contacts' own security keys, and for the delay the owner set.",

@@ -304,6 +304,46 @@
     }
   },
   {
+    "id": "quorum.circle.manage",
+    "title": "Start, change, cancel a request for and retire a circle of trusted contacts",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/quorum/desk/owner.ts:createFromDraft"
+    }
+  },
+  {
+    "id": "quorum.share.ask",
+    "title": "Ask a circle to approve sharing something with a person",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/quorum/desk/owner-act.ts:askToShare"
+    }
+  },
+  {
+    "id": "quorum.guardian.hold",
+    "title": "Accept an invitation and hold a share for someone else",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/quorum/desk/guardian.ts:takeWelcome"
+    }
+  },
+  {
+    "id": "quorum.request.approve",
+    "title": "Approve a request, or release a share to it, with a security key",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/quorum/desk/guardian-act.ts:approveRequest"
+    }
+  },
+  {
+    "id": "quorum.recover",
+    "title": "Gather approvals and releases and open what a circle protects",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/quorum/desk/recipient.ts:openRecovery"
+    }
+  },
+  {
     "id": "identity.interaction.approve",
     "title": "Approve a cross-device interaction",
     "plane": "identity",

@@ -58,6 +58,11 @@ import {
   TAILNET_DEVICES_TARGETS,
 } from "./tailnet-devices-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
+import {
+  TRUSTED_CONTACTS_GOALS,
+  TRUSTED_CONTACTS_ROUTES,
+  TRUSTED_CONTACTS_TARGETS,
+} from "./trusted-contacts-catalog.js";
 import { WALLET_ROUTES, WALLET_TARGETS } from "./wallet-catalog.js";
 
 /** One capability's partition, as its module contributes it. */
@@ -178,6 +183,17 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     goals: TAILNET_DEVICES_GOALS,
     help: TAILNET_DEVICES_HELP,
     routes: [],
+  },
+  {
+    capability: "sharing.trusted-contacts",
+    files: {
+      targets: "trusted-contacts-catalog.ts",
+      goals: "trusted-contacts-catalog.ts",
+    },
+    targets: TRUSTED_CONTACTS_TARGETS,
+    goals: TRUSTED_CONTACTS_GOALS,
+    help: [],
+    routes: TRUSTED_CONTACTS_ROUTES,
   },
 ];
 

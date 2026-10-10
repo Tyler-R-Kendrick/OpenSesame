@@ -14,16 +14,15 @@ import type { Feature } from "./features.js";
  * operator can name it in a policy — prohibit it, or leave it out of a
  * distribution — and its module registers nothing: External telemetry has no
  * collector, Certificate authority no Host issuance surface, and Household
- * sharing no members or share action, and Trusted contacts no ceremony screens
- * yet (`modules/<id>/runtime.ts` say so). A
+ * sharing no members or share action (`modules/<id>/runtime.ts` say so). A
  * switch for one changes nothing a person can see, so Settings draws none
- * (ADR 0158).
+ * (ADR 0158). Trusted contacts left this set when its module registered the
+ * Settings › Trusted contacts tab.
  */
 export const NO_SURFACE: ReadonlySet<CapabilityId> = new Set([
   "telemetry.external",
   "enterprise.ca-administration",
   "sharing.household",
-  "sharing.trusted-contacts",
 ]);
 
 /**

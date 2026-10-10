@@ -258,11 +258,12 @@
         "2026-10-09: javascript 6231->6233 and javascriptGzip stays 1905 for persona P2 local identity requests in Access (pending approval rows, revoke confirm on shares, requests tab tree) on top of sent-drop receipts. CI on the pre-merge branch measured 6229/1905; the merged tree is expected at 6233/1905 KiB; raise only to these measured minimums after CI confirms.",
         "2026-10-09: javascript 6233->6234 because CI on f63424c5 measured 6234/1905 KiB after merging main at f48efc4e; raise only to the measured minimum.",
         "2026-10-09: javascript ->6250 gzip ->1915 for verification-audit rematch (ECR postgres + greyscale/drops).",
-        "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main."
+        "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main.",
+        "2026-10-10: javascript 6250->6292 for Settings > Trusted contacts (ADR 0186). The module stopped being empty, so the quorum engine (SLIP-0039, HPKE, the ledger and the desk) is now reachable from its two lazy chunks: cap-sharing.trusted-contacts (11.1 KiB) and its shared chunk (34.8 KiB), plus a 0.6 KiB stylesheet. A fresh /OpenSesame/ build measures 6292 KiB JavaScript, 1915 gzip (unchanged), 171 CSS (unchanged); raise only to the measured minimum. The hardened profile ceilings are unchanged: the module is excluded there."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6250,
+        "javascript": 6292,
         "javascriptGzip": 1915,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",

@@ -76,6 +76,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.danger.review",
       "vault.recovery.view",
       "settings.live.host",
+      "settings.trusted-contacts.circle",
     ],
   },
   {
