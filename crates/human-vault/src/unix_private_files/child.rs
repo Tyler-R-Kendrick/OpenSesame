@@ -37,6 +37,36 @@ impl PrivateDirectory {
     pub fn create_child(&self, leaf: &Path) -> io::Result<Self> {
         self.child(leaf, true)
     }
+    /// Create only a new private child relative to this exact retained original parent.
+    /// # Errors
+    /// Refuses existing children, invalid names/depth, changed roots and sync failures.
+    /// A newly created private directory may remain after a later IO failure.
+    pub fn create_new_child(&self, leaf: &Path) -> io::Result<Self> {
+        self.private_root()?;
+        let component = child_name(leaf)?;
+        if self.files.len() >= 128
+            || self
+                .names
+                .iter()
+                .map(|n| n.to_bytes().len() + 1)
+                .sum::<usize>()
+                + component.to_bytes().len()
+                > 4096
+        {
+            return Err(refused());
+        }
+        // SAFETY: actual retained parent FD and checked one-component name remain owned.
+        if unsafe { libc::mkdirat(self.root().as_raw_fd(), component.as_ptr(), 0o700) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        self.private_root()?;
+        let child = self.child(leaf, false)?;
+        child.root().sync_all()?;
+        self.root().sync_all()?;
+        self.private_root()?;
+        child.private_root()?;
+        Ok(child)
+    }
     /// Validate actual original private ancestry. Physical DATA only, not credential proof.
     /// # Errors
     /// Refuses substituted ancestry, changed owner/mode and IO failures.

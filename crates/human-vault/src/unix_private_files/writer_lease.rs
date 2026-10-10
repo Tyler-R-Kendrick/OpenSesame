@@ -99,6 +99,20 @@ impl HeldPrivateWriterLease {
         held.validate()?;
         Ok(Some(held))
     }
+    pub(crate) fn validate_read_for(
+        &self,
+        original: &Arc<PrivateDirectory>,
+        logical: &str,
+    ) -> io::Result<()> {
+        self.validate()?;
+        if !matches!(self.mode, libc::LOCK_SH | libc::LOCK_EX)
+            || !Arc::ptr_eq(&self.directory, original)
+            || self.component.to_bytes() != physical_writer_lease_name(logical)?.as_bytes()
+        {
+            return Err(refused());
+        }
+        Ok(())
+    }
     pub(crate) fn validate_exclusive_for(
         &self,
         original: &Arc<PrivateDirectory>,

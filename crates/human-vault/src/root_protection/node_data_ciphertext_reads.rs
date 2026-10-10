@@ -1,8 +1,6 @@
 //! Fixed physical Node encrypted DATA lanes. No key/plaintext egress or owner grant.
-#[cfg(test)]
-use super::NativeNodeDataScope;
 use super::{
-    file_name, gate, refused, tomb_name, HeldPrivateRead, NativeNodeDataState,
+    file_name, gate, refused, tomb_name, HeldPrivateRead, NativeNodeDataScope, NativeNodeDataState,
     NativeNodeDataWriter, NativeNodeDeviceInventory, PrivateDirectory,
 };
 use crate::root_protection::node_at_rest_ciphertext::{
@@ -11,12 +9,12 @@ use crate::root_protection::node_at_rest_ciphertext::{
 use sha2::{Digest, Sha256};
 use std::{io, path::Path, sync::Arc};
 const LIMIT: usize = 16 * 1024 * 1024;
-const GLOBAL_KEY: &str = "duress.enrollment-state.v1";
-const GENERATION: &str = "opensesame-generation.v1.json";
+pub(super) const GLOBAL_KEY: &str = "duress.enrollment-state.v1";
+pub(super) const GENERATION: &str = "opensesame-generation.v1.json";
 fn digest(text: &str) -> String {
     format!("{:x}", Sha256::digest(text.as_bytes()))
 }
-fn modern_name(logical: &str) -> io::Result<String> {
+pub(super) fn modern_name(logical: &str) -> io::Result<String> {
     if logical.is_empty()
         || logical.len() > 512
         || !logical.as_bytes()[0].is_ascii_alphanumeric()
@@ -48,10 +46,10 @@ fn modern_name(logical: &str) -> io::Result<String> {
         digest(logical)
     ))
 }
-fn binding(left: &str, right: &str) -> io::Result<String> {
+pub(super) fn binding(left: &str, right: &str) -> io::Result<String> {
     serde_json::to_string(&[left, right]).map_err(|_| refused())
 }
-fn validate(
+pub(super) fn validate(
     state: &NativeNodeDataState,
     domain: NodeAtRestDomain,
     name: &str,
@@ -67,7 +65,7 @@ fn validate(
     // Release the original key mutex before check re-borrows it; never deadlock or retarget.
     state.check()
 }
-fn read_optional(
+pub(super) fn read_optional(
     directory: &Arc<PrivateDirectory>,
     leaf: &str,
 ) -> io::Result<Option<HeldPrivateRead>> {
@@ -101,7 +99,7 @@ fn missing() -> io::Error {
         "exact original Node ciphertext leaf is absent",
     )
 }
-fn identity(directory: &PrivateDirectory) -> io::Result<String> {
+pub(super) fn identity(directory: &PrivateDirectory) -> io::Result<String> {
     #[cfg(unix)]
     return directory.original_resource_identity();
     #[cfg(windows)]
