@@ -297,7 +297,7 @@ try {
   }
 } catch (error) {
   failures.push(
-    `[${log.at(-1)?.step ?? "?"}] ${error instanceof Error ? error.message : error}`,
+    `[${harness.step()}] ${error instanceof Error ? error.message : error}`,
   );
   for (const browser of browsers.values())
     await wreckage(browser, `main-${engineOf(browser)}`);
@@ -312,7 +312,7 @@ try {
     }
 } catch (error) {
   failures.push(
-    `[${log.at(-1)?.step ?? "?"}] ${error instanceof Error ? error.message : error}`,
+    `[${harness.step()}] ${error instanceof Error ? error.message : error}`,
   );
 }
 pair = "";

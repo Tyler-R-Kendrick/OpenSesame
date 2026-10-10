@@ -29,12 +29,17 @@ type Control = {
   failing: Set<number>;
   locked: boolean;
   calls: number;
+  /** How long each read takes, by its call number (ms). */
+  readDelays: number[];
+  reads: number;
 };
 const control: Control = {
   delays: [],
   failing: new Set(),
   locked: false,
   calls: 0,
+  readDelays: [],
+  reads: 0,
 };
 
 /** The vfs under the real store: a memory whose writes take as long as told. */
@@ -42,7 +47,11 @@ const memory = {
   refresh: async () => undefined,
   read: async (tomb: string) => {
     if (control.locked) throw new VfsError("locked", "locked");
+    // A sealed read opens what it found when it began, however long it takes.
     const bytes = files.get(`${tomb}/${TRANSPORT_PATH}`);
+    await new Promise((resolve) =>
+      setTimeout(resolve, control.readDelays[control.reads++] ?? 0),
+    );
     if (!bytes) throw new VfsError("not-found", "none");
     return bytes;
   },
@@ -74,6 +83,8 @@ beforeEach(() => {
     failing: new Set<number>(),
     locked: false,
     calls: 0,
+    readDelays: [],
+    reads: 0,
   });
   Object.assign(transportSeams, { tomb: () => "personal" });
   Object.assign(storeSeams, memory);
@@ -226,6 +237,28 @@ describe("a saved profile that cannot be used", () => {
 });
 
 describe("a write from elsewhere", () => {
+  it("is never put back by an edit that read the profile before it landed", async () => {
+    const { result } = await ready();
+    // The edit's read (the second) is slow; the file viewer saves meanwhile.
+    control.readDelays = [0, 80];
+    let edited: Promise<string | null> = Promise.resolve(null);
+    act(() => {
+      edited = result.current.change((now) => withAddress(now, "100.64.0.9"));
+    });
+    await sleep(20);
+    const saved = writeLiveTransport("personal", {
+      ...DIRECT_TRANSPORT,
+      carriers: [NOSTR],
+    });
+    await act(async () => {
+      await Promise.all([edited, saved]);
+    });
+    expect(sealed().carriers).toEqual([NOSTR]);
+    await waitFor(() =>
+      expect(result.current.transport.carriers).toEqual([NOSTR]),
+    );
+  });
+
   it("the file viewer's write reaches the screen", async () => {
     const { result } = await ready();
     await act(async () => {
