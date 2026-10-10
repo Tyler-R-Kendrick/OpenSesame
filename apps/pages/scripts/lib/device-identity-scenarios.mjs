@@ -314,6 +314,7 @@ export async function lateActivation(browser) {
   await chooseCapability(page, "Access authority");
   await clearCapability(page, "Browser-local IAM");
   await page.reload({ waitUntil: "networkidle" });
+  await doorGuest(page).click();
   await waitOpen(page);
   await page.setViewportSize(WIDTHS[0].narrow);
   await connect(page, label);
