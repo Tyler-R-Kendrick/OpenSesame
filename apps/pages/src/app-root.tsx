@@ -8,6 +8,7 @@ import {
   lazy,
   useContext,
   useEffect,
+  useSyncExternalStore,
 } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
@@ -26,6 +27,7 @@ import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { NoticeCorner } from "./components/NoticeCorner.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
+import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -251,6 +253,10 @@ function Fallback() {
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
   const { status, tomb, guest } = slots.useVault();
+  const ceremonyActive = useSyncExternalStore(
+    unlockCeremonyStore.subscribe,
+    unlockCeremonyStore.getSnapshot,
+  );
   const location = useLocation();
   const routes = slots.useRouteContributions();
   const wrappers = slots.useShellWrappers();
@@ -266,7 +272,7 @@ function VaultApp() {
     slots.recoverPendingFederatedLink,
   );
 
-  if (status !== "unlocked") {
+  if (status !== "unlocked" || ceremonyActive) {
     return (
       <GateHost wrappers={wrappers}>
         <slots.UnlockScreen />

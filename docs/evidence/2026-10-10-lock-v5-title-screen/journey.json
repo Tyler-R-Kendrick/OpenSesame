@@ -1,0 +1,73 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        { "measure": ".unlock__hero canvas, .unlock__card, .unlock__notes" },
+        { "shot": "390-unlock-seal" },
+        { "sealPin": null },
+        { "coldLoad": null },
+        { "measure": ".unlock__hero canvas, .unlock__card, .unlock__notes" },
+        { "metrics": ".unlock__hero, .cipher-dial canvas" },
+        { "shot": "390-unlock" }
+      ]
+    },
+    {
+      "width": 1024,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "measure": ".unlock__hero canvas, .unlock__card, .unlock__notes" },
+        { "shot": "1024-unlock-seal" },
+        { "sealPin": null },
+        { "coldLoad": null },
+        { "measure": ".unlock__hero canvas, .unlock__card, .unlock__notes" },
+        { "metrics": ".unlock__hero, .cipher-dial canvas" },
+        { "shot": "1024-unlock" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "measure": ".unlock__hero canvas, .unlock__card, .unlock__notes" },
+        { "shot": "1280-unlock-seal" },
+        { "sealPin": null },
+        { "coldLoad": null },
+        { "measure": ".unlock__hero canvas, .unlock__card, .unlock__notes" },
+        { "metrics": ".unlock__hero, .cipher-dial canvas" },
+        { "shot": "1280-unlock" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-unlock",
+      "width": 390,
+      "title": "Unlock title — 390",
+      "caption": "Hero CipherWordmark above the card; corner CipherDial; release notes collapsed on narrow.",
+      "before": "Small in-card wordmark; no dial; column title Release notes",
+      "after": "Hero plates + mark; dial in empty band; Release notes · version row"
+    },
+    {
+      "shot": "1024-unlock",
+      "width": 1024,
+      "title": "Unlock title — 1024",
+      "caption": "Tyler's reported live width: hero scales to the left column; notes beside the card.",
+      "before": "Small wordmark in card; release notes half width with h2 title",
+      "after": "Hero wordmark over card column; dial on divider; accordion without separate h2"
+    },
+    {
+      "shot": "1280-unlock",
+      "width": 1280,
+      "title": "Unlock title — 1280",
+      "caption": "Wide lock-v5 layout: hero right-aligned to card, rings on the column seam.",
+      "before": "In-card wordmark at 28px em",
+      "after": "Hero up to 90em fit; CipherDial + VaultDoors ceremony on unlock"
+    }
+  ]
+}
