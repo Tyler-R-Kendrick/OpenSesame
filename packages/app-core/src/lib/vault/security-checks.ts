@@ -61,7 +61,21 @@ export type SecurityReport = {
   /** Logins with a password, each checked. */
   checked: number;
   findings: SecurityFinding[];
+  /** Id-only digest so Password health can tell a vault edit staleates a report. */
+  fingerprint: string;
 };
+
+/** Stable, value-blind digest of a finished report's rows. */
+export function securityReportFingerprint(
+  report: Pick<SecurityReport, "checked" | "findings">,
+): string {
+  const rows = report.findings.map(
+    (finding) =>
+      `${finding.item.id}\t${finding.breaches}\t${finding.twoFactorAvailable}`,
+  );
+  rows.sort();
+  return `${report.checked}\t${rows.join("\n")}`;
+}
 
 /** Shown in Settings and on Password health while the capability is on and no check has finished. */
 export const SECURITY_CHECKS_IDLE =
@@ -131,6 +145,7 @@ function checkedWatch(report: SecurityReport): BreachWatch {
     checked: report.checked,
     breached,
     twoStep,
+    fingerprint: report.fingerprint,
     lines: report.findings.map(watchLine),
   };
 }
@@ -331,5 +346,10 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
-  return { checkedAt: now().toISOString(), checked: checked.length, findings };
+  const report = {
+    checkedAt: now().toISOString(),
+    checked: checked.length,
+    findings,
+  };
+  return { ...report, fingerprint: securityReportFingerprint(report) };
 }
