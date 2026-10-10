@@ -27,6 +27,7 @@ fn session(state: Arc<NativeNodeDataState>) -> OriginalSession {
         lease: None,
         credential: None,
         body: None,
+        bootstrap: None,
         reader: None,
         inventory: None,
     }
