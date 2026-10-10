@@ -414,7 +414,7 @@ function UnlockForm({
       <div className="unlock__card">
         <PendingLinkBanner />
         <div className="unlock__brand">
-          <Wordmark className="unlock__wordmark" size={28} replay />
+          <Wordmark className="unlock__wordmark" replay />
           <div className="unlock__brand-tools">
             <GateTools />
           </div>

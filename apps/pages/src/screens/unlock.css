@@ -288,14 +288,8 @@
   flex: 1 1 auto;
   min-width: 0;
   font-size: clamp(0.9rem, 3.2vw, 1.55rem);
-  font-weight: 400;
   color: var(--ink);
   max-width: 100%;
-}
-
-.unlock__brand .unlock__wordmark > svg {
-  width: 1.1em;
-  height: 1.1em;
 }
 
 /* Wordmark is a `p` in the brand row — do not restyle it as body copy.

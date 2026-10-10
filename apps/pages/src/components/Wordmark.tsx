@@ -1,148 +1,151 @@
-import { type ReactElement, memo, useEffect, useState } from "react";
-import { IconMark } from "./Icons.js";
+import {
+  type ReactElement,
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  CipherWordmark,
+  type CipherWordmarkHandle,
+  DISPLAY_WORD,
+  FRAME_MS,
+  MAX_STEPS,
+  MIN_STEPS,
+  WORDMARK_WIDTH_EM,
+  cipherReel,
+} from "./CipherWordmark/index.js";
 import "./wordmark.css";
 
 /**
- * Whether a wordmark has already revealed itself this session. The reel is
+ * Whether a wordmark has already revealed itself this session. The decrypt is
  * the one authored moment of an arrival; a second gate mounting seconds later
  * — the setup ceremony after the front door, the rail after unlock — arrives
  * still. Tests reset it between renders.
  */
 export const wordmarkSeams = { revealed: false };
 
-/** The brand line every gate and the rail share. */
+/** The accessible brand name every gate and the rail share. */
 export const WORDMARK = "open-sesame";
 
 /** Hex alphabet — the same glyphs a digest is written in. */
-export const WORDMARK_CIPHER = "0123456789abcdef";
+export const WORDMARK_CIPHER = "0123456789ABCDEF";
 
-/** Cipher frames in each slot before the plaintext letter locks. */
-export const WORDMARK_MIN_STEPS = 6;
-export const WORDMARK_MAX_STEPS = 12;
-export const WORDMARK_FRAME_MS = 35;
-
-/**
- * Deterministic reel for slot `index`. Knuth multiplicative hash, then the
- * Numerical Recipes LCG, so hydration and tests see the same ciphertext.
- */
-export function cipherReel(
-  index: number,
-  target: string,
-  steps: number,
-): string {
-  let seed = ((index + 1) * 2_654_435_761) >>> 0;
-  let out = "";
-  for (let step = 0; step < steps; step += 1) {
-    seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
-    const glyph = WORDMARK_CIPHER[seed % WORDMARK_CIPHER.length];
-    out += glyph ?? "0";
-  }
-  return `${out}${target}`;
-}
-
-type Slot = {
-  id: string;
-  delay: string;
-  duration: string;
-  reelDuration: string;
-  steps: number;
-  glyphs: Array<{ id: string; glyph: string }>;
+export {
+  cipherReel,
+  DISPLAY_WORD as WORDMARK_DISPLAY,
+  FRAME_MS as WORDMARK_FRAME_MS,
+  MIN_STEPS as WORDMARK_MIN_STEPS,
+  MAX_STEPS as WORDMARK_MAX_STEPS,
 };
 
-function createSlots(): Slot[] {
-  let locked = 0;
-  return [...WORDMARK].map((letter, index) => {
-    const advance =
-      WORDMARK_MIN_STEPS +
-      Math.floor(Math.random() * (WORDMARK_MAX_STEPS - WORDMARK_MIN_STEPS + 1));
-    const steps = locked + advance;
-    const reel = cipherReel(index, letter, steps);
-    const slot = {
-      id: `${index}:${letter}`,
-      delay: `${locked * WORDMARK_FRAME_MS}ms`,
-      duration: `${advance * WORDMARK_FRAME_MS}ms`,
-      reelDuration: `${steps * WORDMARK_FRAME_MS}ms`,
-      steps,
-      glyphs: [...reel].map((glyph, glyphIndex) => ({
-        id: `${index}:${glyphIndex}`,
-        glyph,
-      })),
-    };
-    locked += advance;
-    return slot;
-  });
+export type WordmarkHandle = {
+  replayCipher: () => void;
+};
+
+export type WordmarkFit = {
+  /** The largest em the hero may take; the column's width sets the rest. */
+  max: number;
+};
+
+/** A hero's em: the column divided by the wordmark's width, capped. */
+export function fitEm(columnPx: number, fit: WordmarkFit): number {
+  return Math.max(1, Math.min(fit.max, columnPx / WORDMARK_WIDTH_EM));
 }
 
 /**
- * Brand wordmark. Jhey Tompkins' composited slot-reel (Craft of UI, 2024):
- * every unread cell scrambles from t=0; a cursor locks one plaintext letter
- * at a time. Only the cursor's advance is randomized. Glyphs are stacked in
- * the DOM so wrap cannot fail on a font where `1ch` is not a full cell.
- * `steps()` + transform stay on the compositor. The readable name is
- * visually hidden; the reels are decorative. The reel runs once per session:
- * a later mount renders the same reels already settled on their letters.
- *
- * Memoized: the reels are some six hundred spans that never change after
- * mount, and every gate and the rail re-render around them on each keystroke.
+ * Measure the parent column and size the hero to it. The tier follows the
+ * em on its own: a 320px phone gets solid plates at 37px, never a cropped
+ * field (particles need 48px to survive).
  */
-export const Wordmark = memo(function Wordmark({
-  className,
-  size = 16,
-  as: Tag = "p",
-  replay = false,
-}: {
-  className?: string;
-  size?: number;
-  /**
-   * The brand line is a paragraph in the chrome. On the front door it is
-   * the page's title, so the same reels render as the `h1` — assistive
-   * technology reads the hidden name as the heading, never the reels.
-   */
-  as?: "p" | "h1";
-  /**
-   * Run the decrypt again on this mount (unlock brand). The session seam
-   * still marks later chrome (rail, setup) settled so only this gate
-   * replays.
-   */
-  replay?: boolean;
-}): ReactElement {
-  const [slots] = useState(createSlots);
+function useFitEm(
+  ref: { current: HTMLElement | null },
+  fit: WordmarkFit | undefined,
+): number | undefined {
+  const [em, setEm] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const column = ref.current?.parentElement;
+    if (!fit || !column) return;
+    const measure = () => setEm(fitEm(column.clientWidth, fit));
+    measure();
+    if (globalThis.ResizeObserver === undefined) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(column);
+    return () => observer.disconnect();
+  }, [ref, fit]);
+  return em;
+}
+
+/**
+ * Brand wordmark: the mark and the name punched out of plates on a canvas
+ * ({@link CipherWordmark}). The visual line is {@link DISPLAY_WORD}; the
+ * accessible name is {@link WORDMARK}, read once. The decrypt runs once per
+ * session; `replay` runs it again on this mount (the unlock gate).
+ */
+export const Wordmark = forwardRef<
+  WordmarkHandle,
+  {
+    className?: string;
+    /** Em height of the plates. Unset, the element's font-size decides. */
+    size?: number;
+    /** Fit a hero to its column instead of a fixed em. */
+    fit?: WordmarkFit;
+    /**
+     * The brand line is a paragraph in the chrome. On the front door it is
+     * the page's title, so the same plates render as the `h1` — assistive
+     * technology reads the hidden name as the heading, never the canvas.
+     */
+    as?: "p" | "h1";
+    replay?: boolean;
+  }
+>(function Wordmark(
+  { className, size, fit, as: Tag = "p", replay = false },
+  ref,
+): ReactElement {
+  const rootRef = useRef<HTMLElement | null>(null);
+  const cipherRef = useRef<CipherWordmarkHandle>(null);
+  const [animate] = useState(() => (replay ? true : !wordmarkSeams.revealed));
   const [settled] = useState(() => (replay ? false : wordmarkSeams.revealed));
+  const fitted = useFitEm(rootRef, fit);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      replayCipher: () => {
+        cipherRef.current?.replay();
+      },
+    }),
+    [],
+  );
+
   useEffect(() => {
     wordmarkSeams.revealed = true;
   }, []);
+
   const classes = ["wordmark"];
-  if (settled) classes.push("wordmark--settled");
+  if (settled && !replay) classes.push("wordmark--settled");
   if (className) classes.push(className);
+
   return (
-    <Tag className={classes.join(" ")}>
-      <IconMark size={size} />
+    <Tag
+      ref={(element: HTMLElement | null) => {
+        rootRef.current = element;
+      }}
+      className={classes.join(" ")}
+    >
       <span className="visually-hidden">{WORDMARK}</span>
       <span className="wordmark__slots" aria-hidden="true">
-        {slots.map((slot) => (
-          <span
-            key={slot.id}
-            className="wordmark__slot"
-            style={{
-              animationDelay: slot.delay,
-              animationDuration: slot.duration,
-            }}
-          >
-            <span
-              className="wordmark__reel"
-              style={{
-                animationDuration: slot.reelDuration,
-                animationTimingFunction: `steps(${slot.steps}, end)`,
-              }}
-            >
-              {slot.glyphs.map((cell) => (
-                <span className="wordmark__glyph" key={cell.id}>
-                  {cell.glyph}
-                </span>
-              ))}
-            </span>
-          </span>
-        ))}
+        <CipherWordmark
+          ref={cipherRef}
+          text={DISPLAY_WORD}
+          size={fit ? fitted : size}
+          animateOnMount={animate}
+          replay={replay}
+          static={settled && !replay}
+          className="wordmark__cipher"
+        />
       </span>
     </Tag>
   );
