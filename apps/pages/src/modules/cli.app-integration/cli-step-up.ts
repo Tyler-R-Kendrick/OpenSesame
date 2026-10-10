@@ -1,9 +1,10 @@
 import { passkeyUnlockRecords } from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
-import { PIN_MISS, unwrapPin } from "@opensesame/app-core/lib/vault/primary-unwrap.js";
-import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
-  unwrapVaultKeyWithPrf,
-} from "@opensesame/app-core/lib/vault/unlock-methods.js";
+  PIN_MISS,
+  unwrapPin,
+} from "@opensesame/app-core/lib/vault/primary-unwrap.js";
+import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { unwrapVaultKeyWithPrf } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { WrongPasswordError, importVaultKey } from "@opensesame/vault-core";
 
 const PASSKEY_MISS = "That passkey did not unlock the vault.";
@@ -56,12 +57,7 @@ export async function confirmPasskeyStepUpForCli(
   }
   const derived = await importVaultKey(raw);
   const seam = store.stepUpSeam();
-  await assertOpenVaultKeyMatches(
-    seam.key,
-    derived,
-    seam.onMiss,
-    PASSKEY_MISS,
-  );
+  await assertOpenVaultKeyMatches(seam.key, derived, seam.onMiss, PASSKEY_MISS);
 }
 
 export async function confirmPinStepUpForCli(
