@@ -184,3 +184,58 @@ fn actual_original_key_rewrite_and_parent_mode_change_refuse_retained_actors() {
     assert!(credential.capture_existing_writer("selected").is_err());
     assert!(state.credential_writer().is_err());
 }
+
+#[test]
+fn actual_kernel_try_shared_and_exclusive_results_follow_held_objects_and_close() {
+    let (_temporary, root) = fixture();
+    let state = NativeNodeDataState::capture(root).unwrap();
+    let logical = "original-generic-try-lease";
+    let first = state.try_shared_lease(logical).unwrap().unwrap();
+    let second = state.try_shared_lease(logical).unwrap().unwrap();
+    assert!(state.try_exclusive_lease(logical).unwrap().is_none());
+    first.validate().unwrap();
+    second.validate().unwrap();
+    drop(first);
+    assert!(state.try_exclusive_lease(logical).unwrap().is_none());
+    drop(second);
+    let exclusive = state.try_exclusive_lease(logical).unwrap().unwrap();
+    assert!(state.try_shared_lease(logical).unwrap().is_none());
+    assert!(state.try_exclusive_lease(logical).unwrap().is_none());
+    assert!(state.try_shared_lease("").is_err());
+    drop(exclusive);
+    state.try_shared_lease(logical).unwrap().unwrap();
+    state.seal().unwrap();
+    assert!(state.try_shared_lease(logical).is_err());
+    assert!(state.try_exclusive_lease(logical).is_err());
+}
+#[test]
+fn actual_nested_try_body_keeps_original_credential_while_busy_and_never_upgrades_generic() {
+    let (_temporary, root) = fixture();
+    let state = NativeNodeDataState::capture(root).unwrap();
+    let body = state
+        .shared_lease("opensesame:vault-body:selected")
+        .unwrap();
+    let credential = state.try_credential_writer().unwrap().unwrap();
+    assert!(state.try_credential_writer().unwrap().is_none());
+    assert!(credential
+        .try_capture_existing_writer("selected")
+        .unwrap()
+        .is_none());
+    credential.validate().unwrap();
+    assert!(credential.try_capture_existing_writer("SELECTED").is_err());
+    assert!(credential
+        .try_capture_existing_writer("../selected")
+        .is_err());
+    drop(body);
+    let writer = credential
+        .try_capture_existing_writer("selected")
+        .unwrap()
+        .unwrap();
+    writer.validate().unwrap();
+    drop(credential);
+    assert!(state.try_credential_writer().unwrap().is_none());
+    drop(writer);
+    let next = state.try_credential_writer().unwrap().unwrap();
+    state.seal().unwrap();
+    assert!(next.try_capture_existing_writer("selected").is_err());
+}

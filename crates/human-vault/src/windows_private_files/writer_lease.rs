@@ -26,15 +26,27 @@ impl HeldPrivateWriterLease {
     /// # Errors
     /// Refuses unsafe/nonprivate locks, contention and IO errors.
     pub fn exclusive(root: Arc<PrivateDirectory>, logical: &str) -> io::Result<Self> {
-        Self::acquire(root, logical, LOCKFILE_EXCLUSIVE_LOCK)
+        Self::try_exclusive(root, logical)?.ok_or_else(busy)
     }
     /// Acquire an actual shared kernel byte-range lease beneath this same original private root.
     /// # Errors
     /// Refuses unsafe storage, an exclusive holder, substitution and IO failures.
     pub fn shared(root: Arc<PrivateDirectory>, logical: &str) -> io::Result<Self> {
+        Self::try_shared(root, logical)?.ok_or_else(busy)
+    }
+    /// Try the actual exclusive byte-range lease; only ERROR_LOCK_VIOLATION returns None.
+    /// # Errors
+    /// Refuses changed/nonprivate resources and every non-contention IO error.
+    pub fn try_exclusive(root: Arc<PrivateDirectory>, logical: &str) -> io::Result<Option<Self>> {
+        Self::acquire(root, logical, LOCKFILE_EXCLUSIVE_LOCK)
+    }
+    /// Try the actual shared byte-range lease under the same retained original namespace.
+    /// # Errors
+    /// Refuses changed/nonprivate resources and every non-contention IO error.
+    pub fn try_shared(root: Arc<PrivateDirectory>, logical: &str) -> io::Result<Option<Self>> {
         Self::acquire(root, logical, 0)
     }
-    fn acquire(root: Arc<PrivateDirectory>, logical: &str, flags: u32) -> io::Result<Self> {
+    fn acquire(root: Arc<PrivateDirectory>, logical: &str, flags: u32) -> io::Result<Option<Self>> {
         root.validate()?;
         let name = physical_writer_lease_name(logical)?;
         let file = open(&root, &name)?;
@@ -58,10 +70,8 @@ impl HeldPrivateWriterLease {
                 .raw_os_error()
                 .is_some_and(|value| u32::try_from(value) == Ok(ERROR_LOCK_VIOLATION))
             {
-                return Err(io::Error::new(
-                    io::ErrorKind::WouldBlock,
-                    "the original private store is busy",
-                ));
+                check(&root, &file, &name)?;
+                return Ok(None);
             }
             return Err(error);
         }
@@ -73,7 +83,7 @@ impl HeldPrivateWriterLease {
             mode: flags,
         };
         lock.validate()?;
-        Ok(lock)
+        Ok(Some(lock))
     }
     pub(crate) fn validate_exclusive_for(
         &self,
@@ -108,6 +118,12 @@ impl Drop for HeldPrivateWriterLease {
             UnlockFileEx(self.file.as_raw_handle(), 0, 1, 0, &mut overlapped);
         }
     }
+}
+fn busy() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::WouldBlock,
+        "the original private store is busy",
+    )
 }
 fn check(root: &PrivateDirectory, file: &File, name: &str) -> io::Result<handles::Identity> {
     root.validate()?;
