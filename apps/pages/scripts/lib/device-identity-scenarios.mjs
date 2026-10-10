@@ -313,6 +313,8 @@ export async function lateActivation(browser) {
   await waitOpen(page);
   await chooseCapability(page, "Access authority");
   await clearCapability(page, "Browser-local IAM");
+  await page.reload({ waitUntil: "networkidle" });
+  await waitOpen(page);
   await page.setViewportSize(WIDTHS[0].narrow);
   await connect(page, label);
   await page.setViewportSize(WIDTHS[0].size);
