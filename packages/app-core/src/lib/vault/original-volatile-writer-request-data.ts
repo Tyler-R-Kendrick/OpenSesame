@@ -2,8 +2,10 @@
 import type { LockManagerLike } from "../../ports.js";
 import { checkRetiredOperationGrant } from "./captured-retired-operation-ports.js";
 
+type OriginalMemoryWriterFailure = Readonly<{ cause: unknown }>;
+
 function originalMemoryWriterResult<T>(
-  failures: unknown[],
+  failures: OriginalMemoryWriterFailure[],
   original: () => void,
   accepted: { value: T } | undefined,
 ): T {
@@ -13,14 +15,14 @@ function originalMemoryWriterResult<T>(
     try {
       original();
     } catch (error) {
-      failures.push(error);
+      failures.push({ cause: error });
     }
   }
-  if (failures.length === 1) throw failures[0];
+  if (failures.length === 1) throw failures[0]?.cause;
   if (failures.length) {
-    const primary = failures[0];
+    const primary = failures[0]?.cause;
     throw new AggregateError(
-      failures,
+      failures.map(({ cause }) => cause),
       primary instanceof Error
         ? primary.message
         : "Original memory writer refused after drain.",
@@ -43,7 +45,7 @@ export async function runOriginalVolatileWriterRequestData<T>(
   let completed = false;
   let pending: Promise<T> | undefined;
   let accepted: { value: T } | undefined;
-  const failures: unknown[] = [];
+  const failures: OriginalMemoryWriterFailure[] = [];
   const check = () => {
     original();
     if (!live) throw new Error("Original memory writer delivery retired.");
@@ -77,7 +79,7 @@ export async function runOriginalVolatileWriterRequestData<T>(
     if (!pending || !completed)
       throw new Error("Original memory request completed without its work.");
   } catch (error) {
-    failures.push(error);
+    failures.push({ cause: error });
   } finally {
     live = false;
     if (pending) {
@@ -85,9 +87,12 @@ export async function runOriginalVolatileWriterRequestData<T>(
       if (result?.status === "fulfilled") accepted = { value: result.value };
       else if (
         result?.status === "rejected" &&
-        !failures.includes(result.reason)
+        !failures.some(
+          ({ cause }) =>
+            cause === result.reason || Object.is(cause, result.reason),
+        )
       )
-        failures.push(result.reason);
+        failures.push({ cause: result.reason });
     }
   }
   return originalMemoryWriterResult(failures, original, accepted);
