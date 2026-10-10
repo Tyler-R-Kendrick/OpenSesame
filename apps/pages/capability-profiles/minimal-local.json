@@ -11,10 +11,7 @@
     "basePolicyRevision": "personal-local",
     "revision": "1",
     "acceptedRequired": [],
-    "selectedOptional": [
-      "access.authority",
-      "identity.local-iam"
-    ],
+    "selectedOptional": ["access.authority", "identity.local-iam"],
     "chosenAlternatives": {},
     "delivery": {
       "prefetch": "selected",
