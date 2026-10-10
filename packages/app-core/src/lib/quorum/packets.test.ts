@@ -65,6 +65,14 @@ async function everyKind(): Promise<Packet[]> {
     },
     { kind: "enrollment", value: ada.enrollment },
     { kind: "policy", value: world.created.signedPolicy },
+    {
+      kind: "welcome",
+      value: { signedPolicy: world.created.signedPolicy, delivery },
+    },
+    {
+      kind: "welcome",
+      value: { signedPolicy: world.created.signedPolicy, delivery: null },
+    },
     { kind: "delivery", value: delivery },
     { kind: "receipt", value: ada.receipt },
     { kind: "request", value: r.pending.request },
@@ -86,7 +94,9 @@ async function everyKind(): Promise<Packet[]> {
 describe("a packet is one line of text", () => {
   it("round-trips every kind of document the protocol makes", async () => {
     const packets = await everyKind();
-    expect(packets.map((p) => p.kind).sort()).toEqual([...PACKET_KINDS].sort());
+    expect([...new Set(packets.map((p) => p.kind))].sort()).toEqual(
+      [...PACKET_KINDS].sort(),
+    );
     // A kind added to the schema and left out of the list fails to compile.
     expectTypeOf<
       Exclude<PacketKind, (typeof PACKET_KINDS)[number]>

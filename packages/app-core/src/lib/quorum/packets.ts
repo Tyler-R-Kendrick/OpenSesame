@@ -62,11 +62,26 @@ function member<K extends string, S extends z.ZodType>(kind: K, value: S) {
   return z.object({ kind: z.literal(kind), value }).strict();
 }
 
+/**
+ * What the owner hands each guardian: the signed policy and, in a circle that
+ * holds shares, that guardian's sealed share. One packet, so a guardian is never
+ * left holding a share without the policy that explains and commits to it.
+ * An action-only circle has no share, so the delivery is `null`.
+ */
+export const WelcomeSchema = z
+  .object({
+    signedPolicy: SignedPolicySchema,
+    delivery: ShareDeliverySchema.nullable(),
+  })
+  .strict();
+export type Welcome = z.infer<typeof WelcomeSchema>;
+
 /** Every kind a packet can be, with the schema of the document it holds. */
 export const PacketSchema = z.discriminatedUnion("kind", [
   member("invite", InviteSchema),
   member("enrollment", EnrollmentSchema),
   member("policy", SignedPolicySchema),
+  member("welcome", WelcomeSchema),
   member("delivery", ShareDeliverySchema),
   member("receipt", CustodyReceiptSchema),
   member("request", QuorumRequestSchema),
@@ -83,6 +98,7 @@ export const PACKET_KINDS = [
   "invite",
   "enrollment",
   "policy",
+  "welcome",
   "delivery",
   "receipt",
   "request",
