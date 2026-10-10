@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/native-platform-validation.yml'
+      - 'scripts/audit/native-release-companion-artifact.mjs'
       - 'scripts/audit/native-windows-stack.mjs'
       - 'scripts/audit/native-windows-startup-observer.ps1'
       - 'scripts/lib/native-windows-stack-report.mjs'
@@ -243,4 +244,84 @@ jobs:
         with:
           name: native-cli-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/opensesame-native-cli/
+          if-no-files-found: error
+
+  release:
+    name: Native default release artifact (${{ matrix.platform }})
+    needs: [core, cli]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            runner: ubuntu-24.04
+          - platform: macOS
+            runner: macos-14
+          - platform: Windows
+            runner: windows-2025
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - name: Pin original native source and release output
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const audit = path.join(process.env.RUNNER_TEMP, 'opensesame-native-release');
+          const target = `${audit}-target`;
+          fs.mkdirSync(audit, { mode: 0o700 });
+          fs.mkdirSync(target, { mode: 0o700 });
+          const portable = value => value.replaceAll('\\', '/');
+          fs.appendFileSync(process.env.GITHUB_ENV, `NATIVE_AUDIT_DIR=${portable(audit)}\nCARGO_TARGET_DIR=${portable(target)}\n`);
+          fs.writeFileSync(path.join(audit, 'source.json'), JSON.stringify({ commit: process.env.EXPECTED_HEAD, runnerOS: process.env.RUNNER_OS, runnerArch: process.env.RUNNER_ARCH }, null, 2) + '\n');
+          NODE
+      - name: Record actual host toolchain
+        run: |
+          set -euo pipefail
+          rustc +1.88.0 -vV 2>&1 | tee "$NATIVE_AUDIT_DIR/rustc.log"
+          cargo +1.88.0 -vV 2>&1 | tee "$NATIVE_AUDIT_DIR/cargo.log"
+          host_target=$(sed -n 's/^host: //p' "$NATIVE_AUDIT_DIR/rustc.log")
+          test -n "$host_target"
+          printf 'NATIVE_HOST_TARGET=%s\n' "$host_target" >> "$GITHUB_ENV"
+      - name: Build original default release and preserve Cargo artifact JSON
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 build --locked --release --package opensesame-cli --bin opensesame --message-format=json-render-diagnostics 2> >(tee "$NATIVE_AUDIT_DIR/release-build.stderr.log" >&2) | tee "$NATIVE_AUDIT_DIR/release-build.jsonl"
+      - name: Validate real release startup and fixed package provenance
+        run: node scripts/audit/native-release-companion-artifact.mjs
+      - name: Recheck original source after success or failure
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git status --porcelain --untracked-files=normal)"
+      - name: Preserve exact native release executable and provenance
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: native-release-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/opensesame-native-release/
           if-no-files-found: error
