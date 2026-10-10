@@ -257,9 +257,12 @@ describe("Recovery", () => {
     await screen.findByRole("img", {
       name: "The recoveries could not be opened.",
     });
-    const notice = listNotices().find(
-      (n) => n.id === "trusted-contacts:recoveries",
+    // The tray notice is raised in an effect a tick after the mark is drawn.
+    await waitFor(() =>
+      expect(
+        listNotices().find((n) => n.id === "trusted-contacts:recoveries")
+          ?.title,
+      ).toBe("Recovery"),
     );
-    expect(notice?.title).toBe("Recovery");
   });
 });
