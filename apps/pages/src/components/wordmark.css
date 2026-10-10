@@ -1,111 +1,50 @@
-/* Share Tech Mono — digital LED-board lettering for the slot reel. OFL:
-   src/assets/fonts/OFL.txt. Self-hosted so CSP font-src 'self' holds. */
+/* OS Logo — Geist Mono ExtraBold, subset to the glyphs the plates need
+   (0-9 A-Z space). OFL: src/assets/fonts/OFL.txt. Self-hosted so CSP
+   font-src 'self' holds. The brand's one display face, used nowhere else. */
 @font-face {
-  font-family: "Share Tech Mono";
-  src: url("../assets/fonts/ShareTechMono-Regular.ttf") format("truetype");
-  font-weight: 400;
+  font-family: "OS Logo";
+  src: url("../assets/fonts/os-logo.ttf") format("truetype");
+  font-weight: 800;
   font-style: normal;
-  font-display: swap;
+  font-display: block;
 }
 
+/* The element's font-size is the plate em: under 16px letters alone, 16 to
+   48px solid plates, 48px and up the particle field (CipherWordmark). */
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
   margin: 0;
-  font-family: "Share Tech Mono", var(--mono);
-  font-weight: 400;
+  font-family: "OS Logo", var(--mono);
+  font-weight: 800;
   letter-spacing: 0;
   line-height: 1;
-  text-transform: lowercase;
-}
-
-.wordmark > svg {
-  flex: none;
+  max-width: 100%;
 }
 
 .wordmark__slots {
-  display: inline-flex;
-  align-items: stretch;
-  gap: 0.12em;
-  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 0;
+  line-height: 0;
+  vertical-align: middle;
 }
 
-/* The global reduced-motion duration must not create color transitions in
-   the reel: this sequence owns its motion and settles immediately. */
-.wordmark__slot,
-.wordmark__reel,
-.wordmark__glyph {
-  transition-property: none;
+.cipher-wordmark {
+  display: inline-block;
+  position: relative;
+  line-height: 0;
+  vertical-align: middle;
 }
 
-/* Square LED cells — em units so every glyph (including hyphen) shares one
-   tile; 1ch collapses on narrow glyphs and breaks the board reading. The
-   slot stays `block` so the reel clips from the top, not a centered grid.
-   Cell fill is ink mixed into surface so day mode keeps a visible tile on
-   paper white (surface-3 washed out there) and night keeps a raised cell. */
-.wordmark__slot {
+.cipher-wordmark__canvas {
   display: block;
-  box-sizing: border-box;
-  width: 1.05em;
-  height: 1.25em;
-  overflow: hidden;
-  border-radius: 0;
-  background: color-mix(in srgb, var(--ink) 16%, var(--surface));
-  color: inherit;
-  animation-name: wordmark-lock;
-  animation-timing-function: steps(1, end);
+  max-width: 100%;
+  height: auto;
 }
 
-.wordmark__reel {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  transform: translateY(calc(-100% + 1.25em));
-  animation-name: wordmark-decrypt;
-  animation-delay: 0s;
-  animation-fill-mode: backwards;
-}
-
-.wordmark__glyph {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 100%;
-  height: 1.25em;
-  line-height: 1;
-}
-
-@keyframes wordmark-decrypt {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(calc(-100% + 1.25em));
-  }
-}
-
-@keyframes wordmark-lock {
-  from {
-    background: var(--ink);
-    color: var(--canvas);
-  }
-  to {
-    background: color-mix(in srgb, var(--ink) 16%, var(--surface));
-    color: inherit;
-  }
-}
-
-/* A reel that already ran this session, and every reel under reduced
-   motion, stands on its letter from the first frame. */
-.wordmark--settled .wordmark__slot,
-.wordmark--settled .wordmark__reel {
-  animation-name: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .wordmark__slot,
-  .wordmark__reel {
-    animation-name: none;
-  }
+/* The canvas owns its motion and settles at once under reduced motion; the
+   global reduced-motion transition must not touch it. */
+.cipher-wordmark,
+.cipher-wordmark__canvas {
+  transition-property: none;
 }
