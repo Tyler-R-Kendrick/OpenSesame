@@ -20,6 +20,7 @@ import { isString } from "@opensesame/os-domain";
 import { useCallback, useEffect, useState } from "react";
 import { useCapabilityGate } from "../../app-root.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
+import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useFailureNotice } from "../../components/use-failure-notice.js";
@@ -66,13 +67,20 @@ function SentDropRow({
   onRevoked: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const mark = STATUS[drop.state];
   const trail = receiptsForClaim(events, drop.claimId);
+  const revokeLabel = armed ? "Confirm" : "Revoke";
 
   useFailureNotice(`sent-drop-revoke:${drop.claimId}`, "Sent", revokeError);
 
   async function revoke(): Promise<void> {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    setArmed(false);
     setBusy(true);
     setRevokeError(null);
     try {
@@ -82,13 +90,13 @@ function SentDropRow({
         return;
       }
       if (outcome === "already_consumed") {
-        setRevokeError("This send was already opened and cannot be revoked.");
+        setRevokeError("Already opened; cannot revoke.");
         onRevoked();
         return;
       }
-      setRevokeError("This send could not be revoked on this device.");
+      setRevokeError("Could not revoke on this device.");
     } catch {
-      setRevokeError("This send could not be revoked. Try again.");
+      setRevokeError("Could not revoke. Try again.");
     } finally {
       setBusy(false);
     }
@@ -100,16 +108,15 @@ function SentDropRow({
         <span className="access-sent-drop__name">{drop.name}</span>
         <StatusMark tone={mark.tone} label={mark.label} />
         {drop.state === "pending" ? (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Revoke this send"
-            title="Revoke this send"
+          <IconKey
+            label={revokeLabel}
+            armed={armed}
             disabled={busy}
+            onBlur={() => setArmed(false)}
             onClick={() => void revoke()}
           >
             <IconX size={16} />
-          </button>
+          </IconKey>
         ) : null}
       </div>
       <span className="vault-row__meta">

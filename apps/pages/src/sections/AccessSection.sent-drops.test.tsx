@@ -73,8 +73,6 @@ describe("AccessSection sent drops", () => {
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "Sent" })).toBeTruthy(),
     );
-    expect(
-      screen.getByRole("button", { name: "Revoke this send" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Revoke" })).toBeTruthy();
   });
 });
