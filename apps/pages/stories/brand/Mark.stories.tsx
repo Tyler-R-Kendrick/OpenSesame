@@ -9,8 +9,9 @@ import { figma } from "../figma.js";
 
 /**
  * The mark is the door ajar: the vault slab slid aside and a slit of light
- * where it opened: an ink slab and a grey slit (`--mark-slit`). The three
- * section glyphs are the mark with a surface drawn around it.
+ * where it opened (`CipherWordmark/mark-geometry.ts`, which also holds
+ * `public/icon.svg` to the same geometry). The three section glyphs are
+ * the mark with a surface drawn around it.
  */
 const meta = {
   title: "Brand/Mark",

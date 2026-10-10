@@ -30,6 +30,27 @@ function notesRect(
   return rectRelative(paneRect, notesEl.getBoundingClientRect());
 }
 
+function applyOverlayMask(
+  overlay: HTMLCanvasElement,
+  layout: DialLayout,
+  w: number,
+  h: number,
+  notesR: QuietRect | null,
+): void {
+  if (!layout.narrow || !notesR) {
+    overlay.style.maskImage = "";
+    overlay.style.webkitMaskImage = "";
+    overlay.style.maskSize = "";
+    overlay.style.webkitMaskSize = "";
+    return;
+  }
+  const mask = buildQuietMask(w, h, [...layout.quiet, notesR]);
+  overlay.style.maskImage = mask;
+  overlay.style.webkitMaskImage = mask;
+  overlay.style.maskSize = `${w}px ${h}px`;
+  overlay.style.webkitMaskSize = `${w}px ${h}px`;
+}
+
 function applyRingLayerMask(
   layer: HTMLDivElement,
   layout: DialLayout,
@@ -104,6 +125,7 @@ export function measureAndPaintDial(
   }
   if (refs.overlay) {
     sizePaneCanvas(refs.overlay, w, h);
+    applyOverlayMask(refs.overlay, layout, w, h, notesR);
   }
 
   syncRingCanvasElements(layout, refs.ringCanvasRefs);

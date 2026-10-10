@@ -36,16 +36,11 @@
 }
 
 .door__wordmark {
-  /* Eleven 1.05em cells + icon must stay inside the card (mobile gate). */
-  font-size: clamp(1.05rem, 6cqi, 2.6rem);
+  /* The hero fits its column (`fit`): em = width / 7.78, at most 90. The
+     tier follows — a 320 phone gets solid plates, a desktop the field. */
   letter-spacing: 0;
   color: var(--ink);
   max-width: 100%;
-}
-
-.door__wordmark > svg {
-  width: 1.15em;
-  height: 1.15em;
 }
 
 .door__lede {

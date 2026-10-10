@@ -364,6 +364,7 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
         <Suspense fallback={null}>
           <DevLockV5Demo />
         </Suspense>
+        <ContextMenuLayer />
       </AppSlotsContext.Provider>
     );
   }

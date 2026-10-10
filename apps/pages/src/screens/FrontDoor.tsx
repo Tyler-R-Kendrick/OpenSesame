@@ -37,6 +37,9 @@ import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import "./unlock.css";
 import "./door.css";
 
+/** The door's hero: fitted to the card, at most 90px of em (DESIGN.md § Mark). */
+const HERO_FIT = { max: 90 };
+
 export function FrontDoor({
   onOpenSetup,
   onOpenJoin,
@@ -80,7 +83,7 @@ export function FrontDoor({
         <GuestSkip busy={busy} onGuest={startGuest} lands />
         <PendingLinkBanner />
         <header className="door__hero">
-          <Wordmark as="h1" className="door__wordmark" size={40} />
+          <Wordmark as="h1" className="door__wordmark" fit={HERO_FIT} />
           <p className="door__lede">Set up your own vault, or join one.</p>
         </header>
 
