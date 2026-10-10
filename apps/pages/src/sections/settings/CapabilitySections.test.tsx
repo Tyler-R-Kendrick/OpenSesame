@@ -159,15 +159,16 @@ describe("sections — one list, one style, a switch only where something is opt
     expect(
       screen.queryByRole("switch", { name: "Household sharing" }),
     ).toBeNull();
-    // Live sessions and org-vault relay keep Sharing switchable; household
-    // stays NO_SURFACE until a plan names it (ADR 0181).
+    // Live + relay tiles appear (ADR 0181); household stays NO_SURFACE until
+    // a plan names it. This fixture's distribution does not arm a Sharing
+    // section switch until household is approved (see the off-path below).
     const sharingCaps = screen.getByRole("list", {
       name: "Sharing capabilities",
     });
     expect(sharingCaps.textContent).toContain("sharing.live");
     expect(sharingCaps.textContent).toContain("sharing.relay");
     expect(sharingCaps.textContent).not.toContain("sharing.household");
-    expect(screen.getByRole("switch", { name: "Sharing" })).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: "Sharing" })).toBeNull();
   });
 
   it("switching a section on commits every capability behind it", async () => {
