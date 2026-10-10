@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import type { JsonValue } from "@opensesame/os-domain";
 import {
   cleanup,
   fireEvent,
@@ -19,7 +20,7 @@ afterEach(() => {
   clearNotices();
 });
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: JsonValue, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "content-type": "application/json" },
@@ -32,7 +33,7 @@ describe("OrgVaultDirectoryPanel", () => {
     orgVaultDirectorySeams.fetch = async (input, init) => {
       const url = String(input);
       const method = init?.method ?? "GET";
-      const body = typeof init?.body === "string" ? init.body : "";
+      const body = await new Request(input, init).text();
       calls.push({ url, method, body });
       if (method === "POST") {
         return jsonResponse(

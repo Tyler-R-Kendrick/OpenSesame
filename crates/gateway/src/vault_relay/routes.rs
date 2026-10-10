@@ -20,16 +20,15 @@ pub(crate) async fn get_snapshot(
     headers: HeaderMap,
     extensions: Extensions,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    if state.mtls.is_some() {
-        if super::service_admit::require_vault_relay_caller(
+    if state.mtls.is_some()
+        && super::service_admit::require_vault_relay_caller(
             &state,
             &extensions,
             operations::VAULT_RELAY_SNAPSHOT_READ,
         )
         .is_err()
-        {
-            return Err(forbidden());
-        }
+    {
+        return Err(forbidden());
     }
     let address = address(&owner, &slug).ok_or(not_found())?;
     let key = presented_key(&headers).ok_or(unauthorized())?;
@@ -58,16 +57,15 @@ pub(crate) async fn put_snapshot(
     extensions: Extensions,
     Json(body): Json<PutBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    if state.mtls.is_some() {
-        if super::service_admit::require_vault_relay_caller(
+    if state.mtls.is_some()
+        && super::service_admit::require_vault_relay_caller(
             &state,
             &extensions,
             operations::VAULT_RELAY_SNAPSHOT_WRITE,
         )
         .is_err()
-        {
-            return Err(forbidden());
-        }
+    {
+        return Err(forbidden());
     }
     let address = address(&owner, &slug).ok_or(not_found())?;
     let owner_kind = owner_kind_of(&headers)
@@ -150,7 +148,7 @@ pub(crate) async fn put_snapshot(
 fn unix_now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
+        .map(|duration| i64::try_from(duration.as_secs()).unwrap_or(i64::MAX))
         .unwrap_or(0)
 }
 
