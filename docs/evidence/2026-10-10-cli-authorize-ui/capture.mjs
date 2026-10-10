@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 /**
  * Capture Authorize CLI sheet at 390px and 1280px from Storybook.
  * Run: pnpm --filter @opensesame/pages build-storybook
@@ -5,8 +7,6 @@
  *      PLAYWRIGHT_CHROMIUM=… node docs/evidence/2026-10-10-cli-authorize-ui/capture.mjs
  */
 import { chromium } from "@playwright/test";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT = __dirname;
@@ -24,10 +24,9 @@ async function capture(width) {
   page.on("pageerror", (err) => {
     throw err;
   });
-  await page.goto(
-    `${STORYBOOK}/iframe.html?id=${STORY_ID}&viewMode=story`,
-    { waitUntil: "networkidle" },
-  );
+  await page.goto(`${STORYBOOK}/iframe.html?id=${STORY_ID}&viewMode=story`, {
+    waitUntil: "networkidle",
+  });
   await page.getByRole("dialog", { name: "Authorize CLI" }).waitFor({
     timeout: 30_000,
   });

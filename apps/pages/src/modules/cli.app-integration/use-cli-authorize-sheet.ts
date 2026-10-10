@@ -4,8 +4,8 @@ import {
   presentCliAuthorizeRequest,
   respondCliIntegration,
 } from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import { listAvailableUnlockMethods } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { listAvailableUnlockMethods } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { WrongPasswordError } from "@opensesame/vault-core";
 import { useMemo, useRef, useState } from "react";
 

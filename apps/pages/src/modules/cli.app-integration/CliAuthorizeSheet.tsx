@@ -3,15 +3,15 @@
  * passkey confirmation before the daemon receives approve/deny.
  */
 
+import type { cliAuthorizeCopy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import type { PendingRequest } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import type { RefObject } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconPasskey, IconTerminal } from "../../components/Icons.js";
-import type { cliAuthorizeCopy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import type { PendingRequest } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
-import type { RefObject } from "react";
 import { useCliAuthorizeSheet } from "./use-cli-authorize-sheet.js";
 
 function cliAuthorizeAlts(
