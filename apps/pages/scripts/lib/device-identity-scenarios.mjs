@@ -13,6 +13,7 @@ import {
   capabilityOnSwitch,
 } from "./always-on.mjs";
 import { doorGuest, passTheDoor } from "./front-door.mjs";
+import { openGuestAgain } from "./push-worker-guest.mjs";
 import {
   lockVault,
   sealLocalOnly,
@@ -314,7 +315,7 @@ export async function lateActivation(browser) {
   await chooseCapability(page, "Access authority");
   await clearCapability(page, "Browser-local IAM");
   await page.reload({ waitUntil: "networkidle" });
-  await doorGuest(page).click();
+  await openGuestAgain(page);
   await waitOpen(page);
   await page.setViewportSize(WIDTHS[0].narrow);
   await connect(page, label);
