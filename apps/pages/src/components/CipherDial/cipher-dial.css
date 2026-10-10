@@ -1,0 +1,31 @@
+.cipher-dial {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.cipher-dial__rings {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.cipher-dial__fixed,
+.cipher-dial__ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.cipher-dial__overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  pointer-events: none;
+}
