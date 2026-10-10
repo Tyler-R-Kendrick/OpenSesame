@@ -2,9 +2,9 @@
  * The two pairing codes of a live session (ADR 0150 §3): how two browsers
  * meet with no server between them.
  *
- * 1. The joiner's page makes its WebRTC offer and seals it, with the
- *    person's name and note, into a **request code** only the owner can
- *    read. The person sends it to the owner however they already talk, or a
+ * 1. The joiner's page dials over the session's transport (`p2p.ts`) and
+ *    seals the offer, with the person's name and note, into a **request
+ *    code** only the owner can read. The person sends it to the owner however they already talk, or a
  *    carrier the owner named passes it on (`rendezvous.ts`).
  * 2. The owner's page opens it. One the link secret does not open was never
  *    a request (a stranger on a carrier); one that opens but whose inner seal
@@ -22,6 +22,7 @@
 
 import type { LiveLink } from "./link.js";
 import {
+  type HandshakeReader,
   type JoinReply,
   type JoinRequest,
   readJoinReply,
@@ -94,13 +95,15 @@ export type OpenedRequest =
 /**
  * A request code: not one at all (nor from anyone holding the link), one
  * from a link holder that this session's code does not open (a miss), or a
- * request and the joiner key its reply is sealed to.
+ * request and the joiner key its reply is sealed to. An offer the session's
+ * transport cannot take (`readsOffer`) is not a request.
  */
 export async function openRequestCode(
   link: LiveLink,
   code: string | null,
   owner: Keypair,
   text: string,
+  readsOffer: HandshakeReader,
 ): Promise<OpenedRequest> {
   const body = bare(text, REQUEST_PREFIX);
   if (!body || !SEALED.test(body)) return { kind: "not-a-request" };
@@ -117,7 +120,7 @@ export async function openRequestCode(
     inner,
   );
   if (plain === null) return { kind: "not-this-session" };
-  const request = readJoinRequest(plain);
+  const request = readJoinRequest(plain, readsOffer);
   return request
     ? { kind: "request", request, joiner }
     : { kind: "not-a-request" };
@@ -142,7 +145,8 @@ export async function makeReplyCode(
 
 /**
  * A reply code, if it opens under the secret this joiner shares with the
- * owner — so the owner made it — and answers request `id`; else null.
+ * owner — so the owner made it — answers request `id`, and carries an answer
+ * the session's transport can take (`readsAnswer`); else null.
  */
 export async function openReplyCode(
   link: LiveLink,
@@ -150,6 +154,7 @@ export async function openReplyCode(
   joiner: Keypair,
   id: string,
   text: string,
+  readsAnswer: HandshakeReader,
 ): Promise<JoinReply | null> {
   const body = bare(text, REPLY_PREFIX);
   if (!body || !SEALED.test(body)) return null;
@@ -159,6 +164,6 @@ export async function openReplyCode(
     context(link, code, "reply", [joiner.pub, id], shared),
     body,
   );
-  const reply = plain === null ? null : readJoinReply(plain);
+  const reply = plain === null ? null : readJoinReply(plain, readsAnswer);
   return reply?.id === id ? reply : null;
 }

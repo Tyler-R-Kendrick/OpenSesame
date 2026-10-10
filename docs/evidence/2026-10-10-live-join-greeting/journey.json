@@ -1,0 +1,249 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "liveWeigh": {
+            "items": 1,
+            "fields": 1,
+            "bytes": 16
+          }
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "wholeVault": true
+          }
+        },
+        {
+          "liveLink": null
+        },
+        {
+          "liveLose": {
+            "catalogs": 1
+          }
+        },
+        {
+          "liveJoin": {
+            "name": "Ada",
+            "wait": 15000
+          }
+        },
+        {
+          "shot": "390-first-frame-lost"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "liveWeigh": {
+            "items": 1,
+            "fields": 1,
+            "bytes": 16
+          }
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "wholeVault": true
+          }
+        },
+        {
+          "liveLink": null
+        },
+        {
+          "liveLose": {
+            "catalogs": "all"
+          }
+        },
+        {
+          "liveJoin": {
+            "name": "Ada",
+            "wait": 66000
+          }
+        },
+        {
+          "shot": "390-no-catalog"
+        },
+        {
+          "liveView": "owner"
+        },
+        {
+          "shot": "390-no-catalog-owner"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "liveWeigh": {
+            "items": 1,
+            "fields": 1,
+            "bytes": 16
+          }
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "wholeVault": true
+          }
+        },
+        {
+          "liveLink": null
+        },
+        {
+          "liveLose": {
+            "catalogs": 1
+          }
+        },
+        {
+          "liveJoin": {
+            "name": "Ada",
+            "wait": 15000
+          }
+        },
+        {
+          "shot": "1280-first-frame-lost"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "liveWeigh": {
+            "items": 1,
+            "fields": 1,
+            "bytes": 16
+          }
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "liveHas": null
+        },
+        {
+          "liveStart": {
+            "wholeVault": true
+          }
+        },
+        {
+          "liveLink": null
+        },
+        {
+          "liveLose": {
+            "catalogs": "all"
+          }
+        },
+        {
+          "liveJoin": {
+            "name": "Ada",
+            "wait": 66000
+          }
+        },
+        {
+          "shot": "1280-no-catalog"
+        },
+        {
+          "liveView": "owner"
+        },
+        {
+          "shot": "1280-no-catalog-owner"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-first-frame-lost",
+      "width": 390,
+      "title": "The owner's first catalog frame is lost — joiner, 390",
+      "caption": "Same induced loss on both builds: the owner's browser drops its first catalog frame, as Chromium can when a frame is sent the instant the data channel appears. Main never sends it again; this branch's joiner greets, and the owner answers with the catalog.",
+      "before": "joiner after 15 s: “Connecting to the owner's browser” · owner: “In the session”",
+      "after": "joiner: “Joined Team” · owner: “In the session”"
+    },
+    {
+      "shot": "390-no-catalog",
+      "width": 390,
+      "title": "No catalog ever arrives — joiner after 66 s, 390",
+      "caption": "Every catalog frame dropped. Main's connect timeout was cleared when the channel opened, so the wait never ends. This branch keeps it until the catalog arrives, closes the attempt, and offers a fresh request.",
+      "before": "after 66 s: “Connecting to the owner's browser”, no way on",
+      "after": "after 60 s: “Connection timed out” + “Ask to join again”"
+    },
+    {
+      "shot": "1280-first-frame-lost",
+      "width": 1280,
+      "title": "The owner's first catalog frame is lost — joiner, 1280",
+      "caption": "Same induced loss on both builds: the owner's browser drops its first catalog frame, as Chromium can when a frame is sent the instant the data channel appears. Main never sends it again; this branch's joiner greets, and the owner answers with the catalog.",
+      "before": "joiner after 15 s: “Connecting to the owner's browser” · owner: “In the session”",
+      "after": "joiner: “Joined Team” · owner: “In the session”"
+    },
+    {
+      "shot": "1280-no-catalog",
+      "width": 1280,
+      "title": "No catalog ever arrives — joiner after 66 s, 1280",
+      "caption": "Every catalog frame dropped. Main's connect timeout was cleared when the channel opened, so the wait never ends. This branch keeps it until the catalog arrives, closes the attempt, and offers a fresh request.",
+      "before": "after 66 s: “Connecting to the owner's browser”, no way on",
+      "after": "after 60 s: “Connection timed out” + “Ask to join again”"
+    },
+    {
+      "shot": "1280-no-catalog-owner",
+      "width": 1280,
+      "title": "No catalog ever arrives — the owner after 66 s, 1280",
+      "caption": "The owner's view of the same seat. Main counted the guest in when the catalog send succeeded; this branch counts them in at their first greeting, and shows the seat go when the joiner gives up.",
+      "before": "owner after 66 s: “In the session” (joiner holds nothing)",
+      "after": "owner: “Left”"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import {
   currentHost,
   endHosting,
 } from "@opensesame/app-core/lib/live/session.js";
+import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { act, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
@@ -110,9 +111,9 @@ describe("the keyboard after the joiner's swaps", () => {
 
   it("returns the keyboard to the form when this browser cannot make a request", async () => {
     const { session } = await hosted();
-    liveUiSeams.peers = () => {
+    liveUiSeams.transport = webRtc(() => {
       throw new Error("no WebRTC here");
-    };
+    });
     const joiner = openJoin();
     type(joiner.getByLabelText("Code"), session?.code ?? "");
     type(joiner.getByLabelText("Your name"), "Ada");
