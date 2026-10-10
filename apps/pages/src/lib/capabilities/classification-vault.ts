@@ -49,6 +49,11 @@ const CLOUD_ADAPTERS = [
 
 export const VAULT_LIB_RULES = [
   core(
+    "src/lib/original-device-identity-crypto-data",
+    "identity.brokered-signin",
+    "fixed P256 device identity operations and accepted-work retirement",
+  ),
+  core(
     `${V}protection/protector-context`,
     UNLOCK,
     "pure capsule metadata; management loads only at authenticated operation use",
