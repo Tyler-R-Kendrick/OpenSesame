@@ -248,3 +248,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0183](0183-self-hosted-connector-configuration.md) | Self-hosted connector configuration follows the Connect experience | Accepted |
 | [0184](0184-browser-linear-authorization.md) | Linear authorizes and runs directly in the browser | Accepted |
 | [0185](0185-native-browser-connectors.md) | Browser connectors execute compiled provider contracts | Accepted |
+| [0186](0186-trusted-circle-quorum-sharing.md) | Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself | Accepted |
