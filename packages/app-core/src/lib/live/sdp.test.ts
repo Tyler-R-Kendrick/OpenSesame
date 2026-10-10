@@ -9,17 +9,22 @@ import capture from "./__fixtures__/chromium-sdp.json";
 import { withAddressHints } from "./candidates.js";
 import { fakeSdp } from "./live-fakes.js";
 import { readJoinReply, readJoinRequest } from "./messages.js";
+import { isDataChannelSdp } from "./sdp.js";
 
 const ID = "abcdefghijklmnopqrstuv";
 
 function offer(sdp: string) {
   return readJoinRequest(
     JSON.stringify({ id: ID, name: "Ada", note: "", offer: sdp }),
+    isDataChannelSdp,
   );
 }
 
 function answer(sdp: string) {
-  return readJoinReply(JSON.stringify({ id: ID, answer: sdp }));
+  return readJoinReply(
+    JSON.stringify({ id: ID, answer: sdp }),
+    isDataChannelSdp,
+  );
 }
 
 /** A description made of `lines`, the way a browser ends each one. */

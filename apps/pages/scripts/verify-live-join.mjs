@@ -77,6 +77,7 @@ import {
   openLive,
   ownerEnters,
   peerStates,
+  probeChannels,
 } from "./lib/live-join-walk.mjs";
 import { mintTurnCert } from "./lib/live-turn.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -209,10 +210,12 @@ const joined = (page) => page.getByRole("img", { name: "Joined Team" });
 /** On a failure, every open page as it stood. */
 async function wreckage(browser, label) {
   const pages = browser.contexts().flatMap((context) => context.pages());
-  for (const [at, page] of pages.entries()) {
+  for (const [at, page] of pages.entries())
     await page
       .screenshot({ path: path.join(OUT, `failed-${label}-${at + 1}.png`) })
       .catch(() => {});
+  await probeChannels(pages);
+  for (const [at, page] of pages.entries()) {
     const states = await peerStates(page).catch(() => null);
     harness.record(
       "FAILED-PAGE",

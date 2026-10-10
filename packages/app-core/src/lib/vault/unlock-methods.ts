@@ -27,6 +27,7 @@ import {
   totpCode,
 } from "@opensesame/vault-core";
 import {
+  type PasskeyCreateOptions,
   createPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyForDefault,
@@ -425,10 +426,9 @@ export function preferredUnlockMethod(
 export async function createPasskeyUnlockCeremony(
   rpId?: string,
   signal?: AbortSignal,
+  options?: PasskeyCreateOptions,
 ): Promise<PasskeyCeremony> {
-  return rpId === undefined
-    ? unlockMethodsSeams.createPasskeyUnlockCeremony(undefined, signal)
-    : unlockMethodsSeams.createPasskeyUnlockCeremony(rpId, signal);
+  return unlockMethodsSeams.createPasskeyUnlockCeremony(rpId, signal, options);
 }
 
 export async function getPasskeyUnlockCeremony(

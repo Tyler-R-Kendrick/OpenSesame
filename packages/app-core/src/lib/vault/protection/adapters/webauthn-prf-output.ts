@@ -33,6 +33,18 @@ export class PrfCeremonyError extends Error {
   }
 }
 
+/**
+ * The authenticator took the ceremony but cannot answer PRF, so it cannot seal
+ * a vault key — not a failed attempt, and not one a retry on it can fix.
+ */
+export function isPrfUnsupported<Thrown>(error: Thrown): boolean {
+  return (
+    error instanceof PrfCeremonyError &&
+    (error.code === "prf_missing_output" ||
+      error.code === "prf_enabled_without_output")
+  );
+}
+
 export function prfExtensionSupported(
   results: AuthenticationExtensionsClientOutputs | undefined,
 ): boolean {
@@ -46,6 +58,18 @@ export function readPrfFirst(
 ): ArrayBuffer | null {
   const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
   return prf?.results?.first ?? null;
+}
+
+/**
+ * The authenticator took the PRF extension at creation but computed nothing
+ * (`enabled: true`, no `results`). It can still answer an assertion; it is not
+ * a key until it does.
+ */
+export function prfExtensionEnabled(
+  results: AuthenticationExtensionsClientOutputs | undefined,
+): boolean {
+  const prf: PrfExtensionOutput | undefined = overlapCast(results?.prf);
+  return prf?.enabled === true && !prf.results?.first;
 }
 
 /** True only when `results.first` has a usable PRF byte length. `enabled` alone is false. */

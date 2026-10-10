@@ -14,8 +14,9 @@
  *
  * Egress this module wraps, none of it at activation and all of it started
  * by the person: a WebRTC peer connection to the other browser once the
- * sealed pairing codes have crossed (`lib/live/pairing.ts`,
- * `lib/live/peer.ts`) — directly by default, with no ICE server; the
+ * sealed pairing codes have crossed (`lib/live/pairing.ts`, the transport
+ * `lib/live/webrtc.ts` behind `lib/live/p2p.ts`, composed in
+ * `live-hooks.ts`) — directly by default, with no ICE server; the
  * clipboard on a copy under Show values or Can edit. Copy only does not
  * place a concealed value on the joiner's clipboard. Only what the owner
  * names in Routes adds more, and only for the owner's sessions and joiners
