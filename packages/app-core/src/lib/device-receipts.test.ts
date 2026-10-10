@@ -55,7 +55,6 @@ const KINDS = [
   "drop.revoked",
   "live.granted",
   "live.ended",
-  "share.requested",
   "share.approved",
   "share.denied",
   "share.granted",
