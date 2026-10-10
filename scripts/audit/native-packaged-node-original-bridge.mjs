@@ -133,6 +133,11 @@ async function prepareOriginalPackedProducts(provenance) {
       join(imports, "node_modules/@opensesame", name),
       process.platform === "win32" ? "junction" : "dir",
     );
+  await symlink(
+    await realpath(join(packedCore.root, "node_modules/@opensesame/os-domain")),
+    join(imports, "node_modules/@opensesame/os-domain"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
   const probe = join(imports, "probe.mts");
   await copyFile(
     fileURLToPath(

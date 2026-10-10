@@ -5,7 +5,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { captureInstalledNativeNodeWorker } from "@opensesame/app-core/node/native-companion-installation.js";
 import { parseArgs, runCli } from "@opensesame/cli";
-if (typeof parseArgs !== "function" || typeof runCli !== "function")
+import { isFunction } from "@opensesame/os-domain";
+if (!isFunction(parseArgs) || !isFunction(runCli))
   throw new Error("Actual packed CLI exports unavailable.");
 const state = await mkdtemp(join(tmpdir(), "opensesame-packed-original-"));
 const key = randomBytes(32);
