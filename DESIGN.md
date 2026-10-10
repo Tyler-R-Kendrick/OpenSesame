@@ -13,9 +13,7 @@ colors:
   ink-3: "#6f6f6f"
   line: "#e7e7e7"
   line-strong: "#d4d4d4"
-  accent: "#0d7268"
-  accent-ink: "#ffffff"
-  accent-wash: "#eaf2f0"
+  mark-slit: "#8f8f8f"
   scrim: "rgba(0, 0, 0, 0.44)"
   ok: "#0f7a51"
   warn: "#a25a05"
@@ -89,7 +87,8 @@ product was built for them.
 The craft bar is Bitwarden and 1Password. Password-manager canon — unlock gate,
 list and detail, conceal by default, copy without revealing — is followed
 because users already know it, executed with Scandinavian restraint: a neutral
-black-and-white foundation, teal as the single accent, and nothing decorative.
+black-and-white foundation, greys for everything that is not ink, and nothing
+decorative but the brand's own plates.
 
 **Key characteristics:**
 - A new vault is sealed by a passkey, or a PIN where WebAuthn cannot run
@@ -98,46 +97,72 @@ black-and-white foundation, teal as the single accent, and nothing decorative.
 - One paper surface: the whole workspace is a light, hairline-divided
   terminal — mono filesystem rail, content buffer, statusline. Dark mode
   inverts the same system onto near-black paper.
-- Teal is the single accent, and it means state and identity: focus, links,
-  the brand mark. Primary actions are ink, and the cursor is inverse video.
+- No hue. Focus, links and the brand are ink; status is a glyph, a texture
+  and a lightness; the one grey the brand keeps is the slit of light in the
+  mark (`--mark-slit`). Primary actions are ink, and the cursor is inverse video.
 - Scandinavian restraint: zero-spread neutrals, sentence case everywhere,
   hairline rules and chapters instead of boxed cards, square corners (no
   radii), no decorative gradients or shadows
 - List-and-detail spine for the vault; flowing chapter documents for the
   plane-backed sections
 - System font stacks for the interface — no third-party origin; the wordmark
-  alone sets in a bundled, self-hosted face (Share Tech Mono)
+  alone sets in a bundled, self-hosted face (OS Logo: Geist Mono ExtraBold,
+  subset to `0-9 A-Z space`, OFL)
 
 ## Mark
 
 The mark is **the door ajar**: the vault slab slid aside with a slit of
 light where it opened — Open Sesame's own story, drawn as two sharp
-rectangles. The slab is ink, the light is the accent teal; this is the one
-place teal means identity rather than state. In the chrome the mark is
-bare — no tile, no circle, no badge — beside the lowercase mono wordmark
-`open-sesame`. Only the OS app icon puts it on a dark tile with the
-platform's mask. The old padlock-in-a-teal-tile is retired everywhere.
+rectangles. One geometry, pinned in `components/CipherWordmark/mark-geometry.ts`
+in units of the mark's height divided by 17 — slab 12u, gap 2.7u, slit 2.3u —
+so the footprint is a square; `IconMark`, `public/icon.svg` and the slab the
+wordmark paints all derive from it, and `mark-geometry.test.ts` holds the icon
+to it. The slab is ink; the slit is `--mark-slit`, a mid grey (#8f8f8f on
+paper, #666666 at night), decorative and the one thing that colour is used
+for. It was teal once; nothing in the brand carries a hue now. In the chrome
+the mark is bare — no tile, no circle, no badge — beside the uppercase name.
+The app icon is a square #141414 tile with the mark 36 tall at a 14 inset; a
+platform rounds its icons itself.
 
-The wordmark reveals through eleven character-sized background slots. Each slot
-steps through hexadecimal ciphertext and locks to its letter before the next
-begins: randomly 6–12 glyph cycles at 35ms each, once on entry, without delaying
-interaction. Counts stay fixed through re-renders; the full reveal takes 2.31–4.62s.
-The reels are decorative; assistive technology reads `open-sesame` once.
-Reduced motion shows the completed word immediately. All front doors and the
-desktop rail use the same `Wordmark` component, and the reel runs once per
-session: the gate a person arrives on owns the moment, and every wordmark
-mounted after it — the setup ceremony, the rail — stands still on its letters.
-The unlock screen's wordmark replays it on each mount.
+The wordmark is the name, `OPEN SESAME`, punched out of eleven plates on a
+canvas (`components/CipherWordmark`), set in OS Logo at weight 800 — the one
+display face and the one weight past 600, used nowhere else. The brand spells
+it with the letter O: a zero is one word to change (`DISPLAY_WORD`), and the
+default stays the letter because a zero makes the eye and the screen reader
+disagree. One plate grid, three renderings by em (`particles-model.ts`):
+
+| Tier | Em | Drawn | Where |
+| --- | --- | --- | --- |
+| field | 48px and up | ink particles with the letter cut out; the field drifts while the name decrypts, then freezes | the front door, fitted to its card (`fit`: em = width / 7.78, at most 90) |
+| solid | 16 to 48px | a solid ink plate with the letter cut out, stroked so it survives 1× | the unlock card, the setup bar at tablet width |
+| type | under 16px | the letters in ink, no plates | the rail (12px), the setup bar (13px) |
+
+An 11px particle plate keeps 290 of its 1,400 cut-out pixels and reads as
+redacted blocks, so the small tiers exist. The element's font-size is the
+plate em, so a stylesheet sizes the wordmark the way it sizes text.
+
+The name decrypts on arrival: every cell starts as hex ciphertext — the
+glyphs a digest is written in — and a cursor walks the cells left to right,
+the active plate brightening (never a stroked frame) while its glyph steps at
+35ms a frame for 6–12 frames, then locks on its letter and flashes once.
+2.31–4.62s in all, once per session: the gate a person arrives on owns the
+moment, and every wordmark mounted after it — the setup ceremony, the rail —
+stands still on its letters. The unlock screen's wordmark replays it on each
+mount. The plates are decorative; assistive technology reads `open-sesame`
+once. Reduced motion shows the finished word at once, the field frozen.
+`verify:static` samples the real page (`scripts/lib/wordmark-contract.mjs`):
+the published slot timings, one cursor cell at an injected clock, the settled
+plates under reduced motion.
 
 ## Colors
 
-Neutrals carry the interface. Teal is scarce enough to mean something.
+Neutrals carry the interface. There is no accent: the greyscale system
+(#1001) retired teal, and focus, links and the brand are ink.
 
 ### Primary
-- **Accent** (#0d7268): state and identity only — focus rings, links, the
-  connector cursor's outline, the brand mark, and the strongest step of the
-  strength meter. Primary buttons are ink, not accent, and a tree cursor is
-  inverse video. In dark mode the accent lifts to #2fb3a3.
+- **Mark slit** (#8f8f8f, #666666 at night): the slit of light in the mark,
+  and nothing else. Decorative, at the 3:1 floor and no higher. Primary
+  buttons are ink, a tree cursor is inverse video, focus is an ink ring.
 
 ### Neutral
 All neutrals are zero-spread grays — no warm or cool casts anywhere in chrome.
@@ -152,8 +177,8 @@ All neutrals are zero-spread grays — no warm or cool casts anywhere in chrome.
 
 ### Status
 **ok** #0f7a51, **warn** #a25a05, **err** #b32424, each with a wash for filled
-callouts. The password strength ramp (`--s-0` … `--s-4`) runs red → amber →
-green → teal so "excellent" lands on the brand color.
+callouts. The password strength ramp (`--s-0` … `--s-4`) counts five segments
+filled in ink; level reads by count, not hue.
 
 ### Named rules
 
@@ -178,8 +203,8 @@ stack at a readable measure, because explanations are for reading, not
 scanning.
 
 ### Hierarchy
-- The front door's title is the wordmark at display scale —
-  `clamp(1.05rem, 6cqi, 2.6rem)`, the one display step, used nowhere else
+- The front door's title is the wordmark at display scale — fitted to its
+  card, em = width / 7.78 capped at 90px, the one display step, used nowhere else
 - Page and detail titles ~1.4rem, weight 600, tight tracking
 - Panel headings ~1.0625rem
 - Body 15px / 1.5
@@ -510,7 +535,7 @@ mask.
 Selection is inverse video, the terminal's own idiom: the tree cursor, the
 rail's current leaf, and pressed toggles render paper-on-ink. Exactly one
 row in a tree is inverse at a time — the open directory above a selected
-leaf shows only its open caret and weight. Teal never marks selection.
+leaf shows only its open caret and weight. Colour never marks selection.
 
 ## Components
 
@@ -775,7 +800,7 @@ Identity's children and its content tabs share the URL's `view` selection;
 the rail and tabs always name the same view. Connections has separate
 Connected and Add a connection branches. Moving the connector cursor previews
 the corresponding service or catalog entry in the buffer, scrolls it into view,
-and outlines it in teal; the rail cursor remains inverse video. Enter or a
+and outlines it in ink; the rail cursor remains inverse video. Enter or a
 click opens the connector. Directional movement never starts its ceremony.
 The searchable catalog grows twelve entries at a time. `Load n more` is the final
 indexed tree row, reachable by the same motions as a connector; activation
@@ -933,7 +958,7 @@ and admins in the application's organization. Verify with passkey precedes a
 separate Allow agent access action beside Deny. Person requests retain Person
 and Allow application. Inline outputs report connection state, failures go to the
 tray, and active connections offer End application session. Controls reuse
-the existing record layout, ink action and teal focus; long references wrap.
+the existing record layout, ink action and ink focus; long references wrap.
 This pattern records the consent surface, not completion of broader browser IAM.
 
 ### Local requests
@@ -951,7 +976,7 @@ resolves its record by ID against current data: expiry and external decisions
 remove obsolete approval controls. Active focus is preserved; disappearing
 controls or records restore useful focus within the review or to the connected
 initiator, falling back to Reload. Withdrawal and settled-history removal each
-require confirmation. Native controls, ink actions, teal focus and wrapping
+require confirmation. Native controls, ink actions, ink focus and wrapping
 action rows retain the incumbent desktop/mobile treatment.
 
 Requests expire after five minutes. Creation grants no access; approval never
@@ -978,7 +1003,7 @@ closing returns focus to the source control, or Reload if the row was removed,
 only when focus is idle. Moved focus is preserved. Success uses inline output;
 failures go to the tray, with reload/retry recovery. Long references and mobile
 action rows wrap within the existing panel, using the incumbent ink buttons,
-hairlines and teal focus treatment. Native focus scrolling brings confirmation
+hairlines and ink focus treatment. Native focus scrolling brings confirmation
 and restored controls into view; introductory prose keeps the readable measure.
 
 ### Callouts
