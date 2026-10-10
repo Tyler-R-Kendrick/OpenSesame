@@ -13,24 +13,16 @@
  * a frame that did open is never accepted twice. What the server, or any
  * other link holder, sees is ciphertext and its length.
  *
- * It speaks the same messages as `PeerChannel` and keeps its contract: send
- * reports whether the frame went out, nothing over `FRAME_BYTES` is sent,
- * and what arrives before a handler is held for it.
+ * It is a `LiveChannel` like any transport's (`p2p.ts`) and keeps its
+ * contract: send reports whether the frame went out, nothing over
+ * `FRAME_BYTES` is sent, and what arrives before a handler is held for it.
  */
 
 import type { LiveLink } from "./link.js";
 import { type ChannelMessage, readChannelMessage } from "./messages.js";
-import { FRAME_BYTES } from "./peer.js";
+import { FRAME_BYTES, Inbox, type LiveChannel } from "./p2p.js";
 import type { Carrier } from "./rendezvous.js";
 import { type SealContext, seal, unseal } from "./seal.js";
-
-/** What a session needs of a channel, whichever way it is carried. */
-export interface LiveChannel {
-  send(message: ChannelMessage): boolean;
-  onMessage(handler: (message: ChannelMessage) => void): void;
-  onClose(handler: () => void): void;
-  close(): void;
-}
 
 /** What seals one seat's frames: the pairing's own key material. */
 export type SeatKeys = Readonly<{
@@ -49,7 +41,6 @@ export type SeatSide = "owner" | "joiner";
 
 const PREFIX = "osc1";
 const FRAME_MAX = 2 * 1024 * 1024;
-const BACKLOG_MAX = 64;
 const SEQ = /^[1-9]\d{0,14}$/;
 
 /** The subject suffix a seat's frames travel on. */
@@ -64,8 +55,7 @@ export class SeatChannel implements LiveChannel {
   readonly #in: "h" | "g";
   readonly #stop: () => void;
   readonly #closers: (() => void)[] = [];
-  readonly #backlog: ChannelMessage[] = [];
-  #handler: ((message: ChannelMessage) => void) | null = null;
+  readonly #inbox = new Inbox();
   #sent = 0;
   #seen = 0;
   #closed = false;
@@ -137,13 +127,11 @@ export class SeatChannel implements LiveChannel {
 
   #deliver(message: ChannelMessage): void {
     if (message.t === "end") this.#end();
-    else if (this.#handler) this.#handler(message);
-    else if (this.#backlog.length < BACKLOG_MAX) this.#backlog.push(message);
+    else this.#inbox.deliver(message);
   }
 
   onMessage(handler: (message: ChannelMessage) => void): void {
-    this.#handler = handler;
-    for (const message of this.#backlog.splice(0)) handler(message);
+    this.#inbox.read(handler);
   }
 
   onClose(handler: () => void): void {

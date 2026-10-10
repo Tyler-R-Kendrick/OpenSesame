@@ -3,7 +3,9 @@
 - Status: Accepted
 - Date: 2026-09-28
 - Amended by: [ADR 0167](0167-nats-live-session-route.md) (§3 what a link
-  carries, §5 what crosses the peer channel, §6 carriers pass codes only)
+  carries, §5 what crosses the peer channel, §6 carriers pass codes only),
+  [ADR 0186](0186-live-session-transport-port-and-catalog-greeting.md) (§3
+  what a request carries, §5 the catalog answers the joiner's greeting)
 - Amends: [ADR 0090](0090-static-frontend-complete-without-backend.md) and
   [ADR 0115](0115-front-door-and-connector-directory.md) (the first-run door:
   two roads, sign-in behind a vault), [ADR 0136](0136-join-a-session-restored.md)

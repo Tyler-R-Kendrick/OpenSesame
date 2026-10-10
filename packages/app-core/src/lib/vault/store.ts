@@ -84,6 +84,7 @@ import {
 } from "./master-wrap.js";
 import {
   probePasskeyCeremony,
+  sealNewVaultWithPasskey,
   unlockVaultWithHeldPrf,
   unlockVaultWithPasskey,
   wrapVaultKeyWithCeremony,
@@ -100,6 +101,7 @@ import {
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
+import type { PasskeyCreateOptions } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
 import {
@@ -493,27 +495,15 @@ export class VaultStore {
   }
 
   /** First-run seal under a passkey PRF wrap — no master password required. */
-  async createWithPasskey(signal?: AbortSignal): Promise<void> {
-    if (signal?.aborted) {
-      throw new DOMException("The operation was aborted.", "AbortError");
-    }
-    const { vaultKey, rawVaultKey } = await mintVaultKey();
-    try {
-      const ceremony = await createPasskeyUnlockCeremony(undefined, signal);
-      if (signal?.aborted) {
-        throw new DOMException("The operation was aborted.", "AbortError");
-      }
-      const record = await wrapVaultKeyWithCeremony(rawVaultKey, ceremony);
-      const header: VaultHeader = {
-        v: 1,
-        createdAt: new Date().toISOString(),
-        unlocks: { passkey: record },
-      };
-      await this.#persistNewVault(header, vaultKey, rawVaultKey);
-    } catch (error) {
-      rawVaultKey.fill(0);
-      throw error;
-    }
+  async createWithPasskey(
+    signal?: AbortSignal,
+    options?: PasskeyCreateOptions,
+  ): Promise<void> {
+    await sealNewVaultWithPasskey(
+      (header, key, raw) => this.#persistNewVault(header, key, raw),
+      signal,
+      options,
+    );
   }
 
   /**
@@ -904,10 +894,14 @@ export class VaultStore {
     return { vaultKey: this.#vaultKey, header: this.#header };
   }
 
-  async enrollPasskey(): Promise<void> {
+  async enrollPasskey(options?: PasskeyCreateOptions): Promise<void> {
     const { header } = this.#requireUnlocked();
     const raw = this.#requireRaw();
-    const ceremony = await createPasskeyUnlockCeremony();
+    const ceremony = await createPasskeyUnlockCeremony(
+      undefined,
+      undefined,
+      options,
+    );
     const record = await wrapVaultKeyWithCeremony(raw, ceremony);
     const unlocks: VaultUnlocks = { ...header.unlocks, passkey: record };
     await this.#persistHeader({ ...header, unlocks });

@@ -79,7 +79,7 @@ export function installLiveFocusTests(): void {
     });
     Object.assign(liveSeams, { items: () => [github] });
     Object.assign(liveUiSeams, {
-      peers: net.factory(),
+      transport: net.transports(),
       joinUrl: () => "https://example.test/OpenSesame/",
     });
     fixup = browserFocusFixup();

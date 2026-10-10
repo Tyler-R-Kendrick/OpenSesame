@@ -3,6 +3,11 @@ import type {
   PasskeyProbe,
   PasskeyProbeOptions,
 } from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
+import type {
+  PasskeyAttachment,
+  PasskeyCreateOptions,
+} from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
+import { isPrfUnsupported } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-output.js";
 import {
   type UnlockTabId,
   isProtectorUnlockMethod,
@@ -18,9 +23,16 @@ import { unlockWithPinAfterDuressGate } from "@opensesame/app-core/screens/unloc
 import { unlockWithProtectorAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-protector-duress.js";
 import { unlockSecondStepAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-second-step-duress.js";
 import type { MutableRefObject } from "react";
+import {
+  cancelUnlockCeremony,
+  withUnlockCeremony,
+} from "../../lib/unlock-ceremony-arm.js";
 
 type UnlockStore = Readonly<{
-  createWithPasskey: (signal?: AbortSignal) => Promise<void>;
+  createWithPasskey: (
+    signal?: AbortSignal,
+    options?: PasskeyCreateOptions,
+  ) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
   createGuest: (options?: { resume?: boolean }) => Promise<void>;
   cancelTotpChallenge: () => void;
@@ -46,6 +58,7 @@ export async function submitFirstRunUnlock(input: {
   activeMethod: UnlockTabId;
   store: UnlockStore;
   passkeyAbort: MutableRefObject<AbortController | null>;
+  attachment?: PasskeyCreateOptions["attachment"];
   pin: string;
   confirm: string;
   setPin: (value: string) => void;
@@ -54,7 +67,9 @@ export async function submitFirstRunUnlock(input: {
     const controller = new AbortController();
     input.passkeyAbort.current = controller;
     try {
-      await input.store.createWithPasskey(controller.signal);
+      await input.store.createWithPasskey(controller.signal, {
+        attachment: input.attachment,
+      });
     } finally {
       if (input.passkeyAbort.current === controller)
         input.passkeyAbort.current = null;
@@ -73,6 +88,25 @@ export async function submitFirstRunUnlock(input: {
   input.setPin("");
 }
 
+/**
+ * A passkey seal that an authenticator cannot answer is stepped past, not
+ * reported: the form moves to the next road and says so in the tray.
+ */
+export function stepPastUnsupported<Thrown>(
+  input: {
+    firstRun: boolean;
+    activeMethod: UnlockTabId;
+    attachment: PasskeyAttachment;
+    onSealUnsupported: (kind: PasskeyAttachment) => void;
+  },
+  caught: Thrown,
+): boolean {
+  if (!input.firstRun || input.activeMethod !== "passkey") return false;
+  if (!isPrfUnsupported(caught)) return false;
+  input.onSealUnsupported(input.attachment);
+  return true;
+}
+
 export async function submitSecondStepUnlock(input: {
   recoveryMode: boolean;
   activeSecondStep: SecondStepId | null;
@@ -82,16 +116,22 @@ export async function submitSecondStepUnlock(input: {
   setRecovery: (value: string) => void;
   setTotp: (value: string) => void;
 }): Promise<"duress_stop" | "done"> {
-  const outcome = await unlockSecondStepAfterDuressGate({
-    store: input.store,
-    recoveryMode: input.recoveryMode,
-    activeSecondStep: input.activeSecondStep,
-    recovery: input.recovery,
-    totp: input.totp,
-  });
+  const outcome = await withUnlockCeremony(() =>
+    unlockSecondStepAfterDuressGate({
+      store: input.store,
+      recoveryMode: input.recoveryMode,
+      activeSecondStep: input.activeSecondStep,
+      recovery: input.recovery,
+      totp: input.totp,
+    }),
+  );
   if (input.recoveryMode) input.setRecovery("");
   else input.setTotp("");
-  return outcome === "duress_session" ? "duress_stop" : "done";
+  if (outcome === "duress_session") {
+    cancelUnlockCeremony();
+    return "duress_stop";
+  }
+  return "done";
 }
 
 type ProtectorSubmit = {
@@ -109,13 +149,22 @@ async function submitProtectorUnlock(
   const controller = new AbortController();
   input.passkeyAbort.current = controller;
   try {
-    const outcome = await unlockWithProtectorAfterDuressGate(input.store, {
-      method: input.method,
-      secret: input.protectorSecret,
-      signal: controller.signal,
-    });
-    if (outcome === "needs_duress_code") return "needs_duress_code";
-    return outcome === "duress_session" ? "duress_stop" : "done";
+    const outcome = await withUnlockCeremony(() =>
+      unlockWithProtectorAfterDuressGate(input.store, {
+        method: input.method,
+        secret: input.protectorSecret,
+        signal: controller.signal,
+      }),
+    );
+    if (outcome === "needs_duress_code") {
+      cancelUnlockCeremony();
+      return "needs_duress_code";
+    }
+    if (outcome === "duress_session") {
+      cancelUnlockCeremony();
+      return "duress_stop";
+    }
+    return "done";
   } finally {
     input.setProtectorSecret("");
     if (input.passkeyAbort.current === controller)
@@ -142,32 +191,44 @@ export async function submitPrimaryMethodUnlock(input: {
     const controller = new AbortController();
     input.passkeyAbort.current = controller;
     try {
-      const outcome = await unlockWithPasskeyAfterDuressGate(
-        input.store,
-        controller.signal,
+      const outcome = await withUnlockCeremony(() =>
+        unlockWithPasskeyAfterDuressGate(input.store, controller.signal),
       );
-      if (outcome === "needs_duress_code") return "needs_duress_code";
-      return outcome === "duress_session" ? "duress_stop" : "done";
+      if (outcome === "needs_duress_code") {
+        cancelUnlockCeremony();
+        return "needs_duress_code";
+      }
+      if (outcome === "duress_session") {
+        cancelUnlockCeremony();
+        return "duress_stop";
+      }
+      return "done";
     } finally {
       if (input.passkeyAbort.current === controller)
         input.passkeyAbort.current = null;
     }
   }
   if (input.activeMethod === "pin") {
-    const pinOutcome = await unlockWithPinAfterDuressGate(
-      input.store,
-      input.pin,
+    const pinOutcome = await withUnlockCeremony(() =>
+      unlockWithPinAfterDuressGate(input.store, input.pin),
     );
     input.setPin("");
     input.setConfirm("");
-    return pinOutcome === "duress_session" ? "duress_stop" : "done";
+    if (pinOutcome === "duress_session") {
+      cancelUnlockCeremony();
+      return "duress_stop";
+    }
+    return "done";
   }
-  const passwordOutcome = await unlockWithPasswordAfterDuressGate(
-    input.store,
-    input.password,
+  const passwordOutcome = await withUnlockCeremony(() =>
+    unlockWithPasswordAfterDuressGate(input.store, input.password),
   );
   input.setPassword("");
-  return passwordOutcome === "duress_session" ? "duress_stop" : "done";
+  if (passwordOutcome === "duress_session") {
+    cancelUnlockCeremony();
+    return "duress_stop";
+  }
+  return "done";
 }
 
 export async function submitPasskeyDuressCode(input: {
@@ -175,9 +236,15 @@ export async function submitPasskeyDuressCode(input: {
   pin: string;
   setPin: (value: string) => void;
 }): Promise<"duress_stop" | "done"> {
-  const outcome = await completePasskeyDuressCode(input.store, input.pin);
+  const outcome = await withUnlockCeremony(() =>
+    completePasskeyDuressCode(input.store, input.pin),
+  );
   input.setPin("");
-  return outcome === "duress_session" ? "duress_stop" : "done";
+  if (outcome === "duress_session") {
+    cancelUnlockCeremony();
+    return "duress_stop";
+  }
+  return "done";
 }
 
 export async function submitGuestUnlock(): Promise<void> {

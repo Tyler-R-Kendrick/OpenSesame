@@ -39,6 +39,7 @@ import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { checkStaticAccess } from "./lib/static-access-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
+import { walkUnlockHero } from "./lib/unlock-hero-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
 import { checkWordmark } from "./lib/wordmark-contract.mjs";
 
@@ -90,6 +91,8 @@ const browser = await launch();
     "the local seal landed inside the app",
   );
   check(!/Claim this guest session/.test(inApp), "no claim notice");
+  setStep("B-unlock-hero");
+  await walkUnlockHero(page, check);
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
   // What this installation carries, and how it changes (ADR 0130). This runs

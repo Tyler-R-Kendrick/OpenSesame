@@ -57,8 +57,8 @@ function hostInput(net: FakeNet, bus: FakeBus) {
     policy: "read" as const,
     admission: "invite" as const,
     minutes: 30,
-    peers: net.factory(),
-    transport: PROFILE,
+    transport: net.transports(),
+    routes: PROFILE,
     carriers: bus.factory(),
   };
 }
@@ -75,7 +75,7 @@ describe("a joiner who waits", () => {
       code: owner.code,
       name: "Ada",
       note: "",
-      peers: net.factory(),
+      transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
     });
@@ -140,7 +140,7 @@ describe("a start that fails leaves nothing behind", () => {
     };
     const start = startHosting({
       ...hostInput(new FakeNet(), new FakeBus()),
-      transport: heavy,
+      routes: heavy,
     });
     await expect(start).rejects.toThrow(/too long/);
     nothingLeft();

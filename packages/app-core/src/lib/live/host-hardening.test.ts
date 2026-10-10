@@ -16,7 +16,7 @@ import {
 import { FAKE_CLOCK, deferred, settle } from "./live-clock.fixture.js";
 import { FakeNet } from "./live-fakes.js";
 import type { Catalog } from "./messages.js";
-import { DIRECT_ONLY, PAIRING_MS } from "./peer.js";
+import { PAIRING_MS } from "./p2p.js";
 
 const SECRET_VALUE = "correct horse battery staple";
 const WRONG = "BCDF-GHJK";
@@ -48,11 +48,10 @@ afterEach(() => {
 async function open(admission: Admission, net = new FakeNet()) {
   const host = await LiveHost.start({
     admission,
-    ice: DIRECT_ONLY,
     expiresAt: Date.now() + 8 * 60 * 60_000,
     catalog: () => catalog,
     readField: async () => SECRET_VALUE,
-    peers: net.factory(),
+    transport: net.transport(),
   });
   hosts.push(host);
   return { net, host };
@@ -69,8 +68,7 @@ function joiner(
     code,
     name,
     note: "",
-    ice: DIRECT_ONLY,
-    peers: net.factory(),
+    transport: net.transport(),
   });
   guests.push(guest);
   return guest;
@@ -148,11 +146,10 @@ describe("an invite session locks on the fifth miss", () => {
     const net = new FakeNet();
     const host = await LiveHost.start({
       admission: "invite",
-      ice: DIRECT_ONLY,
       expiresAt: Date.now() + 60_000,
       catalog: () => catalog,
       readField: async () => SECRET_VALUE,
-      peers: net.factory(),
+      transport: net.transport(),
       post: (code) => posted.push(code),
     });
     hosts.push(host);
