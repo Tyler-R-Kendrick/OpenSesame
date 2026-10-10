@@ -92,6 +92,12 @@ function actions(
   descriptor: NativeConnectorDescriptor,
   view: NativeConnectorView | null,
 ): NativeConnectorDescriptor {
+  const available =
+    !!view &&
+    descriptor.methods.some(
+      (method) => method.id === view.configuration.method && method.available,
+    ) &&
+    hasNativeConnectorDriver(view.configuration.method, view.providerId);
   return {
     ...descriptor,
     actions:
@@ -159,7 +165,13 @@ function actions(
                 ]
               : []),
             ...discordActions(view),
-          ]
+          ].map((action) => ({
+            ...action,
+            available,
+            reason: available
+              ? undefined
+              : "This provider action is unavailable in this browser runtime.",
+          }))
         : [],
   };
 }

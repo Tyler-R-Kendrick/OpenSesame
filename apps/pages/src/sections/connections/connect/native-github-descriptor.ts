@@ -5,8 +5,7 @@ import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 export function nativeGithubDescriptor(
   provider: Provider,
   available: boolean,
-): NativeConnectorDescriptor | null {
-  if (!available) return null;
+): NativeConnectorDescriptor {
   return {
     providerId: provider.id,
     name: provider.displayName,
@@ -18,7 +17,10 @@ export function nativeGithubDescriptor(
       {
         id: "api-key",
         label: "Personal access token",
-        available: true,
+        available,
+        unavailableReason: available
+          ? undefined
+          : "GitHub personal-token access is unavailable in this browser runtime.",
         fields: [
           {
             id: "api_key",

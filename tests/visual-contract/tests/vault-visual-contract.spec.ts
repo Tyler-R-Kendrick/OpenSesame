@@ -81,6 +81,9 @@ async function capture(
 async function openFrontDoor(page: Page): Promise<void> {
   await page.goto("/");
   await page.locator(".door .unlock__card").waitFor({ state: "visible" });
+  // The canvas cipher runs on requestAnimationFrame, independently of CSS
+  // animation rules. Capture its completed letters, never random hex cells.
+  await expect(page.locator(".door .cipher-wordmark--settled")).toBeVisible();
 }
 
 /**

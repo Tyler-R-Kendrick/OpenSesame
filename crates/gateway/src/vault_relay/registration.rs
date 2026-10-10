@@ -180,7 +180,7 @@ pub(crate) fn token_from_headers(headers: &axum::http::HeaderMap) -> Option<Stri
         return value
             .to_str()
             .ok()
-            .map(|token| token.trim())
+            .map(str::trim)
             .filter(|token| !token.is_empty())
             .map(str::to_owned);
     }

@@ -114,16 +114,21 @@ afterEach(() => {
 
 describe("moving between connector pages", () => {
   it("does not carry provider A's error, or its bell notice, onto provider B", async () => {
-    startGithubAppRegistration.mockRejectedValue(
-      new Error("GitHub refused the manifest."),
-    );
+    const fixture = connectorIntegration();
+    fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     renderWithNavigation("/connections/github", ["/connections/better-auth"]);
+    await userEvent.type(
+      await screen.findByLabelText("GitHub personal access token"),
+      "private-browser-token",
+    );
     await userEvent.click(
-      await screen.findByRole("button", {
-        name: /Create GitHub App for this organization/i,
+      screen.getByRole("button", {
+        name: "Verify and connect GitHub",
       }),
     );
-    await screen.findByRole("img", { name: "GitHub refused the manifest." });
+    await screen.findAllByRole("img", {
+      name: /Provider authorization was refused/,
+    });
     await waitFor(() =>
       expect(listNotices()).toMatchObject([{ id: "connector:github" }]),
     );
@@ -134,25 +139,31 @@ describe("moving between connector pages", () => {
     await screen.findByRole("heading", { name: "Better Auth" });
 
     expect(
-      screen.queryByRole("img", { name: "GitHub refused the manifest." }),
+      screen.queryByRole("img", { name: /Provider authorization was refused/ }),
     ).toBeNull();
     expect(listNotices()).toEqual([]);
+    expect(startGithubAppRegistration).not.toHaveBeenCalled();
   });
 
   it("does not bring A's error back when A is opened again", async () => {
-    startGithubAppRegistration.mockRejectedValue(
-      new Error("GitHub refused the manifest."),
-    );
+    const fixture = connectorIntegration();
+    fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     renderWithNavigation("/connections/github", [
       "/connections/better-auth",
       "/connections/github",
     ]);
+    await userEvent.type(
+      await screen.findByLabelText("GitHub personal access token"),
+      "private-browser-token",
+    );
     await userEvent.click(
-      await screen.findByRole("button", {
-        name: /Create GitHub App for this organization/i,
+      screen.getByRole("button", {
+        name: "Verify and connect GitHub",
       }),
     );
-    await screen.findByRole("img", { name: "GitHub refused the manifest." });
+    await screen.findAllByRole("img", {
+      name: /Provider authorization was refused/,
+    });
     await userEvent.click(
       screen.getByRole("button", { name: "go to /connections/better-auth" }),
     );
@@ -162,8 +173,11 @@ describe("moving between connector pages", () => {
     );
     await screen.findByRole("heading", { name: "GitHub" });
     expect(
-      screen.queryByRole("img", { name: "GitHub refused the manifest." }),
+      screen.queryByRole("img", { name: /Provider authorization was refused/ }),
     ).toBeNull();
+    expect(
+      screen.getByLabelText("GitHub personal access token"),
+    ).toHaveProperty("value", "");
     expect(listNotices()).toEqual([]);
   });
 

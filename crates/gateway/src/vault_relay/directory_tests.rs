@@ -311,6 +311,11 @@ async fn member_may_list_and_may_not_create_or_publish() {
     .await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["generation"], 1);
+}
+
+#[tokio::test]
+async fn user_directory_creation_requires_owner_principal() {
+    let store = Arc::new(Mutex::new(Store::default()));
 
     let (status, body) = call(
         router(Arc::clone(&store)),
