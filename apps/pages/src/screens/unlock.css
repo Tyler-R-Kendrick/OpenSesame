@@ -7,9 +7,25 @@
   overflow: hidden;
 }
 
+.unlock--lock-v5.unlock--doors .unlock__hero {
+  transform: translate3d(calc(-1 * var(--unlock-door-shift, 0%)), 0, 0);
+  will-change: transform;
+}
+
+@media (max-width: 1099px) {
+  .unlock--lock-v5.unlock--doors .unlock__hero {
+    transform: translate3d(calc(-0.5 * var(--unlock-door-shift, 0%)), 0, 0);
+  }
+}
+
+.unlock--lock-v5 .cipher-dial {
+  z-index: 0;
+}
+
 .unlock--lock-v5 .unlock__notes {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  isolation: isolate;
 }
 
 .unlock--lock-v5 .unlock__card {
@@ -20,7 +36,7 @@
 /* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
 .unlock__hero {
   position: absolute;
-  z-index: 2;
+  z-index: 1;
   pointer-events: none;
   /* font-size drives CipherWordmark em; kill the strut so the box is the canvas. */
   line-height: 0;
