@@ -36,7 +36,8 @@ export async function launch() {
   });
 }
 
-const AUTHENTICATOR = {
+/** The virtual key: CTAP2.1 over USB, proves the user, answers a touch by itself. Shared with the screens gate. */
+export const AUTHENTICATOR = {
   protocol: "ctap2",
   ctap2Version: "ctap2_1",
   transport: "usb",

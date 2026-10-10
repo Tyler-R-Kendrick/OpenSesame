@@ -380,6 +380,24 @@ State these to the people who rely on it.
   a file key alone on its row, which is now a labelled row. `verify:tutorials`
   walks the four goals at both widths. The four capability profiles build, the
   capability graph holds, and the bundle ceilings are the measured sizes.
+- **The screens, with five browsers.** `pnpm --filter @opensesame/pages
+  verify:trusted-contacts` runs an owner, three contacts and a recipient in
+  separate Chromium contexts, each with a virtual security key that does PRF and
+  one clock moved for every page together, and passes only text between them by
+  the clipboard. It walks a 2-of-3 recovery key by key through the real screens
+  to the recovered item (saved to a file and put in the vault); a reload after
+  the recovery is opened, which loses nothing; hostile pastes refused on their
+  field; a key that will not verify, or is lost, refused and then replaced; an
+  owner's cancellation reaching a contact; and a contact replaced as a new epoch,
+  with the old recovery file refused and the new one recovering. Every refusal is
+  asserted to be a mark on the control and a tray notice, never an alert or
+  text in the page. At 1280 and at 390 wide; its own CI shard.
+- **A core bug it found.** `rebindTombSeals`, which runs first on a vault's first
+  unlock, read the sealed index before it was in memory and sealed an empty one
+  over it, so every file written in a vault's first session fell out of the
+  listing after the first reload (and a key rotation would not have re-sealed
+  them). It hydrates the index and the files it names first now; a regression
+  test fails without it.
 - Existing share-ledger, receipts and proof tests pass unchanged; the type
   checker refuses the new misuse cases.
 

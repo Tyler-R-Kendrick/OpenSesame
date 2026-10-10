@@ -299,6 +299,20 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:quorum-browser
+      - name: Trusted contacts screens, five browsers, packets by clipboard
+        if: matrix.shard == 'trusted-contacts'
+        # ADR 0187: Settings › Trusted contacts walked through the real screens
+        # by an owner, three guardians and a recipient, each in their own
+        # context with a virtual security key that does PRF. Packets travel by
+        # the clipboard, the refusals are read as marks and tray notices, and
+        # one clock is moved for every page together. Desktop width, then the
+        # phone's.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          pnpm --filter @opensesame/pages verify:trusted-contacts
+          WIDTH=390 pnpm --filter @opensesame/pages verify:trusted-contacts
       - name: Self-Issued OpenID Provider v2 contract
         if: matrix.shard == 'keyboard'
         env:

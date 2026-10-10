@@ -9,6 +9,7 @@ export const DRIVER_GATES = {
   "verify-mobile.mjs": ["mobile"],
   "verify-local-iam.mjs": ["sign-in"],
   "verify-quorum-browser.mjs": ["sign-in"],
+  "verify-trusted-contacts.mjs": ["trusted-contacts"],
   "verify-static-origin.mjs": ["static"],
   "verify-encrypted-search.mjs": ["static"],
   "verify-auth-flow.mjs": ["auth"],
