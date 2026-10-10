@@ -1408,6 +1408,74 @@ export const CAPABILITIES: readonly Capability[] = [
   ...vaultCapabilities,
   ...walletSpendingCapabilities,
   {
+    id: "cli.app_integration.list",
+    title: "List pending CLI integration requests",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "lib/cli-app-integration/daemon-client.ts:listCliIntegrationPending",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: {
+        reason:
+          "The native CLI uses the daemon ensure/poll path; the browser lists pending requests for authorize UI (ADR 0186)",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+      mcp_host: {
+        reason:
+          "CLI terminal authorization is human-gated in the browser, not agent-driven",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+      mcp_client: {
+        reason:
+          "CLI terminal authorization is human-gated in the browser, not agent-driven",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+      webmcp: {
+        reason: "Agents must not approve their own terminal sessions",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+    },
+  },
+  {
+    id: "cli.app_integration.respond",
+    title: "Approve or deny a CLI integration request",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/cli-app-integration/daemon-client.ts:respondCliIntegration",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: {
+        reason:
+          "Only the OpenSesame app approves integration after PIN or passkey (ADR 0186)",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+      mcp_host: {
+        reason:
+          "CLI terminal authorization is human-gated in the browser, not agent-driven",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+      mcp_client: {
+        reason:
+          "CLI terminal authorization is human-gated in the browser, not agent-driven",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+      webmcp: {
+        reason: "Agents must not approve their own terminal sessions",
+        adr: "0186-cli-app-integration-reveal.md",
+      },
+    },
+  },
+  {
     id: "vault.items.reveal",
     title: "Reveal a vault item secret",
     plane: "client_local",

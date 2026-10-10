@@ -83,12 +83,15 @@ import {
   wrapMoved,
 } from "./master-wrap.js";
 import {
+  PASSKEY_MISS,
+  importVaultKeyFromPasskeyProbe,
   probePasskeyCeremony,
   sealNewVaultWithPasskey,
   unlockVaultWithHeldPrf,
   unlockVaultWithPasskey,
   wrapVaultKeyWithCeremony,
 } from "./passkey-unlock-session.js";
+import { vaultKeysMatch } from "./vault-key-compare.js";
 import {
   readPrefsJson,
   readPrefsSourceFile,
@@ -747,6 +750,36 @@ export class VaultStore {
 
   async unlockWithPasskey(signal?: AbortSignal): Promise<void> {
     await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
+  }
+
+  /** Confirm the person at an already-unlocked vault (CLI authorize, 1Password-style). */
+  async confirmPasskeyStepUp(signal?: AbortSignal): Promise<void> {
+    const current = this.#vaultKey;
+    if (!current) throw new Error("Unlock OpenSesame first.");
+    const probe = await probePasskeyCeremony(
+      this.#passkeyUnlockHost(),
+      signal ? { signal } : {},
+    );
+    const derived = await importVaultKeyFromPasskeyProbe(
+      this.#passkeyUnlockHost(),
+      probe.prfOutput,
+    );
+    if (!(await vaultKeysMatch(current, derived))) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError(PASSKEY_MISS);
+    }
+  }
+
+  async confirmPinStepUp(pin: string): Promise<void> {
+    const current = this.#vaultKey;
+    if (!current || !this.#header) throw new Error("Unlock OpenSesame first.");
+    const record = () => this.#recordFailedUnlock();
+    const raw = await unwrapPin(this.#header, pin, record);
+    const derived = await importVaultKey(raw);
+    if (!(await vaultKeysMatch(current, derived))) {
+      this.#recordFailedUnlock();
+      throw new WrongPasswordError(PIN_MISS);
+    }
   }
 
   /** Recovery key, age identity or age passkey enrolled in the manifest. */

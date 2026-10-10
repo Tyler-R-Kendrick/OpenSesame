@@ -92,6 +92,28 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   alwaysOn(
+    "cli.app-integration",
+    "CLI integration",
+    "Approve OpenSesame CLI requests from this browser while the vault is unlocked (1Password-style terminal sessions).",
+    {
+      operationIds: [
+        "cli.app_integration.list",
+        "cli.app_integration.respond",
+      ],
+      egress: [
+        {
+          class: "peer-or-local-network",
+          purpose: CLI_APP_INTEGRATION_PURPOSE,
+          automatic: true,
+        },
+      ],
+      browserPermissions: ["webauthn"],
+      keyAccess: "protector-wrap",
+      offlineLimits:
+        "Needs the local daemon on loopback or the tailnet; nothing leaves this device.",
+    },
+  ),
+  alwaysOn(
     "sharing.drops",
     "Secret drops",
     "Share any item's secret once, through a sealed claim. The share is part of that item. Opening a drop someone sent needs nothing else.",

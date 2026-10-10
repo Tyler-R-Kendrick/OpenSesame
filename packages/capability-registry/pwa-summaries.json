@@ -864,6 +864,22 @@
     }
   },
   {
+    "id": "cli.app_integration.list",
+    "title": "List pending CLI integration requests",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/cli-app-integration/daemon-client.ts:listCliIntegrationPending"
+    }
+  },
+  {
+    "id": "cli.app_integration.respond",
+    "title": "Approve or deny a CLI integration request",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/cli-app-integration/daemon-client.ts:respondCliIntegration"
+    }
+  },
+  {
     "id": "vault.items.reveal",
     "title": "Reveal a vault item secret",
     "plane": "client_local",
