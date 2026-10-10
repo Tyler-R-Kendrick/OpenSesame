@@ -41,6 +41,11 @@ import {
   requireManageGrants,
   systemShareWrite,
 } from "./proofs/share-write.js";
+import {
+  noteShareApproved,
+  noteShareDenied,
+  noteShareRequested,
+} from "./sharing-receipts.js";
 import { listDeviceVaults } from "./vaults.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -252,6 +257,11 @@ async function savePendingShare<T>(
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writePending(tomb, next);
+  noteShareRequested(tomb, {
+    id: pending.id,
+    principalId: pending.principalId,
+    resourceId: pending.resourceId,
+  });
   return pending;
 }
 
@@ -316,6 +326,11 @@ export function approvePendingShare(
       tomb,
       (await readPending(tomb)).filter((row) => row.id !== id),
     );
+    noteShareApproved(tomb, {
+      id: pending.id,
+      principalId: pending.principalId,
+      resourceId: pending.resourceId,
+    });
     return shares;
   });
 }
@@ -329,9 +344,15 @@ export async function denyPendingShare(
     await requireManageGrants(named);
   });
   const current = await readPending(tomb);
-  if (!current.some((row) => row.id === id))
+  const pending = current.find((row) => row.id === id);
+  if (!pending)
     throw new LocalDirectoryError("This approval is unavailable.");
   const next = current.filter((row) => row.id !== id);
   await writePending(tomb, next);
+  noteShareDenied(tomb, {
+    id: pending.id,
+    principalId: pending.principalId,
+    resourceId: pending.resourceId,
+  });
   return next;
 }

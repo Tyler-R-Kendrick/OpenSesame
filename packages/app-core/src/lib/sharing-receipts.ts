@@ -231,6 +231,71 @@ export function noteLiveSessionGranted(
   );
 }
 
+type ShareReceiptIds = {
+  id: string;
+  principalId: string;
+  resourceId: string;
+};
+
+function noteShareDecision(
+  tomb: string,
+  kind: "share.requested" | "share.approved" | "share.denied",
+  share: ShareReceiptIds,
+): void {
+  const id = blindId(share.id);
+  const subject = blindId(share.principalId);
+  const resourceId = blindId(share.resourceId);
+  if (!tomb || !id || !subject || !resourceId) return;
+  const key = `${kind}:${id}`;
+  if (!remember(key)) return;
+  const metadata: JsonObject = { subject, resourceId };
+  const denied = kind === "share.denied";
+  const type =
+    kind === "share.requested"
+      ? "access.share.requested"
+      : kind === "share.approved"
+        ? "access.share.approved"
+        : "access.share.denied";
+  const summary =
+    kind === "share.requested"
+      ? "Share grant requested"
+      : kind === "share.approved"
+        ? "Share grant approved"
+        : "Share grant denied";
+  write(
+    tomb,
+    {
+      category: "access",
+      type,
+      summary,
+      outcome: denied ? "denied" : "succeeded",
+      targetType: "share",
+      targetId: id,
+      metadata,
+    },
+    kind,
+    { shareId: id, subject, resourceId },
+  );
+}
+
+/** An agent or application asked for a share before a person approved it. */
+export function noteShareRequested(
+  tomb: string,
+  share: ShareReceiptIds,
+): void {
+  noteShareDecision(tomb, "share.requested", share);
+}
+
+/** A person approved a pending share grant. */
+export function noteShareApproved(tomb: string, share: ShareReceiptIds): void {
+  noteShareDecision(tomb, "share.approved", share);
+}
+
+/** A person denied a pending share grant. */
+export function noteShareDenied(tomb: string, share: ShareReceiptIds): void {
+  noteShareDecision(tomb, "share.denied", share);
+}
+
 /** A person granted or revoked a share. The label stays on the share, not here. */
 export function noteLocalShare(
   tomb: string,
