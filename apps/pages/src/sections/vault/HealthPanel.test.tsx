@@ -169,7 +169,9 @@ describe("HealthPanel", () => {
   });
 
   it("shows breach and two-step outcomes when the capability has checked", () => {
-    vault.current = { items: [makeAccount()] };
+    vault.current = {
+      items: [makeAccount({ id: "itm_gh", name: "GitHub" })],
+    };
     publishBreachWatch({
       phase: "checked",
       label:
