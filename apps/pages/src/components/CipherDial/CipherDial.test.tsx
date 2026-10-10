@@ -21,7 +21,7 @@ describe("computeDialLayout", () => {
     });
     expect(layout.rings).toHaveLength(RING_COUNT);
     expect(layout.cx).toBe(600);
-    expect(PLAIN.startsWith("OPEN")).toBe(true);
+    expect(PLAIN.startsWith("0PEN")).toBe(true);
     // Notes are not a quiet zone on wide — rings meet the divider.
     expect(layout.quiet).toEqual([{ x: 80, y: 40, w: 400, h: 500 }]);
   });
@@ -47,7 +47,7 @@ describe("computeDialLayout", () => {
     });
     expect(wide.quiet).toEqual([card]);
     expect(phone.quiet).toEqual([card]);
-    // Narrow corner dial stays in the empty band (lock-v5-mobile geometry).
+    // Narrow corner dial (prototype cx=-18) stays in the empty band.
     expect(phone.cx).toBe(-18);
     expect(phone.cy).toBeGreaterThan(card.y + card.h);
   });

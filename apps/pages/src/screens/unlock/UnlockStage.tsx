@@ -1,11 +1,6 @@
 import type { ReactNode, RefObject } from "react";
-import { useImperativeHandle, useRef } from "react";
-import {
-  CipherWordmark,
-  type CipherWordmarkHandle,
-} from "../../components/CipherWordmark/index.js";
 import { GateTools } from "../../components/GateTools.js";
-import type { WordmarkHandle } from "../../components/Wordmark.js";
+import { Wordmark, type WordmarkHandle } from "../../components/Wordmark.js";
 import { PendingLinkBanner } from "./PendingLinkBanner.js";
 import { ReleaseNotes } from "./ReleaseNotes.js";
 import { UnlockLockV5 } from "./UnlockLockV5.js";
@@ -32,22 +27,13 @@ export function UnlockStage({
   children,
 }: UnlockStageProps) {
   const hero = useUnlockHeroLayout(paneRef, cardRef, notesRef);
-  const cipherHeroRef = useRef<CipherWordmarkHandle>(null);
-  useImperativeHandle(
-    wordmarkRef,
-    () => ({
-      replayCipher: () => {
-        cipherHeroRef.current?.replay();
-      },
-    }),
-    [],
-  );
   return (
     <div className="unlock unlock--lock-v5" ref={paneRef}>
       <UnlockLockV5
         paneRef={paneRef}
         cardRef={cardRef}
         notesRef={notesRef}
+        wordmarkRef={wordmarkRef}
         ceremonyToken={ceremonyToken}
         vaultUnlocked={vaultUnlocked}
       />
@@ -60,12 +46,12 @@ export function UnlockStage({
           fontSize: `${hero.size}px`,
         }}
       >
-        <CipherWordmark
-          ref={cipherHeroRef}
-          static
-          includeMark
+        <Wordmark
+          ref={wordmarkRef}
           className="unlock__hero-wordmark"
           size={hero.size}
+          includeMark
+          replay
         />
       </div>
       <div className="unlock__card" ref={cardRef}>

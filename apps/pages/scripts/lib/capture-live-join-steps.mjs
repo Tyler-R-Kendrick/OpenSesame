@@ -155,6 +155,30 @@ export function liveJoinSteps({ harness }) {
       );
     },
 
+    /**
+     * The owner's browser loses the catalog frames it sends — the first
+     * `catalogs` of them, or `"all"` — as Chromium can drop the first frame a
+     * side sends the moment its data channel appears (ADR 0186). Induced, so
+     * a capture shows that condition every time; nothing else is touched.
+     */
+    async liveLose(page, { catalogs }) {
+      await page.evaluate(
+        (count) => {
+          const send = RTCDataChannel.prototype.send;
+          let left = count ?? Number.POSITIVE_INFINITY;
+          RTCDataChannel.prototype.send = function (data) {
+            if (left > 0 && String(data).startsWith('{"t":"catalog"')) {
+              left -= 1;
+              return;
+            }
+            return send.call(this, data);
+          };
+        },
+        catalogs === "all" ? null : catalogs,
+      );
+      console.log(`  liveLose: the owner's browser drops ${catalogs} catalog`);
+    },
+
     /** Point `shot` back at the owner (the joiner is the default after a join). */
     async liveView(page, who) {
       if (who === "owner") views.delete(page);

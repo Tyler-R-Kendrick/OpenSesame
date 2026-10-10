@@ -1,36 +1,12 @@
 .unlock--lock-v5 {
   position: relative;
-  overflow: visible;
-}
-
-.unlock--lock-v5.unlock--doors {
   overflow: hidden;
 }
 
-.unlock--lock-v5.unlock--doors .unlock__hero {
-  transform: translate3d(calc(-1 * var(--unlock-door-shift, 0%)), 0, 0);
-  will-change: transform;
-}
-
-@media (max-width: 1099px) {
-  .unlock--lock-v5.unlock--doors .unlock__hero {
-    transform: translate3d(calc(-0.5 * var(--unlock-door-shift, 0%)), 0, 0);
-  }
-}
-
-.unlock--lock-v5 .cipher-dial {
-  z-index: 0;
-}
-
+.unlock--lock-v5 .unlock__card,
 .unlock--lock-v5 .unlock__notes {
   position: relative;
-  z-index: 2;
-  isolation: isolate;
-}
-
-.unlock--lock-v5 .unlock__card {
-  position: relative;
-  z-index: 3;
+  z-index: 1;
 }
 
 /* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
@@ -87,8 +63,9 @@
    subheader on both themes. The split is painted on `.unlock` so empty
    column areas match. */
 .unlock {
-  --unlock-notes-pane: color-mix(in srgb, var(--ink) 22%, var(--surface));
-  --unlock-notes-head: color-mix(in srgb, var(--ink) 32%, var(--surface));
+  /* Paper, not a tint of ink: the pane sits a step back from the card, the head sits on the card. */
+  --unlock-notes-pane: var(--surface-2);
+  --unlock-notes-head: var(--surface);
 }
 
 .unlock__notes {
@@ -107,8 +84,8 @@
   border-radius: var(--radius);
 }
 
-/* One accordion row per build. Summary is the subheader band; prior builds
-   collapse until opened. */
+/* One accordion row per build; the newest is labelled "Release notes ·
+   <version>", and prior builds collapse until opened. */
 .unlock__notes-stack {
   display: grid;
   align-content: start;
@@ -493,6 +470,10 @@
   justify-items: start;
   text-align: left;
   padding-top: 0.15rem;
+}
+
+.unlock__foot .road {
+  width: 100%;
 }
 
 .unlock__foot p {

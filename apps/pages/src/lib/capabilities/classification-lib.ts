@@ -1,10 +1,8 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
-import { DEV_EVIDENCE_RULES } from "./classification-dev-evidence.js";
 import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
 import { VAULT_RELAY_RULES } from "./classification-vault-relay.js";
-import { WALLET_RULES } from "./classification-wallet.js";
 
 export { VAULT_RELAY_RULES };
 
@@ -19,6 +17,7 @@ const ACCESS = "access.authority";
 const LOCAL_IAM = "identity.local-iam";
 const FEDERATION = "identity.federation";
 const LOCAL_AI = "support.local-ai";
+const WALLET = "wallet.spending";
 
 const CORE_INFRA = [
   "kv",
@@ -72,10 +71,8 @@ const CORE_INFRA = [
   "local-network-fetch",
   "queue",
   "pact",
-  // Playwright harness clock shared by CipherDial, VaultDoors, CipherWordmark.
+  // Harness/`__vt` clock shared by CipherWordmark, CipherDial, VaultDoors.
   "injected-clock",
-  "unlock-ceremony-store",
-  "unlock-ceremony-arm",
   "__tests__/",
   "__snapshots__/",
 ];
@@ -187,9 +184,9 @@ const LOCAL_AI_FILES = [
   "command-bar/prompt-model",
   "command-bar/speech",
 ];
+const WALLET_FILES = ["spending-", "wallet-"];
 
 export const LIB_RULES = [
-  ...DEV_EVIDENCE_RULES,
   core(
     `${L}item-type-marketplace/`,
     "vault.passwords",
@@ -394,5 +391,7 @@ export const LIB_RULES = [
   ...each(L, LOCAL_AI_FILES, (p) =>
     optional(p, LOCAL_AI, "on-device model plane; MIXED — remote"),
   ),
-  ...WALLET_RULES,
+  ...each(L, WALLET_FILES, (p) =>
+    optional(p, WALLET, "spending ledger, instruments, brokers"),
+  ),
 ];

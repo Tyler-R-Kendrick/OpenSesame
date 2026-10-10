@@ -7,7 +7,7 @@ import { vaultStore } from "../vault/store.js";
 import { vaultWrite } from "./field-write.js";
 import { LiveHost, MAX_SESSION_MS } from "./host.js";
 import type { SharePolicy } from "./messages.js";
-import type { PeerFactory } from "./peer.js";
+import type { TransportFactory } from "./p2p.js";
 import type { Rendezvous } from "./rendezvous.js";
 import { hostRoutes } from "./session-carriers.js";
 import { DIRECT_TRANSPORT, type LiveTransport } from "./transport.js";
@@ -20,8 +20,9 @@ export type HostBuildInput = Readonly<{
   policy: SharePolicy;
   admission: "invite" | "open";
   minutes: number;
-  peers: PeerFactory;
-  transport?: LiveTransport;
+  transport: TransportFactory;
+  /** The owner's routes profile; direct only when absent. */
+  routes?: LiveTransport;
 }>;
 
 export type RelaySource = { carriers: Rendezvous | null };
@@ -36,12 +37,12 @@ export async function buildLiveHost(
     Date.now() + input.minutes * 60_000,
     Date.now() + MAX_SESSION_MS,
   );
-  const transport = input.transport ?? DIRECT_TRANSPORT;
-  const { secret, routes, own, ice } = await hostRoutes(transport, expiresAt);
+  const profile = input.routes ?? DIRECT_TRANSPORT;
+  const { secret, routes, own, routing } = await hostRoutes(profile, expiresAt);
   const scope = input.scope;
   const next = await LiveHost.start({
     admission: input.admission,
-    ice,
+    transport: input.transport(routing),
     routes,
     secret,
     relay: (name) => source.carriers?.seat(name) ?? null,
@@ -59,7 +60,6 @@ export async function buildLiveHost(
     writeField: vaultWrite({ scope, items }, (item) =>
       vaultStore.saveItem(item),
     ),
-    peers: input.peers,
   });
   return { next, routes, own };
 }

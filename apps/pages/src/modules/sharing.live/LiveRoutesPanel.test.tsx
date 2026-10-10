@@ -51,7 +51,7 @@ beforeEach(() => {
   });
   Object.assign(liveSeams, { items: () => [github] });
   Object.assign(liveUiSeams, {
-    peers: new FakeNet().factory(),
+    transport: new FakeNet().transports(),
     carriers: new FakeBus().factory(),
   });
   Object.assign(transportSeams, {
