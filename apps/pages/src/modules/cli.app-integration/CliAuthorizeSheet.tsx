@@ -144,19 +144,17 @@ export function CliAuthorizeSheet({
                     label: copy.confirmPin,
                     icon: <IconPasskey size={16} />,
                     render: () => (
-                      <FieldShell label={copy.confirmPin}>
-                        <input
-                          ref={pinRef}
-                          type="password"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          className="field"
-                          placeholder={copy.pinPlaceholder}
-                          value={pin}
-                          disabled={busy}
-                          onChange={(event) => setPin(event.target.value)}
-                        />
-                      </FieldShell>
+                      <FieldShell
+                        inputRef={pinRef}
+                        label={copy.confirmPin}
+                        type="password"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        placeholder={copy.pinPlaceholder}
+                        value={pin}
+                        disabled={busy}
+                        onValueChange={setPin}
+                      />
                     ),
                   },
                 ]

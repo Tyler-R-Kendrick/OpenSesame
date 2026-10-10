@@ -1,4 +1,9 @@
-import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { localNetworkFetch } from "../local-network-fetch.js";
 import { loadSettings } from "../settings.js";
 import { cliAppIntegrationPolicy } from "./policy.js";
@@ -17,7 +22,7 @@ function daemonBase(): string | null {
   }
 }
 
-function parsePending(body: unknown): readonly PendingRequest[] {
+function parsePending(body: BoundaryValue): readonly PendingRequest[] {
   if (!isJsonObject(body) || !Array.isArray(body.pending)) return [];
   const rows: PendingRequest[] = [];
   for (const entry of body.pending) {
