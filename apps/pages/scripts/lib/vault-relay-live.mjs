@@ -10,7 +10,7 @@ import { createServer } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { closeServer, listen, send } from "./vault-relay-io.mjs";
+import { closeServer, listen, listeningPort, send } from "./vault-relay-io.mjs";
 import { JOIN_HTML } from "./vault-relay-join-page.mjs";
 
 function repoRoot() {
@@ -25,8 +25,7 @@ function freePort() {
     const server = createNetServer();
     server.once("error", reject);
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : 0;
+      const port = listeningPort(server);
       server.close(() => resolve(port));
     });
   });

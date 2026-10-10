@@ -13,6 +13,26 @@ import type { SecurityProfile } from "@opensesame/app-core/lib/deployment-profil
 import securityProfile from "../public/security-profile.json";
 import staticAuth from "../public/static-auth/manifest.json";
 
+if (
+  securityProfile.version !== 1 ||
+  !["loopback_development", "dedicated_origin", "shared_origin_demo"].includes(
+    securityProfile.profile,
+  )
+) {
+  throw new Error("Storybook requires a valid stamped security profile");
+}
+const stamped: SecurityProfile = {
+  version: 1,
+  profile:
+    securityProfile.profile === "loopback_development"
+      ? "loopback_development"
+      : securityProfile.profile === "dedicated_origin"
+        ? "dedicated_origin"
+        : "shared_origin_demo",
+  canonicalOrigin: securityProfile.canonicalOrigin,
+  headerSecurity: securityProfile.headerSecurity,
+};
+
 configureHost(
   composeHost(browserPorts(), {
     env: {
@@ -30,7 +50,7 @@ configureHost(
         basePath: import.meta.env.BASE_URL,
       }),
     },
-    securityProfile: securityProfile as SecurityProfile,
+    securityProfile: stamped,
     staticAuth: { version: staticAuth.version, sri: staticAuth.sri },
   }),
 );

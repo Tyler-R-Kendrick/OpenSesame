@@ -92,6 +92,7 @@ pub fn install_relay_bindings(
 /// # Errors
 ///
 /// The same refusals as [`install_relay_bindings`].
+#[cfg(test)]
 pub fn bindings_for_relay(json: Option<&str>) -> Result<(), String> {
     install_relay_bindings(json).map(|_| ())
 }
@@ -118,6 +119,7 @@ pub(crate) fn load_bindings() -> anyhow::Result<opensesame_domain::transport::Se
     Ok(set)
 }
 
+#[cfg(test)]
 pub(crate) fn router(store: Shared) -> Router {
     router_with(
         store,
@@ -198,18 +200,7 @@ pub async fn run(args: &Args) -> anyhow::Result<()> {
         RelayTransport::parse(&|name| std::env::var(name).ok()).map_err(anyhow::Error::new)?;
     match profile {
         RelayTransport::Plain => {
-            let bindings = load_bindings()?;
-            let registration = registration::Verifier::from_env().map_err(anyhow::Error::msg)?;
-            tracing::info!(%listen, profile = "relay", transport = "plain", "opensesame gateway relay listening");
-            let listener = tokio::net::TcpListener::bind(args.listen)
-                .await
-                .map_err(|err| anyhow::anyhow!("bind {listen}: {err}"))?;
-            tracing::info!(
-                installed = bindings.bindings.len(),
-                revision = bindings.revision,
-                "relay profile is serving the installed vault_relay bindings"
-            );
-            axum::serve(listener, router_with(store, bindings, None, registration)).await?;
+            serve_plain(args, &listen, store).await?;
         }
         RelayTransport::MtlsRequired => {
             let secure =
@@ -241,6 +232,22 @@ pub async fn run(args: &Args) -> anyhow::Result<()> {
             listener.serve(app).await.map_err(anyhow::Error::new)?;
         }
     }
+    Ok(())
+}
+
+async fn serve_plain(args: &Args, listen: &str, store: Shared) -> anyhow::Result<()> {
+    let bindings = load_bindings()?;
+    let registration = registration::Verifier::from_env().map_err(anyhow::Error::msg)?;
+    tracing::info!(%listen, profile = "relay", transport = "plain", "opensesame gateway relay listening");
+    let listener = tokio::net::TcpListener::bind(args.listen)
+        .await
+        .map_err(|err| anyhow::anyhow!("bind {listen}: {err}"))?;
+    tracing::info!(
+        installed = bindings.bindings.len(),
+        revision = bindings.revision,
+        "relay profile is serving the installed vault_relay bindings"
+    );
+    axum::serve(listener, router_with(store, bindings, None, registration)).await?;
     Ok(())
 }
 
