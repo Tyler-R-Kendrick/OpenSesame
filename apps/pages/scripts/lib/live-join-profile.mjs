@@ -1,24 +1,27 @@
 /**
  * The owner's transport profile as a file, the road a person takes when the
  * Routes Form has no field for what they mean to say (ADR 0134, ADR 0150 §6):
- * `settings/live/transport.json`, opened from the command bar,
+ * `settings/live/transport.json`, opened from the key on the Routes heading,
  * typed into the file viewer's editor, saved with its save key and read back
  * by opening it again. A TURN server's REST `secret` is written only here —
  * the Form has no secret field, by design.
  */
 
-import { runCommand } from "./pages-journey.mjs";
+import { expect } from "@playwright/test";
+import { openSettingsCategory } from "./pages-journey.mjs";
 
 export const PROFILE_PATH = "settings/live/transport.json";
 
 /**
- * Open the profile: the command bar opens the directory's document, and
- * Live sessions keeps nothing but this file there, so the file is what opens.
+ * Open the profile from Routes. The directory's `config.yaml` is the designed
+ * page (ADR 0134); the file a provider keeps for authoring opens in the viewer
+ * from the key on the heading of the Form drawn from it.
  */
 async function openProfileFile(page) {
-  const opened = await runCommand(page, "settings/live/config.yaml");
-  if (!/Opened/i.test(opened))
-    throw new Error(`${PROFILE_PATH} did not open: ${opened}`);
+  await openSettingsCategory(page, "Live sessions");
+  const routes = page.locator("#live-routes");
+  await routes.waitFor({ timeout: 20_000 });
+  await routes.getByRole("button", { name: "Open transport.json" }).click();
   const field = page.getByRole("textbox", { name: PROFILE_PATH, exact: true });
   await field.waitFor({ timeout: 10_000 });
   return field;
@@ -34,9 +37,10 @@ export async function saveProfileFile(page, profile) {
     .waitFor({ state: "attached", timeout: 10_000 });
 }
 
-/** The profile as the file now holds it, opened afresh. */
+/** The profile as the file now holds it, opened afresh (once its text has loaded). */
 export async function readProfileFile(page) {
   const field = await openProfileFile(page);
+  await expect(field).not.toHaveValue("", { timeout: 10_000 });
   return JSON.parse(await field.inputValue());
 }
 

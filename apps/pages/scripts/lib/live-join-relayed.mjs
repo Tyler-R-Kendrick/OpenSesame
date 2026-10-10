@@ -26,6 +26,7 @@
 
 import { createHmac, randomBytes } from "node:crypto";
 import { startNostrRelay, startTurnServer } from "./live-carriers.mjs";
+import { engineOf, lacks } from "./live-engines.mjs";
 import {
   backToForm,
   linkRoutes,
@@ -39,6 +40,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { reachableBy } from "./live-tls-front.mjs";
 import { startLiveTurn } from "./live-turn.mjs";
 
 let check;
@@ -49,6 +51,7 @@ let shot;
 let configs;
 let joined;
 let PHONE;
+let TLS;
 
 /** How long a walk that must not connect waits before it says so. */
 const NO_ROUTE_MS = 10_000;
@@ -67,7 +70,8 @@ const JOINER = "Ada Lovelace";
 
 /** The runner's harness and pages, for every walk below. */
 export function bindRelayed(walk) {
-  ({ check, setStep, failures, device, shot, configs, joined, PHONE } = walk);
+  ({ check, setStep, failures, device, shot, configs, joined, PHONE, TLS } =
+    walk);
 }
 
 /** Both peers were relay-only through `url`, and met relay to relay over `protocol`. */
@@ -87,10 +91,17 @@ export async function checkPeers(pages, { url, protocol, label }) {
         ),
       `${label}: the ${who} connected relay to relay (${JSON.stringify(pairs)})`,
     );
+    // WebKit names no relayProtocol: there the server's own account
+    // (`checkServer`, or node-turn's one UDP listener) says how it was reached.
+    const unnamed = lacks(engineOf(page.context().browser()), "relay-protocol");
     check(
       pairs.length > 0 &&
-        pairs.every((pair) => pair.relayProtocol === protocol),
-      `${label}: the ${who} reached the TURN server over ${protocol} (${JSON.stringify(pairs)})`,
+        pairs.every(
+          (pair) =>
+            pair.relayProtocol === protocol ||
+            (unnamed && pair.relayProtocol === undefined),
+        ),
+      `${label}: the ${who} reached the TURN server over ${protocol}${unnamed ? " (by the server's account)" : ""} (${JSON.stringify(pairs)})`,
     );
   }
 }
@@ -123,7 +134,11 @@ export async function checkServer(turn, transport, label) {
 async function through(browser, owner, label, hooks) {
   const { prepare, afterwards, connects = true } = hooks;
   setStep(label);
-  const relay = await startNostrRelay();
+  const relay = await reachableBy(
+    await startNostrRelay(),
+    [owner.engine, engineOf(browser)],
+    TLS.cert,
+  );
   try {
     await prepare(relay.url);
     await shot(owner.page, `${label}-1-routes`);

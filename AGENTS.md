@@ -339,17 +339,24 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # entries; and a password retired before the switch is still refused as used
 # before, found through a blind index. Run before touching `lib/encrypted-db/`,
 # the history-backup or password-history stores, or `ports.keyRange`.
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+LIVE_OWNER=chromium LIVE_JOINERS=chromium,firefox,webkit \
   pnpm --filter @opensesame/pages verify:live-join
-# Same harness, live sessions (ADR 0150) in real browser contexts over real
-# WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
+# Same harness, live sessions (ADR 0150, ADR 0187) in real browser contexts over
+# real WebRTC, every walk once per joiner browser: the owner in LIVE_OWNER, the
+# joiners in LIVE_JOINERS (chromium, firefox, webkit as the pinned Playwright
+# installs them: `pnpm exec playwright install --with-deps chromium firefox
+# webkit`; PLAYWRIGHT_CHROMIUM may point Chromium elsewhere). A walk an engine
+# cannot take here prints NOT TAKEN with why (lib/live-engines.mjs). CI runs it
+# as "Live join (<owner> owner)", three shards with every joiner each, folded
+# into the required Bundle budgets check. Needs a second build first: `pnpm --filter @opensesame/pages
 # build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
 # https://opensesame.example.test). The carrier and declined walks run on it,
 # because a carrier on loopback or a LAN is local operator authority the shared
 # github.io origin may not reach (`mayPairLocalAuthority`); verify:live-join
 # fails without that build. Direct: codes passed by hand, no WebSocket, no request off the
-# origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
-# never meets without Routes' address, meets at it with one. Carriers: an
+# origin, no ICE server. Tunnel: mDNS on and only the tunnel address (this
+# machine's default-route address) routes — never meets without Routes' address,
+# meets at it with one. Carriers: an
 # in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
 # pin), a real ntfy (LIVE_NTFY_SERVER, default .cache/live-fixtures/bin/ntfy)
 # and BroadcastChannel each pair with nothing pasted and see no plaintext; a
@@ -358,8 +365,10 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # and TLS (`turns:`, a self-signed certificate trusted by its public key alone)
 # on live-turn (pion/turn, scripts/test/live-turn), whose per-transport counters
 # show which one carried the browsers; and through a TURN REST secret typed into
-# `settings/live/transport.json` (the app mints the credential, the link never
-# carries the secret; a wrong server secret must fail). A missing server fails the run
+# `settings/live/transport.json`, opened from the key on the Routes heading (the
+# app mints the credential, the link never carries the secret; a wrong server
+# secret must fail). Where a pair holds WebKit, which like Safari refuses plain
+# loopback from https, each carrier is reached through a TLS front. A missing server fails the run
 # (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.
@@ -1398,7 +1407,10 @@ CI lives in `.github/workflows/`:
   shard or in two, and `ci-gates.test.mjs` on a `verify-*` driver with no gate
   row. A new gate goes in exactly one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
-  waits for, and runs when the Pages build or the server code it imports changes.
+  waits for, and runs when the Pages build or the server code it imports changes;
+  so is "Live join" (`verify:live-join`, three shards, one per owner browser,
+  each walking Chromium, Firefox and WebKit joiners), which also runs when a
+  live server's source (`scripts/test/live-turn`, the fixture scripts) changes.
   The TypeScript check also waits on the signature preflight (the `changes`
   job), and its tests job runs changed-file lint and `pnpm quality`. The Rust
   check also waits on the Android and Swift native jobs when a diff touches

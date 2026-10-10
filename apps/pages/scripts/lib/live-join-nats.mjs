@@ -23,6 +23,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { freePort, spawnServer } from "./live-carriers.mjs";
+import { engineOf } from "./live-engines.mjs";
 import { linkRoutes } from "./live-join-profile.mjs";
 import {
   endSession,
@@ -31,6 +32,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { reachableBy } from "./live-tls-front.mjs";
 
 const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -175,15 +177,20 @@ function checkFrames(server, base, label) {
 
 /** One NATS walk: `always`, or the default fallback with no route between. */
 export async function natsSession(browser, owner, binary, mode) {
-  const { setStep, failures, device, shot, joined, check, SECRET, PHONE } =
+  const { setStep, failures, device, shot, joined, check, SECRET, PHONE, TLS } =
     walk;
   const label = `nats-${mode}`;
   setStep(label);
-  const server = await startMintedNats(binary);
-  if (server.missing) {
-    failures.push(`[${label}] no nats-server binary at ${server.missing}`);
+  const started = await startMintedNats(binary);
+  if (started.missing) {
+    failures.push(`[${label}] no nats-server binary at ${started.missing}`);
     return;
   }
+  const server = await reachableBy(
+    started,
+    [owner.engine, engineOf(browser)],
+    TLS.cert,
+  );
   try {
     const carrier = { kind: "nats", url: server.url, mint: server.mint };
     if (mode === "always") carrier.session = "always";
