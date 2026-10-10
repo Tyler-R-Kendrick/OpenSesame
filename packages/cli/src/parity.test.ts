@@ -22,7 +22,10 @@ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
     return await body();
   } finally {
     if (seam === undefined) {
-      Reflect.deleteProperty(process.env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
+      Reflect.deleteProperty(
+        process.env,
+        "OPENSESAME_CLI_APP_INTEGRATION_SEAM",
+      );
     } else {
       process.env.OPENSESAME_CLI_APP_INTEGRATION_SEAM = seam;
     }

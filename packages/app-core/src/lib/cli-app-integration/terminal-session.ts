@@ -5,7 +5,7 @@ export function deriveTerminalSessionId(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   const explicit = env.OPENSESAME_CLI_TERMINAL_SESSION_ID;
-  if (explicit && explicit.trim()) return explicit.trim();
+  if (explicit?.trim()) return explicit.trim();
   const tty = env.OPENSESAME_CLI_TTY ?? "";
   const shellPid = env.OPENSESAME_CLI_SHELL_PID ?? "";
   const payload = `${tty}\0${shellPid}`;
