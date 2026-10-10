@@ -41,7 +41,7 @@ import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
 
 import { brandFor } from "../../screens/unlock/ProviderBrand.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import { monogram } from "../connections/connector-marks.js";
+import { monogram } from "../../lib/display-monogram.js";
 
 /**
  * The rows to draw: first-class providers are intersected with the live

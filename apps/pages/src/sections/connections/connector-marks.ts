@@ -166,7 +166,4 @@ export const MICROSOFT_PROVIDER_IDS = new Set([
   "azure-openai",
 ]);
 
-export function monogram(displayName: string): string {
-  const letter = displayName.trim().charAt(0);
-  return letter ? letter.toLocaleUpperCase() : "?";
-}
+export { monogram } from "../../lib/display-monogram.js";

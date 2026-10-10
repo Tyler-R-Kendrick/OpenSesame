@@ -52,7 +52,7 @@ import { useSectionView } from "../lib/section-views.js";
 import { useIdentityConfigured } from "../lib/use-configured.js";
 import { useOnline } from "../lib/use-online.js";
 import { brandFor } from "../screens/unlock/ProviderBrand.js";
-import { monogram } from "./connections/connector-marks.js";
+import { monogram } from "../lib/display-monogram.js";
 import * as Directory from "./identity/DirectoryTabs.js";
 import {
   OrganizationPanel,
