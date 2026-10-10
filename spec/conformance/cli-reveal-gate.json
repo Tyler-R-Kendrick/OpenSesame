@@ -17,6 +17,30 @@
       "match": "equals",
       "value": "1",
       "verifiedIn": ".claude/hooks/session-start.sh"
+    },
+    {
+      "name": "CURSOR_AGENT",
+      "match": "equals",
+      "value": "1",
+      "verifiedIn": "Cursor Cloud Agent runtime"
+    },
+    {
+      "name": "CI",
+      "match": "equals",
+      "value": "true",
+      "verifiedIn": "GitHub Actions and other CI runners"
+    },
+    {
+      "name": "GITHUB_ACTIONS",
+      "match": "equals",
+      "value": "true",
+      "verifiedIn": "GitHub Actions"
+    },
+    {
+      "name": "AGENT",
+      "match": "equals",
+      "value": "1",
+      "verifiedIn": "OpenCode and other agent shells"
     }
   ],
   "cases": [

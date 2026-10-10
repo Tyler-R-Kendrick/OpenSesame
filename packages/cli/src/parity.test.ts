@@ -3,11 +3,24 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { parseArgs } from "./parse.js";
+import { revealGatePolicy } from "./reveal-gate.js";
 import { runCli } from "./run.js";
+
+function restoreAgentContextEnv(saved: Map<string, string | undefined>): void {
+  for (const [name, previous] of saved) {
+    if (previous === undefined) Reflect.deleteProperty(process.env, name);
+    else process.env[name] = previous;
+  }
+}
 
 async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
   const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
   const stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  const savedAgentEnv = new Map<string, string | undefined>();
+  for (const rule of revealGatePolicy.agentContextEnv) {
+    savedAgentEnv.set(rule.name, process.env[rule.name]);
+    Reflect.deleteProperty(process.env, rule.name);
+  }
   Object.defineProperty(process.stdin, "isTTY", {
     value: true,
     configurable: true,
@@ -19,6 +32,7 @@ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
   try {
     return await body();
   } finally {
+    restoreAgentContextEnv(savedAgentEnv);
     if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
     if (stdoutTty) Object.defineProperty(process.stdout, "isTTY", stdoutTty);
   }

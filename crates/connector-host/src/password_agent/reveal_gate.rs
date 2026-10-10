@@ -121,6 +121,41 @@ pub fn assert_pass_reveal(reveal: bool) -> anyhow::Result<()> {
     })
 }
 
+/// Temporarily clears verified agent-context env markers (parity / unit tests).
+pub struct AgentContextGuard {
+    saved: Vec<(String, Option<String>)>,
+}
+
+impl AgentContextGuard {
+    pub fn clear_markers() -> Self {
+        let policy = policy();
+        let mut saved = Vec::new();
+        for rule in &policy.agent_context_env {
+            saved.push((rule.name.clone(), std::env::var(&rule.name).ok()));
+            std::env::remove_var(&rule.name);
+        }
+        Self { saved }
+    }
+}
+
+impl Drop for AgentContextGuard {
+    fn drop(&mut self) {
+        for (name, prev) in &self.saved {
+            match prev {
+                Some(value) => std::env::set_var(name, value),
+                None => std::env::remove_var(name),
+            }
+        }
+    }
+}
+
+/// Strip verified agent markers from a subprocess (integration tests, parity fixtures).
+pub fn strip_agent_context_env(command: &mut std::process::Command) {
+    for rule in &policy().agent_context_env {
+        command.env_remove(&rule.name);
+    }
+}
+
 pub fn emit_reveal_receipt(verb: &'static str, reference: Option<&str>) {
     let receipt = serde_json::json!({
         "verb": verb,
@@ -171,10 +206,9 @@ mod tests {
     fn conformance_cases_match_ts_fixture() {
         let raw: FixtureCases = serde_json::from_str(SOURCE).unwrap();
         for case in raw.cases {
+            let _guard = AgentContextGuard::clear_markers();
             if case.agent_context {
                 std::env::set_var("OPENSESAME_AGENT_LAUNCH_HANDLE", "test-handle");
-            } else {
-                std::env::remove_var("OPENSESAME_AGENT_LAUNCH_HANDLE");
             }
             let request = HumanRevealRequest {
                 verb: "read",
@@ -192,5 +226,6 @@ mod tests {
             }
         }
         std::env::remove_var("OPENSESAME_AGENT_LAUNCH_HANDLE");
+        let _ = AgentContextGuard::clear_markers();
     }
 }
