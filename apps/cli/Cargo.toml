@@ -66,7 +66,7 @@ regex = "1.11.1"
 tempfile = "3.20.0"
 
 [dev-dependencies]
-# Attach journey tests sit a person at a real terminal via openpty.
+# Journey tests sit a person at a real terminal via openpty.
 libc = { workspace = true }
 # The dev-run tests point the CLI at their own settings file, which a shipped
 # build refuses to take from the environment.
