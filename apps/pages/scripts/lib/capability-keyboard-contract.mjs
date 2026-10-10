@@ -42,6 +42,7 @@ export async function approveByKeyboard(page, tabTo, titles) {
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await openCapabilities(page, tabTo);
     await awaitCapabilitySections(page);
+    if ((await capabilityOnSwitch(page, title).count()) === 1) continue;
     const add = capabilityOffSwitch(page, title);
     await expect(add).toHaveCount(1);
     await tabTo(page, add);
