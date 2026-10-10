@@ -14,6 +14,7 @@ import {
   type CipherDialPhase,
 } from "../../components/CipherDial/index.js";
 import { VaultDoors } from "../../components/VaultDoors/index.js";
+import type { WordmarkHandle } from "../../components/Wordmark.js";
 import {
   injectedNowMs,
   prefersReducedMotion,
@@ -27,6 +28,7 @@ export type UnlockLockV5Props = {
   paneRef: RefObject<HTMLDivElement | null>;
   cardRef: RefObject<HTMLDivElement | null>;
   notesRef: RefObject<HTMLElement | null>;
+  wordmarkRef: RefObject<WordmarkHandle | null>;
   /** Set when a vault unlock succeeded and the ceremony should run. */
   ceremonyToken: number;
   vaultUnlocked: boolean;
@@ -36,6 +38,7 @@ export function UnlockLockV5({
   paneRef,
   cardRef,
   notesRef,
+  wordmarkRef,
   ceremonyToken,
   vaultUnlocked,
 }: UnlockLockV5Props) {
@@ -70,7 +73,8 @@ export function UnlockLockV5({
     setPhase("align");
     const t0 = nowMs();
     setAlignStartMs(t0);
-  }, [ceremonyToken, vaultUnlocked]);
+    wordmarkRef.current?.replayCipher();
+  }, [ceremonyToken, vaultUnlocked, wordmarkRef]);
 
   useEffect(() => {
     if (phase !== "align" || alignStartMs === null) return;

@@ -11,6 +11,7 @@ import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlo
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
 import {
+  MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
   type SecondStepId,
   checkWebauthnHost,
@@ -30,10 +31,8 @@ import {
   IconArrowRight,
   IconEye,
   IconEyeOff,
-  IconLock,
   IconPasskey,
   IconSettings,
-  IconShield,
 } from "../components/Icons.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -45,8 +44,10 @@ import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { LockFoot } from "./unlock/LockFoot.js";
+import { MethodIcon } from "./unlock/MethodIcon.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
-import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
+import { DurabilityNote, LockoutNote } from "./unlock/Notes.js";
+import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
@@ -69,8 +70,12 @@ import {
 } from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
+import { usePasskeyRoad } from "./unlock/use-passkey-road.js";
 import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
-import { useUnlockLockV5 } from "./unlock/use-unlock-lock-v5.js";
+import {
+  useHeldUnlockStatus,
+  useUnlockLockV5,
+} from "./unlock/use-unlock-lock-v5.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -83,11 +88,11 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * A device with no vault opens on the front door's two roads — set up your
- * own, join a session (ADR 0150 §1); nothing is put in front of them
- * (ADR 0090). Once a setup record exists, sign-in is the first screen. A
- * shared link opens join itself (ADR 0136), and a managed instance's
- * required roots sit beside sign-in.
+ * A device with no vault and no setup record opens on the front door's two
+ * roads — set up your own, or join a session (ADR 0150 §1). Join stays on
+ * the vault chooser and the unlock footer after a vault or a setup record
+ * exists; nothing gates it on setup. A shared link opens join itself
+ * (ADR 0136), and a managed instance's required roots sit beside sign-in.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
@@ -161,7 +166,7 @@ function UnlockForm({
   const { submitRef, secretRef, passkeyRef, setupRef, methodsRef } =
     useUnlockTargets();
   const {
-    status,
+    status: liveStatus,
     tomb,
     header,
     lockedOutUntil,
@@ -170,6 +175,7 @@ function UnlockForm({
     awaitingSecondStep,
   } = useVault();
   const store = useVaultStore();
+  const status = useHeldUnlockStatus(liveStatus);
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
   // The guest tomb is isolated, not keyless: a guest may enroll a gate (ADR
   // 0091) and those wraps are the key to this tomb. What makes the road guest
@@ -185,6 +191,7 @@ function UnlockForm({
           .find((vault) => vault.id === activeTomb)?.label ?? activeTomb)
       : null;
   const passkeyHost = checkWebauthnHost();
+  const passkeyOk = usePasskeyRoad(passkeyHost.ok);
   // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
   const [localOnly, setLocalOnly] = useState(false);
   const signInStage = firstRun && !localOnly;
@@ -198,8 +205,8 @@ function UnlockForm({
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
 
   const methods = useMemo<UnlockTabId[]>(
-    () => unlockMethodTabs({ firstRun, header, passkeyOk: passkeyHost.ok }),
-    [firstRun, header, passkeyHost.ok],
+    () => unlockMethodTabs({ firstRun, header, passkeyOk }),
+    [firstRun, header, passkeyOk],
   );
   // A guest tomb that enrolled no key at all: guest entry itself is the road
   // in, and the commit says so rather than pretending to unlock something.
@@ -220,7 +227,7 @@ function UnlockForm({
   const fallbackMethod = fallbackUnlockMethod({
     firstRun,
     header,
-    passkeyOk: passkeyHost.ok,
+    passkeyOk,
     methods,
   });
   const activeMethod =
@@ -271,13 +278,17 @@ function UnlockForm({
   const goRef = useRef<HTMLButtonElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const acceptRef = useRef<HTMLInputElement>(null);
-  const { stage: lockStage, beginCeremonyIfUnlocked } = useUnlockLockV5(status);
+  const { stage: lockStage, beginCeremonyIfUnlocked } =
+    useUnlockLockV5(liveStatus);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const { passkeyAbort, cancelPasskeyCeremony } = usePasskeyCeremony(
+  const ceremony = usePasskeyCeremony(
     setAwaitingPasskeyDuressCode,
     setBusy,
+    setError,
+    setMethod,
   );
+  const { passkeyAbort, cancelPasskeyCeremony, attachment } = ceremony;
 
   const formGated = lockedFor > 0;
   const pendingFocus = useUnlockFormFocus({
@@ -355,6 +366,8 @@ function UnlockForm({
       activeSecondStep,
       store,
       passkeyAbort,
+      attachment,
+      onSealUnsupported: ceremony.sealUnsupported,
       pin,
       confirm,
       password,
@@ -558,13 +571,7 @@ function UnlockForm({
                     setReveal(false); // one toggle serves every field
                   }}
                 >
-                  {isCeremonyMethod(id) ? (
-                    <IconPasskey size={16} />
-                  ) : id === "pin" ? (
-                    <IconLock size={16} />
-                  ) : (
-                    <IconShield size={16} />
-                  )}
+                  <MethodIcon id={id} />
                   {METHOD_LABEL[id]}
                 </button>
               ))}
@@ -619,9 +626,13 @@ function UnlockForm({
           ) : null}
 
           {(firstRun || !awaitingSecondStep) &&
-          isCeremonyMethod(activeMethod) &&
-          !passkeyHost.ok ? (
-            <PasskeyHostNote host={passkeyHost} />
+          isCeremonyMethod(activeMethod) ? (
+            <PasskeyChoice
+              host={passkeyHost}
+              seals={firstRun && activeMethod === "passkey"}
+              value={attachment}
+              onPick={ceremony.pickAttachment}
+            />
           ) : null}
 
           {showsPinField ? (
@@ -645,7 +656,7 @@ function UnlockForm({
                 value={pin}
                 title={
                   firstRun
-                    ? `${MIN_PIN_LENGTH}–12 characters, no repeated character, no sequential digits`
+                    ? `${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters, no repeated character, no sequential digits`
                     : undefined
                 }
                 aria-invalid={pinProblem ? true : undefined}
@@ -723,7 +734,7 @@ function UnlockForm({
             <div className="unlock__terms">
               <p id="master-help">
                 {activeMethod === "passkey"
-                  ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us. An authenticator that cannot seal fails on Seal; the PIN tab works on any device."
+                  ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us."
                   : "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."}
               </p>
               <label className="check">
@@ -744,26 +755,11 @@ function UnlockForm({
             </p>
           ) : null}
 
-          {!durable ? (
-            <output className="note note--warn">
-              <span>
-                This browser gives this app no persistent storage, so the vault
-                will be gone when the tab closes — private windows and some
-                embedded browsers do this. Do not put your only copy of anything
-                in here.
-              </span>
-            </output>
-          ) : null}
+          <DurabilityNote durable={durable} />
 
           <FailureNotice id="unlock:error" title="Unlock" message={error} />
 
-          {lockedFor > 0 ? (
-            <output className="note note--warn">
-              <span>
-                {failedAttempts} failed attempts. Try again in {lockedFor}s.
-              </span>
-            </output>
-          ) : null}
+          <LockoutNote lockedFor={lockedFor} failedAttempts={failedAttempts} />
 
           {noPrimary ? null : (
             <div className="go-row">

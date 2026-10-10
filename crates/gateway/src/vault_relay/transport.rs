@@ -3,7 +3,7 @@
 //! Default is plain TCP for browser slot-key admission. `mtls_required` is a
 //! separate profile: the listener demands a client certificate and snapshot
 //! routes admit through the relay-installed [`ServiceBindingSet`] only — not
-//! the full Host `TransportRuntime` or SQLite.
+//! the full Host `TransportRuntime` or `SQLite`.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -86,7 +86,7 @@ fn read_bindings_file(path: &std::path::Path) -> Result<ServiceBindingSet, Trans
     }
     let text = std::fs::read_to_string(path)
         .map_err(|e| TransportError::malformed(format!("relay bindings file: {e}")))?;
-    install_relay_bindings(Some(&text)).map_err(|err| TransportError::malformed(err))
+    install_relay_bindings(Some(&text)).map_err(TransportError::malformed)
 }
 
 /// Load the secure relay profile.

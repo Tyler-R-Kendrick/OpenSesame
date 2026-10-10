@@ -84,10 +84,8 @@ async function revokeVaultGrant(
     try {
       await lookupNativeLocalInstance(endpoint, namespace, token, transport);
     } catch (lookupError) {
-      if (
-        lookupError instanceof NativeApiError &&
-        [401, 403].includes(lookupError.status)
-      )
+      // A 403 can deny lookup on a still-valid token; retain its revoke obligation.
+      if (lookupError instanceof NativeApiError && lookupError.status === 401)
         return;
       throw lookupError;
     }

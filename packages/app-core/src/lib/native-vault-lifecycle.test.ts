@@ -118,14 +118,34 @@ it("does not invalidate a newer connection when an older resource read is denied
   ).rejects.toThrow("Connector changed");
   expect(readNativeConnector(id)?.status).toBe("connected");
 });
-it("can finish journaled revocation after the provider already revoked the token", async () => {
+it.each([401, 403])(
+  "finishes journaled revocation after a %s revoke response and a definitive lookup 401",
+  async (status) => {
+    const { id, fetcher } = await signedIn();
+    fetcher.mockResolvedValueOnce(
+      Response.json({ errors: ["invalid token"] }, { status }),
+    );
+    fetcher.mockResolvedValueOnce(
+      Response.json({ errors: ["invalid token"] }, { status: 401 }),
+    );
+    expect(await removeNativeConnectorWithCleanup(id)).toBe(true);
+    expect(readNativeConnector(id)).toBeNull();
+  },
+);
+it("retains the revoke obligation when provider ACL denies both revoke-self and lookup-self", async () => {
   const { id, fetcher } = await signedIn();
-  fetcher.mockResolvedValueOnce(
-    Response.json({ errors: ["invalid token"] }, { status: 403 }),
+  for (let attempt = 0; attempt < 2; attempt++)
+    fetcher.mockResolvedValueOnce(
+      Response.json({ errors: ["permission denied"] }, { status: 403 }),
+    );
+  await expect(removeNativeConnectorWithCleanup(id)).rejects.toThrow(
+    "cleanup failed",
   );
-  fetcher.mockResolvedValueOnce(
-    Response.json({ errors: ["invalid token"] }, { status: 403 }),
-  );
+  expect(readNativeConnector(id)?.status).toBe("cleanup");
+  expect(
+    loadNativeConnectorRecord(id)?.privateState.recovery[0]?.grant?.accessToken,
+  ).toBe(token);
+  expect(readDeviceRows().some((row) => row.connectionId === id)).toBe(true);
   expect(await removeNativeConnectorWithCleanup(id)).toBe(true);
   expect(readNativeConnector(id)).toBeNull();
 });

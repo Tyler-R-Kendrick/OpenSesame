@@ -17,6 +17,10 @@ import {
   nativeMcpRevocationInstructions,
 } from "@opensesame/app-core/lib/native-mcp-attestation.js";
 import { nativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
+import {
+  attestNativeVaultRevocation,
+  nativeVaultRevocationInstructions,
+} from "@opensesame/app-core/lib/native-vault-attestation.js";
 import type {
   NativeConfigureInput,
   NativeConnectorController,
@@ -91,6 +95,11 @@ function nativeRecoveryControls(
         return null;
       if (view.configuration.method === "mcp")
         return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
+      if (
+        view.configuration.method === "oidc" &&
+        ["vault", "openbao"].includes(view.providerId)
+      )
+        return nativeVaultRevocationInstructions(view.connectionId, recoveryId);
       return view.configuration.method === "oauth" &&
         nativeBrowserOAuthRecoverySettings(view.configuration)
         ? nativeBrowserOAuthRevocationInstructions(
@@ -104,6 +113,13 @@ function nativeRecoveryControls(
       if (view.configuration.method === "mcp")
         return retain(
           await attestNativeMcpRevocation(view.connectionId, recoveryId),
+        );
+      if (
+        view.configuration.method === "oidc" &&
+        ["vault", "openbao"].includes(view.providerId)
+      )
+        return retain(
+          await attestNativeVaultRevocation(view.connectionId, recoveryId),
         );
       if (view.configuration.method !== "oauth")
         throw new Error("This provider requires its own cleanup operation");

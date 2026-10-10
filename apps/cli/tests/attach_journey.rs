@@ -29,6 +29,9 @@ fn command(store: &Path, args: &[&str]) -> Command {
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
         .env("GIT_COMMITTER_EMAIL", "test@example.com");
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
     command
 }
 

@@ -110,10 +110,14 @@ export function ConnectorSettingsPage({
     () => null,
   );
   const roads = useConnectorRoads();
+  const nativeDescriptor = provider ? nativeSettingsDescriptor(provider) : null;
+  const nativeExperience =
+    nativeDescriptor !== null && !isConnectConnection(connection);
   useEffect(() => {
     // A completed local App registration must not leave a failure glyph up.
-    if (localGithubApp !== null && flash?.tone === "err") onFlash(null);
-  }, [localGithubApp, flash, onFlash]);
+    if (!nativeExperience && localGithubApp !== null && flash?.tone === "err")
+      onFlash(null);
+  }, [nativeExperience, localGithubApp, flash, onFlash]);
   if (!provider) {
     return (
       <div className="section__inner">
@@ -140,12 +144,19 @@ export function ConnectorSettingsPage({
     );
   }
 
-  const nativeHeader = nativeConnectorHeaderStatus(connection, provider);
+  const nativeHeader =
+    nativeConnectorHeaderStatus(connection, provider) ??
+    (nativeExperience
+      ? {
+          tone: "idle" as const,
+          label: nativeDescriptor.methods.some((method) => method.available)
+            ? "Not connected"
+            : "Not available here",
+          sentence: `${provider.id === "github" ? "Personal access token" : authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`,
+        }
+      : null);
   const automatic = canConfigureAutomatically(provider);
   const onConnect = connectOwned(provider.id);
-  const nativeDescriptor = nativeSettingsDescriptor(provider);
-  const nativeExperience =
-    nativeDescriptor !== null && !isConnectConnection(connection);
   // A key or a configuration is collected on this page, including when
   // Vercel lists the same service.
   const deviceSeal =
@@ -200,7 +211,11 @@ export function ConnectorSettingsPage({
         </div>
         <a
           className="btn btn--sm btn--ghost"
-          href={provider.docsUrl}
+          href={
+            nativeExperience
+              ? (nativeDescriptor.docsUrl ?? provider.docsUrl)
+              : provider.docsUrl
+          }
           target="_blank"
           rel="noreferrer noopener"
         >

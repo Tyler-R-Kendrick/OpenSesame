@@ -20,6 +20,7 @@ import {
   within,
 } from "@testing-library/react";
 import { expect, vi } from "vitest";
+import { unlockCeremonyStore } from "../lib/unlock-ceremony-store.js";
 
 export type TestVaultState = {
   status: "empty" | "locked";
@@ -325,6 +326,7 @@ function ensureMemoryLocalStorage(): void {
 }
 
 export function resetUnlockHarness(): void {
+  unlockCeremonyStore.reset();
   // A sign-out or a switch leaves a one-shot note for the next unlock screen;
   // one test's note must never open another's sign-in panel.
   ensureMemoryLocalStorage();

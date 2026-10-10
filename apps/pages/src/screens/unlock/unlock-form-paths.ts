@@ -3,6 +3,11 @@ import type {
   PasskeyProbe,
   PasskeyProbeOptions,
 } from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
+import type {
+  PasskeyAttachment,
+  PasskeyCreateOptions,
+} from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
+import { isPrfUnsupported } from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-output.js";
 import {
   type UnlockTabId,
   isProtectorUnlockMethod,
@@ -24,7 +29,10 @@ import {
 } from "../../lib/unlock-ceremony-arm.js";
 
 type UnlockStore = Readonly<{
-  createWithPasskey: (signal?: AbortSignal) => Promise<void>;
+  createWithPasskey: (
+    signal?: AbortSignal,
+    options?: PasskeyCreateOptions,
+  ) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
   createGuest: (options?: { resume?: boolean }) => Promise<void>;
   cancelTotpChallenge: () => void;
@@ -50,6 +58,7 @@ export async function submitFirstRunUnlock(input: {
   activeMethod: UnlockTabId;
   store: UnlockStore;
   passkeyAbort: MutableRefObject<AbortController | null>;
+  attachment?: PasskeyCreateOptions["attachment"];
   pin: string;
   confirm: string;
   setPin: (value: string) => void;
@@ -58,7 +67,9 @@ export async function submitFirstRunUnlock(input: {
     const controller = new AbortController();
     input.passkeyAbort.current = controller;
     try {
-      await input.store.createWithPasskey(controller.signal);
+      await input.store.createWithPasskey(controller.signal, {
+        attachment: input.attachment,
+      });
     } finally {
       if (input.passkeyAbort.current === controller)
         input.passkeyAbort.current = null;
@@ -75,6 +86,25 @@ export async function submitFirstRunUnlock(input: {
   }
   await input.store.createWithPin(input.pin);
   input.setPin("");
+}
+
+/**
+ * A passkey seal that an authenticator cannot answer is stepped past, not
+ * reported: the form moves to the next road and says so in the tray.
+ */
+export function stepPastUnsupported<Thrown>(
+  input: {
+    firstRun: boolean;
+    activeMethod: UnlockTabId;
+    attachment: PasskeyAttachment;
+    onSealUnsupported: (kind: PasskeyAttachment) => void;
+  },
+  caught: Thrown,
+): boolean {
+  if (!input.firstRun || input.activeMethod !== "passkey") return false;
+  if (!isPrfUnsupported(caught)) return false;
+  input.onSealUnsupported(input.attachment);
+  return true;
 }
 
 export async function submitSecondStepUnlock(input: {
@@ -218,5 +248,5 @@ export async function submitPasskeyDuressCode(input: {
 }
 
 export async function submitGuestUnlock(): Promise<void> {
-  await resumeGuestSession();
+  await withUnlockCeremony(() => resumeGuestSession());
 }
