@@ -202,6 +202,12 @@ describe("arrival", () => {
       message: CLAIM_WORDS.leaked,
     });
     expect(h.ceremony.start({ kind: "none" })).toEqual({ kind: "idle" });
+    h.seed({ token: TOKEN, presented: true });
+    expect(h.ceremony.start({ kind: "none" })).toEqual({
+      kind: "load",
+      token: TOKEN,
+      presented: true,
+    });
   });
 
   it("forgets the bearer on sign-out", () => {

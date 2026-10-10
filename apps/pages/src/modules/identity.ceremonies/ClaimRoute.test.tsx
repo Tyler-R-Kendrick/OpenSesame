@@ -234,6 +234,20 @@ describe("a claim link", () => {
     expect(harness.routes.present).not.toHaveBeenCalled();
     expect(peekClaimArrival()).toEqual({ kind: "none" });
   });
+
+  it("forgets an arrived link when Use a different link is chosen", async () => {
+    arrive(`/claim#token=${TOKEN}`);
+    show();
+    await screen.findByLabelText("Consent code");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Use a different link" }),
+    );
+    expect(peekClaimArrival()).toEqual({ kind: "none" });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Claim link")).toBeTruthy(),
+    );
+    expect(harness.routes.present).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("no link arrived", () => {

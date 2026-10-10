@@ -94,6 +94,11 @@ export function forgetClaim(): void {
   clearClaimStash();
 }
 
+/** Drop what arrived so the route can take a different link in the same sitting. */
+export function discardClaimArrival(): void {
+  forgetClaim();
+}
+
 /**
  * An ownership claim does not survive a lock (ADR 0140 D6). A drop does:
  * its present and poll only touch the origin claim store, so they keep
