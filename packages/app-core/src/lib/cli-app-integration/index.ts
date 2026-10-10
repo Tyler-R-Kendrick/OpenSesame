@@ -6,9 +6,6 @@ export {
   type PendingRequest,
 } from "./session.js";
 export { cliAppIntegrationPolicy } from "./policy.js";
-<<<<<<< HEAD
-=======
-export { deriveTerminalSessionId } from "./terminal-session.js";
 export {
   listCliIntegrationPending,
   respondCliIntegration,
@@ -21,4 +18,3 @@ export {
   terminalSessionLabel,
   type CliAuthorizeView,
 } from "./present.js";
->>>>>>> 718f20459 (feat(pages): Authorize CLI sheet for daemon app-integration)
