@@ -34,7 +34,7 @@ impl HeldPrivateWriterLease {
     pub fn shared(root: Arc<PrivateDirectory>, logical: &str) -> io::Result<Self> {
         Self::try_shared(root, logical)?.ok_or_else(busy)
     }
-    /// Try the actual exclusive byte-range lease; only ERROR_LOCK_VIOLATION returns None.
+    /// Try the actual exclusive byte-range lease; only `ERROR_LOCK_VIOLATION` returns None.
     /// # Errors
     /// Refuses changed/nonprivate resources and every non-contention IO error.
     pub fn try_exclusive(root: Arc<PrivateDirectory>, logical: &str) -> io::Result<Option<Self>> {
@@ -61,7 +61,7 @@ impl HeldPrivateWriterLease {
                 0,
                 1,
                 0,
-                &mut overlapped,
+                &raw mut overlapped,
             )
         } == 0
         {
@@ -129,7 +129,7 @@ impl Drop for HeldPrivateWriterLease {
         // SAFETY: this File still owns the exact byte-range lock at offset zero.
         // Closing its retained handle is the OS fallback if explicit release fails.
         unsafe {
-            UnlockFileEx(self.file.as_raw_handle(), 0, 1, 0, &mut overlapped);
+            UnlockFileEx(self.file.as_raw_handle(), 0, 1, 0, &raw mut overlapped);
         }
     }
 }
@@ -159,7 +159,7 @@ fn open(root: &PrivateDirectory, name: &str) -> io::Result<File> {
             path.as_ptr(),
             GENERIC_READ | GENERIC_WRITE | READ_CONTROL | FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &attributes,
+            &raw const attributes,
             CREATE_NEW,
             FILE_FLAG_OPEN_REPARSE_POINT,
             ptr::null_mut(),

@@ -60,7 +60,7 @@ pub(super) fn create_private_with_flags(
             path.as_ptr(),
             GENERIC_READ | GENERIC_WRITE | DELETE | READ_CONTROL | FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &attributes,
+            &raw const attributes,
             CREATE_NEW,
             FILE_FLAG_OPEN_REPARSE_POINT | flags,
             ptr::null_mut(),

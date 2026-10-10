@@ -138,7 +138,7 @@ mod imp {
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use super::*;
+    use super::{Arc, KeychainBackend, KeychainStore, ProbeError};
     use security_framework::item::{ItemClass, ItemSearchOptions, Limit, SearchResult};
 
     /// macOS Keychain backend.
