@@ -1,9 +1,7 @@
 import { unlockCeremonyStore } from "./unlock-ceremony-store.js";
 
 /** Hold the unlock gate before the vault store emits `unlocked` (lock-v5). */
-export async function withUnlockCeremony<T>(
-  run: () => Promise<T>,
-): Promise<T> {
+export async function withUnlockCeremony<T>(run: () => Promise<T>): Promise<T> {
   unlockCeremonyStore.begin();
   try {
     return await run();
