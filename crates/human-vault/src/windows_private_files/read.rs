@@ -34,7 +34,7 @@ fn version(file: &File) -> io::Result<Version> {
     // SAFETY: zeroed Windows output buffer is valid for this API.
     let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { mem::zeroed() };
     // SAFETY: the retained File and correctly sized writable output remain live.
-    if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) } == 0 {
+    if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &raw mut info) } == 0 {
         return Err(io::Error::last_os_error());
     }
     Ok(Version {

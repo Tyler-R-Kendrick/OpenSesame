@@ -62,7 +62,7 @@ fn bounded_sid(base: *const c_void, size: usize, sid: *mut c_void) -> io::Result
 pub(super) fn owner_sid() -> io::Result<String> {
     let mut raw = ptr::null_mut();
     // SAFETY: output is valid; the current thread pseudo-handle is valid.
-    if unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &mut raw) } == 0 {
+    if unsafe { OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, 1, &raw mut raw) } == 0 {
         let error = io::Error::last_os_error();
         if !error
             .raw_os_error()
@@ -71,7 +71,7 @@ pub(super) fn owner_sid() -> io::Result<String> {
             return Err(error);
         }
         // SAFETY: fall back only when there is no impersonation token.
-        if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut raw) } == 0 {
+        if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut raw) } == 0 {
             return Err(io::Error::last_os_error());
         }
     }
@@ -80,7 +80,7 @@ pub(super) fn owner_sid() -> io::Result<String> {
     let mut length = 0;
     // SAFETY: documented zero-sized query obtains the required buffer size.
     let queried =
-        unsafe { GetTokenInformation(token.0, TokenUser, ptr::null_mut(), 0, &mut length) };
+        unsafe { GetTokenInformation(token.0, TokenUser, ptr::null_mut(), 0, &raw mut length) };
     if queried != 0
         || !io::Error::last_os_error()
             .raw_os_error()
@@ -104,7 +104,7 @@ pub(super) fn owner_sid() -> io::Result<String> {
             TokenUser,
             buffer.as_mut_ptr().cast(),
             capacity,
-            &mut length,
+            &raw mut length,
         )
     } == 0
     {
@@ -122,7 +122,7 @@ pub(super) fn owner_sid() -> io::Result<String> {
     )?;
     let mut text = ptr::null_mut();
     // SAFETY: SID is validated and retained, output is initialized.
-    if unsafe { ConvertSidToStringSidW(sid, &mut text) } == 0 {
+    if unsafe { ConvertSidToStringSidW(sid, &raw mut text) } == 0 {
         return Err(io::Error::last_os_error());
     }
     let _allocation = Descriptor(text.cast());
@@ -148,7 +148,7 @@ impl Descriptor {
             ConvertStringSecurityDescriptorToSecurityDescriptorW(
                 wide.as_ptr(),
                 SDDL_REVISION_1,
-                &mut raw,
+                &raw mut raw,
                 ptr::null_mut(),
             )
         } == 0
@@ -172,7 +172,7 @@ impl Descriptor {
         let mut control = 0;
         let mut revision = 0;
         // SAFETY: all output pointers are valid.
-        if unsafe { GetSecurityDescriptorControl(self.0, &mut control, &mut revision) } == 0
+        if unsafe { GetSecurityDescriptorControl(self.0, &raw mut control, &raw mut revision) } == 0
             || control & (SE_SELF_RELATIVE | SE_DACL_PROTECTED)
                 != (SE_SELF_RELATIVE | SE_DACL_PROTECTED)
         {
@@ -189,9 +189,15 @@ impl Descriptor {
         let mut present = 0;
         let mut acl: *mut ACL = ptr::null_mut();
         // SAFETY: all outputs are valid and the retained descriptor is validated.
-        if unsafe { GetSecurityDescriptorOwner(self.0, &mut owner, &mut defaulted) } == 0
-            || unsafe { GetSecurityDescriptorDacl(self.0, &mut present, &mut acl, &mut defaulted) }
-                == 0
+        if unsafe { GetSecurityDescriptorOwner(self.0, &raw mut owner, &raw mut defaulted) } == 0
+            || unsafe {
+                GetSecurityDescriptorDacl(
+                    self.0,
+                    &raw mut present,
+                    &raw mut acl,
+                    &raw mut defaulted,
+                )
+            } == 0
             || present == 0
             || !inside(self.0, size, acl.cast(), mem::size_of::<ACL>())
         {
@@ -225,7 +231,7 @@ pub(super) fn verify(file: &File, owner: &str, directory: bool) -> io::Result<()
             ptr::null_mut(),
             ptr::null_mut(),
             ptr::null_mut(),
-            &mut raw,
+            &raw mut raw,
         )
     };
     if status != 0 {

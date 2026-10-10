@@ -45,7 +45,7 @@ impl PrivateDirectory {
     /// Corroborate one actual absent entry in the retained original Windows namespace.
     /// Physical DATA only, never an Owner or credential/lease grant.
     /// # Errors
-    /// Refuses invalid leaves, changed original ancestry and all errors except FILE_NOT_FOUND.
+    /// Refuses invalid leaves, changed original ancestry and all errors except `FILE_NOT_FOUND`.
     pub fn original_entry_absent(&self, name: &Path) -> io::Result<bool> {
         use windows_sys::Win32::{
             Foundation::ERROR_FILE_NOT_FOUND,
@@ -58,7 +58,10 @@ impl PrivateDirectory {
         let attributes = unsafe { GetFileAttributesW(path.as_ptr()) };
         let result = if attributes == INVALID_FILE_ATTRIBUTES {
             let error = io::Error::last_os_error();
-            if error.raw_os_error() == Some(ERROR_FILE_NOT_FOUND as i32) {
+            if error
+                .raw_os_error()
+                .is_some_and(|code| u32::try_from(code) == Ok(ERROR_FILE_NOT_FOUND))
+            {
                 Ok(true)
             } else {
                 Err(error)

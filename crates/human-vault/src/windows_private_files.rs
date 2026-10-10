@@ -193,7 +193,7 @@ fn create_private_directory(path: &Path, owner: &str) -> io::Result<()> {
     let attributes = descriptor.attributes()?;
     let path = handles::wide(path)?;
     // SAFETY: bounded terminated path and private descriptor stay owned throughout creation.
-    if unsafe { CreateDirectoryW(path.as_ptr(), &attributes) } == 0 {
+    if unsafe { CreateDirectoryW(path.as_ptr(), &raw const attributes) } == 0 {
         let error = io::Error::last_os_error();
         // A raced existing object still undergoes real handle/owner/private-ACL verification.
         if error.kind() != io::ErrorKind::AlreadyExists {
@@ -209,7 +209,7 @@ fn create_private_directory_new(path: &Path, owner: &str) -> io::Result<()> {
     let attributes = descriptor.attributes()?;
     let path = handles::wide(path)?;
     // SAFETY: the terminated path and ACL descriptor remain owned during the call.
-    if unsafe { CreateDirectoryW(path.as_ptr(), &attributes) } == 0 {
+    if unsafe { CreateDirectoryW(path.as_ptr(), &raw const attributes) } == 0 {
         return Err(io::Error::last_os_error());
     }
     Ok(())

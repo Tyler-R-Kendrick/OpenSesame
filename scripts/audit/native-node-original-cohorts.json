@@ -18,7 +18,7 @@
         "src/node/selected-body-ack-final-close-delivery.test.ts",
         "src/node/indexed-identity-body-publication.test.ts"
       ],
-      "expected": 37
+      "expected": 42
     },
     {
       "id": "original-budget-eleven",

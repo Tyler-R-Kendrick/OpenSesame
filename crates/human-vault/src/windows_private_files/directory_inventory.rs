@@ -71,7 +71,10 @@ fn read_directory_batch(
         return Ok(true);
     }
     let error = io::Error::last_os_error();
-    if error.raw_os_error() == Some(ERROR_NO_MORE_FILES as i32) {
+    if error
+        .raw_os_error()
+        .is_some_and(|code| u32::try_from(code) == Ok(ERROR_NO_MORE_FILES))
+    {
         return Ok(false);
     }
     Err(error)
@@ -90,19 +93,22 @@ fn consume_directory_rows(
         if offset > 65536 - mem::size_of::<FILE_ID_BOTH_DIR_INFO>() || offset % 8 != 0 {
             return Err(security::refused());
         }
-        // SAFETY: aligned offset and complete structure are bounded within owned buffer.
+        // SAFETY: the entire header is bounded inside the owned u64 allocation.
+        // Copy the header without forming a reference to a variable-length Windows row.
         let row = unsafe {
-            &*buffer
-                .as_ptr()
-                .cast::<u8>()
-                .add(offset)
-                .cast::<FILE_ID_BOTH_DIR_INFO>()
+            std::ptr::read_unaligned(
+                buffer
+                    .as_ptr()
+                    .add(offset / 8)
+                    .cast::<FILE_ID_BOTH_DIR_INFO>(),
+            )
         };
         let bytes = row.FileNameLength as usize;
         let name_offset = mem::offset_of!(FILE_ID_BOTH_DIR_INFO, FileName);
         if bytes == 0
             || bytes % 2 != 0
             || bytes > 510
+            || name_offset % 2 != 0
             || offset + name_offset + bytes > 65536
             || row.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0
         {
@@ -110,7 +116,13 @@ fn consume_directory_rows(
         }
         // SAFETY: variableUTF16 tail length/alignment checked against complete owned buffer.
         let units = unsafe {
-            std::slice::from_raw_parts(std::ptr::addr_of!(row.FileName).cast::<u16>(), bytes / 2)
+            std::slice::from_raw_parts(
+                buffer
+                    .as_ptr()
+                    .cast::<u16>()
+                    .add((offset + name_offset) / 2),
+                bytes / 2,
+            )
         };
         let name = String::from_utf16(units).map_err(|_| security::refused())?;
         if name != "." && name != ".." {

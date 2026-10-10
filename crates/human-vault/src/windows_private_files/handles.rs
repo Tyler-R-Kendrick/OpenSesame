@@ -1,4 +1,4 @@
-//! Every ancestor pin denies delete-sharing and survives for the StoreLock lifetime.
+//! Every ancestor pin denies delete-sharing and survives for the `StoreLock` lifetime.
 use super::security::refused;
 use std::{
     fs::File,
@@ -122,7 +122,7 @@ pub(super) fn identity(file: &File, directory: bool) -> io::Result<Identity> {
     // SAFETY: this Win32 output structure permits all-zero initialization.
     let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { mem::zeroed() };
     // SAFETY: File owns the handle and info is a correctly sized writable buffer.
-    if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) } == 0 {
+    if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &raw mut info) } == 0 {
         return Err(io::Error::last_os_error());
     }
     // SAFETY: the handle is live throughout this call.
@@ -223,7 +223,7 @@ pub(super) fn local_ntfs(root: &File, drive: &Path) -> io::Result<()> {
             0,
             ptr::null_mut(),
             ptr::null_mut(),
-            &mut flags,
+            &raw mut flags,
             filesystem.as_mut_ptr(),
             32,
         )

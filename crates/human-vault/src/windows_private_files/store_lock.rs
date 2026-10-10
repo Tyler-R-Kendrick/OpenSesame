@@ -39,7 +39,7 @@ impl HeldPrivateStoreLock {
                 0,
                 1,
                 0,
-                &mut overlapped,
+                &raw mut overlapped,
             )
         } == 0
         {
@@ -79,7 +79,7 @@ impl Drop for HeldPrivateStoreLock {
         // SAFETY: this File still owns the exact byte-range lock at offset zero.
         // Closing its retained handle is the OS fallback if explicit release fails.
         unsafe {
-            UnlockFileEx(self.file.as_raw_handle(), 0, 1, 0, &mut overlapped);
+            UnlockFileEx(self.file.as_raw_handle(), 0, 1, 0, &raw mut overlapped);
         }
     }
 }
@@ -103,7 +103,7 @@ fn open(root: &PrivateDirectory) -> io::Result<File> {
             path.as_ptr(),
             GENERIC_READ | GENERIC_WRITE | READ_CONTROL | FILE_READ_ATTRIBUTES,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            &attributes,
+            &raw const attributes,
             CREATE_NEW,
             FILE_FLAG_OPEN_REPARSE_POINT,
             ptr::null_mut(),
