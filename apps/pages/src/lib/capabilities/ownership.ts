@@ -77,6 +77,7 @@ export const PLANNED_MODULE_ENTRIES: readonly string[] = [
   "support.local-ai",
   "support.remote-ai",
   "notifications.web-push",
+  "cli.app-integration",
   "telemetry.external",
 ].map((id) => runtimeEntry(id).entry);
 

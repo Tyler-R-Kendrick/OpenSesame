@@ -22,6 +22,7 @@ import {
   LINEAR_API_PURPOSE,
   NATIVE_PROVIDER_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
+import { CLI_APP_INTEGRATION_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on-local.js";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
 import {
   PASSWORD_RESET_MAIL_PURPOSE,
@@ -58,6 +59,7 @@ const catalogConstants: ReadonlyMap<string, string> = new Map(
   Object.entries({
     LINEAR_API_PURPOSE,
     NATIVE_PROVIDER_PURPOSE,
+    CLI_APP_INTEGRATION_PURPOSE,
     LIVE_CARRIER_PURPOSE,
     PASSWORD_RESET_MAIL_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
