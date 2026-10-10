@@ -32,6 +32,7 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
 import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import {
   LIVE_GOALS,
@@ -44,6 +45,10 @@ import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveSettings } from "./LiveSettings.js";
 import { carrierFactory, carriersUnavailable } from "./carriers/index.js";
 import { liveUiSeams } from "./live-hooks.js";
+import {
+  clearLiveHostAskingNotices,
+  noteGuestAsking,
+} from "./live-host-tray.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 export const CAPABILITY = "sharing.live";
@@ -62,9 +67,15 @@ export const capabilityRuntime: CapabilityRuntime = {
       plan: () => compositionStore.getSnapshot().plan,
     });
     liveUiSeams.carriers = carriers;
+    const priorHostState = liveSeams.onHostState;
+    const priorHostingEnded = liveSeams.onHostingEnded;
+    liveSeams.onHostState = noteGuestAsking;
+    liveSeams.onHostingEnded = clearLiveHostAskingNotices;
     activation.onDispose(() => {
       if (liveUiSeams.carriers === carriers)
         liveUiSeams.carriers = carriersUnavailable;
+      liveSeams.onHostState = priorHostState;
+      liveSeams.onHostingEnded = priorHostingEnded;
     });
 
     activation.register("route", {

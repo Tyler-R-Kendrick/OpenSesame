@@ -5,8 +5,10 @@ import {
   configureNativeBrowserOAuthConnector,
   verifyNativeBrowserOAuthConnector,
 } from "./native-browser-oauth-connectors.js";
+import type { IssuedNativeOAuthToken } from "./native-browser-oauth-token.js";
 import { readNativeConnector } from "./native-connector-store.js";
 import { bindNativeOAuthBrowserPort } from "./native-oauth-browser-port.js";
+import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
   installNativeOAuthTests,
   oauthAuthority,
@@ -15,37 +17,39 @@ import {
 
 installNativeOAuthTests();
 afterEach(() => vi.unstubAllGlobals());
-function googleSdk(denied = false) {
+function googleBridge(denied = false) {
   vi.stubGlobal("__NATIVE_GOOGLE_HEADER_SECURITY__", false);
   vi.stubGlobal("crossOriginIsolated", false);
-  const initTokenClient = vi.fn<
-    NonNullable<Window["google"]>["accounts"]["oauth2"]["initTokenClient"]
-  >((options) => ({
-    requestAccessToken: () =>
-      options.callback(
-        denied
-          ? { error: "access_denied" }
-          : {
-              access_token: "private-google-sdk-access",
-              token_type: "Bearer",
-              expires_in: 1,
-              scope: "openid https://www.googleapis.com/auth/userinfo.email",
-            },
-      ),
+  return vi.fn(async () => ({
+    state: "encrypted-google-public-state",
+    redirectUri: "https://selfhost.example/auth/native-google.html",
+    close: vi.fn(),
+    authorize: async (
+      _url: string,
+      options: { retain: (token: IssuedNativeOAuthToken) => Promise<void> },
+    ) => {
+      if (denied) throw new NativeOAuthError("denied");
+      const token = {
+        accessToken: "private-google-sdk-access",
+        expiresAt: Date.now() + 1000,
+        scopes: ["openid", "https://www.googleapis.com/auth/userinfo.email"],
+        protocolValid: true,
+      };
+      await options.retain(token);
+      return token;
+    },
   }));
-  vi.stubGlobal("window", {
-    google: { accounts: { oauth2: { initTokenClient } } },
-  });
-  return initTokenClient;
 }
+
 it("Google SDK authorization seals its actual token and verifies userinfo; expiry requires a new popup rather than a fabricated refresh", async () => {
   const provider = oauthAuthority("google");
-  const initTokenClient = googleSdk();
+  const prepare = googleBridge();
   const release = bindNativeOAuthBrowserPort({
     redirectUri: "https://selfhost.example/auth/native-connector.html",
     navigate: provider.navigate,
     scrubCallback: provider.scrubCallback,
     googleToken: requestNativeGoogleToken,
+    prepareImplicitAuthorization: prepare,
   });
   try {
     const draft = await configureNativeBrowserOAuthConnector(
@@ -66,9 +70,7 @@ it("Google SDK authorization seals its actual token and verifies userinfo; expir
       label: "Google owner",
       assurance: "account-verified",
     });
-    expect(initTokenClient.mock.calls[0]?.[0].client_id).toBe(
-      "public-browser-client",
-    );
+    expect(prepare).toHaveBeenCalledWith("google");
     expect(String(provider.fetch.mock.calls[0]?.[0])).toBe(
       "https://openidconnect.googleapis.com/v1/userinfo",
     );
@@ -91,12 +93,13 @@ it("Google SDK authorization seals its actual token and verifies userinfo; expir
 });
 it("authoritative Google SDK denial clears its unminted intent and permits another consent attempt", async () => {
   const provider = oauthAuthority("google");
-  googleSdk(true);
+  const prepare = googleBridge(true);
   const release = bindNativeOAuthBrowserPort({
     redirectUri: "https://selfhost.example/auth/native-connector.html",
     navigate: provider.navigate,
     scrubCallback: provider.scrubCallback,
     googleToken: requestNativeGoogleToken,
+    prepareImplicitAuthorization: prepare,
   });
   try {
     const draft = await configureNativeBrowserOAuthConnector(

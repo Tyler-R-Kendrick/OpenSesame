@@ -30,30 +30,60 @@ it.each(["google", "microsoft"])(
     view.providerId = id;
     view.configuration.providerId = id;
     view.configuration.method = "oauth";
-    view.status = "authorizing";
-    view.verifiedAt = null;
+    view.configuration.parameters = { client_id: "public-browser-client" };
+    view.configuration.requestedScopes = { user: [...profile.requiredScopes] };
+    view.identity = {
+      id: "authorized-user",
+      label: "Authorized user",
+      kind: "account",
+      assurance: "account-verified",
+    };
+    view.grants = [
+      {
+        actor: "user",
+        label: `${profile.name} authorization`,
+        permissionState: "known",
+        grantedScopes: [...profile.requiredScopes],
+        expiresAt: null,
+        needsReauth: false,
+      },
+    ];
     const controller = nativeUiController(view);
+    controller.connect.mockResolvedValue(view);
+    const onChanged = vi.fn();
+    const onFlash = vi.fn();
     render(
       <NativeConnectorForm
         descriptor={descriptor}
         controller={controller}
-        onChanged={vi.fn()}
-        onFlash={vi.fn()}
+        onChanged={onChanged}
+        onFlash={onFlash}
       />,
     );
+    expect(screen.queryByLabelText("Connector name")).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
     await userEvent.type(
       screen.getByLabelText(`${profile.name} public client ID`),
       "public-browser-client",
+    );
+    await userEvent.click(
+      screen.getByText("Sign-in options", { selector: "summary" }),
     );
     const registration = screen.getByLabelText(
       id === "google" ? "Authorized JavaScript origin" : "OAuth callback URL",
     );
     expect(registration).toHaveProperty("readOnly", true);
     await userEvent.click(
-      screen.getByRole("button", { name: `Verify and connect ${plan.name}` }),
+      screen.getByRole("button", { name: `Sign in to ${plan.name}` }),
     );
-    await waitFor(() => expect(controller.configure).toHaveBeenCalledOnce());
-    const sent = controller.configure.mock.calls[0]?.[0];
+    await waitFor(() => expect(onChanged).toHaveBeenCalledWith(view));
+    expect(controller.connect).toHaveBeenCalledOnce();
+    expect(controller.configure).not.toHaveBeenCalled();
+    expect(onFlash).toHaveBeenCalledWith({
+      tone: "ok",
+      text: `${plan.name} access verified and saved on this device.`,
+    });
+    const sent = controller.connect.mock.calls[0]?.[0];
     expect(sent?.parameters).toEqual(
       id === "google"
         ? { client_id: "public-browser-client" }

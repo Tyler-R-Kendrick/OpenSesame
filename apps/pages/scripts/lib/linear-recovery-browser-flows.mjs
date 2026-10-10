@@ -1,5 +1,10 @@
+import {
+  beginLinearConsent,
+  finishLinearConsent,
+  showSavedLinear,
+} from "./linear-browser-consent.mjs";
 /** Recover real sealed records through UI controls; faults affect provider HTTP only. */
-import { PIN, unlockWithPin } from "./pages-journey.mjs";
+import { unlockWithPin } from "./pages-journey.mjs";
 
 const connected = (page) =>
   page.getByRole("img", { name: "Linear connected", exact: true });
@@ -20,15 +25,6 @@ async function scopes(page, label, selected) {
     await checkbox.setChecked(selected.includes(name));
   }
   await summary.click();
-}
-
-async function finishConsent(page, authority, code, nextConsent = false) {
-  await authority.consent(page, code);
-  if (nextConsent) {
-    await page.getByLabel("PIN", { exact: true }).fill(PIN);
-    await page.getByRole("button", { name: "Unlock", exact: true }).click();
-    await page.waitForURL("https://linear.app/oauth/authorize?**");
-  } else await unlockWithPin(page);
 }
 
 function revokeGrant(authority, code) {
@@ -66,11 +62,15 @@ async function createRegistered({ harness }, page, label, authority) {
     .getByLabel("Expected Linear workspace (optional)", { exact: true })
     .fill("");
   await configureWebhook(page, true);
-  await page
-    .getByRole("button", { name: "Save and authorize Linear", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
-  await finishConsent(page, authority, "registered-initial");
+  const popup = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Save and authorize Linear",
+  );
+  await finishLinearConsent(harness, page, popup, label, (consent) =>
+    authority.consent(consent, "registered-initial"),
+  );
   await connected(page).waitFor();
   harness.check(
     authority.remote.webhooks.size === 1,
@@ -94,16 +94,20 @@ async function expireRegistered({ harness }, page, label, authority, oldId) {
     ),
     `${label}: expired OAuth refresh refusal requires reconnection`,
   );
-  await page
-    .getByRole("button", { name: "Reconnect application", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
+  const popup = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Reconnect application",
+  );
   harness.check(
     authority.remote.webhooks.has(oldId),
     `${label}: beginning recovery retains the original provider webhook`,
   );
   authority.remote.wrongWorkspaceCode = "registered-wrong";
-  await finishConsent(page, authority, "registered-wrong");
+  await finishLinearConsent(harness, page, popup, label, (consent) =>
+    authority.consent(consent, "registered-wrong"),
+  );
   await page
     .getByRole("img", {
       name: "Reconnect the original Linear workspace to recover its webhook",
@@ -129,12 +133,16 @@ async function retryRegistered(
   oldId,
 ) {
   harness.setStep(`${label}-webhook-cleanup-retry`);
-  await page
-    .getByRole("button", { name: "Authorize application", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
+  const popup = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Authorize application",
+  );
   authority.remote.failDelete = true;
-  await finishConsent(page, authority, "registered-replacement");
+  await finishLinearConsent(harness, page, popup, label, (consent) =>
+    authority.consent(consent, "registered-replacement"),
+  );
   await retry(page).waitFor();
   await incomplete(page).waitFor();
   harness.check(
@@ -196,11 +204,23 @@ async function createPending({ harness, visit }, page, label, authority) {
   await configureWebhook(page, true);
   authority.remote.loseCreate = true;
   authority.remote.failList = true;
+  const popup = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Create and authorize Linear",
+  );
+  await finishLinearConsent(harness, page, popup, label, (consent) =>
+    authority.consent(consent, "pending-initial"),
+  );
   await page
-    .getByRole("button", { name: "Create and authorize Linear", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
-  await finishConsent(page, authority, "pending-initial");
+    .getByRole("img", {
+      name: "Linear did not complete the requested operation.",
+      exact: true,
+    })
+    .first()
+    .waitFor();
+  await showSavedLinear(harness, page, visit, `${label}-pending-hook`);
   await incomplete(page).waitFor();
   await retry(page).waitFor();
   harness.check(
@@ -232,19 +252,32 @@ async function narrowPending({ harness }, page, label, authority, oldId) {
   authority.remote.failList = false;
   await scopes(page, "App Scopes", ["read"]);
   await configureWebhook(page, false);
-  await page
-    .getByRole("button", { name: "Save and authorize Linear", exact: true })
-    .click();
-  await page.waitForURL("https://linear.app/oauth/authorize?**");
+  const popup = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Save and authorize Linear",
+  );
   harness.check(
-    new URL(page.url()).searchParams.get("scope") === "read,admin",
+    new URL(popup.url()).searchParams.get("scope") === "read,admin",
     `${label}: pending webhook cleanup explicitly requests temporary admin consent`,
   );
-  await finishConsent(page, authority, "pending-cleanup", true);
+  await finishLinearConsent(harness, page, popup, label, (consent) =>
+    authority.consent(consent, "pending-cleanup"),
+  );
+  await page
+    .getByRole("button", { name: "Reconnect application", exact: true })
+    .waitFor();
   harness.check(
     !authority.remote.webhooks.has(oldId) &&
       authority.remote.webhooks.size === 0,
     `${label}: recovered pending webhook is deleted before disabling triggers`,
+  );
+  const finalPopup = await beginLinearConsent(
+    harness,
+    page,
+    label,
+    "Reconnect application",
   );
   harness.check(
     wasRevoked(authority, "contract-oauth-app-pending-cleanup") &&
@@ -252,10 +285,12 @@ async function narrowPending({ harness }, page, label, authority, oldId) {
     `${label}: temporary cleanup access and refresh tokens are revoked`,
   );
   harness.check(
-    new URL(page.url()).searchParams.get("scope") === "read",
+    new URL(finalPopup.url()).searchParams.get("scope") === "read",
     `${label}: cleanup requires a separate final consent with only selected read scope`,
   );
-  await finishConsent(page, authority, "pending-final");
+  await finishLinearConsent(harness, page, finalPopup, label, (consent) =>
+    authority.consent(consent, "pending-final"),
+  );
   await connected(page).waitFor();
   await page
     .getByRole("region", { name: "App authorization", exact: true })

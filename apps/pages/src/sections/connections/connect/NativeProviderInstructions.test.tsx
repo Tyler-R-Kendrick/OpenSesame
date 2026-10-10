@@ -62,7 +62,7 @@ it("keeps raw HTML inert and requires explicit link authority", () => {
   expect(document.body.textContent).toContain("<img");
 });
 
-it("changes the actual compiled Railway setup guide with the selected credential type", async () => {
+it("changes contextual Railway sign-in help with the selected credential type", async () => {
   const plan = connectPlan("railway");
   if (!plan) throw new Error("Railway compiled contract missing");
   const descriptor = nativeProviderDescriptor(plan, {
@@ -75,7 +75,10 @@ it("changes the actual compiled Railway setup guide with the selected credential
   if (!method) throw new Error("Railway API contract missing");
   expect(method.available).toBe(false);
   render(<ReadOnlyContractFields method={method} />);
-  await userEvent.click(screen.getByText("Provider setup guide"));
+  const help = screen.getByText("Sign-in help", { selector: "summary" });
+  expect(help.parentElement).toHaveProperty("open", false);
+  await userEvent.click(help);
+  expect(help.parentElement).toHaveProperty("open", true);
   expect(screen.getByText("No workspace")).toBeDefined();
   await userEvent.selectOptions(
     screen.getByLabelText("Credential type"),

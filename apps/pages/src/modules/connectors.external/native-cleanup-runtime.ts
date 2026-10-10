@@ -18,6 +18,7 @@ import type { Activation } from "../activation.js";
 const METHODS: readonly NativeMethod[] = [
   "api-key",
   "oauth",
+  "oidc",
   "mcp",
   "native-local",
 ];

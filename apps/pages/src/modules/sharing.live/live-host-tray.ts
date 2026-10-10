@@ -3,12 +3,24 @@
  */
 
 import type { HostState } from "@opensesame/app-core/lib/live/host.js";
-import { reportLiveOutcome } from "@opensesame/app-core/lib/live/outcome-notices.js";
+import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 
 const seenAsking = new Set<string>();
+const askingNotice = new Map<string, string>();
 
 /** Forget guests already announced (tests). */
 export function resetLiveHostTrayForTests(): void {
+  seenAsking.clear();
+  askingNotice.clear();
+}
+
+/** Drop tray rows for guests who were only asking, when the session ends. */
+export function clearLiveHostAskingNotices(): void {
+  for (const id of askingNotice.values()) dismissNotice(id);
+  askingNotice.clear();
   seenAsking.clear();
 }
 
@@ -17,6 +29,13 @@ export function noteGuestAsking(state: HostState): void {
   for (const guest of state.guests) {
     if (guest.state !== "asking" || seenAsking.has(guest.key)) continue;
     seenAsking.add(guest.key);
-    reportLiveOutcome("Live session", `${guest.name} is asking to join`);
+    const id = `sharing.live.ask.${guest.key}`;
+    setStatusNotice({
+      id,
+      tone: "warn",
+      title: "Live session",
+      body: `${guest.name} is asking to join`,
+    });
+    askingNotice.set(guest.key, id);
   }
 }

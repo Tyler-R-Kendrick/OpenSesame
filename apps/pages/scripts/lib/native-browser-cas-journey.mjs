@@ -16,6 +16,21 @@ async function nativeRevisionRefusal(page, secondary, check) {
   );
 }
 
+async function editAppearance(page, name) {
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Appearance$/ })
+    .click();
+  await page.getByLabel("Connector name", { exact: true }).fill(name);
+}
+async function appearanceName(page) {
+  await page
+    .locator("summary")
+    .filter({ hasText: /^Appearance$/ })
+    .click();
+  return page.getByLabel("Connector name", { exact: true }).inputValue();
+}
+
 export async function nativeCasJourney(
   page,
   context,
@@ -43,12 +58,8 @@ export async function nativeCasJourney(
   await unlockWithPin(secondary);
   const first = authority.alternate(fixture, "tab-a");
   const second = authority.alternate(fixture, "tab-b");
-  await page
-    .getByLabel("Connector name", { exact: true })
-    .fill("Protocol connection tab-a");
-  await secondary
-    .getByLabel("Connector name", { exact: true })
-    .fill("Protocol connection tab-b");
+  await editAppearance(page, "Protocol connection tab-a");
+  await editAppearance(secondary, "Protocol connection tab-b");
   await fillNativeApiFixture(page, first);
   await fillNativeApiFixture(secondary, second);
   const release = authority.pause(fixture.providerId);
@@ -72,9 +83,7 @@ export async function nativeCasJourney(
   authority.state.expectedDocuments.add(page.url());
   await page.reload();
   await unlockWithPin(page);
-  const name = await page
-    .getByLabel("Connector name", { exact: true })
-    .inputValue();
+  const name = await appearanceName(page);
   harness.check(
     ["Protocol connection tab-a", "Protocol connection tab-b"].includes(name),
     "cross-tab edit retains one complete human configuration",

@@ -1,0 +1,235 @@
+[
+  {
+    "provider": "asana",
+    "url": "https://developers.asana.com/docs/oauth",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "bamboohr",
+    "url": "https://documentation.bamboohr.com/docs/getting-started",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "beehiiv",
+    "url": "https://developers.beehiiv.com/oauth2",
+    "status": 200,
+    "bytes": 538726
+  },
+  {
+    "provider": "bitbucket",
+    "url": "https://developer.atlassian.com/cloud/bitbucket/oauth-2/",
+    "status": 200,
+    "bytes": 1555232
+  },
+  {
+    "provider": "calendly",
+    "url": "https://developer.calendly.com/docs/authentication/creating-an-oauth-app",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "canva",
+    "url": "https://www.canva.dev/docs/connect/authentication/",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "clickup",
+    "url": "https://developer.clickup.com/docs/authentication",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "convex",
+    "url": "https://docs.convex.dev/platform-apis/oauth-applications",
+    "status": 200,
+    "bytes": 61281
+  },
+  {
+    "provider": "crowdin",
+    "url": "https://support.crowdin.com/developer/authorizing-oauth-apps/",
+    "status": 200,
+    "bytes": 128220
+  },
+  {
+    "provider": "discord",
+    "url": "https://docs.discord.com/developers/topics/oauth2",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "docusign",
+    "url": "https://developers.docusign.com/platform/auth/confidential-authcode-get-token/",
+    "status": 200,
+    "bytes": 8630
+  },
+  {
+    "provider": "dropbox",
+    "url": "https://developers.dropbox.com/oauth-guide",
+    "status": 200,
+    "bytes": 265373
+  },
+  {
+    "provider": "figma",
+    "url": "https://developers.figma.com/docs/rest-api/oauth-apps/",
+    "error": "<urlopen error Tunnel connection failed: 403 Forbidden>"
+  },
+  {
+    "provider": "gitee",
+    "url": "https://gitee.com/api/v5/oauth_doc",
+    "status": 200,
+    "bytes": 8029
+  },
+  {
+    "provider": "github",
+    "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps",
+    "status": 200,
+    "bytes": 378377
+  },
+  {
+    "provider": "gitlab",
+    "url": "https://docs.gitlab.com/api/oauth2/",
+    "status": 200,
+    "bytes": 77239
+  },
+  {
+    "provider": "google",
+    "url": "https://developers.google.com/identity/protocols/oauth2/web-server",
+    "status": 200,
+    "bytes": 414626
+  },
+  {
+    "provider": "harvest",
+    "url": "https://help.getharvest.com/api-v2/authentication-api/authentication/authentication/",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "hubspot",
+    "url": "https://developers.hubspot.com/docs/guides/apps/authentication/working-with-oauth",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "intercom",
+    "url": "https://developers.intercom.com/docs/build-an-integration/learn-more/authentication/setting-up-oauth",
+    "status": 200,
+    "bytes": 670551
+  },
+  {
+    "provider": "jira",
+    "url": "https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/",
+    "status": 200,
+    "bytes": 396914
+  },
+  {
+    "provider": "linkedin",
+    "url": "https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow",
+    "status": 200,
+    "bytes": 70246
+  },
+  {
+    "provider": "microsoft",
+    "url": "https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow",
+    "status": 200,
+    "bytes": 97127
+  },
+  {
+    "provider": "microsoft-teams",
+    "url": "https://learn.microsoft.com/en-us/graph/teams-concept-overview",
+    "status": 200,
+    "bytes": 67814
+  },
+  {
+    "provider": "monday",
+    "url": "https://developer.monday.com/apps/docs/migrating-to-the-new-oauth-flow",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "notion",
+    "url": "https://developers.notion.com/docs/authorization",
+    "status": 200,
+    "bytes": 772652
+  },
+  {
+    "provider": "photon",
+    "url": "https://photon.codes/docs/api-reference/oauth",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "reddit",
+    "url": "https://github.com/reddit-archive/reddit/wiki/OAuth2",
+    "status": 200,
+    "bytes": 301211
+  },
+  {
+    "provider": "sanity",
+    "url": "https://www.sanity.io/docs/oauth2",
+    "status": 200,
+    "bytes": 255593
+  },
+  {
+    "provider": "sentry",
+    "url": "https://docs.sentry.io/api/auth/",
+    "status": 200,
+    "bytes": 661070
+  },
+  {
+    "provider": "shopify",
+    "url": "https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/authorization-code-grant",
+    "status": 200,
+    "bytes": 1542267
+  },
+  {
+    "provider": "spotify",
+    "url": "https://developer.spotify.com/documentation/web-api/tutorials/code-flow",
+    "status": 200,
+    "bytes": 326104
+  },
+  {
+    "provider": "twilio",
+    "url": "https://www.twilio.com/docs/iam/oauth-apps/org-oauth-apps",
+    "status": 200,
+    "bytes": 400948
+  },
+  {
+    "provider": "twitch",
+    "url": "https://dev.twitch.tv/docs/authentication/getting-tokens-oauth/",
+    "status": 200,
+    "bytes": 66672
+  },
+  {
+    "provider": "typeform",
+    "url": "https://www.typeform.com/developers/get-started/applications/",
+    "status": 200,
+    "bytes": 128712
+  },
+  {
+    "provider": "vercel",
+    "url": "https://vercel.com/docs/sign-in-with-vercel/authorization-server-api",
+    "status": 200,
+    "bytes": 34309
+  },
+  {
+    "provider": "webflow",
+    "url": "https://developers.webflow.com/data/reference/oauth-app",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "whoop",
+    "url": "https://developer.whoop.com/docs/developing/oauth",
+    "status": 200,
+    "bytes": 40661
+  },
+  {
+    "provider": "workday",
+    "url": "https://doc.workday.com/",
+    "status": 200,
+    "bytes": 39105
+  },
+  {
+    "provider": "zeplin",
+    "url": "https://docs.zeplin.dev/docs/authentication",
+    "error": "HTTP Error 403: Forbidden"
+  },
+  {
+    "provider": "zoom",
+    "url": "https://developers.zoom.us/docs/integrations/oauth/",
+    "status": 200,
+    "bytes": 103695
+  }
+]

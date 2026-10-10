@@ -4,6 +4,7 @@ import type {
   NativeConfiguration,
   NativeFieldClassification,
   NativeGrant,
+  NativeRecovery,
 } from "./native-connector-schema.js";
 import { NativeGrantSchema } from "./native-connector-schema.js";
 import {
@@ -40,6 +41,35 @@ function verifiedIntent(
     throw new NativeOAuthError("expired");
   return { intent, grant };
 }
+function consumeDevicePending(
+  current: NativeConnectorRecord,
+  intent: NativeRecovery,
+  grant: NativeGrant,
+) {
+  if (grant.providerId !== "twitch") return;
+  const pending = current.privateState.pending[grant.actor];
+  if (!pending) return;
+  if (
+    intent.id !== `oauth:${pending.state}` ||
+    pending.fingerprint !== grant.fingerprint ||
+    pending.providerId !== grant.providerId
+  )
+    throw new NativeOAuthError("expired");
+  current.privateState.pending = Object.fromEntries(
+    Object.entries(current.privateState.pending).filter(
+      ([actor]) => actor !== grant.actor,
+    ),
+  );
+}
+function replacesRevocableToken(old: NativeGrant, grant: NativeGrant) {
+  return !(
+    grant.providerId === "twitch" &&
+    old.providerId === grant.providerId &&
+    old.actor === grant.actor &&
+    old.fingerprint === grant.fingerprint &&
+    old.accessToken === grant.accessToken
+  );
+}
 export async function commitNativeOAuthGrant(
   id: string,
   intentId: string,
@@ -73,7 +103,8 @@ export async function commitNativeOAuthGrant(
       )
         throw new NativeOAuthError("provider");
       const old = current.privateState.grants[grant.actor];
-      if (old) {
+      consumeDevicePending(current, intent, grant);
+      if (old && replacesRevocableToken(old, grant)) {
         const targetId = old.targetId ?? intent.targetId;
         current.privateState.recovery.push({
           id: `oauth-replace:${intent.id}`,
@@ -98,6 +129,16 @@ export async function commitNativeOAuthGrant(
         Date.now(),
         (current.runtime.verifiedAt ?? 0) + 1,
       );
+      if (
+        ["twitch", "databricks", "discord"].includes(
+          current.configuration.providerId,
+        )
+      )
+        current.configuration.parameters = Object.fromEntries(
+          Object.entries(current.configuration.parameters).filter(
+            ([key]) => key !== "authorization_outcome",
+          ),
+        );
       current.privateState.verification = {
         fingerprint: current.configuration.fingerprint,
         verifiedAt,
@@ -121,5 +162,6 @@ export async function commitNativeOAuthGrant(
       };
       return current;
     },
+    transport.assertCurrent,
   );
 }

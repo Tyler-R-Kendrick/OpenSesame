@@ -21,6 +21,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../../bindings/identity.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
@@ -89,6 +90,7 @@ function draw(id: string, connection: Connection | null = null) {
       onFlash={onFlash}
       onChanged={vi.fn()}
     />,
+    { wrapper: MemoryRouter },
   );
   return onFlash;
 }
@@ -172,11 +174,9 @@ describe("moving between connectors", () => {
         onFlash={vi.fn()}
         onChanged={vi.fn()}
       />,
+      { wrapper: MemoryRouter },
     );
-    await userEvent.type(
-      screen.getByLabelText("Connector name"),
-      "Algolia draft",
-    );
+    expect(screen.queryByLabelText("Connector name")).toBeNull();
     await userEvent.type(
       screen.getByLabelText("Algolia API key"),
       "entered-only",
@@ -191,10 +191,7 @@ describe("moving between connectors", () => {
         onChanged={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Connector name")).toHaveProperty(
-      "value",
-      "Google Gemini",
-    );
+    expect(screen.queryByLabelText("Connector name")).toBeNull();
     expect(screen.getByLabelText("Google Gemini API key")).toHaveProperty(
       "value",
       "",
@@ -276,18 +273,14 @@ describe("self-hosted provider configuration", () => {
     setVercelConnectAuth(null);
     draw("resend");
     expect(screen.getByRole("region", { name: "Connector" })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "Managed MCP" })).toHaveProperty(
-      "disabled",
-      false,
-    );
-    expect(screen.getByLabelText("Connector name")).toHaveProperty(
-      "value",
-      "Resend",
-    );
-    expect(screen.getByRole("radio", { name: "API Key" })).toHaveProperty(
-      "disabled",
-      true,
-    );
+    expect(
+      screen.getByRole("button", { name: "Sign in to Resend" }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Connector name")).toBeNull();
+    expect(screen.queryByRole("radio", { name: "API Key" })).toBeNull();
+    expect(
+      screen.getByText("Other sign-in methods", { selector: "summary" }),
+    ).toBeTruthy();
     expect(screen.queryByLabelText("Resend API key")).toBeNull();
     expect(runtime.fetch).not.toHaveBeenCalled();
     expect(screen.queryByLabelText("Relay management key")).toBeNull();
@@ -370,6 +363,7 @@ describe("a person's token", () => {
         onFlash={vi.fn()}
         onChanged={vi.fn()}
       />,
+      { wrapper: MemoryRouter },
     );
     await userEvent.click(
       screen.getByRole("button", { name: "Test user token" }),

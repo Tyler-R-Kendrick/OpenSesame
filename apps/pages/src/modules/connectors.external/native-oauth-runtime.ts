@@ -14,6 +14,7 @@ import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connect
 import { createNativeMcpConnectorDriver } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import { bindNativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import type { Activation } from "../activation.js";
+import { nativeAuthPopupRuntime } from "./native-auth-popup-runtime.js";
 
 export function nativeCallbackUrl(): string {
   return new URL(
@@ -27,6 +28,11 @@ export function bindNativeOAuthRuntime(activation: Activation): void {
   activation.onDispose(
     bindNativeOAuthBrowserPort({
       redirectUri: nativeCallbackUrl(),
+      ...nativeAuthPopupRuntime(
+        activation,
+        nativeCallbackUrl(),
+        transport.assertCurrent,
+      ),
       navigate: (url) => {
         transport.assertCurrent();
         window.location.assign(url);

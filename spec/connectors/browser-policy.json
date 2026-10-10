@@ -2,7 +2,7 @@
   "schema_version": 1,
   "audited_origin": "https://tyler-r-kendrick.github.io",
   "checked_date": "2026-10-09",
-  "qualification": "Unauthenticated OPTIONS only, no account grant/proof. Errors and 5xx do not establish provider CORS refusal. Dynamic tenant and credential URLs are not guessed. Origin-specific response admission does not prove actual credentialed responses include CORS.",
+  "qualification": "Unauthenticated TLS-verified OPTIONS and public metadata GET only, no account grant/proof. Errors and 5xx do not establish provider CORS refusal. Dynamic tenant and credential URLs are not guessed. New MCP rules apply only to the audited origin; another operator origin must complete actual metadata, registration, token and resource requests. Origin-specific response admission does not prove authenticated access.",
   "rules": [
     {
       "provider_id": "agentmail",
@@ -786,6 +786,979 @@
         "allow_headers": "Content-Type,X-Postmark-Account-Token,X-Postmark-Server-Token",
         "tls_verified": true,
         "checked_at": "2026-10-09T08:05:41.132783+00:00"
+      }
+    },
+    {
+      "provider_id": "airtable",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Airtable MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/airtable",
+        "https://mcp.airtable.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.airtable.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "axiom",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Axiom MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://axiom.co/docs/console/intelligence/mcp-server",
+        "https://mcp.axiom.co/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.axiom.co/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "beehiiv",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "beehiiv MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://developers.beehiiv.com/oauth2",
+        "https://mcp.beehiiv.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.beehiiv.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "better-stack",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Better Stack MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://betterstack.com/docs/getting-started/integrations/mcp/",
+        "https://betterstack.com/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://betterstack.com/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "brex",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Brex MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/brex",
+        "https://api.brex.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://api.brex.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "checkly",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Checkly MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://www.checklyhq.com/docs/ai/mcp-server/",
+        "https://api.checklyhq.com/mcp"
+      ],
+      "probe": {
+        "url": "https://api.checklyhq.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "cloudflare",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Cloudflare MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/",
+        "https://mcp.cloudflare.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.cloudflare.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "cloudinary",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Cloudinary MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/cloudinary",
+        "https://asset-management.mcp.cloudinary.com/sse"
+      ],
+      "probe": {
+        "url": "https://asset-management.mcp.cloudinary.com/sse",
+        "method": "GET",
+        "request_method": "OPTIONS",
+        "request_header_names": ["authorization"],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "sse-get-preflight"
+      }
+    },
+    {
+      "provider_id": "common-room",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Common Room MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://commonroom.io",
+        "https://mcp.commonroom.io/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.commonroom.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": "http://localhost:6274",
+        "allow_methods": "GET,POST,OPTIONS",
+        "allow_headers": "Content-Type,Authorization,Mcp-Method,Mcp-Name,Mcp-Protocol-Version,X-Community-ID",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "coupler-io",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Coupler.io MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://blog.coupler.io/how-to-use-coupler-mcp-server/",
+        "https://auth.coupler.io/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://auth.coupler.io/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "fireflies",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Fireflies MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://fireflies.ai",
+        "https://api.fireflies.ai/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://api.fireflies.ai/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "honeycomb",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Honeycomb MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.honeycomb.io/integrations/mcp/configuration-guide",
+        "https://mcp.honeycomb.io/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.honeycomb.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 405,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "indeed",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Indeed MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://indeed.com",
+        "https://mcp.indeed.com/claude/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.indeed.com/claude/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY",
+        "allow_headers": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "intuit-mailchimp",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Intuit Mailchimp MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://mailchimp.com",
+        "https://ai-inc.mailchimp.com/claude/mcp/v2"
+      ],
+      "probe": {
+        "url": "https://ai-inc.mailchimp.com/claude/mcp/v2",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "lovable",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Lovable MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://lovable.dev",
+        "https://api.lovable.dev/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://api.lovable.dev/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "manufact",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Manufact MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/manufact",
+        "https://cloud.manufact.com/.well-known/oauth-authorization-server/api/auth"
+      ],
+      "probe": {
+        "url": "https://cloud.manufact.com/.well-known/oauth-authorization-server/api/auth",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "new-relic",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "New Relic MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.newrelic.com/docs/agentic-ai/mcp/setup/",
+        "https://oauth2.service.newrelic.com/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://oauth2.service.newrelic.com/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "otter-ai",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Otter.ai MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://otter.ai",
+        "https://otter.ai/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://otter.ai/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "pendo",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Pendo MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://pendo.io",
+        "https://app.pendo.io/.well-known/oauth-protected-resource/mcp/v0/shttp"
+      ],
+      "probe": {
+        "url": "https://app.pendo.io/.well-known/oauth-protected-resource/mcp/v0/shttp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "posthog",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "PostHog MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/posthog",
+        "https://mcp.posthog.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.posthog.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "pylon",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Pylon MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://support.usepylon.com/articles/2407390554-connecting-to-the-pylon-mcp-server",
+        "https://mcp.usepylon.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.usepylon.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "quicknode",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Quicknode MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://www.quicknode.com/docs/build-with-ai/quicknode-mcp",
+        "https://mcp.quicknode.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.quicknode.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "read-ai",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Read AI MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://support.read.ai/hc/en-us/articles/49381158409491-MCP-Server",
+        "https://api.read.ai/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://api.read.ai/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "readwise",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Readwise MCP is unavailable from this site's origin.",
+      "evidence_urls": ["https://readwise.io", "https://mcp2.readwise.io/mcp"],
+      "probe": {
+        "url": "https://mcp2.readwise.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 405,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "resend",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Resend MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://resend.com/docs/guides/building-a-resend-oauth-client",
+        "https://mcp.resend.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.resend.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "sentry",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Sentry MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.sentry.io/api/auth/",
+        "https://mcp.sentry.dev/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.sentry.dev/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "streak",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Streak MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://support.streak.com/en/articles/13931874-integrating-streak-with-gemini-claude-chatgpt-and-other-ai-tools",
+        "https://api.streak.com/mcp"
+      ],
+      "probe": {
+        "url": "https://api.streak.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "superhuman-mail",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Superhuman Mail MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://superhuman.com",
+        "https://mcp.mail.superhuman.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.mail.superhuman.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "ticktick",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "TickTick MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/ticktick",
+        "https://mcp.ticktick.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.ticktick.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "todoist",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Todoist MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/todoist",
+        "https://ai.todoist.net/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://ai.todoist.net/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "webflow",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Webflow MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://developers.webflow.com/data/reference/oauth-app",
+        "https://mcp.webflow.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.webflow.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "whimsical",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Whimsical MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://whimsical.com/learn/integrations/mcp",
+        "https://mcp.whimsical.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.whimsical.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "zapier",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Zapier MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/zapier",
+        "https://mcp.zapier.com/api/v1/connect"
+      ],
+      "probe": {
+        "url": "https://mcp.zapier.com/api/v1/connect",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": "GET, PATCH, POST, PUT, DELETE, OPTIONS",
+        "allow_headers": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "zernio",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Zernio MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.zernio.com",
+        "https://mcp.zernio.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.zernio.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "adobe",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Adobe MCP does not admit the required protocol header from this site's origin.",
+      "evidence_urls": [
+        "https://adobe.io",
+        "https://express-mcp-service.adobe.io/mcp",
+        "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header"
+      ],
+      "probe": {
+        "url": "https://express-mcp-service.adobe.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version"
+        ],
+        "status": 200,
+        "allow_origin": "https://tyler-r-kendrick.github.io",
+        "allow_methods": "GET,OPTIONS,POST",
+        "allow_headers": "authorization,x-api-key,x-request-id,Accept,Accept-Encoding,x-session-id,Content-Type,Mcp-Session-Id,traceparent,tracestate",
+        "denied_header": "mcp-protocol-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T17:00:53Z",
+        "stage": "resource-protocol-preflight"
+      }
+    },
+    {
+      "provider_id": "local-falcon",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Local Falcon MCP does not admit the required protocol header from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/local-falcon",
+        "https://mcp.localfalcon.com",
+        "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header"
+      ],
+      "probe": {
+        "url": "https://mcp.localfalcon.com",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version"
+        ],
+        "status": 204,
+        "allow_origin": "*",
+        "allow_methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+        "allow_headers": "Content-Type,Authorization,mcp-session-id,last-event-id",
+        "denied_header": "mcp-protocol-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T17:00:53Z",
+        "stage": "resource-protocol-preflight"
+      }
+    },
+    {
+      "provider_id": "sanity",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Sanity MCP does not admit the required protocol header from this site's origin.",
+      "evidence_urls": [
+        "https://www.sanity.io/docs/oauth2",
+        "https://mcp.sanity.io",
+        "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header"
+      ],
+      "probe": {
+        "url": "https://mcp.sanity.io",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version"
+        ],
+        "status": 204,
+        "allow_origin": "*",
+        "allow_methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+        "allow_headers": "Content-Type,Authorization,Mcp-Session-Id,mcp-session-id",
+        "denied_header": "mcp-protocol-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T17:00:53Z",
+        "stage": "resource-protocol-preflight"
       }
     }
   ]

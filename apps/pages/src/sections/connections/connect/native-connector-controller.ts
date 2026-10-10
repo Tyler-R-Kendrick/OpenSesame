@@ -2,9 +2,9 @@
 import type { ConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import {
   attestNativeBrowserOAuthRevocation,
+  nativeBrowserOAuthRecoverySettings,
   nativeBrowserOAuthRevocationInstructions,
 } from "@opensesame/app-core/lib/native-browser-oauth-attestation.js";
-import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { nativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import {
   removeNativeConnectorWithCleanup,
@@ -16,7 +16,11 @@ import {
   attestNativeMcpRevocation,
   nativeMcpRevocationInstructions,
 } from "@opensesame/app-core/lib/native-mcp-attestation.js";
-import type { NativeConnectorController } from "./native-connector-ui.js";
+import { nativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
+import type {
+  NativeConfigureInput,
+  NativeConnectorController,
+} from "./native-connector-ui.js";
 
 function nativeControllerState(
   plan: Pick<ConnectPlan, "id" | "refused">,
@@ -88,7 +92,7 @@ function nativeRecoveryControls(
       if (view.configuration.method === "mcp")
         return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
       return view.configuration.method === "oauth" &&
-        nativeBrowserOAuthProfile(view.providerId)?.settingsUrl
+        nativeBrowserOAuthRecoverySettings(view.configuration)
         ? nativeBrowserOAuthRevocationInstructions(
             view.connectionId,
             recoveryId,
@@ -122,31 +126,63 @@ export function nativeConnectorController(
 ): NativeConnectorController {
   const state = nativeControllerState(plan, initialConnectionId);
   const { load, read, required, retain } = state;
+  const configure = async (input: NativeConfigureInput) => {
+    if (plan.refused)
+      throw new Error("This provider connection is unavailable");
+    const held = read() ? required() : null;
+    if (held && held.configuration.method !== input.method)
+      throw new Error(
+        "Remove this connection before choosing another authorization method",
+      );
+    return retain(
+      await nativeConnectorDriver(input.method, plan.id).configure({
+        ...input,
+        providerId: plan.id,
+        connectionId: held?.connectionId,
+        revision: held?.revision,
+      }),
+    );
+  };
+  const reserve = (method: NativeConfigureInput["method"]) =>
+    ["oauth", "oidc", "mcp"].includes(method)
+      ? nativeOAuthBrowserPort().prepareAuthorization?.()
+      : undefined;
   return {
     load,
-    configure: async (input) => {
-      if (plan.refused)
-        throw new Error("This provider connection is unavailable");
-      const held = read() ? required() : null;
-      if (held && held.configuration.method !== input.method)
-        throw new Error(
-          "Remove this connection before choosing another authorization method",
-        );
-      return retain(
-        await nativeConnectorDriver(input.method, plan.id).configure({
-          ...input,
-          providerId: plan.id,
-          connectionId: held?.connectionId,
-          revision: held?.revision,
-        }),
-      );
+    configure,
+    cancelAuthorization: () => nativeOAuthBrowserPort().cancelAuthorization?.(),
+    connect: async (input) => {
+      const release = reserve(input.method);
+      try {
+        const view = await configure(input);
+        if (view.status === "connected") return view;
+        const driver = nativeConnectorDriver(input.method, plan.id);
+        if (!driver.authorize)
+          throw new Error("This provider requires verified credentials");
+        await driver.authorize(view.connectionId);
+        const connected = load();
+        if (!connected || connected.status !== "connected")
+          throw new Error("Provider authorization did not complete");
+        return connected;
+      } finally {
+        release?.();
+      }
     },
     authorize: async (actor) => {
       const view = required();
-      const driver = nativeConnectorDriver(view.configuration.method, plan.id);
-      if (!driver.authorize)
-        throw new Error("This method does not use provider consent");
-      await driver.authorize(view.connectionId, actor);
+      const release = reserve(view.configuration.method);
+      try {
+        const driver = nativeConnectorDriver(
+          view.configuration.method,
+          plan.id,
+        );
+        if (!driver.authorize)
+          throw new Error("This method does not use provider consent");
+        await driver.authorize(view.connectionId, actor);
+        load();
+      } finally {
+        release?.();
+      }
     },
     verify: async () => {
       const view = required();

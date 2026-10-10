@@ -1,30 +1,35 @@
-import {
-  connectPlan,
-  isRefusedPlan,
-} from "@opensesame/app-core/lib/connect-plan.js";
+import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import type { ConnectorCardAction } from "@opensesame/app-core/lib/connector-action-capability.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { isManagedConnector } from "@opensesame/app-core/lib/managed-connectors.js";
 import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
-import {
-  catalogTileNote,
-  isVercelCatalogId,
-  isVercelConnectable,
-} from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import { catalogTileNote } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { connectorPath } from "@opensesame/app-core/sections/connections/shared.js";
 import { type ReactNode, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconChevronRight, IconX } from "../../components/Icons.js";
+import {
+  IconArrowRight,
+  IconLock,
+  IconMonitor,
+  IconPlus,
+  IconX,
+} from "../../components/Icons.js";
 import { useListingSearch } from "../../components/SlashSearch.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
+import { InstalledConnectorActions } from "./InstalledConnectorActions.js";
+import {
+  catalogConnectorAction,
+  preferredCatalogConnection,
+} from "./catalog-connector-action.js";
 import { catalogPageSections } from "./page-tree.js";
 
 export function authKindLabel(provider: Provider): string {
@@ -138,13 +143,10 @@ export function CatalogPanel({
                         key={provider.id}
                         provider={provider}
                         groupLabel={group.label}
-                        connection={
-                          connections.find(
-                            (row) =>
-                              row.providerId === provider.id &&
-                              row.status !== "revoked",
-                          ) ?? null
-                        }
+                        connection={preferredCatalogConnection(
+                          provider,
+                          connections,
+                        )}
                       />
                     );
                   })}
@@ -178,7 +180,11 @@ function ProviderTile({
   groupLabel: string;
   connection: Connection | null;
 }) {
-  const note = catalogTileNote(provider, connection);
+  const action = catalogConnectorAction(provider, connection);
+  const note =
+    action.kind === "configure" || action.kind === "resume"
+      ? catalogTileNote(provider, connection)
+      : null;
   // Under "Managed" every tile said "Managed", and "API Key" said "API key":
   // a kind is drawn only where it says something its heading and name do not.
   const kind = catalogMethodLabel(provider);
@@ -191,13 +197,7 @@ function ProviderTile({
       className={`conn-tile${hash === `#catalog-${encodeURIComponent(provider.id)}` ? " is-selected" : ""}`}
       id={`catalog-${encodeURIComponent(provider.id)}`}
     >
-      <TileBody
-        provider={provider}
-        blocked={
-          isRefusedPlan(provider.id) ||
-          (isVercelCatalogId(provider.id) && !isVercelConnectable(provider.id))
-        }
-      >
+      <TileBody provider={provider} action={action}>
         <ConnectorMark
           providerId={provider.id}
           displayName={provider.displayName}
@@ -217,22 +217,66 @@ function ProviderTile({
 
 function TileBody({
   provider,
-  blocked,
+  action,
   children,
 }: {
   provider: Provider;
-  blocked: boolean;
+  action: ConnectorCardAction;
   children: ReactNode;
 }) {
-  if (blocked) return <span className="conn-tile__link">{children}</span>;
+  if (action.kind === "configure")
+    return (
+      <InstalledConnectorActions
+        provider={provider}
+        connectionId={action.connectionId}
+      >
+        {children}
+      </InstalledConnectorActions>
+    );
+  if (action.kind === "native" || action.kind === "unavailable") {
+    const label =
+      action.kind === "native" ? "Desktop app required" : "Unavailable";
+    const face = (
+      <>
+        {children}
+        {action.kind === "native" ? (
+          <IconMonitor className="conn-tile__go" size={18} title={label} />
+        ) : (
+          <IconLock className="conn-tile__go" size={18} title={label} />
+        )}
+      </>
+    );
+    return action.kind === "native" && action.install ? (
+      <a
+        className="conn-tile__link"
+        tabIndex={-1}
+        href={action.install.href}
+        aria-label={action.install.label}
+      >
+        {face}
+      </a>
+    ) : (
+      <span className="conn-tile__link" title={label}>
+        {face}
+      </span>
+    );
+  }
   return (
     <Link
       className="conn-tile__link"
       tabIndex={-1}
-      to={connectorPath(provider.id)}
+      aria-label={`${action.kind === "resume" ? "Resume sign-in to" : "Connect"} ${provider.displayName}`}
+      to={connectorPath(
+        provider.id,
+        action.kind === "resume" ? action.connectionId : undefined,
+      )}
     >
       {children}
-      <IconChevronRight className="conn-tile__go" size={14} />
+      {action.kind === "resume" ? (
+        <IconArrowRight className="conn-tile__go" size={18} />
+      ) : (
+        <IconPlus className="conn-tile__go" size={18} />
+      )}
     </Link>
   );
 }

@@ -17,7 +17,9 @@ import {
   currentHostCarriers,
   endHosting,
 } from "@opensesame/app-core/lib/live/session.js";
-import { useEffect } from "react";
+import { useState } from "react";
+import { CeremonySheet } from "../../components/CeremonySheet.js";
+import { CeremonyShell } from "../../components/CeremonyShell.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -30,7 +32,6 @@ import { useVault } from "../../lib/vault/hooks.js";
 import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
-import { noteGuestAsking } from "./live-host-tray.js";
 
 function Log({ state }: { state: HostState }) {
   const { items } = useVault();
@@ -56,9 +57,7 @@ export function LiveHostSession({
   host,
   state,
 }: { host: LiveHost; state: HostState }) {
-  useEffect(() => {
-    noteGuestAsking(state);
-  }, [state]);
+  const [endAsk, setEndAsk] = useState(false);
   const { copied, failed, copy } = useCopyFeedback();
   const left = useRemaining(host.expiresAt);
   const link = formatLiveLink(liveUiSeams.joinUrl(), host.link);
@@ -75,11 +74,34 @@ export function LiveHostSession({
           className="icon-btn"
           aria-label="End the session for everyone"
           title="End the session for everyone"
-          onClick={endHosting}
+          onClick={() => setEndAsk(true)}
         >
           <IconX size={16} />
         </button>
       </div>
+      {endAsk ? (
+        <CeremonySheet
+          title="End for everyone"
+          mark={<IconX size={20} />}
+          onClose={() => setEndAsk(false)}
+        >
+          <CeremonyShell
+            name="Live session"
+            facts={[
+              { key: "Guests", value: "lose access immediately" },
+              { key: "This tab", value: "stops hosting" },
+            ]}
+            primary={{
+              label: "End for everyone",
+              tone: "danger",
+              onClick: () => {
+                setEndAsk(false);
+                endHosting();
+              },
+            }}
+          />
+        </CeremonySheet>
+      ) : null}
       <FieldRow
         label="Link"
         actions={

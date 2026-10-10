@@ -36,6 +36,8 @@ export type NativeMethodDescriptor = {
   instructions?: string;
   fields: readonly NativeField[];
   scopeGroups: readonly NativeScopeGroup[];
+  authorizeFirst?: boolean;
+  authorizationActor?: string;
   links?: readonly { label: string; url: string }[];
 };
 
@@ -80,13 +82,16 @@ export type SafeActionResult = {
     label: string;
     url?: string;
     inputSchema?: string;
+    secretValue?: string;
   }[];
 };
 
 /** The owner pins these operations to one provider and configuration revision. */
 export type NativeConnectorController = {
+  cancelAuthorization: () => void;
   load: () => NativeConnectorView | null;
   configure: (input: NativeConfigureInput) => Promise<NativeConnectorView>;
+  connect: (input: NativeConfigureInput) => Promise<NativeConnectorView>;
   authorize: (actor?: string) => Promise<void>;
   verify: () => Promise<NativeConnectorView>;
   invoke: (

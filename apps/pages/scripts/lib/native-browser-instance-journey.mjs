@@ -88,6 +88,10 @@ export async function routeNativeInstanceAuthority(
 
 async function fillInstance(page, fixture) {
   await page
+    .locator("summary")
+    .filter({ hasText: /^Sign-in options$/ })
+    .click();
+  await page
     .getByLabel("Instance HTTPS origin", { exact: true })
     .fill(fixture.origin);
   await page
@@ -125,6 +129,9 @@ export async function nativeInstanceJourney(
   await page
     .getByRole("heading", { name: fixture.name, exact: true })
     .waitFor();
+  await page
+    .getByRole("radio", { name: `${fixture.name} token`, exact: true })
+    .check();
   const submit = page.getByRole("button", {
     name: `Verify and connect ${fixture.name}`,
     exact: true,

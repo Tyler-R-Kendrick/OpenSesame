@@ -169,6 +169,27 @@ export function noteDropRevoked(claimId: string): void {
   );
 }
 
+/** The owner ended the live session for everyone on this tab. */
+export function noteLiveSessionEnded(liveSessionId: string): void {
+  const session = blindId(liveSessionId);
+  const tomb = activitySeams.activeTomb();
+  if (!session || !tomb || !remember(`live-ended:${session}`)) return;
+  write(
+    tomb,
+    {
+      category: "access",
+      type: "access.live.ended",
+      summary: "Live session ended",
+      outcome: "succeeded",
+      targetType: "live_session",
+      targetId: session,
+      metadata: {},
+    },
+    "live.ended",
+    { liveSessionId: session },
+  );
+}
+
 /** The owner let this guest in. Ids only: the session, and the request. */
 export function noteLiveSessionGranted(
   sessionId: string,

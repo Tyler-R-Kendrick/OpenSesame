@@ -185,7 +185,9 @@ export function ConnectorSettingsPage({
                 displayName={provider.displayName}
               />
             ) : null}
-            {provider.id === "github" && localGithubApp !== null ? (
+            {provider.id === "github" &&
+            localGithubApp !== null &&
+            !nativeExperience ? (
               <GithubAppForgetButton />
             ) : null}
           </div>
@@ -215,7 +217,7 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {providerId === "github" ? (
+      {providerId === "github" && !nativeExperience ? (
         <GithubAppPresence
           connection={connection}
           online={online}
@@ -224,7 +226,9 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {providerId !== "github" && isGitBackupProvider(providerId) ? (
+      {providerId !== "github" &&
+      !nativeExperience &&
+      isGitBackupProvider(providerId) ? (
         <section className="panel" data-testid="forge-backup-sync">
           <div className="panel__head">
             <h2>Backup</h2>

@@ -54,7 +54,8 @@
     "verify:password-agent": "node scripts/verify-password-agent.mjs",
     "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs",
     "verify:native-connectors": "node scripts/verify-native-connectors-journey.mjs",
-    "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs"
+    "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs",
+    "verify:provider-auth": "node scripts/verify-provider-auth.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",
