@@ -24,6 +24,7 @@ secret is an explicit, human-only verb.
   [`env-spec`](../../crates/env-spec), [`kdbx-bridge`](../../crates/kdbx-bridge),
   [`provider-bitwarden`](../../crates/provider-bitwarden),
   [`vault-item-types`](../../crates/vault-item-types) (item extensions in `vault ls`),
+  [`quorum-recovery`](../../crates/quorum-recovery) (`vault circle`),
   [`rotation-web`](../../crates/rotation-web), [`agent-hooks`](../../crates/agent-hooks),
   [`tailnet-admin`](../../crates/tailnet-admin) and
   [`plugin-settings`](../../crates/plugin-settings) (all `opensesame-*` crates).
@@ -53,7 +54,8 @@ rewritten to its path in the table (`src/session.rs`), so `opensesame pass show
 
 | Path | Verbs |
 |---|---|
-| `vault` | `verify <file>`, `ls <file>`, `inspect`, `migrate`, `pass`, `secret`, `sync` (server-blind encrypted blobs), `crypto` |
+| `vault` | `verify <file>`, `ls <file>`, `inspect`, `migrate`, `pass`, `secret`, `sync` (server-blind encrypted blobs), `crypto`, `circle` |
+| `vault circle` | `recover`, `inspect`: the trusted-contacts exit door (below) |
 | `vault pass` | `init`, `insert`, `generate`, `show`, `ls`, `find`, `rm`, `cp`, `mv`, `git`, `seal`, `import-kdbx`, `export-kdbx`, `backup`, `attach`, `otp`, `update`, `rotate`, `history`, `restore`, `protect`, `tomb`, `open`, `close` |
 | `access grants` | `local-authority`, `lease`, `task`, `intent` |
 | `access sessions` | `receipt verify` |
@@ -72,6 +74,15 @@ rewritten to its path in the table (`src/session.rs`), so `opensesame pass show
 Pages PWA wrote, with the Rust reader ([`human-vault`](../../crates/human-vault)
 `pages_vault`); the master password comes from a terminal only, and they print
 names, kinds and paths, never values (parity with `opensesame-id vault`).
+
+`vault circle recover --bundle <file> --share-file <file> --out <file>`
+recombines a trusted-contacts circle's SLIP-0039 shares and opens its recovery
+bundle with no browser ([ADR 0186](../../docs/adr/0186-trusted-circle-quorum-sharing.md),
+[operator guide](../../docs/operators/trusted-contacts.md)); `vault circle
+inspect --bundle <file>` verifies the owner's signature and prints the circle's
+public shape. Shares come from a file or stdin (`--share -`), not argv, which
+`ps` can read; the payload is written to a 0600 file and neither it nor a share
+is printed. Both verbs are human-only: no MCP or WebMCP tool carries them.
 
 Source is one module per verb group under `src/` (`store.rs` and
 `attach.rs` for `pass`, `connect.rs`, `certs.rs`, `sync_*.rs`,
@@ -92,7 +103,8 @@ real binary against a temporary store. `tests/vault_file_cli.rs` drives
 `vault verify|ls` down its refusal paths (no terminal, no password flag or
 variable, envelopes section 7 refuses); `src/vault_file_tests.rs` opens the
 golden vectors in `spec/conformance/vault-vectors.json` through the same
-reader. A new verb needs a
+reader. `tests/vault_circle/` drives `vault circle` against the committed
+`spec/conformance/quorum-recovery-fixture.json` (test-only keys). A new verb needs a
 [`capability-registry`](../../packages/capability-registry) entry.
 
 ## Related

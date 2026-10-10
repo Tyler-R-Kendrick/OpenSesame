@@ -18,3 +18,20 @@ SLIPs repository, whose text is CC BY-SA 4.0. The standard is
 BIP-32 xprv]` quadruples. The passphrase for every valid set is `TREZOR`. An
 empty master secret means combining the mnemonics must fail. Never edit either
 file, and never regenerate one to make a reader pass.
+
+## Readers and the fixture built on them
+
+Two readers consume these files, each from this one copy (ADR 0139): the
+TypeScript module above, which embeds a copy of the wordlist and fails a test
+if it differs from `wordlist.txt`, and the native crate `crates/quorum-recovery`
+(`src/slip39/`), which reads `wordlist.txt` itself with `include_str!` and runs
+`vectors.json` in `tests/slip39_vectors.rs`.
+
+`../quorum-recovery-fixture.json` is not vendored: it is a small circle made
+for this repository by `packages/app-core/src/lib/quorum/recovery-fixture.test.ts`
+(a signed policy, the recovery bundle, every guardian's share and the payload).
+Every key and share in it is generated for the fixture and protects nothing
+(test-only keys). The TypeScript suite and `crates/quorum-recovery/tests/fixture.rs`
+both open it; `UPDATE_QUORUM_RECOVERY_FIXTURE=1` rewrites it (then
+`pnpm exec biome format --write` on the file), and only a deliberate change to
+the bundle format should.

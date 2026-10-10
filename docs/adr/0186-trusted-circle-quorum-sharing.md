@@ -122,6 +122,15 @@ release again) and the next combinable set from the releases already in hand
 is tried, so one damaged packet cannot stall a recovery or burn a guardian's
 one slot. The shares are written with an **empty passphrase**, so any
 conforming tool recombines them without OpenSesame — the exit door.
+OpenSesame's own native binary is such a tool: `opensesame vault circle recover`
+recombines the shares (empty passphrase, at most exponent 6, exactly the
+threshold of groups and members), verifies the owner's signature on the bundle's
+policy and opens the bundle with no browser, and `opensesame vault circle
+inspect` prints the circle's public shape after the same signature check
+(`crates/quorum-recovery`, ADR 0139). Both are human-only: they are excluded from
+MCP, WebMCP and the PWA in the capability registry and refuse in an agent
+context. Like any offline recovery they cannot enforce the delay or a
+cancellation.
 
 ### 6. Action-only circles and the share ledger
 
@@ -293,7 +302,8 @@ State these to the people who rely on it.
 - **The `pass` entry of a record keeps the wrapped share on line one.** It is
   ciphertext under the guardian's key, marked concealed, and never a mnemonic.
 - **Recovery refuses a share asking for more PBKDF2 work than exponent 6**
-  (about 2.5 M iterations a round); the kernel itself accepts the standard's 15.
+  (10 000 x 2^6 = 640 000 iterations over the four rounds, 160 000 a round); the
+  kernel itself accepts the standard's 15.
 
 ## Verification
 
@@ -320,6 +330,14 @@ State these to the people who rely on it.
   optional marketplace definition under community trust and round-trips its
   native projection, so both planes accept `trusted-circle` and
   `guardian-share` and agree on their `pass` entries.
+- **Native reader.** `cargo test -p opensesame-quorum-recovery` runs all 45
+  SLIP-0039 vectors and every Appendix A.1 and A.2 value of
+  `hpke-rfc9180-vectors.json` from the same files the TypeScript suite reads, and
+  opens the committed `spec/conformance/quorum-recovery-fixture.json` (a two-level
+  circle with test-only keys). `scripts/test/quorum-recovery-interop.sh` has
+  TypeScript write a fresh two-epoch circle, the native reader open it and write a
+  bundle, shares and releases of its own, and TypeScript open those. Changing a
+  derivation constant on the Rust side fails the fixture suite.
 - Existing share-ledger, receipts and proof tests pass unchanged; the type
   checker refuses the new misuse cases.
 
@@ -337,6 +355,7 @@ State these to the people who rely on it.
 1. The ceremony screens (and their tutorials, evidence and keyboard/touch
    gates), then take the capability out of `NO_SURFACE`.
 2. A hardware pass (YubiKey, platform passkeys) across browsers.
-3. A Rust consumer of `spec/conformance/slip39` and
-   `hpke-rfc9180-vectors.json`, for `opensesame pass` recovery export.
+3. A fuzz target for the native share decoder and policy parser, and the
+   bundle and delivery key-derivation constants moved into one spec file read
+   by both readers (today they are duplicated and pinned by the fixture).
 

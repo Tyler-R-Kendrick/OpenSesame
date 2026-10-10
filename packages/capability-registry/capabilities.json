@@ -7338,6 +7338,84 @@
     }
   },
   {
+    "id": "vault.circle.recover",
+    "title": "Recover a trusted-contacts circle's payload from its shares without a browser",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame vault circle recover",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "pwa": {
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "extension": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "android": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "vault.circle.inspect",
+    "title": "Verify a recovery bundle's owner signature and show the circle's public shape",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame vault circle inspect",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "pwa": {
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "extension": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      },
+      "android": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0186-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
     "id": "vault.item.create",
     "title": "Create a vault item (an account, secret, note or card)",
     "plane": "client_local",

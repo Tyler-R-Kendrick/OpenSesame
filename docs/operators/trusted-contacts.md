@@ -1,10 +1,29 @@
 # Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
 
 Capability `sharing.trusted-contacts` ([ADR 0186](../adr/0186-trusted-circle-quorum-sharing.md)).
-Optional, default off, no network. **It has no screens yet**: Settings draws no
-switch for it, and today the behaviour is reached from code
-(`packages/app-core/src/lib/quorum/`). This page says what it does, how to
-configure a circle, and what it does not promise.
+Optional, default off, no network. Turn it on in Settings › Capabilities, under
+Sharing, and Settings gains a **Trusted contacts** tab with three panels. The
+behaviour is in `packages/app-core/src/lib/quorum/` and the screens are
+`apps/pages/src/modules/sharing.trusted-contacts/`. This page says what it
+does, how to configure a circle, and what it does not promise.
+
+Where the screens are, one panel for each side of a circle:
+
+- **Circles** is yours as the owner: the circles you keep, each with its rule
+  ("2 of 3"), its epoch, how many contacts it has and where it stands (waiting
+  for contacts, armed, a recovery open, retired).
+- **Guarding** is yours as a contact: the circles that asked you to take a part,
+  whose each is, whether you hold a share or only a seat, and where it stands.
+- **Recovery** is yours as the one getting something back: the recoveries you
+  started from a circle's recovery file, with how many contacts have approved
+  and how many have released their share.
+
+The panels are lists; each ceremony that changes one (inviting, taking a share,
+approving, releasing, recovering) is a sheet opened from its key. A panel is
+absent, not disabled, while the vault is locked, a guest or a decoy, because a
+circle holds an owner key and a contact a wrapped share, and neither belongs in
+a session that is thrown away. Everything between people is a packet you copy
+and hand over yourself.
 
 ## What it is for
 
@@ -109,14 +128,126 @@ request, `approval`, `release`, `cancellation`) is plain JSON with no
 plaintext secret in it, so it can travel over any road — a message, a QR, a
 Drop, a live session.
 
+## Recovering without the browser
+
+The native `opensesame` binary recovers a circle with no browser, no network
+and no vault: it recombines the guardians' shares and opens the recovery bundle
+you kept. You need the bundle (JSON; it holds nothing secret, so keep it
+somewhere that outlives your device) and enough shares. Both verbs are for a
+person at a terminal and are not offered to agents.
+
+**How many shares.** Exactly the threshold of groups, and exactly each chosen
+group's member threshold. A circle of "2 of 3 family and 2 of 3 friends" is
+opened by two family shares and two friends' shares: four in all. More are
+refused rather than ignored, so a stray extra share cannot hide a bad one.
+Use the bundle and shares of the **same circle and epoch**.
+
+**1. Check the bundle.** This verifies the owner's signature on the policy and
+prints the circle's public shape: id, epoch, groups and thresholds, guardians'
+names and timings. It reads no share.
+
+```bash
+opensesame --output text vault circle inspect --bundle family.bundle.json
+```
+
+If you wrote the owner's public key down, add `--owner-key <key>`; a bundle
+signed by any other key is then refused.
+
+**2. Collect the shares.** Each guardian reads theirs out as 20 or 33 words.
+Put them in a file, one per line (blank lines and lines starting with `#` are
+skipped), and keep the file private.
+
+```bash
+( umask 077; cat > shares.txt )     # paste the shares, then Ctrl-D
+```
+
+**3. Recover.**
+
+```bash
+opensesame vault circle recover --bundle family.bundle.json \
+  --share-file shares.txt --out recovered.json
+```
+
+The payload goes to `--out` as an owner-only file (mode 0600) and is never
+printed; an existing file is not replaced without `--force`. `--out -` writes
+to a pipe or redirect instead, and is refused on a terminal. What you see on
+stderr is the circle, then each share matched to the guardian the owner
+committed it to, by name:
+
+```
+circle c-vXrjLBsCboDC "Family", epoch 1, signed by owner key zOf_mS_CZTMQOf3dhuwiVx6yD6oJvEwSVAsXsk2yQqI
+share 1: Ada (family)
+share 2: Cy (family)
+share 3: Eli (friends)
+share 4: Fay (friends)
+wrote recovered.json
+recovered 243 bytes from 4 shares
+```
+
+A share no guardian of the circle committed to is reported as such (it is
+damaged, or from another circle), and a share that does not decode is named by
+its position. No share is ever echoed back.
+
+**Other ways to hand over shares.** `--share -` reads them from stdin, one per
+line (`gpg -d shares.txt.gpg | opensesame vault circle recover … --share -`); on
+a terminal it asks for each one without echo and stops at an empty line.
+`--share '<words>'` works but is visible to other users through `ps` and stays
+in your shell history, so the command warns about it.
+
+**What it checks.** The policy's canonical digest and the owner's Ed25519
+signature over it; each share's RS1024 checksum and SLIP-0039's own digest;
+that no share asks for more key-stretching than 640 000 PBKDF2 iterations in
+all (exponent 6, the same ceiling the browser keeps); and finally that the recombined
+key authenticates the bundle. A wrong set of shares fails at one of those
+steps and writes nothing.
+
+### Worked example
+
+The repository carries a small circle with test-only keys,
+`spec/conformance/quorum-recovery-fixture.json`, that the browser code made and
+both readers open. From the repository root, with `jq`:
+
+```bash
+fixture=spec/conformance/quorum-recovery-fixture.json
+jq '.bundle' $fixture > fixture-bundle.json
+jq -r '.guardians[] | select(.id=="ada" or .id=="cy" or .id=="eli" or .id=="fay") | .mnemonic' \
+  $fixture > fixture-shares.txt
+opensesame --output text vault circle inspect --bundle fixture-bundle.json
+opensesame vault circle recover --bundle fixture-bundle.json \
+  --share-file fixture-shares.txt --out fixture-recovered.json
+cat fixture-recovered.json
+```
+
+The last command prints the fixture's payload, a short JSON document (the
+`payloadText` field of the fixture). Ada and Cy are the family's two, Eli and
+Fay the friends'. Drop one of the four shares and the command stops with
+`expected 2 groups, got 1`; change one word and it names the share.
+
 ## If OpenSesame is not there
 
-Shares are SLIP-0039 mnemonics written with an **empty passphrase**. Any
+Shares are SLIP-0039 mnemonics written with an **empty passphrase**, so any
 conforming tool recombines the threshold of them (one per guardian in a plain
-circle, one group's worth per group otherwise) into the recovery secret, and
-the bundle opens with a key derived from it (`openBundle`). Keep the bundle
-somewhere that outlives your device, and the wordlist and format are fixed by
-the standard.
+circle, one group's worth per group otherwise) into the recovery secret. The
+native `opensesame vault circle recover` above is one such tool; the reference
+implementation (`shamir-mnemonic`) and any hardware wallet's SLIP-0039 recovery
+are others. The wordlist and format are fixed by the standard.
+
+Opening the bundle from the secret takes about twenty lines in any language
+with HKDF and XChaCha20-Poly1305. A bundle is
+`{ v: 1, signedPolicy, nonce, ciphertext }`, the last two base64url without
+padding. With `circleId`, `epoch` and `digest` read from `signedPolicy.policy`
+and `signedPolicy.digest`, and `frame(f1, f2, …)` meaning each field written as
+its UTF-8 byte length in decimal, a NUL byte, then its bytes:
+
+- key = HKDF-SHA256 over the secret, 32 bytes, with salt
+  `SHA-256(frame("opensesame:quorum-collection-salt:v1", circleId))` and info
+  `frame("opensesame:quorum-collection:v1", circleId, epoch)`;
+- associated data = `frame("opensesame:quorum-collection-aad:v1", digest,
+  circleId, epoch)`;
+- plaintext = XChaCha20-Poly1305 open of `ciphertext` (tag appended) under that
+  key, the 24-byte `nonce` and that data. It is the JSON text of the payload.
+
+This does not check the owner's signature on the policy; `inspect` does.
 
 ## Item types
 
@@ -132,8 +263,11 @@ Two optional item types hold the records
 
 The capability is off unless a person turns it on; an instance policy can
 **prohibit** it (`prohibited: [sharing.trusted-contacts]`) or leave it out of a
-distribution. It reaches no service, so it declares no egress. Because it has no
-screens, Settings shows no switch for it until a plan already approves it.
+distribution. It makes no request, so it reaches no service: it declares a
+user-mediated hand-off (the packets a person copies and passes on) and two
+browser permissions, `webauthn` for the contacts' security keys and
+`clipboard-write` for the Copy key beside a packet. Settings shows its switch
+in the Sharing section, and the tab exists only while it is on.
 
 ## What it does not do
 
@@ -162,3 +296,16 @@ runs the 45 SLIP-0039 vectors (`spec/conformance/slip39/`), the RFC 9180
 Appendix A.1 and A.2 vectors (`spec/conformance/hpke-rfc9180-vectors.json`),
 the protocol end to end, and the attacks listed in the ADR. Neither vector file
 is ever edited or regenerated to make a reader pass.
+
+The native reader reads the same files:
+
+```bash
+export CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target
+cargo +1.88.0 test -p opensesame-quorum-recovery   # the 45 + the RFC 9180 vectors, the committed fixture
+scripts/test/quorum-recovery-interop.sh            # TypeScript and Rust, each against the other's output
+```
+
+`spec/conformance/quorum-recovery-fixture.json` (test-only keys) is opened by
+`recovery-fixture.test.ts` and by `crates/quorum-recovery/tests/fixture.rs`; the
+script has TypeScript write a fresh circle, the native reader open it and write
+a bundle and releases of its own, and TypeScript open those.

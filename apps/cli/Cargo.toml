@@ -24,6 +24,8 @@ opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-bitwarden-server = { path = "../../crates/bitwarden-server", optional = true }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-human-vault = { path = "../../crates/human-vault" }
+# The native reader of a trusted-contacts recovery (ADR 0186): `vault circle`.
+opensesame-quorum-recovery = { path = "../../crates/quorum-recovery" }
 opensesame-vault-item-types = { path = "../../crates/vault-item-types" }
 opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
 opensesame-credential-helpers = { path = "../../crates/credential-helpers" }
