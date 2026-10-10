@@ -1,5 +1,6 @@
 import type { DecryptRun } from "./cipher.js";
 import { slotState } from "./cipher.js";
+import { markRects } from "./mark-geometry.js";
 import {
   ALPHA_LEVELS,
   DRAW_CALIBRATION,
@@ -7,11 +8,11 @@ import {
   FONT_FAMILY,
   type Layout,
   type Particle,
-  SMALL_GLYPH_PX,
   TAU,
   cursorBoostFor,
   inkAlpha,
   particleField,
+  tierOf,
 } from "./particles-model.js";
 
 export type DrawWordmarkOpts = {
@@ -25,11 +26,12 @@ export type DrawWordmarkOpts = {
   calibration?: DrawCalibration;
   frozenField: boolean;
   showMark: boolean;
-  accent: string;
+  /** The mark's slit colour (`--mark-slit`). */
+  slit: string;
   showCursor: boolean;
 };
 
-type SmallPlateOpts = {
+type PlateOpts = {
   ctx: CanvasRenderingContext2D;
   layout: Layout;
   runs: DecryptRun[];
@@ -38,14 +40,6 @@ type SmallPlateOpts = {
   inkRgb: [number, number, number];
   calibration: DrawCalibration;
   showCursor: boolean;
-};
-
-type IconMarkOpts = {
-  ctx: CanvasRenderingContext2D;
-  layout: Layout;
-  pad: number;
-  inkRgb: [number, number, number];
-  accent: string;
 };
 
 type FillBinsOpts = {
@@ -134,13 +128,19 @@ function paintBins(
   }
 }
 
-function drawSmallPlates(opts: SmallPlateOpts): void {
-  const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
-    opts;
+function glyphFont(ctx: CanvasRenderingContext2D, layout: Layout): number {
   ctx.font = `${layout.fpx}px ${FONT_FAMILY}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  const by = pad + layout.cellH / 2 + (layout.asc * layout.fpx) / 2;
+  return layout.cellH / 2 + (layout.asc * layout.fpx) / 2;
+}
+
+/** 16–48px: a solid ink plate, the glyph cut out, stroked so it survives 1×. */
+function drawSolidPlates(opts: PlateOpts): void {
+  const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
+    opts;
+  const by = pad + glyphFont(ctx, layout);
+  ctx.lineWidth = Math.max(1, 0.07 * layout.fpx);
   for (let si = 0; si < layout.slots.length; si += 1) {
     const q = layout.slots[si];
     if (q.space) continue;
@@ -152,19 +152,44 @@ function drawSmallPlates(opts: SmallPlateOpts): void {
     ctx.fillStyle = inkAlpha(inkRgb, plateA);
     ctx.fillRect(q.x, pad, q.w, layout.cellH);
     ctx.fillStyle = `rgb(${inkRgb[0]},${inkRgb[1]},${inkRgb[2]})`;
+    ctx.strokeStyle = ctx.fillStyle;
     ctx.globalCompositeOperation = "destination-out";
     ctx.fillText(st.glyph, q.x + q.w / 2, by);
+    ctx.strokeText(st.glyph, q.x + q.w / 2, by);
     ctx.globalCompositeOperation = "source-over";
   }
 }
 
-function drawIconMark(opts: IconMarkOpts): void {
-  const { ctx, layout, pad, inkRgb, accent } = opts;
-  const u = layout.cellH / 17;
+/** Under 16px: no plates — the letters in ink on the same grid. */
+function drawTypeTier(opts: PlateOpts): void {
+  const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
+    opts;
+  const by = pad + glyphFont(ctx, layout);
+  for (let si = 0; si < layout.slots.length; si += 1) {
+    const q = layout.slots[si];
+    if (q.space) continue;
+    const st = slotState(runs, si, timeMs);
+    const active = showCursor && st.cursor;
+    ctx.fillStyle = inkAlpha(
+      inkRgb,
+      active ? calibration.smallCursorActive : calibration.smallCursorRest,
+    );
+    ctx.fillText(st.glyph, q.x + q.w / 2, by);
+  }
+}
+
+function drawIconMark(
+  ctx: CanvasRenderingContext2D,
+  layout: Layout,
+  pad: number,
+  inkRgb: [number, number, number],
+  slit: string,
+): void {
+  const { slab, slit: light } = markRects(layout.cellH, pad, pad);
   ctx.fillStyle = `rgb(${inkRgb[0]},${inkRgb[1]},${inkRgb[2]})`;
-  ctx.fillRect(pad, pad, 12 * u, layout.cellH);
-  ctx.fillStyle = accent;
-  ctx.fillRect(pad + 14.7 * u, pad, 2.3 * u, layout.cellH);
+  ctx.fillRect(slab.x, slab.y, slab.w, slab.h);
+  ctx.fillStyle = slit;
+  ctx.fillRect(light.x, light.y, light.w, light.h);
 }
 
 export function drawWordmark(opts: DrawWordmarkOpts): void {
@@ -178,41 +203,39 @@ export function drawWordmark(opts: DrawWordmarkOpts): void {
     inkRgb,
     frozenField,
     showMark,
-    accent,
+    slit,
     showCursor,
   } = opts;
   const calibration = opts.calibration ?? DRAW_CALIBRATION;
-  const glyphPx = layout.asc * layout.fpx;
-  const smallMode = glyphPx < SMALL_GLYPH_PX;
+  const tier = tierOf(layout.em);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  if (smallMode) {
-    drawSmallPlates({
-      ctx,
-      layout,
-      runs,
-      timeMs,
-      pad,
-      inkRgb,
-      calibration,
-      showCursor,
-    });
-    if (showMark) drawIconMark({ ctx, layout, pad, inkRgb, accent });
-    return;
-  }
-
-  const bins = fillBins({
+  const plateOpts = {
+    ctx,
     layout,
     runs,
     timeMs,
+    pad,
     inkRgb,
     calibration,
-    frozenField,
     showCursor,
-  });
-  paintBins(ctx, bins, inkRgb);
-  if (showMark) drawIconMark({ ctx, layout, pad, inkRgb, accent });
+  };
+  if (tier === "type") drawTypeTier(plateOpts);
+  else if (tier === "solid") drawSolidPlates(plateOpts);
+  else {
+    const bins = fillBins({
+      layout,
+      runs,
+      timeMs,
+      inkRgb,
+      calibration,
+      frozenField,
+      showCursor,
+    });
+    paintBins(ctx, bins, inkRgb);
+  }
+  if (showMark) drawIconMark(ctx, layout, pad, inkRgb, slit);
 }

@@ -845,13 +845,11 @@ input[type="radio"] {
   padding: 0.7rem 0.85rem 0.5rem;
 }
 
-/* Cipher plates share the lock-v5 OS Logo face with the unlock title. */
+/* The rail's wordmark is the letters tier: 12px, no plates (DESIGN.md § Mark).
+   Font-size is the plate em, so the canvas sizes from this rule. */
 .wordmark.rail__wordmark {
   margin: 0;
-  font-family: "OS Logo", var(--mono);
   font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0;
   line-height: 1;
   color: var(--rail-fg);
 }

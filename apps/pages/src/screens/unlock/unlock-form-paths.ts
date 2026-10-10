@@ -248,5 +248,5 @@ export async function submitPasskeyDuressCode(input: {
 }
 
 export async function submitGuestUnlock(): Promise<void> {
-  await withUnlockCeremony(() => resumeGuestSession());
+  await resumeGuestSession();
 }
