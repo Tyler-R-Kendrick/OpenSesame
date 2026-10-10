@@ -1,67 +1,3 @@
-.unlock--lock-v5 {
-  position: relative;
-  overflow: visible;
-}
-
-.unlock--lock-v5.unlock--doors {
-  overflow: hidden;
-}
-
-.unlock--lock-v5.unlock--doors .unlock__hero {
-  transform: translate3d(calc(-1 * var(--unlock-door-shift, 0%)), 0, 0);
-  will-change: transform;
-}
-
-@media (max-width: 1099px) {
-  .unlock--lock-v5.unlock--doors .unlock__hero {
-    transform: translate3d(calc(-0.5 * var(--unlock-door-shift, 0%)), 0, 0);
-  }
-}
-
-.unlock--lock-v5 .cipher-dial {
-  z-index: 0;
-}
-
-.unlock--lock-v5 .unlock__notes {
-  position: relative;
-  z-index: 2;
-  isolation: isolate;
-}
-
-.unlock--lock-v5 .unlock__card {
-  position: relative;
-  z-index: 3;
-}
-
-/* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
-.unlock__hero {
-  position: absolute;
-  z-index: 1;
-  pointer-events: none;
-  /* font-size drives CipherWordmark em; kill the strut so the box is the canvas. */
-  line-height: 0;
-  display: flex;
-  align-items: flex-start;
-}
-
-.unlock__hero-wordmark {
-  margin: 0;
-  color: var(--ink);
-  font-weight: 400;
-  line-height: 0;
-}
-
-/* Hero mark is canvas `includeMark` at plate height — no separate SVG. */
-
-/* Reserve the brand-row height the in-card wordmark used to occupy. */
-.unlock__wordmark--reserve {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 1.55rem;
-  visibility: hidden;
-  pointer-events: none;
-}
-
 .unlock {
   min-height: 100dvh;
   display: grid;
@@ -87,8 +23,9 @@
    subheader on both themes. The split is painted on `.unlock` so empty
    column areas match. */
 .unlock {
-  --unlock-notes-pane: color-mix(in srgb, var(--ink) 22%, var(--surface));
-  --unlock-notes-head: color-mix(in srgb, var(--ink) 32%, var(--surface));
+  /* Paper, not a tint of ink: the pane sits a step back from the card, the head sits on the card. */
+  --unlock-notes-pane: var(--surface-2);
+  --unlock-notes-head: var(--surface);
 }
 
 .unlock__notes {
@@ -107,8 +44,19 @@
   border-radius: var(--radius);
 }
 
-/* One accordion row per build. Summary is the subheader band; prior builds
-   collapse until opened. */
+/* Under the column title, one accordion row per build. The newest row opens
+   on a wide screen; prior builds collapse until opened. */
+.unlock__notes-title {
+  margin: 0;
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
 .unlock__notes-stack {
   display: grid;
   align-content: start;
@@ -340,14 +288,8 @@
   flex: 1 1 auto;
   min-width: 0;
   font-size: clamp(0.9rem, 3.2vw, 1.55rem);
-  font-weight: 800;
   color: var(--ink);
   max-width: 100%;
-}
-
-.unlock__brand .unlock__wordmark > svg {
-  width: 1.1em;
-  height: 1.1em;
 }
 
 /* Wordmark is a `p` in the brand row — do not restyle it as body copy.
@@ -493,6 +435,10 @@
   justify-items: start;
   text-align: left;
   padding-top: 0.15rem;
+}
+
+.unlock__foot .road {
+  width: 100%;
 }
 
 .unlock__foot p {

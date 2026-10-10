@@ -1,4 +1,4 @@
-import { forwardRef, useState } from "react";
+import { useState } from "react";
 import { version } from "../../../package.json";
 import {
   IconCheck,
@@ -13,10 +13,23 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build. On wide layouts the newest opens on arrival
- * (lock-v5 desktop). On narrow, all rows start collapsed so the corner dial
- * keeps the empty band under the opaque notes (lock-v5 mobile).
+ * "Release notes" is the column's title; below it, one accordion row per build. The notes sit beside the card on a wide
+ * screen and the newest row is open on arrival; stacked under the card on a
+ * phone or narrow window they start collapsed so the form stays first.
+ * Choosing a row toggles it and collapses the rest.
  */
+
+/** The width below which the gate stacks (the `max-width: 1099px` block in unlock.css). */
+const STACKED_GATE_QUERY = "(max-width: 1099px)";
+
+function gateIsStacked(): boolean {
+  if (globalThis.window === undefined) return false;
+  try {
+    return window.matchMedia?.(STACKED_GATE_QUERY).matches === true;
+  } catch {
+    return false;
+  }
+}
 
 type ReleaseNote = {
   readonly version: string;
@@ -87,16 +100,14 @@ function NoteList({
 
 function ReleasePanel({
   release,
-  newest,
   open,
   onToggle,
 }: {
   release: ReleaseNote;
-  newest: boolean;
   open: boolean;
   onToggle: () => void;
 }) {
-  const label = newest ? `Release notes · ${release.version}` : release.version;
+  const label = release.version;
   const panelId = `unlock-notes-${release.version}`;
   return (
     <div
@@ -135,35 +146,29 @@ function ReleasePanel({
   );
 }
 
-function initialOpenVersion(): string | null {
-  // Narrow: collapsed accordion — empty band for the corner dial.
-  // matchMedia is absent in some test hosts; prefer the wide (open) default.
-  const mq = globalThis.matchMedia?.("(max-width: 1099px)");
-  if (mq?.matches) return null;
-  return RELEASES[0]?.version ?? null;
+export function ReleaseNotes() {
+  const [active, setActive] = useState<string | null>(() =>
+    gateIsStacked() ? null : (RELEASES[0]?.version ?? null),
+  );
+  return (
+    <aside className="unlock__notes" aria-labelledby="unlock-notes-title">
+      <h2 className="unlock__notes-title" id="unlock-notes-title">
+        Release notes
+      </h2>
+      <div className="unlock__notes-stack">
+        {RELEASES.map((release) => (
+          <ReleasePanel
+            key={release.version}
+            release={release}
+            open={active === release.version}
+            onToggle={() =>
+              setActive((current) =>
+                current === release.version ? null : release.version,
+              )
+            }
+          />
+        ))}
+      </div>
+    </aside>
+  );
 }
-
-export const ReleaseNotes = forwardRef<HTMLElement>(
-  function ReleaseNotes(_props, ref) {
-    const [active, setActive] = useState<string | null>(initialOpenVersion);
-    return (
-      <aside ref={ref} className="unlock__notes" aria-label="Release notes">
-        <div className="unlock__notes-stack">
-          {RELEASES.map((release, index) => (
-            <ReleasePanel
-              key={release.version}
-              release={release}
-              newest={index === 0}
-              open={active === release.version}
-              onToggle={() =>
-                setActive((current) =>
-                  current === release.version ? null : release.version,
-                )
-              }
-            />
-          ))}
-        </div>
-      </aside>
-    );
-  },
-);

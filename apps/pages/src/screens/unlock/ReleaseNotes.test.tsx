@@ -34,12 +34,14 @@ function stubViewport(stacked: boolean) {
 it("opens the newest release on arrival beside the card on a wide screen", () => {
   stubViewport(false);
   render(<ReleaseNotes />);
+  // "Release notes" is the column's title above the rows, not a row label.
+  expect(
+    screen.getByRole("heading", { level: 2, name: "Release notes" }),
+  ).toBeTruthy();
   expect(
     screen.getByRole("complementary", { name: "Release notes" }),
   ).toBeTruthy();
-  const newestBtn = screen.getByRole("button", {
-    name: `Release notes · ${version}`,
-  });
+  const newestBtn = screen.getByRole("button", { name: version });
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
   expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
@@ -56,9 +58,7 @@ it("starts collapsed on a stacked gate, toggles releases, and keeps at most one 
   expect(
     screen.getByRole("complementary", { name: "Release notes" }),
   ).toBeTruthy();
-  const newestBtn = screen.getByRole("button", {
-    name: `Release notes · ${version}`,
-  });
+  const newestBtn = screen.getByRole("button", { name: version });
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
   expect(newestBtn.getAttribute("aria-expanded")).toBe("false");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");

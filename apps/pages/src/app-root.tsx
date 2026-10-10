@@ -8,7 +8,6 @@ import {
   lazy,
   useContext,
   useEffect,
-  useSyncExternalStore,
 } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
@@ -27,7 +26,6 @@ import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { NoticeCorner } from "./components/NoticeCorner.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
-import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -79,12 +77,6 @@ const DefaultSettingsSection = lazy(() =>
     default: m.SettingsSection,
   })),
 );
-
-const DevLockV5Demo = import.meta.env.DEV
-  ? lazy(() =>
-      import("./dev/LockV5Demo.js").then((m) => ({ default: m.LockV5Demo })),
-    )
-  : null;
 
 type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
@@ -259,10 +251,6 @@ function Fallback() {
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
   const { status, tomb, guest } = slots.useVault();
-  const ceremonyActive = useSyncExternalStore(
-    unlockCeremonyStore.subscribe,
-    unlockCeremonyStore.getSnapshot,
-  );
   const location = useLocation();
   const routes = slots.useRouteContributions();
   const wrappers = slots.useShellWrappers();
@@ -278,7 +266,7 @@ function VaultApp() {
     slots.recoverPendingFederatedLink,
   );
 
-  if (status !== "unlocked" || ceremonyActive) {
+  if (status !== "unlocked") {
     return (
       <GateHost wrappers={wrappers}>
         <slots.UnlockScreen />
@@ -353,21 +341,6 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
-
-  if (
-    import.meta.env.DEV &&
-    DevLockV5Demo &&
-    location.pathname === "/dev/lock-v5"
-  ) {
-    return (
-      <AppSlotsContext.Provider value={resolved}>
-        <Suspense fallback={null}>
-          <DevLockV5Demo />
-        </Suspense>
-        <ContextMenuLayer />
-      </AppSlotsContext.Provider>
-    );
-  }
 
   const ungated = isAuthCallback
     ? null
