@@ -60,7 +60,9 @@ function SecurityCheckLoginRows({
           <span className="vault-row__name">
             {line.name || line.site || "Untitled"}
           </span>
-          {line.site ? <span className="vault-row__meta">{line.site}</span> : null}
+          {line.site ? (
+            <span className="vault-row__meta">{line.site}</span>
+          ) : null}
           {line.sentences.map((sentence) => (
             <span className="set__finding" key={sentence}>
               {sentence}
@@ -81,7 +83,9 @@ function SecurityCheckLoginRows({
   ));
 }
 
-function SecurityChecksPanelView({ fetches }: { fetches: SecurityCheckFetches }) {
+function SecurityChecksPanelView({
+  fetches,
+}: { fetches: SecurityCheckFetches }) {
   const vault = useVault();
   useEffect(() => {
     reconcileSecurityWatchWithVault(vault.items);
