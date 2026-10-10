@@ -42,19 +42,36 @@ impl HeldPrivateWriterLease {
     /// # Errors
     /// Refuses unsafe root/file profiles, substituted lock files, contention and IO failures.
     pub fn exclusive(directory: Arc<PrivateDirectory>, logical: &str) -> io::Result<Self> {
-        Self::acquire(directory, logical, libc::LOCK_EX)
+        Self::try_exclusive(directory, logical)?
+            .ok_or_else(|| io::Error::from_raw_os_error(libc::EWOULDBLOCK))
     }
     /// Acquire an actual shared flock reader lease under the identical original-root protocol.
     /// # Errors
     /// Refuses unsafe storage, an exclusive holder, substitution and IO failures.
     pub fn shared(directory: Arc<PrivateDirectory>, logical: &str) -> io::Result<Self> {
+        Self::try_shared(directory, logical)?
+            .ok_or_else(|| io::Error::from_raw_os_error(libc::EWOULDBLOCK))
+    }
+    /// Try the actual exclusive kernel lease; only real flock contention returns None.
+    /// # Errors
+    /// Refuses unsafe/changed original resources and all non-contention IO failures.
+    pub fn try_exclusive(
+        directory: Arc<PrivateDirectory>,
+        logical: &str,
+    ) -> io::Result<Option<Self>> {
+        Self::acquire(directory, logical, libc::LOCK_EX)
+    }
+    /// Try the actual shared kernel lease without guessing availability from elapsed time.
+    /// # Errors
+    /// Refuses unsafe/changed original resources and all non-contention IO failures.
+    pub fn try_shared(directory: Arc<PrivateDirectory>, logical: &str) -> io::Result<Option<Self>> {
         Self::acquire(directory, logical, libc::LOCK_SH)
     }
     fn acquire(
         directory: Arc<PrivateDirectory>,
         logical: &str,
         flags: libc::c_int,
-    ) -> io::Result<Self> {
+    ) -> io::Result<Option<Self>> {
         directory.private_root()?;
         let physical = physical_writer_lease_name(logical)?;
         let component = name(physical.as_bytes())?;
@@ -66,7 +83,12 @@ impl HeldPrivateWriterLease {
         check(&directory, &component, &file)?;
         // SAFETY: actual owned live lock FD; nonblocking flock of the actual requested mode persists on this file description.
         if unsafe { libc::flock(file.as_raw_fd(), flags | libc::LOCK_NB) } != 0 {
-            return Err(io::Error::last_os_error());
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::WouldBlock {
+                check(&directory, &component, &file)?;
+                return Ok(None);
+            }
+            return Err(error);
         }
         let held = Self {
             directory,
@@ -75,7 +97,7 @@ impl HeldPrivateWriterLease {
             mode: flags,
         };
         held.validate()?;
-        Ok(held)
+        Ok(Some(held))
     }
     pub(crate) fn validate_exclusive_for(
         &self,

@@ -336,3 +336,6 @@ mod ciphertext_reads;
 
 #[path = "node_data_existing_writer.rs"]
 mod existing_writer;
+
+#[path = "node_data_try_lease.rs"]
+mod try_lease;
