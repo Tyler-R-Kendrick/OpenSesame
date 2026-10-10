@@ -13,13 +13,13 @@ import {
   durable,
   freshRealm,
 } from "../../lib/capabilities/__tests__/harness.js";
+import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import { compositionStore } from "../../lib/capabilities/store.js";
 import { SELECTION_SOURCE_KV_KEY } from "../../lib/configuration/capabilities-keys.js";
 import {
   type CapabilityConfigPorts,
   defaultCapabilityPorts,
 } from "../../lib/configuration/capabilities-resources.js";
-import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import { SELECTION_FILE, capabilityFiles } from "./capability-files.js";
 
 const PASSKEYS = "vault.passkey-records";
@@ -32,7 +32,7 @@ function addPasskeysToSelectionYaml(yaml: string): string {
       `selectedOptional:\n  - ${PASSKEYS}`,
     );
   }
-  const block = yaml.match(/selectedOptional:\n(?:  - .+\n)+/);
+  const block = yaml.match(/selectedOptional:\n(?: {2}- .+\n)+/);
   if (!block) throw new Error("unrecognized selectedOptional block");
   return yaml.replace(block[0], `${block[0]}  - ${PASSKEYS}\n`);
 }
