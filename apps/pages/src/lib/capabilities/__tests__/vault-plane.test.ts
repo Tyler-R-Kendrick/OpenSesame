@@ -5,9 +5,10 @@
  * These run against the real catalog, the real shipped profiles and the real
  * `VaultStore`: the family this covers is about *this* product's vault when
  * an operator has excluded most of the optional surface, so a fixture realm
- * would prove nothing. `minimal-local` and `family-local` both resolve to
- * zero approved optional capabilities (`profiles.test.ts` pins that), which
- * is the installation every scenario below assumes.
+ * would prove nothing. `family-local` resolves to zero approved optional
+ * capabilities (`profiles.test.ts` pins that) for scenarios that block every
+ * optional surface. `minimal-local` includes Access and browser-local IAM by
+ * product default (Tyler D2); the first scenario asserts that plan.
  */
 
 import {
@@ -104,11 +105,11 @@ beforeEach(async () => {
 describe("VAULT-01 — the vault works with every optional service blocked", () => {
   it("creates, locks, unlocks, edits and backs up under minimal-local", async () => {
     const plan = profilePlan("minimal-local");
-    // The installation this runs on: nothing optional, no external services.
+    const pwaDefaults = new Set(["access.authority", "identity.local-iam"]);
     for (const id of optionalCapabilityIds())
-      expect(approved(plan, id), id).toBe(false);
+      expect(approved(plan, id), id).toBe(pwaDefaults.has(id));
     expect([...plan.approvedCapabilities].sort()).toEqual(
-      [...coreCapabilityIds()].sort(),
+      [...coreCapabilityIds(), ...pwaDefaults].sort(),
     );
 
     const store = new VaultStore();

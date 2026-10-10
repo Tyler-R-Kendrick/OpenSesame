@@ -4,6 +4,7 @@
  * viewer meets the refusals the switches do.
  */
 import { beforeEach, describe, expect, it } from "vitest";
+import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import {
   LOCAL_POLICY_SOURCE_KV_KEY,
   SELECTION_SOURCE_KV_KEY,
@@ -13,7 +14,6 @@ import {
   FIXTURE_CATALOG,
   FIXTURE_MANAGED_POLICY,
 } from "../../lib/configuration/doubles/composition-fixture.js";
-import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import {
   double,
   installDoublePorts,

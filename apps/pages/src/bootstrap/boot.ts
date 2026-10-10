@@ -19,7 +19,6 @@ import {
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
-import { ensurePwaDefaultCapabilities } from "./ensure-pwa-default-capabilities.js";
 import { captureAliasArrivalFromPage } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import {
   bindClaimLockReset,
@@ -60,6 +59,7 @@ import {
 import { bootstrapTheme } from "../lib/theme.js";
 import { bootBucket } from "./bucket.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
+import { ensurePwaDefaultCapabilities } from "./ensure-pwa-default-capabilities.js";
 
 export type CoreBoot = Readonly<{
   runtimeConfig: ParsedRuntimeConfig;
