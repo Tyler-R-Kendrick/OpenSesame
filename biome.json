@@ -29,6 +29,7 @@
       "**/skills/install-anti-slop/**",
       ".agents/skills/**",
       ".claude/skills/**",
+      ".grok/skills/**",
       "skills-lock.json",
       "**/sbom/**",
       "tests/fixtures/kdbx/roundtrip.expected.json",

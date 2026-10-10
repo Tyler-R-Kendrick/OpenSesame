@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GitHub Pages installable PWA \u2014 offline client shell for OpenSesame",
+  "description": "GitHub Pages installable PWA — offline client shell for OpenSesame",
   "scripts": {
     "dev": "bash ../../scripts/dev/pages-dev.sh",
     "dev:web": "vite --port 5180 --strictPort --host localhost",
@@ -55,7 +55,10 @@
     "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs",
     "verify:native-connectors": "node scripts/verify-native-connectors-journey.mjs",
     "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs",
-    "verify:provider-auth": "node scripts/verify-provider-auth.mjs"
+    "verify:provider-auth": "node scripts/verify-provider-auth.mjs",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "build-storybook": "storybook build --output-dir storybook-static",
+    "typecheck:storybook": "tsc -p .storybook/tsconfig.json"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",
@@ -88,6 +91,11 @@
     "tinykeys": "4.0.0"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "10.6.1",
+    "@storybook/addon-designs": "11.1.4",
+    "@storybook/addon-docs": "10.6.1",
+    "@storybook/addon-mcp": "10.6.1",
+    "@storybook/react-vite": "10.6.1",
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",
     "@types/node": "22.15.29",
@@ -98,6 +106,7 @@
     "fast-check": "4.9.0",
     "jsdom": "26.1.0",
     "node-turn": "0.0.6",
+    "storybook": "10.6.1",
     "terser": "5.51.2",
     "typescript": "5.8.3",
     "vite": "6.4.3",
