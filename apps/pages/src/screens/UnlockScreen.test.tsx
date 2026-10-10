@@ -10,6 +10,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
+import { noButton } from "./unlock-guest.test-support.js";
 import {
   ANSWERED,
   FEDERATED_BUTTON,
@@ -229,9 +230,8 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.getByRole("button", { name: "Use without an account" }),
     ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: /continue as guest/i }),
-    ).toBeNull();
+    noButton(/continue as guest/i);
+    noButton("Skip to the guest vault");
   });
 
   it("drops the skip link on the local-only road and beside an existing vault", () => {
@@ -602,21 +602,21 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.getByRole("button", { name: /Email me a sign-in link/ }),
     ).toBeTruthy();
-    // No no-account road sits in this panel.
-    expect(
-      screen.queryByRole("button", { name: "Use without an account" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Continue as guest" }),
-    ).toBeNull();
+    // No no-account road and no guest tomb sit in this panel.
+    noButton("Use without an account");
+    noButton("Continue as guest");
+    noButton("Skip to the guest vault");
   });
 
-  it("offers guest on the unlock form of an existing vault (AGENTS.md §5)", async () => {
+  it("offers the guest tomb beside an existing vault (AGENTS.md §5)", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
-    // Whoever holds the device without its key still gets in as a guest; the
-    // sealed vault is not touched, so nothing here is destructive.
-    fireEvent.click(screen.getByRole("button", { name: "Continue as guest" }));
+    // Guest tomb beside a sealed vault. The sealed vault is not touched,
+    // and this is not a second "Continue as guest" on the sign-in panel.
+    noButton("Continue as guest");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Skip to the guest vault" }),
+    );
     await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
     expect(v.store.destroy).not.toHaveBeenCalled();
   });

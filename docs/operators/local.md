@@ -42,7 +42,7 @@ cargo run -p opensesame-cli -- host run \
 
 Full live drill: `./scripts/test/live-stack-test.sh`
 
-Health:
+Health on the full Host:
 
 - `/health/live` — process up
 - `/health/ready` — accepts traffic only when authority quorum OK
@@ -50,6 +50,52 @@ Health:
 - `/health/degraded` — the same `{"ok": bool}` quorum answer
 - `/health/providers` — OpenFGA/OpenBao wiring (operator bearer / `X-OpenSesame-Operator`); confirms agent API is `connection_ref`
 - `/api/v1/connections` — agent-facing ConnectionRef list (never SecretRef)
+
+## Relay profile
+
+`OPENSESAME_GATEWAY_PROFILE=relay` (or `--profile relay`) serves the vault
+relay and does not open the Host database. Unset, `opensesame host run` is
+still the full Host API.
+
+```bash
+OPENSESAME_GATEWAY_PROFILE=relay \
+  cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787
+```
+
+With `OPENSESAME_SERVICE_BINDINGS_FILE` unset, startup installs an empty
+`vault_relay` binding set. A file that names another purpose, or an
+operation other than `vault.relay.snapshot.read` and
+`vault.relay.snapshot.write`, refuses to start.
+
+Routes on this profile:
+
+- `GET /health/live` — plain `ok`
+- `GET /health/relay` — `{"profile":"relay","bindings":"vault_relay","durable":true}` plus `document` (`empty` or `vault_relay`)
+- `GET` and `PUT /v1/vault-relay/{owner}/{slug}/snapshot`
+- `GET` and `POST /v1/org-vaults`
+
+Without issuer configuration, `x-opensesame-org-role` is `owner`, `admin`, or
+`member` and `x-opensesame-principal` names the caller. A member may list an
+organization vault and may not create or publish one. With those headers
+absent, the slot key is the admission.
+
+When both `OPENSESAME_VAULT_RELAY_ISSUER` and
+`OPENSESAME_VAULT_RELAY_REGISTRATION_JWKS_JSON` are set, org directory and
+publish policy use RS256 registration JWTs (`typ: vault-relay-registration+jwt`,
+`aud: vault-relay`) from `Authorization: Bearer` or
+`x-opensesame-registration`. Role and principal headers are ignored; a forged
+`x-opensesame-org-role` cannot elevate a member token.
+
+`/health/ready` and the rest of the Host API are absent here.
+
+### Relay `mtls_required` (native sync peers)
+
+Browsers still use plain HTTP and the slot key. Native peers set
+`OPENSESAME_RELAY_TRANSPORT=mtls_required` and provision TLS material under
+the `OPENSESAME_RELAY_TLS_*` prefix (same shape as the workload worker).
+`OPENSESAME_SERVICE_BINDINGS_FILE` must name an exact `vault_relay` binding
+for the peer. Snapshot routes then admit through that binding set only — not
+the full Host transport resolver or database.
 
 ## Headless login
 
@@ -159,15 +205,10 @@ await sesame.signIn({ returnTo: "/" });   // provider: sesame.signIn({ provider:
 pnpm --filter @opensesame/example-static-rp dev:4101
 ```
 
-For the OpenSesame PWA the broker URL arrives at deploy time rather than build
-time, so a static deploy is repointed without a rebuild:
-
-```bash
-PAGES_IDENTITY_API=https://<broker> scripts/release/deploy-pages.sh
-```
-
-Without it the deploy ships an empty `os-runtime-config.json` and the vault says it is
-not connected to an identity service — which is the honest answer, not a bug.
+The OpenSesame PWA is a static export (ADR 0090). It does **not** stamp an
+Identity/Host/daemon URL at deploy time. Device identity and guest/local seal
+work with an empty `os-runtime-config.json`. Sessions are browser WebRTC; an
+optional relay peer is separate (ADR 0181).
 
 **Real providers.** Google, Microsoft, GitHub and Apple are configured on the
 *broker*, never on the static site: set `OPENSESAME_PROVIDERS` plus each

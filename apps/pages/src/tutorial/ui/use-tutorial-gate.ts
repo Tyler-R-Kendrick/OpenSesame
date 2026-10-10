@@ -13,6 +13,7 @@ import type { LibraryOptions } from "@opensesame/app-core/tutorial/registry/area
 import {
   provideGuideDeviceForm,
   provideGuideInstallOffer,
+  provideGuideSupportModelPicks,
   registerGuidePredicates,
 } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import { readGuidePredicate } from "@opensesame/app-core/tutorial/registry/state.js";
@@ -39,6 +40,11 @@ export function useTutorialGate(): LibraryOptions {
       narrow: narrowNow(),
       keys: finePointerNow(),
     }));
+    // The model tour points at picks the on-device model contributes. The
+    // AI section stays drawn for WebMCP after that model is turned off.
+    provideGuideSupportModelPicks(
+      () => plan?.capabilities["support.local-ai"]?.approved === true,
+    );
     const drawn = new Set(
       FEATURES.filter((feature) =>
         featureDraws(shown(feature, plan, { identityApi }), roads.tile, plan, {
@@ -49,6 +55,7 @@ export function useTutorialGate(): LibraryOptions {
     return {
       sectionDrawn: (id: string) => drawn.has(id),
       holds: readGuidePredicate,
+      installed: (id: string) => plan?.capabilities[id]?.approved === true,
     };
   }, [plan, roads, identityApi]);
 }

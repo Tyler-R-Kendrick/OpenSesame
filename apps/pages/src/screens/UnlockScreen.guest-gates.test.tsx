@@ -53,7 +53,7 @@ describe("UnlockScreen — the guest tomb's own gate", () => {
     expect(screen.getByText("2 · Authenticator code")).toBeTruthy();
     expect(screen.getByLabelText("PIN")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
+      screen.getByRole("button", { name: "Skip to the guest vault" }),
     ).toBeTruthy();
 
     // The key it enrolled is the road in — not a guest resume that would walk

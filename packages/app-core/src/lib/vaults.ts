@@ -18,6 +18,12 @@
  *    The row says which it will be before the person commits.
  */
 
+import {
+  type OrgVaultRef,
+  formatOrgVaultRef,
+  parseOrgVaultRef,
+} from "@opensesame/os-domain";
+import type { VaultHeader } from "@opensesame/vault-core";
 import { guestsAllowed } from "./guest-access.js";
 import { kvHydrate } from "./kv.js";
 import { guestVaultLabel } from "./local-guest.js";
@@ -63,6 +69,12 @@ export type DeviceVault = {
   readonly state: DeviceVaultState;
   /** Opens with the key this session already holds — no prompt on switch. */
   readonly sharedKey: boolean;
+  /**
+   * Published `owner/slug` when the tomb header carries one that still
+   * parses. Guest rows leave this unset. The sealed display name stays
+   * `label` once it is known.
+   */
+  readonly address?: OrgVaultRef | null;
 };
 
 /** The guest road as a row: not a vault on disk, but a peer in the list. */
@@ -75,6 +87,7 @@ export function guestVault(state: DeviceVaultState = "empty"): DeviceVault {
     sealedAt: null,
     state,
     sharedKey: false,
+    address: null,
   };
 }
 
@@ -102,6 +115,27 @@ export function openVaultLabel(): string {
     : vaultLabel(activeProject());
 }
 
+/**
+ * The address a tomb header published, or null when it is missing or does
+ * not parse. The header field is plaintext metadata; this re-checks it.
+ */
+export function publishedAddressOf(
+  header: VaultHeader | null,
+): OrgVaultRef | null {
+  const raw = header?.publishedAddress;
+  if (!raw) return null;
+  if (raw.ownerKind !== "user" && raw.ownerKind !== "organization") return null;
+  const parsed = parseOrgVaultRef(`${raw.owner}/${raw.slug}`, raw.ownerKind);
+  return parsed.ok ? parsed.ref : null;
+}
+
+/** `owner/slug` for a row that carries an address, else nothing. */
+export function vaultAddressLabel(
+  vault: Pick<DeviceVault, "address">,
+): string | null {
+  return vault.address ? formatOrgVaultRef(vault.address) : null;
+}
+
 /** `sealed 14 Aug 2026`, or nothing for a tomb that was never sealed. */
 export function describeSealedAt(sealedAt: string | null): string | null {
   if (!sealedAt) return null;
@@ -126,14 +160,17 @@ function describeVault(project: PagesProject): DeviceVault {
       ? project.id === activeProject().id
       : snapshot.tomb === project.id && !snapshot.guest);
   const named = project.name !== project.id;
+  const address = publishedAddressOf(header);
+  const spelled = address ? formatOrgVaultRef(address) : null;
   return {
     id: project.id,
     kind: project.id === PERSONAL_PROJECT_ID ? "personal" : "project",
-    label: vaultLabel(project),
+    label: spelled && !named ? spelled : vaultLabel(project),
     named,
     sealedAt: header?.createdAt ?? null,
     state: open ? "open" : header ? "locked" : "empty",
     sharedKey: !open && vaultStore.sharesKeyWith(header),
+    address,
   };
 }
 

@@ -48,11 +48,11 @@ export function fieldSteps({ press }) {
     },
     /**
      * Connect the device to Identity the way a person does: the sheet's
-     * Continue as guest, which closes the sheet once the session is open.
+     * Use this device, which closes the sheet once the session is open.
      */
     async connectIdentity(page) {
       const sheet = await openIdentitySheet(page, press);
-      await press(sheet.getByRole("button", { name: "Continue as guest" }));
+      await press(sheet.getByRole("button", { name: "Use this device" }));
       await sheet.waitFor({ state: "detached", timeout: 15000 });
       await restoreWidth(page);
     },

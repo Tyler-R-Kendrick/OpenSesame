@@ -191,7 +191,7 @@ const SHOULD_PASS: readonly Case[] = [
   <CeremonyShell
     name="Identity"
     primary={{ label: "Sign in", onClick: signIn }}
-    secondary={{ label: "Continue as guest", choice: true, onClick: guest }}
+    secondary={{ label: "Use this device", choice: true, onClick: connect }}
   />
 );\n`,
   },

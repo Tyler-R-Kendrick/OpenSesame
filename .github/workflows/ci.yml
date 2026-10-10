@@ -343,6 +343,33 @@ jobs:
           VITE_BASE: /OpenSesame/
           EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
+      # Rust 1.88, same action and toolchain as the Rust tests job. Only this
+      # shard builds the CLI the live relay walk spawns.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        if: matrix.shard == 'journeys-1'
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        if: matrix.shard == 'journeys-1'
+      - name: Build opensesame-cli
+        if: matrix.shard == 'journeys-1'
+        # Same cargo limits as the Rust tests job, so the link stays inside
+        # this shard's timeout. The binary lands in target/debug.
+        env:
+          CARGO_BUILD_JOBS: 2
+          CARGO_INCREMENTAL: 0
+          CARGO_PROFILE_DEV_DEBUG: 0
+        run: cargo +1.88.0 build -p opensesame-cli --locked
+      - name: Relay join
+        # ADR 0181. One leg only, so the walk runs once against the gateway
+        # relay profile (`opensesame host run --profile relay`).
+        if: matrix.shard == 'journeys-1'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          PATH="${GITHUB_WORKSPACE}/target/debug:/usr/local/cargo/bin:${PATH}" \
+            pnpm --filter @opensesame/pages verify:relay-join-live
 
   device-inbox:
     name: Device inbox and local notifications

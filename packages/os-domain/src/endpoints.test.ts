@@ -77,7 +77,9 @@ describe("endpoints (ADR 0139)", () => {
     for (const [id, e] of Object.entries(ENDPOINTS)) {
       const upper = id.toUpperCase();
       expect(e.env).toBe(`OPENSESAME_${upper}_API`);
-      expect(e.pagesRuntimeKey).toBe(`PAGES_${upper}_API`);
+      // Pages does not stamp Host/Identity/daemon into os-runtime-config
+      // (static PWA; Tyler 2026-10-08). No pagesRuntimeKey on those rows.
+      expect(e.pagesRuntimeKey).toBeUndefined();
       expect(e.viteKey).toBe(`VITE_${upper}_API`);
       expect(e.setting).toBe(`${id}Api`);
       expect(variableNames(e)[0]).toBe(e.env);

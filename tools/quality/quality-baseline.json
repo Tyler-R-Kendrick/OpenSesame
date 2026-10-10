@@ -610,7 +610,7 @@
       "max-lines": 466
     },
     "packages/app-core/src/lib/settings.ts": {
-      "max-lines": 429
+      "max-lines": 425
     },
     "packages/app-core/src/lib/siop-keys.ts": {
       "complexity": 1

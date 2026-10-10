@@ -7,7 +7,10 @@
  * (`/vault/item`) and, for the trash, the trash itself (`/vault/trash`); both
  * are places a tour may name without naming an item (`vault-routes.ts`). They
  * need an item to open, so they are offered only where `vault.has-items`
- * holds. Trash and delete forever are locked keys (ADR 0156): the tours point
+ * holds. The accounts filter and the username and password copy keys exist
+ * only while the vault holds an account (`vault.has-account`). A minimal
+ * install can seed a secret and nothing else, so those tours stay off there.
+ * Trash and delete forever are locked keys (ADR 0156): the tours point
  * at them, and at restore beside them, say what they do, and never press or
  * bind one.
  *
@@ -17,6 +20,7 @@
 import type { GuideGoalDescriptor } from "./goal-types.js";
 
 const NEEDS_ITEM = ["vault.has-items"] as const;
+const NEEDS_ACCOUNT = ["vault.has-items", "vault.has-account"] as const;
 
 export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
   {
@@ -33,9 +37,25 @@ export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/vault" timeout=15000',
       'focus "vault.filter" "The filters: all items, favorites, each type this vault holds, your folders and the trash. Each shows the count it would list. Pick one to narrow the list to it. Health, beside them, opens the password health report and does not narrow the list." side=right',
       'focus "vault.filter.favorites" "Favorites lists the items you starred." side=right',
-      'focus "vault.filter.logins" "Accounts lists only accounts. A type is listed here once the vault holds one." side=right',
       'focus "shell.command-bar" "Search is done in the command bar. Press / and the bar holds /? ready for words; the list narrows as you type, Enter hands the keyboard to the list, and Esc empties the search." side=bottom',
       'success "Search narrows whichever list is on screen, so pick a filter first to search inside it."',
+      "end",
+    ].join("\n"),
+  },
+  {
+    id: "vault.item.accounts",
+    title: "Narrow the list to accounts",
+    routes: [],
+    libraryOnly: true,
+    requires: NEEDS_ACCOUNT,
+    guide: [
+      "guide/1",
+      'goal "vault.item.accounts"',
+      'say "A type is listed among the filters once the vault holds one. Accounts lists only accounts."',
+      'navigate "/vault"',
+      'wait route "/vault" timeout=15000',
+      'focus "vault.filter.logins" "Accounts lists only accounts." side=right',
+      'success "Search still narrows whichever list is on screen, so this filter searches inside accounts."',
       "end",
     ].join("\n"),
   },
@@ -78,7 +98,7 @@ export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
     title: "Copy a username or a password",
     routes: [],
     libraryOnly: true,
-    requires: NEEDS_ITEM,
+    requires: NEEDS_ACCOUNT,
     guide: [
       "guide/1",
       'goal "vault.item.copy"',

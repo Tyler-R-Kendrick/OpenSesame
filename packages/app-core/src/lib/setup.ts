@@ -19,10 +19,8 @@
  * deliberately runs this with no accounts at all".
  *
  * What it deliberately does not record is infrastructure. A Host API and a
- * paired machine were once two of four setup questions; neither is a question
- * a first-time visitor has, and neither gates anything the vault does on its
- * own (ADR 0078 §4). They live in Settings → Endpoints, where an operator who
- * runs them goes looking anyway.
+ * paired machine were once two of four setup questions; neither is a Pages
+ * backend (ADR 0090), and neither gates anything the vault does on its own.
  *
  * The record is plaintext beside the vault, never inside it: the ceremony can
  * run before any vault exists, so there is nothing to seal it with.

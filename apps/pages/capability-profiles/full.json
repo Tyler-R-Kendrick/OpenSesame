@@ -1,0 +1,54 @@
+{
+  "$schema": "opensesame-capability-profile/1",
+  "name": "full",
+  "notes": "Verification walk profile named full. Every optional capability is selected explicitly, with the same alternatives as rich-explicit, so the full setup builds a distinct dist from the stock custom walk.",
+  "instancePolicy": null,
+  "installationSelection": {
+    "schemaVersion": 1,
+    "kind": "InstallationCapabilitySelection",
+    "instanceId": "personal-local",
+    "installationId": "device-full-1",
+    "basePolicyRevision": "personal-local",
+    "revision": "1",
+    "acceptedRequired": [],
+    "selectedOptional": [
+      "access.authority",
+      "agents.surrogate-credentials",
+      "agents.webmcp",
+      "ai.password-reset",
+      "connectors.external",
+      "enterprise.ca-administration",
+      "enterprise.directory-provisioning",
+      "identity.ambient-sso",
+      "identity.federation",
+      "identity.local-iam",
+      "identity.siop",
+      "networking.tailnet",
+      "networking.tailnet-devices",
+      "notifications.local",
+      "notifications.routing",
+      "notifications.web-push",
+      "sharing.household",
+      "sharing.live",
+      "sharing.relay",
+      "storage.encrypted-search",
+      "support.local-ai",
+      "support.remote-ai",
+      "telemetry.external",
+      "vault.browser-autofill",
+      "vault.certificate-records",
+      "vault.derived-records",
+      "vault.environments",
+      "vault.passkey-records",
+      "vault.security-checks",
+      "wallet.spending"
+    ],
+    "chosenAlternatives": {
+      "transport": "sharing.drops"
+    },
+    "delivery": {
+      "prefetch": "selected",
+      "offlineCache": "selected-only"
+    }
+  }
+}

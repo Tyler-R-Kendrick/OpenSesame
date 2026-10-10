@@ -111,8 +111,8 @@ export async function connect(page, label) {
     /No session/.test(await sheet.innerText()),
     `${label}: the sheet starts with no session`,
   );
-  // Continuing as guest closes the sheet when the session is open.
-  await sheet.getByRole("button", { name: "Continue as guest" }).click();
+  // Use this device closes the sheet when the session is open.
+  await sheet.getByRole("button", { name: "Use this device" }).click();
   await sheet.waitFor({ state: "detached", timeout: 15000 });
   await (await identityTile(page)).click();
   await sheet.getByText("Session active").waitFor({ timeout: 15000 });
@@ -258,7 +258,7 @@ export async function memberVault(browser) {
 
   // A guest beside the sealed vault: another tomb, another key.
   await lockVault(page);
-  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await page.getByRole("button", { name: "Skip to the guest vault" }).click();
   await waitOpen(page);
   const guest = await hostCall(page, "/v1/principals/provisional", mintInit);
   env.check(

@@ -137,6 +137,21 @@ describe("changing the master password", () => {
     );
     expect(next.kdf?.saltB64).not.toBe(header.kdf?.saltB64);
   });
+
+  it("keeps a published address on the header", async () => {
+    const { header } = await createVault(PASSWORD);
+    const publishedAddress = {
+      ownerKind: "user" as const,
+      owner: "ada",
+      slug: "personal",
+    };
+    const next = await rewrapVaultKey(
+      { ...header, publishedAddress },
+      PASSWORD,
+      "a whole new passphrase here",
+    );
+    expect(next.publishedAddress).toEqual(publishedAddress);
+  });
 });
 
 describe("password-optional headers", () => {

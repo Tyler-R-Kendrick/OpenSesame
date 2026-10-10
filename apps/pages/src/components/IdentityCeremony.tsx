@@ -189,8 +189,7 @@ export function IdentityCeremony({
           session || !guestsAllowed
             ? undefined
             : {
-                label:
-                  busy === "guest" ? "Starting guest…" : "Continue as guest",
+                label: busy === "guest" ? "Connecting…" : "Use this device",
                 choice: true,
                 busy: busy === "guest",
                 disabled: connecting,
