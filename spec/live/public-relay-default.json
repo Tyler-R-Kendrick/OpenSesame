@@ -1,0 +1,11 @@
+{
+  "$schema": "opensesame-live-public-relay/1",
+  "notes": "Optional hosted TURN/REST fallback for live sessions when direct pairing cannot complete. Empty urls means no default; operators set VITE_LIVE_PUBLIC_RELAY_URL at Pages build time or write ice in settings/live/transport.json.",
+  "urls": [],
+  "restSecretEnv": "LIVE_TURN_REST_SECRET",
+  "deployment": {
+    "platform": "vercel",
+    "project": "opensesame-live-turn-relay",
+    "directory": "ops/vercel/live-turn-relay"
+  }
+}
