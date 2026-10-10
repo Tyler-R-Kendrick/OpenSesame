@@ -4,7 +4,11 @@ use std::io;
 impl OriginalSession {
     pub(super) fn capture_credential(&mut self) -> io::Result<wire::Reply> {
         Ok({
-            if self.lease.is_some() || self.credential.is_some() || self.body.is_some() {
+            if self.lease.is_some()
+                || self.credential.is_some()
+                || self.body.is_some()
+                || self.reader.is_some()
+            {
                 return Err(refused());
             }
             self.credential = Some(self.state.credential_writer()?);
@@ -13,7 +17,7 @@ impl OriginalSession {
     }
     pub(super) fn capture_body(&mut self, tomb: &str) -> io::Result<wire::Reply> {
         Ok({
-            if self.body.is_some() {
+            if self.body.is_some() || self.reader.is_some() {
                 return Err(refused());
             }
             let credential = self.credential.as_ref().ok_or_else(refused)?;
