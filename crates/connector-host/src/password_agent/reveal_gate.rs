@@ -32,6 +32,10 @@ fn rule_matches(rule: &AgentRule) -> bool {
     };
     match rule.match_kind.as_str() {
         "nonEmpty" => true,
+        "truthy" => {
+            let normalized = raw.to_ascii_lowercase();
+            normalized == "true" || normalized == "1" || normalized == "yes"
+        }
         "equals" => rule.value.as_deref() == Some(raw.as_str()),
         _ => false,
     }

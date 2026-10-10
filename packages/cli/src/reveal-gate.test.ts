@@ -66,6 +66,8 @@ describe("cli reveal gate conformance", () => {
       Reflect.deleteProperty(process.env, "CURSOR_AGENT");
       process.env.CI = "true";
       expect(detectAgentContext()).toBe(true);
+      process.env.CI = "1";
+      expect(detectAgentContext()).toBe(true);
       Reflect.deleteProperty(process.env, "CI");
       process.env.GITHUB_ACTIONS = "true";
       expect(detectAgentContext()).toBe(true);

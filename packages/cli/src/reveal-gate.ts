@@ -18,10 +18,16 @@ export interface HumanRevealRequest {
 
 type AgentRule = (typeof gate.agentContextEnv)[number];
 
+function envTruthy(raw: string): boolean {
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
 function ruleMatches(rule: AgentRule, env: NodeJS.ProcessEnv): boolean {
   const raw = env[rule.name];
   if (raw === undefined || raw === "") return false;
   if (rule.match === "nonEmpty") return true;
+  if (rule.match === "truthy") return envTruthy(raw);
   if (rule.match === "equals") return raw === rule.value;
   return false;
 }

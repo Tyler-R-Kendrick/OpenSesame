@@ -26,14 +26,12 @@
     },
     {
       "name": "CI",
-      "match": "equals",
-      "value": "true",
+      "match": "truthy",
       "verifiedIn": "GitHub Actions and other CI runners"
     },
     {
       "name": "GITHUB_ACTIONS",
-      "match": "equals",
-      "value": "true",
+      "match": "truthy",
       "verifiedIn": "GitHub Actions"
     },
     {
