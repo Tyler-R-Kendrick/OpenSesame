@@ -1,7 +1,8 @@
 /**
- * ADR 0153 — the minimal plan is vault, activity and settings. Connections,
- * Access and Identity are absent until their capability flags are selected.
- * The vault's approved item kinds are the base secret and the file.
+ * ADR 0153 — the minimal plan is vault, activity and settings, with Access
+ * and browser-local IAM on by default (2026-10). Other optional sections stay
+ * off until their capability flags are selected. The vault's approved item
+ * kinds are the base secret and the file.
  */
 
 import { capabilityFlagKey } from "@opensesame/app-core/lib/capabilities/openfeature.js";
@@ -29,15 +30,22 @@ const SECTION_FLAGS = [
 ] as const satisfies readonly CapabilityId[];
 
 describe("minimal surface", () => {
-  it("approves vault, activity and settings, and no optional section", () => {
+  it("approves vault, activity, settings, Access and browser-local IAM", () => {
     const plan = profilePlan("minimal-local");
     for (const id of ["vault.passwords", "activity.log", "settings.core"]) {
       expect(plan.capabilities[id]?.approved, id).toBe(true);
     }
+    for (const id of ["access.authority", "identity.local-iam"] as const) {
+      expect(plan.capabilities[id]?.approved, id).toBe(true);
+      expect(plan.approvedModules, id).toContain(`${id}/runtime`);
+    }
     expect(plan.approvedModules).toContain("activity.log/runtime");
     expect(plan.approvedItemKinds).toEqual(["file", "secret"]);
+    const stillOff = SECTION_FLAGS.filter(
+      (id) => id !== "access.authority" && id !== "identity.local-iam",
+    );
     for (const id of [
-      ...SECTION_FLAGS,
+      ...stillOff,
       "support.local-ai",
       "support.remote-ai",
       "agents.webmcp",
