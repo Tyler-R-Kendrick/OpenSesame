@@ -1,12 +1,9 @@
 //! Blocking CLI ↔ app integration client (daemon loopback).
-use opensesame_cli_app_integration::{
-    app_unavailable_message, denied_message, seam_decision,
-};
+use opensesame_cli_app_integration::{app_unavailable_message, denied_message, seam_decision};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 
-const POLICY: &str =
-    include_str!("../../../spec/conformance/cli-app-integration.json");
+const POLICY: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,6 +58,15 @@ struct EnsureBody {
     status: String,
 }
 
+/// Pass reveal gate plus optional CLI app-integration approval.
+pub fn require_pass_reveal(reveal: bool) -> anyhow::Result<()> {
+    opensesame_connector_host::password_agent::reveal_gate::assert_pass_reveal(reveal)?;
+    if reveal {
+        ensure_reveal("pass-reveal", None)?;
+    }
+    Ok(())
+}
+
 /// # Errors
 /// When the app is unavailable or integration is denied.
 pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> {
@@ -86,8 +92,9 @@ pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> 
     while Instant::now() < deadline {
         let response = client.post(&url).json(&body).send();
         match response {
-            Ok(resp) if resp.status() == reqwest::StatusCode::NOT_FOUND
-                || resp.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE =>
+            Ok(resp)
+                if resp.status() == reqwest::StatusCode::NOT_FOUND
+                    || resp.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE =>
             {
                 anyhow::bail!("{}", app_unavailable_message());
             }
