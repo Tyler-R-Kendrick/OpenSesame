@@ -85,9 +85,7 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
                 .map(|dir| Arc::new(crate::vault_drive::DriveStore::new(dir))),
             plugins: crate::plugin_routes::PluginHost::from_process(),
             tailnet: crate::tailnet_admin_routes::TailnetAdminHost::from_process(),
-            cli_app_integration: Arc::new(Mutex::new(
-                opensesame_cli_app_integration::CliAppIntegrationStore::new(),
-            )),
+            cli_app_integration: super::cli_app_integration::fresh_store(),
         },
         hsts,
     ))

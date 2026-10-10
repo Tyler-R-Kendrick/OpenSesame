@@ -4,8 +4,8 @@ mod agent_runs;
 mod attach;
 mod bridge;
 mod ceremony;
-mod cli_app_integration;
 mod certs;
+mod cli_app_integration;
 mod configs;
 mod connect;
 mod daemon_cmd;
@@ -1895,5 +1895,4 @@ async fn intent_cmd(server: &str, output: &str, cmd: IntentCmd) -> anyhow::Resul
 }
 
 #[cfg(test)]
-#[path = "main_tests.rs"]
-mod tests;
+#[path = "main_tests.rs"] mod tests;

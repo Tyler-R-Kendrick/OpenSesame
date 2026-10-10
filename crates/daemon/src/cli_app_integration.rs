@@ -3,7 +3,8 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
+    routing::{get, post},
+    Json, Router,
 };
 use opensesame_cli_app_integration::CliAppIntegrationStore;
 use serde::Deserialize;
@@ -12,8 +13,18 @@ use std::sync::{Arc, Mutex};
 
 use crate::App;
 
-pub(crate) type SharedCliAppIntegration =
-    Arc<Mutex<CliAppIntegrationStore>>;
+pub(crate) type SharedCliAppIntegration = Arc<Mutex<CliAppIntegrationStore>>;
+
+pub(crate) fn fresh_store() -> SharedCliAppIntegration {
+    Arc::new(Mutex::new(CliAppIntegrationStore::new()))
+}
+
+pub(crate) fn routes() -> Router<App> {
+    Router::new()
+        .route("/v1/cli/app-integration/ensure", post(ensure))
+        .route("/v1/cli/app-integration/pending", get(pending))
+        .route("/v1/cli/app-integration/respond", post(respond))
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,10 +42,7 @@ pub struct RespondReq {
     decision: String,
 }
 
-pub(crate) async fn ensure(
-    State(st): State<App>,
-    Json(req): Json<EnsureReq>,
-) -> Response {
+pub(crate) async fn ensure(State(st): State<App>, Json(req): Json<EnsureReq>) -> Response {
     let mut store = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -67,10 +75,7 @@ pub(crate) async fn pending(State(st): State<App>) -> Response {
     Json(json!({ "pending": rows })).into_response()
 }
 
-pub(crate) async fn respond(
-    State(st): State<App>,
-    Json(req): Json<RespondReq>,
-) -> Response {
+pub(crate) async fn respond(State(st): State<App>, Json(req): Json<RespondReq>) -> Response {
     let mut store = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
