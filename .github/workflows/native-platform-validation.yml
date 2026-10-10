@@ -7,6 +7,14 @@ on:
     paths:
       - '.github/workflows/native-platform-validation.yml'
       - 'scripts/audit/native-release-companion-artifact.mjs'
+      - 'scripts/audit/native-packaged-node-original-bridge.mjs'
+      - 'scripts/audit/native-packaged-node-command-data.mjs'
+      - 'scripts/audit/native-packaged-node-product-data.mjs'
+      - 'scripts/audit/native-packaged-original-import-probe.mts'
+      - 'scripts/audit/native-node-original-cohorts.json'
+      - 'packages/app-core/**'
+      - 'packages/cli/**'
+      - 'pnpm-lock.yaml'
       - 'scripts/audit/native-windows-stack.mjs'
       - 'scripts/audit/native-windows-startup-observer.ps1'
       - 'scripts/lib/native-windows-stack-report.mjs'
@@ -113,7 +121,7 @@ jobs:
       - name: Check core Clippy without warning waivers
         run: |
           set -euo pipefail
-          cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-human-vault -p opensesame-sealed-store --all-targets -- -D warnings 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
+          cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-human-vault -p opensesame-sealed-store --all-targets -- -D warnings -D clippy::pedantic -D clippy::cognitive_complexity -D clippy::excessive_nesting -D clippy::too_many_lines -D clippy::too_many_arguments -D clippy::type_complexity 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
       - name: Recheck the original source after success or failure
         if: always()
         run: |
@@ -223,7 +231,7 @@ jobs:
       - name: Check cli Clippy without warning waivers
         run: |
           set -euo pipefail
-          cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --all-targets -- -D warnings 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
+          cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --all-targets -- -D warnings -D clippy::pedantic -D clippy::cognitive_complexity -D clippy::excessive_nesting -D clippy::too_many_lines -D clippy::too_many_arguments -D clippy::type_complexity 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
       - name: Inspect the actual Windows executable after a failed CLI journey
         if: ${{ failure() && matrix.platform == 'Windows' && (steps.startup.outcome == 'failure' || steps.journeys.outcome == 'failure') }}
         run: |
@@ -310,6 +318,20 @@ jobs:
           cargo +1.88.0 build --locked --release --package opensesame-cli --bin opensesame --message-format=json-render-diagnostics 2> >(tee "$NATIVE_AUDIT_DIR/release-build.stderr.log" >&2) | tee "$NATIVE_AUDIT_DIR/release-build.jsonl"
       - name: Validate real release startup and fixed package provenance
         run: node scripts/audit/native-release-companion-artifact.mjs
+      - name: Enable pinned product package manager
+        if: ${{ hashFiles('packages/app-core/src/node/native-companion-installation.ts') != '' }}
+        run: corepack enable
+      - name: Install the original frozen product dependency graph
+        if: ${{ hashFiles('packages/app-core/src/node/native-companion-installation.ts') != '' }}
+        run: corepack pnpm install --frozen-lockfile
+      - name: Execute actual packed Node bridge and unchanged original gates
+        run: |
+          set -euo pipefail
+          if test -f packages/app-core/src/node/native-companion-installation.ts; then
+            corepack pnpm exec node scripts/audit/native-packaged-node-original-bridge.mjs
+          else
+            node scripts/audit/native-packaged-node-original-bridge.mjs
+          fi
       - name: Recheck original source after success or failure
         if: always()
         run: |

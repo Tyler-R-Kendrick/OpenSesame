@@ -1,0 +1,69 @@
+{
+  "v": 1,
+  "groups": [
+    {
+      "id": "original-native-bridge-13-files",
+      "files": [
+        "src/node/generation-mutation-expected-marker.test.ts",
+        "src/node/generation-owned-marker-ack.test.ts",
+        "src/node/selected-header-transaction-lifetime.test.ts",
+        "src/node/selected-store-recovery-ack.test.ts",
+        "src/node/current-credential-catalogue.test.ts",
+        "src/node/original-state-identity.test.ts",
+        "src/node/foreign-current-root-collision.test.ts",
+        "src/node/indexed-device-identity-record-io.test.ts",
+        "src/node/indexed-device-identity-current-witness.test.ts",
+        "src/node/private-store-identity-native.test.ts",
+        "src/node/selected-store-admission.test.ts",
+        "src/node/selected-body-ack-final-close-delivery.test.ts",
+        "src/node/indexed-identity-body-publication.test.ts"
+      ],
+      "expected": 37
+    },
+    {
+      "id": "original-budget-eleven",
+      "files": [
+        "src/node/original-guard-work-budget.test.ts",
+        "src/node/original-root-descendant-revalidation.test.ts",
+        "src/node/publication-original-late-effects.test.ts",
+        "src/node/typed-auxiliary-publication-phase-probe.test.ts",
+        "src/node/complete-auxiliary-rotation-phase-probe.test.ts",
+        "src/node/original-owned-child-namespace.test.ts"
+      ],
+      "expected": 11
+    },
+    {
+      "id": "original-fifty-eight",
+      "files": [
+        "src/node/known-retired-device-slot.test.ts",
+        "src/node/authenticated-inactive-stage-recovery.test.ts",
+        "src/node/physical-vault-ports.test.ts",
+        "src/node/mutation-physical-inventory-coupling.test.ts",
+        "src/node/generation-keyed-data-pins.test.ts",
+        "src/node/indexed-auxiliary-initialization.test.ts",
+        "src/node/indexed-original-device-census.test.ts",
+        "src/node/complete-auxiliary-mutation.test.ts",
+        "src/node/atomic-auxiliary-write.test.ts",
+        "src/node/selected-readonly-authentication.test.ts",
+        "src/lib/vault/captured-mfa-code-data.test.ts",
+        "src/node/generation-current-header-contract.test.ts",
+        "src/node/manifest-mac-auth-exclusion.test.ts",
+        "src/node/original-guard-work-budget.test.ts",
+        "src/lib/vault/synchronous-original-check.test.ts",
+        "src/node/original-guard-late-effects.test.ts",
+        "src/node/original-native-effect-post-check.test.ts",
+        "src/node/original-io-checkpoint.test.ts",
+        "src/node/selected-marker-authentication-source.test.ts",
+        "src/node/owned-retained-fd-path.test.ts",
+        "src/node/held-original-key-wire.test.ts",
+        "src/node/owned-key-wire-drain.test.ts"
+      ],
+      "expected": 58,
+      "allowedExistingConditional": {
+        "file": "src/node/physical-vault-ports.test.ts",
+        "title": "actual unsupported platform/runtime refuses physical capture and lease callbacks without fallback"
+      }
+    }
+  ],
+  "qualification": "Existing source assertions,4096/16384 budgets and20s Vitest configuration unchanged. One original58 capability-negative conditional remains explicit; all other skips/todos/missing cases fail."
+}
