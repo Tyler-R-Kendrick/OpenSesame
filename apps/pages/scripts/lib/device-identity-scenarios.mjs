@@ -314,7 +314,9 @@ export async function lateActivation(browser) {
   await waitOpen(page);
   await chooseCapability(page, "Access authority");
   await clearCapability(page, "Browser-local IAM");
-  await page.reload({ waitUntil: "networkidle" });
+  // Reload from the app root: a reload on /settings/capabilities is a document
+  // request the static harness cannot answer (404).
+  await page.goto(`${env.ORIGIN}${env.BASE}`, { waitUntil: "networkidle" });
   await openGuestAgain(page);
   await waitOpen(page);
   await page.setViewportSize(WIDTHS[0].narrow);
