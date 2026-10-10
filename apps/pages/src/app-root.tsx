@@ -80,6 +80,12 @@ const DefaultSettingsSection = lazy(() =>
   })),
 );
 
+const DevLockV5Demo = import.meta.env.DEV
+  ? lazy(() =>
+      import("./dev/LockV5Demo.js").then((m) => ({ default: m.LockV5Demo })),
+    )
+  : null;
+
 type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
 
@@ -347,6 +353,21 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
+
+  if (
+    import.meta.env.DEV &&
+    DevLockV5Demo &&
+    location.pathname === "/dev/lock-v5"
+  ) {
+    return (
+      <AppSlotsContext.Provider value={resolved}>
+        <Suspense fallback={null}>
+          <DevLockV5Demo />
+        </Suspense>
+        <ContextMenuLayer />
+      </AppSlotsContext.Provider>
+    );
+  }
 
   const ungated = isAuthCallback
     ? null

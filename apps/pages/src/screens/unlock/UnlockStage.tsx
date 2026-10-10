@@ -48,7 +48,6 @@ export function UnlockStage({
         paneRef={paneRef}
         cardRef={cardRef}
         notesRef={notesRef}
-        wordmarkRef={wordmarkRef}
         ceremonyToken={ceremonyToken}
         vaultUnlocked={vaultUnlocked}
       />

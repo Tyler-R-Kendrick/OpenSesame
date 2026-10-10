@@ -55,13 +55,10 @@ export function computeDialGeometry(input: {
   // Prototype lock-v5-mobile: cx=-18, cy toward the lower-left under notes.
   const cardBottom = card.y + card.h;
   const notesTop = notes ? notes.y : h;
-  const bandTop = cardBottom + 56;
-  const band = notes
-    ? Math.min(Math.max(bandTop, notesTop - 8), h - 72)
-    : Math.max(bandTop, h - 72);
+  const band = Math.max(cardBottom + 48, Math.min(notesTop + 36, h - 48));
   return {
-    cx: 12,
-    cy: band,
+    cx: -18,
+    cy: Math.max(band, h - 60),
     R0: 62,
     dr: 16,
     fs: 10,

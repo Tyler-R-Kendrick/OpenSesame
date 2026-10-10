@@ -1,53 +1,32 @@
-# Lock-v5 unlock title screen
+# Lock v5 title screen evidence (2026-10-10)
 
-Before/after from **live GitHub Pages** (`main`) vs **this branch’s production build** (`apps/pages/dist` via the static harness). Journey: pass the front door → seal a PIN vault → lock → capture the settled gate; on the branch build only, unlock and capture a mid-doors frame.
+## Reference provenance
 
-Widths: **390**, **1024**, **1280** px.
+| Source | Result |
+|--------|--------|
+| `lock-v5.html` on `main` | **Not in git** (code search: comments only) |
+| `origin/cursor/lock-v5-unlock-b359` (#947) | **`apps/pages/src/dev/LockV5Demo.tsx`** + `lock-v5-demo.css`; dev route `/dev/lock-v5` |
+| `origin/claude/design-system-extraction-vvifv5` (#1012) | No lock-v5 HTML or demo |
+| `docs/` | No lock-v5 artifact |
+| `LockV5UnlockReference.tsx` (prior harness) | **Withdrawn** — not an authoritative reference |
 
-**Reference** (`lock-v5-reference.html` in the branch build): static hero, idle dial, and release-notes chrome at the same widths — parity target for lock-v5.html / `LockV5Demo` stage geometry.
+The dial/doors geometry reference is the **LockV5Demo stage** (wide two-column card + notes shell), not a self-authored unlock harness.
 
-## Approved design (lock-v5 / PR #947 + #1012 wordmark)
+## Captures
 
-- Hero **CipherWordmark** (`includeMark`, up to 90em) above the unlock card, not inside the brand row.
-- **CipherDial** (eleven rings on the column seam) idle on the gate; aligns on successful unlock.
-- **VaultDoors** split animation after unlock; `unlockCeremonyStore` holds the gate until doors finish.
-- **Release notes** beside the card on wide layouts; newest row label `Release notes · {version}` (#778 / lock-v5).
-- Guest/join/reset roads and unlock behavior unchanged (ADR 0090).
-
-## Gaps vs live GitHub Pages (main)
-
-| Live (main) | This branch |
-| --- | --- |
-| `Wordmark` at 28px inside `.unlock__card` | Hero wordmark in `.unlock__hero` |
-| No CipherDial / VaultDoors | Dial + doors ceremony |
-| `Release notes` h2 + version rows | `Release notes · {version}` on newest row only |
-| Card-only hierarchy | Hero + dial own the title band |
-
-## Screenshots (committed)
-
-| Viewport | Main — settled | Branch — settled | Branch — mid-doors |
-| --- | --- | --- | --- |
-| 390 | `before-390-unlock-settled.png` | `after-390-unlock-settled.png` | `after-390-unlock-doors.png` |
-| 1024 | `before-1024-unlock-settled.png` | `after-1024-unlock-settled.png` | `after-1024-unlock-doors.png` |
-| 1280 | `before-1280-unlock-settled.png` | `after-1280-unlock-settled.png` | `after-1280-unlock-doors.png` |
-
-| Viewport | Reference — settled |
-| --- | --- |
-| 390 | `reference-390-unlock-settled.png` |
-| 1024 | `reference-1024-unlock-settled.png` |
-| 1280 | `reference-1280-unlock-settled.png` |
+- `reference-stage-{390,1024,1280}.png` — LockV5Demo stage (requires dev server + `LOCK_V5_DEV_ORIGIN`)
+- `unlock-{390,1024,1280}.png` — production unlock gate from `dist/` at github.io base
 
 Capture:
 
 ```bash
-cd apps/pages
-node scripts/security-profile.mjs
-VITE_BASE=/OpenSesame/ pnpm exec vite build
-PAGES_LOCK_V5_REFERENCE=1 VITE_BASE=/OpenSesame/ pnpm exec vite build --outDir dist-lock-v5-reference
+VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
-  node scripts/capture-lock-v5-evidence.mjs branch [outDir]
-PAGES_DIST=dist-lock-v5-reference PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
-  node scripts/capture-lock-v5-evidence.mjs reference [outDir]
+  node apps/pages/scripts/capture-lock-v5-evidence.mjs
 ```
 
-Settled shots wait for `.unlock__hero .cipher-wordmark--settled`. Doors shots wait for `.unlock--doors` with `--unlock-door-shift` past 12%.
+## Layout intent (from LockV5Demo + `apply-dial-layout.ts`)
+
+- **Wide (≥1100px):** rings meet the notes column divider; index overlay may straddle the seam; ring layer clipped at `notes.x`.
+- **Narrow:** corner dial in the band below the card; notes accordion collapsed; overlay masked out of the notes rect (no letter ink on release notes).
+- **Doors:** card and notes translate per `vault-doors.css`; hero wordmark moves with the card; no hero cipher replay on unlock (keeps full wordmark during doors).
