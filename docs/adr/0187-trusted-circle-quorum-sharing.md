@@ -396,6 +396,10 @@ State these to the people who rely on it.
   installed (they are optional marketplace types, installed when the capability
   is first used). A person can make an empty one there; it reads as unreadable
   and is reported rather than thrown.
+- In a guest or decoy vault the Settings tab is listed and its panels draw
+  nothing, because a settings category has no per-vault visibility rule and the
+  panels must not run there. ADR 0158 would rather the tab were absent; that
+  needs the category contract to learn a predicate.
 - The pending store keeps a file whose name is an unsalted hash of its key. It
   hides the kind and the circle id, not that a ceremony of some kind is in
   flight.
@@ -414,5 +418,7 @@ State these to the people who rely on it.
 5. Saving the recovered items ends the recovery when the download starts, since
    a browser cannot say whether the person completed the save dialog; an explicit
    "I have it" step would make that exact.
-6. An approvals-only circle's packets are kept until the circle is changed or
+6. A visibility rule on a settings category, so the Trusted contacts tab (and
+   its walkthrough) is absent, not empty, in a guest or decoy vault.
+7. An approvals-only circle's packets are kept until the circle is changed or
    retired, because nothing confirms their delivery.
