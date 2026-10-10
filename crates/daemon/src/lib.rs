@@ -27,6 +27,7 @@ mod agent_capability;
 mod args;
 pub use args::Args;
 pub use plugin_routes::recent_notices as plugin_notices;
+mod cli_app_integration;
 mod cli_probe;
 mod discovery;
 mod duress_receiver;
@@ -99,6 +100,7 @@ struct App {
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
     /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
     plugins: plugin_routes::PluginHost,
+    cli_app_integration: cli_app_integration::SharedCliAppIntegration,
     /// Tailnet device management (ADR 0169).
     tailnet: tailnet_admin_routes::TailnetAdminHost,
 }
@@ -453,6 +455,18 @@ fn router(state: App) -> Router {
         .route(
             "/v1/mint",
             post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
+        )
+        .route(
+            "/v1/cli/app-integration/ensure",
+            post(cli_app_integration::ensure),
+        )
+        .route(
+            "/v1/cli/app-integration/pending",
+            get(cli_app_integration::pending),
+        )
+        .route(
+            "/v1/cli/app-integration/respond",
+            post(cli_app_integration::respond),
         )
         .route("/v1/toolbar/status", get(toolbar::toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
@@ -914,6 +928,9 @@ mod tests {
             duress_peer: None,
             vault_drive: None,
             plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
+            cli_app_integration: Arc::new(Mutex::new(
+                opensesame_connector_host::password_agent::app_integration::CliAppIntegrationStore::new(),
+            )),
             tailnet: tailnet_admin_routes::TailnetAdminHost::detached(),
         }
     }

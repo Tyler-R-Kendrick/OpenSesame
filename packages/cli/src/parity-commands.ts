@@ -70,7 +70,7 @@ export async function dispatchParity(
     case "read": {
       const ref = required(args.shift(), "read requires op://reference.");
       exhausted(args);
-      assertHumanReveal({
+      await assertHumanReveal({
         verb: "read",
         reveal: ctx.reveal,
         desktop: Boolean(ctx.scope.desktop),
@@ -143,7 +143,7 @@ export async function runPassword(ctx: ParityContext): Promise<number> {
 }
 
 export async function runChild(ctx: ParityContext): Promise<number> {
-  const { args, agent, child } = ctx;
+  const { args, agent, child, scope } = ctx;
 
   const assignments = [];
   while (args.includes("--env"))
@@ -158,6 +158,14 @@ export async function runChild(ctx: ParityContext): Promise<number> {
   exhausted(args);
   if (!assignments.length)
     throw new Error("run requires --env NAME=op://reference.");
+  if (scope.desktop) {
+    await assertHumanReveal({
+      verb: "run",
+      reveal: true,
+      desktop: true,
+    });
+    emitRevealReceipt({ verb: "run" });
+  }
   return agent.run(assignments, child);
 }
 
@@ -179,7 +187,7 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
   }
   if (verb !== "resolve")
     throw new Error("env requires write, resolve, or run.");
-  assertHumanReveal({
+  await assertHumanReveal({
     verb: "env-resolve",
     reveal: ctx.reveal,
     desktop: Boolean(ctx.scope.desktop),

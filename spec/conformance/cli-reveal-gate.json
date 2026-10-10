@@ -1,48 +1,6 @@
 {
-  "version": 1,
+  "version": 2,
   "migrationHint": "Use `opensesame-id run` (or `os run`) with `--env NAME=op://vault/item/field` or `os://vault/item/field`, or `env run <file> -- <cmd>`, instead of read or env resolve. Secret references stay in the 1Password-style scheme://vault/item/field form.",
-  "agentContextEnv": [
-    {
-      "name": "OPENSESAME_AGENT_LAUNCH_HANDLE",
-      "match": "nonEmpty",
-      "verifiedIn": "packages/agent-client/src/index.ts"
-    },
-    {
-      "name": "OPENSESAME_AGENT_CLIENT_ID",
-      "match": "nonEmpty",
-      "verifiedIn": "packages/agent-client/src/index.ts"
-    },
-    {
-      "name": "CLAUDECODE",
-      "match": "equals",
-      "value": "1",
-      "verifiedIn": ".claude/hooks/session-start.sh"
-    },
-    {
-      "name": "CURSOR_AGENT",
-      "match": "equals",
-      "value": "1",
-      "verifiedIn": "Cursor Cloud Agent runtime"
-    },
-    {
-      "name": "CI",
-      "match": "equals",
-      "value": "true",
-      "verifiedIn": "GitHub Actions and other CI runners"
-    },
-    {
-      "name": "GITHUB_ACTIONS",
-      "match": "equals",
-      "value": "true",
-      "verifiedIn": "GitHub Actions"
-    },
-    {
-      "name": "AGENT",
-      "match": "equals",
-      "value": "1",
-      "verifiedIn": "OpenCode and other agent shells"
-    }
-  ],
   "cases": [
     {
       "id": "refuse-piped-stdout",
@@ -50,18 +8,6 @@
       "stdoutTty": false,
       "reveal": true,
       "desktop": true,
-      "agentContext": false,
-      "reference": "op://v/i/f",
-      "expect": "refuse"
-    },
-    {
-      "id": "refuse-agent-launch-handle",
-      "stdinTty": true,
-      "stdoutTty": true,
-      "reveal": true,
-      "desktop": true,
-      "agentContext": true,
-      "agentMarker": "OPENSESAME_AGENT_LAUNCH_HANDLE",
       "reference": "op://v/i/f",
       "expect": "refuse"
     },
@@ -71,7 +17,6 @@
       "stdoutTty": true,
       "reveal": false,
       "desktop": true,
-      "agentContext": false,
       "reference": "op://v/i/f",
       "expect": "refuse"
     },
@@ -81,7 +26,6 @@
       "stdoutTty": true,
       "reveal": true,
       "desktop": false,
-      "agentContext": false,
       "reference": "op://v/i/f",
       "expect": "refuse"
     },
@@ -91,7 +35,6 @@
       "stdoutTty": true,
       "reveal": true,
       "desktop": true,
-      "agentContext": false,
       "reference": "op://v/i/f",
       "expect": "allow"
     },
@@ -101,7 +44,6 @@
       "stdoutTty": true,
       "reveal": true,
       "desktop": false,
-      "agentContext": false,
       "reference": null,
       "expect": "allow"
     }

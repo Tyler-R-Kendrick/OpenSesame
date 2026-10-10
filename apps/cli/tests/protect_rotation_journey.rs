@@ -18,10 +18,8 @@ fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output 
         .env("OPENSESAME_STORE_PASSWORD", password)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
-        &mut command,
-    );
+        .stderr(Stdio::piped())
+        .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
     let mut child = command.spawn().expect("failed to run the opensesame binary");
     child
         .stdin
@@ -93,10 +91,8 @@ fn person_command(store: &Path, password: &str, args: &[&str]) -> Command {
         .env("GIT_AUTHOR_NAME", "Test")
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
-        .env("GIT_COMMITTER_EMAIL", "test@example.com");
-    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
-        &mut command,
-    );
+        .env("GIT_COMMITTER_EMAIL", "test@example.com")
+        .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
     command
 }
 

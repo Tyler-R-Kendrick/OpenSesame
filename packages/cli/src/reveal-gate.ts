@@ -1,9 +1,19 @@
 import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
   type: "json",
 };
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import {
+  createCliAppIntegrationPort,
+  type CliAppIntegrationPort,
+  terminalSessionIdForReveal,
+} from "./cli-app-integration-client.js";
 import { emitStderrLine } from "./output.js";
 
-export type HumanRevealVerb = "read" | "env-resolve" | "pass-reveal";
+export type HumanRevealVerb =
+  | "read"
+  | "env-resolve"
+  | "pass-reveal"
+  | "run";
 
 export interface HumanRevealRequest {
   verb: HumanRevealVerb;
@@ -14,34 +24,8 @@ export interface HumanRevealRequest {
   env?: NodeJS.ProcessEnv | undefined;
   stdinIsTty?: boolean | undefined;
   stdoutIsTty?: boolean | undefined;
-}
-
-type AgentRule = (typeof gate.agentContextEnv)[number];
-
-function ruleMatches(rule: AgentRule, env: NodeJS.ProcessEnv): boolean {
-  const raw = env[rule.name];
-  if (raw === undefined || raw === "") return false;
-  if (rule.match === "nonEmpty") return true;
-  if (rule.match === "equals") return raw === rule.value;
-  return false;
-}
-
-/** Refuse-only: a missing marker never grants human reveal. */
-export function detectAgentContext(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
-  return gate.agentContextEnv.some((rule) => ruleMatches(rule, env));
-}
-
-/** Copy `source` with verified agent-context markers removed (tests, subprocess fixtures). */
-export function envWithoutAgentContext(
-  source: NodeJS.ProcessEnv,
-): NodeJS.ProcessEnv {
-  const env = { ...source };
-  for (const rule of gate.agentContextEnv) {
-    Reflect.deleteProperty(env, rule.name);
-  }
-  return env;
+  terminalSessionId?: string | undefined;
+  appIntegration?: CliAppIntegrationPort | undefined;
 }
 
 function ttyPair(request: HumanRevealRequest) {
@@ -59,26 +43,54 @@ function ttyPair(request: HumanRevealRequest) {
 export function humanRevealRefusal(
   request: HumanRevealRequest,
 ): string | undefined {
-  const env = request.env ?? process.env;
-  if (detectAgentContext(env)) {
-    return `Refusing plaintext ${request.verb} in an agent context. ${gate.migrationHint}`;
-  }
   const { stdin, stdout } = ttyPair(request);
-  if (!stdin || !stdout) {
-    return `Refusing plaintext ${request.verb}: stdin and stdout must both be interactive terminals (no pipes or capture). ${gate.migrationHint}`;
+  if (request.verb !== "run") {
+    if (!stdin || !stdout) {
+      return `Refusing plaintext ${request.verb}: stdin and stdout must both be interactive terminals (no pipes or capture). ${gate.migrationHint}`;
+    }
+    if (!request.reveal) {
+      return `Refusing plaintext ${request.verb}: pass --reveal after reviewing the risk. ${gate.migrationHint}`;
+    }
+    const ref = request.reference;
+    if (ref?.startsWith("op://") && !request.desktop) {
+      return "Refusing op:// reveal without --desktop (1Password app integration).";
+    }
+    return undefined;
   }
-  if (!request.reveal) {
-    return `Refusing plaintext ${request.verb}: pass --reveal after reviewing the risk. ${gate.migrationHint}`;
-  }
-  const ref = request.reference;
-  if (ref?.startsWith("op://") && !request.desktop) {
-    return "Refusing op:// reveal without --desktop (1Password app integration).";
+  if (!request.desktop) {
+    return "Refusing run without --desktop (OpenSesame app integration).";
   }
   return undefined;
 }
 
-export function assertHumanReveal(request: HumanRevealRequest): void {
-  const refusal = humanRevealRefusal(request);
+export async function humanRevealAppIntegrationRefusal(
+  request: HumanRevealRequest,
+): Promise<string | undefined> {
+  const staticRefusal = humanRevealRefusal(request);
+  if (staticRefusal) return staticRefusal;
+  const env = request.env ?? process.env;
+  const port = request.appIntegration ?? createCliAppIntegrationPort();
+  const terminalSessionId =
+    request.terminalSessionId ?? terminalSessionIdForReveal(env);
+  const decision = await port.ensureReveal({
+    verb: request.verb,
+    terminalSessionId,
+    reference: request.reference,
+  });
+  if (decision === "approve") return undefined;
+  if (decision === "unavailable") {
+    return cliAppIntegrationPolicy.messages.appUnavailable;
+  }
+  if (decision === "deny") {
+    return cliAppIntegrationPolicy.messages.denied;
+  }
+  return cliAppIntegrationPolicy.messages.denied;
+}
+
+export async function assertHumanReveal(
+  request: HumanRevealRequest,
+): Promise<void> {
+  const refusal = await humanRevealAppIntegrationRefusal(request);
   if (refusal) throw new Error(refusal);
 }
 
@@ -86,19 +98,23 @@ export interface RevealReceipt {
   verb: HumanRevealVerb;
   lane: "reveal";
   principal: "human";
-  agentContext: boolean;
+  terminalSessionId: string;
   reference?: string | undefined;
   at: string;
 }
 
 export function emitRevealReceipt(
-  request: Pick<HumanRevealRequest, "verb" | "reference" | "env">,
+  request: Pick<
+    HumanRevealRequest,
+    "verb" | "reference" | "env" | "terminalSessionId"
+  >,
 ): void {
   const receipt: RevealReceipt = {
     verb: request.verb,
     lane: "reveal",
     principal: "human",
-    agentContext: detectAgentContext(request.env),
+    terminalSessionId:
+      request.terminalSessionId ?? terminalSessionIdForReveal(request.env),
     at: new Date().toISOString(),
   };
   const line = JSON.stringify(
