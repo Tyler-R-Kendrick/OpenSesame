@@ -197,6 +197,62 @@ Nothing is edited in place.
 - A request in flight at the old epoch is abandoned: the new policy's digest is
   in every request, so approvals do not carry across.
 
+### 10. Packets and the desk
+
+Nothing in a circle goes to a server; people hand each other documents. A
+**packet** (`packets.ts`) is one such document as one line of text,
+`osq1.<kind>.<base64url JSON>.<check>`, that survives a chat, a mail client's
+wrapping or being read aloud. The kind is stated and checked (a packet that
+says `invite` and holds an enrollment is refused), the check catches a cut-off
+paste, and the document is held to the strict schema the protocol already uses
+under a size cap applied before decoding. The check proves nothing about who
+wrote it: every document is verified by its own signature or digest, never by
+having arrived. A `welcome` packet carries a guardian's policy and sealed share
+together. The recovery **bundle** is a file, not a packet: it carries the
+protected payload.
+
+The **desk** (`desk/`) is the layer between the protocol and the screens: one
+ceremony step per function, run against ports (the page's keys, a sealed
+pending store, the durable records) so each step is testable with no browser and
+a screen is only a form over a function. Owner (invite, accept an enrollment,
+check the rule, create, record custody receipts, change, ask to share, cancel,
+retire), guardian (accept an invitation, take a welcome, read and approve a
+request, release, hear a cancellation, leave) and recipient (open the recovery
+file, raise a request, gather approvals and releases, open the result). A
+guardian's device decides from the policy it holds, never from what a packet says
+about itself. A circle that protects something protects a **CXF document**
+(the FIDO Credential Exchange Format the vault already exports and imports), so
+recovery ends in the existing Import sheet.
+
+### 11. Carrying a request as an Interaction
+
+A quorum request can be carried as an Interaction (`interaction.ts`, kind
+`authorization_request`). The Interaction names the request and mirrors where the
+ledger says it is; it never decides, and it reaches `approved` only on a ledger
+verdict of releasable, authorized or complete, re-checked against the circle's
+policy and the delay. Three digests are kept apart: `D_q`, the quorum digest the
+guardians' keys signed; `D_i`, `Interaction.requestDigest`, framed exactly as
+`canonicalRequestDigest` frames it (pinned by
+`spec/conformance/request-digest-vectors.json`, replayed here as a third reader)
+and committing to `D_q` through the envelope's one authorization detail; and
+`proof.boundDigest`, which is `D_i`, as `interactionMachine.approve` requires. The
+proof therefore does not say the keys signed `D_i`; it says the interaction that
+commits to what they signed was approved by a quorum. One guardian's accepted
+approval maps only to an unsealed `ApprovalProof` record, so only the settlement
+step, after the quorum and the delay, can seal one. The envelope carries the
+release rule but never a share, mnemonic, wrapped key or recipient secret.
+Carrying a request through the Identity API still needs a server subject adapter
+and a time-to-live longer than its one-hour ceiling, so the adapter builds a local
+envelope only.
+
+Building it found that os-domain's browser `canonicalize` assigned `out[key]`, so
+an own `__proto__` key fell out of the text (its node twin defines the property).
+A field a person is shown and nothing hashes is the failure an approval digest
+exists to prevent; the browser twin now defines the property too, with a test in
+os-domain and the shared `proto_key` vector held as an ordinary case. zod's
+`.strict()` also ignores an own `__proto__` key, so the envelope check compares
+the raw detail's key count with the parsed one.
+
 ## What this does not do
 
 State these to the people who rely on it.
@@ -283,5 +339,4 @@ State these to the people who rely on it.
 2. A hardware pass (YubiKey, platform passkeys) across browsers.
 3. A Rust consumer of `spec/conformance/slip39` and
    `hpke-rfc9180-vectors.json`, for `opensesame pass` recovery export.
-5. Optionally carry a request as an Interaction when an Identity API is
-   configured; the digest framing is the same family.
+

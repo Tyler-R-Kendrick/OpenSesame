@@ -13,6 +13,7 @@
 
 import { isString } from "@opensesame/os-domain";
 import type { FieldValues } from "@opensesame/vault-item-types";
+import { type GuardianSeat, seatOf } from "./approve.js";
 import { fromB64url, toB64url } from "./bytes.js";
 import { type Holding, parseHolding } from "./guardian.js";
 import { verifySignedPolicy } from "./policy.js";
@@ -123,5 +124,67 @@ export function readShareRecord(values: FieldValues): ShareRecord {
   return {
     holding,
     receivingKey: receiving === "" ? null : fromB64url(receiving),
+  };
+}
+
+/**
+ * A `guardian-share` item for a guardian who holds a **seat** and no share: the
+ * circle only authorizes actions, so there is nothing to wrap. The item keeps
+ * the policy the guardian approves under, and an empty `wrapped` secret.
+ */
+export function seatValues(input: {
+  signedPolicy: SignedPolicy;
+  guardianId: string;
+  heldFor: string;
+  receivingKey?: Uint8Array;
+  state: ShareState;
+}): FieldValues {
+  const { signedPolicy } = input;
+  return {
+    owner: input.heldFor,
+    circleLabel: signedPolicy.policy.label,
+    status: input.state,
+    epoch: String(signedPolicy.policy.epoch),
+    circleId: signedPolicy.policy.circleId,
+    guardianId: input.guardianId,
+    ownerKey: signedPolicy.policy.ownerKey,
+    policy: JSON.stringify(signedPolicy),
+    wrapped: "",
+    receivingKey: input.receivingKey ? toB64url(input.receivingKey) : "",
+  };
+}
+
+/** What a guardian holds for one circle: a seat, and a share when the circle has them. */
+export type HeldRecord = Readonly<{
+  seat: GuardianSeat;
+  holding: Holding | null;
+  receivingKey: Uint8Array | null;
+  state: ShareState;
+}>;
+
+function shareState(value: FieldValues[string] | undefined): ShareState {
+  const found = text(value);
+  return found === "approved" || found === "released" || found === "retired"
+    ? found
+    : "held";
+}
+
+/** Read a `guardian-share` item, whether it holds a share or only a seat. */
+export function readHeldRecord(values: FieldValues): HeldRecord {
+  const state = shareState(values.status);
+  if (text(values.wrapped) !== "") {
+    const { holding, receivingKey } = readShareRecord(values);
+    return { seat: seatOf(holding), holding, receivingKey, state };
+  }
+  const signedPolicy = verifySignedPolicy(
+    SignedPolicySchema.parse(JSON.parse(text(values.policy))),
+    text(values.ownerKey),
+  );
+  const receiving = text(values.receivingKey);
+  return {
+    seat: { signedPolicy, guardianId: text(values.guardianId) },
+    holding: null,
+    receivingKey: receiving === "" ? null : fromB64url(receiving),
+    state,
   };
 }
