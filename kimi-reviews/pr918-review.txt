@@ -1,0 +1,2488 @@
+kimi version 2.1.1
+• Let me start by reading the diff and the PR info.259 /tmp/pr918.diff
+pr918-review.txt
+diff --git a/apps/cli/src/pass_otp.rs b/apps/cli/src/pass_otp.rs
+index edcc9374d..abd57fbfd 100644
+--- a/apps/cli/src/pass_otp.rs
++++ b/apps/cli/src/pass_otp.rs
+@@ -123,6 +123,8 @@ mod tests {
+ 
+     #[test]
+     fn uri_is_withheld_without_reveal_off_a_terminal() {
++        let _agent_guard =
++            opensesame_connector_host::password_agent::reveal_gate::AgentContextGuard::clear_markers();
+         let Ok(PassOtpCmd::Uri { reveal, .. }) = parse(&["uri", "Dev/otp"]) else {
+             panic!("uri parses");
+         };
+diff --git a/apps/cli/src/pass_protect/rotate.rs b/apps/cli/src/pass_protect/rotate.rs
+index 07cb5834a..6e392b69b 100644
+--- a/apps/cli/src/pass_protect/rotate.rs
++++ b/apps/cli/src/pass_protect/rotate.rs
+@@ -211,6 +211,8 @@ mod tests {
+ 
+     #[test]
+     fn reissuing_recovery_needs_reveal_and_a_rotation() {
++        let _agent_guard =
++            opensesame_connector_host::password_agent::reveal_gate::AgentContextGuard::clear_markers();
+         let bare = RotateArgs {
+             reissue_recovery: true,
+             reveal: false,
+diff --git a/apps/cli/tests/attach_journey.rs b/apps/cli/tests/attach_journey.rs
+index 3395b0e9d..f8f750de5 100644
+--- a/apps/cli/tests/attach_journey.rs
++++ b/apps/cli/tests/attach_journey.rs
+@@ -29,6 +29,9 @@ fn command(store: &Path, args: &[&str]) -> Command {
+         .env("GIT_AUTHOR_EMAIL", "test@example.com")
+         .env("GIT_COMMITTER_NAME", "Test")
+         .env("GIT_COMMITTER_EMAIL", "test@example.com");
++    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
++        &mut command,
++    );
+     command
+ }
+ 
+diff --git a/crates/connector-host/src/password_agent/reveal_gate.rs b/crates/connector-host/src/password_agent/reveal_gate.rs
+index d81d84952..64c426a74 100644
+--- a/crates/connector-host/src/password_agent/reveal_gate.rs
++++ b/crates/connector-host/src/password_agent/reveal_gate.rs
+@@ -121,6 +121,41 @@ pub fn assert_pass_reveal(reveal: bool) -> anyhow::Result<()> {
+     })
+ }
+ 
++/// Temporarily clears verified agent-context env markers (parity / unit tests).
++pub struct AgentContextGuard {
++    saved: Vec<(String, Option<String>)>,
++}
++
++impl AgentContextGuard {
++    pub fn clear_markers() -> Self {
++        let policy = policy();
++        let mut saved = Vec::new();
++        for rule in &policy.agent_context_env {
++            saved.push((rule.name.clone(), std::env::var(&rule.name).ok()));
++            std::env::remove_var(&rule.name);
++        }
++        Self { saved }
++    }
++}
++
++impl Drop for AgentContextGuard {
++    fn drop(&mut self) {
++        for (name, prev) in &self.saved {
++            match prev {
++                Some(value) => std::env::set_var(name, value),
++                None => std::env::remove_var(name),
++            }
++        }
++    }
++}
++
++/// Strip verified agent markers from a subprocess (integration tests, parity fixtures).
++pub fn strip_agent_context_env(command: &mut std::process::Command) {
++    for rule in &policy().agent_context_env {
++        command.env_remove(&rule.name);
++    }
++}
++
+ pub fn emit_reveal_receipt(verb: &'static str, reference: Option<&str>) {
+     let receipt = serde_json::json!({
+         "verb": verb,
+@@ -171,10 +206,9 @@ mod tests {
+     fn conformance_cases_match_ts_fixture() {
+         let raw: FixtureCases = serde_json::from_str(SOURCE).unwrap();
+         for case in raw.cases {
++            let _guard = AgentContextGuard::clear_markers();
+             if case.agent_context {
+                 std::env::set_var("OPENSESAME_AGENT_LAUNCH_HANDLE", "test-handle");
+-            } else {
+-                std::env::remove_var("OPENSESAME_AGENT_LAUNCH_HANDLE");
+             }
+             let request = HumanRevealRequest {
+                 verb: "read",
+@@ -192,5 +226,6 @@ mod tests {
+             }
+         }
+         std::env::remove_var("OPENSESAME_AGENT_LAUNCH_HANDLE");
++        let _ = AgentContextGuard::clear_markers();
+     }
+ }
+diff --git a/packages/cli/src/fixtures/password-agent/process.ts b/packages/cli/src/fixtures/password-agent/process.ts
+index 5798b9f42..c5decd36f 100644
+--- a/packages/cli/src/fixtures/password-agent/process.ts
++++ b/packages/cli/src/fixtures/password-agent/process.ts
+@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+ import { tmpdir } from "node:os";
+ import { join, resolve } from "node:path";
+ import { z } from "zod";
++import { envWithoutAgentContext } from "../../reveal-gate.js";
+ 
+ const InvocationSchema = z.object({
+   args: z.array(z.string()),
+@@ -95,14 +96,14 @@ export async function processFixture() {
+   await chmod(join(bin, "op"), 0o700);
+   await writeFile(log, "");
+   await seed();
+-  const env: NodeJS.ProcessEnv = {
++  const env: NodeJS.ProcessEnv = envWithoutAgentContext({
+     ...process.env,
+     PATH: `${bin}:${process.env.PATH}`,
+     OPENSESAME_STATE_DIR: join(directory, "state"),
+     PARITY_DB: database,
+     PARITY_LOG: log,
+     OP_SERVICE_ACCOUNT_TOKEN: undefined,
+-  };
++  });
+ 
+   return { directory, database, env, cli, calls };
+ }
+diff --git a/packages/cli/src/parity.test.ts b/packages/cli/src/parity.test.ts
+index 57acf3274..6fbc14d1a 100644
+--- a/packages/cli/src/parity.test.ts
++++ b/packages/cli/src/parity.test.ts
+@@ -3,11 +3,24 @@ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { describe, expect, it, vi } from "vitest";
+ import { parseArgs } from "./parse.js";
++import { revealGatePolicy } from "./reveal-gate.js";
+ import { runCli } from "./run.js";
+ 
++function restoreAgentContextEnv(saved: Map<string, string | undefined>): void {
++  for (const [name, previous] of saved) {
++    if (previous === undefined) Reflect.deleteProperty(process.env, name);
++    else process.env[name] = previous;
++  }
++}
++
+ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
+   const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+   const stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
++  const savedAgentEnv = new Map<string, string | undefined>();
++  for (const rule of revealGatePolicy.agentContextEnv) {
++    savedAgentEnv.set(rule.name, process.env[rule.name]);
++    Reflect.deleteProperty(process.env, rule.name);
++  }
+   Object.defineProperty(process.stdin, "isTTY", {
+     value: true,
+     configurable: true,
+@@ -19,6 +32,7 @@ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
+   try {
+     return await body();
+   } finally {
++    restoreAgentContextEnv(savedAgentEnv);
+     if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+     if (stdoutTty) Object.defineProperty(process.stdout, "isTTY", stdoutTty);
+   }
+diff --git a/packages/cli/src/reveal-gate.test.ts b/packages/cli/src/reveal-gate.test.ts
+index 640a5decc..a0483d333 100644
+--- a/packages/cli/src/reveal-gate.test.ts
++++ b/packages/cli/src/reveal-gate.test.ts
+@@ -18,10 +18,11 @@ describe("cli reveal gate conformance", () => {
+   for (const caseRow of gate.cases) {
+     it(caseRow.id, () => {
+       const env = { ...process.env };
++      for (const rule of gate.agentContextEnv) {
++        env[rule.name] = undefined;
++      }
+       if (caseRow.agentContext) {
+         env.OPENSESAME_AGENT_LAUNCH_HANDLE = "fixture-handle";
+-      } else {
+-        env.OPENSESAME_AGENT_LAUNCH_HANDLE = undefined;
+       }
+       const request: HumanRevealRequest = {
+         verb: caseRow.reference ? "read" : "env-resolve",
+@@ -57,6 +58,12 @@ describe("cli reveal gate conformance", () => {
+       process.env.CLAUDECODE = "1";
+       expect(detectAgentContext()).toBe(true);
+       Reflect.deleteProperty(process.env, "CLAUDECODE");
++      process.env.CURSOR_AGENT = "1";
++      expect(detectAgentContext()).toBe(true);
++      Reflect.deleteProperty(process.env, "CURSOR_AGENT");
++      process.env.CI = "true";
++      expect(detectAgentContext()).toBe(true);
++      Reflect.deleteProperty(process.env, "CI");
+       expect(detectAgentContext()).toBe(false);
+     } finally {
+       restoreEnv("OPENSESAME_AGENT_LAUNCH_HANDLE", launch);
+diff --git a/packages/cli/src/reveal-gate.ts b/packages/cli/src/reveal-gate.ts
+index e252ba2ec..2086cff39 100644
+--- a/packages/cli/src/reveal-gate.ts
++++ b/packages/cli/src/reveal-gate.ts
+@@ -33,6 +33,17 @@ export function detectAgentContext(
+   return gate.agentContextEnv.some((rule) => ruleMatches(rule, env));
+ }
+ 
++/** Copy `source` with verified agent-context markers removed (tests, subprocess fixtures). */
++export function envWithoutAgentContext(
++  source: NodeJS.ProcessEnv,
++): NodeJS.ProcessEnv {
++  const env = { ...source };
++  for (const rule of gate.agentContextEnv) {
++    Reflect.deleteProperty(env, rule.name);
++  }
++  return env;
++}
++
+ function ttyPair(request: HumanRevealRequest) {
+   const stdin =
+     request.stdinIsTty !== undefined
+diff --git a/spec/conformance/cli-reveal-gate.json b/spec/conformance/cli-reveal-gate.json
+index 46910827b..8a3a8bd1b 100644
+--- a/spec/conformance/cli-reveal-gate.json
++++ b/spec/conformance/cli-reveal-gate.json
+@@ -17,6 +17,30 @@
+       "match": "equals",
+       "value": "1",
+       "verifiedIn": ".claude/hooks/session-start.sh"
++    },
++    {
++      "name": "CURSOR_AGENT",
++      "match": "equals",
++      "value": "1",
++      "verifiedIn": "Cursor Cloud Agent runtime"
++    },
++    {
++      "name": "CI",
++      "match": "equals",
++      "value": "true",
++      "verifiedIn": "GitHub Actions and other CI runners"
++    },
++    {
++      "name": "GITHUB_ACTIONS",
++      "match": "equals",
++      "value": "true",
++      "verifiedIn": "GitHub Actions"
++    },
++    {
++      "name": "AGENT",
++      "match": "equals",
++      "value": "1",
++      "verifiedIn": "OpenCode and other agent shells"
+     }
+   ],
+   "cases": [
+I need the PR title/body. Check the review file /workspace/kimi-reviews/pr918-review.txt, and possibly the branch. Let me read that file and look at the repo state for the reveal gate policy (agent_context_env).kimi version 2.1.1
+• Let me start by reading the diff and the PR info.259 /tmp/pr918.diff
+pr918-review.txt
+diff --git a/apps/cli/src/pass_otp.rs b/apps/cli/src/pass_otp.rs
+index edcc9374d..abd57fbfd 100644
+--- a/apps/cli/src/pass_otp.rs
++++ b/apps/cli/src/pass_otp.rs
+@@ -123,6 +123,8 @@ mod tests {
+ 
+     #[test]
+     fn uri_is_withheld_without_reveal_off_a_terminal() {
++        let _agent_guard =
++            opensesame_connector_host::password_agent::reveal_gate::AgentContextGuard::clear_markers();
+         let Ok(PassOtpCmd::Uri { reveal, .. }) = parse(&["uri", "Dev/otp"]) else {
+             panic!("uri parses");
+         };
+diff --git a/apps/cli/src/pass_protect/rotate.rs b/apps/cli/src/pass_protect/rotate.rs
+index 07cb5834a..6e392b69b 100644
+--- a/apps/cli/src/pass_protect/rotate.rs
++++ b/apps/cli/src/pass_protect/rotate.rs
+@@ -211,6 +211,8 @@ mod tests {
+ 
+     #[test]
+     fn reissuing_recovery_needs_reveal_and_a_rotation() {
++        let _agent_guard =
++            opensesame_connector_host::password_agent::reveal_gate::AgentContextGuard::clear_markers();
+         let bare = RotateArgs {
+             reissue_recovery: true,
+             reveal: false,
+diff --git a/apps/cli/tests/attach_journey.rs b/apps/cli/tests/attach_journey.rs
+index 3395b0e9d..f8f750de5 100644
+--- a/apps/cli/tests/attach_journey.rs
++++ b/apps/cli/tests/attach_journey.rs
+@@ -29,6 +29,9 @@ fn command(store: &Path, args: &[&str]) -> Command {
+         .env("GIT_AUTHOR_EMAIL", "test@example.com")
+         .env("GIT_COMMITTER_NAME", "Test")
+         .env("GIT_COMMITTER_EMAIL", "test@example.com");
++    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
++        &mut command,
++    );
+     command
+ }
+ 
+diff --git a/crates/connector-host/src/password_agent/reveal_gate.rs b/crates/connector-host/src/password_agent/reveal_gate.rs
+index d81d84952..64c426a74 100644
+--- a/crates/connector-host/src/password_agent/reveal_gate.rs
++++ b/crates/connector-host/src/password_agent/reveal_gate.rs
+@@ -121,6 +121,41 @@ pub fn assert_pass_reveal(reveal: bool) -> anyhow::Result<()> {
+     })
+ }
+ 
++/// Temporarily clears verified agent-context env markers (parity / unit tests).
++pub struct AgentContextGuard {
++    saved: Vec<(String, Option<String>)>,
++}
++
++impl AgentContextGuard {
++    pub fn clear_markers() -> Self {
++        let policy = policy();
++        let mut saved = Vec::new();
++        for rule in &policy.agent_context_env {
++            saved.push((rule.name.clone(), std::env::var(&rule.name).ok()));
++            std::env::remove_var(&rule.name);
++        }
++        Self { saved }
++    }
++}
++
++impl Drop for AgentContextGuard {
++    fn drop(&mut self) {
++        for (name, prev) in &self.saved {
++            match prev {
++                Some(value) => std::env::set_var(name, value),
++                None => std::env::remove_var(name),
++            }
++        }
++    }
++}
++
++/// Strip verified agent markers from a subprocess (integration tests, parity fixtures).
++pub fn strip_agent_context_env(command: &mut std::process::Command) {
++    for rule in &policy().agent_context_env {
++        command.env_remove(&rule.name);
++    }
++}
++
+ pub fn emit_reveal_receipt(verb: &'static str, reference: Option<&str>) {
+     let receipt = serde_json::json!({
+         "verb": verb,
+@@ -171,10 +206,9 @@ mod tests {
+     fn conformance_cases_match_ts_fixture() {
+         let raw: FixtureCases = serde_json::from_str(SOURCE).unwrap();
+         for case in raw.cases {
++            let _guard = AgentContextGuard::clear_markers();
+             if case.agent_context {
+                 std::env::set_var("OPENSESAME_AGENT_LAUNCH_HANDLE", "test-handle");
+-            } else {
+-                std::env::remove_var("OPENSESAME_AGENT_LAUNCH_HANDLE");
+             }
+             let request = HumanRevealRequest {
+                 verb: "read",
+@@ -192,5 +226,6 @@ mod tests {
+             }
+         }
+         std::env::remove_var("OPENSESAME_AGENT_LAUNCH_HANDLE");
++        let _ = AgentContextGuard::clear_markers();
+     }
+ }
+diff --git a/packages/cli/src/fixtures/password-agent/process.ts b/packages/cli/src/fixtures/password-agent/process.ts
+index 5798b9f42..c5decd36f 100644
+--- a/packages/cli/src/fixtures/password-agent/process.ts
++++ b/packages/cli/src/fixtures/password-agent/process.ts
+@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+ import { tmpdir } from "node:os";
+ import { join, resolve } from "node:path";
+ import { z } from "zod";
++import { envWithoutAgentContext } from "../../reveal-gate.js";
+ 
+ const InvocationSchema = z.object({
+   args: z.array(z.string()),
+@@ -95,14 +96,14 @@ export async function processFixture() {
+   await chmod(join(bin, "op"), 0o700);
+   await writeFile(log, "");
+   await seed();
+-  const env: NodeJS.ProcessEnv = {
++  const env: NodeJS.ProcessEnv = envWithoutAgentContext({
+     ...process.env,
+     PATH: `${bin}:${process.env.PATH}`,
+     OPENSESAME_STATE_DIR: join(directory, "state"),
+     PARITY_DB: database,
+     PARITY_LOG: log,
+     OP_SERVICE_ACCOUNT_TOKEN: undefined,
+-  };
++  });
+ 
+   return { directory, database, env, cli, calls };
+ }
+diff --git a/packages/cli/src/parity.test.ts b/packages/cli/src/parity.test.ts
+index 57acf3274..6fbc14d1a 100644
+--- a/packages/cli/src/parity.test.ts
++++ b/packages/cli/src/parity.test.ts
+@@ -3,11 +3,24 @@ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { describe, expect, it, vi } from "vitest";
+ import { parseArgs } from "./parse.js";
++import { revealGatePolicy } from "./reveal-gate.js";
+ import { runCli } from "./run.js";
+ 
++function restoreAgentContextEnv(saved: Map<string, string | undefined>): void {
++  for (const [name, previous] of saved) {
++    if (previous === undefined) Reflect.deleteProperty(process.env, name);
++    else process.env[name] = previous;
++  }
++}
++
+ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
+   const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+   const stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
++  const savedAgentEnv = new Map<string, string | undefined>();
++  for (const rule of revealGatePolicy.agentContextEnv) {
++    savedAgentEnv.set(rule.name, process.env[rule.name]);
++    Reflect.deleteProperty(process.env, rule.name);
++  }
+   Object.defineProperty(process.stdin, "isTTY", {
+     value: true,
+     configurable: true,
+@@ -19,6 +32,7 @@ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
+   try {
+     return await body();
+   } finally {
++    restoreAgentContextEnv(savedAgentEnv);
+     if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+     if (stdoutTty) Object.defineProperty(process.stdout, "isTTY", stdoutTty);
+   }
+diff --git a/packages/cli/src/reveal-gate.test.ts b/packages/cli/src/reveal-gate.test.ts
+index 640a5decc..a0483d333 100644
+--- a/packages/cli/src/reveal-gate.test.ts
++++ b/packages/cli/src/reveal-gate.test.ts
+@@ -18,10 +18,11 @@ describe("cli reveal gate conformance", () => {
+   for (const caseRow of gate.cases) {
+     it(caseRow.id, () => {
+       const env = { ...process.env };
++      for (const rule of gate.agentContextEnv) {
++        env[rule.name] = undefined;
++      }
+       if (caseRow.agentContext) {
+         env.OPENSESAME_AGENT_LAUNCH_HANDLE = "fixture-handle";
+-      } else {
+-        env.OPENSESAME_AGENT_LAUNCH_HANDLE = undefined;
+       }
+       const request: HumanRevealRequest = {
+         verb: caseRow.reference ? "read" : "env-resolve",
+@@ -57,6 +58,12 @@ describe("cli reveal gate conformance", () => {
+       process.env.CLAUDECODE = "1";
+       expect(detectAgentContext()).toBe(true);
+       Reflect.deleteProperty(process.env, "CLAUDECODE");
++      process.env.CURSOR_AGENT = "1";
++      expect(detectAgentContext()).toBe(true);
++      Reflect.deleteProperty(process.env, "CURSOR_AGENT");
++      process.env.CI = "true";
++      expect(detectAgentContext()).toBe(true);
++      Reflect.deleteProperty(process.env, "CI");
+       expect(detectAgentContext()).toBe(false);
+     } finally {
+       restoreEnv("OPENSESAME_AGENT_LAUNCH_HANDLE", launch);
+diff --git a/packages/cli/src/reveal-gate.ts b/packages/cli/src/reveal-gate.ts
+index e252ba2ec..2086cff39 100644
+--- a/packages/cli/src/reveal-gate.ts
++++ b/packages/cli/src/reveal-gate.ts
+@@ -33,6 +33,17 @@ export function detectAgentContext(
+   return gate.agentContextEnv.some((rule) => ruleMatches(rule, env));
+ }
+ 
++/** Copy `source` with verified agent-context markers removed (tests, subprocess fixtures). */
++export function envWithoutAgentContext(
++  source: NodeJS.ProcessEnv,
++): NodeJS.ProcessEnv {
++  const env = { ...source };
++  for (const rule of gate.agentContextEnv) {
++    Reflect.deleteProperty(env, rule.name);
++  }
++  return env;
++}
++
+ function ttyPair(request: HumanRevealRequest) {
+   const stdin =
+     request.stdinIsTty !== undefined
+diff --git a/spec/conformance/cli-reveal-gate.json b/spec/conformance/cli-reveal-gate.json
+index 46910827b..8a3a8bd1b 100644
+--- a/spec/conformance/cli-reveal-gate.json
++++ b/spec/conformance/cli-reveal-gate.json
+@@ -17,6 +17,30 @@
+       "match": "equals",
+       "value": "1",
+       "verifiedIn": ".claude/hooks/session-start.sh"
++    },
++    {
++      "name": "CURSOR_AGENT",
++      "match": "equals",
++      "value": "1",
++      "verifiedIn": "Cursor Cloud Agent runtime"
++    },
++    {
++      "name": "CI",
++      "match": "equals",
++      "value": "true",
++      "verifiedIn": "GitHub Actions and other CI runners"
++    },
++    {
++      "name": "GITHUB_ACTIONS",
++      "match": "equals",
++      "value": "true",
++      "verifiedIn": "GitHub Actions"
++    },
++    {
++      "name": "AGENT",
++      "match": "equals",
++      "value": "1",
++      "verifiedIn": "OpenCode and other agent shells"
+     }
+   ],
+   "cases": [
+I need the PR title/body. Check the review file /workspace/kimi-reviews/pr918-review.txt, and possibly the branch. Let me read that file and look at the repo state for the reveal gate policy (agent_context_env).
+9ccaaeb5 fix(live): avoid disabled-reason label clash; fix item-pick test stamps
+045a03fa refactor(live): split host form parts for quality gate
+850fb5fa chore: do not change vault revoke tests on live form branch
+cursor/persona-p2-form-disabled-b5a1
+?? kimi-reviews/
+The review file kimi-reviews/pr918-review.txt seems to just be a log of a prior attempt's output (or an echo of the diff?). Actually it contains the diff itself — looks like it's a partial transcript of a previous review. Not the PR body.
+
+  I need the PR title/body. There's no gh access maybe. Let me check whether there's network / gh CLI, and check the branch cursor/persona-r3-cli-reveal-gate-b5a1 exists locally or remotely.From https://github.com/Tyler-R-Kendrick/OpenSesame
+ * branch              cursor/persona-r3-cli-reveal-gate-b5a1 -> FETCH_HEAD
+  origin/cursor/claim-outcome-notifications-b5a1
+  origin/cursor/drop-revoke-sender-record-b5a1
+  origin/cursor/persona-audit-validation-b5a1
+  origin/cursor/persona-gap-pf02-drop-browser-warning-b5a1
+  origin/cursor/persona-gap-pf05-drop-sender-receipts-b5a1
+  origin/cursor/persona-gap-pf08-drop-attempts-b5a1
+  origin/cursor/persona-gap-pf14-live-name-b5a1
+  origin/cursor/persona-oct7-r10-breach-two-step-b5a1
+  origin/cursor/persona-oct7-r11-polish-b5a1
+  origin/cursor/persona-oct7-r6-agent-grants-b5a1
+  origin/cursor/persona-oct7-r7-copy-only-b5a1
+  origin/cursor/persona-p2-agent-grants-b5a1
+  origin/cursor/persona-p2-drop-seal-warning-b5a1
+  origin/cursor/persona-p2-form-disabled-b5a1
+  origin/cursor/persona-r10-activity-b5a1
+  origin/cursor/persona-r11-vault-ux-b5a1
+  origin/cursor/persona-r2-claim-robust-b5a1
+  origin/cursor/persona-r3-cli-reveal-gate-b5a1
+  origin/cursor/persona-r3-live-join-b5a1
+  origin/cursor/persona-r3-sent-drops-receipts-b5a1
+  origin/cursor/persona-r5-live-sessions-b5a1
+  origin/cursor/persona-r6-join-nav-b5a1
+  origin/cursor/persona-r7-household-b5a1
+  origin/cursor/persona-r8-reveal-gate-b5a1
+  origin/cursor/persona-r9-drop-form-b5a1
+{"baseRefName":"main","body":"<!-- CURSOR_AGENT_PR_BODY_BEGIN -->\nPersona round 3 (P1 CLI reveal gate).\n\n- Extend `spec/conformance/cli-reveal-gate.json` with `CURSOR_AGENT`, `CI`, `GITHUB_ACTIONS`, and `AGENT` markers (existing TTY pair check unchanged).\n- Conformance tests scrub agent env vars so allow cases stay valid in CI VMs.\n\n`run --env` / `env run` untouched.\n\n## Testing\n- `pnpm --filter @opensesame/cli test -- reveal-gate`\n\nBase: `origin/main` @ `96b09b74`.\n<!-- CURSOR_AGENT_PR_BODY_END -->\n\n<div><a href=\"https://cursor.com/agents/bc-7125d6bb-6b4c-544d-9bf6-0678642db5a1?cursor_ref=pr_footer&cursor_cta=open_in_web\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-web-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-web-light.png\"><img alt=\"Open in Web\" width=\"114\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-web-dark.png\"></picture></a>&nbsp;<a href=\"https://cursor.com/background-agent?bcId=bc-7125d6bb-6b4c-544d-9bf6-0678642db5a1&cursor_ref=pr_footer&cursor_cta=open_in_cursor\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/open-in-cursor-dark.png\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/open-in-cursor-light.png\"><img alt=\"Open in Cursor\" width=\"131\" height=\"28\" src=\"https://cursor.com/assets/images/open-in-cursor-dark.png\"></picture></a>&nbsp;</div>\n\n","headRefName":"cursor/persona-r3-cli-reveal-gate-b5a1","title":"fix(cli): harden read --reveal against agent and CI contexts"}
+Now I understand the PR. Title: "fix(cli): harden read --reveal against agent and CI contexts". Body: adds CURSOR_AGENT, CI, GITHUB_ACTIONS, AGENT markers to spec/conformance/cli-reveal-gate.json; conformance tests scrub agent env so allow cases stay valid in CI; `run --env`/`env run` untouched.
+
+  Now I need to verify against the actual code:
+
+  1. Check spec/conformance/cli-reveal-gate.json in the branch and understand the reveal gate semantics. What does detectAgentContext do — deny reveal when agent context detected. Adding CI=true as an agent marker means any reveal in CI is denied. That's the intent (hardening). But does adding CI break legitimate use? CI is a broad marker — but for a secret reveal gate, arguably fine.
+
+  2. Check the reveal-gate.ts ruleMatches semantics, how the spec is consumed, drift tests ("one definition every target" — spec consumed by TS and Rust, each with a drift test). Adding rules to the spec JSON: does the Rust policy read the same file? Need to check crates/connector-host reveal_gate.rs loads spec/conformance/cli-reveal-gate.json.
+
+  3. Check whether all tests affected by the new markers were updated: any test elsewhere that runs reveal with --reveal in a CI environment (GITHUB_ACTIONS/CI set) would now fail unless scrubbed. The PR updated: pass_otp.rs test, rotate.rs test, attach_journey.rs, process.ts fixture, parity.test.ts, reveal-gate.test.ts (both TS and Rust conformance). Are there other tests that exercise reveal? Need to grep for assert_pass_reveal usage and reveal tests. E.g., apps/cli tests like pass_journey, sealed-store tests, etc. Also crates/sealed-store or other Rust crates might have tests calling reveal logic. Also does the TS parity test cover `run --env`/`env run`? Body says untouched.
+
+  4. Verify spec JSON validity and that "cases" unchanged.
+
+  5. Check ruleMatches semantics: "equals" match with value — e.g. CI equals "true". In GitHub Actions CI=true. But also GITHUB_ACTIONS=true added. CURSOR_AGENT=1. AGENT=1.
+
+  Potential gap: The `detectAgentContext` test in reveal-gate.test.ts adds CURSOR_AGENT and CI checks but not GITHUB_ACTIONS or AGENT — minor, conformance cases presumably cover.
+
+  Potential gap: are there other places that construct subprocess env for parity fixtures that don't strip? E.g. other fixtures in packages/cli/src/fixtures/password-agent/. Only process.ts shown. Maybe other test files: packages/cli tests that spawn the CLI with process.env, e.g., run.ts tests. Need to check which tests call assertPassReveal-equivalent paths in TS.
+
+  Also check: does the Rust side actually enforce env markers at runtime (policy from spec file embedded)? And is there a drift test that the spec JSON matches? If embedded via include_str, fine.
+
+  Also potential concern: `env[rule.name] = undefined` in TS — assigning undefined to process.env actually sets string "undefined" in real process.env, but here env is a plain object passed to evaluate; ruleMatches presumably treats undefined as absent. Fine.
+
+  Another possible regression: adding CI marker means the CLI's `pass show --reveal` in CI (e.g., scripts/test/battle-test.sh runs in GitHub Actions) would now fail. Are there shell scripts or integration tests that use reveal in CI? e.g. scripts/test/2password-parity.mjs — "fails, never skips" runs in CI (password-parity.yml). Does parity exercise reveal? The parity fixture env now strips agent context (process.ts change) — good, that handles it. But are there other scripts? battle-test.sh? Let me check whether the workspace checkout has the branch applied — no, current checkout is a different branch. I can check files from origin/main plus apply diff mentally, or check the fetched FETCH_HEAD tree directly via git show.
+
+  Better: inspect files at FETCH_HEAD (the PR branch). Let me look at the key files.
+
+• I have the PR metadata. Now let me inspect the branch's actual code to verify the changes against the repo's reveal-gate machinery.{
+  "version": 1,
+  "migrationHint": "Use `opensesame-id run` (or `os run`) with `--env NAME=op://vault/item/field` or `os://vault/item/field`, or `env run <file> -- <cmd>`, instead of read or env resolve. Secret references stay in the 1Password-style scheme://vault/item/field form.",
+  "agentContextEnv": [
+    {
+      "name": "OPENSESAME_AGENT_LAUNCH_HANDLE",
+      "match": "nonEmpty",
+      "verifiedIn": "packages/agent-client/src/index.ts"
+    },
+    {
+      "name": "OPENSESAME_AGENT_CLIENT_ID",
+      "match": "nonEmpty",
+      "verifiedIn": "packages/agent-client/src/index.ts"
+    },
+    {
+      "name": "CLAUDECODE",
+      "match": "equals",
+      "value": "1",
+      "verifiedIn": ".claude/hooks/session-start.sh"
+    },
+    {
+      "name": "CURSOR_AGENT",
+      "match": "equals",
+      "value": "1",
+      "verifiedIn": "Cursor Cloud Agent runtime"
+    },
+    {
+      "name": "CI",
+      "match": "equals",
+      "value": "true",
+      "verifiedIn": "GitHub Actions and other CI runners"
+    },
+    {
+      "name": "GITHUB_ACTIONS",
+      "match": "equals",
+      "value": "true",
+      "verifiedIn": "GitHub Actions"
+    },
+    {
+      "name": "AGENT",
+      "match": "equals",
+      "value": "1",
+      "verifiedIn": "OpenCode and other agent shells"
+    }
+  ],
+  "cases": [
+    {
+      "id": "refuse-piped-stdout",
+      "stdinTty": true,
+      "stdoutTty": false,
+      "reveal": true,
+      "desktop": true,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-agent-launch-handle",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": true,
+      "agentContext": true,
+      "agentMarker": "OPENSESAME_AGENT_LAUNCH_HANDLE",
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-without-reveal-flag",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": false,
+      "desktop": true,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-op-without-desktop",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": false,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "allow-human-op-reveal",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": true,
+      "agentContext": false,
+      "reference": "op://v/i/f",
+      "expect": "allow"
+    },
+    {
+      "id": "allow-pass-reveal-no-desktop",
+      "stdinTty": true,
+//! Human-only plaintext reveal gate (shared conformance with `cli-reveal-gate.json`).
+use std::io::{IsTerminal, Write};
+
+use serde::Deserialize;
+
+const SOURCE: &str = include_str!("../../../../spec/conformance/cli-reveal-gate.json");
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Policy {
+    migration_hint: String,
+    agent_context_env: Vec<AgentRule>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AgentRule {
+    name: String,
+    #[serde(rename = "match")]
+    match_kind: String,
+    value: Option<String>,
+}
+
+fn policy() -> &'static Policy {
+    static POLICY: std::sync::OnceLock<Policy> = std::sync::OnceLock::new();
+    POLICY.get_or_init(|| serde_json::from_str(SOURCE).expect("cli-reveal-gate.json"))
+}
+
+fn rule_matches(rule: &AgentRule) -> bool {
+    let raw = std::env::var(&rule.name).ok();
+    let Some(raw) = raw.filter(|v| !v.is_empty()) else {
+        return false;
+    };
+    match rule.match_kind.as_str() {
+        "nonEmpty" => true,
+        "equals" => rule.value.as_deref() == Some(raw.as_str()),
+        _ => false,
+    }
+}
+
+/// Refuse-only agent detection (spoofable; never used to allow reveal).
+pub fn agent_context_detected() -> bool {
+    policy().agent_context_env.iter().any(rule_matches)
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct HumanRevealRequest<'a> {
+    pub verb: &'static str,
+    pub reveal: bool,
+    pub desktop: bool,
+    pub reference: Option<&'a str>,
+    pub stdin_tty: Option<bool>,
+    pub stdout_tty: Option<bool>,
+}
+
+fn stdin_tty(request: &HumanRevealRequest) -> bool {
+    request
+        .stdin_tty
+        .unwrap_or_else(|| std::io::stdin().is_terminal())
+}
+
+fn stdout_tty(request: &HumanRevealRequest) -> bool {
+    request
+        .stdout_tty
+        .unwrap_or_else(|| std::io::stdout().is_terminal())
+}
+
+fn refusal_message(request: &HumanRevealRequest<'_>) -> Option<String> {
+    let policy = policy();
+    if agent_context_detected() {
+        return Some(format!(
+            "Refusing plaintext {} in an agent context. {}",
+            request.verb, policy.migration_hint
+        ));
+    }
+    if !stdin_tty(request) || !stdout_tty(request) {
+        return Some(format!(
+            "Refusing plaintext {}: stdin and stdout must both be interactive terminals (no pipes or capture). {}",
+            request.verb,
+            policy.migration_hint
+        ));
+    }
+    if !request.reveal {
+        return Some(format!(
+            "Refusing plaintext {}: pass --reveal after reviewing the risk. {}",
+            request.verb, policy.migration_hint
+        ));
+    }
+    if let Some(reference) = request.reference {
+        if reference.starts_with("op://") && !request.desktop {
+            return Some(
+                "Refusing op:// reveal without --desktop (1Password app integration).".to_string(),
+            );
+        }
+    }
+    None
+}
+
+/// Gate for `password-agent read` / `env resolve` and sealed-store reveal.
+///
+/// # Errors
+/// Returns an error when the request fails the human-only reveal policy.
+pub fn assert_human_reveal(request: HumanRevealRequest<'_>) -> anyhow::Result<()> {
+    if let Some(message) = refusal_message(&request) {
+        anyhow::bail!("{message}");
+    }
+    Ok(())
+}
+
+/// Sealed-store plaintext (`pass show`, attach get, kdbx export).
+///
+/// # Errors
+/// Returns an error unless a human explicitly reveals in an interactive terminal.
+pub fn assert_pass_reveal(reveal: bool) -> anyhow::Result<()> {
+    assert_human_reveal(HumanRevealRequest {
+        verb: "pass-reveal",
+        reveal,
+        desktop: false,
+        reference: None,
+        stdin_tty: None,
+        stdout_tty: None,
+    })
+}
+
+/// Temporarily clears verified agent-context env markers (parity / unit tests).
+pub struct AgentContextGuard {
+    saved: Vec<(String, Option<String>)>,
+}
+
+impl AgentContextGuard {
+    pub fn clear_markers() -> Self {
+
+
+• Now let me check the TS side reveal-gate.ts, and look for other places affected by the new CI/GITHUB_ACTIONS markers — i.e., any test suites or scripts that exercise reveal paths and would now fail in CI because CI=true / GITHUB_ACTIONS=true is set. The PR scrubbed only specific tests. Let me enumerate consumers of the reveal gate:
+
+  - Rust: grep for assert_pass_reveal / assert_human_reveal / agent_context_detected across crates at FETCH_HEAD.
+  - TS: grep for detectAgentContext / assertHumanReveal / revealGatePolicy usage in packages.
+  - Also any shell scripts (battle-test.sh, 2password-parity) that run `pass show --reveal` — those run in CI where CI=true is now set → they'd fail. Wait — but the reveal gate also requires TTY; battle-test.sh presumably doesn't allocate a TTY, so reveal is already refused there. Actually if tests already needed a TTY they must use a pty or the gate would have refused before. Hmm — the parity tests: 2password-parity runs in CI (password-parity.yml). Does it exercise reveal? If the tests run without TTY, reveal would have been refused already before this PR, so the parity suite must use a pty (e.g., script/unbuffer) or the fixture env. The process.ts fixture env is used to spawn the CLI for parity — the change strips agent context from that env. But CI/GITHUB_ACTIONS would be inherited through `...process.env`, now stripped by envWithoutAgentContext. Good.
+
+  But what about the Rust integration tests — attach_journey.rs spawns the CLI binary; they added strip. Are there other Rust integration tests spawning the CLI and exercising reveal? Let me grep apps/cli/tests/ for reveal and for other test files that call pass show --reveal.
+
+  Also `pnpm test:2password-parity` spec/conformance/2password-parity.json — the Rust side? crates/sealed-store produce_entry... Also check TS packages/cli tests other than parity.test.ts that use withTerminal — only parity.test.ts? Let me grep.
+
+  Also check quality gates: new function envWithoutAgentContext — file sizes under 400 lines. reveal-gate.ts size? And quality baseline ratchet: adding lines to reveal-gate.ts might exceed its recorded baseline in tools/quality/quality-baseline.json → CI `pnpm quality` would fail unless baseline updated. Let me check the baseline entry for packages/cli/src/reveal-gate.ts at FETCH_HEAD and the file's line count.
+
+  Also check crates/connector-host file size limit (400 lines? that's for TS modules via quality:gate; clippy has its own). reveal_gate.rs now ~250 lines.
+
+  Also AGENTS.md rule: "A struct holding a secret never derives Debug" — not relevant.
+
+  Also check that the spec "cases" section unchanged — the diff only added markers; need to confirm cases unchanged (diff shows only the agentContextEnv addition). Yes.
+
+  Check drift tests: both planes read the same JSON (Rust include_str, TS import). The TS side: check packages/cli/src/reveal-gate.ts loads the JSON and whether there's a freshness/drift test. Let me read the full TS file at FETCH_HEAD and grep for other consumers.import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
+  type: "json",
+};
+import { emitStderrLine } from "./output.js";
+
+export type HumanRevealVerb = "read" | "env-resolve" | "pass-reveal";
+
+export interface HumanRevealRequest {
+  verb: HumanRevealVerb;
+  reveal: boolean;
+  desktop: boolean;
+  /** When set and starts with `op://`, `--desktop` is required. */
+  reference?: string | undefined;
+  env?: NodeJS.ProcessEnv | undefined;
+  stdinIsTty?: boolean | undefined;
+  stdoutIsTty?: boolean | undefined;
+}
+
+type AgentRule = (typeof gate.agentContextEnv)[number];
+
+function ruleMatches(rule: AgentRule, env: NodeJS.ProcessEnv): boolean {
+  const raw = env[rule.name];
+  if (raw === undefined || raw === "") return false;
+  if (rule.match === "nonEmpty") return true;
+  if (rule.match === "equals") return raw === rule.value;
+  return false;
+}
+
+/** Refuse-only: a missing marker never grants human reveal. */
+export function detectAgentContext(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return gate.agentContextEnv.some((rule) => ruleMatches(rule, env));
+}
+
+/** Copy `source` with verified agent-context markers removed (tests, subprocess fixtures). */
+export function envWithoutAgentContext(
+  source: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const env = { ...source };
+  for (const rule of gate.agentContextEnv) {
+    Reflect.deleteProperty(env, rule.name);
+  }
+  return env;
+}
+
+function ttyPair(request: HumanRevealRequest) {
+  const stdin =
+    request.stdinIsTty !== undefined
+      ? request.stdinIsTty
+      : Boolean(process.stdin.isTTY);
+  const stdout =
+    request.stdoutIsTty !== undefined
+      ? request.stdoutIsTty
+      : Boolean(process.stdout.isTTY);
+  return { stdin, stdout } satisfies { stdin: boolean; stdout: boolean };
+}
+
+export function humanRevealRefusal(
+  request: HumanRevealRequest,
+): string | undefined {
+  const env = request.env ?? process.env;
+  if (detectAgentContext(env)) {
+    return `Refusing plaintext ${request.verb} in an agent context. ${gate.migrationHint}`;
+  }
+  const { stdin, stdout } = ttyPair(request);
+  if (!stdin || !stdout) {
+    return `Refusing plaintext ${request.verb}: stdin and stdout must both be interactive terminals (no pipes or capture). ${gate.migrationHint}`;
+  }
+  if (!request.reveal) {
+    return `Refusing plaintext ${request.verb}: pass --reveal after reviewing the risk. ${gate.migrationHint}`;
+  }
+  const ref = request.reference;
+  if (ref?.startsWith("op://") && !request.desktop) {
+    return "Refusing op:// reveal without --desktop (1Password app integration).";
+  }
+  return undefined;
+}
+
+export function assertHumanReveal(request: HumanRevealRequest): void {
+  const refusal = humanRevealRefusal(request);
+  if (refusal) throw new Error(refusal);
+}
+
+export interface RevealReceipt {
+  verb: HumanRevealVerb;
+  lane: "reveal";
+  principal: "human";
+  agentContext: boolean;
+  reference?: string | undefined;
+  at: string;
+}
+
+export function emitRevealReceipt(
+  request: Pick<HumanRevealRequest, "verb" | "reference" | "env">,
+): void {
+  const receipt: RevealReceipt = {
+    verb: request.verb,
+    lane: "reveal",
+    principal: "human",
+    agentContext: detectAgentContext(request.env),
+    at: new Date().toISOString(),
+  };
+  const line = JSON.stringify(
+    request.reference === undefined
+      ? receipt
+      : { ...receipt, reference: request.reference },
+  );
+  emitStderrLine(line);
+}
+
+export const revealGatePolicy = gate;
+FETCH_HEAD:apps/cli/src/password_agent/consume.rs:28:        assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
+FETCH_HEAD:apps/cli/src/password_agent/consume.rs:31:    assert_human_reveal(HumanRevealRequest {
+FETCH_HEAD:apps/cli/src/password_agent/consume.rs:39:    emit_reveal_receipt("read", Some(reference));
+FETCH_HEAD:apps/cli/src/password_agent/consume.rs:132:                assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
+FETCH_HEAD:apps/cli/src/password_agent/consume.rs:134:            assert_human_reveal(HumanRevealRequest {
+FETCH_HEAD:apps/cli/src/password_agent/consume.rs:142:            emit_reveal_receipt("env-resolve", None);
+FETCH_HEAD:apps/cli/src/store.rs:20:    opensesame_connector_host::password_agent::reveal_gate::assert_pass_reveal(reveal)
+Now check for other test suites that would exercise reveal in a CI environment with CI=true set, that this PR did NOT scrub. Specifically:
+
+  1. apps/cli tests besides attach_journey.rs — grep for `--reveal` in tests and src tests.
+  2. crates/sealed-store tests using produce_entry / reveal? The Rust gate is called from apps/cli/src/store.rs. Sealed-store crate itself may have reveal tests that don't hit the gate.
+  3. TS side: packages/cli tests that run `pass show --reveal` with a pty. grep for withTerminal and for reveal in packages/cli tests.
+  4. Shell scripts: scripts/test/2password-parity.mjs — check how it spawns the CLI (env from process.env → would include CI=true in GitHub Actions). The password-parity.yml runs `pnpm test:2password-parity`. Does that suite exercise reveal with a TTY? If so, it would now fail in CI unless the fixture env strips agent context (process.ts does now). Check what process.ts fixture is used by.
+  5. battle-test.sh — check if it does reveal with TTY (likely not, no pty).
+
+  Also check quality baseline: packages/cli/src/reveal-gate.ts line count vs tools/quality/quality-baseline.json at FETCH_HEAD. And crates file size (Rust not gated by quality:gate module size? "module size (400) + TS complexity" — the module-size gate may cover Rust files too. Let me check tools/quality/quality-baseline.json for reveal_gate entries.
+
+  Also check that crates/connector-host reveal_gate.rs test at the end: `let _ = AgentContextGuard::clear_markers();` after the loop — that line is pointless (drops immediately, restoring nothing since saved was just cleared... actually clear_markers() saves current values and removes them; then immediate drop restores them. Net effect: no-op except it re-removes and restores. Wait: after loop, OPENSESAME_AGENT_LAUNCH_HANDLE was removed explicitly. Then clear_markers saves (nothing set presumably) and removes all markers, then drops immediately restoring saved values. Net no-op. Harmless dead line but sloppy.
+
+  More importantly: the conformance test `conformance_cases_match_ts_fixture` uses AgentContextGuard inside the loop — fine.
+
+  Check the parity fixture consumers and 2password-parity spec.FETCH_HEAD:packages/cli/src/fixtures/password-agent/process.ts
+FETCH_HEAD:packages/cli/src/parity-failures.test.ts
+FETCH_HEAD:packages/cli/src/parity-process.test.ts
+FETCH_HEAD:packages/cli/src/parity-request.test.ts
+FETCH_HEAD:packages/cli/src/parity.test.ts:16:async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
+FETCH_HEAD:packages/cli/src/parity.test.ts:114:        await withTerminal(() =>
+FETCH_HEAD:packages/cli/src/parity.test.ts:137:        await withTerminal(() =>
+FETCH_HEAD:apps/cli/src/certs.rs:4://! `--reveal` or `--out-dir` is given (human operator only).
+FETCH_HEAD:apps/cli/src/certs.rs:89:        bail!("refusing to issue private-key material without --out-dir or --reveal");
+FETCH_HEAD:apps/cli/src/certs.rs:144:                    json!("[written to disk — pass --reveal to print]"),
+FETCH_HEAD:apps/cli/src/certs.rs:148:            bail!("refusing to print a private key on stdout; pass --out-dir or --reveal");
+FETCH_HEAD:apps/cli/src/certs.rs:217:/// `--reveal` for the same reason `pass show` does: a private key should never
+FETCH_HEAD:apps/cli/src/certs.rs:227:        bail!("refusing to print a private key; pass --reveal or --out <path>");
+FETCH_HEAD:apps/cli/src/main.rs:411:    /// Show an entry (requires TTY or `--reveal`).
+FETCH_HEAD:apps/cli/src/main.rs:568:    /// Rotate first-line secrets without printing plaintext unless `--reveal`.
+FETCH_HEAD:apps/cli/src/main.rs:1358:        anyhow::bail!("plaintext output requires --reveal; agents must use ConnectionRef invoke");
+FETCH_HEAD:apps/cli/src/main.rs:1372:                    "lease output requires --reveal; agents must use ConnectionRef invoke"
+FETCH_HEAD:apps/cli/src/main_tests.rs:92:        "--reveal",
+FETCH_HEAD:apps/cli/src/pass_otp.rs:46:    /// TTY or --reveal, like `pass show`.
+FETCH_HEAD:apps/cli/src/pass_otp.rs:136:        // human reveal gate names the terminal; a terminal without --reveal
+FETCH_HEAD:apps/cli/src/pass_otp.rs:142:            message.contains("--reveal") || message.contains("interactive terminals"),
+FETCH_HEAD:apps/cli/src/pass_protect.rs:261:        eprintln!("recovery secret withheld (pass --reveal once to print)");
+FETCH_HEAD:apps/cli/src/pass_protect/rotate.rs:25:    /// a new root without its secret. Requires --reveal.
+FETCH_HEAD:apps/cli/src/pass_protect/rotate.rs:46:        anyhow::bail!("--reissue-recovery prints the new recovery key once; pass --reveal");
+FETCH_HEAD:apps/cli/src/password_agent/mod.rs:181:            "--reveal".into(),
+FETCH_HEAD:apps/cli/src/password_agent/setup.rs:233:            "--reveal".into(),
+FETCH_HEAD:apps/cli/src/store.rs:563:/// Rotate first-line secrets without printing plaintext unless `--reveal`.
+FETCH_HEAD:apps/cli/tests/attach_journey.rs:162:            "--reveal",
+FETCH_HEAD:apps/cli/tests/attach_journey.rs:189:    // No TTY and no --reveal is exactly the shape of an agent invocation.
+FETCH_HEAD:apps/cli/tests/attach_journey.rs:190:    // Off a terminal the gate names that fact before it mentions --reveal.
+FETCH_HEAD:apps/cli/tests/attach_journey.rs:330:            "--reveal",
+FETCH_HEAD:apps/cli/tests/protect_rotation_journey.rs:135:    let out = run_as_person(store, password, &["pass", "show", "Dev/token", "--reveal"]);
+FETCH_HEAD:apps/cli/tests/protect_rotation_journey.rs:152:            "--reveal",
+FETCH_HEAD:crates/kdbx-bridge/README.md:47:TTY/reveal ceremony as `opensesame pass show --reveal`, never from the agent
+FETCH_HEAD:crates/kdbx-bridge/src/export.rs:115:/// behind the same ceremony as `pass show --reveal`.
+FETCH_HEAD:crates/kdbx-bridge/src/lib.rs:19://! the same TTY/reveal ceremony as `opensesame pass show --reveal`, never
+FETCH_HEAD:crates/pm-bridges/src/lib.rs:24://!    anchor is `opensesame pass show --reveal` with a protocol adapter
+FETCH_HEAD:packages/cli/README.md:76:stdin and stdout are both TTYs, you pass `--reveal`, `op://` reads also need
+FETCH_HEAD:packages/cli/src/parity-failures.test.ts:191:      "--reveal",
+FETCH_HEAD:packages/cli/src/parity-process.test.ts:103:          "--reveal",
+FETCH_HEAD:packages/cli/src/parity-process.test.ts:116:          "--reveal",
+FETCH_HEAD:packages/cli/src/parity-process.test.ts:124:      "--reveal",
+FETCH_HEAD:packages/cli/src/parity.test.ts:115:          runCli(["read", "op://v/i/f", "--desktop", "--reveal"], {
+FETCH_HEAD:packages/cli/src/parity.test.ts:146:              "--reveal",
+FETCH_HEAD:packages/cli/src/parity.ts:43:  const reveal = toggle(args, "--reveal");
+FETCH_HEAD:packages/cli/src/parse.ts:325:  read <op://reference> [--reveal] [--desktop]
+FETCH_HEAD:scripts/test/2password-native-pr
+ocess.test.ts:99:      "--reveal",
+$comment ['Structural-complexity debt ledger -- see scripts/quality/quality-gate.mjs.', 'These numbers may only ever go DOWN. Regenerate with:', '  pnpm quality:gate --update', 'Do not hand-edit, and do not raise a number to make the gate pass.', "max-lines records the file's line count; every other rule counts occurrences."]
+thresholds {'max-lines': 400, 'max-lines-per-function': 100, 'complexity': 15, 'max-params': 7, 'max-depth': 4, 'max-nested-callbacks': 4, 'max-statements': 40}
+totals {'files': 426, 'violations': 659, 'oversizedLines': 215937}
+files {'apps/browser-extension/entrypoints/popup/main.ts': {'complexity': 1}, 'apps/cli/src/bridge.rs': {'max-lines': 514}, 'apps/cli/src/configs.rs': {'max-lines': 587}, 'apps/cli/src/connect.rs': {'max-lines': 1467}, 'apps/cli/src/main.rs': {'max-lines': 1898}, 'apps/cli/src/providers_native.rs': {'max-lines': 466}, 'apps/cli/src/store.rs': {'max-lines': 945}, 'apps/pages/scripts/lib/j-app-recipe-journey.mjs': {'max-statements': 1}, 'apps/pages/server/github-app.mjs': {'complexity': 3, 'max-depth': 2, 'max-lines-per-function': 1, 'max-statements': 1}, 'apps/pages/server/server.mjs': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'apps/pages/src/components/AccountSwitcher.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/components/Crumbs.tsx': {'complexity': 1}, 'apps/pages/src/components/FieldShell.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/components/IdentityCeremony.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/components/InstallOffer.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/components/NotificationsBar.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/components/ProjectSwitcher.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/components/rail-path.ts': {'complexity': 1}, 'apps/pages/src/lib/agent-page-dump.ts': {'complexity': 1}, 'apps/pages/src/lib/install.ts': {'max-lines': 495}, 'apps/pages/src/lib/keymap.coverage.test.ts': {'max-lines': 623}, 'apps/pages/src/screens/BrokerAuthorize.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/screens/SetupScreen.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/screens/SiopAuthorize.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/screens/UnlockScreen.test.tsx': {'max-lines': 1292}, 'apps/pages/src/screens/UnlockScreen.tsx': {'complexity': 1, 'max-lines': 840, 'max-lines-per-function': 1, 'max-statements': 1}, 'apps/pages/src/screens/VaultsScreen.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/screens/setup/WaysIn.tsx': {'complexity': 1, 'max-lines': 403, 'max-lines-per-function': 1}, 'apps/pages/src/screens/unlock/ByoProviderSheet.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/screens/unlock/IdentifierField.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/screens/unlock/SignInPanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/screens/unlock/UnlockUserMenu.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/ConnectionsSection.test.tsx': {'max-lines': 481}, 'apps/pages/src/sections/ConnectionsSection.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/sections/IdentitySection.test.tsx': {'max-lines': 816}, 'apps/pages/src/sections/IdentitySection.tsx': {'max-lines': 1920, 'max-lines-per-function': 8}, 'apps/pages/src/sections/SettingsSection.tsx': {'complexity': 1}, 'apps/pages/src/sections/VaultSection.test.tsx': {'max-lines': 677}, 'apps/pages/src/sections/VaultSection.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/access/ConnectorBindForm.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/access/LocalRequestsPanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/access/LocalSharePanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/access/VaultSessionsPanel.tsx': {'max-lines-per-function': 2}, 'apps/pages/src/sections/connections/ConnectForm.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/connections/ConnectionCard.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/sections/connections/NeedsAttention.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/connections/SettingsPage.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/sections/identity/ApplicationDiagnostics.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/identity/LocalMemberships.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/settings/UnlockMethodsPanel.tsx': {'complexity': 1, 'max-lines-per-function': 1}, 'apps/pages/src/sections/settings/security/KeyCeremony.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx': {'complexity': 2, 'max-lines': 869, 'max-lines-per-function': 3}, 'apps/pages/src/sections/vault/HealthPanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/vault/ItemDetail.test.tsx': {'max-lines': 587}, 'apps/pages/src/sections/vault/ItemDetail.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/vault/ItemEditor.test.tsx': {'max-lines': 616}, 'apps/pages/src/sections/vault/ItemEditor.tsx': {'complexity': 2, 'max-lines-per-function': 1}, 'apps/pages/src/sections/vault/VaultTree.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/wallet/BudgetsPanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/sections/wallet/PassesPanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts': {'max-nested-callbacks': 1}, 'apps/pages/src/tutorial/session.ts': {'complexity': 1, 'max-lines': 664, 'max-lines-per-function': 1}, 'apps/pages/src/tutorial/ui/SupportPanel.tsx': {'max-lines-per-function': 1}, 'apps/pages/src/tutorial/ui/support.test.tsx': {'max-lines': 519}, 'crates/agent-events/src/lib.rs': {'max-lines': 493}, 'crates/authenticator-core/src/lib.rs': {'max-lines': 487}, 'crates/breach-intel/src/event.rs': {'max-lines': 452}, 'crates/broker/src/frozen.rs': {'max-lines': 620}, 'crates/ceremony/src/capture.rs': {'max-lines': 506}, 'crates/connection-broker/src/catalog.rs': {'max-lines': 821}, 'crates/connection-broker/src/config.rs': {'max-lines': 676}, 'crates/connection-broker/src/delegation.rs': {'max-lines': 1570}, 'crates/connection-broker/src/egress.rs': {'max-lines': 526}, 'crates/connection-broker/src/flow.rs': {'max-lines': 604}, 'crates/connection-broker/src/integration.rs': {'max-lines': 927}, 'crates/connection-broker/src/lib.rs': {'max-lines': 2394}, 'crates/connection-broker/src/model.rs': {'max-lines': 430}, 'crates/connection-broker/src/rotation.rs': {'max-lines': 1727}, 'crates/connection-broker/src/secret_config.rs': {'max-lines': 824}, 'crates/connection-broker/src/store.rs': {'max-lines': 2736}, 'crates/connection-broker/src/sync_target.rs': {'max-lines': 807}, 'crates/connection-broker/src/tests/connection_lifecycle.rs': {'max-lines': 878}, 'crates/connection-broker/src/tests/credential_minting.rs': {'max-lines': 819}, 'crates/connection-broker/src/tests/org_integrations.rs': {'max-lines': 480}, 'crates/connection-broker/src/tests/revocation_cleanup.rs': {'max-lines': 641}, 'crates/connection-broker/src/tests/web_rotation.rs': {'max-lines': 1152}, 'crates/connection-broker/src/token.rs': {'max-lines': 422}, 'crates/connection-detect/src/lib.rs': {'max-lines': 1300}, 'crates/connection-detect/src/offers.rs': {'max-lines': 501}, 'crates/connector-host/src/lib.rs': {'max-lines': 1012}, 'crates/connector-host/src/manifest.rs': {'max-lines': 515}, 'crates/connector-host/src/providers.rs': {'max-lines': 1439}, 'crates/connector-host/src/wasm.rs': {'max-lines': 699}, 'crates/daemon/src/cli_probe.rs': {'max-lines': 700}, 'crates/daemon/src/invoke_through.rs': {'max-lines': 801}, 'crates/daemon/src/lib.rs': {'max-lines': 1500}, 'crates/daemon/src/promote.rs': {'max-lines': 1338}, 'crates/daemon/src/runner.rs': {'max-lines': 476}, 'crates/daemon/src/tailscale.rs': {'max-lines': 439}, 'crates/domain/src/authority.rs': {'max-lines': 700}, 'crates/domain/src/capability.rs': {'max-lines': 412}, 'crates/domain/src/shared_session.rs': {'max-lines': 510}, 'crates/domain/src/shared_session_adversarial.rs': {'max-lines': 583}, 'crates/enforcement/src/conformance.rs': {'max-lines': 413}, 'crates/gateway/src/backup.rs': {'max-lines': 754}, 'crates/gateway/src/cert_issuers/acme.rs': {'max-lines': 739}, 'crates/gateway/src/cert_issuers/model.rs': {'max-lines': 721}, 'crates/gateway/src/cert_issuers/registry.rs': {'max-lines': 493}, 'crates/gateway/src/lifecycle/responders.rs': {'max-lines': 411}, 'crates/gateway/src/lifecycle/scanner.rs': {'max-lines': 638}, 'crates/gateway/src/lifecycle/subjects.rs': {'max-lines': 713}, 'crates/gateway/src/managed_certs.rs': {'max-lines': 637}, 'crates/gateway/src/routes/agents.rs': {'max-lines': 440}, 'crates/gateway/src/routes/attachments.rs': {'max-lines': 900}, 'crates/gateway/src/routes/backup.rs': {'max-lines': 551}, 'crates/gateway/src/routes/certmgr_ca.rs': {'max-lines': 3491}, 'crates/gateway/src/routes/certmgr_policy.rs': {'max-lines': 1673}, 'crates/gateway/src/routes/certmgr_profile.rs': {'max-lines': 1426}, 'crates/gateway/src/routes/certs.rs': {'max-lines': 1739}, 'crates/gateway/src/routes/connections.rs': {'max-lines': 1126}, 'crates/gateway/src/routes/connections/tests.rs': {'max-lines': 1688}, 'crates/gateway/src/routes/intents.rs': {'max-lines': 530}, 'crates/gateway/src/routes/kv_facade.rs': {'max-lines': 758}, 'crates/gateway/src/routes/kv_facade/tests.rs': {'max-lines': 747}, 'crates/gateway/src/routes/lifecycle.rs': {'max-lines': 1592}, 'crates/gateway/src/routes/relay.rs': {'max-lines': 955}, 'crates/gateway/src/routes/rotation.rs': {'max-lines': 645}, 'crates/gateway/src/routes/security.rs': {'max-lines': 838}, 'crates/gateway/src/routes/shared_sessions.rs': {'max-lines': 632}, 'crates/gateway/src/routes/shared_sessions/tests.rs': {'max-lines': 1169}, 'crates/gateway/src/routes/tasks.rs': {'max-lines': 979}, 'crates/gateway/src/security/delivery.rs': {'max-lines': 691}, 'crates/gateway/src/security/hooks.rs': {'max-lines': 550}, 'crates/gateway/src/sync_actor.rs': {'max-lines': 580}, 'crates/human-vault/src/lib.rs': {'max-lines': 792}, 'crates/kdbx-bridge/src/import.rs': {'max-lines': 426}, 'crates/kdbx-bridge/src/map.rs': {'max-lines': 1181}, 'crates/kdbx-bridge/tests/roundtrip.rs': {'max-lines': 510}, 'crates/pki-core/src/ca.rs': {'max-lines': 477}, 'crates/pki-core/src/policy.rs': {'max-lines': 1606}, 'crates/pki-core/src/revocation.rs': {'max-lines': 1288}, 'crates/pki-core/src/types.rs': {'max-lines': 915}, 'crates/pki-core/src/x509.rs': {'max-lines': 553}, 'crates/pm-bridges/src/keepassxc/actions.rs': {'max-lines': 646}, 'crates/pm-bridges/src/manifest.rs': {'max-lines': 458}, 'crates/pm-bridges/src/pairing.rs': {'max-lines': 646}, 'crates/pm-bridges/src/store.rs': {'max-lines': 439}, 'crates/pm-bridges/tests/keepassxc_handshake.rs': {'max-lines': 656}, 'crates/proof/src/http_message_signature.rs': {'max-lines': 438}, 'crates/provider-bitwarden/src/crypto.rs': {'max-lines': 795}, 'crates/provider-bitwarden/src/vault.rs': {'max-lines': 520}, 'crates/provider-bitwarden/tests/api_stub.rs': {'max-lines': 442}, 'crates/provider-bitwarden/tests/common/mod.rs': {'max-lines': 485}, 'crates/rotation-web/src/extension.rs': {'max-lines': 459}, 'crates/rotation-web/tests/ceremony_capture.rs': {'max-lines': 420}, 'crates/sealed-store/src/attachment.rs': {'max-lines': 1185}, 'crates/sealed-store/src/git.rs': {'max-lines': 432}, 'crates/sealed-store/src/store.rs': {'max-lines': 627}, 'crates/session-observe/src/lease.rs': {'max-lines': 625}, 'crates/storage/src/lib.rs': {'max-lines': 2069}, 'crates/storage/src/observation.rs': {'max-lines': 467}, 'crates/storage/src/security.rs': {'max-lines': 1595}, 'crates/storage/src/shared_sessions.rs': {'max-lines': 576}, 'crates/storage/src/tests.rs': {'max-lines': 2996}, 'crates/storage/tests/session_coordination_store.rs': {'max-lines': 530}, 'crates/storage/tests/shared_sessions_store.rs': {'max-lines': 751}, 'crates/storage/tests/support/mod.rs': {'max-lines': 411}, 'crates/tailscale-authn/src/lib.rs': {'max-lines': 435}, 'crates/task-access/src/engine.rs': {'max-lines': 863}, 'crates/task-access/src/postgres.rs': {'max-lines': 901}, 'crates/task-access/src/sqlite_store.rs': {'max-lines': 854}, 'crates/task-access/src/tests.rs': {'max-lines': 444}, 'crates/vault-item-types/src/validate.rs': {'max-lines': 443}, 'examples/rp-alpha/src/RpApp.tsx': {'max-lines-per-function': 1}, 'examples/rp-beta/src/RpApp.tsx': {'max-lines-per-function': 1}, 'packages/agent-protocols/src/assertion.ts': {'complexity': 1}, 'packages/agent-protocols/src/render.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/api-client/src/index.ts': {'max-lines': 771, 'max-lines-per-function': 1}, 'packages/app-core/src/lib/capabilities.ts': {'complexity': 2}, 'packages/app-core/src/lib/command-bar/speech.ts': {'max-lines-per-function': 1}, 'packages/app-core/src/lib/connections.ts': {'max-lines': 472}, 'packages/app-core/src/lib/crumbs.ts': {'complexity': 1}, 'packages/app-core/src/lib/directory.ts': {'max-lines': 456}, 'packages/app-core/src/lib/federation.test.ts': {'max-lines': 1396}, 'packages/app-core/src/lib/federation.ts': {'complexity': 2, 'max-lines': 935, 'max-lines-per-function': 1}, 'packages/app-core/src/lib/github-app-presence.ts': {'complexity': 1}, 'packages/app-core/src/lib/guest-auth.units.test.ts': {'max-lines': 544}, 'packages/app-core/src/lib/history-backups.ts': {'complexity': 1}, 'packages/app-core/src/lib/identity-graph.ts': {'complexity': 1}, 'packages/app-core/src/lib/identity-session.test.ts': {'max-lines': 447}, 'packages/app-core/src/lib/identity.ts': {'max-lines': 642}, 'packages/app-core/src/lib/idp-registry.ts': {'complexity': 1}, 'packages/app-core/src/lib/local-vault-sessions.ts': {'complexity': 1}, 'packages/app-core/src/lib/projects.ts': {'max-lines': 466}, 'packages/app-core/src/lib/settings.ts': {'max-lines': 429}, 'packages/app-core/src/lib/siop-keys.ts': {'complexity': 1}, 'packages/app-core/src/lib/site-broker.test.ts': {'max-lines': 438}, 'packages/app-core/src/lib/site-broker.ts': {'complexity': 1, 'max-lines': 518}, 'packages/app-core/src/lib/vault/drop.test.ts': {'max-lines': 526}, 'packages/app-core/src/lib/vault/export/cxf.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/app-core/src/lib/vault/import/formats-extra.test.ts': {'max-lines': 663}, 'packages/app-core/src/lib/vault/import/formats.test.ts': {'max-lines': 783}, 'packages/app-core/src/lib/vault/import/formats/bitwarden.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/app-core/src/lib/vault/import/formats/browsers.ts': {'complexity': 1}, 'packages/app-core/src/lib/vault/import/formats/cxf.test.ts': {'max-lines': 473}, 'packages/app-core/src/lib/vault/import/formats/cxf.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/app-core/src/lib/vault/import/formats/kdbx.ts': {'complexity': 3, 'max-lines': 413, 'max-lines-per-function': 1}, 'packages/app-core/src/lib/vault/import/formats/onepassword.ts': {'complexity': 2, 'max-depth': 5, 'max-statements': 1}, 'packages/app-core/src/lib/vault/import/formats/protonpass.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/app-core/src/lib/vault/import/merge.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/app-core/src/lib/vault/password.ts': {'complexity': 1, 'max-lines': 496}, 'packages/app-core/src/lib/vault/store-ops.test.ts': {'max-lines': 658}, 'packages/app-core/src/lib/vault/store.test.ts': {'max-lines': 498}, 'packages/app-core/src/lib/vault/store.ts': {'max-lines': 1599}, 'packages/app-core/src/lib/vault/unlock-methods.ts': {'max-lines': 575}, 'packages/app-core/src/lib/vfs.ts': {'max-lines': 441}, 'packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts': {'max-lines': 676}, 'packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.ts': {'complexity': 1, 'max-lines': 412}, 'packages/app-core/src/tutorial/agents/prompt-api/prompt-api-agent.test.ts': {'max-lines': 451}, 'packages/audit/src/__tests__/chain.test.ts': {'max-lines': 419}, 'packages/audit/src/append.ts': {'complexity': 1}, 'packages/audit/src/changelog.ts': {'complexity': 1}, 'packages/auth-upstream/src/__tests__/webauthn-adapter.test.ts': {'max-lines': 487}, 'packages/auth-upstream/src/authentication-service.ts': {'complexity': 2, 'max-lines': 607, 'max-lines-per-function': 1}, 'packages/auth-upstream/src/webauthn.ts': {'max-lines': 422}, 'packages/capability-registry/src/index.ts': {'max-lines': 1617}, 'packages/ceremony-kit/src/interaction-client.ts': {'max-lines': 412, 'max-lines-per-function': 1}, 'packages/ceremony-kit/src/interaction-url.ts': {'max-lines': 433}, 'packages/claims/src/__tests__/engine-lifecycle.test.ts': {'max-lines': 457}, 'packages/claims/src/engine.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/cli/src/commands.test.ts': {'max-lines': 725}, 'packages/cli/src/parse.ts': {'complexity': 1, 'max-statements': 1}, 'packages/cli/src/run.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/client-core/src/index.ts': {'complexity': 1}, 'packages/contracts/src/connections.ts': {'max-lines': 436}, 'packages/control-plane/src/__tests__/api.test.ts': {'max-lines': 2288}, 'packages/control-plane/src/__tests__/approval-ceremony.test.ts': {'max-lines': 1132}, 'packages/control-plane/src/__tests__/auth-upstream.test.ts': {'max-lines': 644}, 'packages/control-plane/src/__tests__/authentication-service.test.ts': {'max-lines': 496}, 'packages/control-plane/src/__tests__/byo-upstream.test.ts': {'max-lines': 991}, 'packages/control-plane/src/__tests__/federated-interaction.test.ts': {'max-lines': 1612}, 'packages/control-plane/src/__tests__/federated-leg.chaos.test.ts': {'complexity': 1, 'max-lines': 413}, 'packages/control-plane/src/__tests__/federated-pending.fuzz.test.ts': {'complexity': 1}, 'packages/control-plane/src/__tests__/federated-session.test.ts': {'max-lines': 422}, 'packages/control-plane/src/__tests__/identity-link.units.test.ts': {'max-lines': 844}, 'packages/control-plane/src/__tests__/interaction-handoff.test.ts': {'max-lines': 867}, 'packages/control-plane/src/__tests__/ldap-bind.test.ts': {'max-lines': 785}, 'packages/control-plane/src/__tests__/ldap-sync.test.ts': {'max-lines': 407}, 'packages/control-plane/src/__tests__/notification-callbacks.test.ts': {'max-lines': 699}, 'packages/control-plane/src/__tests__/oauth2-leg.test.ts': {'max-lines': 489}, 'packages/control-plane/src/__tests__/org-domains.test.ts': {'max-lines': 517}, 'packages/control-plane/src/__tests__/org-signin-flow.test.ts': {'max-lines': 561}, 'packages/control-plane/src/__tests__/organizations-edge.test.ts': {'max-lines': 680}, 'packages/control-plane/src/__tests__/organizations-tenant.test.ts': {'max-lines': 413}, 'packages/control-plane/src/__tests__/origin-claim-admin.test.ts': {'max-lines': 961}, 'packages/control-plane/src/__tests__/origin-consent-ui.test.ts': {'max-lines': 667}, 'packages/control-plane/src/__tests__/origin-profile-issuer.test.ts': {'max-lines': 617}, 'packages/control-plane/src/__tests__/pact-chaos.test.ts': {'complexity': 1}, 'packages/control-plane/src/__tests__/principals-edge.test.ts': {'max-lines': 474}, 'packages/control-plane/src/__tests__/projects-edge.test.ts': {'max-lines': 816}, 'packages/control-plane/src/__tests__/registry.units.test.ts': {'max-lines': 1164}, 'packages/control-plane/src/__tests__/saml-security.test.ts': {'max-lines': 463}, 'packages/control-plane/src/__tests__/saml-sp.test.ts': {'max-lines': 534}, 'packages/control-plane/src/__tests__/scim.test.ts': {'max-lines': 627}, 'packages/control-plane/src/app.ts': {'max-lines-per-function': 1, 'max-statements': 1}, 'packages/control-plane/src/config.ts': {'complexity': 2, 'max-lines': 483, 'max-lines-per-function': 2, 'max-statements': 1}, 'packages/control-plane/src/create-app.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/control-plane/src/interactions/byo.ts': {'max-lines': 436}, 'packages/control-plane/src/interactions/federated.ts': {'max-lines': 842}, 'packages/control-plane/src/interactions/handlers.ts': {'complexity': 2, 'max-lines': 607}, 'packages/control-plane/src/interactions/ldap.ts': {'complexity': 1, 'max-lines': 653, 'max-lines-per-function': 1}, 'packages/control-plane/src/interactions/oauth2.ts': {'complexity': 1, 'max-lines': 474}, 'packages/control-plane/src/interactions/registry.ts': {'complexity': 2, 'max-lines': 744}, 'packages/control-plane/src/interactions/saml.ts': {'complexity': 2, 'max-lines': 1001, 'max-lines-per-function': 2, 'max-statements': 1}, 'packages/control-plane/src/openapi.ts': {'max-lines': 1755, 'max-lines-per-function': 1}, 'packages/control-plane/src/routes/agents.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/approval-ceremony.ts': {'complexity': 1, 'max-lines': 410, 'max-lines-per-function': 1}, 'packages/control-plane/src/routes/audit.ts': {'complexity': 1}, 'packages/control-plane/src/routes/authentication-service.ts': {'max-lines': 1110}, 'packages/control-plane/src/routes/authorization-requests.ts': {'complexity': 3, 'max-lines': 1396, 'max-lines-per-function': 4, 'max-statements': 1}, 'packages/control-plane/src/routes/claims.ts': {'complexity': 1, 'max-lines': 662, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/control-plane/src/routes/device.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/interaction-activation.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/control-plane/src/routes/interaction-handoff.ts': {'complexity': 2, 'max-lines': 1121, 'max-lines-per-function': 4}, 'packages/control-plane/src/routes/interactions-byo.ts': {'max-lines-per-function': 2}, 'packages/control-plane/src/routes/interactions-email.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/interactions-ldap.ts': {'complexity': 1, 'max-lines-per-function': 2, 'max-statements': 1}, 'packages/control-plane/src/routes/interactions-saml.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/interactions.ts': {'complexity': 1, 'max-depth': 1, 'max-lines': 770, 'max-lines-per-function': 2, 'max-statements': 1}, 'packages/control-plane/src/routes/mfa.ts': {'max-lines': 637, 'max-lines-per-function': 1}, 'packages/control-plane/src/routes/notification-callbacks.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/control-plane/src/routes/notification-channels.ts': {'complexity': 1, 'max-lines': 629, 'max-lines-per-function': 2}, 'packages/control-plane/src/routes/openid4vci.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/openid4vp.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/org-assertion.ts': {'complexity': 1}, 'packages/control-plane/src/routes/org-domains.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/org-ldap.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/routes/organizations.ts': {'complexity': 1, 'max-lines': 954}, 'packages/control-plane/src/routes/principals.ts': {'complexity': 2, 'max-lines': 738, 'max-lines-per-function': 3}, 'packages/control-plane/src/routes/projects.ts': {'complexity': 1, 'max-lines': 657, 'max-lines-per-function': 2}, 'packages/control-plane/src/routes/scim.ts': {'max-lines': 554, 'max-lines-per-function': 1}, 'packages/control-plane/src/routes/siop-link.ts': {'complexity': 1}, 'packages/control-plane/src/routes/wallet-registration.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/server.ts': {'complexity': 2, 'max-lines-per-function': 2, 'max-statements': 1}, 'packages/control-plane/src/services/agent-auth.ts': {'complexity': 1, 'max-lines': 641}, 'packages/control-plane/src/services/app-claim.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/control-plane/src/services/better-auth-bridge.ts': {'complexity': 1, 'max-lines': 424, 'max-lines-per-function': 1}, 'packages/control-plane/src/services/identity-link.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/control-plane/src/services/mailer.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/services/siop-verify.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/control-plane/src/services/wallet-registration.ts': {'max-lines-per-function': 1}, 'packages/control-plane/src/state.ts': {'complexity': 1}, 'packages/control-plane/src/ui/interaction-pages.ts': {'max-lines': 789}, 'packages/database/src/authentication-service-store.ts': {'max-lines': 860, 'max-lines-per-function': 2}, 'packages/database/src/client-store.ts': {'complexity': 1}, 'packages/database/src/consent-store.ts': {'max-lines-per-function': 1}, 'packages/database/src/org-federation-store.ts': {'max-lines-per-function': 1}, 'packages/database/src/repos/agent-auth-repo.ts': {'max-lines': 630, 'max-lines-per-function': 1}, 'packages/database/src/repos/interfaces.ts': {'max-lines': 856}, 'packages/database/src/repos/memory.ts': {'max-lines': 1718}, 'packages/database/src/repos/postgres.ts': {'complexity': 1, 'max-lines': 2691}, 'packages/database/src/schema/index.ts': {'max-lines': 2370}, 'packages/database/src/scim-store.ts': {'max-lines-per-function': 1}, 'packages/database/tests/federation-stores.test.ts': {'max-lines': 941}, 'packages/database/tests/interactions-repos.test.ts': {'max-lines': 529}, 'packages/database/tests/memory-repos-extended.test.ts': {'max-lines': 481}, 'packages/database/tests/notification-repos.test.ts': {'max-lines': 624}, 'packages/database/tests/pact.test.ts': {'max-nested-callbacks': 1}, 'packages/database/tests/postgres-repos.test.ts': {'max-lines': 1279}, 'packages/env-spec-bridge/bin/opensesame-env-parse.mjs': {'complexity': 1}, 'packages/guide-lang/src/errors.ts': {'complexity': 1}, 'packages/guide-lang/src/parse.test.ts': {'max-lines': 490}, 'packages/guide-lang/src/parse.ts': {'complexity': 2, 'max-lines': 583, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/guide-runtime/src/runtime.test.ts': {'max-lines': 984}, 'packages/guide-runtime/src/runtime.ts': {'max-lines-per-function': 1}, 'packages/identity-worker/src/__tests__/notifications.test.ts': {'max-lines': 1131}, 'packages/identity-worker/src/cleanup.ts': {'complexity': 1, 'max-lines': 410, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/identity-worker/src/notifications.ts': {'complexity': 2, 'max-lines': 964, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/identity-worker/src/rotation.ts': {'complexity': 2, 'max-depth': 2}, 'packages/mcp-client/src/server.test.ts': {'max-lines': 450}, 'packages/mcp-client/src/server.ts': {'max-lines-per-function': 1}, 'packages/mcp-host/src/tools-act.ts': {'max-lines-per-function': 1}, 'packages/mcp-host/src/tools-handlers.test.ts': {'max-lines': 587}, 'packages/mcp-host/src/tools.ts': {'max-lines': 434, 'max-lines-per-function': 1}, 'packages/notification-adapters/src/__tests__/slack.test.ts': {'max-lines': 432}, 'packages/notification-adapters/src/adapters/slack.ts': {'complexity': 1, 'max-lines': 439, 'max-lines-per-function': 1}, 'packages/notification-adapters/src/adapters/telegram.ts': {'max-lines-per-function': 1}, 'packages/notification-adapters/src/adapters/wechat.ts': {'max-lines-per-function': 1}, 'packages/oauth-provider/src/adapter/memory-adapter.ts': {'max-lines-per-function': 1}, 'packages/oauth-provider/src/create-provider.ts': {'complexity': 1, 'max-lines': 456, 'max-lines-per-function': 1}, 'packages/oauth-provider/src/metadata/safe-fetcher.ts': {'complexity': 3}, 'packages/openid4vci/src/issue.ts': {'max-lines': 424}, 'packages/openid4vci/src/offer.ts': {'complexity': 1, 'max-lines': 483}, 'packages/openid4vci/src/proof.ts': {'complexity': 2}, 'packages/openid4vp/src/request.test.ts': {'max-lines': 422}, 'packages/openid4vp/src/request.ts': {'complexity': 1, 'max-lines': 632, 'max-lines-per-function': 1}, 'packages/openid4vp/src/verify.test.ts': {'max-lines': 1097}, 'packages/openid4vp/src/verify.ts': {'complexity': 2, 'max-lines': 837, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/os-domain/src/__tests__/notification-routing.test.ts': {'max-lines': 557}, 'packages/os-domain/src/__tests__/transaction-binding.test.ts': {'max-lines': 412}, 'packages/os-domain/src/approval-ceremony.ts': {'max-lines': 456}, 'packages/os-domain/src/authority-templates/parse.ts': {'complexity': 1}, 'packages/os-domain/src/authorization-details.ts': {'complexity': 2, 'max-lines': 447}, 'packages/os-domain/src/notifications.ts': {'complexity': 1, 'max-lines': 977}, 'packages/os-domain/src/types.ts': {'max-lines': 865}, 'packages/os-domain/src/wallet/amount.ts': {'complexity': 1}, 'packages/os-domain/src/wallet/payment-intent.ts': {'complexity': 1, 'max-lines': 412, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/policy/src/__tests__/authority-additivity.test.ts': {'max-lines': 491}, 'packages/sdk-browser/src/client.test.ts': {'max-lines': 546}, 'packages/sdk-browser/src/client.ts': {'complexity': 1, 'max-lines': 543, 'max-lines-per-function': 1}, 'packages/sdk-browser/src/edge-cases.test.ts': {'max-lines': 854}, 'packages/sdk-browser/src/webauthn.ts': {'complexity': 1}, 'packages/sdk-cli/src/control-plane.ts': {'max-lines-per-function': 1}, 'packages/sdk-cli/src/loopback.ts': {'max-lines-per-function': 2, 'max-statements': 1}, 'packages/sdk-server/src/verifier.test.ts': {'max-lines': 424}, 'packages/sdk-server/src/verifier.ts': {'complexity': 1}, 'packages/siop-v2/src/id-token.ts': {'complexity': 1}, 'packages/siop-v2/src/jwk.ts': {'complexity': 1}, 'packages/siop-v2/src/request.ts': {'complexity': 1}, 'packages/siop-v2/src/response.ts': {'complexity': 1}, 'packages/support-agent/src/egress.test.ts': {'max-lines': 494}, 'packages/support-agent/src/egress.ts': {'complexity': 1, 'max-lines': 550}, 'packages/support-agent/src/instructions.ts': {'complexity': 1}, 'packages/support-agent/src/session.ts': {'max-lines-per-function': 1, 'max-statements': 1}, 'packages/support-agent/src/turn.test.ts': {'max-lines': 437}, 'packages/support-agent/src/turn.ts': {'max-lines': 508}, 'packages/trust-broker/src/approval.ts': {'complexity': 1}, 'packages/trust-broker/src/index.ts': {'complexity': 1}, 'packages/vault-core/src/model.test.ts': {'max-lines': 416}, 'packages/vault-core/src/model.ts': {'complexity': 1}, 'packages/vault-item-types/src/native.ts': {'complexity': 1, 'max-statements': 1}, 'packages/vault-item-types/src/validate.ts': {'complexity': 2, 'max-lines': 713, 'max-lines-per-function': 2, 'max-statements': 1}, 'packages/wallet-budget/src/holds.ts': {'max-statements': 1}, 'packages/wallet-evm/src/direct-erc20-delegation.ts': {'max-lines-per-function': 2}, 'packages/wallet-policy/src/assess.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'packages/wallet-policy/src/compare.ts': {'complexity': 1}, 'packages/wallet-x402/src/assess.ts': {'complexity': 1, 'max-lines-per-function': 1, 'max-statements': 1}, 'packages/wallet/src/google-client.ts': {'max-lines-per-function': 1}, 'packages/wallet/src/google.test.ts': {'max-lines': 597}, 'packages/wallet/src/google.ts': {'max-lines': 405}, 'packages/wallet/src/payload.test.ts': {'max-lines': 592}, 'packages/wallet/src/payload.ts': {'complexity': 1, 'max-lines': 897}, 'packages/webmcp/src/registrar.test.ts': {'max-lines': 474}, 'scripts/wallet/browser-harness.mjs': {'max-lines-per-function': 2, 'max-statements': 1}, 'scripts/wallet/contracts-harness.mjs': {'max-lines': 449}, 'scripts/wallet/lib/deny-mainnet.mjs': {'complexity': 1}, 'scripts/wallet/protocols-harness.mjs': {'complexity': 1, 'max-lines': 552, 'max-lines-per-function': 1, 'max-statements': 1}, 'tests/fuzz/cargo/src/lib.rs': {'max-lines': 1258}, 'tests/fuzz/cargo/src/types.rs': {'max-lines': 553}, 'tests/fuzz/jazzer/src/taskbus_contract.ts': {'complexity': 1}, 'tests/redteam/src/mcp-provider.ts': {'complexity': 1}, 'tests/redteam/src/structural.pact.test.ts': {'max-lines': 444}, 'tools/mock-upstream-idp/src/config.ts': {'complexity': 1}, 'tools/mock-upstream-idp/src/oauth2.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'tools/mock-upstream-idp/src/saml.ts': {'max-lines': 418}, 'tools/mock-upstream-idp/src/server-routes.test.ts': {'max-lines': 549}, 'tools/mock-upstream-idp/src/server.ts': {'complexity': 1, 'max-lines': 751, 'max-lines-per-function': 2, 'max-statements': 1}, 'tools/mock-upstream-idp/src/testkit-oidc.test.ts': {'max-lines': 486}, 'tools/mock-upstream-idp/src/testkit.ts': {'max-lines-per-function': 1}, 'tools/oxlint/anti-slop/rules/no-known-value-widening.ts': {'complexity': 1, 'max-lines': 407, 'max
+-lines-per-function': 1}, 'tools/oxlint/anti-slop/rules/no-module-mocking.ts': {'complexity': 1, 'max-statements': 1}, 'tools/oxlint/anti-slop/rules/no-unknown-returns.ts': {'complexity': 1, 'max-lines-per-function': 1}, 'tools/oxlint/anti-slop/rules/no-widen-then-assert.ts': {'complexity': 2}, 'tools/oxlint/anti-slop/shared/dictionary-types.ts': {'complexity': 6, 'max-lines': 892, 'max-lines-per-function': 1}, 'tools/oxlint/anti-slop/shared/lexical-type-parameters.ts': {'complexity': 4, 'max-lines': 443}, 'tools/oxlint/anti-slop/shared/reflect-method.ts': {'complexity': 1}}
+The baseline grep for reveal-gate failed because grep found nothing in the file listing output? Actually grep exit 1 — no "reveal-gate" entries in baseline. Files not in the baseline get zero → new code meets budget outright. reveal-gate.ts is now ~120 lines, under 400 — fine. parity.test.ts changes fine.
+
+  Now the key regression-hunt items:
+
+  1. `scripts/test/2password-native-process.test.ts:99` uses "--reveal" — does that spawn the CLI with process.env (inheriting CI=true/GITHUB_ACTIONS) and use a pty? If it simulates TTY, the new CI marker would make it fail in CI. Does the PR scrub it? The diff doesn't touch it. Let me examine it.
+
+  2. `apps/cli/tests/protect_rotation_journey.rs` — `pass show ... --reveal` via `run_as_person`. Does that use a pty? If it uses a pty (to satisfy the TTY requirement), then the agent-context check now fires first in CI (CI=true) and the test would fail. The PR only scrubbed attach_journey.rs. Need to check protect_rotation_journey.rs.
+
+  3. `apps/cli/src/main_tests.rs:92` "--reveal" — unit test; does it call assert_pass_reveal? Check.
+
+  4. `apps/cli/src/password_agent/mod.rs:181` and setup.rs:233 "--reveal" — check whether tests there exercise the gate in CI env.
+
+  5. TS: parity-failures.test.ts:191, parity-process.test.ts:103,116,124 use "--reveal" — do they go through withTerminal (scrubbed) or through processFixture (scrubbed)? parity-process.test.ts presumably uses processFixture which now strips agent context env. parity-failures.test.ts — check.
+
+  6. Also crates/sealed-store — does it have its own reveal gate? The gate lives in connector-host; apps/cli store.rs calls assert_pass_reveal. crates/sealed-store tests don't hit it.
+
+  7. Also check other Rust integration tests in apps/cli/tests that reveal: grep only showed attach_journey.rs and protect_rotation_journey.rs. Check protect_rotation_journey.
+
+  8. Also check the TS CLI: run.ts read command calls assertHumanReveal with env? The parity tests run in-process with mocked TTY. packages/cli/src/parity.test.ts withTerminal now strips agent env — covered.
+
+  9. Also: crates/sealed-store or apps/cli might have other tests using reveal via a PTY harness (script command). Check how attach_journey and protect_rotation simulate TTY.
+
+  Let me read those files at FETCH_HEAD.
+
+• Now checking the reveal-exercising tests the diff did *not* touch — the key regression surface since `CI=true`/`GITHUB_ACTIONS=true` is set in CI.//! `opensesame pass protect root-rotate | rewrap` driven through the real
+//! binary: after a rotation the store still opens with its passphrase, and the
+//! key file as git history keeps it no longer opens anything in the store.
+
+use std::io::{Read, Write};
+use std::os::unix::io::FromRawFd;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output, Stdio};
+
+const PASSPHRASE: &str = "correct horse battery staple";
+
+fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
+        .args(args)
+        .arg("--path")
+        .arg(store)
+        .env("OPENSESAME_STORE_PASSWORD", password)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to run the opensesame binary");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(stdin.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
+}
+
+fn run(store: &Path, args: &[&str]) -> Output {
+    run_with(store, PASSPHRASE, args, "")
+}
+
+fn text(out: &Output) -> String {
+    format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    )
+}
+
+fn payload() -> Vec<u8> {
+    (0..1_048_600usize)
+        .map(|i| u8::try_from(i % 251).unwrap())
+        .collect()
+}
+
+struct Fixture {
+    dir: tempfile::TempDir,
+    store: PathBuf,
+}
+
+fn given_a_store_with_an_entry_and_a_document() -> Fixture {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("store");
+    std::fs::create_dir_all(&store).unwrap();
+    assert!(run(&store, &["pass", "init"]).status.success());
+    let added = run_with(
+        &store,
+        PASSPHRASE,
+        &["pass", "insert", "Dev/token"],
+        "hunter2\n",
+    );
+    assert!(added.status.success(), "{}", text(&added));
+    let source = dir.path().join("w2.pdf");
+    std::fs::write(&source, payload()).unwrap();
+    let attached = run(
+        &store,
+        &[
+            "pass",
+            "attach",
+            "add",
+            "Taxes/w2",
+            source.to_str().unwrap(),
+        ],
+    );
+    assert!(attached.status.success(), "{}", text(&attached));
+    Fixture { dir, store }
+    expect(JSON.stringify(writes)).not.toContain("private-api");
+    const compared = await cli(
+      ["password", "Database", "--vault", "Automation", "--stdin", "--desktop"],
+      "original\n",
+    );
+    expect(compared.stdout).toContain('"matches": false');
+    const changed = await cli(
+      [
+        "password",
+        "Database",
+        "--vault",
+        "Automation",
+        "--stdin",
+        "--apply",
+        "--desktop",
+      ],
+      "new-password\n",
+    );
+    expect(changed.code).toBe(0);
+    expect(changed.stdout).toContain('"verified": true');
+    const persisted = JSON.parse(await readFile(database, "utf8"));
+    expect(persisted.items[0].fields[0].value).toBe("new-password\n");
+    expect(
+      (await calls()).filter((call) => call.args.includes("edit")),
+    ).toHaveLength(1);
+  });
+  it("env write resolve and read deliberately materialize while run strips token and preserves child flags", async () => {
+    const template = join(directory, "template.env");
+    const target = join(directory, "resolved.env");
+    expect((await cli(["env", "write", template, "API=op://v/i/f"])).code).toBe(
+      0,
+    );
+    const resolveArgs = [
+      "env",
+      "resolve",
+      template,
+      "--output",
+      target,
+      "--desktop",
+      "--reveal",
+    ];
+    const denied = await cli(resolveArgs);
+    expect(denied.code).toBe(1);
+    expect(denied.stderr).toContain(
+      "stdin and stdout must both be interactive terminals",
+    );
+    await expect(stat(target)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await calls()).toHaveLength(0);
+    await humanTerminal(resolveArgs);
+    expect(await readFile(target, "utf8")).toContain('API="private-canary"');
+    expect((await stat(target)).mode & 0o777).toBe(0o600);
+    expect(
+      (await readdir(directory)).some((name) => name.endsWith(".tmp")),
+    ).toBe(false);
+    const readArgs = ["read", "op://v/i/f", "--desktop", "--reveal"];
+    const deniedRead = await cli(readArgs);
+    expect(deniedRead.code).toBe(1);
+    expect(deniedRead.stdout).toBe("");
+    expect(deniedRead.stderr).toContain(
+      "stdin and stdout must both be interactive terminals",
+    );
+    const revealed = await humanTerminal(readArgs);
+    expect(revealed).toContain("private-canary\r\n");
+    expect(revealed).toContain('"lane":"reveal"');
+    env.OP_SERVICE_ACCOUNT_TOKEN = TOKEN;
+    const script =
+      "process.stdout.write(JSON.stringify({secret:process.env.API,token:process.env.OP_SERVICE_ACCOUNT_TOKEN,args:process.argv.slice(1)}));process.exit(7)";
+    const ran = await cli([
+      "run",
+      "--env",
+      "API=op://v/i/f",
+
+
+• protect_rotation_journey.rs:135 runs `pass show Dev/token --reveal` via run_as_person. Let me see run_as_person — does it use a pty? If it uses piped stdio (as run_with does), then the reveal would already be refused before this PR due to TTY check... but wait, the agent-context check comes FIRST in refusal_message. So in CI, the error message changes from "stdin and stdout must both be interactive terminals" to "Refusing plaintext pass-reveal in an agent context". If the test asserts success (expecting the reveal to succeed), then run_as_person must allocate a pty. Let me look at run_as_person.
+
+  Also check 2password-native-process.test.ts's `cli` and `humanTerminal` helpers — where do they get env? Probably from processFixture (scrubbed now). humanTerminal probably uses script/unbuffer pty with env. If env comes from processFixture, it's scrubbed. Let me check the top of the file.    Fixture { dir, store }
+}
+
+/// A person at a terminal: stdin and stdout are both the slave side of a pty.
+/// Piped `Command` output is the agent shape, and the reveal gate refuses it.
+fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
+    let mut master_fd: libc::c_int = -1;
+    let mut slave_fd: libc::c_int = -1;
+    let opened = unsafe {
+        libc::openpty(
+            &raw mut master_fd,
+            &raw mut slave_fd,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    assert_eq!(opened, 0, "openpty");
+    let master = unsafe { std::fs::File::from_raw_fd(master_fd) };
+    let slave = unsafe { std::fs::File::from_raw_fd(slave_fd) };
+    let slave_in = slave.try_clone().expect("dup slave for stdin");
+    let slave_out = slave.try_clone().expect("dup slave for stdout");
+    drop(slave);
+
+    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
+        .args(args)
+        .arg("--path")
+        .arg(store)
+        .env("OPENSESAME_STORE_PASSWORD", password)
+        .stdin(Stdio::from(slave_in))
+        .stdout(Stdio::from(slave_out))
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("failed to run the opensesame binary");
+    let stdout_thread = std::thread::spawn(move || {
+        let mut master = master;
+        let mut buf = Vec::new();
+        let _ = master.read_to_end(&mut buf);
+        buf
+    });
+    let mut stderr_pipe = child.stderr.take().expect("stderr");
+    let stderr_thread = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = stderr_pipe.read_to_end(&mut buf);
+        buf
+    });
+    let status = child.wait().expect("wait for opensesame");
+    Output {
+        status,
+        stdout: stdout_thread.join().expect("stdout thread"),
+        stderr: stderr_thread.join().expect("stderr thread"),
+    }
+}
+
+fn shows(store: &Path, password: &str) -> Option<String> {
+    let out = run_as_person(store, password, &["pass", "show", "Dev/token", "--reveal"]);
+    out.status.success().then(|| {
+        String::from_utf8_lossy(&out.stdout)
+            .replace("\r\n", "\n")
+            .replace('\r', "")
+    })
+}
+
+fn document(store: &Path, password: &str, out: &Path) -> Option<Vec<u8>> {
+    let got = run_as_person(
+        store,
+        password,
+        &[
+            "pass",
+            "attach",
+            "get",
+            "Taxes/w2",
+            "--reveal",
+            "--out",
+            out.to_str().unwrap(),
+        ],
+    );
+    got.status.success().then(|| std::fs::read(out).unwrap())
+}
+
+/// The store as it would come back with the pre-rotation key file restored
+/// from git history.
+fn with_old_key_file(f: &Fixture, old_key_file: &[u8]) -> PathBuf {
+    let copy = f.dir.path().join("history");
+    std::fs::create_dir_all(&copy).unwrap();
+    let status = Command::new("cp")
+        .arg("-a")
+        .arg(format!("{}/.", f.store.display()))
+        .arg(&copy)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    std::fs::write(copy.join(".opensesame-key"), old_key_file).unwrap();
+    copy
+}
+
+import { execFile } from "node:child_process";
+import { readFile, readdir, rm, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { nativeProcessFixture as processFixture } from "../../packages/cli/src/fixtures/password-agent/native-process.js";
+const TOKEN = "ops_fake-token";
+let directory: string;
+let database: string;
+let env: NodeJS.ProcessEnv;
+let cli: Awaited<ReturnType<typeof processFixture>>["cli"];
+let calls: Awaited<ReturnType<typeof processFixture>>["calls"];
+describe("2password native CLI process gauntlet", { timeout: 30_000 }, () => {
+  beforeEach(async () => {
+    const fixture = await processFixture();
+    ({ directory, database, env, cli, calls } = fixture);
+  });
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true });
+  });
+  it("find inventory audit use real CLI with safe metadata and fuzzy suggestions", async () => {
+    const found = await cli(["find", "database", "databse", "--desktop"]);
+    expect(found.code).toBe(0);
+    expect(found.stdout).toContain("suggestions");
+    expect(found.stdout).not.toContain("original");
+    const inventory = await cli(["inventory", "--desktop"]);
+    expect(inventory.code).toBe(0);
+    expect(inventory.stdout).toContain("https://example.com");
+    expect(inventory.stdout).not.toContain("secret=canary");
+    const audit = await cli(["audit", "--desktop"]);
+    expect(audit.code).toBe(0);
+    expect(audit.stdout).toContain("oldLogins");
+    const report = JSON.parse(audit.stdout);
+    expect(
+      report.oldLogins.map((item: { title: string }) => item.title),
+    ).toEqual(["Database"]);
+    expect(report.urlsToReview[0].urls).toEqual(["https://example.com"]);
+  });
+  it("create stdin verifies one write and password compare apply preserves exact bytes", async () => {
+    const created = await cli(
+      [
+        "create",
+        "api-credential",
+        "--title",
+        "API",
+        "--vault",
+        "Automation",
+        "--stdin",
+        "--desktop",
+      ],
+      "private-api\n",
+    );
+    expect(created.code).toBe(0);
+    expect(created.stdout).toContain('"verified": true');
+    expect(created.stdout).not.toContain("private-api");
+    const writes = (await calls()).filter((call) =>
+      call.args.includes("create"),
+    );
+    expect(writes).toHaveLength(1);
+    expect(JSON.stringify(writes)).not.toContain("private-api");
+Critical finding: `protect_rotation_journey.rs` `run_as_person` uses a real pty and spawns the binary inheriting the parent test process env — which in CI includes `CI=true` and `GITHUB_ACTIONS=true`. With the new markers, `agent_context_detected()` is checked FIRST in `refusal_message`, so `pass show --reveal` would be refused in CI. The PR did NOT add `strip_agent_context_env` to protect_rotation_journey.rs. That's a real regression: `cargo test -p opensesame-cli --test protect_rotation_journey` would fail in GitHub Actions (CI=true). Wait — does CI env get inherited? `Command` inherits parent env by default; they add env vars, never clear. Yes, CI=true would be inherited. So `shows()` would return None → test failure. Let me verify the test asserts shows() is Some. Check lines around 135.
+
+  Also `2password-native-process.test.ts` imports `native-process.js` fixture — NOT `process.js`! The PR patched `packages/cli/src/fixtures/password-agent/process.ts` but there is a sibling `native-process.ts` that builds env for the native (Rust) CLI parity runs. Does native-process.ts spread process.env without stripping agent context? If so, `humanTerminal` runs in CI would fail. Let me check native-process.ts at FETCH_HEAD and whether the PR touched it (diff didn't). Also check humanTerminal implementation.
+
+  Also check parity-process.test.ts and parity-failures.test.ts env sources — parity-process.test.ts presumably uses processFixture from process.ts (patched). parity-failures.test.ts — check which fixture.
+
+  Also check apps/cli/src/main_tests.rs:92 "--reveal" context, and password_agent/mod.rs:181 and setup.rs:233 tests.
+
+  Also check whether any other Rust integration tests in apps/cli/tests use openpty pattern. grep for openpty.
+
+• Found a likely gap: `protect_rotation_journey.rs` uses a real pty (`run_as_person`) but the diff never strips agent env there. Let me confirm and check the `native-process.ts` fixture sibling.
+#[test]
+fn root_rotate_keeps_the_store_readable_and_retires_the_old_root() {
+    let f = given_a_store_with_an_entry_and_a_document();
+    let old_key_file = std::fs::read(f.store.join(".opensesame-key")).unwrap();
+
+    let rotated = run(&f.store, &["pass", "protect", "root-rotate", "--yes"]);
+    assert!(rotated.status.success(), "{}", text(&rotated));
+    assert!(text(&rotated).contains("re-encrypted 1 entries and 1 attachments"));
+
+    assert_eq!(shows(&f.store, PASSPHRASE).as_deref(), Some("hunter2\n"));
+    let out = f.dir.path().join("recovered.pdf");
+    assert_eq!(document(&f.store, PASSPHRASE, &out), Some(payload()));
+
+    let history = with_old_key_file(&f, &old_key_file);
+    assert_eq!(shows(&history, PASSPHRASE), None);
+    let stolen = f.dir.path().join("stolen.pdf");
+    assert_eq!(document(&history, PASSPHRASE, &stolen), None);
+}
+
+#[test]
+fn rewrap_revokes_the_old_passphrase_unless_told_not_to() {
+    let f = given_a_store_with_an_entry_and_a_document();
+    let old_key_file = std::fs::read(f.store.join(".opensesame-key")).unwrap();
+
+    // OPENSESAME_STORE_PASSWORD answers only the current-passphrase prompt; the
+    // new one is typed (here: piped), so it cannot silently be the same string.
+    let kept = run_with(
+        &f.store,
+        PASSPHRASE,
+        &["pass", "protect", "rewrap", "--yes", "--no-rotate"],
+        "second passphrase\nsecond passphrase\n",
+    );
+    assert!(kept.status.success(), "{}", text(&kept));
+    assert!(text(&kept).contains("NOT rotated"), "{}", text(&kept));
+    assert_eq!(shows(&f.store, PASSPHRASE), None);
+
+    let rewrapped = run_with(
+        &f.store,
+        "second passphrase",
+        &["pass", "protect", "rewrap", "--yes"],
+        "third passphrase\nthird passphrase\n",
+    );
+    assert!(rewrapped.status.success(), "{}", text(&rewrapped));
+    assert_eq!(
+        shows(&f.store, "third passphrase").as_deref(),
+        Some("hunter2\n")
+    );
+    assert_eq!(shows(&f.store, "second passphrase"), None);
+    let history = with_old_key_file(&f, &old_key_file);
+    assert_eq!(shows(&history, PASSPHRASE), None);
+}
+
+#[test]
+fn rewrap_takes_the_new_passphrase_from_the_prompt_not_the_environment() {
+    let f = given_a_store_with_an_entry_and_a_document();
+
+    // The environment still holds the old passphrase; stdin carries the new.
+    let rewrapped = run_with(
+        &f.store,
+        PASSPHRASE,
+        &["pass", "protect", "rewrap", "--yes"],
+        "a different passphrase\na different passphrase\n",
+    );
+    assert!(rewrapped.status.success(), "{}", text(&rewrapped));
+    assert!(
+FETCH_HEAD:apps/cli/tests/attach_journey.rs
+FETCH_HEAD:apps/cli/tests/protect_rotation_journey.rs
+16:        process.env.OPENSESAME_NATIVE_BINARY ??
+18:            process.env.CARGO_TARGET_DIR ??
+19:              resolve(process.env.HOME ?? "", ".cache/packages/cargo-target"),
+63:    `#!${process.execPath}\nconst fs=require('node:fs');const p=process.env.PARITY_TOKEN_FILE;const action=process.argv[2];if(action==='lookup'){if(!fs.existsSync(p))process.exit(1);process.stdout.write(fs.readFileSync(p));}else if(action==='store'){fs.writeFileSync(p,fs.readFileSync(0),{mode:0o600});}else if(action==='clear'){fs.rmSync(p,{force:true});}`,
+69:    ...process.env,
+70:    PATH: `${bin}:${process.env.PATH}`,
+76:    OP_SERVICE_ACCOUNT_TOKEN: process.env.OP_SERVICE_ACCOUNT_TOKEN,
+77:    PARITY_FAIL_READ: process.env.PARITY_FAIL_READ,
+78:    PARITY_STUCK_VERSION: process.env.PARITY_STUCK_VERSION,
+79:    NODE_OPTIONS: process.env.NODE_OPTIONS,
+
+
+• Confirmed:
+
+  1. **protect_rotation_journey.rs** — uses openpty (`run_as_person`) and expects `shows(...) == Some("hunter2\n")`. The spawned binary inherits parent env (Command inherits by default; only adds OPENSESAME_STORE_PASSWORD). In GitHub Actions, `CI=true` and `GITHUB_ACTIONS=true` are set → `agent_context_detected()` → refusal happens before the TTY check → `shows()` returns None → test fails. The PR scrubbed attach_journey.rs but not protect_rotation_journey.rs. Grep for "strip_agent_context" in that file returned nothing (grep exit 1). This is a real regression in CI's Rust check.
+
+  Wait — but does the Rust CI job actually run with CI=true? GitHub Actions always sets CI=true and GITHUB_ACTIONS=true. Yes. And the test runs `cargo test --all-targets -p opensesame-cli` in the Rust check. So this fails.
+
+  Hmm, but let me double check: does the workspace runner set CI=true? GitHub-hosted runners: `CI=true` always. Yes.
+
+  2. **native-process.ts** — the fixture used by `scripts/test/2password-native-process.test.ts` (the 2password-parity gauntlet's native half) builds env with `...process.env` and does NOT strip agent context markers. The PR only patched `process.ts` (the TS-CLI fixture). native-process.ts at line 69 spreads process.env without envWithoutAgentContext. Its `humanTerminal` runs (read --reveal through a pty) would be refused in CI. Let me confirm native-process.ts's humanTerminal uses the env and that reveal happens. Line 99 of the test: `env resolve ... --reveal` via humanTerminal. So yes, `pnpm test:2password-parity` native suite would fail in GitHub Actions (password-parity.yml runs on PRs touching crates etc.). Wait — but was native-process.ts already present at base? Yes (imported at FETCH_HEAD, not in diff). The PR touched process.ts but missed native-process.ts. Let me verify native-process.ts's env construction more fully and its humanTerminal.
+
+  Actually wait — check whether the test's humanTerminal uses `env` from the fixture. Let me look at native-process.ts fully.  await mkdir(bin);
+  await writeFile(
+    join(bin, "op"),
+    `#!${process.execPath}\n${(await readFile(resolve(import.meta.dirname, "op.cjs"), "utf8")).split("\n").slice(1).join("\n")}`,
+  );
+  await chmod(join(bin, "op"), 0o700);
+  await writeFile(
+    join(bin, "secret-tool"),
+    `#!${process.execPath}\nconst fs=require('node:fs');const p=process.env.PARITY_TOKEN_FILE;const action=process.argv[2];if(action==='lookup'){if(!fs.existsSync(p))process.exit(1);process.stdout.write(fs.readFileSync(p));}else if(action==='store'){fs.writeFileSync(p,fs.readFileSync(0),{mode:0o600});}else if(action==='clear'){fs.rmSync(p,{force:true});}`,
+  );
+  await chmod(join(bin, "secret-tool"), 0o700);
+  await writeFile(log, "");
+  await seed(database);
+  const env = {
+    ...process.env,
+    PATH: `${bin}:${process.env.PATH}`,
+    OPENSESAME_STATE_DIR: join(directory, "state"),
+    XDG_CONFIG_HOME: join(directory, "config"),
+    PARITY_TOKEN_FILE: join(directory, "token"),
+    PARITY_DB: database,
+    PARITY_LOG: log,
+    OP_SERVICE_ACCOUNT_TOKEN: process.env.OP_SERVICE_ACCOUNT_TOKEN,
+    PARITY_FAIL_READ: process.env.PARITY_FAIL_READ,
+    PARITY_STUCK_VERSION: process.env.PARITY_STUCK_VERSION,
+    NODE_OPTIONS: process.env.NODE_OPTIONS,
+  };
+
+  env.OP_SERVICE_ACCOUNT_TOKEN = undefined;
+  env.PARITY_FAIL_READ = undefined;
+  env.PARITY_STUCK_VERSION = undefined;
+  return { directory, database, env, cli, calls };
+}
+
+async function seed(database: string) {
+  await writeFile(
+    database,
+    JSON.stringify({
+      items: [
+        {
+          id: "a".repeat(26),
+          title: "Database",
+          category: "LOGIN",
+          vault: { id: "b".repeat(26), name: "Automation" },
+          tags: [],
+          urls: [
+            {
+              href: "https://example.com/oauth/callback?secret=canary#secret",
+            },
+          ],
+          updated_at: "2010-01-01T00:00:00Z",
+          fields: [
+            {
+              id: "password",
+              purpose: "PASSWORD",
+              type: "CONCEALED",
+              value: "original",
+              reference: "op://Automation/Database/password",
+            },
+          ],
+        },
+      ],
+    }),
+  );
+}
+native-process.ts doesn't strip agent markers and has no humanTerminal inside the fixture. Where is `humanTerminal` defined for the native test? Grep in the test file / fixture lib. Let me grep FETCH_HEAD for "humanTerminal" definition.FETCH_HEAD:scripts/test/2password-native-process.test.ts:108:    await humanTerminal(resolveArgs);
+FETCH_HEAD:scripts/test/2password-native-process.test.ts:121:    const revealed = await humanTerminal(readArgs);
+FETCH_HEAD:scripts/test/2password-native-process.test.ts:256:async function humanTerminal(args: string[]): Promise<string> {
+FETCH_HEAD:spec/conformance/2password-parity.json:63:        "scripts/test/2password-native-process.test.ts",
+      '"verified": true',
+    );
+    expect((await cli(["service-account", "recover"])).code).toBe(0);
+    const diagnostic = await cli(["doctor"]);
+    expect(diagnostic.code).toBe(0);
+    expect(diagnostic.stdout).toContain("opInstalled");
+    expect((await cli(["service-account", "forget"])).stdout).toContain(
+      '"remoteRevoked": false',
+    );
+    expect((await cli(["service-account", "status"])).stdout).toContain(
+      '"configured": false',
+    );
+  });
+});
+
+/** Exercise the same human terminal boundary used by interactive lease approval. */
+async function humanTerminal(args: string[]): Promise<string> {
+  const binary =
+    process.env.OPENSESAME_NATIVE_BINARY ??
+    resolve(
+      process.env.CARGO_TARGET_DIR ??
+        resolve(process.env.HOME ?? "", ".cache/packages/cargo-target"),
+      "debug/opensesame",
+    );
+  const command = [binary, "password-agent", ...args]
+    .map((arg) => `'${arg.replaceAll("'", "'\\''")}'`)
+    .join(" ");
+  const { stdout, stderr } = await promisify(execFile)(
+    "/usr/bin/script",
+    ["-q", "-e", "-c", command, "/dev/null"],
+    { env, timeout: 30_000 },
+  );
+  return stdout + stderr;
+}
+Confirmed: `humanTerminal` in 2password-native-process.test.ts passes `{ env }` — the env from `nativeProcessFixture()` — which at FETCH_HEAD still spreads `process.env` without stripping `CI`, `GITHUB_ACTIONS`, `CURSOR_AGENT`, `AGENT`. In GitHub Actions, CI=true → the native binary's `agent_context_detected()` returns true → `env resolve --reveal` and `read --reveal` refused → `await humanTerminal(resolveArgs)` then `readFile(target)` rejects ENOENT → test fails. So `pnpm test:2password-parity` (password-parity.yml, runs on PRs touching crates/apps/cli) breaks.
+
+  Wait — is 2password-parity run in CI for this PR? password-parity.yml runs on PRs touching CLI, crates etc. This PR touches apps/cli and crates/connector-host → yes it runs. And it "fails, never skips". So this is a hard CI failure.
+
+  Hmm, but let me double check the native binary path: `password-agent read --reveal` goes through assert_human_reveal with agent_context check first. Yes, consume.rs:31 calls assert_human_reveal.
+
+  Also confirm: does `denied` case earlier expect "stdin and stdout must both be interactive terminals" message? Yes: `expect(denied.stderr).toContain("stdin and stdout must both be interactive terminals")`. In CI with new markers, refusal_message checks agent context FIRST, so the denied message becomes "Refusing plaintext env-resolve in an agent context..." — that assertion would ALSO fail even before the pty issue! In the TS parity test (2password-native-process), `cli(resolveArgs)` without pty expects the TTY message; with CI=true inherited via env, the message is now the agent-context message → test fails. Unless env is scrubbed. env comes from nativeProcessFixture — not scrubbed. Confirmed gap.
+
+  Wait, also check the TS-side parity test (packages/cli parity-failures.test.ts line 191 "--reveal") — which fixture? It imports processFixture from... check imports of parity-failures.test.ts and parity-process.test.ts.
+
+  Also check whether process.ts's `cli` uses `env` and whether denied-message assertions in parity-failures.test.ts expect TTY message. If they use process.ts fixture (now scrubbed), fine.
+
+  Also the TS CLI reveal-gate: `env[rule.name] = undefined` in reveal-gate.test.ts — env is a fresh object passed to humanRevealRefusal via request.env? Check that the test passes env. Fine.
+
+  Another thing to check: crates — are there other Rust tests in crates/* that call assert_pass_reveal indirectly? Only apps/cli/src/store.rs calls it. main_tests.rs:92 "--reveal" — check what it tests.
+
+  Also check apps/cli/src/password_agent/mod.rs:181 and setup.rs:233 — tests? Let me check quickly.
+
+  Also check parity.test.ts withTerminal scrub — done in diff. OK.
+
+  Let me check main_tests.rs:92 and password_agent tests, and parity-failures.test.ts fixture import.import { readFile, rm, unlink, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { processFixture } from "./fixtures/password-agent/process.js";
+type Fixture = Awaited<ReturnType<typeof processFixture>>;
+let fixture: Fixture;
+const TOKEN = "ops_fake-token";
+describe("2password CLI safety gauntlet", { timeout: 120_000 }, () => {
+  beforeEach(async () => {
+    fixture = await processFixture();
+  });
+  afterEach(async () => {
+    await rm(fixture.directory, { recursive: true, force: true });
+  });
+  it("auth precedence uses environment token then saved token while desktop bypasses and orphan settings fail closed", async () => {
+    const { cli, env, calls, directory } = fixture;
+    expect(
+      (await cli(["service-account", "connect", "--stdin"], TOKEN)).code,
+    ).toBe(0);
+    env.OP_SERVICE_ACCOUNT_TOKEN = "ops_environment";
+    expect((await cli(["inventory"])).code).toBe(0);
+    expect((await calls()).at(-1)?.token).toBe("ops_environment");
+    expect((await cli(["inventory", "--desktop"])).code).toBe(0);
+    expect((await calls()).at(-1)?.token).toBeUndefined();
+    env.OP_SERVICE_ACCOUNT_TOKEN = undefined;
+    expect((await cli(["inventory"])).code).toBe(0);
+    expect((await calls()).at(-1)?.token).toBe(TOKEN);
+    await unlink(join(directory, "state", "password-agent", "token"));
+    const count = (await calls()).length;
+    expect((await cli(["inventory"])).code).toBe(1);
+    const output = join(directory, "output.env");
+    await writeFile(template, "TOKEN=op://v/i/f\n");
+    await writeFile(output, "preserved");
+    env.PARITY_BAD_BATCH = "1";
+    const result = await cli([
+      "env",
+      "resolve",
+      template,
+      "--output",
+      output,
+      "--desktop",
+      "--reveal",
+    ]);
+    // A pipe is not a person at a terminal, so the provider never runs.
+    expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/stdin and stdout/);
+    expect(result.stderr).not.toContain("malformed-secret-canary");
+    expect(result.stdout).not.toContain("malformed-secret-canary");
+    expect(await calls()).toEqual([]);
+    expect(await readFile(output, "utf8")).toBe("preserved");
+  });
+  it("doctor enforces a deadline on a stuck helper without authentication or diagnostics", async () => {
+    const { cli, env, calls } = fixture;
+    env.PARITY_STUCK_VERSION = "1";
+    const started = Date.now();
+    const result = await cli(["doctor"]);
+    assert!(refused);
+}
+
+/// `--output` is a *global* option, so a subcommand field of the same name
+/// silently claims the same clap arg id and the parser panics at runtime
+/// rather than failing to compile. Parsing is the only thing that catches
+/// it, so pin every `pass` verb that takes a file argument.
+#[test]
+fn pass_kdbx_verbs_parse_without_colliding_with_the_global_output_option() {
+    use clap::Parser;
+
+    let cli = Cli::parse_from([
+        "opensesame",
+        "vault",
+        "pass",
+        "export-kdbx",
+        "/tmp/vault.kdbx",
+        "--reveal",
+    ]);
+    let Commands::Vault {
+        cmd:
+            vault_area::VaultArea::Pass {
+                cmd: PassCmd::ExportKdbx { dest, reveal, .. },
+            },
+    } = cli.command
+    else {
+        panic!("expected vault pass export-kdbx");
+    };
+    assert_eq!(dest, PathBuf::from("/tmp/vault.kdbx"));
+    assert!(reveal);
+
+    let cli = Cli::parse_from([
+        "opensesame",
+        "vault",
+        "pass",
+        "import-kdbx",
+    )?)?;
+    for item in &items {
+        core::validate_item(item)?;
+    }
+    Ok(items)
+}
+fn get(item: &str, vault: &str, account: Option<&str>) -> anyhow::Result<Value> {
+    io::json(
+        &[
+            "item".into(),
+            "get".into(),
+            item.into(),
+            "--vault".into(),
+            vault.into(),
+            "--format".into(),
+            "json".into(),
+            "--reveal".into(),
+        ],
+        account,
+        None,
+    )
+}
+pub(crate) async fn execute(options: Options) -> anyhow::Result<()> {
+    run(options.cmd, options.desktop, options.reveal).await
+}
+pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Result<()> {
+    credential::DESKTOP.store(desktop, std::sync::atomic::Ordering::Relaxed);
+    match cmd {
+        Command::Find { queries, scope } => {
+            let listed = list(&scope)?;
+            let selections = discover::selection(&listed, &queries);
+            let wanted: Vec<_> = listed
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| {
+                    selections
+parity-failures.test.ts uses process.ts fixture — scrubbed. Good.
+
+  parity-failures.test.ts line ~196: expects `result.stderr` to match /stdin and stdout/ when run through the fixture `cli` — env scrubbed by envWithoutAgentContext, so agent-context refusal won't fire; TTY refusal fires. Good.
+
+  Now the remaining question on main_tests.rs — parse-only, no gate. Fine.
+
+  Now check other places that spawn the native CLI with reveal through a pty in CI:
+  - scripts/test/2password-parity.mjs — what suites? spec/conformance/2password-parity.json lists suites; check which test files it includes and whether others exercise reveal via pty with unscrubbed env. Let me grep the spec json.
+
+  Also check crates/sealed-store — any reveal gate? No, gate is only in apps/cli + connector-host.
+
+  Also check apps/cli other tests dir files: list apps/cli/tests/*.rs and grep for pty/openpty — only attach_journey (patched) and protect_rotation_journey (NOT patched). 
+
+  Also: does the Rust unit test conformance in reveal_gate.rs leak env across parallel tests? Rust tests run in the same process, multithreaded. AgentContextGuard mutates process env — `conformance_cases_match_ts_fixture` sets/removes OPENSESAME_AGENT_LAUNCH_HANDLE while other tests in the same binary may call policy()/agent_context_detected... But reveal_gate.rs's test module is the only one touching these envs in that crate? apps/cli tests are separate binaries per file; within apps/cli unit tests (main_tests, pass_otp, rotate), they added guards. pass_otp test uri_is_withheld_without_reveal_off_a_terminal expects refusal message containing "--reveal" or "interactive terminals" — with guard clearing markers, and non-TTY stdin in test process, refusal message is the TTY one. Fine.
+
+  But one subtle issue: in Rust unit tests running in parallel threads within the same test binary, AgentContextGuard in pass_otp.rs clears markers while another test thread could... other tests don't depend on markers being set. The risk is a test that *expects* agent-context refusal concurrently having its marker cleared. Check rotate.rs test `reissuing_recovery_needs_reveal_and_a_rotation` — asserts refusal needs reveal; with markers cleared and no TTY it refuses on TTY grounds first... The test asserts an error occurs presumably. Fine.
+
+  Also check the Rust conformance test change: after the loop they added `let _ = AgentContextGuard::clear_markers();` — a no-op line (guard created and immediately dropped, restoring what it saved). It's dead code but harmless; arguably sloppy, not a regression.
+
+  Now check: does anything else consume spec/conformance/cli-reveal-gate.json? Grep.
+
+  Also verify spec JSON version bump? version stays 1. The repo rule "One definition, every target" — drift tests in each consumer. TS imports JSON directly; Rust include_str. Both read the same file — no drift possible. Fine.
+
+  Check mcp/other TS consumers of cli-reveal-gate.json.FETCH_HEAD:crates/connector-host/src/password_agent/reveal_gate.rs
+FETCH_HEAD:packages/cli/src/reveal-gate.test.ts
+FETCH_HEAD:packages/cli/src/reveal-gate.ts
+{
+ "version": 1,
+ "upstream": {
+  "repository": "https://github.com/kitlangton/2password",
+  "commit": "e011177d3e35f97a580b8903df6fff7e02593d16",
+  "sources": [
+   "src/cli.ts",
+   "src/discover.ts",
+   "src/create.ts",
+   "src/password.ts",
+   "src/env.ts",
+   "src/auth.ts",
+   "src/service-account.ts",
+   "src/doctor.ts",
+   "src/op.ts",
+   "test",
+   "skills/2password/SKILL.md"
+  ],
+  "review": "spec/conformance/2password-upstream-review.json"
+ },
+ "suites": [
+  {
+   "id": "core-runtime",
+   "command": [
+    "node_modules/.bin/vitest",
+    "run",
+    "scripts/test/2password-parity-core.test.ts",
+    "scripts/test/2password-parity-auth.test.ts",
+    "scripts/test/2password-parity-writes.test.ts",
+    "scripts/test/2password-parity-request.test.ts",
+    "scripts/test/2password-parity-lease.test.ts",
+    "packages/app-core/src/lib/password-agent/startup-env.test.ts",
+    "--reporter=json",
+    "--outputFile=work/2password-core-report.json"
+   ],
+   "report": "work/2password-core-report.json",
+   "surfaces": [
+    "core"
+   ]
+  },
+  {
+   "id": "client-cli-runtime",
+   "surfaces": [
+    "client-cli"
+   ],
+   "cwd": "packages/cli",
+   "command": [
+    "../../node_modules/.bin/vitest",
+    "run",
+    "src/parity.test.ts",
+    "src/parity-process.test.ts",
+    "src/parity-failures.test.ts",
+    "src/parity-request.test.ts",
+    "src/parity-request-dispatch.test.ts",
+    "src/parity-request-socket.test.ts",
+    "--reporter=json",
+    "--outputFile=../../work/2password-client-cli-r
+core-runtime -> ['scripts/test/2password-parity-core.test.ts', 'scripts/test/2password-parity-auth.test.ts', 'scripts/test/2password-parity-writes.test.ts', 'scripts/test/2password-parity-request.test.ts', 'scripts/test/2password-parity-lease.test.ts', 'packages/app-core/src/lib/password-agent/startup-env.test.ts']
+client-cli-runtime -> ['src/parity.test.ts', 'src/parity-process.test.ts', 'src/parity-failures.test.ts', 'src/parity-request.test.ts', 'src/parity-request-dispatch.test.ts', 'src/parity-request-socket.test.ts']
+native-cli-runtime -> ['scripts/test/2password-native-process.test.ts', 'scripts/test/2password-native-failures.test.ts', 'scripts/test/2password-native-contracts.test.ts']
+pwa-browser-runtime -> ['apps/pages/scripts/verify-password-agent.mjs']
+local-workflow-runtime -> ['src/lib/vault/password-workflows.test.ts', 'src/lib/vault/password-workflow-travel.test.ts', 'src/lib/vault/item-writes.test.ts', 'src/lib/vault/password-workflow-account.test.ts', 'src/lib/vault/account-password-write.test.ts']
+pwa-ui-runtime -> []
+FETCH_HEAD:packages/cli/src/fixtures/password-agent/approval-terminal.ts:32:      "/usr/bin/script",
+FETCH_HEAD:scripts/test/2password-native-failures.test.ts:384:    "/usr/bin/script",
+FETCH_HEAD:scripts/test/2password-native-process.test.ts:268:    "/usr/bin/script",
+More native suites: 2password-native-failures.test.ts also has a `/usr/bin/script` pty run at line 384. And it presumably uses nativeProcessFixture env too. Let me check both native test files for env usage and reveal assertions. Also approval-terminal.ts fixture — uses /usr/bin/script; check its env handling and consumers.
+
+  Also check native-contracts.test.ts for reveal.    );
+  const args = [
+    binary,
+    "password-agent",
+    "lease",
+    "approve",
+    destination,
+    "--secret",
+    "op://Automation/Database/password",
+  ];
+  const command = args
+    .map((arg) => `'${arg.replaceAll("'", "'\\''")}'`)
+    .join(" ");
+  const { stdout, stderr } = await promisify(execFile)(
+    "/usr/bin/script",
+    ["-q", "-e", "-c", command, "/dev/null"],
+    { env },
+  );
+  return stdout + stderr;
+}
+6:import { nativeProcessFixture as processFixture } from "../../packages/cli/src/fixtures/password-agent/native-process.js";
+7:type Fixture = Awaited<ReturnType<typeof processFixture>>;
+12:    fixture = await processFixture();
+18:    const { cli, env, calls, directory } = fixture;
+22:    env.OP_SERVICE_ACCOUNT_TOKEN = "ops_environment";
+27:    env.OP_SERVICE_ACCOUNT_TOKEN = undefined;
+68:    const { cli, env, calls, database } = fixture;
+69:    env.PARITY_FAIL_READ = "1";
+151:    const { cli, env, calls } = fixture;
+152:    env.PARITY_FAIL_READ = "1";
+171:    env.PARITY_FAIL_READ = undefined;
+191:    const { cli, env, calls } = fixture;
+192:    env.PARITY_STUCK_VERSION = "1";
+204:    const { cli, env, directory, calls } = fixture;
+215:      `require('node:fs').writeFileSync(${JSON.stringify(marker)},process.env.OP_SERVICE_ACCOUNT_TOKEN??'preloaded');throw Error('preload')`,
+217:    env.PATH = `:.:relative:${directory}:${env.PATH}`;
+218:    env.NODE_OPTIONS = `--require=${preload}`;
+219:    env.OP_SERVICE_ACCOUNT_TOKEN = TOKEN;
+323:        "if (process.env.PARITY_STUCK_VERSION",
+324:        `if (args[0] === "read") { fs.writeFileSync(${JSON.stringify(join(directory, "read.pid"))}, String(process.pid)); setInterval(() => {}, 1000); } else if (process.env.PARITY_STUCK_VERSION`,
+/** A genuine pseudo-terminal for the human approval integration ceremony. */
+import { spawn } from "node:child_process";
+import { resolve } from "node:path";
+interface ApprovalTerminalResult {
+  code: number;
+  output: string;
+}
+export async function approvalTerminal(
+  env: NodeJS.ProcessEnv,
+  url = "https://request.example/private?query=canary",
+  reference = "op://Automation/Database/password",
+): Promise<ApprovalTerminalResult> {
+  const args = [
+    process.execPath,
+    "--import",
+    resolve("node_modules/tsx/dist/loader.mjs"),
+    resolve("src/bin.ts"),
+    "lease",
+    "approve",
+    url,
+    "--secret",
+    reference,
+    "--desktop",
+    "--account",
+    "selected.account",
+  ];
+  const command = args
+    .map((value) => `'${value.replaceAll("'", "'\\''")}'`)
+    .join(" ");
+  return new Promise((finish, reject) => {
+    const child = spawn(
+      "/usr/bin/script",
+      ["--quiet", "--return", "--command", command, "/dev/null"],
+      { env, stdio: ["pipe", "pipe", "ignore"] },
+    );
+    let sent = false;
+    let output = "";
+    const deadline = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(new Error("Approval terminal deadline exceeded"));
+    }, 30000);
+    child.stdout.on("data", (chunk) => {
+      output += String(chunk);
+      if (!sent && output.includes("Type approve:")) {
+        sent = true;
+        child.stdin.write("approve\n");
+      }
+    });
+    child.on("error", (error) => {
+      clearTimeout(deadline);
+      reject(error);
+    });
+    child.on("close", (code) => {
+      clearTimeout(deadline);
+      finish({ code: code ?? 1, output });
+    });
+  });
+}
+FETCH_HEAD:packages/cli/src/parity-request.test.ts
+- `2password-native-failures.test.ts` uses nativeProcessFixture env (unscrubbed) for a pty run of `password-agent lease approve`. Does lease approve hit the reveal gate? It hits an approval ceremony requiring TTY. Does `lease approve` call assert_human_reveal or a similar agent-context check? Not necessarily the reveal gate. But `denied` assertions in native-failures that expect "stdin and stdout" messages with `--reveal`? The grep showed no "--reveal" in native-failures. But it might assert stderr message text for refusal. Let me check where native-failures asserts refusal messages. Also lease approve: check consume.rs:132 — assert_human_reveal with verb env-resolve in lease approval path? Let me check consume.rs lines 120-150 to see which commands gate.
+
+  - `approval-terminal.ts` used by parity-request.test.ts (packages/cli, TS CLI): the env passed — parity-request.test.ts presumably uses process.ts fixture env (scrubbed). Check its usage.
+
+  Also native-process denied message assertions: 2password-native-process.test.ts asserts `denied.stderr` contains "stdin and stdout must both be interactive terminals" (lines ~100 and ~118). With unscrubbed env in CI (CI=true), the native binary would refuse with the agent-context message instead → assertion failure. Confirmed gap #2.
+
+  Now check lease approve gating (consume.rs:132) to know whether native-failures pty approve is affected.    Run {
+        file: PathBuf,
+        #[arg(last = true, required = true)]
+        command: Vec<String>,
+    },
+}
+pub(super) fn read(reference: &str, desktop: bool, reveal: bool) -> anyhow::Result<()> {
+    use opensesame_connector_host::password_agent::reveal_gate::{
+        assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
+    };
+    anyhow::ensure!(reference.starts_with("op://"), "Expected op://reference");
+    assert_human_reveal(HumanRevealRequest {
+        verb: "read",
+        reveal,
+        desktop,
+        reference: Some(reference),
+        stdin_tty: None,
+        stdout_tty: None,
+    })?;
+    emit_reveal_receipt("read", Some(reference));
+    std::io::stdout().write_all(&super::io::op(
+        &["read".into(), reference.into()],
+        None,
+        None,
+    )?)?;
+    Ok(())
+}
+pub(super) fn run_assignments(assignments: &[String], command: &[String]) -> anyhow::Result<()> {
+    core::validate_run_assignments(assignments)?;
+    let mut args = super::io::helper("op")?;
+    args.arg("run");
+    for assignment in assignments {
+        let (name, reference) = core::assignment(assignment)?;
+        args.env(name, reference);
+    }
+    finish(launch(args, command)?);
+    Ok(())
+}
+fn launch(mut op: Command, command: &[String]) -> anyhow::Result<std::process::ExitStatus> {
+    anyhow::ensure!(!command.is_empty(), "A child command is required");
+    super::credential::authenticate(&mut op)?;
+            for (name, reference) in assignments {
+                text.push_str(&name);
+                text.push('=');
+                text.push_str(&reference);
+                text.push('\n');
+            }
+            std::fs::write(file, text)?;
+        }
+        Env::Run { file, command } => {
+            let content = zeroize::Zeroizing::new(std::fs::read_to_string(file)?);
+            core::validate_run_template(&content)?;
+            let mut snapshot = tempfile::NamedTempFile::new()?;
+            snapshot.write_all(content.as_bytes())?;
+            let mut op = super::io::helper("op")?;
+            op.arg("run")
+                .arg(format!("--env-file={}", snapshot.path().display()));
+            let status = launch(op, &command)?;
+            snapshot.close()?;
+            finish(status);
+        }
+        Env::Resolve { file, target } => {
+            use opensesame_connector_host::password_agent::reveal_gate::{
+                assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
+            };
+            assert_human_reveal(HumanRevealRequest {
+                verb: "env-resolve",
+                reveal,
+                desktop,
+                reference: None,
+                stdin_tty: None,
+                stdout_tty: None,
+            })?;
+            emit_reveal_receipt("env-resolve", None);
+            eprintln!(
+                "Deprecation: env resolve writes plaintext at rest; prefer `password-agent env run` or `opensesame run --env` (same run wrapper as op run)."
+            );
+            let target = PathBuf::from(target);
+            let content = std::fs::read_to_string(file)?;
+            let lines = core::parse(&content);
+            let refs = core::references(&lines);
+            let values = if refs.is_empty() {
+                serde_json::json!([])
+            } else {
+                let mut op = super::io::helper("op")?;
+                super::credential::authenticate(&mut op)?;
+                op.args(["run", "--no-masking", "--"])
+                    .arg(std::env::current_exe()?)
+                    .args(["password-agent", "internal-batch"])
+                    .arg(refs.len().to_string())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null());
+15:import { approvalTerminal } from "./fixtures/password-agent/approval-terminal.js";
+16:import { processFixture } from "./fixtures/password-agent/process.js";
+25:  Reflect.deleteProperty(process.env, "OPENSESAME_STATE_DIR");
+34:    const fixture = await processFixture();
+65:    process.env.OPENSESAME_STATE_DIR = directory;
+124:      `#!${process.execPath}\nrequire('node:fs').writeSync(1,JSON.stringify({cwd:process.cwd(),preload:process.env.NODE_OPTIONS??null}));`,
+127:    const original = process.env.PATH;
+137:      process.env.PATH = `${directory}:.:relative:${bin}`;
+139:        env: { NODE_OPTIONS: `--require ${preload}`, NODE_PATH: directory },
+149:      process.env.PATH = original;
+153:    const env = helperEnvironment({
+161:    expect(env.NODE_OPTIONS).toBeUndefined();
+162:    expect(env.NODE_PATH).toBeUndefined();
+163:    expect(env.BASH_ENV).toBeUndefined();
+164:    expect(env.LD_PRELOAD).toBeUndefined();
+165:    expect(env.OP_SERVICE_ACCOUNT_TOKEN).toBe("ops_canary");
+166:    const original = process.env.PATH;
+168:      process.env.PATH = `:.:relative:${process.cwd()}`;
+171:      process.env.PATH = original;
+179:  process.env.OPENSESAME_STATE_DIR = directory;
+parity-request.test.ts uses process.ts fixture (scrubbed) and approvalTerminal(env) — need to check what env it passes to approvalTerminal. Line 179: `process.env.OPENSESAME_STATE_DIR = directory;` — it may pass `{...process.env...}` to approvalTerminal? Let me check around the approvalTerminal call site. Also whether lease approve (TS CLI) goes through assertHumanReveal — check packages/cli lease approve implementation for TTY gate vs agent gate. Let me look at parity-request.test.ts approvalTerminal call and the TS lease approve gate.
+it("real concurrent processes atomically consume the SQLite budget once", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "lease-race-"));
+  directories.push(directory);
+  process.env.OPENSESAME_STATE_DIR = directory;
+  const store = await openLeaseStore();
+  try {
+    await store.insert(
+      createLease({
+        id: "race",
+        principal: await store.principal(),
+        binding: describeRequest({
+          url: "https://example.com/race",
+          reference: "op://Automation/Database/password",
+        }),
+        resource: { id: "a".repeat(26), version: 1 },
+        now: Date.now(),
+      }),
+    );
+  } finally {
+    store.close();
+  }
+  const race = () =>
+    new Promise<string>((finish, reject) => {
+      const child = spawn(
+        process.execPath,
+        [
+          "--import",
+          resolve("node_modules/tsx/dist/loader.mjs"),
+          resolve("src/fixtures/password-agent/lease-claim.ts"),
+        ],
+        { env: process.env, stdio: ["ignore", "pipe", "ignore"] },
+      );
+      let output = "";
+      child.stdout.on("data", (chunk) => {
+        output += String(chunk);
+      });
+      child.on("error", reject);
+      child.on("close", (code) =>
+        code === 0 ? finish(output) : reject(new Error("Claim process failed")),
+      );
+FETCH_HEAD:packages/cli/src/parity-commands.ts:28:import { assertHumanReveal, emitRevealReceipt } from "./reveal-gate.js";
+FETCH_HEAD:packages/cli/src/parity-commands.ts:73:      assertHumanReveal({
+FETCH_HEAD:packages/cli/src/parity-commands.ts:182:  assertHumanReveal({
+Where is approvalTerminal actually called in parity-request.test.ts? Grep gave import at 15 but no call shown. Let me grep for "approvalTerminal(" usage.
+
+  Also check parity-commands.ts lines 60-90 and 175-195 to see which commands gate (read and env resolve) and whether lease approve gates.233:  expect((await approvalTerminal(fixture.env)).code).toBe(0);
+261:  const result = await approvalTerminal(fixture.env, url, reference);
+    });
+  const results = await Promise.all([race(), race(), race(), race()]);
+  expect(results.filter((output) => JSON.parse(output).claimed)).toHaveLength(
+    1,
+  );
+  const final = await openLeaseStore();
+  try {
+    expect((await final.get("race")).usesRemaining).toBe(0);
+  } finally {
+    final.close();
+  }
+}, 60000);
+
+it("real human terminal approval uses desktop metadata only and persists a verified grant", async () => {
+  const fixture = await processFixture();
+  directories.push(fixture.directory);
+  fixture.env.OP_SERVICE_ACCOUNT_TOKEN = "ops_service-canary";
+  expect((await approvalTerminal(fixture.env)).code).toBe(0);
+  const calls = await fixture.calls();
+  expect(calls).toHaveLength(1);
+  expect(calls[0]?.args.slice(0, 2)).toEqual(["item", "list"]);
+  expect(calls[0]?.token).toBeUndefined();
+  expect(calls[0]?.args.slice(-2)).toEqual(["--account", "selected.account"]);
+  process.env.OPENSESAME_STATE_DIR = fixture.env.OPENSESAME_STATE_DIR;
+  const store = await openLeaseStore();
+  try {
+    const records = await store.list();
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      itemVersion: 1,
+      useBudget: 1,
+      usesRemaining: 1,
+      destination: "https://request.example",
+      revoked: false,
+    });
+  } finally {
+    store.close();
+  }
+}, 60000);
+
+it("actual human approval terminal escapes control bytes in destination and credential reference", async () => {
+  const fixture = await processFixture();
+  directories.push(fixture.directory);
+  const url = "https://request.example/\u001b[2Jspoofed";
+  const reference = "op://Automation/Database/\u001b[2Jpassword";
+      print(await agent.find(args, scope));
+      return 0;
+    case "inventory":
+      exhausted(args);
+      print({ items: await agent.inventory(scope) });
+      return 0;
+    case "audit":
+      exhausted(args);
+      print(await agent.audit(scope));
+      return 0;
+    case "read": {
+      const ref = required(args.shift(), "read requires op://reference.");
+      exhausted(args);
+      assertHumanReveal({
+        verb: "read",
+        reveal: ctx.reveal,
+        desktop: Boolean(ctx.scope.desktop),
+        reference: ref,
+      });
+      emitRevealReceipt({ verb: "read", reference: ref });
+      emitHumanValue(await agent.read(ref));
+      return 0;
+    }
+    case "create":
+      return runCreate(ctx);
+    case "password":
+      return runPassword(ctx);
+    case "run":
+      return runChild(ctx);
+    case "env":
+      return runEnv(ctx);
+    case "doctor":
+      return runDoctor(ctx);
+    case "service-account":
+      return runService(ctx);
+    default:
+    if (!args.length)
+      throw new Error("env write requires reference assignments.");
+    await privateFile(file, renderEnv(args.map(parseAssignment)));
+    print({ written: true, file });
+    return 0;
+  }
+  if (verb === "run") {
+    exhausted(args);
+    return agent.runFile(file, child, await readFile(file, "utf8"));
+  }
+  if (verb !== "resolve")
+    throw new Error("env requires write, resolve, or run.");
+  assertHumanReveal({
+    verb: "env-resolve",
+    reveal: ctx.reveal,
+    desktop: Boolean(ctx.scope.desktop),
+  });
+  emitStderrLine(
+    "Deprecation: env resolve writes plaintext at rest; prefer `run --env-file` or `env run <file> -- <cmd>` (same `run` wrapper as `op run` / `infisical run`).",
+  );
+  const output = option(args, "--output");
+  const inPlace = toggle(args, "--in-place");
+  exhausted(args);
+  if (inPlace === (output !== undefined))
+    throw new Error("Choose exactly one of --output or --in-place.");
+  emitRevealReceipt({ verb: "env-resolve" });
+  const result = await agent.resolveEnv(await readFile(file, "utf8"));
+  await privateFile(output ?? file, result.content);
+  print({ resolved: result.count, file: output ?? file, plaintext: true });
+  return 0;
+}
+approvalTerminal receives `fixture.env` — from process.ts fixture, which is now scrubbed. Good; lease approve in TS CLI doesn't go through assertHumanReveal anyway (only read/env resolve), but lease approve has its own TTY check ("Type approve:"). The scrubbed env prevents agent-context issues if lease approve checks detectAgentContext... it doesn't (only parity-commands read/env resolve use assertHumanReveal). OK.
+
+  Native side: `lease approve` in the native binary — does it use the reveal gate? consume.rs only read + env-resolve. Lease approve presumably has its own TTY ceremony. native-failures pty test runs `lease approve` with unscrubbed env — but if lease approve doesn't call the reveal gate, no agent-context refusal. Check: does the native lease approve check agent context elsewhere? grep apps/cli for agent_context_detected use — only reveal_gate consumers (consume.rs read/env-resolve, store.rs pass). So native-failures lease approve unaffected.
+
+  But 2password-native-process.test.ts DOES exercise `env resolve --reveal` and `read --reveal` through the pty with unscrubbed env, AND asserts the non-pty denial message is "stdin and stdout must both be interactive terminals". Both break under CI=true. Confirmed gap.
+
+  Now also confirm protect_rotation_journey.rs: the binary inherits env; in CI `CI=true` → `pass show --reveal` via pty refused with agent-context message → `shows()` returns None → `assert_eq!(shows(...), Some("hunter2\n"))` fails. Confirmed gap. Note attach_journey.rs got the fix but protect_rotation_journey.rs didn't — inconsistent coverage.
+
+  Any other Rust tests? grep openpty found only those two files. But also apps/cli tests that don't use pty but assert refusal messages: e.g. attach_journey.rs:190 comment says "Off a terminal the gate names that fact before it mentions --reveal" — with CI env, the gate names agent-context first. attach_journey was patched with strip_agent_context_env. Any other tests asserting refusal message text? grep for "interactive terminals" in apps/cli and crates.
+
+  Also main_tests.rs:92 — parse-only. pass_otp.rs and rotate.rs unit tests patched.
+
+  Let me grep for tests asserting "agent context" or "interactive terminals" messages elsewhere.FETCH_HEAD:apps/cli/src/pass_otp.rs:142:            message.contains("--reveal") || message.contains("interactive terminals"),
+FETCH_HEAD:apps/cli/src/pass_protect/rotate.rs:232:                assert!(message.contains("interactive terminals"), "{message}");
+FETCH_HEAD:apps/cli/tests/attach_journey.rs:205:        String::from_utf8_lossy(&denied.stderr).contains("interactive terminals"),
+FETCH_HEAD:packages/app-core/src/webmcp/vault-tools.ts:99: * Allowlist projection of a vault item for agent context. Only the fields
+FETCH_HEAD:packages/app-core/src/webmcp/vault-tools.ts:145:    // vault into agent context by declaring a field (ADR 0087 §5).
+FETCH_HEAD:packages/capability-registry/capabilities.json:776:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:780:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:784:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2407:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2411:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2430:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2434:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2438:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2783:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2787:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:2791:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:5003:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:5007:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:5011:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+FETCH_HEAD:packages/capability-registry/capabilities.json:5994:        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+Summary of affected tests:
+
+  Patched: pass_otp.rs:142, rotate.rs:232, attach_journey.rs:205 — all scrubbed. Good.
+
+  NOT patched:
+  1. `apps/cli/tests/protect_rotation_journey.rs` — `run_as_person` (openpty) inherits CI env; `pass show --reveal` refused in CI → `shows()` assertions fail. Real CI regression in the required Rust check (cargo test -p opensesame-cli runs in GitHub Actions where CI=true).
+
+  2. `packages/cli/src/fixtures/password-agent/native-process.ts` — env built from `...process.env` without stripping; used by `scripts/test/2password-native-process.test.ts` which (a) asserts non-pty denial stderr contains "stdin and stdout must both be interactive terminals" — now agent-context message in CI; (b) `humanTerminal` pty reveal would be refused → ENOENT/read failure. Breaks `pnpm test:2password-parity` (native-cli-runtime suite) in CI.
+
+  Wait — do these run in CI for this PR? password-parity.yml triggers on PRs touching crates/apps/cli/packages/cli — yes. And Rust check in ci.yml runs cargo test for affected packages — opensesame-cli changed → yes. Also locally, developers running in Cursor Cloud (CURSOR_AGENT=1) would hit these failures too.
+
+  Hmm, but wait: was protect_rotation_journey.rs failing before this PR in CI? Before, markers were OPENSESAME_AGENT_LAUNCH_HANDLE, OPENSESAME_AGENT_CLIENT_ID, CLAUDECODE — none set in GitHub Actions, so tests passed. Adding CI/GITHUB_ACTIONS breaks it. Yes, regression introduced by this PR.
+
+  Also check: does the verify suite / battle-test use pass show --reveal through a pty? scripts/test/battle-test.sh — grep showed no --reveal there. OK.
+
+  Also check pass otg/attach get in attach_journey — patched.
+
+  One more: crates/sealed-store produce_entry — no gate.
+
+  Also TS packages/cli parity.test.ts withTerminal patched; parity.test.ts line 114-146 run read --reveal with mocked TTY — now with agent env deleted. Good.
+
+  Also `packages/app-core/src/lib/password-agent/startup-env.test.ts` in core-runtime suite — check if it touches reveal gate env... it's about startup env; probably unrelated. Quick check for reveal/CI markers? It tests startup env sanitizing. Not gate-related. Skip.
+
+  Minor observations (not necessarily blocking):
+  - Rust conformance test's trailing `let _ = AgentContextGuard::clear_markers();` after the loop is a no-op (guard immediately dropped, restoring saved values). Dead code.
+  - reveal-gate.test.ts adds CURSOR_AGENT and CI detection assertions but not GITHUB_ACTIONS/AGENT — minor coverage gap; conformance cases? The spec "cases" only exercise OPENSESAME_AGENT_LAUNCH_HANDLE via agentMarker. Actually the spec cases don't iterate over all markers. Minor.
+  - Does `docs`/AGENTS.md require docs:index updates? No doc changes.
+  - The PR body says "existing TTY pair check unchanged" and "run --env / env run untouched" — verified: run paths don't call assertHumanReveal (run_assignments/Env::Run don't gate). True.
+
+  One more check: quality baseline for crates/connector-host reveal_gate.rs — not in baseline listing (grep found nothing), so no ratchet issue. New pub fns fine.
+
+  Also the daemon-deps audit: connector-host is not a daemon dep; added no new deps. Fine.
+
+  Also check clippy: `AgentContextGuard` uses std::env::set_var/remove_var — in Rust 1.88 those are... `std::env::set_var` is unsafe in edition 2024! Rust 2024 edition made set_var unsafe. What edition is connector-host? Check Cargo.toml. If edition 2024, the new code needs unsafe blocks; existing test code already used `std::env::set_var` at line 211 without unsafe, so edition must be 2021. Confirm.4:edition.workspace = true
+78:edition = "2021"
+import { afterEach, describe, expect, it } from "vitest";
+import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
+  type: "json",
+};
+import {
+  type HumanRevealRequest,
+  assertHumanReveal,
+  detectAgentContext,
+  humanRevealRefusal,
+} from "./reveal-gate.js";
+
+function restoreEnv(name: string, previous: string | undefined): void {
+  if (previous === undefined) Reflect.deleteProperty(process.env, name);
+  else process.env[name] = previous;
+}
+
+describe("cli reveal gate conformance", () => {
+  for (const caseRow of gate.cases) {
+    it(caseRow.id, () => {
+      const env = { ...process.env };
+      for (const rule of gate.agentContextEnv) {
+        env[rule.name] = undefined;
+      }
+      if (caseRow.agentContext) {
+        env.OPENSESAME_AGENT_LAUNCH_HANDLE = "fixture-handle";
+      }
+      const request: HumanRevealRequest = {
+        verb: caseRow.reference ? "read" : "env-resolve",
+        reveal: caseRow.reveal,
+        desktop: caseRow.desktop,
+        reference: caseRow.reference ?? undefined,
+        env,
+        stdinIsTty: caseRow.stdinTty,
+        stdoutIsTty: caseRow.stdoutTty,
+      };
+      const refusal = humanRevealRefusal(request);
+      if (caseRow.expect === "refuse") {
+        expect(refusal).toBeTruthy();
+        expect(() => assertHumanReveal(request)).toThrow();
+      } else {
+        expect(refusal).toBeUndefined();
+        expect(() => assertHumanReveal(request)).not.toThrow();
+      }
+    });
+  }
+
+  it("detects verified agent markers only (refuse-only)", () => {
+    const launch = process.env.OPENSESAME_AGENT_LAUNCH_HANDLE;
+    const client = process.env.OPENSESAME_AGENT_CLIENT_ID;
+    const claude = process.env.CLAUDECODE;
+    try {
+      process.env.OPENSESAME_AGENT_LAUNCH_HANDLE = "h";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_LAUNCH_HANDLE");
+      process.env.OPENSESAME_AGENT_CLIENT_ID = "c";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_CLIENT_ID");
+      process.env.CLAUDECODE = "1";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CLAUDECODE");
+      process.env.CURSOR_AGENT = "1";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CURSOR_AGENT");
+      process.env.CI = "true";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CI");
+      expect(detectAgentContext()).toBe(false);
+    } finally {
+      restoreEnv("OPENSESAME_AGENT_LAUNCH_HANDLE", launch);
+      restoreEnv("OPENSESAME_AGENT_CLIENT_ID", client);
+Note a subtle bug in the "detects verified agent markers only" test: the final `expect(detectAgentContext()).toBe(false)` — in CI, `GITHUB_ACTIONS=true` is still set in the real process.env (the test only deleted CI after setting it, but GITHUB_ACTIONS was never cleared). So this test FAILS in GitHub Actions! detectAgentContext() reads process.env; in CI, GITHUB_ACTIONS=true → returns true → `toBe(false)` fails.
+
+  Wait — but this test existed before with the same final assertion `expect(detectAgentContext()).toBe(false)` and passed in CI because none of the old markers (OPENSESAME_AGENT_LAUNCH_HANDLE, OPENSESAME_AGENT_CLIENT_ID, CLAUDECODE) are set in GitHub Actions. Now GITHUB_ACTIONS=true IS a marker and IS set in GitHub Actions → the final assertion fails in CI. The PR body claims "Conformance tests scrub agent env vars so allow cases stay valid in CI VMs" — but this very test's final `toBe(false)` assertion was not scrubbed. Major CI-breaking gap in the TS check (vitest run of packages/cli reveal-gate.test.ts runs in CI TypeScript check).
+
+  Actually wait — did the diff modify this test's finally block? The finally restores only the three old vars. CURSOR_AGENT and CI are deleted inline. GITHUB_ACTIONS never touched. In GitHub Actions: GITHUB_ACTIONS=true → detectAgentContext() true → assertion fails. Confirmed real gap #3 — and it's in the file the PR itself edited, running under the PR's own stated test command `pnpm --filter @opensesame/cli test -- reveal-gate`.
+
+  Let me double-check vitest doesn't clear env... no, it inherits GitHub Actions env. Yes.
+
+  Also the Rust conformance test in reveal_gate.rs: `conformance_cases_match_ts_fixture` uses AgentContextGuard inside loop — covers GITHUB_ACTIONS. And the trailing no-op line. Fine.
+
+  Now also verify pass_otp.rs test assertion change context — line 142 asserts message contains "--reveal" or "interactive terminals"; with guard clearing markers, in CI the agent-context message would have fired without the guard; they added the guard, fine.
+
+  Also check rotate.rs test line ~232 asserts "interactive terminals" — guard added. Fine.
+
+  Now also verify there's no drift test needed for the spec (both consumers read the file directly). Confirmed only 3 consumers. The TS import `with { type: "json" }` fine.
+
+  Also, does the repo require updating docs (docs/adr or AGENTS.md)? Not really.
+
+  One more: the TS conformance test env scrub uses `env[rule.name] = undefined`. In ruleMatches, `raw === undefined` → false. But careful: `{...process.env}` then assigning undefined — works for the gate evaluation since it reads env[rule.name]. Fine.
+
+  Also `packages/cli/src/parity.test.ts` withTerminal scrub — fine.
+
+  Also check whether there are other test files in packages/cli that assert the "interactive terminals" refusal and run with unscrubbed env: parity-failures.test.ts uses process.ts fixture (scrubbed env for spawned CLI). But the spawned CLI is the TS CLI run via... `cli` helper in process.ts spawns bin with env — scrubbed now. OK.
+
+  parity-process.test.ts uses processFixture from process.ts (line: import?) — check import quickly. It asserted "--reveal" at 103-124. If it imports from process.js, fine.import { readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { processFixture } from "./fixtures/password-agent/process.js";
+const TOKEN = "ops_fake-token";
+let directory: string;
+let database: string;
+let env: NodeJS.ProcessEnv;
+let cli: Awaited<ReturnType<typeof processFixture>>["cli"];
+let calls: Awaited<ReturnType<typeof processFixture>>["calls"];
+describe("2password CLI process gauntlet", { timeout: 120_000 }, () => {
+  beforeEach(async () => {
+    const fixture = await processFixture();
+    ({ directory, database, env, cli, calls } = fixture);
+  });
+  afterEach(async () => {
+    await rm(directory, { recursive: true, force: true });
+  });
+  it("find inventory audit use real CLI with safe metadata and fuzzy suggestions", async () => {
+    const found = await cli(["find", "database", "databse", "--desktop"]);
+      (
+        await cli([
+          "env",
+          "resolve",
+          template,
+          "--output",
+          target,
+          "--desktop",
+          "--reveal",
+        ])
+      ).code,
+    ).toBe(1);
+    expect(
+      (
+        await cli([
+          "env",
+          "resolve",
+          template,
+          "--output",
+          target,
+          "--desktop",
+          "--reveal",
+        ])
+      ).stderr,
+    ).toMatch(/stdin and stdout/);
+    const readAttempt = await cli([
+      "read",
+      "op://v/i/f",
+      "--desktop",
+      "--reveal",
+      "--account",
+      "selected.account",
+    ]);
+    expect(readAttempt.code).toBe(1);
+    expect(readAttempt.stderr).toMatch(/stdin and stdout/);
+    env.OP_SERVICE_ACCOUNT_TOKEN = TOKEN;
+parity-process.test.ts uses process.ts fixture — scrubbed. Good.
+
+  Now let me also double-check whether `pnpm --filter @opensesame/cli test` would actually run reveal-gate.test.ts in GitHub Actions with GITHUB_ACTIONS=true set. Yes. The final `expect(detectAgentContext()).toBe(false)` in "detects verified agent markers only" will fail because GITHUB_ACTIONS=true remains in process.env. This directly contradicts the PR body's Testing claim — the stated test command fails in CI.
+
+  Wait — but hold on. Was the PR maybe merged/run in CI already green? The task is to review the diff vs main; I should verify logically. GitHub Actions sets GITHUB_ACTIONS=true always. detectAgentContext() default env=process.env. The test clears only OPENSESAME_AGENT_LAUNCH_HANDLE, OPENSESAME_AGENT_CLIENT_ID, CLAUDECODE, CURSOR_AGENT, CI. AGENT and GITHUB_ACTIONS not cleared. So in GHA: true ≠ false → fail. Definitive gap.
+
+  Similarly, are there other TS tests calling detectAgentContext()/humanRevealRefusal with default process.env expecting allow? parity.test.ts withTerminal — scrubbed, good.
+
+  Also the Rust side: apps/cli unit tests run in one process; guards added where needed.
+
+  Now also double check that there is no other consumer test in crates that asserts reveal refusal messages: grep earlier found only those. Also apps/cli/tests other files: let me quickly list apps/cli/tests/*.rs to be sure none other spawns the binary with pass show --reveal.apps/cli/tests/attach_journey.rs
+apps/cli/tests/browserpass_golden.rs
+apps/cli/tests/capability_parity.rs
+apps/cli/tests/credential_helpers.rs
+apps/cli/tests/daemon_startup_security.rs
+apps/cli/tests/dev_run_surrogates.rs
+apps/cli/tests/gopass_golden.rs
+apps/cli/tests/hooks_approver.rs
+apps/cli/tests/hooks_intercept.rs
+apps/cli/tests/hooks_intercept_approver.rs
+apps/cli/tests/hooks_mock
+apps/cli/tests/hooks_policy_presets.rs
+apps/cli/tests/host_startup_security.rs
+apps/cli/tests/named
+apps/cli/tests/protect_rotation_journey.rs
+apps/cli/tests/rotate_recipes.rs
+apps/cli/tests/rotate_recipes_mock
+apps/cli/tests/rotate_recipes_verbs.rs
+apps/cli/tests/session_setup.rs
+apps/cli/tests/snapshots
+apps/cli/tests/vault_file_cli.rs
+FETCH_HEAD:apps/cli/tests/attach_journey.rs
+FETCH_HEAD:apps/cli/tests/protect_rotation_journey.rs
+FETCH_HEAD:apps/cli/tests/session_setup.rs
+345:        pass.iter().any(|name| name == "show"),
+346:        "pass show missing from {pass:?}"
+session_setup.rs only lists verb names — no reveal execution. Fine.
+
+  Final check on the remaining risk surfaces:
+
+  1. Does anything in `scripts/test/battle-test.sh` or other CI scripts run `pass show --reveal` or `password-agent read --reveal` via pty in CI? grep earlier for "--reveal" in scripts/ found only 2password-native-process.test.ts. Good.
+
+  2. capability_parity / other tests — not reveal related.
+
+  3. The PR also claims "`run --env` / `env run` untouched" — verified: run paths don't gate (consume.rs run_assignments/Env::Run have no assert_human_reveal). MET.
+
+  4. Spec markers: both planes consume the same JSON (Rust include_str + TS json import), drift-free by construction. The four new markers are refuse-only (detection never grants). MET intent.
+
+  5. Conformance "cases" unchanged — verified from diff (only agentContextEnv added).
+
+  Gaps:
+  - GAP A: reveal-gate.test.ts "detects verified agent markers only" final `expect(detectAgentContext()).toBe(false)` fails under GitHub Actions because GITHUB_ACTIONS=true (and possibly AGENT) is never cleared in that test — the PR's own stated test command fails in CI.
+  - GAP B: apps/cli/tests/protect_rotation_journey.rs `run_as_person` pty reveal not scrubbed → `shows()` assertions fail in CI (Rust required check).
+  - GAP C: packages/cli/src/fixtures/password-agent/native-process.ts env not scrubbed (only process.ts was) → scripts/test/2password-native-process.test.ts denial-message assertions ("stdin and stdout...") and humanTerminal pty reveals fail in CI → pnpm test:2password-parity red.
+
+  Minor (non-blocking): trailing `let _ = AgentContextGuard::clear_markers();` no-op line in reveal_gate.rs test; new markers GITHUB_ACTIONS/AGENT not covered by the detection unit test (only CURSOR_AGENT/CI added). Also possible design question: CI=true as agent marker means human CI use of reveal is refused — intended hardening per title.
+
+  Verify A once more: the test's finally block restores only the three old vars; CURSOR_AGENT and CI are deleted in-line; GITHUB_ACTIONS never cleared. In GHA, GITHUB_ACTIONS=true → detectAgentContext() → true → `toBe(false)` fails. Also note `AGENT` — not typically set in GHA. But GITHUB_ACTIONS suffices. Solid.
+
+  Also, does the TS CI job run packages/cli tests? ci.yml TypeScript check runs tests the diff reaches — packages/cli changed → yes.
+
+  Verdict: GAPS.
+
+• Review complete. I read the PR body via `gh`, the full diff at `/tmp/pr918.diff`, and verified the affected code at `FETCH_HEAD` (`origin/cursor/persona-r3-cli-reveal-gate-b5a1`) against its consumers.
+
+  **PR claim** (`fix(cli): harden read --reveal against agent and CI contexts`): add `CURSOR_AGENT`, `CI`, `GITHUB_ACTIONS`, `AGENT` markers to `spec/conformance/cli-reveal-gate.json`; scrub agent env vars in conformance tests so allow-cases stay valid in CI; leave `run --env`/`env run` untouched.
+
+  FINDINGS
+
+  1. **Spec markers added to the single shared definition — MET.** `spec/conformance/cli-reveal-gate.json` gains exactly the four `equals`-match markers; both planes consume that same file (Rust `include_str!` in `crates/connector-host/src/password_agent/reveal_gate.rs:5`, TS JSON import in `packages/cli/src/reveal-gate.ts:1`), so no drift test is needed and `cases` are unchanged.
+
+  2. **Detection is refuse-only and ordering correct — MET.** `refusal_message`/`humanRevealRefusal` check `agent_context_detected()` first and never use it to allow; new markers only widen refusal. `run --env`/`env run` confirmed untouched — `consume.rs` `run_assignments`/`Env::Run` have no gate call.
+
+  3. **Scrub helpers added in both planes — MET.** `AgentContextGuard` + `strip_agent_context_env` (Rust) and `envWithoutAgentContext` (TS) iterate `policy().agent_context_env`, so they auto-cover future markers.
+
+  4. **PR's own stated test fails in CI — GAP.** `packages/cli/src/reveal-gate.test.ts` "detects verified agent markers only" ends with `expect(detectAgentContext()).toBe(false)` against live `process.env`, but clears only `CURSOR_AGENT` and `CI` of the new markers — `GITHUB_ACTIONS=true` is always set in GitHub Actions, so `detectAgentContext()` returns `true` and the assertion fails. The PR body claims exactly `pnpm --filter @opensesame/cli test -- reveal-gate` as its testing, and the TypeScript required check runs this file.
+
+  5. **`protect_rotation_journey.rs` not scrubbed — GAP.** `apps/cli/tests/protect_rotation_journey.rs` `run_as_person` spawns the real binary on an openpty with inherited env and asserts `shows(...) == Some("hunter2\n")` (`pass show --reveal`); with `CI=true`/`GITHUB_ACTIONS=true` in CI the gate refuses on agent context before the TTY check, so the required Rust check fails. The PR scrubbed the sibling `attach_journey.rs` but missed this one — the two files are the only openpty users.
+
+  6. **`native-process.ts` fixture missed — GAP.** Only `packages/cli/src/fixtures/password-agent/process.ts` got `envWithoutAgentContext`; its sibling `native-process.ts` (line 69: `...process.env`, unscrubbed) feeds `scripts/test/2password-native-process.test.ts`, whose non-pty denials assert stderr matches "stdin and stdout must both be interactive terminals" (now the agent-context message under CI) and whose `humanTerminal` pty reveals (`env resolve --reveal`, `read --reveal`) get refused → `pnpm test:2password-parity` native-cli-runtime suite goes red in `password-parity.yml`, which triggers on this PR's paths.
+
+  7. **Minor (non-blocking).** The trailing `let _ = AgentContextGuard::clear_markers();` in `reveal_gate.rs` after the conformance loop is a no-op (guard created and instantly dropped); the detection unit test exercises `CURSOR_AGENT`/`CI` but not `GITHUB_ACTIONS`/`AGENT`.
+
+  VERDICT: GAPS
+
+  Required follow-ups:
+  - In `reveal-gate.test.ts`, clear/restore **all** `gate.agentContextEnv` names in the "detects verified agent markers" test (or wrap the whole suite in a scrub), so the final `toBe(false)` holds in GitHub Actions.
+  - Add `strip_agent_context_env(&mut command)` to the `Command` builders in `apps/cli/tests/protect_rotation_journey.rs` (both `run_with` and `run_as_person`).
+  - Wrap the env construction in `packages/cli/src/fixtures/password-agent/native-process.ts` with `envWithoutAgentContext(...)` (same as `process.ts`) so the native parity gauntlet survives CI.
+  - Re-run `pnpm --filter @opensesame/cli test -- reveal-gate`, `cargo +1.88.0 test -p opensesame-cli --test protect_rotation_journey`, and `pnpm test:2password-parity` with `CI=true GITHUB_ACTIONS=true` exported to prove the fixes under the real CI environment.
+  - Optional cleanup: drop the no-op trailing `clear_markers()` line in `reveal_gate.rs` and add `GITHUB_ACTIONS`/`AGENT` assertions to the marker-detection test.
+
+To resume this session: kimi -r session_1055db7e-7820-4a94-9f45-5fca9bfbf964
