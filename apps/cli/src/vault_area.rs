@@ -6,8 +6,17 @@ use super::{PassAttachCmd, PassCmd, PassTombCmd};
 use crate::{attach, pass_otp, pass_protect, store};
 use clap::Subcommand;
 
+#[path = "node_data_worker.rs"]
+mod node_data_worker;
+
 #[derive(Subcommand, Debug)]
 pub(crate) enum VaultArea {
+    /// Private original physical Node DATA transport; never a vault authentication interface.
+    #[command(hide = true)]
+    NodeData {
+        #[arg(long)]
+        state: PathBuf,
+    },
     /// Open a Pages vault export or offline backup with its master password.
     Verify { file: PathBuf },
     /// List its items: path and kind, never values.
@@ -47,6 +56,7 @@ pub(crate) enum VaultArea {
 
 pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::Result<()> {
     match cmd {
+        VaultArea::NodeData { state } => node_data_worker::run(&state)?,
         VaultArea::Verify { file } => {
             crate::vault_file::run(output, &crate::vault_file::VaultCmd::Verify { file })?;
         }

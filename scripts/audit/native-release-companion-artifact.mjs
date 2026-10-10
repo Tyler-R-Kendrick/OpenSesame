@@ -243,7 +243,18 @@ async function verifyRegisteredWorker(main, installed) {
   const registration = (
     await boundedBytes(main, 2 * 1024 * 1024)
   ).bytes.toString("utf8");
-  const hasWorker = registration.includes("mod node_data_worker;");
+  const vaultArea = (
+    await boundedBytes(
+      await realpath("apps/cli/src/vault_area.rs"),
+      2 * 1024 * 1024,
+    )
+  ).bytes.toString("utf8");
+  const hasWorker =
+    registration.includes("mod node_data_worker;") ||
+    (registration.includes("mod vault_area;") &&
+      vaultArea.includes(
+        '#[path = "node_data_worker.rs"]\nmod node_data_worker;',
+      ));
   let workerVerified = false;
   if (hasWorker) {
     const state = await mkdtemp(
