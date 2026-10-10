@@ -16,7 +16,11 @@ import {
   RP_ID,
   T0,
   type World,
+  buildWorld,
+  holdingOf,
+  person,
 } from "./world.test-support.js";
+import { prfInput, unwrapShare } from "./wrap.js";
 
 export const DAY_MS = 86_400_000;
 
@@ -161,4 +165,40 @@ export async function nextEpoch(
     world: { ...world, people, created: reissued },
     reissued,
   };
+}
+
+export const THREE = ["Ada", "Ben", "Cy"] as const;
+
+export const twoOfThree = () =>
+  buildWorld({
+    names: THREE,
+    groups: [{ id: "all", threshold: 2, members: THREE }],
+  });
+
+/** A guardian's share as text, taken out of their wrapped holding with their key. */
+export async function mnemonicOf(world: World, name: string) {
+  const who = person(world, name);
+  const holding = holdingOf(who);
+  const policy = holding.signedPolicy.policy;
+  const asserted = await who.ceremony.assert({
+    rpId: policy.rpId,
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentialIds: holding.wrapped.envelopes.map((e) => e.credentialId),
+    requireUserVerification: true,
+    prfInput: prfInput(policy.circleId, who.id),
+  });
+  const envelope = holding.wrapped.envelopes.find(
+    (e) => e.credentialId === asserted.credentialId,
+  );
+  if (!envelope || !asserted.prfOutput) throw new Error("no share");
+  return unwrapShare(
+    envelope,
+    {
+      circleId: policy.circleId,
+      guardianId: who.id,
+      credentialId: asserted.credentialId,
+      epoch: policy.epoch,
+    },
+    asserted.prfOutput,
+  );
 }
