@@ -391,10 +391,10 @@ export const LIB_RULES = [
     "notifications.web-push",
     "push enrolment and payload rendering",
   ),
-  optional(
+  core(
     `${L}cli-app-integration/`,
-    "cli.app-integration",
-    "CLI terminal session approvals (ADR 0186)",
+    "shell.navigation",
+    "CLI app-integration protocol; the Pages module lands in #1084",
   ),
   ...each(L, LOCAL_AI_FILES, (p) =>
     optional(p, LOCAL_AI, "on-device model plane; MIXED — remote"),

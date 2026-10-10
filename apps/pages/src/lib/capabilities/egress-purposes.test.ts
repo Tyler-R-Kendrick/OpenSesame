@@ -18,7 +18,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLI_APP_INTEGRATION_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on-local.js";
 import {
   LINEAR_API_PURPOSE,
   NATIVE_PROVIDER_PURPOSE,
@@ -58,7 +57,6 @@ const catalogConstants: ReadonlyMap<string, string> = new Map(
   Object.entries({
     LINEAR_API_PURPOSE,
     NATIVE_PROVIDER_PURPOSE,
-    CLI_APP_INTEGRATION_PURPOSE,
     LIVE_CARRIER_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
     PWNED_PURPOSE,
