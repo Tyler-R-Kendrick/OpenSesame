@@ -6,8 +6,9 @@ import {
   prefersReducedMotion,
   slotTimingsJson,
 } from "./cipher-timings.js";
-import { type DecryptRun, createSlotRuns } from "./cipher.js";
+import type { DecryptRun } from "./cipher.js";
 import type { Layout } from "./particles.js";
+import { useCipherRuns } from "./use-cipher-runs.js";
 
 export { nowMs, prefersReducedMotion, slotTimingsJson };
 
@@ -51,16 +52,11 @@ export function useCipherPaint(refs: PaintRefs, opts: PaintOpts) {
     setSettled,
   } = opts;
 
-  const startRun = useCallback(() => {
-    runsRef.current = [
-      { t0: nowMs(), slots: createSlotRuns([...text], Math.random) },
-    ];
-    settledRef.current = false;
-    setSettled(false);
-    if (rootRef.current) {
-      rootRef.current.dataset.cipherTimings = slotTimingsJson(runsRef.current);
-    }
-  }, [text, rootRef, runsRef, settledRef, setSettled]);
+  const { startRun, settleRun } = useCipherRuns(
+    { rootRef, runsRef, settledRef },
+    text,
+    setSettled,
+  );
 
   const resize = useCallback(() => {
     const root = rootRef.current;
@@ -125,5 +121,5 @@ export function useCipherPaint(refs: PaintRefs, opts: PaintOpts) {
     });
   }, [motionOff, paint, rafRef, runsRef, visibleRef]);
 
-  return { startRun, resize, paint, scheduleFrame };
+  return { startRun, settleRun, resize, paint, scheduleFrame };
 }
