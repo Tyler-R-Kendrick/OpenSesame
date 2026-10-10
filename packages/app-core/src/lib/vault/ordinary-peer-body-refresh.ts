@@ -16,12 +16,13 @@ function outerHeader(header: VaultHeader): string {
   const { protection: _projection, bodyRev: _revision, ...unlock } = header;
   return JSON.stringify(unlock);
 }
-function requireSameRootProjection(
+function requireSameRootPeerManifest(
   previous: VaultHeader,
   header: VaultHeader,
+  root: Uint8Array | undefined,
   outer: string,
 ) {
-  if (outerHeader(header) !== outer || !header.protection) stale();
+  if (!root || outerHeader(header) !== outer || !header.protection) stale();
   if ((header.bodyRev ?? 0) < (previous.bodyRev ?? 0)) stale();
   const next = header.protection;
   const before = previous.protection;
@@ -34,11 +35,12 @@ function requireSameRootProjection(
       next.revision < before.revision)
   )
     stale();
-  return next;
+  return { root, next };
 }
-function newerBody(body: VaultBody, previous: VaultBody) {
-  return (body.rev ?? 0) > (previous.rev ?? 0) ? body : null;
-}
+type OrdinaryPeerBodyData = Readonly<{
+  header: VaultHeader;
+  body: VaultBody | null;
+}>;
 export async function ordinaryPeerFreshBody(
   tomb: string,
   key: CryptoKey | null,
@@ -50,7 +52,7 @@ export async function ordinaryPeerFreshBody(
   }>,
   readHeader: () => VaultHeader | null,
   original: () => void,
-) {
+): Promise<OrdinaryPeerBodyData> {
   original();
   if (!key || !held.header) stale();
   const previous = held.header;
@@ -65,9 +67,8 @@ export async function ordinaryPeerFreshBody(
     if (!header) stale();
     if (operationHeader(header) === identity)
       return { header, body: fresh.body };
-    if (!root) stale();
-    const next = requireSameRootProjection(previous, header, outer);
-    await verifyManifestAuth(root, next);
+    const checked = requireSameRootPeerManifest(previous, header, root, outer);
+    await verifyManifestAuth(checked.root, checked.next);
     original();
     // A changed HEADER never borrows the IV-only cache shortcut: authenticate
     // the actual current BODY with the original key and rollback witness.
@@ -78,7 +79,7 @@ export async function ordinaryPeerFreshBody(
       stale();
     return {
       header,
-      body: newerBody(body, held.body),
+      body: (body.rev ?? 0) > (held.body.rev ?? 0) ? body : null,
     };
   } finally {
     root?.fill(0);
