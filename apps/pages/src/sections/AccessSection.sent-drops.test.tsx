@@ -14,8 +14,11 @@ import { unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { AccessSection } from "./AccessSection.js";
 import { renderAccess } from "./access/workspace-test-support.js";
+
+const realUseVault = vaultHooksSeams.useVault;
 
 vi.mock("../app-root.js", () => ({
   useCapabilityGate: () => ({ approved: true }),
@@ -41,6 +44,7 @@ describe("AccessSection sent drops", () => {
     localDropClaimSeams.claimBase = () => "http://localhost:5180/OpenSesame";
     unlockTomb(tomb, (await mintVaultKey()).vaultKey);
     activitySeams.activeTomb = () => tomb;
+    vaultHooksSeams.useVault = () => ({ ...realUseVault(), tomb });
     const { manifest } = await sealDrop({
       kind: "text",
       name: "API token",
@@ -59,6 +63,7 @@ describe("AccessSection sent drops", () => {
 
   afterEach(() => {
     cleanup();
+    vaultHooksSeams.useVault = realUseVault;
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
   });
