@@ -13,13 +13,13 @@ import {
   capabilityOnSwitch,
 } from "./always-on.mjs";
 import { doorGuest, passTheDoor } from "./front-door.mjs";
-import { openGuestAgain } from "./push-worker-guest.mjs";
 import {
   lockVault,
   sealLocalOnly,
   unlockWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
+import { openGuestAgain } from "./push-worker-guest.mjs";
 
 const SIGN_OUT = "Also sign out of Identity when the vault locks";
 const PRINCIPAL = /\bprn_[A-Za-z0-9_-]{43}\b/;
