@@ -308,3 +308,6 @@ fn actual_case_alias_presence_never_becomes_false_absence_on_casefolding_filesys
         }
     }
 }
+
+#[path = "node_data_body_reader_tests.rs"]
+mod body_reader_tests;

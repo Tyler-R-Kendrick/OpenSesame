@@ -296,6 +296,8 @@ mod tests;
 #[cfg(target_os = "android")]
 #[path = "unix_private_files/android_app_parent.rs"]
 mod android_app_parent;
+#[cfg(target_os = "android")]
+pub use android_app_parent::AndroidAppPrivateParent;
 
 #[path = "unix_private_files/read.rs"]
 mod read;

@@ -339,3 +339,7 @@ mod existing_writer;
 
 #[path = "node_data_try_lease.rs"]
 mod try_lease;
+
+#[path = "node_data_body_reader.rs"]
+mod body_reader;
+pub use body_reader::NativeNodeDataReader;

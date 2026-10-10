@@ -85,6 +85,20 @@ impl HeldPrivateWriterLease {
         lock.validate()?;
         Ok(Some(lock))
     }
+    pub(crate) fn validate_read_for(
+        &self,
+        original: &Arc<PrivateDirectory>,
+        logical: &str,
+    ) -> io::Result<()> {
+        self.validate()?;
+        if !matches!(self.mode, 0 | LOCKFILE_EXCLUSIVE_LOCK)
+            || !Arc::ptr_eq(&self.root, original)
+            || self.name != physical_writer_lease_name(logical)?
+        {
+            return Err(security::refused());
+        }
+        Ok(())
+    }
     pub(crate) fn validate_exclusive_for(
         &self,
         original: &Arc<PrivateDirectory>,

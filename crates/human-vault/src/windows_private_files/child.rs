@@ -21,6 +21,20 @@ impl PrivateDirectory {
         self.child(name, true)
     }
 
+    /// Create only a new owner-private child beneath the exact captured original parent.
+    /// # Errors
+    /// Refuses existing children, aliases, depth limits and changed original ancestry.
+    /// This returns a physical capture, not a power-loss directory-publication guarantee.
+    pub fn create_new_child(&self, name: &Path) -> io::Result<Self> {
+        self.validate()?;
+        if self.parents.len() >= 128 {
+            return Err(security::refused());
+        }
+        let path = self.path_for(name)?;
+        create_private_directory_new(&path, &self.owner)?;
+        self.validate()?;
+        self.child(name, false)
+    }
     /// Revalidate this retained original physical chain, without creating any authority.
     /// # Errors
     /// Refuses changed identities, owner/ACLs, parent relationships or unsupported volumes.
