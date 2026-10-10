@@ -15,12 +15,15 @@ The dial/doors geometry reference is the **LockV5Demo stage** (wide two-column c
 ## Captures
 
 - `reference-stage-{390,1024,1280}.png` — LockV5Demo stage (requires dev server + `LOCK_V5_DEV_ORIGIN`)
-- `unlock-{390,1024,1280}.png` — production unlock gate from `dist/` at github.io base
+- `unlock-{390,1024,1280}-settled.png` — locked gate, dial settled
+- `unlock-{390,1024,1280}-doors.png` — mid-doors after PIN unlock
 
 Capture:
 
 ```bash
 VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
+pnpm --filter @opensesame/pages dev:web   # :5180
+LOCK_V5_DEV_ORIGIN=http://localhost:5180/OpenSesame \
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   node apps/pages/scripts/capture-lock-v5-evidence.mjs
 ```
