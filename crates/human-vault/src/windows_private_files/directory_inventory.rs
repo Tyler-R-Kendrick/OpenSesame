@@ -120,7 +120,7 @@ fn consume_directory_rows(
                 buffer
                     .as_ptr()
                     .cast::<u16>()
-                    .add((offset + name_offset) / 2),
+                    .add(usize::midpoint(offset, name_offset)),
                 bytes / 2,
             )
         };
