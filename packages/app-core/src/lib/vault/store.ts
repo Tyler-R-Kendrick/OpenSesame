@@ -83,8 +83,6 @@ import {
   wrapMoved,
 } from "./master-wrap.js";
 import {
-  PASSKEY_MISS,
-  importVaultKeyFromPasskeyProbe,
   probePasskeyCeremony,
   sealNewVaultWithPasskey,
   unlockVaultWithHeldPrf,
@@ -179,7 +177,6 @@ import {
   wrapVaultKeyWithPin,
 } from "./unlock-methods.js";
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
-import { vaultKeysMatch } from "./vault-key-compare.js";
 import {
   withBodyWriteLock,
   withBodyWriteLockOrBare,
@@ -752,33 +749,33 @@ export class VaultStore {
     await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
   }
 
-  /** Confirm the person at an already-unlocked vault (CLI authorize, 1Password-style). */
-  async confirmPasskeyStepUp(signal?: AbortSignal): Promise<void> {
-    const current = this.#vaultKey;
-    if (!current) throw new Error("Unlock OpenSesame first.");
-    const probe = await probePasskeyCeremony(
-      this.#passkeyUnlockHost(),
-      signal ? { signal } : {},
-    );
-    const derived = await importVaultKeyFromPasskeyProbe(
-      this.#passkeyUnlockHost(),
-      probe.prfOutput,
-    );
-    if (!(await vaultKeysMatch(current, derived))) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError(PASSKEY_MISS);
-    }
+  /** Lets optional modules report a failed step-up without reaching into unlock state. */
+  noteFailedUnlock(): void {
+    this.#recordFailedUnlock();
   }
 
-  async confirmPinStepUp(pin: string): Promise<void> {
+  /** Optional-module step-up: derived key must match the open vault session. */
+  async assertMatchesOpenVaultKey(
+    candidate: CryptoKey,
+    miss: string = PIN_MISS,
+  ): Promise<void> {
     const current = this.#vaultKey;
-    if (!current || !this.#header) throw new Error("Unlock OpenSesame first.");
-    const record = () => this.#recordFailedUnlock();
-    const raw = await unwrapPin(this.#header, pin, record);
-    const derived = await importVaultKey(raw);
-    if (!(await vaultKeysMatch(current, derived))) {
+    if (!current) throw new Error("Unlock OpenSesame first.");
+    const [left, right] = await Promise.all([
+      crypto.subtle.exportKey("raw", current),
+      crypto.subtle.exportKey("raw", candidate),
+    ]);
+    if (left.byteLength !== right.byteLength) {
       this.#recordFailedUnlock();
-      throw new WrongPasswordError(PIN_MISS);
+      throw new WrongPasswordError(miss);
+    }
+    const a = new Uint8Array(left);
+    const b = new Uint8Array(right);
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
+        this.#recordFailedUnlock();
+        throw new WrongPasswordError(miss);
+      }
     }
   }
 

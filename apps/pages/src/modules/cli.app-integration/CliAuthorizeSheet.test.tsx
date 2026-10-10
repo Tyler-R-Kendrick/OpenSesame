@@ -20,11 +20,16 @@ vi.mock("@opensesame/app-core/lib/vault/unlock-methods.js", () => ({
   listAvailableUnlockMethods: () => ["pin"],
 }));
 
+vi.mock("./cli-step-up.js", () => ({
+  confirmPinStepUpForCli: vi.fn(async () => {}),
+  confirmPasskeyStepUpForCli: vi.fn(async () => {}),
+}));
+
 vi.mock("../../lib/vault/hooks.js", () => ({
   useVaultStore: () => ({
-    getSnapshot: () => ({ header: {} }),
-    confirmPinStepUp: vi.fn(async () => {}),
-    confirmPasskeyStepUp: vi.fn(async () => {}),
+    getSnapshot: () => ({ header: {}, status: "unlocked" }),
+    noteFailedUnlock: vi.fn(),
+    assertMatchesOpenVaultKey: vi.fn(async () => {}),
   }),
 }));
 

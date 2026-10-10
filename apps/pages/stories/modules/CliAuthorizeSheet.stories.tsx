@@ -5,9 +5,9 @@ import { vaultHooksSeams } from "../../src/lib/vault/hooks.js";
 import { CliAuthorizeSheet } from "../../src/modules/cli.app-integration/CliAuthorizeSheet.js";
 
 const store = {
-  getSnapshot: () => ({ header: {} }),
-  confirmPinStepUp: async () => {},
-  confirmPasskeyStepUp: async () => {},
+  getSnapshot: () => ({ header: {}, status: "unlocked" }),
+  noteFailedUnlock: () => {},
+  assertMatchesOpenVaultKey: async () => {},
 };
 
 const withSeams: Decorator = (Story) => {

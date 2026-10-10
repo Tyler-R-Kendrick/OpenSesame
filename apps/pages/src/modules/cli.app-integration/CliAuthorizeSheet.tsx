@@ -70,8 +70,13 @@ export function CliAuthorizeSheet({
     setBusy(true);
     setError("");
     try {
-      if (canPasskey) await store.confirmPasskeyStepUp();
-      else if (canPin) await store.confirmPinStepUp(pin);
+      if (canPasskey) {
+        const { confirmPasskeyStepUpForCli } = await import("./cli-step-up.js");
+        await confirmPasskeyStepUpForCli(store, undefined);
+      } else if (canPin) {
+        const { confirmPinStepUpForCli } = await import("./cli-step-up.js");
+        await confirmPinStepUpForCli(store, pin);
+      }
       else throw new Error("Enroll a passkey or PIN in Settings › Security.");
       await afterConfirm("approve");
     } catch (failure) {
