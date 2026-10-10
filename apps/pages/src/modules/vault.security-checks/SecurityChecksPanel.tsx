@@ -73,8 +73,7 @@ export function securityChecksPanel(
       if (busy || !open) return;
       noteSecurityWatch({ phase: "checking" });
       runSecurityChecks(vault.items, fetches.range, fetches.twoFactor).then(
-        (report) =>
-          noteSecurityWatch({ phase: "checked", report, items: vault.items }),
+        (report) => noteSecurityWatch({ phase: "checked", report }),
         (caught) =>
           noteSecurityWatch({
             phase: "error",

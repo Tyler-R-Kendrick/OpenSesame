@@ -35,7 +35,6 @@ import {
 import {
   type BreachWatch,
   type BreachWatchLine,
-  breachWatchSnapshot,
   publishBreachWatch,
 } from "./health.js";
 
@@ -90,7 +89,7 @@ export function securityWatchLabel(report: SecurityReport): string {
   if (twoStep > 0) {
     return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
   }
-  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.`;
+  return `${noun(checked, "login", "logins")} checked. No breaches; no missing authenticator codes.`;
 }
 
 /** Visible sentences for one login, breach first, then a missing authenticator code. */
@@ -136,13 +135,12 @@ function checkedWatch(report: SecurityReport): BreachWatch {
   };
 }
 
-/** Value-blind digest of which logins would be checked (id and revision only). */
-export function securityCheckInputsFingerprint(
-  items: readonly VaultItem[],
-): string {
+function securityCheckInputsFingerprint(items: readonly VaultItem[]): string {
   const checked = logins(items);
-  const rows = checked.map((item) => `${item.id}\t${item.updatedAt}`).sort();
-  return `${checked.length}\t${rows.join("\n")}`;
+  return checked
+    .map((item) => `${item.id}\t${item.updatedAt}`)
+    .sort()
+    .join("\n");
 }
 
 let checkedInputsFingerprint: string | null = null;
@@ -152,7 +150,7 @@ export type SecurityWatchNote =
   | { phase: "idle" }
   | { phase: "checking" }
   | { phase: "error"; message: string }
-  | { phase: "checked"; report: SecurityReport; items: readonly VaultItem[] };
+  | { phase: "checked"; report: SecurityReport };
 
 /** Publish the standing Password health and the settings panel both read. */
 export function noteSecurityWatch(note: SecurityWatchNote): void {
@@ -175,7 +173,6 @@ export function noteSecurityWatch(note: SecurityWatchNote): void {
       publishBreachWatch({ phase: "error", label: note.message });
       return;
     case "checked":
-      checkedInputsFingerprint = securityCheckInputsFingerprint(note.items);
       publishBreachWatch(checkedWatch(note.report));
       return;
   }
@@ -186,9 +183,8 @@ export function reconcileSecurityWatchWithVault(
   items: readonly VaultItem[],
 ): void {
   if (checkedInputsFingerprint === null) return;
-  const watch = breachWatchSnapshot();
-  if (watch.phase !== "checked") return;
-  if (securityCheckInputsFingerprint(items) === checkedInputsFingerprint) return;
+  if (securityCheckInputsFingerprint(items) === checkedInputsFingerprint)
+    return;
   noteSecurityWatch({ phase: "idle" });
 }
 
@@ -357,6 +353,7 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
+  checkedInputsFingerprint = securityCheckInputsFingerprint(items);
   return {
     checkedAt: now().toISOString(),
     checked: checked.length,
