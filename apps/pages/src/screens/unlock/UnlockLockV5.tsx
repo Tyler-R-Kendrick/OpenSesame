@@ -63,7 +63,6 @@ export function UnlockLockV5({
     if (!vaultUnlocked || ceremonyToken === 0) return;
     if (lastToken.current === ceremonyToken) return;
     lastToken.current = ceremonyToken;
-    unlockCeremonyStore.begin();
     const reduce = prefersReducedMotion();
     if (reduce) {
       setDoorsActive(true);

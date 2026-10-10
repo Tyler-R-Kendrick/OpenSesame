@@ -1,6 +1,7 @@
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useCallback, useRef, useState } from "react";
 import type { WordmarkHandle } from "../../components/Wordmark.js";
+import { unlockCeremonyStore } from "../../lib/unlock-ceremony-store.js";
 
 type VaultStatus = ReturnType<typeof vaultStore.getSnapshot>["status"];
 
@@ -16,6 +17,7 @@ export function useUnlockLockV5(status: VaultStatus) {
     (before: VaultStatus, blocked: boolean) => {
       const after = vaultStore.getSnapshot().status;
       if (blocked || before === "unlocked" || after !== "unlocked") return;
+      unlockCeremonyStore.begin();
       setCeremonyToken((n) => n + 1);
     },
     [],

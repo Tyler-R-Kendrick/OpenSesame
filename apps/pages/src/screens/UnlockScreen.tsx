@@ -373,7 +373,10 @@ function UnlockForm({
       totpRef,
       pendingFocus,
     });
-    beginCeremonyIfUnlocked(before, signInStage || showSignIn);
+    beginCeremonyIfUnlocked(
+      before,
+      signInStage || showSignIn || firstRun,
+    );
   }
 
   const pinProblems =
