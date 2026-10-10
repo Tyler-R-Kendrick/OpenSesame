@@ -1,4 +1,4 @@
-import { isJsonObject, isString } from "@opensesame/os-domain";
+import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { localNetworkFetch } from "../local-network-fetch.js";
 import { loadSettings } from "../settings.js";
 import { cliAppIntegrationPolicy } from "./policy.js";
@@ -57,7 +57,7 @@ export async function listCliIntegrationPending(): Promise<
     cache: "no-store",
   });
   if (!response.ok) return [];
-  const body: unknown = await response.json();
+  const body = overlapCast(await response.json());
   return parsePending(body);
 }
 
@@ -81,7 +81,7 @@ export async function respondCliIntegration(
     }),
   });
   if (!response.ok) return false;
-  const body: unknown = await response.json();
+  const body = overlapCast(await response.json());
   if (!isJsonObject(body) || !isString(body.status)) return false;
   return body.status === decision || body.status === "approved";
 }

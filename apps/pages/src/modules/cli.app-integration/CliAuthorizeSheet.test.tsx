@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CliAuthorizeSheet } from "./CliAuthorizeSheet.js";
@@ -74,7 +74,9 @@ describe("CliAuthorizeSheet", () => {
     );
     const dialog = container.querySelector('[role="dialog"]');
     expect(dialog).not.toBeNull();
-    await user.click(within(dialog as HTMLElement).getByRole("button", { name: "Deny" }));
+    await user.click(
+      within(dialog as HTMLElement).getByRole("button", { name: "Deny" }),
+    );
     expect(respond).toHaveBeenCalledWith("clr_2", "term-b", "deny");
     expect(onSettled).toHaveBeenCalled();
   });

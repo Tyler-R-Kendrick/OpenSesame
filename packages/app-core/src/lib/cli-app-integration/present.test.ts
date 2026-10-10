@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  presentCliAuthorizeRequest,
-  terminalSessionLabel,
-} from "./present.js";
+import { presentCliAuthorizeRequest, terminalSessionLabel } from "./present.js";
 
 describe("cli app integration presentation", () => {
   it("shortens long terminal session ids", () => {

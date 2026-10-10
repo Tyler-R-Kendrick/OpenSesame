@@ -4,10 +4,10 @@
  */
 
 import {
+  type PendingRequest,
   cliAuthorizeCopy,
   presentCliAuthorizeRequest,
   respondCliIntegration,
-  type PendingRequest,
 } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { listAvailableUnlockMethods } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import { WrongPasswordError } from "@opensesame/vault-core";
