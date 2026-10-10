@@ -4,7 +4,26 @@ export const TAU = Math.PI * 2;
 export const FONT_FAMILY = '"OS Logo", ui-monospace, monospace';
 export const PARTICLE_SEED = 1337;
 export const ALPHA_LEVELS = 24;
-export const SMALL_GLYPH_PX = 14;
+
+/**
+ * One plate grid, three renderings by em size (DESIGN.md § Mark): letters
+ * alone under 16px, a solid plate with the letter cut out from 16 to 48px, a
+ * field of particles with the letter cut out from 48px up. Measured on the
+ * product, an 11px particle plate keeps 290 of its 1,400 cut-out pixels and
+ * reads as redacted blocks, so the small tiers exist.
+ */
+export const TYPE_MAX_EM = 16;
+export const SOLID_MAX_EM = 48;
+export type WordmarkTier = "type" | "solid" | "field";
+
+export function tierOf(em: number): WordmarkTier {
+  if (em < TYPE_MAX_EM) return "type";
+  if (em < SOLID_MAX_EM) return "solid";
+  return "field";
+}
+
+/** The wordmark's width in ems, mark and gap included: fit a hero with it. */
+export const WORDMARK_WIDTH_EM = 7.78;
 
 export type Particle = {
   px: number;
@@ -31,6 +50,7 @@ export type WordSlot = {
 export type Layout = {
   W: number;
   H: number;
+  em: number;
   gs: number;
   cellC: number;
   cellR: number;
@@ -57,7 +77,7 @@ export type DrawCalibration = {
    */
   cursorBoostLight: number;
   cursorBoostDark: number;
-  /** Small solid-plate cursor: resting vs active plate alpha. */
+  /** Solid-plate cursor: resting vs active plate alpha. */
   smallCursorRest: number;
   smallCursorActive: number;
 };
@@ -124,12 +144,9 @@ export function readInkRgb(root: HTMLElement): [number, number, number] {
   return [0, 0, 0];
 }
 
-/** The mark's slit: the greyscale system's `--mark-slit`, never a hue. */
-export function readAccent(root: HTMLElement): string {
-  const style = getComputedStyle(root);
+/** The slit of light in the mark: `--mark-slit`, a grey, never a hue. */
+export function readSlit(root: HTMLElement): string {
   return (
-    style.getPropertyValue("--mark-slit").trim() ||
-    style.getPropertyValue("--accent").trim() ||
-    "#8f8f8f"
+    getComputedStyle(root).getPropertyValue("--mark-slit").trim() || "#8f8f8f"
   );
 }

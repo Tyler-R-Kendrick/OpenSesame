@@ -2,8 +2,9 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Behind card and notes; unlock.css raises readable panes above the dial. */
   z-index: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .cipher-dial__rings {
