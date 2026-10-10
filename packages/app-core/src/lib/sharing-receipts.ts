@@ -232,10 +232,10 @@ export function noteLiveSessionGranted(
   );
 }
 
-const GRANT_RECEIPT_KIND: readonly ReceiptKind[] = [
+const GRANT_RECEIPT_KIND = [
   "share.approved",
   "share.denied",
-];
+] as const satisfies readonly [ReceiptKind, ReceiptKind];
 
 /** Identity share grant decision after a person approves or denies. */
 export function noteShareGrantStep(
