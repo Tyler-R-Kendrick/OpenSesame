@@ -47,8 +47,8 @@ describe("computeDialLayout", () => {
     });
     expect(wide.quiet).toEqual([card]);
     expect(phone.quiet).toEqual([card]);
-    // Narrow corner dial (prototype cx=-18) stays in the empty band.
-    expect(phone.cx).toBe(-18);
+    // Narrow corner dial stays in the empty band (lock-v5-mobile geometry).
+    expect(phone.cx).toBe(12);
     expect(phone.cy).toBeGreaterThan(card.y + card.h);
   });
 });
