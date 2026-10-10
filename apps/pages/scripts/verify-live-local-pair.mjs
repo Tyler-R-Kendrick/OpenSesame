@@ -16,23 +16,35 @@ import {
   ownerEnters,
   peerStates,
 } from "./lib/live-join-walk.mjs";
-import * as harness from "./lib/static-harness.mjs";
+import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.join(here, "..", "dist");
-const ORIGIN =
-  process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io/OpenSesame/";
+const ROOT = path.resolve(here, "../../..");
+const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
-const SECRET = "GitHub Value";
-const OUT = path.join(here, "..", "..", "..", "artifacts", "live-local-pair");
+const DIST = path.resolve(here, "../dist");
+const OUT = path.resolve(ROOT, "artifacts/live-local-pair");
+const SECRET = "correct-horse-battery-staple-2026";
 
-const log = [];
-const failures = [];
-const check = (ok, message) => {
-  if (!ok) failures.push(message);
+fs.mkdirSync(OUT, { recursive: true });
+
+const harness = createHarness({
+  dist: DIST,
+  origin: ORIGIN,
+  base: BASE,
+  out: OUT,
+});
+const { failures, check, setStep } = harness;
+
+const PHONE = {
+  device: {
+    viewport: { width: 390, height: 844 },
+    hasTouch: true,
+    isMobile: true,
+  },
 };
-const setStep = (step) => log.push({ step, at: Date.now() });
 
+/** LNA only — keep WebRtcHideLocalIpsWithMdns at Chromium default. */
 function launch() {
   return chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
@@ -43,14 +55,6 @@ function launch() {
     ],
   });
 }
-
-const PHONE = {
-  device: {
-    viewport: { width: 390, height: 844 },
-    hasTouch: true,
-    isMobile: true,
-  },
-};
 
 async function device(browser, options = {}) {
   const made = await harness.newPage(browser, {
@@ -75,7 +79,6 @@ async function device(browser, options = {}) {
 }
 
 async function shot(page, name) {
-  fs.mkdirSync(OUT, { recursive: true });
   await page.screenshot({ path: path.join(OUT, `${name}.png`) });
 }
 
