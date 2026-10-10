@@ -48,7 +48,9 @@ describe("repository governance", () => {
       (rule) => rule.type === "required_status_checks",
     ).parameters;
     expect(checks.strict_required_status_checks_policy).toBe(false);
-    const queue = policy.rules.find((rule) => rule.type === "merge_queue").parameters;
+    const queue = policy.rules.find(
+      (rule) => rule.type === "merge_queue",
+    ).parameters;
     expect(queue).toEqual({
       check_response_timeout_minutes: 60,
       grouping_strategy: "ALLGREEN",
