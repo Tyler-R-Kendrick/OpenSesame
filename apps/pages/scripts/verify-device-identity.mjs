@@ -55,6 +55,7 @@ import {
 import {
   WIDTHS,
   chooseCapability,
+  clearCapability,
   configureScenarios,
   connect,
   go,
@@ -150,6 +151,7 @@ for (const width of WIDTHS) {
   // F
   setStep(`${label}-access`);
   await chooseCapability(page, "Access authority");
+  await clearCapability(page, "Browser-local IAM");
   await walkAccess(page, `${label}-no-iam`, { receipts: false });
   await chooseCapability(page, "Browser-local IAM");
   await walkAccess(page, `${label}-iam`, { receipts: true });
