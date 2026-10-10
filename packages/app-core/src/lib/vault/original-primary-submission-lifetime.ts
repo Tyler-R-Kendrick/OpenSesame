@@ -33,7 +33,7 @@ export class OriginalPrimarySubmissionLifetime {
   };
   track = <T>(work: () => Promise<T>): Promise<T> => {
     let resolve: ((value: T | PromiseLike<T>) => void) | undefined;
-    let reject: ((error: unknown) => void) | undefined;
+    let reject: ((cause: unknown) => void) | undefined;
     const task = new Promise<T>((accept, refuse) => {
       resolve = accept;
       reject = refuse;
