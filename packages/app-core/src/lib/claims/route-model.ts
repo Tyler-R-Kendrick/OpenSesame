@@ -16,6 +16,7 @@ import {
   dismissNotice,
 } from "../notices.js";
 import type { ClaimCeremony, ClaimStart } from "./ceremony.js";
+import { showClaimDropBanner } from "./claim-drop-banner.js";
 import { type ClaimArrival, readClaimArrival } from "./link.js";
 import { claimStash } from "./stash.js";
 
@@ -86,6 +87,7 @@ export function reportClaim(words: string, title = TITLE): void {
     body: words,
     open: unlockOpen(words),
   });
+  showClaimDropBanner({ title, body: words });
 }
 
 /** Legacy single-slot id; new outcomes are not removed when the field clears. */
