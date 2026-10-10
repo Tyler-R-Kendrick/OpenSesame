@@ -13,7 +13,11 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { activitySeams } from "../activity-log.js";
-import { noteDropExpired, noteDropRevoked } from "../sharing-receipts.js";
+import {
+  flushHeldDropNotes,
+  noteDropExpired,
+  noteDropRevoked,
+} from "../sharing-receipts.js";
 import {
   LocalDropClaimError,
   type LocalDropRevocation,
@@ -163,6 +167,7 @@ export function recordOutboundDrop(input: {
 function syncOutboundDropLedger(now = Date.now()): void {
   disposeExpiredLocalDropClaims(now);
   expireOutboundDrops(now);
+  flushHeldDropNotes();
 }
 
 function rowForList(row: StoredSend, now: number): OutboundDrop {

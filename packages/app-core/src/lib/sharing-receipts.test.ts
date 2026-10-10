@@ -24,6 +24,7 @@ import {
 import {
   listOutboundDrops,
   recordOutboundDrop,
+  refreshOutboundDropLedger,
   resetOutboundDropsForTests,
   revokeOutboundDrop,
 } from "./vault/outbound-drops.js";
@@ -128,6 +129,44 @@ it("records nothing when the code is wrong or the vault is locked", async () => 
   expect(blob).not.toContain("drop.opened");
   expect(blob).not.toContain(PAYLOAD);
   expect(blob).not.toContain(session.userCode);
+});
+
+it("queues an expiry receipt while locked and flushes once on unlock", async () => {
+  const tombA = await unlock();
+  const vaultKey = (await mintVaultKey()).vaultKey;
+  const tombB = `sharing-receipts-b-${crypto.randomUUID()}`;
+  unlockTomb(tombB, (await mintVaultKey()).vaultKey);
+  const expired = await sealedClaim();
+  const expiresAt = new Date(Date.now() + 500).toISOString();
+  recordOutboundDrop({
+    claimId: expired.session.claimId,
+    bearerToken: expired.session.bearerToken,
+    name: "expire-locked",
+    expiresAt,
+    sourceItemId: "item_lock",
+    tomb: tombA,
+  });
+  lockAllTombs();
+  activitySeams.activeTomb = () => null;
+  listOutboundDrops(tombA, Date.now() + 60_000);
+  unlockTomb(tombA, vaultKey);
+  activitySeams.activeTomb = () => tombA;
+  refreshOutboundDropLedger();
+  await flushSharingReceipts();
+  let blob = await trails(tombA);
+  expect(blob).toContain("vault.drop.expired");
+  expect(blob.match(/vault\.drop\.expired/gu)).toHaveLength(1);
+  refreshOutboundDropLedger();
+  await flushSharingReceipts();
+  blob = await trails(tombA);
+  expect(blob.match(/vault\.drop\.expired/gu)).toHaveLength(1);
+  const tombBKey = (await mintVaultKey()).vaultKey;
+  unlockTomb(tombB, tombBKey);
+  activitySeams.activeTomb = () => tombB;
+  refreshOutboundDropLedger();
+  await flushSharingReceipts();
+  blob = await trails(tombB);
+  expect(blob).not.toContain("vault.drop.expired");
 });
 
 it("records a sender revoke and expiry as the claim id only", async () => {

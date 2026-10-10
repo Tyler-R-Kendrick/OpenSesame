@@ -5,8 +5,8 @@
  * Each one is an activity line and a device receipt, written after the
  * action commits. Both name ids only — a claim, a session, a guest, a share,
  * a principal, a resource — never a label, a code, a bearer, a link, a name
- * or a payload. A failure to write does not undo the action. A locked vault
- * writes nothing: plaintext ids do not wait.
+ * or a payload. A failure to write does not undo the action. While the vault
+ * is locked, drop expiry notes wait for unlock.
  *
  * System share writes (a standing renewal, a vault session issuing its own
  * rows) are not callers. Those are not a person's decision.
@@ -30,6 +30,15 @@ import {
 const seen = new Set<string>();
 const SEEN_MAX = 256;
 let chain: Promise<void> = Promise.resolve();
+let heldDropExpiry: string | undefined;
+
+export function flushHeldDropNotes(): void {
+  const tomb = activitySeams.activeTomb();
+  const id = heldDropExpiry;
+  if (!tomb || !id) return;
+  heldDropExpiry = undefined;
+  noteDropExpired(id);
+}
 
 /** An id the scrubber would leave unchanged, and nothing longer than a resource id. */
 function blindId(value: string): string | null {
@@ -79,6 +88,7 @@ export async function flushSharingReceipts(): Promise<void> {
 /** Test-only: forget which ids this tab already recorded. */
 export function resetSharingReceiptsForTest(): void {
   seen.clear();
+  heldDropExpiry = undefined;
 }
 
 /** The claim was presented. `claimId` is the id, never the bearer. */
@@ -107,7 +117,12 @@ export function noteDropOpened(claimId: string): void {
 export function noteDropExpired(claimId: string): void {
   const id = blindId(claimId);
   const tomb = activitySeams.activeTomb();
-  if (!id || !tomb || !remember(`drop-expired:${id}`)) return;
+  if (!id) return;
+  if (!tomb) {
+    heldDropExpiry = id;
+    return;
+  }
+  if (!remember(`drop-expired:${id}`)) return;
   const metadata: JsonObject = { claimId: id };
   write(
     tomb,
