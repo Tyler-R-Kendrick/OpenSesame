@@ -1,19 +1,15 @@
-import {
-  cliAppIntegrationPolicy,
-  deriveTerminalSessionId,
-} from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { deriveTerminalSessionId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
 import type { HumanRevealVerb } from "./reveal-gate.js";
 
 export type CliAppIntegrationDecision = "approve" | "deny" | "unavailable";
 
 export interface CliAppIntegrationPort {
-  ensureReveal(
-    input: {
-      verb: HumanRevealVerb;
-      terminalSessionId: string;
-      reference?: string | undefined;
-    },
-  ): Promise<CliAppIntegrationDecision>;
+  ensureReveal(input: {
+    verb: HumanRevealVerb;
+    terminalSessionId: string;
+    reference?: string | undefined;
+  }): Promise<CliAppIntegrationDecision>;
 }
 
 function seamDecision(): CliAppIntegrationDecision | undefined {
@@ -51,7 +47,8 @@ async function pollEnsure(
         reference,
       }),
     });
-    if (response.status === 404 || response.status === 503) return "unavailable";
+    if (response.status === 404 || response.status === 503)
+      return "unavailable";
     if (!response.ok) return "deny";
     const body = (await response.json()) as { status?: string };
     if (body.status === "approved") return "approve";

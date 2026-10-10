@@ -1,19 +1,15 @@
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
   type: "json",
 };
-import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import {
-  createCliAppIntegrationPort,
   type CliAppIntegrationPort,
+  createCliAppIntegrationPort,
   terminalSessionIdForReveal,
 } from "./cli-app-integration-client.js";
 import { emitStderrLine } from "./output.js";
 
-export type HumanRevealVerb =
-  | "read"
-  | "env-resolve"
-  | "pass-reveal"
-  | "run";
+export type HumanRevealVerb = "read" | "env-resolve" | "pass-reveal" | "run";
 
 export interface HumanRevealRequest {
   verb: HumanRevealVerb;

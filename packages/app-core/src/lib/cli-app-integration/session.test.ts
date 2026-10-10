@@ -41,8 +41,8 @@ describe("cli app integration session store", () => {
   it("refuses approve for a mismatched terminal session", () => {
     const store = new CliAppIntegrationStore();
     const pending = store.ensure("term-x", "read");
-    expect(
-      store.approve(pending.requestId ?? "", "term-y").status,
-    ).toBe("wrongSession");
+    expect(store.approve(pending.requestId ?? "", "term-y").status).toBe(
+      "wrongSession",
+    );
   });
 });
