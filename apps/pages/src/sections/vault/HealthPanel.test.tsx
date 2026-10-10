@@ -177,6 +177,7 @@ describe("HealthPanel", () => {
       checked: 1,
       breached: 1,
       twoStep: 1,
+      fingerprint: "1\titm_gh\t42\ttrue",
       lines: [
         {
           id: "itm_gh",
