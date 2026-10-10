@@ -10,11 +10,6 @@ export const DEV_EVIDENCE_RULES = [
   core(
     "src/dev/",
     null,
-    "lock-v5 reference harness for visual evidence captures",
-  ),
-  core(
-    "src/lock-v5-reference-main.tsx",
-    null,
-    "lock-v5 reference HTML entry for visual evidence captures",
+    "LockV5Demo dev route for lock-v5 geometry reference (Vite dev only)",
   ),
 ];

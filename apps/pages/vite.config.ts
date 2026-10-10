@@ -14,11 +14,6 @@ import { securityProfile } from "./scripts/security-profile.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
-/** Evidence-only: single-page reference build (excluded from PWA precache / bundle gate). */
-const lockV5ReferenceOnly = process.env.PAGES_LOCK_V5_REFERENCE === "1";
-const lockV5ReferenceHtml = fileURLToPath(
-  new URL("./lock-v5-reference.html", import.meta.url),
-);
 /**
  * The entry chunk's ceiling, in Vite's kB: a hardened profile's
  * `largestAsset` in `tools/quality/bundle-budgets.json` is that chunk, and
@@ -226,9 +221,7 @@ export default defineConfig({
       // removes the ones owned by a capability a hardened build excludes
       // (`auth/redirect.html` → identity.ambient-sso) and partitions optional
       // modules into `cap-<capability>` chunks. `main` is always kept.
-      input: lockV5ReferenceOnly
-        ? { lockV5Reference: lockV5ReferenceHtml }
-        : {
+      input: {
             main: fileURLToPath(new URL("./index.html", import.meta.url)),
             linearRedirect: fileURLToPath(
               new URL("./auth/linear.html", import.meta.url),
@@ -256,9 +249,7 @@ export default defineConfig({
   // what makes a module worker start at all. Every target engine here
   // (Chrome 100, Firefox 100, Safari 15) supports module workers.
   worker: { format: "es" },
-  plugins: lockV5ReferenceOnly
-    ? [react(), capabilityCompose()]
-    : [
+  plugins: [
         nativeClientMetadataPlugin(base),
         githubAppRelayPlugin(),
         // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.

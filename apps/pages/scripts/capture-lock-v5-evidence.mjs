@@ -1,15 +1,14 @@
 /**
- * Lock-v5 evidence: reference stage from `LockV5Demo` (branch
- * cursor/lock-v5-unlock-b359) and the production unlock gate at matched widths.
+ * Lock-v5 evidence: LockV5Demo stage (reference) and production unlock gate.
  *
- * `lock-v5.html` is not in git (searched main, cursor/lock-v5-unlock-b359,
- * claude/design-system-extraction-vvifv5, docs/). Dev reference:
- * http://localhost:5180/OpenSesame/dev/lock-v5 (Vite only).
+ * `lock-v5.html` is not in git. Reference geometry: `LockV5Demo` at
+ * `/dev/lock-v5` (Vite dev only). Production unlock from `dist/`.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "playwright";
+import { createHarness } from "./lib/static-origin-harness.mjs";
+import { lockVault, sealWithPin, PIN } from "./lib/pages-journey.mjs";
 
 const widths = [390, 1024, 1280];
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -20,12 +19,8 @@ const outDir =
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const dist = path.join(root, "apps/pages/dist");
 const origin = "https://tyler-r-kendrick.github.io";
-const appOrigin = `${origin}${base.replace(/\/$/, "")}/`;
 
-async function capture(page, file) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  await page.screenshot({ path: file, fullPage: false });
-}
+const harness = createHarness({ dist, origin, base, out: outDir });
 
 async function dialOverlapsNotes(page) {
   return page.evaluate(() => {
@@ -35,7 +30,7 @@ async function dialOverlapsNotes(page) {
     const nb = notes.getBoundingClientRect();
     const ctx = overlay.getContext("2d");
     if (!ctx || overlay.width < 2) return false;
-    const { data, width, height } = ctx.getImageData(
+    const { data, width } = ctx.getImageData(
       0,
       0,
       overlay.width,
@@ -56,63 +51,88 @@ async function dialOverlapsNotes(page) {
   });
 }
 
-async function walkUnlock(browser, width) {
-  const context = await browser.newContext({
-    viewport: { width, height: 900 },
-    deviceScaleFactor: 1,
+async function openLockedUnlock(browser, width) {
+  const { page, context } = await harness.newPage(browser, {
+    device: { viewport: { width, height: 900 } },
   });
-  const page = await context.newPage();
-  await page.goto(`${appOrigin}unlock`, { waitUntil: "networkidle" });
+  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+  await sealWithPin(page);
+  await lockVault(page);
   await page.waitForSelector(".unlock--lock-v5");
-  await page.waitForTimeout(400);
-  const overlap = await dialOverlapsNotes(page);
-  if (overlap) {
-    throw new Error(`cipher dial overlay ink inside notes at width=${width}`);
+  await page.waitForTimeout(350);
+  return { page, context };
+}
+
+async function captureUnlockSettled(browser, width) {
+  const { page, context } = await openLockedUnlock(browser, width);
+  if (width < 1100) {
+    const overlap = await dialOverlapsNotes(page);
+    if (overlap) {
+      throw new Error(`cipher dial overlay ink inside notes at width=${width}`);
+    }
   }
-  await capture(
-    page,
-    path.join(outDir, `unlock-${width}.png`),
-  );
+  await page.screenshot({
+    path: path.join(outDir, `unlock-${width}-settled.png`),
+    fullPage: false,
+  });
   await context.close();
 }
 
-async function walkReferenceDev(browser, width) {
+async function captureUnlockDoors(browser, width) {
+  const { page, context } = await openLockedUnlock(browser, width);
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
+  await page.waitForFunction(
+    () => {
+      const el = document.querySelector(".unlock.unlock--doors");
+      if (!(el instanceof HTMLElement)) return false;
+      const shift = el.style.getPropertyValue("--unlock-door-shift");
+      const n = Number.parseFloat(shift);
+      return Number.isFinite(n) && n > 28 && n < 78;
+    },
+    { timeout: 15_000 },
+  );
+  await page.waitForTimeout(80);
+  await page.screenshot({
+    path: path.join(outDir, `unlock-${width}-doors.png`),
+    fullPage: false,
+  });
+  await context.close();
+}
+
+async function captureReferenceStage(browser, width) {
   const devOrigin = process.env.LOCK_V5_DEV_ORIGIN;
   if (!devOrigin) {
     console.warn(
-      "skip reference capture: set LOCK_V5_DEV_ORIGIN (e.g. http://localhost:5180/OpenSesame) for LockV5Demo",
+      "skip reference-stage: set LOCK_V5_DEV_ORIGIN (http://localhost:5180/OpenSesame)",
     );
     return;
   }
-  const context = await browser.newContext({
-    viewport: { width, height: 900 },
+  const devBase = new URL(devOrigin.replace(/\/$/, "") + "/");
+  const { page, context } = await harness.newPage(browser, {
+    device: { viewport: { width, height: 900 } },
+    passthrough: [devBase.origin],
   });
-  const page = await context.newPage();
-  await page.goto(`${devOrigin.replace(/\/$/, "")}/dev/lock-v5`, {
+  await page.goto(`${devBase.origin}${devBase.pathname}dev/lock-v5`, {
     waitUntil: "networkidle",
   });
   await page.waitForSelector(".lock-v5-demo__stage");
   await page.waitForTimeout(400);
-  const stage = page.locator(".lock-v5-demo__stage");
-  await capture(
-    page,
-    path.join(outDir, `reference-lock-v5-demo-${width}.png`),
-  );
-  await stage.screenshot({
+  await page.locator(".lock-v5-demo__stage").screenshot({
     path: path.join(outDir, `reference-stage-${width}.png`),
   });
   await context.close();
 }
 
+let browser;
+
 async function main() {
-  const exe = process.env.PLAYWRIGHT_CHROMIUM;
-  const browser = await chromium.launch(
-    exe ? { executablePath: exe, headless: true } : { headless: true },
-  );
+  browser = await harness.launch();
   try {
     for (const width of widths) {
-      await walkUnlock(browser, width);
-      await walkReferenceDev(browser, width);
+      await captureReferenceStage(browser, width);
+      await captureUnlockSettled(browser, width);
+      await captureUnlockDoors(browser, width);
     }
     console.log(`wrote lock-v5 evidence under ${outDir}`);
   } finally {
