@@ -4,6 +4,8 @@ Before/after from **live GitHub Pages** (`main`) vs **this branch’s production
 
 Widths: **390**, **1024**, **1280** px.
 
+**Reference** (`lock-v5-reference.html` in the branch build): static hero, idle dial, and release-notes chrome at the same widths — parity target for lock-v5.html / `LockV5Demo` stage geometry.
+
 ## Approved design (lock-v5 / PR #947 + #1012 wordmark)
 
 - Hero **CipherWordmark** (`includeMark`, up to 90em) above the unlock card, not inside the brand row.
@@ -29,4 +31,18 @@ Widths: **390**, **1024**, **1280** px.
 | 1024 | `before-1024-unlock-settled.png` | `after-1024-unlock-settled.png` | `after-1024-unlock-doors.png` |
 | 1280 | `before-1280-unlock-settled.png` | `after-1280-unlock-settled.png` | `after-1280-unlock-doors.png` |
 
-Capture: `node apps/pages/scripts/capture-lock-v5-evidence.mjs main|branch [outDir]` (requires `PLAYWRIGHT_CHROMIUM` and a fresh `apps/pages` vite build for `branch`).
+| Viewport | Reference — settled |
+| --- | --- |
+| 390 | `reference-390-unlock-settled.png` |
+| 1024 | `reference-1024-unlock-settled.png` |
+| 1280 | `reference-1280-unlock-settled.png` |
+
+Capture:
+
+```bash
+VITE_BASE=/OpenSesame/ pnpm exec vite build --filter=@opensesame/pages  # or apps/pages vite build after security-profile
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node apps/pages/scripts/capture-lock-v5-evidence.mjs main|branch|reference [outDir]
+```
+
+Settled shots wait for `.unlock__hero .cipher-wordmark--settled`. Doors shots wait for `.unlock--doors` with `--unlock-door-shift` past 12%.

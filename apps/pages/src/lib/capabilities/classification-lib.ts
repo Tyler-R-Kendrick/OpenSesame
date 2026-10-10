@@ -190,6 +190,16 @@ const WALLET_FILES = ["spending-", "wallet-"];
 
 export const LIB_RULES = [
   core(
+    "src/dev/",
+    null,
+    "lock-v5 reference harness for visual evidence captures",
+  ),
+  core(
+    "src/lock-v5-reference-main.tsx",
+    null,
+    "lock-v5 reference HTML entry for visual evidence captures",
+  ),
+  core(
     `${L}item-type-marketplace/`,
     "vault.passwords",
     "item-type marketplaces read from a git repository (ADR 0134)",

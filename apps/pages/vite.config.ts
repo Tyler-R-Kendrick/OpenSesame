@@ -238,6 +238,9 @@ export default defineConfig({
         msalRedirect: fileURLToPath(
           new URL("./auth/redirect.html", import.meta.url),
         ),
+        lockV5Reference: fileURLToPath(
+          new URL("./lock-v5-reference.html", import.meta.url),
+        ),
       },
     },
   },
