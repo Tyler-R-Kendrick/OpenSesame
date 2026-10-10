@@ -128,7 +128,10 @@ async function expectRailRow(page, check, rail, detail) {
   const rows = (await page.locator(".railtree__row").allTextContents()).map(
     (text) => text.trim(),
   );
-  check(rows.some((text) => text.startsWith(rail)), detail);
+  check(
+    rows.some((text) => text.startsWith(rail)),
+    detail,
+  );
 }
 
 export async function addCapability(page, check, snap, title, rail = null) {
