@@ -19,7 +19,7 @@ fn refused() -> io::Error {
         "original Node DATA transport unavailable",
     )
 }
-fn scope(scope: wire::Scope) -> NativeNodeDataScope {
+fn scope(scope: &wire::Scope) -> NativeNodeDataScope {
     match scope {
         wire::Scope::Vault => NativeNodeDataScope::Vault,
         wire::Scope::Origin => NativeNodeDataScope::Origin,
@@ -104,11 +104,11 @@ impl OriginalSession {
                     return Err(refused());
                 }
                 wire::Reply::Inventory {
-                    entries: self.writer()?.inventory(scope(selected), maximum)?,
+                    entries: self.writer()?.inventory(scope(&selected), maximum)?,
                 }
             }
             wire::Operation::Identity { scope: selected } => wire::Reply::Identity {
-                value: self.writer()?.resource_identity(scope(selected))?,
+                value: self.writer()?.resource_identity(scope(&selected))?,
             },
             wire::Operation::BodyClose {} => {
                 if self.body.take().is_none() {
@@ -257,3 +257,7 @@ mod tests;
 #[cfg(test)]
 #[path = "publication_tests.rs"]
 mod publication_tests;
+
+#[cfg(test)]
+#[path = "ciphertext_fixture.rs"]
+mod ciphertext_fixture;

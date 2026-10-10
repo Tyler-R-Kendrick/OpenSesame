@@ -1,12 +1,11 @@
 //! Genuine kernel lease/retained-filesystem controls. Payload bytes are physical DATA only.
+use super::ciphertext_fixture;
 use super::*;
 #[cfg(unix)]
 use opensesame_human_vault::root_protection::unix_private_files::write_new;
 #[cfg(windows)]
 use opensesame_human_vault::root_protection::windows_private_files::write_new;
 use std::fs;
-#[path = "ciphertext_fixture.rs"]
-mod ciphertext_fixture;
 
 fn fixture() -> (tempfile::TempDir, Arc<PrivateDirectory>) {
     let temp = tempfile::tempdir().unwrap();
