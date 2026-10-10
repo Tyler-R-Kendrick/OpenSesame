@@ -15,6 +15,7 @@ describe("Access record routes", () => {
     ["grants", "#access-book/imported-reference", "access-book"],
     ["requests", "#hosted-requests/request-reference", "hosted-requests"],
     ["requests", "#local-requests/request-reference", "local-requests"],
+    ["sessions", "#sent-drops", "sent-drops"],
     ["sessions", "#vault-session-existing-reference", "vault-share-sessions"],
     [
       "sessions",
