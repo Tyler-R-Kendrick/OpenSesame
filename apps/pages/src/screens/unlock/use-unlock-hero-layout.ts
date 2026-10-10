@@ -96,7 +96,7 @@ export function useUnlockHeroLayout(
 
       pane.style.paddingTop = "";
       const cardY = cr.top - pr.top;
-      const left = alignRight - width;
+      const left = Math.max(WIDE_LEFT_INSET, alignRight - width);
       const top = Math.max(8, cardY - gap - height);
       setBox({ left, top, size });
     };
