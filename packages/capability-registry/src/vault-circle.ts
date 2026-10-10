@@ -23,7 +23,7 @@ const HUMAN_PREPARATION: CapabilityExclusion = {
 
 const EXIT_DOOR_ONLY: CapabilityExclusion = {
   reason:
-    "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
+    "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
   adr: ADR_TRUSTED_CIRCLE,
 };
 

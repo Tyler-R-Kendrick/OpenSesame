@@ -7498,7 +7498,7 @@
         "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "pwa": {
-        "reason": "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
         "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "extension": {
@@ -7537,7 +7537,7 @@
         "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "pwa": {
-        "reason": "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
         "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "extension": {

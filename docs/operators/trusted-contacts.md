@@ -94,6 +94,60 @@ emergency.
 Keys belong to an origin. A guardian registers under the circle's RP ID and
 origins and must approve from one of them.
 
+## The sequence (screens)
+
+Each step is a key in a panel's head or on a row; nothing is typed that is not a
+name, a number or a pasted packet.
+
+**Owner, in Circles.**
+
+1. **Start a circle** opens a sheet. Name it, say what it protects (everything
+   in the vault, a folder, or approvals only) and press **Make the invitation**.
+   The invitation is a line of text with a QR code beside it: **Copy
+   invitation** and hand it to each contact over any road you trust.
+2. Each contact answers with a line of text. Paste it into **A contact's
+   answer** and press **Add this contact**. A **Household** name keeps two
+   people who share an account from counting as two.
+3. **Set the rule** (how many must agree; with two groups, how many of each and
+   how many groups) and **Set the clocks** (minutes to approve, hours before a
+   share is released, days a request lasts, whether a PIN or biometric is
+   required). Warnings about a risky rule are marks beside it, not refusals.
+4. **Make the circle.** One packet per contact appears, and for a circle that
+   protects something a recovery file: **Save the recovery file** and **Copy
+   <name>'s packet** for each. They rest sealed in the vault until every
+   receipt is in, so closing the sheet loses nothing; **Hand out the packets**
+   on the circle brings them back. Paste each contact's receipt into **A
+   contact's receipt**; when the last is in the circle reads *Armed*.
+5. Later, open the circle for **Invite more people**, **Change the circle** (a
+   new epoch: replace, add or remove a contact, refresh shares, change the
+   rule), **Ask contacts to approve a share**, **Cancel a request** and **Retire
+   this circle** (two presses).
+
+**Contact, in Guarding.**
+
+1. **Accept an invitation**: paste it, check the facts (the owner's key
+   fingerprint, the origin it must be opened at) and give your name; **Agree**
+   asks for your security key. Copy your answer and send it back. An
+   agreement still waiting for the owner shows as a row you can forget.
+2. **Take what an owner sent**: paste the packet; your key is touched twice
+   (to wrap, then to prove it opens). Copy your receipt.
+3. **Answer a request**: paste it. The sheet states, derived from the request's
+   own fields, what is being asked and for whom, with the recipient's key as a
+   fingerprint to check by another road. **Approve** (security key), copy the
+   approval. After the delay, paste the request and the approvals so far and
+   **Release my share**; your device checks the quorum itself first.
+
+**Recipient, in Recovery.**
+
+1. **Start a recovery**: choose the recovery file, name this device, **Send the
+   request** and copy it to the contacts.
+2. Paste each approval or release into **An approval or a release**. The sheet
+   counts them against what the rule needs and says when releases open; **Copy
+   the approvals** hands the list to the contacts.
+3. When it is complete, **Open the recovery**. **Save the recovered items** or
+   **Put them in this vault**; until one of them is done the recovery stays, and
+   it is still there after a reload.
+
 ## The sequence (code)
 
 ```ts

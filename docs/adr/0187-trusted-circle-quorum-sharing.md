@@ -360,6 +360,26 @@ State these to the people who rely on it.
   TypeScript write a fresh two-epoch circle, the native reader open it and write a
   bundle, shares and releases of its own, and TypeScript open those. Changing a
   derivation constant on the Rust side fails the fixture suite.
+- **A real browser's WebAuthn and PRF.** `pnpm --filter @opensesame/pages
+  verify:quorum-browser` runs five Chromium contexts, each with its own CDP
+  virtual authenticator that does PRF, the real desk in each page over
+  `navigator.credentials`, and nothing between the people but packet strings:
+  a 2-of-3 recovery to the recovered payload, and the refusals only a browser's
+  stack can make (a key with no PRF, a key that no longer proves the user, a
+  page on the wrong origin, a key that is not the enrolled one, a release before
+  the delay), each the browser's own `NotAllowedError`. CI runs it in the
+  `sign-in` shard.
+- **The screens.** `verify:keyboard` signs in from the front door with keys
+  alone, switches the capability on, reaches the tab by `g s` and Tab, finds the
+  five head keys in reading order and opens each sheet: the keyboard lands on the
+  close key, Tab and Shift+Tab never leave the sheet, Escape leaves a text field
+  and then closes the sheet, the key that opened it has the keyboard back, and
+  the step that replaces the new-circle form leaves the keyboard on a control
+  (1280 and 390). `verify:mobile` audits the tab, each sheet, the invitation step
+  and a refused paste in a coarse-pointer context at every phone size; it found
+  a file key alone on its row, which is now a labelled row. `verify:tutorials`
+  walks the four goals at both widths. The four capability profiles build, the
+  capability graph holds, and the bundle ceilings are the measured sizes.
 - Existing share-ledger, receipts and proof tests pass unchanged; the type
   checker refuses the new misuse cases.
 
@@ -382,10 +402,17 @@ State these to the people who rely on it.
 
 ## Follow-ups
 
-1. The ceremony screens (and their tutorials, evidence and keyboard/touch
-   gates), then take the capability out of `NO_SURFACE`.
-2. A hardware pass (YubiKey, platform passkeys) across browsers.
-3. A fuzz target for the native share decoder and policy parser, and the
+1. A hardware pass (YubiKey, platform passkeys) across browsers, from
+   `docs/validation/trusted-contacts-hardware.md`.
+2. A fuzz target for the native share decoder and policy parser, and the
    bundle and delivery key-derivation constants moved into one spec file read
    by both readers (today they are duplicated and pinned by the fixture).
-
+3. A manifest flag that keeps the two item types out of the generic "New item"
+   picker (both parsers need to learn it).
+4. Carrying a request and its approvals over the Identity API's Interaction
+   route instead of by hand needs a longer lifetime than that route's hour.
+5. Saving the recovered items ends the recovery when the download starts, since
+   a browser cannot say whether the person completed the save dialog; an explicit
+   "I have it" step would make that exact.
+6. An approvals-only circle's packets are kept until the circle is changed or
+   retired, because nothing confirms their delivery.
