@@ -2,7 +2,10 @@
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
-import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
+import {
+  bindNativeBrowserPolicyOrigin,
+  nativeBrowserMethodPolicy,
+} from "@opensesame/app-core/lib/native-browser-policy.js";
 import {
   loadNativeConnectorRecord,
   readNativeConnector,
@@ -16,6 +19,8 @@ import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
 import { bindNativeModelRuntime } from "./native-model-runtime.js";
 import { bindNativeOAuthRuntime } from "./native-oauth-runtime.js";
+import { bindNativeTwitchValidation } from "./native-twitch-validation.js";
+import { bindNativeVaultRuntime } from "./native-vault-runtime.js";
 
 type ProviderRequest = { url: string | URL; init: RequestInit };
 type AuthorizationView = NonNullable<
@@ -64,6 +69,9 @@ export function bindNativeRuntime(
   ctx: ApprovedCapabilityContext,
   activation: Activation,
 ): void {
+  activation.onDispose(
+    bindNativeBrowserPolicyOrigin(() => window.location.origin),
+  );
   const lifetime = new AbortController();
   const signal = anySignal([ctx.lease.signal, lifetime.signal]);
   const assertCurrent = () => {
@@ -167,5 +175,7 @@ export function bindProviderRuntime(
   bindNativeApiRuntime(activation);
   bindNativeModelRuntime(activation);
   bindNativeOAuthRuntime(activation);
-  bindNativeCleanupRuntime(activation, ["vault", "openbao"]);
+  bindNativeTwitchValidation(activation);
+  bindNativeVaultRuntime(activation);
+  bindNativeCleanupRuntime(activation, ["vault", "openbao", "github", "s3"]);
 }

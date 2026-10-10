@@ -17,28 +17,24 @@ export async function nativeGitlabJourney(
   harness.setStep(`${label}-gitlab-public`);
   await nativeVisit(page, base, "connections/gitlab");
   await page.getByRole("heading", { name: "GitLab", exact: true }).waitFor();
-  await page
-    .getByRole("radio", { name: "Bring Your Own OAuth App", exact: true })
-    .check();
+  const oauthMethod = page.getByRole("radio", {
+    name: "Bring Your Own OAuth App",
+    exact: true,
+  });
+  if (await oauthMethod.count()) await oauthMethod.check();
   await page
     .getByLabel("GitLab public client ID", { exact: true })
     .fill("protocol-public-gitlab-client");
-  await page
-    .getByLabel("Connector name", { exact: true })
-    .fill("GitLab protocol proof");
-  await page
-    .getByRole("button", { name: "Verify and connect GitLab", exact: true })
-    .click();
   const mark = page.getByRole("img", { name: "GitLab connected", exact: true });
   harness.check(
     (await mark.count()) === 0,
-    "saved public REST configuration alone never becomes connected",
+    "unsubmitted public REST configuration alone never becomes connected",
   );
   await approveNativePublicConsent(
     page,
     callback,
     page.getByRole("button", {
-      name: "Authorize User permissions",
+      name: "Sign in to GitLab",
       exact: true,
     }),
   );

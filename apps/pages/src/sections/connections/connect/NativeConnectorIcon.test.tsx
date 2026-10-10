@@ -63,9 +63,13 @@ it("uses shared image validation without saving an oversized file or exposing cr
     <NativeConnectorForm
       descriptor={nativeUiDescriptor()}
       controller={controller}
+      view={nativeUiView()}
       onChanged={vi.fn()}
       onFlash={vi.fn()}
     />,
+  );
+  await userEvent.click(
+    screen.getByText("Appearance", { selector: "summary" }),
   );
   await userEvent.upload(
     screen.getByLabelText("Icon"),

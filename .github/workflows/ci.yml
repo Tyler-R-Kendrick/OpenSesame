@@ -332,7 +332,9 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:native-public-protocol
+        run: |
+          pnpm --filter @opensesame/pages verify:native-public-protocol
+          pnpm --filter @opensesame/pages verify:provider-auth
       - name: Experience journeys
         # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
         if: startsWith(matrix.shard, 'journeys')

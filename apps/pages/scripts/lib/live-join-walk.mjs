@@ -204,6 +204,7 @@ export async function endSession(panel) {
   await panel
     .getByRole("button", { name: "End the session for everyone" })
     .click();
+  await panel.getByRole("button", { name: "End for everyone" }).click();
 }
 
 /**

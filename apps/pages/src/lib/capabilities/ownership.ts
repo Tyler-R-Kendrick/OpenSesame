@@ -87,6 +87,8 @@ export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
     "auth/redirect.html": "identity.ambient-sso",
     "auth/linear.html": "connectors.external",
     "auth/native-connector.html": "connectors.external",
+    "auth/native-implicit.html": "connectors.external",
+    "auth/native-google.html": "connectors.external",
   });
 
 /**

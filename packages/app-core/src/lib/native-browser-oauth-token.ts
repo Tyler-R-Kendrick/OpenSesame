@@ -13,6 +13,7 @@ import type {
 import type { NativeProviderTransport } from "./native-connector-transport.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import { nativeOAuthHttp } from "./native-oauth-http.js";
+import { parseNativeTwitchDeviceToken } from "./native-twitch-device-http.js";
 
 const opaque = z
   .string()
@@ -95,6 +96,7 @@ export function parseNativeOAuthToken(
   profile: NativeBrowserOAuthProfile,
 ): IssuedNativeOAuthToken {
   if (profile.mode === "openrouter-key") return parseAuthorizedKey(body);
+  if (profile.id === "twitch") return parseNativeTwitchDeviceToken(body);
   const pair = PairSchema.safeParse(body);
   if (!pair.success) {
     const access = AccessSchema.safeParse(body);

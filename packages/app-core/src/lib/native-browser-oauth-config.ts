@@ -33,6 +33,7 @@ async function oauthFingerprint(
       clientId: configuration.clientId,
       endpoints: browserOAuthEndpoints(profile, configuration),
       scopes: configuration.requestedScopes,
+      integrationId: configuration.parameters.integration_id,
       targetIds: configuration.targetIds,
     }),
   );

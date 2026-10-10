@@ -3,7 +3,9 @@ import {
   browserOAuthClassification,
   requiredBrowserOAuthProfile,
 } from "./native-browser-oauth-profile.js";
+import type { NativeConfiguration } from "./native-connector-schema.js";
 import { updateNativeConnector } from "./native-connector-store.js";
+import { nativeDatabricksEndpoints } from "./native-databricks-provider.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
   forgetRetainedNativeOAuthGrant,
@@ -17,6 +19,14 @@ export type NativeBrowserOAuthRevocationInstructions = {
   message: string;
   canConfirm: boolean;
 };
+export function nativeBrowserOAuthRecoverySettings(
+  configuration: NativeConfiguration,
+): string | null {
+  if (configuration.providerId === "databricks")
+    return nativeDatabricksEndpoints(configuration.parameters.domain ?? "")
+      .settings;
+  return requiredBrowserOAuthProfile(configuration.providerId).settingsUrl;
+}
 export function nativeBrowserOAuthRevocationInstructions(
   id: string,
   recoveryId: string,
@@ -26,15 +36,19 @@ export function nativeBrowserOAuthRevocationInstructions(
     (item) => item.id === recoveryId,
   );
   const profile = requiredBrowserOAuthProfile(record.configuration.providerId);
-  if (!entry || record.configuration.method !== "oauth" || !profile.settingsUrl)
+  const settingsUrl = nativeBrowserOAuthRecoverySettings(record.configuration);
+  if (!entry || record.configuration.method !== "oauth" || !settingsUrl)
     throw new NativeOAuthError("cleanup");
   const busy =
     nativeOAuthMutationInFlight(id, entry.id) ||
     (["exchange", "refresh"].includes(entry.credentials?.phase ?? "") &&
       Number(entry.credentials?.deadline) > Date.now());
   return {
-    url: profile.settingsUrl,
-    message: `Open ${profile.name} authorization settings and revoke the application or key for this connection. Confirm only after that provider action is complete. This confirmation clears the failed authorization; it does not verify a working connection.`,
+    url: settingsUrl,
+    message:
+      profile.id === "databricks"
+        ? "Revoke this app’s consent in your Databricks workspace. Already issued tokens can remain valid until their expiry; confirming only forgets this browser’s saved credential and failed authorization."
+        : `Open ${profile.name} authorization settings and revoke the application or key for this connection. Confirm only after that provider action is complete. This confirmation clears the failed authorization; it does not verify a working connection.`,
     canConfirm: !busy && ["configure", "revoke"].includes(entry.kind),
   };
 }

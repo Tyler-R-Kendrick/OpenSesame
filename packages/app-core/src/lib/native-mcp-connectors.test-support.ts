@@ -2,6 +2,7 @@ import type { JsonObject } from "@opensesame/os-domain";
 import { afterEach, expect, vi } from "vitest";
 import { z } from "zod";
 import { installNativeApiTests } from "./native-api.test-support.js";
+import { bindNativeBrowserPolicyOrigin } from "./native-browser-policy.js";
 import type { NativeDriverInput } from "./native-connector-drivers.js";
 import { registerNativeProviderCleanup } from "./native-connector-lifecycle.js";
 import { bindNativeProviderTransport } from "./native-connector-transport.js";
@@ -37,6 +38,7 @@ export function installNativeMcpConnectorTests(): void {
   });
 }
 export type ConnectorFixtureOptions = {
+  origin?: string;
   providerId?: string;
   unauthorized?: boolean;
   noTools?: boolean;
@@ -142,6 +144,13 @@ function mcpFixtureFetch(
 export async function mcpConnectorFixture(
   options: ConnectorFixtureOptions = {},
 ) {
+  // These mocked provider responses belong to a self-hosted fixture origin,
+  // not to the separately measured GitHub Pages production origin.
+  releases.push(
+    bindNativeBrowserPolicyOrigin(
+      () => options.origin ?? "https://self-host.example.org",
+    ),
+  );
   const providerId = options.providerId ?? "adobe";
   const metadata = nativeMcpProviderMetadata(providerId);
   const methods: string[] = [];

@@ -1,12 +1,17 @@
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Link } from "react-router";
-import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { ConnectorIconField } from "./ConnectorIconField.js";
+import { NativeCancelSignIn } from "./NativeCancelSignIn.js";
 import { NativeConnectorFields } from "./NativeConnectorFields.js";
+import {
+  NativeConnectorFormOptions,
+  NativeMethodPicker,
+  nativeFormLabel,
+  nativeSignInRequired,
+} from "./NativeConnectorFormOptions.js";
 import { OutLink } from "./fields.js";
 import {
   nativeEditTargetIds,
@@ -37,65 +42,16 @@ type Props = NativeConnectorCallbacks & {
   view?: NativeConnectorView | null;
 };
 
-function NativeMethodPicker({
-  descriptor,
-  method,
-  locked,
-  onMethod,
-}: {
-  descriptor: NativeConnectorDescriptor;
-  method: string;
-  locked: boolean;
-  onMethod: (method: NativeMethodDescriptor) => void;
-}) {
-  const name = useId();
-  return (
-    <fieldset className="cx-block">
-      <legend>Connection method</legend>
-      <div
-        className="cx-modes"
-        role="radiogroup"
-        aria-label="Connection method"
-      >
-        {descriptor.methods.map((choice) => (
-          <label
-            className="cx-mode"
-            key={choice.id}
-            title={choice.unavailableReason}
-          >
-            <input
-              type="radio"
-              name={name}
-              checked={method === choice.id}
-              disabled={locked || !choice.available}
-              onChange={() => onMethod(choice)}
-            />
-            <span>{choice.label}</span>
-          </label>
-        ))}
-      </div>
-      {locked ? (
-        <StatusMark
-          tone="idle"
-          label="This connection stays saved until removal completes. Remove it before choosing another method."
-        />
-      ) : null}
-      {descriptor.methods
-        .filter((choice) => !choice.available)
-        .map((choice) => (
-          <p className="hint" key={choice.id}>
-            {choice.label}:{" "}
-            {choice.unavailableReason ?? "Unavailable on this device."}
-          </p>
-        ))}
-    </fieldset>
+function useNativePreferences(
+  defaultName: string,
+  view?: NativeConnectorView | null,
+) {
+  const [name, setName] = useState(
+    view?.configuration.displayName ?? defaultName,
   );
-}
-
-function useNativeIcon(view?: NativeConnectorView | null) {
   const [icon, setIcon] = useState(view?.configuration.icon ?? "");
   const [iconBusy, setIconBusy] = useState(false);
-  return { icon, setIcon, iconBusy, setIconBusy };
+  return { name, setName, icon, setIcon, iconBusy, setIconBusy };
 }
 
 function useNativeForm({
@@ -108,9 +64,6 @@ function useNativeForm({
   const available = descriptor.methods.filter((item) => item.available);
   const initial = nativeInitialMethod(descriptor, view);
   const [methodId, setMethodId] = useState(initial?.id);
-  const [name, setName] = useState(
-    view?.configuration.displayName ?? descriptor.name,
-  );
   const [values, setValues] = useState(() =>
     initial ? nativeInitialValues(initial, view) : {},
   );
@@ -120,7 +73,8 @@ function useNativeForm({
       : {},
   );
   const [busy, setBusy] = useState(false);
-  const image = useNativeIcon(view);
+  const image = useNativePreferences(descriptor.name, view);
+  const { name } = image;
   const [failure, setFailure] = useState("");
   const selectedMethod = available.find((item) => item.id === methodId);
   const method = selectedMethod
@@ -150,7 +104,8 @@ function useNativeForm({
     setFailure("");
     const credentials = nativeFieldValues(method.fields, values, true);
     try {
-      const next = await controller.configure({
+      const signIn = nativeSignInRequired(method, view);
+      const next = await (signIn ? controller.connect : controller.configure)({
         method: method.id,
         displayName: name.trim(),
         icon: image.icon,
@@ -170,7 +125,7 @@ function useNativeForm({
       } else {
         onFlash({
           tone: "warn",
-          text: `${descriptor.name} authorization is incomplete.`,
+          text: `Complete ${descriptor.name} sign-in to connect.`,
         });
       }
     } catch (error) {
@@ -184,8 +139,6 @@ function useNativeForm({
   }
   return {
     method,
-    name,
-    setName,
     values,
     setValues,
     scopes,
@@ -273,17 +226,16 @@ export function NativeConnectorForm(props: Props) {
         />
         {model.method ? (
           <>
-            <FieldShell
-              label="Connector name"
-              value={model.name}
-              onValueChange={model.setName}
-            />
-            <ConnectorIconField
-              value={model.icon}
-              onChange={model.setIcon}
-              onError={model.setFailure}
-              onBusyChange={model.setIconBusy}
-            />
+            {props.view && nativeVerified(props.view) ? (
+              <NativeConnectorFormOptions
+                name={model.name}
+                onName={model.setName}
+                icon={model.icon}
+                onIcon={model.setIcon}
+                onError={model.setFailure}
+                onBusy={model.setIconBusy}
+              />
+            ) : null}
             <NativeConnectorFields
               method={model.method}
               values={model.values}
@@ -310,12 +262,11 @@ export function NativeConnectorForm(props: Props) {
       </fieldset>
       {model.method ? (
         <FormCommit
-          label={`Verify and connect ${descriptor.name}`}
+          label={nativeFormLabel(model.method, props.view, descriptor.name)}
           busy={model.busy}
           disabled={
             model.busy ||
             model.iconBusy ||
-            !model.method ||
             !model.method.available ||
             !!missing ||
             !model.name.trim()
@@ -333,6 +284,12 @@ export function NativeConnectorForm(props: Props) {
           label={`${descriptor.name} has no supported browser connection method.`}
         />
       )}
+      <NativeCancelSignIn
+        busy={model.busy}
+        method={model.method}
+        view={props.view}
+        onCancel={props.controller.cancelAuthorization}
+      />
       <NativeConfigurationLinks descriptor={descriptor} />
     </form>
   );

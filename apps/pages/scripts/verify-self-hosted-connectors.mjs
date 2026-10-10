@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { observeHttpFailures } from "./lib/http-failures.mjs";
 import { apiKeyFlow, oauthFlow } from "./lib/linear-browser-flows.mjs";
 import { linearFallbacks } from "./lib/linear-fallback-contract.mjs";
 import { routeLinearProvider } from "./lib/linear-provider-contract.mjs";
@@ -192,6 +193,13 @@ try {
       check,
     });
     fallbacks.observe(page, authority);
+    context.on("page", (popup) => {
+      observeHttpFailures(popup, harness.record);
+      fallbacks.observe(popup, authority);
+      popup.on("pageerror", (error) =>
+        harness.record("PAGE-ERROR", error.message),
+      );
+    });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await sealWithPin(page);
     await enableConnections(page);
@@ -206,7 +214,7 @@ try {
     });
     await apiKeyFlow({ harness, visit, verifyIcon }, page, label, authority);
     await visit(page, "connections/linear");
-    await oauthFlow(harness, page, label, authority);
+    await oauthFlow(harness, page, label, authority, visit);
     await recoveryFlow({ harness, visit }, page, label, authority);
     await context.close();
   }

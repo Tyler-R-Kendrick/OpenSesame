@@ -13,6 +13,7 @@ import {
   verifyNativeBrowserOAuth,
 } from "./native-browser-oauth-verify.js";
 import { assertNativeBrowserOAuthPolicy } from "./native-browser-policy.js";
+import { listNativeCodebergRepositories } from "./native-codeberg-provider.js";
 /** Provider-specific public authorization implements the native driver contract. */
 import type { NativeConnectorDriver } from "./native-connector-drivers.js";
 import type { NativeGrant, NativePending } from "./native-connector-schema.js";
@@ -25,12 +26,15 @@ import {
   type NativeProviderTransport,
   nativeProviderTransport,
 } from "./native-connector-transport.js";
+import { beginNativeDiscordAuthorization } from "./native-discord-consent.js";
+import { listNativeDiscordGuilds } from "./native-discord-operations.js";
 import { nativeOAuthRedirectUri } from "./native-oauth-browser-port.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import {
   nativeOAuthGuard,
   requireNativeOAuthRecord,
 } from "./native-oauth-session.js";
+import { beginNativeTwitchDeviceAuthorization } from "./native-twitch-device.js";
 export { configureNativeBrowserOAuthConnector } from "./native-browser-oauth-config.js";
 export { finishNativeBrowserAuthorization } from "./native-browser-oauth-finish.js";
 import { configureNativeBrowserOAuthConnector } from "./native-browser-oauth-config.js";
@@ -41,6 +45,10 @@ export async function beginNativeBrowserAuthorization(
 ): Promise<void> {
   const record = requireNativeOAuthRecord(id);
   assertNativeBrowserOAuthPolicy(record.configuration.providerId);
+  if (record.configuration.providerId === "discord")
+    return beginNativeDiscordAuthorization(id, actor);
+  if (record.configuration.providerId === "twitch")
+    return beginNativeTwitchDeviceAuthorization(id, actor);
   if (record.configuration.providerId === "google")
     return beginNativeGoogleAuthorization(id, actor);
   return beginPkce(id, actor);
@@ -156,17 +164,44 @@ export async function verifyNativeBrowserOAuthConnector(id: string) {
     throw new NativeOAuthError("provider");
   return persistVerification(record, grant, verified, transport);
 }
+function assertNativeOAuthOperationProvider(
+  providerId: string,
+  operationId: string,
+): void {
+  if (operationId === "provider.repositories.read" && providerId !== "codeberg")
+    throw new NativeOAuthError("provider");
+  if (operationId === "provider.guilds.read" && providerId !== "discord")
+    throw new NativeOAuthError("provider");
+}
 export async function invokeNativeBrowserOAuthConnector(
   id: string,
   operationId: string,
   input: Record<string, string> = {},
 ) {
-  if (operationId !== "provider.read" || Object.keys(input).length)
+  if (
+    ![
+      "provider.read",
+      "provider.repositories.read",
+      "provider.guilds.read",
+    ].includes(operationId) ||
+    Object.keys(input).length
+  )
     throw new Error("Select a supported provider operation");
   const held = readNativeConnector(id);
   if (!held || !["connected", "reauthorize"].includes(held.status))
     throw new NativeOAuthError("expired");
+  assertNativeOAuthOperationProvider(held.providerId, operationId);
   const view = await verifyNativeBrowserOAuthConnector(id);
+  if (operationId === "provider.guilds.read") {
+    const grant = requireNativeOAuthRecord(id).privateState.grants.user;
+    if (!grant) throw new NativeOAuthError("expired");
+    return listNativeDiscordGuilds(grant, nativeProviderTransport());
+  }
+  if (operationId === "provider.repositories.read") {
+    const grant = requireNativeOAuthRecord(id).privateState.grants.user;
+    if (!grant) throw new NativeOAuthError("expired");
+    return listNativeCodebergRepositories(grant, nativeProviderTransport());
+  }
   return {
     label: view.identity?.label ?? "Provider account verified",
     items: [],

@@ -1,5 +1,5 @@
-/** Refresh has a durable mutation intent and retains the rotated pair before activation. */
 import { randomString } from "@opensesame/sdk-browser";
+import { recordApprovedNativeExchangeFailure } from "./native-approved-auth-recovery.js";
 import {
   browserOAuthClassification,
   browserOAuthEndpoints,
@@ -30,11 +30,15 @@ import {
   nativeOAuthGuard,
   requireNativeOAuthRecord,
 } from "./native-oauth-session.js";
+/** Refresh has a durable mutation intent and retains the rotated pair before activation. */
+import { refreshNativeTwitchAuthorization } from "./native-twitch-device-refresh.js";
 
 export async function refreshNativeBrowserAuthorization(
   initial: NativeConnectorRecord,
   transport: NativeProviderTransport,
 ): Promise<void> {
+  if (initial.configuration.providerId === "twitch")
+    return refreshNativeTwitchAuthorization(initial, transport);
   const old = initial.privateState.grants.user;
   const profile = requiredBrowserOAuthProfile(initial.configuration.providerId);
   if (
@@ -50,10 +54,14 @@ export async function refreshNativeBrowserAuthorization(
     phase: "refresh",
     deadline: String(Date.now() + 60_000),
     identity_id: initial.runtime.identity?.id ?? "",
+    integration_id: initial.configuration.parameters.integration_id ?? "",
   };
   const intent: NativeRecovery = {
     id: `oauth-refresh:${randomString(32)}`,
-    kind: "configure",
+    kind:
+      initial.configuration.providerId === "databricks"
+        ? "revoke"
+        : "configure",
     providerId: old.providerId,
     actor: old.actor,
     fingerprint: old.fingerprint,
@@ -124,6 +132,12 @@ async function refreshAndJournal(
         transport,
       );
     } catch (error) {
+      if (error instanceof Error)
+        await recordApprovedNativeExchangeFailure(
+          initial.connectionId,
+          intent.id,
+          error,
+        );
       if (
         error instanceof NativeOAuthError &&
         error.oauthError === "invalid_grant"

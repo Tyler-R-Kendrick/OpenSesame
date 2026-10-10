@@ -29,6 +29,8 @@ async function catalogRows(page) {
       id: decodeURIComponent(tile.id.replace(/^catalog-/, "")),
       name: tile.querySelector(".conn-tile__name")?.textContent ?? "",
       href: tile.querySelector("a")?.getAttribute("href") ?? null,
+      capability:
+        tile.querySelector(".conn-tile__link")?.getAttribute("title") ?? null,
     })),
   );
 }
@@ -122,8 +124,8 @@ export async function nativeCatalogJourney(
     harness.setStep(`${phone ? "phone" : "desktop"}-catalog-${row.id}`);
     if (!row.href) {
       harness.check(
-        true,
-        `${row.id}: catalog explicitly excludes connection under product policy`,
+        ["Desktop app required", "Unavailable"].includes(row.capability),
+        `${row.id}: static card explicitly indicates actual runtime capability without opening a fake configuration`,
       );
       continue;
     }

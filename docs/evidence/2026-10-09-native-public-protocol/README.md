@@ -1,5 +1,7 @@
 # Native public OAuth and MCP protocol evidence
 
+This gallery records the earlier full-page redirect baseline. The current consent popup keeps the originating tab unlocked; see the [provider authentication gallery](../2026-10-09-provider-authentication/README.md) for the updated session flow and real-service evidence.
+
 These four screenshots supplement the [two-build configuration comparison gallery](../2026-10-09-native-connectors/README.md). They show the production application performing actual browser HTTP protocols against a **disclosed synthetic upstream authority**, using the providers' compiled official endpoint URLs. No live account or live credential is claimed.
 
 The harness supplies upstream HTTP responses and the static deployment files. It does not inject application state, replace modules, alter the app DOM, or fabricate a connected record. Each journey creates a real PIN-sealed vault, follows explicit consent through the built `auth/native-connector.html` bridge, unlocks after the callback, reloads cold, and uses the encrypted saved grant.

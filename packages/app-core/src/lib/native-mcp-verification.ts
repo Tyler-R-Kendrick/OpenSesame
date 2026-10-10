@@ -1,3 +1,4 @@
+import { assertNativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import {
   type NativeProviderTransport,
   nativeProviderTransport,
@@ -13,6 +14,7 @@ export async function verifyNativeMcpConnector(
 ) {
   transport.assertCurrent();
   const record = requireNativeMcpRecord(id);
+  assertNativeBrowserMcpPolicy(record.configuration.providerId);
   if (
     record.privateState.recovery.length ||
     Object.keys(record.privateState.pending).length

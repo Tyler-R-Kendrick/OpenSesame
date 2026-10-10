@@ -11,7 +11,7 @@ const RAILWAY_GUIDES = {
 
 export async function nativeApiGuideJourney(page, harness, fixture) {
   const guide = page.locator("details").filter({
-    has: page.locator("summary").filter({ hasText: /^Provider setup guide$/ }),
+    has: page.locator("summary").filter({ hasText: /^Sign-in help$/ }),
   });
   if (!(await guide.count())) return;
   await guide.locator("summary").click();

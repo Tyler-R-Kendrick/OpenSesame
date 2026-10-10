@@ -1,3 +1,5 @@
+import { captureNativeAuthorizationTransport } from "./native-authorization-transport.js";
+import { assertNativeBrowserMcpPolicy } from "./native-browser-policy.js";
 import type {
   NativePending,
   NativeRecovery,
@@ -7,6 +9,7 @@ import {
   type NativeProviderTransport,
   nativeProviderTransport,
 } from "./native-connector-transport.js";
+import { discardNativeConsent } from "./native-consent-cancel.js";
 import type { NativeMcpOAuthTarget } from "./native-mcp-oauth-target.js";
 import { NativeMcpAuthError } from "./native-mcp-oauth-target.js";
 import { NativeMcpPublicOAuth } from "./native-mcp-oauth.js";
@@ -113,15 +116,32 @@ async function sealMcpConsent({
     },
   );
   transport.assertCurrent();
-  browser.navigate(consent.authorizationUrl.href);
+  if (browser.authorize) {
+    let callback: string;
+    try {
+      callback = await browser.authorize(consent.authorizationUrl.href, {
+        state: pending.state,
+        expiresAt: pending.expiresAt,
+      });
+    } catch (error) {
+      await discardNativeConsent(id, pending.state, MCP_CLASSIFICATION);
+      throw error;
+    }
+    await finishNativeMcpAuthorization(callback, transport);
+  } else browser.navigate(consent.authorizationUrl.href);
 }
 
 /** Registration is a credential mutation: seal an obligation before sending it. */
 export async function beginNativeMcpAuthorization(
   id: string,
   actor = "user",
-  transport: NativeProviderTransport = nativeProviderTransport(),
+  baseTransport: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<void> {
+  const transport = captureNativeAuthorizationTransport(baseTransport);
+  transport.assertCurrent();
+  assertNativeBrowserMcpPolicy(
+    requireNativeMcpRecord(id).configuration.providerId,
+  );
   if (actor !== "user") throw new NativeMcpAuthError("public-client");
   const browser = nativeOAuthBrowserPort();
   await prepareNativeMcpAuthorization(id, transport);
@@ -190,11 +210,14 @@ export async function beginNativeMcpAuthorization(
 /** Only the shared sealed-state claim chooses the connector/provider/actor. */
 export async function finishNativeMcpAuthorization(
   search: string,
-  transport: NativeProviderTransport = nativeProviderTransport(),
+  baseTransport: NativeProviderTransport = nativeProviderTransport(),
 ) {
+  const transport = captureNativeAuthorizationTransport(baseTransport);
   const browser = nativeOAuthBrowserPort();
-  if (nativeOAuthCallbackTarget(search)?.method !== "mcp")
-    throw new NativeMcpAuthError("pending");
+  transport.assertCurrent();
+  const callbackTarget = nativeOAuthCallbackTarget(search);
+  if (callbackTarget?.method !== "mcp") throw new NativeMcpAuthError("pending");
+  assertNativeBrowserMcpPolicy(callbackTarget.providerId);
   const { record, pending, obligation, code } = await claimNativeOAuthPending(
     search,
     MCP_CLASSIFICATION,

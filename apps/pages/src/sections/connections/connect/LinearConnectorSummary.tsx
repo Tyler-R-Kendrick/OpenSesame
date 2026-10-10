@@ -16,6 +16,7 @@ import { IconTrash } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { LinearActions } from "./LinearActions.js";
 import { LinearActorSummary } from "./LinearActorSummary.js";
+import { LinearCancelSignIn } from "./LinearCancelSignIn.js";
 import { LinearWebhookRetry } from "./LinearRecoveryControls.js";
 import { LinearWebhookSummary } from "./LinearWebhookSummary.js";
 
@@ -68,16 +69,19 @@ function useLinearSummaryActions(
   onChanged: () => void,
 ) {
   const [busy, setBusy] = useState(false);
+  const [authorizing, setAuthorizing] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
   async function authorize(actor: "app" | "user") {
     setBusy(true);
+    setAuthorizing(true);
     try {
       await beginLinearAuthorization(connectorId, actor);
     } catch (error) {
       onFlash({ tone: "err", text: errorText(error) });
     } finally {
       setBusy(false);
+      setAuthorizing(false);
       onChanged();
     }
   }
@@ -103,7 +107,7 @@ function useLinearSummaryActions(
     }
   }
 
-  return { busy, confirming, authorize, remove };
+  return { busy, authorizing, confirming, authorize, remove };
 }
 
 export function LinearConnectorSummary({
@@ -117,11 +121,8 @@ export function LinearConnectorSummary({
 }) {
   const saved = readSelfHostedConnector(connection.connectionId);
   const authorization = readLinearConnector(connection.connectionId);
-  const { busy, confirming, authorize, remove } = useLinearSummaryActions(
-    connection.connectionId,
-    onFlash,
-    onChanged,
-  );
+  const { busy, authorizing, confirming, authorize, remove } =
+    useLinearSummaryActions(connection.connectionId, onFlash, onChanged);
   if (!saved) return null;
 
   return (
@@ -154,6 +155,7 @@ export function LinearConnectorSummary({
             onChanged={onChanged}
           />
         ))}
+        <LinearCancelSignIn authorizing={authorizing} />
         {authorization?.webhook ? (
           <LinearWebhookSummary
             connectorId={connection.connectionId}

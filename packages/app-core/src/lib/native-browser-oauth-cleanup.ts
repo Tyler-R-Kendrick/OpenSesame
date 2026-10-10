@@ -1,5 +1,6 @@
 /** Revocation uses provider-documented routes; provider settings remain explicit when no route exists. */
 import { NativeApiError, nativeApiHttp } from "./native-api-http.js";
+import { approvedNativeOAuthRevocationEndpoint } from "./native-approved-oauth-revoke.js";
 import {
   browserOAuthClassification,
   requiredBrowserOAuthProfile,
@@ -15,6 +16,8 @@ import {
   type NativeProviderTransport,
   nativeProviderTransport,
 } from "./native-connector-transport.js";
+import { cleanupNativeDatabricksAuthorization } from "./native-databricks-cleanup.js";
+import { cleanupNativeDiscordAuthorization } from "./native-discord-cleanup.js";
 import { NativeOAuthError } from "./native-oauth-errors.js";
 import { nativeOAuthHttp } from "./native-oauth-http.js";
 import {
@@ -23,6 +26,7 @@ import {
   retainNativeOAuthRotationForRetry,
   retryRetainedNativeOAuthGrants,
 } from "./native-oauth-session.js";
+import { cleanupNativeTwitchDevice } from "./native-twitch-device-cleanup.js";
 
 async function proveRefreshRevoked(
   obligation: NativeRecovery,
@@ -86,6 +90,8 @@ async function proveSettingsRevocation(
     ["microsoft-teams", "https://graph.microsoft.com/v1.0/me"],
     ["spotify", "https://api.spotify.com/v1/me"],
     ["openrouter", "https://openrouter.ai/api/v1/key"],
+    ["codeberg", "https://codeberg.org/api/v1/user"],
+    ["crowdin", "https://api.crowdin.com/api/v2/user"],
   ]);
   const endpoint = endpoints.get(obligation.providerId);
   if (!endpoint) throw new NativeOAuthError("cleanup");
@@ -117,8 +123,10 @@ async function revokeForm(
 ): Promise<void> {
   const profile = requiredBrowserOAuthProfile(obligation.providerId);
   const grant = obligation.grant;
-  if (!grant || !profile.revocationEndpoint)
-    throw new NativeOAuthError("cleanup");
+  if (!grant) throw new NativeOAuthError("cleanup");
+  const endpoint =
+    approvedNativeOAuthRevocationEndpoint(grant) ?? profile.revocationEndpoint;
+  if (!endpoint) throw new NativeOAuthError("cleanup");
   const tokens = [
     ...new Set(
       [grant.refreshToken, grant.accessToken].filter(
@@ -128,10 +136,10 @@ async function revokeForm(
   ];
   for (const token of tokens) {
     const body = new URLSearchParams({ token });
-    if (["gitlab", "workos"].includes(profile.id))
+    if (["gitlab", "workos", "vercel", "auth0", "okta"].includes(profile.id))
       body.set("client_id", grant.clientId ?? "");
     const reply = await nativeOAuthHttp(
-      profile.revocationEndpoint,
+      endpoint,
       body,
       transport,
       undefined,
@@ -206,6 +214,12 @@ export async function cleanupNativeBrowserOAuth(
   transport: NativeProviderTransport = nativeProviderTransport(),
 ): Promise<NativeCleanupOutcome> {
   assertCleanupSettled(obligation, context);
+  if (obligation.providerId === "discord")
+    return cleanupNativeDiscordAuthorization(obligation, context);
+  if (obligation.providerId === "databricks")
+    return cleanupNativeDatabricksAuthorization(obligation, context, transport);
+  if (obligation.providerId === "twitch")
+    return cleanupNativeTwitchDevice(obligation, context, transport);
   const profile = requiredBrowserOAuthProfile(obligation.providerId);
   if (!obligation.grant) throw new NativeOAuthError("cleanup");
   if (profile.revoke === "settings") {

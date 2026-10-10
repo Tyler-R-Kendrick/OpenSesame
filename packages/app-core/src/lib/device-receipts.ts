@@ -61,6 +61,7 @@ export const RECEIPT_KINDS = {
   "drop.locked_out": ["access.drop.locked_out", "denied"],
   "drop.revoked": ["access.drop.revoked", "succeeded"],
   "live.granted": ["access.live.granted", "succeeded"],
+  "live.ended": ["access.live.ended", "succeeded"],
   "share.granted": ["access.share.granted", "succeeded"],
   "share.revoked": ["access.share.revoked", "succeeded"],
 } as const satisfies Record<string, readonly [string, AuditOutcome]>;
