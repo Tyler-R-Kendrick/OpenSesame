@@ -121,3 +121,7 @@ artifacts/mtls/
 
 # Local parity gauntlet reports and scratch fixtures
 /work/
+
+# Stitch prototypes and extracted HTML (docs/design/tooling.md); DESIGN.md stays
+.stitch/designs/
+.stitch/*.html

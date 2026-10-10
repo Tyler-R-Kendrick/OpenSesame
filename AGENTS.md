@@ -126,6 +126,8 @@ pnpm test:task-access    # scripts/test/task-security-battle-test.sh
 pnpm test:redteam        # @opensesame/redteam promptfoo corpus against mcp-host, behind a stub Host/daemon
                           #   (the structural pact suite is that package's test:integration)
 pnpm test:visual         # Playwright pixel baselines (@opensesame/visual-contract)
+pnpm --filter @opensesame/pages storybook   # the design system's catalog on :6006, MCP at /mcp
+                          #   (docs/design/tooling.md); build-storybook, typecheck:storybook
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
 pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
@@ -1101,7 +1103,14 @@ Do not add new top-level directories or loose root files — find the group.
   a recorded number of zero, so new code meets the budget outright.
   `docs/validation/code-quality-gates.md` is the working guide.
 - Pages, PWA, and ceremony UI follow [`DESIGN.md`](DESIGN.md) and
-  [`docs/design/controls.md`](docs/design/controls.md). An action that
+  [`docs/design/controls.md`](docs/design/controls.md).
+  The visual tooling is three tools with three roles
+  (`docs/design/tooling.md`): Storybook (`apps/pages/stories/`) *defines* the
+  system and every delivered component gets a story on the app's own CSS;
+  Figma *sets the look* a story must match through its Design tab; Stitch
+  *prototypes* alternatives from `.stitch/DESIGN.md`. A story never restyles a
+  component, and nothing moves from Stitch into `apps/pages` without a frame
+  and a component first. An action that
   executes is an icon key (`icon-btn`, or `.go` for the action that ends the
   screen) with `aria-label` and `title`. Do not paint a verb on a button.
   Text on a control is only a choice object (a provider, a mode, a navigation
@@ -1321,6 +1330,7 @@ their own updaters can refresh them.
 | `design-taste-frontend` | `.claude/skills/design-taste-frontend/SKILL.md` | Third-party anti-slop frontend skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT; docs at [tasteskill.dev](https://www.tasteskill.dev/changelog)) |
 | `redesign-existing-projects` | `.claude/skills/redesign-existing-projects/SKILL.md` | Third-party audit-first redesign skill ([Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill), MIT) |
 | `design-system` | `.claude/skills/design-system/SKILL.md` | TypeUI `minimal` registry spec ([typeui.sh](https://www.typeui.sh/design-skills)), pulled via `npx typeui.sh pull minimal -f skill -p claude-code`; also mirrored at `.agents/skills/design-system/` |
+| `stitch-*`, `design-md`, `taste-design`, `enhance-prompt`, `site-md`, `stitch-loop` | `.agents/skills/<skill>/SKILL.md` (+ `.claude/skills/`, `.grok/skills/`) | Third-party ([google-labs-code/stitch-skills](https://github.com/google-labs-code/stitch-skills), Apache 2.0), installed via `npx skills add google-labs-code/stitch-skills --copy` for every agent target and pinned in `skills-lock.json`; Google Stitch prototyping over `.stitch/DESIGN.md` and the Stitch MCP server (`docs/design/tooling.md`) |
 
 ## 8. Verification expectations
 
