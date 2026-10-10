@@ -23,7 +23,7 @@ import {
 } from "./unlock-methods.js";
 
 /** What a wrong passkey says, and what a held device repeats for a right one. */
-const PASSKEY_MISS = "That passkey did not unlock the vault.";
+export const PASSKEY_MISS = "That passkey did not unlock the vault.";
 
 export type PasskeyUnlockSessionHost = Readonly<{
   header: () => VaultHeader | null;
@@ -168,6 +168,30 @@ export async function probePasskeyPrf(
 ): Promise<ArrayBuffer> {
   const probe = await probePasskeyCeremony(host, signal ? { signal } : {});
   return probe.prfOutput;
+}
+
+/** Derive the vault key from a passkey probe without changing unlock state. */
+export async function importVaultKeyFromPasskeyProbe(
+  host: PasskeyUnlockSessionHost,
+  prfOutput: ArrayBuffer,
+): Promise<CryptoKey> {
+  host.assertNotLockedOut();
+  const header = host.header();
+  if (!header) throw new Error("There is no vault on this device yet.");
+  let raw: Uint8Array | null = null;
+  for (const record of passkeyUnlockRecords(header)) {
+    try {
+      raw = await unwrapVaultKeyWithPrf(record, prfOutput);
+      break;
+    } catch (error) {
+      if (!(error instanceof WrongPasswordError)) throw error;
+    }
+  }
+  if (!raw) {
+    host.recordFailedUnlock();
+    throw new WrongPasswordError(PASSKEY_MISS);
+  }
+  return importVaultKey(raw);
 }
 
 export async function unlockVaultWithHeldPrf(
