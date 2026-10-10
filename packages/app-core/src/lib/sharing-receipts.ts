@@ -30,14 +30,14 @@ import {
 const seen = new Set<string>();
 const SEEN_MAX = 256;
 let chain: Promise<void> = Promise.resolve();
-const heldDropExpiry = new Set<string>();
+let heldDropExpiry: string | undefined;
 
 export function flushHeldDropNotes(): void {
-  if (!activitySeams.activeTomb() || heldDropExpiry.size === 0) return;
-  for (const id of heldDropExpiry) {
-    heldDropExpiry.delete(id);
-    noteDropExpired(id);
-  }
+  const tomb = activitySeams.activeTomb();
+  const id = heldDropExpiry;
+  if (!tomb || !id) return;
+  heldDropExpiry = undefined;
+  noteDropExpired(id);
 }
 
 /** An id the scrubber would leave unchanged, and nothing longer than a resource id. */
@@ -88,7 +88,7 @@ export async function flushSharingReceipts(): Promise<void> {
 /** Test-only: forget which ids this tab already recorded. */
 export function resetSharingReceiptsForTest(): void {
   seen.clear();
-  heldDropExpiry.clear();
+  heldDropExpiry = undefined;
 }
 
 /** The claim was presented. `claimId` is the id, never the bearer. */
@@ -119,7 +119,7 @@ export function noteDropExpired(claimId: string): void {
   const tomb = activitySeams.activeTomb();
   if (!id) return;
   if (!tomb) {
-    heldDropExpiry.add(id);
+    heldDropExpiry = id;
     return;
   }
   if (!remember(`drop-expired:${id}`)) return;
