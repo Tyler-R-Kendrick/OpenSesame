@@ -86,7 +86,7 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
             plugins: crate::plugin_routes::PluginHost::from_process(),
             tailnet: crate::tailnet_admin_routes::TailnetAdminHost::from_process(),
             cli_app_integration: Arc::new(Mutex::new(
-                opensesame_connector_host::password_agent::app_integration::CliAppIntegrationStore::new(),
+                opensesame_cli_app_integration::CliAppIntegrationStore::new(),
             )),
         },
         hsts,

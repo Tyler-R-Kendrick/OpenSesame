@@ -1,5 +1,5 @@
 //! Blocking CLI ↔ app integration client (daemon loopback).
-use opensesame_connector_host::password_agent::app_integration::{
+use opensesame_cli_app_integration::{
     app_unavailable_message, denied_message, seam_decision,
 };
 use serde::Deserialize;
