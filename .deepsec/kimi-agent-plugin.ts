@@ -68,7 +68,35 @@ function stripKimiSessionFooter(text: string): string {
   return out.join("\n").trim();
 }
 
+function combineAbortSignals(
+  primary: AbortSignal | undefined,
+  secondary: AbortSignal,
+): AbortSignal {
+  if (!primary) {
+    return secondary;
+  }
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any([primary, secondary]);
+  }
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  if (primary.aborted) {
+    controller.abort(primary.reason);
+    return controller.signal;
+  }
+  primary.addEventListener("abort", onAbort, { once: true });
+  secondary.addEventListener("abort", onAbort, { once: true });
+  return controller.signal;
+}
+
 function runKimiPrompt(params: RunPromptParams): Promise<string> {
+  const timeoutSec = Number(
+    process.env.DEEPSEC_KIMI_INVESTIGATE_TIMEOUT_SEC ?? "1500",
+  );
+  const timeoutMs =
+    Number.isFinite(timeoutSec) && timeoutSec > 0
+      ? timeoutSec * 1000
+      : 1_500_000;
   const bin = resolveKimiBin();
   if (!bin) {
     return Promise.reject(
@@ -97,6 +125,8 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
       "--output-format",
       "text",
     ];
+    const timeoutSignal = AbortSignal.timeout(timeoutMs);
+    const signal = combineAbortSignals(params.signal, timeoutSignal);
     const child = spawn(bin, args, {
       cwd: params.cwd,
       env: kimiEnv(),
@@ -106,9 +136,18 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
     let stderr = "";
     const onAbort = () => {
       child.kill("SIGTERM");
-      reject(new Error("aborted"));
+      const reason = signal.reason;
+      if (timeoutSignal.aborted) {
+        reject(
+          new Error(
+            `kimi investigate timed out after ${timeoutSec}s (DEEPSEC_KIMI_INVESTIGATE_TIMEOUT_SEC)`,
+          ),
+        );
+        return;
+      }
+      reject(reason instanceof Error ? reason : new Error("aborted"));
     };
-    params.signal?.addEventListener("abort", onAbort, { once: true });
+    signal.addEventListener("abort", onAbort, { once: true });
     child.stdout.on("data", (chunk: Buffer) => {
       stdout += chunk.toString("utf8");
     });
@@ -116,11 +155,11 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
       stderr += chunk.toString("utf8");
     });
     child.on("error", (err) => {
-      params.signal?.removeEventListener("abort", onAbort);
+      signal.removeEventListener("abort", onAbort);
       reject(err);
     });
     child.on("close", (code) => {
-      params.signal?.removeEventListener("abort", onAbort);
+      signal.removeEventListener("abort", onAbort);
       const combined = stdout || stderr;
       if (code !== 0 && !combined.trim()) {
         reject(new Error(stderr.trim() || `kimi exited ${code}`));

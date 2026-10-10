@@ -4,6 +4,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isWaveProcessComplete } from "./deepsec-wave2-completion.mjs";
 
 const repoRoot = process.argv[2] ?? process.cwd();
 const filesRoot = path.join(
@@ -138,12 +139,7 @@ const investigateWave2ByAgentModel = {};
 for (const fp of walk(filesRoot)) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
   const hist = rec.analysisHistory ?? [];
-  const wave2 = hist.filter(
-    (h) =>
-      h.reinvestigateMarker === 2 &&
-      h.phase !== "revalidate" &&
-      ((h.usage?.outputTokens ?? 0) > 0 || h.phase === "process"),
-  );
+  const wave2 = hist.filter((h) => isWaveProcessComplete(h, 2, "kimi"));
   if (wave2.length > 0) {
     investigateWave2Complete += 1;
     const last = wave2[wave2.length - 1];

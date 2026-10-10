@@ -76,16 +76,25 @@ export async function* runHeadlessInvestigate(
     );
   }
   const parsed = parseInvestigateResults(resultText, params.batch);
+  const durationMs = Date.now() - start;
+  const outputTokens = Math.max(1, Math.ceil(resultText.length / 4));
+  const inputTokens = Math.max(1, Math.ceil(prompt.length / 4));
   yield {
     type: "complete",
-    message: `Investigation complete (${((Date.now() - start) / 1000).toFixed(1)}s)`,
+    message: `Investigation complete (${(durationMs / 1000).toFixed(1)}s)`,
   };
   return {
     results: parsed.results,
     meta: {
-      durationMs: Date.now() - start,
+      durationMs,
       agentType: options.type,
       model,
+      usage: {
+        inputTokens,
+        outputTokens,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+      },
     },
   };
 }

@@ -28,6 +28,9 @@ fi
 
 echo "deepsec-wave2-process: agent=${AGENT} model=${MODEL} wave=${WAVE}"
 node "${ROOT}/scripts/audit/deepsec-ingest-native-cli.mjs" "$ROOT" || true
+if [[ "$AGENT" == "kimi" ]]; then
+  node "${ROOT}/scripts/audit/deepsec-wave2-backfill-kimi-usage.mjs" "$ROOT" "$WAVE" kimi || true
+fi
 cd "$WS"
 "$DEEPSEC" process --project-id opensesame \
   --agent "$AGENT" --model "$MODEL" \
