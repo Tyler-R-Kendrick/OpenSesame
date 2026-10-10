@@ -222,23 +222,23 @@ export default defineConfig({
       // (`auth/redirect.html` → identity.ambient-sso) and partitions optional
       // modules into `cap-<capability>` chunks. `main` is always kept.
       input: {
-            main: fileURLToPath(new URL("./index.html", import.meta.url)),
-            linearRedirect: fileURLToPath(
-              new URL("./auth/linear.html", import.meta.url),
-            ),
-            nativeConnectorRedirect: fileURLToPath(
-              new URL("./auth/native-connector.html", import.meta.url),
-            ),
-            nativeImplicitRedirect: fileURLToPath(
-              new URL("./auth/native-implicit.html", import.meta.url),
-            ),
-            nativeGoogleConsent: fileURLToPath(
-              new URL("./auth/native-google.html", import.meta.url),
-            ),
-            msalRedirect: fileURLToPath(
-              new URL("./auth/redirect.html", import.meta.url),
-            ),
-          },
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        linearRedirect: fileURLToPath(
+          new URL("./auth/linear.html", import.meta.url),
+        ),
+        nativeConnectorRedirect: fileURLToPath(
+          new URL("./auth/native-connector.html", import.meta.url),
+        ),
+        nativeImplicitRedirect: fileURLToPath(
+          new URL("./auth/native-implicit.html", import.meta.url),
+        ),
+        nativeGoogleConsent: fileURLToPath(
+          new URL("./auth/native-google.html", import.meta.url),
+        ),
+        msalRedirect: fileURLToPath(
+          new URL("./auth/redirect.html", import.meta.url),
+        ),
+      },
     },
   },
   // Dependency pre-bundling in dev has its own target and hits the same limitation.
@@ -250,104 +250,104 @@ export default defineConfig({
   // (Chrome 100, Firefox 100, Safari 15) supports module workers.
   worker: { format: "es" },
   plugins: [
-        nativeClientMetadataPlugin(base),
-        githubAppRelayPlugin(),
-        // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
-        siopMetadata(),
-        {
-          // The Identity API's auto-admitted origin client returns brokered legs
-          // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
-          // sits OUTSIDE this app's base. In production GitHub Pages serves it via
-          // the 404 SPA fallback; the dev server has no such fallback outside the
-          // base, so bounce it onto the base with the auth response intact — the
-          // app routes on `?code`, never on the path.
-          name: "origin-profile-canonical-callback",
-          configureServer(server) {
-            server.middlewares.use((req, res, next) => {
-              handlePagesDevRequest(req, res, next, base);
-            });
-          },
-          // Vite injects an inline React-refresh hook in index.html. Production
-          // has no inline scripts, so the meta CSP stays strict there.
-          transformIndexHtml: {
-            order: "pre",
-            handler(html, ctx) {
-              const liveHtml = impeccableDevHtml(
-                html,
-                Boolean(ctx.server),
-                process.env.OPENSESAME_IMPECCABLE_LIVE === "1",
-              );
-              if (!ctx.server) return liveHtml;
-              return liveHtml.replace(
-                "script-src 'self'",
-                "script-src 'self' 'unsafe-inline'",
-              );
-            },
-          },
+    nativeClientMetadataPlugin(base),
+    githubAppRelayPlugin(),
+    // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
+    siopMetadata(),
+    {
+      // The Identity API's auto-admitted origin client returns brokered legs
+      // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
+      // sits OUTSIDE this app's base. In production GitHub Pages serves it via
+      // the 404 SPA fallback; the dev server has no such fallback outside the
+      // base, so bounce it onto the base with the auth response intact — the
+      // app routes on `?code`, never on the path.
+      name: "origin-profile-canonical-callback",
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          handlePagesDevRequest(req, res, next, base);
+        });
+      },
+      // Vite injects an inline React-refresh hook in index.html. Production
+      // has no inline scripts, so the meta CSP stays strict there.
+      transformIndexHtml: {
+        order: "pre",
+        handler(html, ctx) {
+          const liveHtml = impeccableDevHtml(
+            html,
+            Boolean(ctx.server),
+            process.env.OPENSESAME_IMPECCABLE_LIVE === "1",
+          );
+          if (!ctx.server) return liveHtml;
+          return liveHtml.replace(
+            "script-src 'self'",
+            "script-src 'self' 'unsafe-inline'",
+          );
         },
-        react(),
-        VitePWA({
-          strategies: "injectManifest",
-          srcDir: "src",
-          filename: "sw.ts",
-          registerType: "autoUpdate",
-          injectRegister: false,
-          includeAssets: ["icon.svg", "auth.js"],
-          manifest: {
-            name: "OpenSesame",
-            short_name: "OpenSesame",
-            description:
-              "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
-            theme_color: "#fafafa",
-            background_color: "#fafafa",
-            display: "standalone",
-            start_url: "./",
-            scope: "./",
-            icons: [
-              {
-                src: "icon.svg",
-                sizes: "any",
-                type: "image/svg+xml",
-                purpose: "any maskable",
-              },
-            ],
+      },
+    },
+    react(),
+    VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
+      registerType: "autoUpdate",
+      injectRegister: false,
+      includeAssets: ["icon.svg", "auth.js"],
+      manifest: {
+        name: "OpenSesame",
+        short_name: "OpenSesame",
+        description:
+          "End-to-end-encrypted vault for passwords, passkeys, and agent secrets",
+        theme_color: "#fafafa",
+        background_color: "#fafafa",
+        display: "standalone",
+        start_url: "./",
+        scope: "./",
+        icons: [
+          {
+            src: "icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any maskable",
           },
-          injectManifest: {
-            globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2,json}"],
-            maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
-          },
-          devOptions: { enabled: true, navigateFallback: "index.html" },
-        }),
-        // Capability composition (ownership.md §4.6): virtual MODULE_TABLE and
-        // DISTRIBUTION, hardened pruning, `dist/capability-graph.json` and the
-        // forbidden-reachability gate. Placed after VitePWA so its post-order
-        // closeBundle sees `sw.js`; its normal-order closeBundle prunes excluded
-        // public files before VitePWA globs the precache manifest. Env:
-        // OPENSESAME_CAPABILITY_PROFILE, OPENSESAME_BUILD_MODE, OPENSESAME_GRAPH_GATE.
-        capabilityCompose(),
-        {
-          // Dev-only: Vite injects inline module scripts that CSP would block.
-          name: "csp-inline-script-hashes",
-          transformIndexHtml: {
-            order: "post",
-            handler(html) {
-              const hashes = [
-                ...html.matchAll(
-                  /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi,
-                ),
-              ].map(
-                (match) =>
-                  `'sha256-${createHash("sha256")
-                    .update(match[1] ?? "")
-                    .digest("base64")}'`,
-              );
-              if (hashes.length === 0) return html;
-              return html.replace(
-                "script-src 'self' 'wasm-unsafe-eval'",
-                `script-src 'self' 'wasm-unsafe-eval' ${hashes.join(" ")}`,
-              );
-            },
-          },
+        ],
+      },
+      injectManifest: {
+        globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2,json}"],
+        maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
+      },
+      devOptions: { enabled: true, navigateFallback: "index.html" },
+    }),
+    // Capability composition (ownership.md §4.6): virtual MODULE_TABLE and
+    // DISTRIBUTION, hardened pruning, `dist/capability-graph.json` and the
+    // forbidden-reachability gate. Placed after VitePWA so its post-order
+    // closeBundle sees `sw.js`; its normal-order closeBundle prunes excluded
+    // public files before VitePWA globs the precache manifest. Env:
+    // OPENSESAME_CAPABILITY_PROFILE, OPENSESAME_BUILD_MODE, OPENSESAME_GRAPH_GATE.
+    capabilityCompose(),
+    {
+      // Dev-only: Vite injects inline module scripts that CSP would block.
+      name: "csp-inline-script-hashes",
+      transformIndexHtml: {
+        order: "post",
+        handler(html) {
+          const hashes = [
+            ...html.matchAll(
+              /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi,
+            ),
+          ].map(
+            (match) =>
+              `'sha256-${createHash("sha256")
+                .update(match[1] ?? "")
+                .digest("base64")}'`,
+          );
+          if (hashes.length === 0) return html;
+          return html.replace(
+            "script-src 'self' 'wasm-unsafe-eval'",
+            `script-src 'self' 'wasm-unsafe-eval' ${hashes.join(" ")}`,
+          );
         },
-      ],
+      },
+    },
+  ],
 });

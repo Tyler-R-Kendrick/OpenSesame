@@ -4,11 +4,10 @@
  * `lock-v5.html` is not in git. Reference geometry: `LockV5Demo` at
  * `/dev/lock-v5` (Vite dev only). Production unlock from `dist/`.
  */
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PIN, lockVault, sealWithPin } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
-import { lockVault, sealWithPin, PIN } from "./lib/pages-journey.mjs";
 
 const widths = [390, 1024, 1280];
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -108,7 +107,7 @@ async function captureReferenceStage(browser, width) {
     );
     return;
   }
-  const devBase = new URL(devOrigin.replace(/\/$/, "") + "/");
+  const devBase = new URL(`${devOrigin.replace(/\/$/, "")}/`);
   const { page, context } = await harness.newPage(browser, {
     device: { viewport: { width, height: 900 } },
     passthrough: [devBase.origin],
@@ -124,10 +123,8 @@ async function captureReferenceStage(browser, width) {
   await context.close();
 }
 
-let browser;
-
 async function main() {
-  browser = await harness.launch();
+  const browser = await harness.launch();
   try {
     for (const width of widths) {
       await captureReferenceStage(browser, width);
