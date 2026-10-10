@@ -11,7 +11,6 @@ import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlo
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
 import {
-  MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
   type SecondStepId,
   checkWebauthnHost,
@@ -72,10 +71,7 @@ import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
 import { usePasskeyRoad } from "./unlock/use-passkey-road.js";
 import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
-import {
-  useHeldUnlockStatus,
-  useUnlockLockV5,
-} from "./unlock/use-unlock-lock-v5.js";
+import { useUnlockLockV5 } from "./unlock/use-unlock-lock-v5.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -88,11 +84,11 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * A device with no vault and no setup record opens on the front door's two
- * roads — set up your own, or join a session (ADR 0150 §1). Join stays on
- * the vault chooser and the unlock footer after a vault or a setup record
- * exists; nothing gates it on setup. A shared link opens join itself
- * (ADR 0136), and a managed instance's required roots sit beside sign-in.
+ * A device with no vault opens on the front door's two roads — set up your
+ * own, join a session (ADR 0150 §1); nothing is put in front of them
+ * (ADR 0090). Once a setup record exists, sign-in is the first screen. A
+ * shared link opens join itself (ADR 0136), and a managed instance's
+ * required roots sit beside sign-in.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
@@ -166,7 +162,7 @@ function UnlockForm({
   const { submitRef, secretRef, passkeyRef, setupRef, methodsRef } =
     useUnlockTargets();
   const {
-    status: liveStatus,
+    status,
     tomb,
     header,
     lockedOutUntil,
@@ -175,7 +171,6 @@ function UnlockForm({
     awaitingSecondStep,
   } = useVault();
   const store = useVaultStore();
-  const status = useHeldUnlockStatus(liveStatus);
   const activeTomb = tomb ?? PERSONAL_PROJECT_ID;
   // The guest tomb is isolated, not keyless: a guest may enroll a gate (ADR
   // 0091) and those wraps are the key to this tomb. What makes the road guest
@@ -278,8 +273,7 @@ function UnlockForm({
   const goRef = useRef<HTMLButtonElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const acceptRef = useRef<HTMLInputElement>(null);
-  const { stage: lockStage, beginCeremonyIfUnlocked } =
-    useUnlockLockV5(liveStatus);
+  const { stage: lockStage, beginCeremonyIfUnlocked } = useUnlockLockV5(status);
 
   const lockedFor = useCountdown(lockedOutUntil);
   const ceremony = usePasskeyCeremony(
@@ -656,7 +650,7 @@ function UnlockForm({
                 value={pin}
                 title={
                   firstRun
-                    ? `${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters, no repeated character, no sequential digits`
+                    ? `${MIN_PIN_LENGTH}–12 characters, no repeated character, no sequential digits`
                     : undefined
                 }
                 aria-invalid={pinProblem ? true : undefined}
@@ -734,7 +728,7 @@ function UnlockForm({
             <div className="unlock__terms">
               <p id="master-help">
                 {activeMethod === "passkey"
-                  ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us."
+                  ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us. An authenticator that cannot seal fails on Seal; the PIN tab works on any device."
                   : "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."}
               </p>
               <label className="check">

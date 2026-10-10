@@ -41,9 +41,8 @@ heading; headings are the same face a step larger, never bold-display. The
 margin voice is monospace (`ui-monospace`), 11–12px, uppercase-free, slightly
 letter-spaced (0.02em), used for labels above values, the crumbs, keyboard
 hints, status words and the verb beside a commit square. The brand line is
-not a font at all: "0PEN SESAME" is punched out of particle plates on a
-canvas that decrypt from hex ciphertext, with a cipher dial behind the unlock
-gate and vault doors that open onto the vault (lock-v5, approved as built).
+not a font at all: "OPEN SESAME" is punched out of plates on a canvas in three
+size tiers (letters under 16px, solid plates to 48px, a particle field above).
 No italics, no condensed display faces, no serif.
 
 ## 4. Component Stylings

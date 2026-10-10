@@ -1,12 +1,12 @@
 import { readCanvas2d } from "./canvas-context.js";
 import { nowMs } from "./cipher-timings.js";
-import { type DecryptRun, isSettled, pruneRuns } from "./cipher.js";
+import { type DecryptRun, cursorSlot, isSettled, pruneRuns } from "./cipher.js";
 import {
   DRAW_CALIBRATION,
   type Layout,
   drawWordmark,
-  readAccent,
   readInkRgb,
+  readSlit,
 } from "./particles.js";
 
 const PAD = 4;
@@ -46,9 +46,12 @@ export function paintCipherFrame(args: {
     calibration: DRAW_CALIBRATION,
     frozenField: motionOff || settled,
     showMark: includeMark,
-    accent: readAccent(document.documentElement),
+    slit: readSlit(root),
     showCursor,
   });
+  // The verify harness reads which slot the cursor is on at the injected
+  // clock: exactly one while decrypting, none once settled.
+  root.dataset.cipherCursor = String(motionOff ? -1 : cursorSlot(runs, timeMs));
   return {
     runs,
     justSettled: (motionOff || isSettled(runs, timeMs)) && !settled,

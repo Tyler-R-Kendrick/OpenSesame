@@ -17,7 +17,7 @@ export function resizeCipherCanvas(args: {
   const { root, canvas, text, size, includeMark, runs } = args;
   const ctx = readCanvas2d(canvas);
   if (!ctx) {
-    if (runs[0]) root.dataset.cipherTimings = slotTimingsJson(runs);
+    root.dataset.cipherTimings = slotTimingsJson(runs);
     return null;
   }
   const emPx =

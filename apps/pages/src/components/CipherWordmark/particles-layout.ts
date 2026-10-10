@@ -275,6 +275,7 @@ export function layoutWordmark(
   const layout: Layout = {
     W: geom.W,
     H: geom.H,
+    em: geom.em,
     gs: geom.gs,
     cellC: geom.cellC,
     cellR: geom.cellR,

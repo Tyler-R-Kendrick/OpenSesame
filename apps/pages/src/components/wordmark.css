@@ -1,2 +1,50 @@
-/* Legacy entry: lock-v5 cipher wordmark styles live in CipherWordmark/. */
-@import "./CipherWordmark/cipher-wordmark.css";
+/* OS Logo — Geist Mono ExtraBold, subset to the glyphs the plates need
+   (0-9 A-Z space). OFL: src/assets/fonts/OFL.txt. Self-hosted so CSP
+   font-src 'self' holds. The brand's one display face, used nowhere else. */
+@font-face {
+  font-family: "OS Logo";
+  src: url("../assets/fonts/os-logo.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: block;
+}
+
+/* The element's font-size is the plate em: under 16px letters alone, 16 to
+   48px solid plates, 48px and up the particle field (CipherWordmark). */
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  font-family: "OS Logo", var(--mono);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  max-width: 100%;
+}
+
+.wordmark__slots {
+  display: inline-block;
+  min-width: 0;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.cipher-wordmark {
+  display: inline-block;
+  position: relative;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.cipher-wordmark__canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* The canvas owns its motion and settles at once under reduced motion; the
+   global reduced-motion transition must not touch it. */
+.cipher-wordmark,
+.cipher-wordmark__canvas {
+  transition-property: none;
+}
