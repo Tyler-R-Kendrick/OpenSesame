@@ -2,8 +2,8 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* Above the notes pane (z-index 1) so the index column can straddle the seam. */
-  z-index: 2;
+  /* Behind card and notes; unlock.css raises readable panes above the dial. */
+  z-index: 0;
   overflow: visible;
 }
 
