@@ -1,6 +1,6 @@
 /**
  * What a finished recovery handed back, kept for as long as this panel is on
- * the page (ADR 0186 §10).
+ * the page (ADR 0187 §10).
  *
  * Opening a recovery does not end it: its key stays on the device, so a
  * reload, or a download that went nowhere, finds it again, complete, ready to

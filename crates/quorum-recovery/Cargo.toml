@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Native consumer of the trusted-contacts recovery format: SLIP-0039, RFC 9180 HPKE and the recovery bundle (ADR 0186)"
+description = "Native consumer of the trusted-contacts recovery format: SLIP-0039, RFC 9180 HPKE and the recovery bundle (ADR 0187)"
 
 [dependencies]
 aes-gcm = { workspace = true }

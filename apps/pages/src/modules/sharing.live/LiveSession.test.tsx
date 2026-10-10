@@ -16,6 +16,7 @@ import {
   liveSeams,
 } from "@opensesame/app-core/lib/live/session.js";
 import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
+import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
@@ -65,7 +66,7 @@ beforeEach(() => {
     items: () => [github, bank],
   });
   Object.assign(liveUiSeams, {
-    peers: net.factory(),
+    transport: net.transports(),
     joinUrl: () => "https://example.test/OpenSesame/",
   });
 });
@@ -333,9 +334,9 @@ describe("a live session, owner to joiner, paired by hand", () => {
     const { panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     holdLiveLink(currentHost()?.link ?? null);
-    liveUiSeams.peers = () => {
+    liveUiSeams.transport = webRtc(() => {
       throw new Error("no WebRTC here");
-    };
+    });
     const joiner = within(openJoin());
     fireEvent.change(joiner.getByLabelText("Code"), {
       target: { value: currentHost()?.code ?? "" },

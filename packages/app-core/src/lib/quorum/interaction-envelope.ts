@@ -1,6 +1,6 @@
 /**
  * The Interaction that fronts a quorum request: how it is made from a request,
- * and how one is checked on the way back in (ADR 0186, ADR 0086). The design,
+ * and how one is checked on the way back in (ADR 0187, ADR 0086). The design,
  * and the three digests it keeps apart, are described in `interaction.ts`.
  */
 

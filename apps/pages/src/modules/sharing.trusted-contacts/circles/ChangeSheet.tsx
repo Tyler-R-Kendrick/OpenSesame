@@ -1,5 +1,5 @@
 /**
- * Change a circle (ADR 0186 §9): choose who leaves, take in the people invited
+ * Change a circle (ADR 0187 §9): choose who leaves, take in the people invited
  * since, set the rule and the clocks over who is left, and make the next
  * epoch. Everyone who stays or joins is dealt a new share, and each who left
  * is handed a notice. The recovery file made before no longer opens the

@@ -1,5 +1,5 @@
 /**
- * Invite more people to a circle that exists (ADR 0186). The invitation and
+ * Invite more people to a circle that exists (ADR 0187). The invitation and
  * the contacts' answers are the same as when a circle is made; the people who
  * answer join at the next epoch, when the circle is changed. An invitation
  * round already under way is picked up rather than started over, so the

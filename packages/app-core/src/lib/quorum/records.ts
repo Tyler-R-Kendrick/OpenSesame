@@ -4,7 +4,7 @@
  * owner, `guardian-share` for a guardian), and how they are read back.
  *
  * Both types live in `marketplace/item-types/optional/` and are installed by
- * a person, not built in (ADR 0186): they belong to this capability, not to
+ * a person, not built in (ADR 0187): they belong to this capability, not to
  * the derived records every vault carries. A record keeps what the engine
  * needs to carry on, and nothing the engine would not already publish —
  * except the two secrets, which are concealed fields: the owner's signing

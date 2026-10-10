@@ -1,6 +1,6 @@
 /**
  * Targets and the walkthrough `sharing.trusted-contacts` contributes
- * (ADR 0186): the Settings › Trusted contacts category and its three panels,
+ * (ADR 0187): the Settings › Trusted contacts category and its three panels,
  * live only while that capability is in the plan.
  *
  * The panels hold lists, and a list holds only what a person's own ceremonies

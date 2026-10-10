@@ -1,6 +1,6 @@
 /**
  * What a recovery handed back, put in this vault through the Import sheet the
- * vault already has (ADR 0186 §10): the recovered document is a CXF file, the
+ * vault already has (ADR 0187 §10): the recovered document is a CXF file, the
  * import pipeline recognises it, previews it and merges it under one explicit
  * action. Nothing here reads or writes an item, and nothing is merged twice.
  *

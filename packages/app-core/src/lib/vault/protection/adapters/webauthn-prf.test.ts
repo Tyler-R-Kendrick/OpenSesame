@@ -14,6 +14,7 @@ import {
   wrapVaultKeyWithPrf,
 } from "../../unlock-methods.js";
 import { protectorFromPrfMaterial } from "./webauthn-prf-ops.js";
+import { isPrfUnsupported } from "./webauthn-prf-output.js";
 import { webauthnPrfCapabilities } from "./webauthn-prf.js";
 
 afterEach(() => {
@@ -48,6 +49,23 @@ describe("multi-cred passkey unlock records", () => {
       listPasskeyUnlockRecords(merged).map((row) => row.credentialIdB64),
     ).toEqual(["YQ==", "Yg=="]);
     expect(merged.passkey?.credentialIdB64).toBe("YQ==");
+  });
+});
+
+describe("an authenticator that cannot answer PRF", () => {
+  it("is told apart from a cancelled or misrouted ceremony", () => {
+    for (const code of ["prf_missing_output", "prf_enabled_without_output"]) {
+      expect(isPrfUnsupported(new PrfCeremonyError(code as never, "x"))).toBe(
+        true,
+      );
+    }
+    for (const code of ["canceled", "wrong_credential", "invalid_host"]) {
+      expect(isPrfUnsupported(new PrfCeremonyError(code as never, "x"))).toBe(
+        false,
+      );
+    }
+    expect(isPrfUnsupported(new Error("prf_missing_output"))).toBe(false);
+    expect(isPrfUnsupported(undefined)).toBe(false);
   });
 });
 
@@ -121,13 +139,18 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
     vi.stubGlobal("navigator", { credentials: overrides });
   }
 
-  it("types enabled-without-output on create (KP-22)", async () => {
+  it("types enabled-without-output on create when the assertion adds none (KP-22)", async () => {
     stubCredentials({
       create: async () =>
         new TestPublicKeyCredential(
           randomBytes(16).buffer,
           { prf: { enabled: true } },
           "webauthn.create",
+        ),
+      get: async (options) =>
+        new TestPublicKeyCredential(
+          overlapCast(options.publicKey?.allowCredentials?.[0]?.id),
+          { prf: { enabled: true } },
         ),
     });
     const failure = await createPasskeyUnlockCeremony().catch(
@@ -136,6 +159,103 @@ describe("PRF ceremony cancel and multi-cred selection", () => {
     expect(failure).toBeInstanceOf(PrfCeremonyError);
     if (!(failure instanceof PrfCeremonyError)) throw failure;
     expect(failure.code).toBe("prf_enabled_without_output");
+  });
+
+  it("asks the new credential for its PRF output when creation computed none", async () => {
+    const created = randomBytes(16).buffer;
+    const prfOutput: ArrayBuffer = overlapCast(randomBytes(32).buffer);
+    let seen: PublicKeyCredentialRequestOptions | undefined;
+    stubCredentials({
+      create: async () =>
+        new TestPublicKeyCredential(
+          created,
+          { prf: { enabled: true } },
+          "webauthn.create",
+        ),
+      get: async (options) => {
+        seen = options.publicKey;
+        return new TestPublicKeyCredential(created, {
+          prf: { results: { first: prfOutput } },
+        });
+      },
+    });
+    const ceremony = await createPasskeyUnlockCeremony();
+    expect(ceremony.prfOutput).toBe(prfOutput);
+    expect(seen?.allowCredentials).toHaveLength(1);
+    expect(seen?.userVerification).toBe("required");
+    const extensions: { prf?: { eval?: { first?: Uint8Array } } } = overlapCast(
+      seen?.extensions ?? {},
+    );
+    expect(extensions.prf?.eval?.first).toEqual(ceremony.prfSalt);
+  });
+
+  it("does not follow up when the authenticator never took the extension", async () => {
+    const get = vi.fn();
+    stubCredentials({
+      create: async () =>
+        new TestPublicKeyCredential(
+          randomBytes(16).buffer,
+          {},
+          "webauthn.create",
+        ),
+      get,
+    });
+    await expect(createPasskeyUnlockCeremony()).rejects.toMatchObject({
+      code: "prf_missing_output",
+      message: expect.stringMatching(/security key/i),
+    });
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it("refuses a follow-up answered by a different credential", async () => {
+    stubCredentials({
+      create: async () =>
+        new TestPublicKeyCredential(
+          randomBytes(16).buffer,
+          { prf: { enabled: true } },
+          "webauthn.create",
+        ),
+      get: async () =>
+        new TestPublicKeyCredential(randomBytes(16).buffer, {
+          prf: { results: { first: overlapCast(randomBytes(32).buffer) } },
+        }),
+    });
+    await expect(createPasskeyUnlockCeremony()).rejects.toMatchObject({
+      code: "wrong_credential",
+    });
+  });
+
+  it("names the authenticator kind only when the person chose one", async () => {
+    const selections: Array<AuthenticatorSelectionCriteria | undefined> = [];
+    stubCredentials({
+      create: async (options) => {
+        selections.push(options.publicKey?.authenticatorSelection);
+        return new TestPublicKeyCredential(
+          randomBytes(16).buffer,
+          { prf: { results: { first: overlapCast(randomBytes(32).buffer) } } },
+          "webauthn.create",
+        );
+      },
+    });
+    await createPasskeyUnlockCeremony();
+    await createPasskeyUnlockCeremony(undefined, undefined, {
+      attachment: "cross-platform",
+    });
+    await createPasskeyUnlockCeremony(undefined, undefined, {
+      attachment: "platform",
+    });
+    expect(selections[0]).not.toHaveProperty("authenticatorAttachment");
+    expect(selections[0]?.userVerification).toBe("required");
+    expect(selections[1]).toMatchObject({
+      authenticatorAttachment: "cross-platform",
+      residentKey: "discouraged",
+      userVerification: "required",
+    });
+    expect(selections[2]).toMatchObject({
+      authenticatorAttachment: "platform",
+      residentKey: "preferred",
+      userVerification: "required",
+    });
   });
 
   it("types cancellation from NotAllowedError (KP-23)", async () => {

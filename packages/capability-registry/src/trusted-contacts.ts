@@ -2,7 +2,7 @@ import { ADR_TRUSTED_CONTACTS } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
- * Trusted contacts (ADR 0186): a circle of people who, as a quorum, approve a
+ * Trusted contacts (ADR 0187): a circle of people who, as a quorum, approve a
  * request or hold shares of a recovery key. Every operation is a ceremony a
  * person performs on their own device with their own security key, and each
  * one is withheld from every agent surface: a tool an agent could drive would

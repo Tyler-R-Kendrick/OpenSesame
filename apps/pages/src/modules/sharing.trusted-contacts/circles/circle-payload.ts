@@ -1,5 +1,5 @@
 /**
- * What a recovering circle protects (ADR 0186 §5): the vault's items, or one
+ * What a recovering circle protects (ADR 0187 §5): the vault's items, or one
  * folder's, written by the vault's own CXF export and sealed under the
  * circle's recovery secret. Recovery hands the same document back to the
  * normal import; this file never writes an item of its own.

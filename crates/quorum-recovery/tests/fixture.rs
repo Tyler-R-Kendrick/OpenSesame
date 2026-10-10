@@ -1,6 +1,6 @@
 //! The committed fixture, `spec/conformance/quorum-recovery-fixture.json`, made
 //! by the TypeScript suite `recovery-fixture.test.ts` and opened here with the
-//! native reader (ADR 0186 follow-up 3). Its keys are test-only.
+//! native reader (ADR 0187 follow-up 3). Its keys are test-only.
 
 mod common;
 

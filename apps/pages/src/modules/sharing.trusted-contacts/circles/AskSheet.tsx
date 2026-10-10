@@ -1,5 +1,5 @@
 /**
- * Ask contacts to approve a share (ADR 0186): the owner names who the share is
+ * Ask contacts to approve a share (ADR 0187): the owner names who the share is
  * for and what of, the circle's contacts approve with their own security keys,
  * and when enough have and the delay has passed the share is written to
  * Access › Shares. A request in flight is kept, so it can be reopened after a

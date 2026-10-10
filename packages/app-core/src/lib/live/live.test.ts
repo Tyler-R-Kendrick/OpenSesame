@@ -14,7 +14,7 @@ import {
   openReplyCode,
   openRequestCode,
 } from "./pairing.js";
-import { DIRECT_ONLY } from "./peer.js";
+import { isDataChannelSdp as sdp } from "./sdp.js";
 import { newKeypair, newLinkSecret, newRequestId } from "./seal.js";
 
 const SECRET_VALUE = "correct horse battery staple";
@@ -55,12 +55,11 @@ async function room(options: RoomOptions = {}): Promise<Room> {
   const net = new FakeNet();
   const host = await LiveHost.start({
     admission: options.admission ?? "invite",
-    ice: DIRECT_ONLY,
     expiresAt: Date.now() + 60_000,
     catalog: () => catalog(options.policy),
     readField: async (item, field) =>
       item === "item-1" && field === "password" ? SECRET_VALUE : null,
-    peers: net.factory(),
+    transport: net.transport(),
   });
   hosts.push(host);
   return { net, host };
@@ -72,8 +71,7 @@ function guest(r: Room, code: string | null, name = "Ada"): LiveGuest {
     code,
     name,
     note: "from design",
-    ice: DIRECT_ONLY,
-    peers: r.net.factory(),
+    transport: r.net.transport(),
   });
 }
 
@@ -248,7 +246,7 @@ describe("an invite session", () => {
 
 describe("the codes' keys", () => {
   const id = newRequestId();
-  const request = { id, name: "Ada", note: "", offer: fakeSdp() };
+  const request = { id, name: "Ada", note: "", offer: fakeSdp(), greets: true };
 
   async function session() {
     const owner = await newKeypair();
@@ -265,13 +263,13 @@ describe("the codes' keys", () => {
     const { owner, link, code } = await session();
     const joiner = await newKeypair();
     const sealed = await makeRequestCode(link, code, joiner, request);
-    const opened = await openRequestCode(link, code, owner, sealed);
+    const opened = await openRequestCode(link, code, owner, sealed, sdp);
     expect(opened).toMatchObject({ kind: "request", joiner: joiner.pub });
     // A co-joiner holds the link and the code, but not the owner's key.
     const onlooker = await newKeypair();
-    expect((await openRequestCode(link, code, onlooker, sealed)).kind).toBe(
-      "not-this-session",
-    );
+    expect(
+      (await openRequestCode(link, code, onlooker, sealed, sdp)).kind,
+    ).toBe("not-this-session");
   });
 
   it("a request sealed for another link is noise, never a miss", async () => {
@@ -283,7 +281,7 @@ describe("the codes' keys", () => {
       await newKeypair(),
       request,
     );
-    expect(await openRequestCode(link, code, owner, sealed)).toEqual({
+    expect(await openRequestCode(link, code, owner, sealed, sdp)).toEqual({
       kind: "not-a-request",
     });
   });
@@ -293,16 +291,18 @@ describe("the codes' keys", () => {
     const joiner = await newKeypair();
     const reply = { id, answer: fakeSdp() };
     const real = await makeReplyCode(link, code, owner, joiner.pub, reply);
-    expect(await openReplyCode(link, code, joiner, id, real)).toEqual(reply);
+    expect(await openReplyCode(link, code, joiner, id, real, sdp)).toEqual(
+      reply,
+    );
     const impostor = await newKeypair();
     const forged = await makeReplyCode(link, code, impostor, joiner.pub, reply);
-    expect(await openReplyCode(link, code, joiner, id, forged)).toBeNull();
+    expect(await openReplyCode(link, code, joiner, id, forged, sdp)).toBeNull();
     // Nor does the owner's reply to one joiner open for another.
     expect(
-      await openReplyCode(link, code, await newKeypair(), id, real),
+      await openReplyCode(link, code, await newKeypair(), id, real, sdp),
     ).toBeNull();
     expect(
-      await openReplyCode(link, code, joiner, newRequestId(), real),
+      await openReplyCode(link, code, joiner, newRequestId(), real, sdp),
     ).toBeNull();
   });
 });

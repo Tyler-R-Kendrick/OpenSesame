@@ -24,7 +24,7 @@ opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-bitwarden-server = { path = "../../crates/bitwarden-server", optional = true }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-human-vault = { path = "../../crates/human-vault" }
-# The native reader of a trusted-contacts recovery (ADR 0186): `vault circle`.
+# The native reader of a trusted-contacts recovery (ADR 0187): `vault circle`.
 opensesame-quorum-recovery = { path = "../../crates/quorum-recovery" }
 opensesame-vault-item-types = { path = "../../crates/vault-item-types" }
 opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
@@ -68,7 +68,7 @@ regex = "1.11.1"
 tempfile = "3.20.0"
 
 [dev-dependencies]
-# Attach journey tests sit a person at a real terminal. `script` is not portable.
+# Journey tests sit a person at a real terminal via openpty.
 libc = { workspace = true }
 # The dev-run tests point the CLI at their own settings file, which a shipped
 # build refuses to take from the environment.

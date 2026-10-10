@@ -11,7 +11,7 @@
  * What this protects, and what it does not: the share is encrypted at rest
  * under hardware-derived material. It is decrypted in the guardian's browser
  * while released — the PRF output is returned to the page — so a compromised
- * guardian device during a release can see that one share (ADR 0186).
+ * guardian device during a release can see that one share (ADR 0187).
  */
 
 import { xchacha20poly1305 } from "@noble/ciphers/chacha";

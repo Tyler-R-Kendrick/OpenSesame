@@ -1,5 +1,5 @@
 /**
- * Taking what a circle's owner sent, as a ceremony in a sheet (ADR 0186 §10).
+ * Taking what a circle's owner sent, as a ceremony in a sheet (ADR 0187 §10).
  *
  * One paste field takes either of the two things an owner hands a guardian: a
  * welcome (the signed policy and, in a circle that holds shares, this

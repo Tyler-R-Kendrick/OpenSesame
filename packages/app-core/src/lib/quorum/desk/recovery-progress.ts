@@ -1,5 +1,5 @@
 /**
- * How far a recovery has got against what its circle's rule asks for (ADR 0186
+ * How far a recovery has got against what its circle's rule asks for (ADR 0187
  * §10), counted the shortest true way so a screen can say "1 of 2" and be right.
  *
  * A circle with one group asks for a number of its contacts: that is the count.

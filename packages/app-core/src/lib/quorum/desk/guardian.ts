@@ -1,5 +1,5 @@
 /**
- * A guardian's side of the ceremonies (ADR 0186 §10): agree to be one, take a
+ * A guardian's side of the ceremonies (ADR 0187 §10): agree to be one, take a
  * share, say yes to one request, release a share after the delay, hear of a
  * cancellation, leave.
  *

@@ -1,5 +1,5 @@
 /**
- * Start a recovery (ADR 0186 §10): the recipient picks the recovery file the
+ * Start a recovery (ADR 0187 §10): the recipient picks the recovery file the
  * circle's owner saved, sees what it is from the owner's signed policy, names
  * this device, and sends the request. Nothing is sent anywhere: the request is
  * a packet the next sheet offers to copy, to hand to each contact.

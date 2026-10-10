@@ -1,6 +1,6 @@
 /**
  * What an owner hands out once a circle is made or changed, kept until it has
- * been taken (ADR 0186 §10, ADR 0149).
+ * been taken (ADR 0187 §10, ADR 0149).
  *
  * A circle's shares exist only at the moment it is made: nothing here can deal
  * them again, so a screen that is closed before every contact has their packet

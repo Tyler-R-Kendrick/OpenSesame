@@ -1,5 +1,5 @@
 /**
- * Quorum-protected sharing with trusted contacts (ADR 0186): a circle of
+ * Quorum-protected sharing with trusted contacts (ADR 0187): a circle of
  * guardians, a threshold of whom must approve before a request is honoured
  * and, for recovery, release the shares that recombine a key.
  *

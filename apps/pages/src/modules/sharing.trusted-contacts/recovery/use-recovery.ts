@@ -1,5 +1,5 @@
 /**
- * One recovery's sheet, as state over the desk (ADR 0186 §10): where it
+ * One recovery's sheet, as state over the desk (ADR 0187 §10): where it
  * stands, what each pasted answer did, and the two steps that end it — open
  * it, or give it up.
  *

@@ -1,5 +1,5 @@
 /**
- * The Recovery panel's two kinds of row (ADR 0186 §10): a recovery still
+ * The Recovery panel's two kinds of row (ADR 0187 §10): a recovery still
  * gathering what it needs, with the key that opens its sheet, and what a
  * finished one handed back, with the two keys it can leave by.
  *

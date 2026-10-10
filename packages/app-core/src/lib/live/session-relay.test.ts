@@ -59,8 +59,8 @@ async function session(net: FakeNet, bus: FakeBus, transport: LiveTransport) {
     policy: "read",
     admission: "invite",
     minutes: 30,
-    peers: net.factory(),
-    transport,
+    transport: net.transports(),
+    routes: transport,
     carriers: bus.factory(),
   });
   await settle();
@@ -69,7 +69,7 @@ async function session(net: FakeNet, bus: FakeBus, transport: LiveTransport) {
     code: owner.code,
     name: "Ada",
     note: "",
-    peers: net.factory(),
+    transport: net.transports(),
     useRoutes: true,
     carriers: bus.factory(),
   });

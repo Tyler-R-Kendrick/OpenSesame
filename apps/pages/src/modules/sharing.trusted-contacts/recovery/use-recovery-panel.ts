@@ -1,5 +1,5 @@
 /**
- * What the Recovery panel does between its sheets (ADR 0186 §10): which sheet
+ * What the Recovery panel does between its sheets (ADR 0187 §10): which sheet
  * is open, what each one leaves behind, and where the keyboard goes when it
  * closes. The panel draws; this decides.
  */

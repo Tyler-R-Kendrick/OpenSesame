@@ -1,6 +1,6 @@
 /**
  * What every panel of Settings › Trusted contacts stands on: the desk's ports
- * for this open vault, and the records it holds (ADR 0186 §10).
+ * for this open vault, and the records it holds (ADR 0187 §10).
  *
  * `null` while the vault is locked, a guest or a decoy: a circle holds an owner
  * key and a guardian a wrapped share, and neither survives a session that is

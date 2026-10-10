@@ -1,6 +1,6 @@
 /**
  * The durable records of Settings › Trusted contacts, kept as items of the two
- * optional item types in the open vault (ADR 0186 §10): a `trusted-circle` for
+ * optional item types in the open vault (ADR 0187 §10): a `trusted-circle` for
  * a circle the person owns, a `guardian-share` for what they hold for someone
  * else. `records.ts` in app-core maps the engine's documents to an item's
  * values and back; this is the `RecordStore` the desk runs against.

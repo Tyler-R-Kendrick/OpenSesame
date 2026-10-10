@@ -1,6 +1,6 @@
 /**
  * The run of steps that makes a circle: what the owner has chosen so far, and
- * what each key does with it (ADR 0186 §10). Everything that matters is in the
+ * what each key does with it (ADR 0187 §10). Everything that matters is in the
  * desk; this keeps the forms, derives what the desk is asked to judge, and
  * moves from one step to the next.
  *

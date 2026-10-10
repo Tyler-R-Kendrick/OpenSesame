@@ -1,4 +1,4 @@
-//! The native reader of a trusted-contacts recovery (ADR 0186).
+//! The native reader of a trusted-contacts recovery (ADR 0187).
 //!
 //! A circle's owner seals a payload in a **recovery bundle** and gives each
 //! guardian one **SLIP-0039** share of the key that opens it, written with an

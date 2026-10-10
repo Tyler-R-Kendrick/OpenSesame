@@ -1,5 +1,5 @@
 /**
- * Start a circle (ADR 0186 §10): a run of steps in one sheet. Name it and say
+ * Start a circle (ADR 0187 §10): a run of steps in one sheet. Name it and say
  * what it protects, hand the invitation to the people, set the rule over those
  * who answer, set the clocks, and make it; then hand each contact their
  * packet and take their receipts back.

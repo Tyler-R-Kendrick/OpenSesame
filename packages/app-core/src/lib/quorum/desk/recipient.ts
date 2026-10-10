@@ -1,5 +1,5 @@
 /**
- * The recipient's side of a recovery (ADR 0186 §10): open the recovery file,
+ * The recipient's side of a recovery (ADR 0187 §10): open the recovery file,
  * raise a request with a fresh key of their own, gather the guardians'
  * approvals and then their releases, and open what the circle protected.
  *

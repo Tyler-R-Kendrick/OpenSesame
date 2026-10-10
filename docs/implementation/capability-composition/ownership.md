@@ -318,7 +318,7 @@ Optional (`optional(...)`, default off), 30: `identity.local-iam`,
 `storage.encrypted-search`, `vault.security-checks`, `sharing.household`
 (alternatives slot `transport` → `sharing.drops`), `sharing.trusted-contacts`
 (the Settings › Trusted contacts category: Circles, Guarding and Recovery
-panels over the quorum desk, with its walkthrough; ADR 0186).
+panels over the quorum desk, with its walkthrough; ADR 0187).
 
 Every always-on and optional capability has a module,
 `apps/pages/src/modules/<capability-id>/runtime.ts` (38 today).

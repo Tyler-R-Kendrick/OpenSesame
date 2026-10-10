@@ -10,16 +10,19 @@ use std::process::{Command, Output, Stdio};
 const PASSPHRASE: &str = "correct horse battery staple";
 
 fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
+    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+    command
         .args(args)
         .arg("--path")
         .arg(store)
         .env("OPENSESAME_STORE_PASSWORD", password)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to run the opensesame binary");
+        .stderr(Stdio::piped());
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
+    let mut child = command.spawn().expect("failed to run the opensesame binary");
     child
         .stdin
         .take()
@@ -80,8 +83,25 @@ fn given_a_store_with_an_entry_and_a_document() -> Fixture {
     Fixture { dir, store }
 }
 
+fn person_command(store: &Path, password: &str, args: &[&str]) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_opensesame"));
+    command
+        .args(args)
+        .arg("--path")
+        .arg(store)
+        .env("OPENSESAME_STORE_PASSWORD", password)
+        .env("GIT_AUTHOR_NAME", "Test")
+        .env("GIT_AUTHOR_EMAIL", "test@example.com")
+        .env("GIT_COMMITTER_NAME", "Test")
+        .env("GIT_COMMITTER_EMAIL", "test@example.com");
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
+    command
+}
+
 /// A person at a terminal: stdin and stdout are both the slave side of a pty.
-/// Piped `Command` output is the agent shape, and the reveal gate refuses it.
+/// Piped `Command::output` is the agent shape, and the reveal gate refuses it.
 fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
     let mut master_fd: libc::c_int = -1;
     let mut slave_fd: libc::c_int = -1;
@@ -101,11 +121,7 @@ fn run_as_person(store: &Path, password: &str, args: &[&str]) -> Output {
     let slave_out = slave.try_clone().expect("dup slave for stdout");
     drop(slave);
 
-    let mut child = Command::new(env!("CARGO_BIN_EXE_opensesame"))
-        .args(args)
-        .arg("--path")
-        .arg(store)
-        .env("OPENSESAME_STORE_PASSWORD", password)
+    let mut child = person_command(store, password, args)
         .stdin(Stdio::from(slave_in))
         .stdout(Stdio::from(slave_out))
         .stderr(Stdio::piped())

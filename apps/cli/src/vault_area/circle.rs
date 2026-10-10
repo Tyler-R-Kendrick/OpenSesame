@@ -1,5 +1,5 @@
 //! `opensesame vault circle recover|inspect`: the exit door of a trusted-contacts
-//! circle (ADR 0186). The owner's browser sealed a payload in a recovery bundle
+//! circle (ADR 0187). The owner's browser sealed a payload in a recovery bundle
 //! and gave each guardian one SLIP-0039 share of the key that opens it, written
 //! with an empty passphrase; these verbs do what the browser's recovery does,
 //! with no browser, through `opensesame-quorum-recovery` (the native reader of

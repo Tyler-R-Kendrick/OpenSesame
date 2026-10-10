@@ -1,5 +1,5 @@
 /**
- * What a guardian's device does with a request (ADR 0186): approve it, and —
+ * What a guardian's device does with a request (ADR 0187): approve it, and —
  * only after the delay — release the share to the recipient the request names.
  *
  * Before any of it the device checks the request against the policy it

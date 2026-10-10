@@ -1,5 +1,5 @@
 /**
- * A circle the owner keeps (ADR 0186 §10): its contacts and whether each has
+ * A circle the owner keeps (ADR 0187 §10): its contacts and whether each has
  * taken their part, its rule and epoch, anything worth a second look, and the
  * requests waiting on it. The ceremonies that act on it open from here:
  * invite more people, change it, ask its contacts to approve a share, cancel

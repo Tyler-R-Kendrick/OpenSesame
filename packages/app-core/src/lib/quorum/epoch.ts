@@ -1,5 +1,5 @@
 /**
- * Changing a circle (ADR 0186 §9): refreshing every share, replacing a
+ * Changing a circle (ADR 0187 §9): refreshing every share, replacing a
  * guardian, adding one, or changing the rule. All of them are one thing, a new
  * **epoch**: the owner signs a new policy that names the digest of the one it
  * replaces, draws a fresh recovery secret, re-seals the payload under it and

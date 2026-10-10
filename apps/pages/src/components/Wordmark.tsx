@@ -99,9 +99,11 @@ export const Wordmark = forwardRef<
      */
     as?: "p" | "h1";
     replay?: boolean;
+    /** Plate-height mark inside CipherWordmark (unlock hero, lock-v5). */
+    includeMark?: boolean;
   }
 >(function Wordmark(
-  { className, size, fit, as: Tag = "p", replay = false },
+  { className, size, fit, as: Tag = "p", replay = false, includeMark = false },
   ref,
 ): ReactElement {
   const rootRef = useRef<HTMLElement | null>(null);
@@ -126,6 +128,7 @@ export const Wordmark = forwardRef<
 
   const classes = ["wordmark"];
   if (settled && !replay) classes.push("wordmark--settled");
+  if (includeMark) classes.push("wordmark--include-mark");
   if (className) classes.push(className);
 
   return (
@@ -144,6 +147,7 @@ export const Wordmark = forwardRef<
           animateOnMount={animate}
           replay={replay}
           static={settled && !replay}
+          includeMark={includeMark}
           className="wordmark__cipher"
         />
       </span>

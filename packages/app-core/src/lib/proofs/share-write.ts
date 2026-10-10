@@ -34,7 +34,7 @@ export interface SystemShareWrite<T> extends Proof<"SystemShareWrite", [T]> {}
 /**
  * What a share write needs to hold, for the tomb it writes. `QuorumApproved`
  * is minted in `quorum-approved.ts`: a circle of the owner's trusted contacts
- * approved this exact grant while the owner was away (ADR 0186).
+ * approved this exact grant while the owner was away (ADR 0187).
  */
 export type ShareWriteAuthority<T> =
   | ManageGrants<T>

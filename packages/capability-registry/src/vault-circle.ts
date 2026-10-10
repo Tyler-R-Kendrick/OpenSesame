@@ -1,9 +1,9 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
 
-const ADR_TRUSTED_CIRCLE = "0186-trusted-circle-quorum-sharing.md";
+const ADR_TRUSTED_CIRCLE = "0187-trusted-circle-quorum-sharing.md";
 
 /**
- * The exit door of a trusted-contacts circle (ADR 0186): the native binary
+ * The exit door of a trusted-contacts circle (ADR 0187): the native binary
  * recombines the guardians' SLIP-0039 shares and opens the owner's recovery
  * bundle with no browser. The shares and the recovered payload are a recovery
  * secret, so this is a person at a terminal and nothing an agent is handed:

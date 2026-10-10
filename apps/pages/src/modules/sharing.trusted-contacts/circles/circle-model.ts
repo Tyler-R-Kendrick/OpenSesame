@@ -1,5 +1,5 @@
 /**
- * The owner's forms as plain data (ADR 0186 §10): what a person types for a
+ * The owner's forms as plain data (ADR 0187 §10): what a person types for a
  * circle's rule and clocks, turned into the inputs the desk takes, and the
  * desk's refusals turned back into the field they belong to. Pure, so every
  * edge of a form can be read without drawing one.

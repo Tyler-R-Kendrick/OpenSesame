@@ -77,7 +77,7 @@ names, kinds and paths, never values (parity with `opensesame-id vault`).
 
 `vault circle recover --bundle <file> --share-file <file> --out <file>`
 recombines a trusted-contacts circle's SLIP-0039 shares and opens its recovery
-bundle with no browser ([ADR 0186](../../docs/adr/0186-trusted-circle-quorum-sharing.md),
+bundle with no browser ([ADR 0187](../../docs/adr/0187-trusted-circle-quorum-sharing.md),
 [operator guide](../../docs/operators/trusted-contacts.md)); `vault circle
 inspect --bundle <file>` verifies the owner's signature and prints the circle's
 public shape. Shares come from a file or stdin (`--share -`), not argv, which

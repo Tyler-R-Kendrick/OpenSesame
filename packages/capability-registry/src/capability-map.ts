@@ -171,7 +171,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "shared_sessions.live_host": "sharing.live",
     "shared_sessions.live_join": "sharing.live",
 
-    // --- optional: trusted contacts (ADR 0186) ---------------------------
+    // --- optional: trusted contacts (ADR 0187) ---------------------------
     // A circle of people who approve or hold shares; every operation is a
     // ceremony on someone's own device, withheld from every agent surface.
     "quorum.circle.manage": "sharing.trusted-contacts",

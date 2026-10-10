@@ -1,4 +1,4 @@
-/* Guarding (ADR 0186): the keys under a row, and the switch in the agreement. */
+/* Guarding (ADR 0187): the keys under a row, and the switch in the agreement. */
 
 .tc-row__keys {
   display: flex;

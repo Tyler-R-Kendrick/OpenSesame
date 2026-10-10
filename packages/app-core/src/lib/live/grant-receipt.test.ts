@@ -13,7 +13,6 @@ import { lockAllTombs, unlockTomb } from "../vfs.js";
 import { LiveGuest } from "./guest.js";
 import { LiveHost } from "./host.js";
 import { FakeNet } from "./live-fakes.js";
-import { DIRECT_ONLY } from "./peer.js";
 
 const NAME = "GUEST-NAME-LEAK";
 const NOTE = "NOTE-LEAK";
@@ -38,7 +37,6 @@ it("records the session and the request, not the code, the link or the name", as
   const net = new FakeNet();
   const host = await LiveHost.start({
     admission: "invite",
-    ice: DIRECT_ONLY,
     expiresAt: Date.now() + 60_000,
     catalog: () => ({
       title: "Team",
@@ -47,7 +45,7 @@ it("records the session and the request, not the code, the link or the name", as
       items: [],
     }),
     readField: async () => FIELD,
-    peers: net.factory(),
+    transport: net.transport(),
   });
   hosts.push(host);
   const code = host.code ?? "";
@@ -63,8 +61,7 @@ it("records the session and the request, not the code, the link or the name", as
     code,
     name: NAME,
     note: NOTE,
-    ice: DIRECT_ONLY,
-    peers: net.factory(),
+    transport: net.transport(),
   });
   guests.push(guest);
   const received = await host.receive(await guest.start());

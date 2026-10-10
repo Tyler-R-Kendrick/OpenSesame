@@ -1,7 +1,7 @@
 /**
  * SLIP-0039: Shamir's Secret Sharing for mnemonic codes — the interoperable
  * format a recovery export uses, so any conforming tool can combine the
- * shares without OpenSesame (ADR 0186). Verified against the standard's own
+ * shares without OpenSesame (ADR 0187). Verified against the standard's own
  * vectors (`spec/conformance/slip39/vectors.json`).
  *
  * Two levels, as the standard has them: a group threshold over groups, and a

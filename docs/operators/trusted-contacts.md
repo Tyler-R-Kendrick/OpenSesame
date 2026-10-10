@@ -1,6 +1,6 @@
 # Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
 
-Capability `sharing.trusted-contacts` ([ADR 0186](../adr/0186-trusted-circle-quorum-sharing.md)).
+Capability `sharing.trusted-contacts` ([ADR 0187](../adr/0187-trusted-circle-quorum-sharing.md)).
 Optional, default off, no network. Turn it on in Settings › Capabilities, under
 Sharing, and Settings gains a **Trusted contacts** tab with three panels. The
 behaviour is in `packages/app-core/src/lib/quorum/` and the screens are

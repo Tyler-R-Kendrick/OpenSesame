@@ -1,6 +1,6 @@
 //! SLIP-0039: Shamir's Secret Sharing for mnemonic codes — the interoperable
 //! format a trusted-contacts recovery export uses, so any conforming tool can
-//! combine the shares without `OpenSesame` (ADR 0186).
+//! combine the shares without `OpenSesame` (ADR 0187).
 //!
 //! This is the native consumer of `spec/conformance/slip39/` (45 vectors and
 //! the wordlist, read from the one copy there). It does no I/O: randomness is

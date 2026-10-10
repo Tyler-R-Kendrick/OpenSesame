@@ -1,5 +1,5 @@
 /**
- * The recipient's side of a recovery (ADR 0186): make a request with a fresh
+ * The recipient's side of a recovery (ADR 0187): make a request with a fresh
  * key of its own, hand it to the guardians, and — once the ledger holds enough
  * releases — open them, recombine the recovery secret and open the bundle.
  *

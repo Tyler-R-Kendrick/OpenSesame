@@ -1,6 +1,6 @@
 /**
  * What the Recovery panel and its sheets say about a recovery, as plain
- * sentences (ADR 0186 §10). Pure, so a test reads every state without drawing
+ * sentences (ADR 0187 §10). Pure, so a test reads every state without drawing
  * one.
  *
  * Nothing here reads a key, a share or a recovered document. A contact is

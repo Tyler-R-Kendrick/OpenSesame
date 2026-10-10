@@ -1,5 +1,5 @@
 /**
- * One recovery in flight (ADR 0186 §10): the request to hand each contact,
+ * One recovery in flight (ADR 0187 §10): the request to hand each contact,
  * the approvals and then the releases they send back, where it stands, and
  * the key that opens it once enough shares are in.
  *

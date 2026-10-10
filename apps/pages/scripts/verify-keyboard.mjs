@@ -335,7 +335,7 @@ try {
       base,
       width,
     });
-    // Trusted contacts (ADR 0186): the tab, its five sheets, focus in and back.
+    // Trusted contacts (ADR 0187): the tab, its five sheets, focus in and back.
     await trustedContactsKeyboardContract({
       harness,
       browser,

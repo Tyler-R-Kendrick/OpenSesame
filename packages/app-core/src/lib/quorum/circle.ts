@@ -1,5 +1,5 @@
 /**
- * The owner's side of creating a circle (ADR 0186).
+ * The owner's side of creating a circle (ADR 0187).
  *
  * One call turns guardians who have enrolled and a payload the owner wants to
  * survive them into:

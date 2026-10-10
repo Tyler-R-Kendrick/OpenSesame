@@ -1,6 +1,6 @@
 /**
  * A standing share the owner's circle approved while the owner was away
- * (ADR 0186): the `grant-access` operation, carried out.
+ * (ADR 0187): the `grant-access` operation, carried out.
  *
  * The share that is written is the one inside the approved request, field for
  * field. This function takes no share of its own, so there is nothing for a

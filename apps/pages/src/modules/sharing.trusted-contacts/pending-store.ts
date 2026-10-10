@@ -1,5 +1,5 @@
 /**
- * Ceremonies in flight, sealed in the open vault's tomb (ADR 0186 §10, ADR
+ * Ceremonies in flight, sealed in the open vault's tomb (ADR 0187 §10, ADR
  * 0149): an invitation waiting for answers, a pending enrollment, a recovery
  * gathering approvals. They hold secrets (an owner's signing key before the
  * circle exists, a guardian's receiving key, a recipient's key) as base64url

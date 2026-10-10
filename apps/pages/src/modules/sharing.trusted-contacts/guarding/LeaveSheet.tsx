@@ -1,5 +1,5 @@
 /**
- * Leaving a circle, the one irreversible act of a guardian (ADR 0186 §10): the
+ * Leaving a circle, the one irreversible act of a guardian (ADR 0187 §10): the
  * share and the seat are forgotten by this device and cannot be taken back
  * without a new welcome from the owner. The card states what goes and that the
  * owner is not told by this; the ordinary danger square with the bin glyph

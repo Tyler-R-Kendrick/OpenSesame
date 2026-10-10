@@ -1,7 +1,7 @@
 # Trusted contacts: the hardware pass
 
 What `pnpm --filter @opensesame/pages verify:quorum-browser` proves, what it
-cannot, and the manual protocol for the rest. ADR 0186 states the limit this
+cannot, and the manual protocol for the rest. ADR 0187 states the limit this
 page closes: *"Not exercised against physical hardware."*
 
 ## What is already verified, and where
@@ -90,7 +90,7 @@ that belongs in an approvals-only circle, and the owner's screen says so.
 ## Reading the result
 
 * All cells for your supported browsers pass: remove "not exercised against
-  hardware" from ADR 0186's limits and say which pairs were tried.
+  hardware" from ADR 0187's limits and say which pairs were tried.
 * A pair fails: record it as a *supported keys* line in
   `docs/operators/trusted-contacts.md`. Do not special-case the engine for one
   firmware; the policy's `no_prf` check and the reopen-at-hand-over proof are

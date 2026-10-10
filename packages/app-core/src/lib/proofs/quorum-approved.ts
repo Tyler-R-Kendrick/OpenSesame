@@ -1,5 +1,5 @@
 /**
- * A quorum approved this standing share (ADR 0178, ADR 0186).
+ * A quorum approved this standing share (ADR 0178, ADR 0187).
  *
  * `QuorumApproved<T>` is the third way to hold a `ShareWriteAuthority<T>`,
  * beside `ManageGrants` (a person, with `manage_grants`) and `SystemShareWrite`

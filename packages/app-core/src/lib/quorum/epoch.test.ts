@@ -1,5 +1,5 @@
 /**
- * Changing a circle (ADR 0186 §9): a new epoch refreshes every share, can
+ * Changing a circle (ADR 0187 §9): a new epoch refreshes every share, can
  * replace a guardian, and never lets a guardian go back. The tests pin what a
  * new epoch does and, as plainly, what it does not.
  */

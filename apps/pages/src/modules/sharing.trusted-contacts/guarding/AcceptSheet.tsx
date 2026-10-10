@@ -1,5 +1,5 @@
 /**
- * Agreeing to guard someone's circle, as a ceremony in a sheet (ADR 0186 §10).
+ * Agreeing to guard someone's circle, as a ceremony in a sheet (ADR 0187 §10).
  *
  * The sheet draws in three states. A paste field takes the invitation and says
  * nothing else until a person presses its key. Reading it shows what is being

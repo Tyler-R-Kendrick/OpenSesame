@@ -1,5 +1,5 @@
 /**
- * A quorum request carried as an Interaction (ADR 0186 follow-up 5, ADR 0086).
+ * A quorum request carried as an Interaction (ADR 0187 follow-up 5, ADR 0086).
  *
  * The Interaction layer is the one envelope for "a thing somebody must answer
  * on another screen". This fronts a quorum request with it and holds to

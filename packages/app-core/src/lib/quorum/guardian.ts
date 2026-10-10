@@ -1,5 +1,5 @@
 /**
- * What a guardian's device does with a share (ADR 0186): take delivery, keep
+ * What a guardian's device does with a share (ADR 0187): take delivery, keep
  * it wrapped under their keys, and prove it reopens. Approving a request and
  * releasing the share are in `approve.ts`.
  *

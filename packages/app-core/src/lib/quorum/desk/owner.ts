@@ -1,5 +1,5 @@
 /**
- * The owner's side of making and changing a circle (ADR 0186 §10): invite
+ * The owner's side of making and changing a circle (ADR 0187 §10): invite
  * people, accept their enrollments, set the rule and the clocks, deal each
  * guardian their share, and watch the custody receipts come back.
  *

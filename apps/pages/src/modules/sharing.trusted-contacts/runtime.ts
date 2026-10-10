@@ -1,6 +1,6 @@
 /**
  * `sharing.trusted-contacts` — a circle of trusted contacts, and optionally a
- * quorum of them (ADR 0186). The behaviour lives in
+ * quorum of them (ADR 0187). The behaviour lives in
  * `packages/app-core/src/lib/quorum/`: guardian policy, quorum approvals bound
  * to one request, SLIP-0039 shares, HPKE release, and the quorum-approved
  * standing share; the desk beside it (`quorum/desk/`) runs one ceremony step

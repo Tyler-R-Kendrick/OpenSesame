@@ -1,5 +1,5 @@
 /**
- * Cancel a request (ADR 0186): the owner pastes the request they want to
+ * Cancel a request (ADR 0187): the owner pastes the request they want to
  * stop, signs a cancellation with the owner key, and hands the cancellation to
  * every contact who has seen the request. A contact's device that hears of it
  * will not approve or release.

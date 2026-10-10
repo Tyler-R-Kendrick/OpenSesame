@@ -1,5 +1,5 @@
 /**
- * Trusted contacts (ADR 0186) under a finger: the Settings tab, each head key
+ * Trusted contacts (ADR 0187) under a finger: the Settings tab, each head key
  * and the sheet it opens, measured against the touch contract by the walk's own
  * `audit` — the 44px keys, the 16px fields, nothing floating over a control, no
  * strip hiding its own selection.

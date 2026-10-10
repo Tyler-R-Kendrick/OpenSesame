@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Trusted-contacts recovery, TypeScript and Rust each against the other's output
-# (ADR 0186 follow-up 3, ADR 0139):
+# (ADR 0187 follow-up 3, ADR 0139):
 #   1. TypeScript writes a fresh two-epoch circle to a temp directory;
 #   2. the native reader (crates/quorum-recovery) recombines and opens it, then
 #      writes a bundle with natively made shares and releases of its own;

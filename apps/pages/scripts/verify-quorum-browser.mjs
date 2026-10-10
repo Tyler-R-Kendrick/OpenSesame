@@ -1,5 +1,5 @@
 /**
- * Trusted contacts through a real browser's WebAuthn stack (ADR 0186).
+ * Trusted contacts through a real browser's WebAuthn stack (ADR 0187).
  *
  * Five people, five Chromium contexts, five CDP virtual authenticators that do
  * the PRF extension, the real desk in each page over `navigator.credentials`,

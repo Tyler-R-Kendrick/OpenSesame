@@ -1,5 +1,5 @@
 /**
- * The guards around a new epoch (ADR 0186 §9): a guardian never goes back, a
+ * The guards around a new epoch (ADR 0187 §9): a guardian never goes back, a
  * chain of policies must link, the owner may not change what guardians' keys
  * are registered against, and an action-only circle changes epoch without shares.
  */

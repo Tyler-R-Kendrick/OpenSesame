@@ -1,5 +1,5 @@
 /**
- * A quorum request carried as an Interaction (ADR 0186, ADR 0086), against the
+ * A quorum request carried as an Interaction (ADR 0187, ADR 0086), against the
  * real interaction machine, the real digest function, the real wire schemas
  * and real ledger verdicts from a circle with virtual security keys. How the
  * interaction follows the ledger is in `interaction.settle.test.ts`.

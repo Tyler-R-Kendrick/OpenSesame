@@ -1,4 +1,4 @@
-/* Recovery (ADR 0186 §10): a row with keys at its end, and the status line and
+/* Recovery (ADR 0187 §10): a row with keys at its end, and the status line and
    names a recovery's sheet draws. The rows reuse `.tc-row` from the module's
    own stylesheet; these only add the keys' column. */
 

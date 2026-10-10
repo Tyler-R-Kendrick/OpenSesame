@@ -113,7 +113,7 @@ owner names in Routes, and a hardened deployment governs those:
 The operator guide for the routes is
 [`live-sessions.md`](live-sessions.md#under-a-hardened-deployment).
 
-Trusted contacts (`sharing.trusted-contacts`, ADR 0186) makes no request at
+Trusted contacts (`sharing.trusted-contacts`, ADR 0187) makes no request at
 all, so `externalServices` and `allowedServiceOrigins` have nothing to govern:
 a circle's invitations, requests and approvals are packets a person copies and
 hands to another person, and the recovery file is a file they save. It

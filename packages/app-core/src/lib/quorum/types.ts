@@ -1,5 +1,5 @@
 /**
- * The quorum documents (ADR 0186), as strict schemas. Every one of them
+ * The quorum documents (ADR 0187), as strict schemas. Every one of them
  * crosses a trust boundary — a guardian's device, a recipient's, a pasted
  * packet — so each is parsed, never cast.
  *

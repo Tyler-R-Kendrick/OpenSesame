@@ -1,5 +1,5 @@
 /**
- * The interaction follows the quorum ledger and nothing else (ADR 0186,
+ * The interaction follows the quorum ledger and nothing else (ADR 0187,
  * ADR 0086): what each verdict does to it, what it refuses, and that the
  * envelope never carries a share or a secret.
  */

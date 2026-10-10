@@ -1,5 +1,5 @@
 /**
- * What an owner does with a circle that exists (ADR 0186 §10): ask its
+ * What an owner does with a circle that exists (ADR 0187 §10): ask its
  * contacts to approve sharing something, collect their approvals, carry the
  * share out once they have, cancel a request, or retire the circle.
  */

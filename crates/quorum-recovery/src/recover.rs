@@ -1,4 +1,4 @@
-//! The exit door (ADR 0186): recombine a circle's SLIP-0039 shares and open
+//! The exit door (ADR 0187): recombine a circle's SLIP-0039 shares and open
 //! its recovery bundle without a browser.
 //!
 //! Shares are written with an empty passphrase and the bundle opens with a key

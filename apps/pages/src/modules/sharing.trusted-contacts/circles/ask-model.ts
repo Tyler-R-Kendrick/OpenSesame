@@ -1,5 +1,5 @@
 /**
- * Asking a circle to approve sharing something (ADR 0186): what a person can
+ * Asking a circle to approve sharing something (ADR 0187): what a person can
  * be asked about, the grant that goes in the request, and how a request in
  * flight reads. Pure, so every state of a request can be read without drawing
  * one.

@@ -1,7 +1,7 @@
 # opensesame-quorum-recovery
 
 The native reader of a trusted-contacts recovery
-([ADR 0186](../../docs/adr/0186-trusted-circle-quorum-sharing.md)). A circle's
+([ADR 0187](../../docs/adr/0187-trusted-circle-quorum-sharing.md)). A circle's
 owner seals a payload in a recovery bundle and gives each guardian one
 SLIP-0039 share of the key that opens it, written with an empty passphrase; this
 crate recombines the shares and opens the bundle with no browser, no network and

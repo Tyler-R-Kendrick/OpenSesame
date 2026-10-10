@@ -113,7 +113,7 @@ export const VAULT_LIB_RULES = [
   optional(
     "src/lib/quorum/",
     "sharing.trusted-contacts",
-    "trusted contacts: guardian policy, quorum approvals, SLIP-0039 shares, HPKE release (ADR 0186)",
+    "trusted contacts: guardian policy, quorum approvals, SLIP-0039 shares, HPKE release (ADR 0187)",
   ),
 ];
 

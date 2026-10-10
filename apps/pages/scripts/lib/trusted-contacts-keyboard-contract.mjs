@@ -1,4 +1,4 @@
-// Settings › Trusted contacts walked with the keyboard alone (ADR 0186 + the
+// Settings › Trusted contacts walked with the keyboard alone (ADR 0187 + the
 // keyboard contract in AGENTS.md §5).
 //
 // Guest, decoy and locked vaults draw no panel, so the walk starts from the

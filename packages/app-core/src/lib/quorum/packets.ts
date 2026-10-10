@@ -1,5 +1,5 @@
 /**
- * Packets: how the documents of a circle travel between people (ADR 0186 §10).
+ * Packets: how the documents of a circle travel between people (ADR 0187 §10).
  *
  * Nothing here goes to a server. An invite, an enrollment, a share, an approval
  * is a plain JSON document (every one is already strict-parsed where it is

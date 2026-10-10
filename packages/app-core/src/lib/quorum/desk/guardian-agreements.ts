@@ -1,5 +1,5 @@
 /**
- * The invitations a guardian has agreed to and not yet been answered (ADR 0186
+ * The invitations a guardian has agreed to and not yet been answered (ADR 0187
  * §10). Agreeing keeps a receiving key and the invitation in the pending store
  * until the owner's welcome arrives; until then nothing in the list of circles
  * held says the agreement exists, so a screen lists these beside it, and lets

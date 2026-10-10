@@ -1,5 +1,5 @@
 /**
- * Settings › Trusted contacts (ADR 0186): the category's page. Three panels,
+ * Settings › Trusted contacts (ADR 0187): the category's page. Three panels,
  * one for each side of a circle — the owner's, a guardian's and a
  * recipient's — over the desk, which is the one thing they share
  * (`use-desk.ts`). Each draws nothing while the vault is locked, a guest or a

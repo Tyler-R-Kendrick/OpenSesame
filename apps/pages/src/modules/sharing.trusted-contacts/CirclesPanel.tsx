@@ -1,5 +1,5 @@
 /**
- * Settings › Trusted contacts › Circles (ADR 0186): the circles this vault's
+ * Settings › Trusted contacts › Circles (ADR 0187): the circles this vault's
  * owner keeps, each with its rule, how many contacts it has and where it
  * stands. The ceremonies that make and change one hang from here: the head's
  * key starts a circle, a row's key opens the circle it names, and each

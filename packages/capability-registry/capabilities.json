@@ -5001,15 +5001,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },
@@ -5028,15 +5028,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },
@@ -5055,15 +5055,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },
@@ -5082,15 +5082,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },
@@ -5109,15 +5109,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },
@@ -7487,27 +7487,27 @@
     "excluded": {
       "mcp_host": {
         "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "pwa": {
         "reason": "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "extension": {
         "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "android": {
         "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },
@@ -7526,27 +7526,27 @@
     "excluded": {
       "mcp_host": {
         "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "mcp_client": {
         "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "webmcp": {
         "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "pwa": {
         "reason": "the exit door for when the browser is not there: the browser's own recovery is the sharing.trusted-contacts ceremony, which has no screens yet; this surface does not recover a circle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "extension": {
         "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       },
       "android": {
         "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
-        "adr": "0186-trusted-circle-quorum-sharing.md"
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },

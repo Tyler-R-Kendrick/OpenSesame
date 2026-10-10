@@ -1,5 +1,5 @@
 /**
- * What the ceremonies of a circle need from the page they run in (ADR 0186
+ * What the ceremonies of a circle need from the page they run in (ADR 0187
  * §10). The desk is the layer between the protocol (`../`) and the screens: it
  * holds no key and draws nothing, it runs one ceremony step at a time against
  * these ports, so every step is testable without a browser and a screen is

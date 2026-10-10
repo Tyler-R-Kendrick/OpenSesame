@@ -1,6 +1,6 @@
 /**
  * The desk: one ceremony step per function, for the screens of Settings ›
- * Trusted contacts (ADR 0186 §10). Optional with the capability; nothing in
+ * Trusted contacts (ADR 0187 §10). Optional with the capability; nothing in
  * the default bundle imports this directory.
  */
 

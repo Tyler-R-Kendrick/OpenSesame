@@ -1,5 +1,5 @@
 /**
- * Settings › Trusted contacts › Recovery (ADR 0186): the recoveries this
+ * Settings › Trusted contacts › Recovery (ADR 0187): the recoveries this
  * vault's owner has started from a circle's recovery file, with how many
  * contacts have approved each and how many have released their share, and
  * what a finished one handed back.

@@ -27,7 +27,7 @@ export const ADR_PAGES_CEREMONIES = "0140-pages-hosts-every-ceremony.md";
 export const ADR_TAILNET_SYNC = "0144-tailnet-vault-sync.md";
 export const ADR_ACCOUNTS = "0172-accounts-and-login-methods.md";
 export const ADR_TAILNET_DEVICES = "0169-tailnet-device-management.md";
-export const ADR_TRUSTED_CONTACTS = "0186-trusted-circle-quorum-sharing.md";
+export const ADR_TRUSTED_CONTACTS = "0187-trusted-circle-quorum-sharing.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:

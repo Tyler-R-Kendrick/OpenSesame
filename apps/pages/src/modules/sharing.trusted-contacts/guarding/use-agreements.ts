@@ -1,5 +1,5 @@
 /**
- * The invitations this device agreed to and has not been answered (ADR 0186
+ * The invitations this device agreed to and has not been answered (ADR 0187
  * §10), read from the desk's pending store. They load when the panel opens,
  * when the records the desk lists change (a taken welcome changes them), and
  * whenever a step that makes or ends one calls `refresh`.

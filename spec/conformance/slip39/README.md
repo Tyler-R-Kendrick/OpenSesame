@@ -2,7 +2,7 @@
 
 Vendored, unmodified, for the Shamir's Secret Sharing for Mnemonic Codes
 implementation in `packages/app-core/src/lib/quorum/slip39/`
-([ADR 0186](../../../docs/adr/0186-trusted-circle-quorum-sharing.md)).
+([ADR 0187](../../../docs/adr/0187-trusted-circle-quorum-sharing.md)).
 
 | File | Source | SHA-256 |
 |------|--------|---------|

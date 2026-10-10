@@ -1,4 +1,4 @@
-# ADR 0186 — Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
+# ADR 0187 — Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
 
 - **Status:** Accepted (protocol, native reader and ceremony screens built and verified; physical hardware not yet exercised)
 - **Date:** 2026-10-10

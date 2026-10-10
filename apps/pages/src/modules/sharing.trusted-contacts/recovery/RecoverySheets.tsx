@@ -1,5 +1,5 @@
 /**
- * The sheets the Recovery panel opens, one at a time (ADR 0186 §10): start a
+ * The sheets the Recovery panel opens, one at a time (ADR 0187 §10): start a
  * recovery, work one, and put what it handed back in this vault.
  */
 

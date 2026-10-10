@@ -1,5 +1,5 @@
 /**
- * The packets of a circle that is not yet armed, handed out again (ADR 0186
+ * The packets of a circle that is not yet armed, handed out again (ADR 0187
  * §10): the desk kept what was dealt when the circle was made or changed, so
  * a sheet closed halfway, or a page reloaded, leaves no contact without their
  * packet. It is the same step the circle was made with, read back from what

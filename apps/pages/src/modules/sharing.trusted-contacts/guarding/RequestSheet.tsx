@@ -1,6 +1,6 @@
 /**
  * Answering a request on a circle this device guards, as a ceremony in a sheet
- * (ADR 0186 §10). The guardian pastes the request; the card that follows is
+ * (ADR 0187 §10). The guardian pastes the request; the card that follows is
  * what the guardian's own device made of it, read against the signed policy it
  * holds: the sentence built from the request's own fields comes first, because
  * it is the thing being approved, then the recipient and the key to check by

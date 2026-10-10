@@ -5,7 +5,7 @@
  *
  * It is how a guardian hands a released share to the recipient the request
  * named: only that recipient's key opens it, and the request digest rides in
- * the AAD so a ciphertext cannot be lifted into another request (ADR 0186).
+ * the AAD so a ciphertext cannot be lifted into another request (ADR 0187).
  * `hpke.test.ts` checks every intermediate value against RFC 9180 Appendix A.1
  * and A.2.
  */

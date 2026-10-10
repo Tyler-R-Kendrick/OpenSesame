@@ -1,6 +1,6 @@
 /**
  * The recoveries this vault's owner has started and not finished, read from
- * the desk's pending store (ADR 0186 §10). They load when the panel opens and
+ * the desk's pending store (ADR 0187 §10). They load when the panel opens and
  * again whenever the desk is refreshed or a ceremony step calls `refresh`.
  */
 

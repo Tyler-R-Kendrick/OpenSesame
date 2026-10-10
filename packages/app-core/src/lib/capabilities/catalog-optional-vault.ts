@@ -38,7 +38,7 @@ export const SECURITY_CHECKS_SUMMARY =
  * 400-character summary limit.
  */
 export const TRUSTED_CONTACTS_SUMMARY =
-  "Name people you trust and, if you choose, require a quorum of them: a request is honoured only when enough of them approve it with their own security keys, and a recovery key is split so that no one contact, or small group, can open it. A short delay gives you time to object. Nothing is stored with a service; their devices do the work (ADR 0186).";
+  "Name people you trust and, if you choose, require a quorum of them: a request is honoured only when enough of them approve it with their own security keys, and a recovery key is split so that no one contact, or small group, can open it. A short delay gives you time to object. Nothing is stored with a service; their devices do the work (ADR 0187).";
 
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(

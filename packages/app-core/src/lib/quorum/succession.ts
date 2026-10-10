@@ -1,6 +1,6 @@
 /**
  * What a guardian's device checks before it lets a new policy replace the one
- * it holds (ADR 0186 §9). Separate from `epoch.ts` so the guardian's side of
+ * it holds (ADR 0187 §9). Separate from `epoch.ts` so the guardian's side of
  * taking a share can use it without importing the owner's side of making one.
  */
 

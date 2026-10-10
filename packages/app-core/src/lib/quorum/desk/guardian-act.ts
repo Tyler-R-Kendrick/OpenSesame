@@ -1,5 +1,5 @@
 /**
- * A guardian acting on a request (ADR 0186 §10): read it, say yes to it,
+ * A guardian acting on a request (ADR 0187 §10): read it, say yes to it,
  * release a share after the delay, hear of a cancellation, leave a circle.
  * Becoming a guardian and taking a share are in `guardian.ts`.
  *

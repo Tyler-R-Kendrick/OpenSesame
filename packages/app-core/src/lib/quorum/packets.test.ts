@@ -1,6 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2";
 /**
- * Packets (ADR 0186 §10): every document a circle passes between people,
+ * Packets (ADR 0187 §10): every document a circle passes between people,
  * built by the real protocol, survives the trip as one line of text; and
  * what is pasted is never trusted past the strict schema it must match.
  */

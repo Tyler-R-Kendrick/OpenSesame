@@ -1,5 +1,5 @@
 /**
- * Changing a circle is making its next epoch (ADR 0186 §9): some contacts
+ * Changing a circle is making its next epoch (ADR 0187 §9): some contacts
  * leave, the people invited since join, the rule and the clocks are set over
  * who is left, and everyone who stays or joins is dealt a new share. This is
  * the form for it: what is chosen, what the desk is asked to judge, and the

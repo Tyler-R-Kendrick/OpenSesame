@@ -1,7 +1,7 @@
 /**
  * The two item types a circle is kept in (`trusted-circle` for the owner,
  * `guardian-share` for a guardian), installed into the open vault from the
- * text this module embeds (ADR 0186).
+ * text this module embeds (ADR 0187).
  *
  * The capability declares no egress, so the marketplace road (a person-pressed
  * network fetch) is not an option: `item-types.generated.ts` carries the exact

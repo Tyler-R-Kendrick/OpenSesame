@@ -1,5 +1,5 @@
 /**
- * The native reader and this one, each against the other's output (ADR 0186
+ * The native reader and this one, each against the other's output (ADR 0187
  * follow-up 3, ADR 0139: one definition, every target).
  *
  * `spec/conformance/quorum-recovery-fixture.json` is a small circle made once

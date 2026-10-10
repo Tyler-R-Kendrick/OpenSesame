@@ -1,5 +1,5 @@
 /**
- * Settings › Trusted contacts › Guarding (ADR 0186): the circles other people
+ * Settings › Trusted contacts › Guarding (ADR 0187): the circles other people
  * asked this vault's owner to take a part in, each a share of a recovery key
  * or only a seat at the approvals, with whose it is and where it stands.
  *

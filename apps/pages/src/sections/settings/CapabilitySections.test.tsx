@@ -159,7 +159,7 @@ describe("sections — one list, one style, a switch only where something is opt
     expect(
       screen.queryByRole("switch", { name: "Household sharing" }),
     ).toBeNull();
-    // Live, trusted-contacts and relay tiles appear (ADR 0181, ADR 0186);
+    // Live, trusted-contacts and relay tiles appear (ADR 0181, ADR 0187);
     // household stays NO_SURFACE until a plan names it. This fixture's distribution does not arm a Sharing
     // section switch until household is approved (see the off-path below).
     const sharingCaps = screen.getByRole("list", {

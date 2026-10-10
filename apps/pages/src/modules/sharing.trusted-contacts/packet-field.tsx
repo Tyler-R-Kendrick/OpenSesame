@@ -1,6 +1,6 @@
 /**
  * How a document passes from one person to another in Settings › Trusted
- * contacts (ADR 0186 §10). Nothing here is a network: a packet is one line of
+ * contacts (ADR 0187 §10). Nothing here is a network: a packet is one line of
  * text a person copies, hands on over a road they already trust, and pastes
  * into the next person's page.
  *
