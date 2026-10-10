@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act } from "react";
 import {
   dismissClaimDropBanner,
   showClaimDropBanner,
@@ -15,8 +16,10 @@ afterEach(() => {
 describe("ClaimDropAnnouncement", () => {
   it("shows one alert and replaces it instead of stacking", () => {
     render(<ClaimDropAnnouncement />);
-    showClaimDropBanner({ title: "Claim", body: "First." });
-    showClaimDropBanner({ title: "Drop", body: "Second." });
+    act(() => {
+      showClaimDropBanner({ title: "Claim", body: "First." });
+      showClaimDropBanner({ title: "Drop", body: "Second." });
+    });
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(1);
     expect(screen.getByText("Second.")).toBeTruthy();
@@ -25,11 +28,15 @@ describe("ClaimDropAnnouncement", () => {
 
   it("dismisses from the key and from Escape", () => {
     render(<ClaimDropAnnouncement />);
-    showClaimDropBanner({ title: "Claim", body: "Refused." });
+    act(() => {
+      showClaimDropBanner({ title: "Claim", body: "Refused." });
+    });
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("alert")).toBeNull();
 
-    showClaimDropBanner({ title: "Drop", body: "Again." });
+    act(() => {
+      showClaimDropBanner({ title: "Drop", body: "Again." });
+    });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("alert")).toBeNull();
   });
