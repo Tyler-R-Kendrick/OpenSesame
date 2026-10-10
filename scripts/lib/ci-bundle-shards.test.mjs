@@ -40,6 +40,7 @@ const GATES = [
   "verify:push-worker",
   "verify:mobile",
   "verify:local-iam",
+  "verify:quorum-browser",
   "verify:siop",
   "verify:static",
   "verify:encrypted-search",

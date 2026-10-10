@@ -291,6 +291,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:local-iam
+      - name: Trusted contacts through the browser's own WebAuthn and PRF
+        if: matrix.shard == 'sign-in'
+        # Five people, five contexts, five virtual authenticators that do PRF,
+        # the real desk in each page and only packets between them. ADR 0186.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:quorum-browser
       - name: Self-Issued OpenID Provider v2 contract
         if: matrix.shard == 'keyboard'
         env:
