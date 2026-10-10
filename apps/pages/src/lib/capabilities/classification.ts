@@ -26,7 +26,6 @@ import {
 } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { CROSS_RULES } from "./classification-cross.js";
-import { DEV_EVIDENCE_RULES } from "./classification-dev-evidence.js";
 import { DEVICE_CONNECTOR_RULES } from "./classification-device-connectors.js";
 import { LIB_RULES } from "./classification-lib.js";
 import { PACKAGE_RULES } from "./classification-packages.js";
@@ -89,7 +88,6 @@ export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...TUTORIAL_RULES,
   ...PACKAGE_RULES,
   ...PLUGIN_RULES,
-  ...DEV_EVIDENCE_RULES,
 ].map(alwaysOnIsCore);
 
 /**
