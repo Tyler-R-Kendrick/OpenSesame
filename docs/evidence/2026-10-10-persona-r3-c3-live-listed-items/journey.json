@@ -1,0 +1,50 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": true },
+        { "enable": "Live sessions" },
+        { "open": "Vaults" },
+        { "open": "Live sessions" },
+        { "revealSelector": "#live-session" },
+        { "measure": "footer.statusline" },
+        { "shot": "live-items-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": true },
+        { "enable": "Live sessions" },
+        { "open": "Vaults" },
+        { "open": "Live sessions" },
+        { "revealSelector": "#live-session" },
+        { "measure": "footer.statusline" },
+        { "shot": "live-items-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "live-items-1280",
+      "width": 1280,
+      "title": "Live session host form (desktop)",
+      "caption": "Item picker lists only listed vault items (not hidden or trashed).",
+      "before": "Picker could include non-listed items",
+      "after": "Picker uses listedItems(activeItems(...))"
+    },
+    {
+      "shot": "live-items-390",
+      "width": 390,
+      "title": "Live session host form (phone)",
+      "caption": "Same filtering at phone width.",
+      "before": "Picker could include non-listed items",
+      "after": "Picker uses listedItems(activeItems(...))"
+    }
+  ]
+}
