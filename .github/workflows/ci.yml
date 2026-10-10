@@ -1,4 +1,4 @@
-# CI — required up-to-date pull-request checks (personal-account repository).
+# CI — required pull-request and merge-queue checks (personal-account repository).
 # Apply/verify the default-branch policy with ops/github/governance.mjs.
 #
 # The ruleset requires the check names TypeScript, Bundle budgets, and Rust.
@@ -9,11 +9,14 @@
 # A suite that runs tests the changed packages or crates and their
 # dependents (scripts/lib/ci-affected-tests.mjs), and of those the tests the
 # diff reaches (scripts/lib/ci-scoped-tests.mjs), not the whole workspace. A
-# push to main, or a manual run, has no diff and runs everything.
+# push to main, a merge_group with no usable base/head, or a manual run, has
+# no diff and runs everything. merge_group must fire these same check names
+# or queued PRs hang forever.
 name: CI
 
 on:
   pull_request:
+  merge_group:
   # A merged diff runs whole: a pull request runs only what its diff can reach
   # (the changed-areas and affected-tests scripts fall back to every area, every
   # gate and every package when they are given no base to diff against), so this
@@ -62,17 +65,23 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
         run: node scripts/release/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
+      - name: Verify merge-group commit signature
+        if: github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_HEAD: ${{ github.event.merge_group.head_sha }}
+        run: node scripts/release/check-merge-group-signature.mjs "$GITHUB_REPOSITORY" "$MERGE_HEAD"
       - name: Classify changed areas
         id: areas
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-changed-areas.mjs
       - name: Select native mobile checks
         id: native
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: bash scripts/test/mobile-changed.sh
 
   typescript-tests:
@@ -108,8 +117,8 @@ jobs:
       - name: Select affected packages
         id: affected
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs plan
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -131,8 +140,8 @@ jobs:
         run: pnpm quality
       - name: Typecheck and test affected packages
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs run-ts
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
@@ -563,8 +572,8 @@ jobs:
       - name: Select affected crates
         id: affected
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs cargo
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         if: steps.affected.outputs.scope != 'none'
@@ -575,8 +584,8 @@ jobs:
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs run-cargo
       - name: Test the Bitwarden bridge build (ADR 0148)
         # Default builds leave the bridge out; this compiles it in.

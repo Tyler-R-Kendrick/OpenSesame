@@ -17,6 +17,7 @@ import {
   relayCiphertextMeta,
 } from "@opensesame/app-core/lib/vault-relay/client.js";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 const FORMAT = "opensesame-vault-drive-snapshot";
 const ITEM_NAME = "Bank login";
@@ -27,6 +28,18 @@ type Slot = {
   snapshot: RelaySnapshot;
   principal: string;
 };
+
+const snapshotWriteSchema = z.object({
+  expected_generation: z.number(),
+  snapshot: z.object({
+    format: z.literal(FORMAT),
+    v: z.literal(1),
+    tomb: z.string(),
+    header: z.object({ v: z.literal(1), createdAt: z.string() }),
+    body: z.object({ ivB64: z.string(), ctB64: z.string() }),
+    rev: z.number(),
+  }),
+});
 
 function readSlot(current: Slot | undefined, key: string): Response {
   if (!current) return Response.json({ error: "not_found" }, { status: 404 });
@@ -47,10 +60,7 @@ function writeSlot(
   rawBody: BodyInit | null | undefined,
 ): Response {
   const current = slots.get(address);
-  const body = JSON.parse(String(rawBody)) as {
-    expected_generation: number;
-    snapshot: RelaySnapshot;
-  };
+  const body = snapshotWriteSchema.parse(JSON.parse(String(rawBody)));
   if (!current) {
     if (body.expected_generation !== 0) {
       return Response.json({ error: "not_found" }, { status: 404 });
@@ -106,13 +116,78 @@ function snapshot(): RelaySnapshot {
 }
 
 describe("vault relay join sync", () => {
+  it.each([
+    { body: "not JSON", generation: null },
+    { body: "null", generation: null },
+    { body: "[]", generation: null },
+    { body: JSON.stringify({ generation: 1 }), generation: null },
+    {
+      body: JSON.stringify({ generation: "1", snapshot: snapshot() }),
+      generation: null,
+    },
+    {
+      body: JSON.stringify({
+        generation: 1,
+        snapshot: { ...snapshot(), header: null },
+      }),
+      generation: 1,
+    },
+    {
+      body: JSON.stringify({
+        generation: 1,
+        snapshot: { ...snapshot(), body: { ivB64: "aXY" } },
+      }),
+      generation: 1,
+    },
+  ])(
+    "refuses malformed pulled ciphertext contracts: $body",
+    async ({ body, generation }) => {
+      await expect(
+        pullRelaySnapshot({
+          baseUrl: "https://relay.test",
+          owner: "ada",
+          slug: "personal",
+          slotKey: "paired-slot-key",
+          fetch: async () => new Response(body),
+        }),
+      ).rejects.toMatchObject({ status: 200, generation });
+    },
+  );
+
+  it.each([
+    { body: null },
+    { body: [] },
+    { body: { vaults: {} } },
+    {
+      body: {
+        vaults: [{ ownerKind: "invalid", owner: "acme", slug: "ledger" }],
+      },
+    },
+    {
+      body: {
+        vaults: [{ ownerKind: "organization", owner: 1, slug: "ledger" }],
+      },
+    },
+  ])(
+    "refuses malformed organization directory contracts: $body",
+    async ({ body }) => {
+      await expect(
+        listOrgVaults({
+          baseUrl: "https://relay.test",
+          owner: "acme",
+          fetch: async () => Response.json(body),
+        }),
+      ).rejects.toMatchObject({ status: 200, generation: null });
+    },
+  );
+
   it("gives the second device the first device's ciphertext metadata", async () => {
     const fetchImpl = memoryRelay();
     const shared = {
       baseUrl: "https://relay.test",
       owner: "ada",
       slug: "personal",
-      slotKey: "c2xvdC1rZXktMzItYnl0ZXMtcGFkZGVkLW91dA",
+      slotKey: "test-slot-key",
       fetch: fetchImpl,
     };
     const sealed = snapshot();

@@ -5,8 +5,7 @@ import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 export function nativeS3Descriptor(
   provider: Provider,
   available: boolean,
-): NativeConnectorDescriptor | null {
-  if (!available) return null;
+): NativeConnectorDescriptor {
   return {
     providerId: "s3",
     name: provider.displayName,
@@ -17,7 +16,9 @@ export function nativeS3Descriptor(
       {
         id: "api-key",
         label: "S3 signing credentials",
-        available: true,
+        available,
+        unavailableReason:
+          "S3 signing and bucket verification are unavailable in this browser runtime.",
         scopeGroups: [],
         fields: [
           {

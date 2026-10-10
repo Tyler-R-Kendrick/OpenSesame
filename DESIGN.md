@@ -4,20 +4,23 @@ description: End-to-end encrypted vault for humans, agents, websites, and develo
 colors:
   canvas: "#fafafa"
   surface: "#ffffff"
-  surface-2: "#f5f5f5"
-  surface-3: "#ededed"
+  surface-2: "#f0f0f0"
+  surface-3: "#e2e2e2"
   rail: "#fafafa"
   rail-fg: "#171717"
   ink: "#171717"
-  ink-2: "#5c5c5c"
-  ink-3: "#6f6f6f"
-  line: "#e7e7e7"
-  line-strong: "#d4d4d4"
+  ink-2: "#4d4d4d"
+  ink-3: "#666666"
+  line: "#e0e0e0"
+  line-strong: "#bdbdbd"
   mark-slit: "#8f8f8f"
   scrim: "rgba(0, 0, 0, 0.44)"
-  ok: "#0f7a51"
-  warn: "#a25a05"
-  err: "#b32424"
+  ok: "#171717"
+  warn: "#5c5c5c"
+  err: "#171717"
+  ok-wash: "#efefef"
+  warn-wash: "#e6e6e6"
+  err-wash: "#d9d9d9"
 typography:
   display:
     fontFamily: "system mono stack (ui-monospace, SF Mono, Menlo, …)"
@@ -171,13 +174,21 @@ All neutrals are zero-spread grays — no warm or cool casts anywhere in chrome.
 - **Canvas** (#fafafa): the ground everything sits on.
 - **Surface** (#ffffff): the lifted layer — sheets, menus, the drawer, the top
   bar, notice cards and secondary buttons. A `.panel` is unboxed.
-- **Ink / Ink-2 / Ink-3** (#171717 / #5c5c5c / #6f6f6f): the ink ladder —
+- **Ink / Ink-2 / Ink-3** (#171717 / #4d4d4d / #666666): the ink ladder —
   primary, supporting, and metadata text, stepped like alpha-black on white
-  (roughly 100% / 64% / 56%). The lowest rung stays above 4.5:1 on white.
+  (roughly 100% / 70% / 60%). The lowest rung stays above 4.5:1 on white.
+- **Surface-2 / Surface-3** (#f0f0f0 / #e2e2e2): the two steps below the
+  surface — a hovered row, a pressed key, the armed key's twin.
+- **Line / Line-strong** (#e0e0e0 / #bdbdbd): every hairline, and the edge a
+  focused field or a selected tab's bar strengthens to.
 
 ### Status
-**ok** #0f7a51, **warn** #a25a05, **err** #b32424, each with a wash for filled
-callouts. The password strength ramp (`--s-0` … `--s-4`) counts five segments
+A status is a glyph and a shade, never a hue (`docs/design/color-vision.md`):
+**ok** is ink (#171717) on its wash (#efefef), **warn** a darker grey
+(#5c5c5c) on #e6e6e6, **err** ink again on the deepest wash (#d9d9d9), **idle**
+the lock glyph. The four read apart by shape first and wash second, and the
+same four values serve at night stepped from the night canvas. The password
+strength ramp (`--s-0` … `--s-4`) counts five segments
 filled in ink; level reads by count, not hue.
 
 ### Named rules

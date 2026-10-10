@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import {
+  forgetLocalGithubApp,
+  rememberLocalGithubApp,
+} from "@opensesame/app-core/lib/github-app-local.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -28,7 +32,11 @@ const account = { id: 123, login: "real-account", type: "User" };
 it("admits Github's actual browser token driver without offering confidential App provisioning", () => {
   connectorIntegration();
   const provider = githubProvider();
-  expect(nativeGithubDescriptor(provider, false)).toBeNull();
+  expect(nativeGithubDescriptor(provider, false).methods[0]).toMatchObject({
+    id: "api-key",
+    available: false,
+    unavailableReason: expect.stringContaining("unavailable"),
+  });
   const descriptor = nativeSettingsDescriptor(provider);
   expect(descriptor?.methods.map((method) => method.id)).toEqual(["api-key"]);
   expect(descriptor?.methods[0]?.fields.map((field) => field.id)).toEqual([
@@ -40,6 +48,111 @@ it("admits Github's actual browser token driver without offering confidential Ap
     method: "api-key",
   });
 });
+
+it("keeps unavailable GitHub access in the native experience without exposing server-backed App registration", () => {
+  const fixture = connectorIntegration();
+  fixture.activation.dispose();
+  const provider = githubProvider();
+  expect(nativeSettingsDescriptor(provider)?.methods[0]?.available).toBe(false);
+  expect(catalogConnectorAction(provider, null)).toMatchObject({
+    kind: "native",
+    glyph: "computer",
+  });
+  render(
+    <MemoryRouter>
+      <ConnectorSettingsPage
+        provider={provider}
+        providerId="github"
+        connection={null}
+        connections={[]}
+        loading={false}
+        online={true}
+        canConfigure={true}
+        configureHint=""
+        flash={null}
+        rememberOffer={null}
+        onFlash={vi.fn()}
+        onRememberOffer={vi.fn()}
+        onChanged={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+  expect(screen.queryByTestId("github-app-presence")).toBeNull();
+  expect(
+    screen.queryByRole("button", {
+      name: "Create GitHub App for this organization",
+    }),
+  ).toBeNull();
+  expect(screen.queryByLabelText("GitHub personal access token")).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Authorize with GitHub" }),
+  ).toBeNull();
+  expect(fixture.requests).toHaveLength(0);
+  expect(readDeviceRows()).toEqual([]);
+});
+
+it.each([true, false])(
+  "does not treat a registered legacy App as verified native GitHub access when driver availability is %s",
+  (available) => {
+    const fixture = connectorIntegration();
+    if (!available) fixture.activation.dispose();
+    rememberLocalGithubApp({
+      id: "registered-app",
+      key: "github-oauth",
+      displayName: "Registered only",
+      htmlUrl: null,
+      ownerLogin: "owner",
+      ownerType: "User",
+      installedByLogin: null,
+      installations: [],
+    });
+    const onFlash = vi.fn();
+    try {
+      render(
+        <MemoryRouter>
+          <ConnectorSettingsPage
+            provider={{ ...githubProvider(), configured: true }}
+            providerId="github"
+            connection={null}
+            connections={[]}
+            loading={false}
+            online={true}
+            canConfigure={true}
+            configureHint=""
+            flash={{ tone: "err", text: "GitHub rejected the token." }}
+            rememberOffer={null}
+            onFlash={onFlash}
+            onRememberOffer={vi.fn()}
+            onChanged={vi.fn()}
+          />
+        </MemoryRouter>,
+      );
+      expect(
+        screen.queryByRole("img", { name: "GitHub App ready" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("img", {
+          name: available ? "Not connected" : "Not available here",
+        }),
+      ).toBeTruthy();
+      expect(
+        screen.getByText("Personal access token · Backup/recovery"),
+      ).toBeTruthy();
+      expect(
+        screen.getByRole("link", { name: "Docs" }).getAttribute("href"),
+      ).toBe(
+        "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+      );
+      expect(
+        screen.getByRole("img", { name: "GitHub rejected the token." }),
+      ).toBeTruthy();
+      expect(onFlash).not.toHaveBeenCalled();
+      expect(readDeviceRows()).toEqual([]);
+    } finally {
+      forgetLocalGithubApp();
+    }
+  },
+);
 
 it("opens Github's specific browser form, rejects a bad token, then verifies and reads permitted repositories", async () => {
   const fixture = connectorIntegration();
