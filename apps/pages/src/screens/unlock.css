@@ -84,19 +84,8 @@
   border-radius: var(--radius);
 }
 
-/* Under the column title, one accordion row per build. The newest row opens
-   on a wide screen; prior builds collapse until opened. */
-.unlock__notes-title {
-  margin: 0;
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--line);
-  font-family: var(--mono);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-
+/* One accordion row per build; the newest is labelled "Release notes ·
+   <version>", and prior builds collapse until opened. */
 .unlock__notes-stack {
   display: grid;
   align-content: start;
