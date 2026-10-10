@@ -62,9 +62,12 @@ await page.keyboard.press("s");
 await expect(page).toHaveURL(/\/settings(?:[/?].*)?$/);
 await page.getByRole("link", { name: "Capabilities", exact: true }).click();
 await awaitCapabilitySections(page);
-const addAccess = capabilityOffSwitch(page, "Access authority");
-await expect(addAccess).toHaveCount(1);
-await addAccess.click();
+const accessOn = capabilityOnSwitch(page, "Access authority");
+if ((await accessOn.count()) === 0) {
+  const addAccess = capabilityOffSwitch(page, "Access authority");
+  await expect(addAccess).toHaveCount(1);
+  await addAccess.click();
+}
 await expect(capabilityOnSwitch(page, "Access authority")).toHaveCount(1, {
   timeout: 15000,
 });
