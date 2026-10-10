@@ -37,6 +37,10 @@ function requireSameRootPeerManifest(
     stale();
   return { root, next };
 }
+type OrdinaryPeerBodyData = Readonly<{
+  header: VaultHeader;
+  body: VaultBody | null;
+}>;
 export async function ordinaryPeerFreshBody(
   tomb: string,
   key: CryptoKey | null,
@@ -48,7 +52,7 @@ export async function ordinaryPeerFreshBody(
   }>,
   readHeader: () => VaultHeader | null,
   original: () => void,
-): Promise<Readonly<{ header: VaultHeader; body: VaultBody | null }>> {
+): Promise<OrdinaryPeerBodyData> {
   original();
   if (!key || !held.header) stale();
   const previous = held.header;

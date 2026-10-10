@@ -75,11 +75,15 @@ export type PreparedNewPasswordBinding = Readonly<{
 function unavailable(): never {
   throw new Error("Fresh password setup is unavailable.");
 }
+type NewPrimaryHeaderData = Readonly<{
+  header: VaultHeader;
+  body: string;
+}>;
 function readNewPrimaryHeader(
   snapshot: AuthenticationCiphertext,
   primary: NewPrimaryKind,
   format: "flat-v1" | "node-projection-v1",
-): Readonly<{ header: VaultHeader; body: string }> {
+): NewPrimaryHeaderData {
   if (format !== "flat-v1" && format !== "node-projection-v1") unavailable();
   if (snapshot.header === null || snapshot.body === null) unavailable();
   assertUnambiguousJson(snapshot.header, 65536);

@@ -110,9 +110,11 @@ async function deriveProtectorPrimary(
   if (request.method === "agePasskey")
     return await actualAgePasskey(header, check, signal);
   // Existing software age crypto cannot cancel; retain actual completion before checking cancellation.
+  if (request.secret === undefined)
+    return await actualProtector(header, { method: request.method });
   return await actualProtector(header, {
     method: request.method,
-    ...(request.secret !== undefined ? { secret: request.secret } : {}),
+    secret: request.secret,
   });
 }
 /**
