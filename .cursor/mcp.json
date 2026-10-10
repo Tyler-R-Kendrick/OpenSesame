@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "storybook": {
+      "url": "http://localhost:6006/mcp"
+    },
+    "stitch": {
+      "url": "https://stitch.googleapis.com/mcp",
+      "headers": {
+        "X-Goog-Api-Key": "${env:STITCH_API_KEY}"
+      }
+    }
+  }
+}

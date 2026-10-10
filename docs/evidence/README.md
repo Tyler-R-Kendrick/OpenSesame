@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-10-live-join-greeting/`](2026-10-10-live-join-greeting/README.md) | Live join: the catalog answers a greeting (ADR 0186) |
+| [`2026-10-10-design-tooling/`](2026-10-10-design-tooling/README.md) | Design tooling: Storybook on the app's own CSS |
 | [`2026-10-10-brand-plates/`](2026-10-10-brand-plates/README.md) | The brand on plates: one mark, one wordmark, three size tiers |
 | [`2026-10-09-provider-authentication/`](2026-10-09-provider-authentication/README.md) | Provider authentication and connector actions |
 | [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |

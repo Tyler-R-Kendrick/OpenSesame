@@ -1,0 +1,12 @@
+# Project-scoped Codex configuration (read for trusted projects). Skills are
+# the copies under .agents/skills/ (skills-lock.json); this file only names
+# the MCP servers the design tooling uses (docs/design/tooling.md).
+
+# Storybook's MCP endpoint, served while `pnpm --filter @opensesame/pages storybook` runs.
+[mcp_servers.storybook]
+url = "http://localhost:6006/mcp"
+
+# Google Stitch. The key is read from the environment, never written here.
+[mcp_servers.stitch]
+url = "https://stitch.googleapis.com/mcp"
+env_http_headers = { "X-Goog-Api-Key" = "STITCH_API_KEY" }
