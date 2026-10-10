@@ -28,6 +28,7 @@ import {
   save,
 } from "./docs.js";
 import { DeskError, type DeskPorts } from "./ports.js";
+import { type Progress, progressToward } from "./recovery-progress.js";
 
 export type BundleView = Readonly<{
   label: string;
@@ -71,6 +72,8 @@ export type RecoveryView = Readonly<{
   releasedBy: readonly string[];
   /** Names, to say whom to ask. */
   names: Readonly<Record<string, string>>;
+  /** How far approvals and releases have got against what the circle's rule asks for. */
+  progress: Readonly<{ approvals: Progress; releases: Progress }>;
 }>;
 
 function ledgerOf(ports: DeskPorts, doc: Recovery): QuorumLedger {
@@ -83,14 +86,20 @@ function ledgerOf(ports: DeskPorts, doc: Recovery): QuorumLedger {
 
 function viewOf(doc: Recovery, ledger: QuorumLedger): RecoveryView {
   const { policy } = doc.bundle.signedPolicy;
+  const approvedBy = ledger.approvedGuardians();
+  const releasedBy = ledger.releases().map((r) => r.guardianId);
   return {
     requestId: doc.request.requestId,
     label: policy.label,
     request: encodePacket({ kind: "request", value: doc.request }),
     status: ledger.status(),
-    approvedBy: ledger.approvedGuardians(),
-    releasedBy: ledger.releases().map((r) => r.guardianId),
+    approvedBy,
+    releasedBy,
     names: Object.fromEntries(policy.guardians.map((g) => [g.id, g.name])),
+    progress: {
+      approvals: progressToward(policy, approvedBy),
+      releases: progressToward(policy, releasedBy),
+    },
   };
 }
 
@@ -209,9 +218,14 @@ export async function approvalsPacket(
 }
 
 /**
- * Recombine the released shares and open the protected document. On success
- * the recovery is finished and its key is removed; on `RecoveryError` a
- * damaged release has been dropped and the recovery stays for another try.
+ * Recombine the released shares and return the protected document. Opening
+ * does not end the recovery: the recovery stays, with the key this device made
+ * for it, so that a document that was not saved yet, or a page that was
+ * reloaded, does not lose the only way back to it. Open it again and the same
+ * document comes back; end it with `finishRecovery` once the document is safe.
+ *
+ * On `RecoveryError` a damaged release has been dropped and the recovery stays
+ * for another try, as it does after a success.
  */
 export async function openRecovery(
   ports: DeskPorts,
@@ -221,13 +235,11 @@ export async function openRecovery(
   const ledger = ledgerOf(ports, doc);
   const recipientSecretKey = keyBytes(doc.recipientSecretKey);
   try {
-    const payload = await completeRecovery({
+    return await completeRecovery({
       ledger,
       recipientSecretKey,
       bundle: doc.bundle,
     });
-    await ports.pending.remove(KEYS.recovery(requestId));
-    return payload;
   } catch (error) {
     // A damaged release was dropped from the ledger so its guardian can send
     // another; keep that, or the next try would meet the same bad packet.
@@ -239,6 +251,17 @@ export async function openRecovery(
   } finally {
     wipe(recipientSecretKey);
   }
+}
+
+/**
+ * End a recovery whose document is safe — saved to a file, or in the vault.
+ * Its key is removed from this device, and opening it again is refused.
+ */
+export async function finishRecovery(
+  ports: DeskPorts,
+  requestId: string,
+): Promise<void> {
+  await ports.pending.remove(KEYS.recovery(requestId));
 }
 
 /** Give up on a recovery: its key is removed. */

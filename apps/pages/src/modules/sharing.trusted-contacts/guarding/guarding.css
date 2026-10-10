@@ -1,0 +1,23 @@
+/* Guarding (ADR 0186): the keys under a row, and the switch in the agreement. */
+
+.tc-row__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.tc-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 2.5rem;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .tc-switch {
+    min-height: 2.75rem;
+  }
+}

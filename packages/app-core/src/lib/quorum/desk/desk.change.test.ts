@@ -19,6 +19,7 @@ import {
   approvalsPacket,
   approveRequest,
   custodyStatus,
+  finishRecovery,
   ingest,
   inviteMore,
   openRecovery,
@@ -120,6 +121,10 @@ describe("replacing a guardian through the desk", () => {
       );
     }
     expect(await openRecovery(recipient, started.requestId)).toEqual(PAYLOAD);
+    // Opening leaves the recovery in place; ending it is its own step.
+    expect(await recipient.pending.list("recovery:")).toHaveLength(1);
+    await finishRecovery(recipient, started.requestId);
+    expect(await recipient.pending.list("recovery:")).toEqual([]);
   });
 
   it("refuses to take the old epoch's share once the new one is held", async () => {

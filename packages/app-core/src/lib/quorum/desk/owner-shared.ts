@@ -44,6 +44,12 @@ export type Dealt = Readonly<{
   /** The recovery bundle as file text, or `null` when the circle holds no secret. */
   bundleFile: string | null;
   warnings: readonly PolicyWarning[];
+  /**
+   * The packets rest in the pending store (`owner-dealt.ts`), so a screen that
+   * is closed or reloaded can hand them out again. `false` where they could
+   * not be kept: then they are on this screen and nowhere else.
+   */
+  kept: boolean;
 }>;
 
 export function inviteText(draft: OwnerDraft): string {
@@ -156,6 +162,7 @@ export function dealt(
     notices,
     bundleFile: created.bundle ? JSON.stringify(created.bundle) : null,
     warnings: policyWarnings(signedPolicy.policy),
+    kept: false,
   };
 }
 

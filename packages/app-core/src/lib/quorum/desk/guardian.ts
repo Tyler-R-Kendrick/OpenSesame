@@ -22,6 +22,7 @@ import { keyFingerprint } from "../request.js";
 import { checkSuccession } from "../succession.js";
 import type { SignedPolicy } from "../types.js";
 import { GuardianPendingSchema, KEYS, keyBytes, load, save } from "./docs.js";
+import { settleAgreements } from "./guardian-agreements.js";
 import { DeskError, type DeskPorts } from "./ports.js";
 
 /** An invitation, read and not yet agreed to. */
@@ -231,7 +232,10 @@ export async function takeWelcome(
   const taken = welcome.delivery
     ? await takeShare(ports, welcome, welcome.delivery, standing)
     : await takeSeat(ports, welcome, standing);
-  if (standing.waitingKey) await ports.pending.remove(standing.waitingKey);
+  // The agreement is answered now, and so is any other made for this circle.
+  if (standing.waitingKey) {
+    await settleAgreements(ports, welcome.signedPolicy.policy.circleId);
+  }
   return taken;
 }
 

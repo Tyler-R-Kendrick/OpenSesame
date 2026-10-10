@@ -259,12 +259,13 @@
         "2026-10-09: javascript 6233->6234 because CI on f63424c5 measured 6234/1905 KiB after merging main at f48efc4e; raise only to the measured minimum.",
         "2026-10-09: javascript ->6250 gzip ->1915 for verification-audit rematch (ECR postgres + greyscale/drops).",
         "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main.",
-        "2026-10-10: javascript 6250->6292 for Settings > Trusted contacts (ADR 0186). The module stopped being empty, so the quorum engine (SLIP-0039, HPKE, the ledger and the desk) is now reachable from its two lazy chunks: cap-sharing.trusted-contacts (11.1 KiB) and its shared chunk (34.8 KiB), plus a 0.6 KiB stylesheet. A fresh /OpenSesame/ build measures 6292 KiB JavaScript, 1915 gzip (unchanged), 171 CSS (unchanged); raise only to the measured minimum. The hardened profile ceilings are unchanged: the module is excluded there."
+        "2026-10-10: javascript 6250->6292 for Settings > Trusted contacts (ADR 0186). The module stopped being empty, so the quorum engine (SLIP-0039, HPKE, the ledger and the desk) is now reachable from its two lazy chunks: cap-sharing.trusted-contacts (11.1 KiB) and its shared chunk (34.8 KiB), plus a 0.6 KiB stylesheet. A fresh /OpenSesame/ build measures 6292 KiB JavaScript, 1915 gzip (unchanged), 171 CSS (unchanged); raise only to the measured minimum. The hardened profile ceilings are unchanged: the module is excluded there.",
+        "2026-10-10: javascript 6292->6433 and javascriptGzip 1915->1957 for the ceremony screens of Settings > Trusted contacts (ADR 0186): the three panels and their sheets (start a circle, invite, change, ask, cancel; accept, take, answer a request, leave; start and open a recovery), the packet fields, and the CXF export and import hand-offs. They load only from the module's two lazy chunks, which a device fetches only with the capability on: cap-sharing.trusted-contacts (77 KiB) and its shared chunk with the quorum engine and the desk (101 KiB), plus a 2.5 KiB stylesheet. A fresh /OpenSesame/ build measures 6433/1957 KiB JavaScript raw/gzip; raise only to the measured minimum. Nothing reaches the boot path, and the hardened profiles exclude the module and measure 3677/972 KiB, under their unchanged ceilings."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6292,
-        "javascriptGzip": 1915,
+        "javascript": 6433,
+        "javascriptGzip": 1957,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",
@@ -285,9 +286,10 @@
           "mode controls, scope disclosures, step markers and icon upload",
           "styles (~1.1 KiB minified). The full Pages build measures 169 KiB",
           "CSS. JavaScript, gzip and profile budgets remain unchanged.",
-          "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration."
+          "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration.",
+          "2026-10-10: 172 -> 173 for Settings > Trusted contacts (ADR 0186): the module's four stylesheets (frame, circles, guarding, recovery; 2.5 KiB minified together) are lazy and load with the capability. A fresh build measures 173 KiB; the hardened profiles exclude the module and are unchanged."
         ],
-        "css": 172,
+        "css": 173,
         "largestAsset": 12800
       }
     }

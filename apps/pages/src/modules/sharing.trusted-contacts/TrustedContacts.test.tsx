@@ -100,9 +100,9 @@ describe("the panels' frames", () => {
       ).toBeTruthy();
       const live = section.querySelector("output[aria-live=polite]");
       expect(live?.className).toBe("visually-hidden");
-      // Nothing to press yet: no keys group, no button, no fake control.
-      expect(section.querySelector("fieldset")).toBeNull();
-      expect(section.querySelector("button, a, input, textarea")).toBeNull();
+      // A panel's keys ride its head in one group, and no field sits open on the page.
+      expect(section.querySelectorAll("fieldset").length).toBeLessThan(2);
+      expect(section.querySelector("a, input, textarea")).toBeNull();
     }
   });
 
@@ -133,11 +133,15 @@ describe("Circles", () => {
     if (!row) throw new Error("no row");
     expect(row.textContent).toContain("2 of 3 · epoch 1 · 3 contacts");
     expect(within(row).getByRole("img", { name: /^Armed/ })).toBeTruthy();
-    expect(row.querySelector("button, a, input")).toBeNull();
+    // The row's one key opens the circle (circles/ walks the sheets); no field is drawn.
+    expect(
+      within(row).getByRole("button", { name: "Open Family" }),
+    ).toBeTruthy();
+    expect(row.querySelector("a, input, textarea")).toBeNull();
     expect(screen.queryByRole("img", { name: "No circles yet." })).toBeNull();
   });
 
-  it("says an approvals-only circle is one, and draws no key", async () => {
+  it("says an approvals-only circle is one, and keeps the owner key off the page", async () => {
     const armed = await armedCircle(new Clock(), { recovers: false });
     serve(await deskOf(armed.owner));
     const { container } = render(<CirclesPanel />);
@@ -176,7 +180,8 @@ describe("Guarding", () => {
       /Held for [0-9a-f]{4}(-[0-9a-f]{4}){3} · share · epoch 1/,
     );
     expect(within(row).getByRole("img", { name: "Held" })).toBeTruthy();
-    expect(row.querySelector("button, a, input")).toBeNull();
+    // The row's own keys are drawn (guarding/GuardingPanel.test.tsx walks them); no field is.
+    expect(row.querySelector("a, input, textarea")).toBeNull();
     const [held] = await who(armed, "Ada").records.held();
     const wrapped = held?.holding?.wrapped;
     expect(wrapped).toBeDefined();
@@ -216,7 +221,11 @@ describe("Recovery", () => {
     expect(
       within(row).getByRole("img", { name: /^Collecting approvals until / }),
     ).toBeTruthy();
-    expect(row.querySelector("button, a, input")).toBeNull();
+    // The row's one key opens its sheet (recovery/ walks it); no field is drawn.
+    expect(
+      within(row).getByRole("button", { name: "Open Family recovery" }),
+    ).toBeTruthy();
+    expect(row.querySelector("a, input, textarea")).toBeNull();
   });
 
   it("reads again when the desk is refreshed", async () => {

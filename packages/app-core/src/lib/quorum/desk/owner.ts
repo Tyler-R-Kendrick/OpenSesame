@@ -27,8 +27,10 @@ import {
   OwnerDraftSchema,
   ReceiptsSchema,
   keyBytes,
+  load,
   save,
 } from "./docs.js";
+import { keepDealt } from "./owner-dealt.js";
 import {
   DEFAULT_TIMING,
   type Dealt,
@@ -162,6 +164,32 @@ export async function dropDraftGuardian(
   });
 }
 
+/**
+ * The circle that was begun and never made, if there is one: its draft holds
+ * the people who have answered and the key the circle would be signed with, so
+ * a screen that was closed can pick up where it stopped. A draft for a circle
+ * that already exists (more people being invited) is not one.
+ */
+export async function unfinishedCircle(
+  ports: DeskPorts,
+): Promise<OwnerDraft | null> {
+  for (const key of await ports.pending.list(KEYS.draft(""))) {
+    const draft = await load(ports.pending, key, OwnerDraftSchema).catch(
+      () => null,
+    );
+    if (draft && draft.ownerSecretKey !== null) return draft;
+  }
+  return null;
+}
+
+/** Forget an invitation round: a circle that was never made, or more people for one that was. */
+export async function discardDraft(
+  ports: DeskPorts,
+  circleId: string,
+): Promise<void> {
+  await ports.pending.remove(KEYS.draft(circleId));
+}
+
 export type Preview =
   | Readonly<{ ok: true; warnings: readonly PolicyWarning[] }>
   | Readonly<{ ok: false; code: string; message: string }>;
@@ -242,5 +270,7 @@ export async function createFromDraft(
     guardianIds: [],
   });
   await ports.pending.remove(KEYS.draft(circleId));
-  return dealt(created, draft.guardians, []);
+  const handed = dealt(created, draft.guardians, []);
+  const epoch = created.signedPolicy.policy.epoch;
+  return { ...handed, kept: await keepDealt(ports, handed, epoch) };
 }

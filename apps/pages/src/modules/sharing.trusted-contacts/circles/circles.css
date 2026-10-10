@@ -1,0 +1,104 @@
+/* Trusted contacts › Circles (ADR 0186): the owner's rows, steps, choices and
+   switches. The lists and packet fields beside them are trusted-contacts.css. */
+
+.tcc-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.75rem;
+}
+
+.tcc-row > :not(.icon-btn) {
+  grid-column: 1;
+}
+
+.tcc-row > .icon-btn {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+}
+
+.tcc-steps,
+.tcc-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tcc-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.tcc-people {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tcc-person {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.tcc-person__name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tcc-dealt {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.tcc-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.tcc-choice {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tcc-choice[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+
+.tcc-choice:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.tcc-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .tcc-choice,
+  .tcc-switch {
+    min-height: 2.75rem;
+  }
+
+  .tcc-choice {
+    font-size: 1rem;
+  }
+}

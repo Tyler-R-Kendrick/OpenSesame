@@ -22,6 +22,7 @@ import {
   plainSnapshot,
   save,
 } from "./docs.js";
+import { forgetDealt } from "./owner-dealt.js";
 import { DeskError, type DeskPorts, type OwnedRecord } from "./ports.js";
 
 async function owned(ports: DeskPorts, circleId: string): Promise<OwnedRecord> {
@@ -223,6 +224,7 @@ export async function retireCircle(
   await ports.records.removeOwned(circleId);
   await ports.pending.remove(KEYS.receipts(circleId));
   await ports.pending.remove(KEYS.draft(circleId));
+  await forgetDealt(ports, circleId);
   for (const key of await ports.pending.list("ask:")) {
     const ask = await load(ports.pending, key, AskSchema);
     if (ask?.circleId === circleId) await ports.pending.remove(key);

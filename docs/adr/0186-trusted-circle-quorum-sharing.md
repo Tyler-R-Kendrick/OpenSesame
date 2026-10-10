@@ -1,6 +1,6 @@
 # ADR 0186 — Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
 
-- **Status:** Accepted (behaviour built and verified; the ceremony screens are not part of this change)
+- **Status:** Accepted (protocol, native reader and ceremony screens built and verified; physical hardware not yet exercised)
 - **Date:** 2026-10-10
 - **Uses:** [ADR 0086](0086-wallet-native-interaction-layer.md) (an approval means what its digest says), [ADR 0087](0087-vault-item-type-plugins.md) (item types are manifests), [ADR 0090](0090-static-frontend-complete-without-backend.md) (no backend in front of the first screen), [ADR 0130](0130-operator-controlled-capability-composition.md) (optional capabilities), [ADR 0139](0139-one-definition-every-target.md) (one definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md) (nothing stored in the clear), [ADR 0158](0158-settings-rows-act-or-are-absent.md) (a row acts or is absent), [ADR 0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) (authorization is a proof)
 - **Related:** the duress recovery ceremonies (`packages/app-core/src/lib/duress/recovery/`), which solve a neighbouring problem with a shared-secret approval ledger
@@ -163,13 +163,32 @@ secret. No plaintext share and no SLIP-0039 mnemonic is ever in a record.
 ### 8. The capability
 
 `sharing.trusted-contacts` is an optional capability in the Sharing section:
-default off, `keyAccess: item-plaintext, protector-wrap`, no egress. Its code
+default off, `keyAccess: item-plaintext, protector-wrap`, no egress. Its engine
 is `packages/app-core/src/lib/quorum/`, classified as owned by it; the
-bootstrap does not import it. **It has no surface yet**: the module registers
-nothing and the id is in `NO_SURFACE`, exactly as `sharing.household` is, so
-Settings draws no switch (ADR 0158) until the ceremony screens exist. An
-operator can still name it in a policy, prohibit it, or leave it out of a
-distribution.
+bootstrap does not import it. Its module registers **Settings › Trusted
+contacts** with three panels, one per role a person can have in a circle:
+**Circles** (the owner: start, open, invite more, change, ask for approval,
+cancel, retire), **Guarding** (a contact: accept an invitation, take what an
+owner sent, answer a request, leave) and **Recovery** (a recipient: start from
+the recovery file, gather approvals and releases, open). Every ceremony is a
+sheet over a desk function (§10) that already has its own test; a screen
+collects input, calls a step and shows what comes back, and holds no protocol
+logic. Nothing leaves the page: a packet is copied by hand and handed over a
+road the people already use, and the recovery file is a file they save. The
+capability declares two browser permissions (`webauthn`, `clipboard-write`) and
+one user-mediated hand-off, and nothing else. A guest, decoy or locked vault
+draws no panel, because its records would not outlive the session. An operator
+can prohibit the capability or leave it out of a distribution, and the tab goes
+with it.
+
+A failure is never drawn in the page. The step that failed puts an error mark
+on its own control and raises one tray notice, and only the error's own sentence
+is shown: an unknown error becomes "That step did not finish.", so nothing about
+it reaches the screen. What is in flight survives a closed sheet or a reload:
+an invitation the owner has made, the packets still to hand out, an agreement
+a contact has made but not yet taken, and a recovery that has been opened but
+not yet saved all rest in the vault's sealed pending store until the step that
+makes them redundant has happened.
 
 ### 9. Changing a circle is a new epoch
 
@@ -291,11 +310,14 @@ State these to the people who rely on it.
   road; nothing in the protocol can.
 - **Credentials are bound to an origin.** A guardian's keys are registered
   under the circle's RP ID and origins. Losing that domain strands them.
-- **Not exercised against physical hardware yet.** The tests drive a virtual
-  authenticator that produces real WebAuthn artifacts, including the PRF
-  derivation as the specification defines it. A pass against a physical YubiKey,
-  and against platform passkeys, in Chrome, Safari and Firefox is the first
-  follow-up.
+- **Not exercised against physical hardware yet.** The tests drive virtual
+  authenticators: a JavaScript one in the unit suites, and Chromium's own
+  (a CDP virtual authenticator with `hasPrf`) in real browsers, which runs the
+  browser's WebAuthn code but not a vendor's firmware, a platform enclave, or
+  Safari's or Firefox's implementation. A pass against a physical YubiKey and
+  against platform passkeys, in Chrome, Safari and Firefox, is the first
+  follow-up; `docs/validation/trusted-contacts-hardware.md` holds the protocol
+  and a results matrix that is empty on purpose.
 - **WebAuthn verification covers the steps listed in §2,** not every optional
   step of the specification (no attestation, no `userHandle`, no extension
   outputs beyond PRF).
@@ -344,11 +366,19 @@ State these to the people who rely on it.
 ## Consequences
 
 - One more optional capability, one owner proof, two marketplace item types,
-  two conformance files. No change to the default bundle.
+  two conformance files. No change to the bootstrap, which does not import it.
 - The core share ledger now trails a quorum grant as a decision (receipt and,
   for a connector, the Access audit line), as it does a person's.
-- The ceremonies need screens: invite and enroll, take a share, approve,
-  release, recombine. Until then the behaviour is reachable by code only.
+- The Pages bundle grows by the quorum engine and the three panels, in two lazy
+  chunks that only a vault with the capability on ever fetches; the budget notes
+  in `tools/quality/bundle-budgets.json` record the measured sizes.
+- The generic "New item" picker lists the two item types once a vault has them
+  installed (they are optional marketplace types, installed when the capability
+  is first used). A person can make an empty one there; it reads as unreadable
+  and is reported rather than thrown.
+- The pending store keeps a file whose name is an unsalted hash of its key. It
+  hides the kind and the circle id, not that a ceremony of some kind is in
+  flight.
 
 ## Follow-ups
 

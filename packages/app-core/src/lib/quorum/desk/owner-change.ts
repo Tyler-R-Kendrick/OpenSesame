@@ -4,6 +4,7 @@ import { verifyCustodyReceipt } from "../guardian.js";
 import { expectPacket } from "../packets.js";
 import type { SignedPolicy } from "../types.js";
 import { KEYS, OwnerDraftSchema, ReceiptsSchema, load, save } from "./docs.js";
+import { forgetDealt, keepDealt } from "./owner-dealt.js";
 import {
   type Dealt,
   type RuleInput,
@@ -71,6 +72,8 @@ export async function recordReceipt(
   if (armed && record.state === "inviting") {
     await ports.records.saveOwned({ ...record, state: "armed" });
   }
+  // Every contact holds their share: the packets have done their work.
+  if (armed) await forgetDealt(ports, circleId);
   return { held: [...held], total: policy.guardians.length, armed };
 }
 
@@ -134,5 +137,11 @@ export async function reissue(
     guardianIds: [],
   });
   await ports.pending.remove(KEYS.draft(circleId));
-  return dealt(reissued, roster, retired);
+  const handed = dealt(reissued, roster, retired);
+  const kept = await keepDealt(
+    ports,
+    handed,
+    reissued.signedPolicy.policy.epoch,
+  );
+  return { ...handed, kept };
 }

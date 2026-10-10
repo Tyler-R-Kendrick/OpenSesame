@@ -94,6 +94,7 @@ export const KEYS = {
   guardian: (inviteId: string) => `guardian-pending:${inviteId}`,
   cancelled: (circleId: string) => `cancelled:${circleId}`,
   recovery: (requestId: string) => `recovery:${requestId}`,
+  dealt: (circleId: string) => `dealt:${circleId}`,
 } as const;
 
 /** Read one document through its schema; `null` when it is not there. */

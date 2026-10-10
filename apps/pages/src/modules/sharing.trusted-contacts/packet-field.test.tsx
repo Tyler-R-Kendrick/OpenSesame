@@ -210,6 +210,31 @@ describe("PacketIn", () => {
     await waitFor(() => expect(isDisabled(key)).toBe(false));
   });
 
+  it("words a wrong kind naturally, however many kinds the field takes", async () => {
+    const { invite, welcome } = await packets();
+    render(
+      <PacketIn
+        id="tc-three"
+        label="An answer"
+        kind={["approval", "approvals", "release"]}
+        commitLabel="Use this answer"
+        onPacket={async () => undefined}
+      />,
+    );
+    const box = screen.getByLabelText("An answer");
+    await userEvent.click(box);
+    await userEvent.paste(invite);
+    await screen.findByRole("img", {
+      name: "This is an invite, not an approval, an approvals list or a release.",
+    });
+    await userEvent.clear(box);
+    await userEvent.paste(welcome);
+    await screen.findByRole("img", {
+      name: "This is a welcome, not an approval, an approvals list or a release.",
+    });
+    expect(listNotices()).toEqual([]);
+  });
+
   it("shows a step that failed on the field and in the tray, keeps the paste, and clears both on an edit", async () => {
     const { invite } = await packets();
     const onPacket = vi.fn(async () => {

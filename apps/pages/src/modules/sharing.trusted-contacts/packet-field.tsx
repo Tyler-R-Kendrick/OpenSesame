@@ -83,8 +83,19 @@ export function PacketOut({
   );
 }
 
+/** What a kind is called in a sentence: a list of approvals is a list, not an approval. */
 function article(kind: string): string {
-  return /^[aeiou]/.test(kind) ? `an ${kind}` : `a ${kind}`;
+  const name = kind === "approvals" ? "approvals list" : kind;
+  return /^[aeiou]/.test(name) ? `an ${name}` : `a ${name}`;
+}
+
+/** "a request", "a welcome or a receipt", "an approval, an approvals list or a release". */
+function oneOf(kinds: readonly string[]): string {
+  const phrases = kinds.map(article);
+  const last = phrases.at(-1) ?? "";
+  return phrases.length < 2
+    ? last
+    : `${phrases.slice(0, -1).join(", ")} or ${last}`;
 }
 
 type Reading =
@@ -101,10 +112,9 @@ function read(text: string, wanted: string): Reading {
     const packet = decodePacket(text);
     const kinds = wanted.split(",");
     if (kinds.includes(packet.kind)) return { state: "ok", packet };
-    const takes = kinds.map(article).join(" or ");
     return {
       state: "bad",
-      problem: sentence(`this is ${article(packet.kind)}, not ${takes}`),
+      problem: sentence(`this is ${article(packet.kind)}, not ${oneOf(kinds)}`),
     };
   } catch (caught) {
     return {

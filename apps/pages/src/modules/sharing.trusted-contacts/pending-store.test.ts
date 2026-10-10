@@ -27,6 +27,8 @@ import { PENDING_DIR, tombPendingStore } from "./pending-store.js";
 
 const TOMB = "trusted-pending-test";
 const SECRET = "c2VjcmV0LXNpZ25pbmcta2V5LW1hdGVyaWFsLTAwMDAwMQ";
+// Long enough that a random base64 envelope cannot contain it by chance.
+const NAME_MARKER = "Ada Lovelace the guardian of Family";
 
 async function wipe(): Promise<void> {
   await vfsFlush();
@@ -244,7 +246,7 @@ describe("a ceremony at rest (ADR 0149, ADR 0175)", () => {
       });
       await store.write("guardian-pending:inv-1", {
         hpkeSecretKey: SECRET,
-        name: "Ada",
+        name: NAME_MARKER,
       });
       await store.write("recovery:r-9", { recipientSecretKey: SECRET });
       await vfsFlush();
@@ -259,7 +261,7 @@ describe("a ceremony at rest (ADR 0149, ADR 0175)", () => {
       expect(text).not.toContain("hpkeSecretKey");
       expect(text).not.toContain("owner-draft");
       expect(text).not.toContain(CIRCLE);
-      expect(text).not.toContain("Ada");
+      expect(text).not.toContain(NAME_MARKER);
     }
     // What the storage layer holds for a file is the sealed envelope alone.
     const paths = await listDir(TOMB, PENDING_DIR);
