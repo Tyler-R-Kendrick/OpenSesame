@@ -108,3 +108,5 @@ dead link.
   a delay) — the repro lost a frame either way — and acknowledgement inside
   each transport, which every adapter would have to write again.
 - `verify:live-join` still runs in no CI job (`scripts/lib/ci-gate-drivers.mjs`).
+  *2026-10-10 note:* it does now, across three browsers
+  ([ADR 0187](0187-live-join-walked-in-ci-across-browsers.md)).

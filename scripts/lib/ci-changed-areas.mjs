@@ -14,6 +14,7 @@ import {
   bundleMatrix,
   driverReach,
   gatesForPaths,
+  liveJoinFixturePath,
   loadShards,
   relayJoinPath,
 } from "./ci-gates.mjs";
@@ -273,6 +274,7 @@ function emit(areas, gates = new Set(ALL_GATES)) {
     `tutorials=${gates.has("tutorials") ? "true" : "false"}`,
     `device_inbox=${gates.has("device-inbox") ? "true" : "false"}`,
     `device_identity=${gates.has("device-identity") ? "true" : "false"}`,
+    `live_join=${gates.has("live-join") ? "true" : "false"}`,
   ];
   const output = process.env.GITHUB_OUTPUT;
   if (output) writeFileSync(output, `${lines.join("\n")}\n`, { flag: "a" });
@@ -358,6 +360,7 @@ export function selectGates(root, kept, dirs, pushDirs) {
     (path) =>
       path === ".github/workflows/ci.yml" ||
       relayJoinPath(path) ||
+      liveJoinFixturePath(path) ||
       areasForPaths([path], dirs, pushDirs).bundle,
   );
   const read = (path) => {

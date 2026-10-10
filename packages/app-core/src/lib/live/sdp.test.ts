@@ -6,6 +6,7 @@
  */
 import { describe, expect, it } from "vitest";
 import capture from "./__fixtures__/chromium-sdp.json";
+import others from "./__fixtures__/firefox-webkit-sdp.json";
 import { withAddressHints } from "./candidates.js";
 import { fakeSdp } from "./live-fakes.js";
 import { readJoinReply, readJoinRequest } from "./messages.js";
@@ -77,9 +78,66 @@ describe("what real Chromium sends", () => {
     });
 });
 
+describe("what real Firefox and WebKit send", () => {
+  const pairs = others.captures.flatMap((entry) =>
+    entry.pairs.map((pair) => ({ ...pair, browser: entry.browser })),
+  );
+  const engine = (browser: string) =>
+    browser.includes("Firefox/") ? "Firefox" : "WebKit";
+
+  it("was captured for both engines and all four road shapes, and each answering the others", () => {
+    expect(others.captures.map((entry) => engine(entry.browser))).toEqual([
+      "Firefox",
+      "WebKit",
+    ]);
+    for (const entry of others.captures)
+      expect(entry.pairs.map((pair) => pair.name).sort()).toEqual(
+        ["mdns-off", "mdns-on", "relay-only", "turn-and-stun"].sort(),
+      );
+    expect(
+      others.cross.map((pair) => `${pair.offerer}>${pair.answerer}`).sort(),
+    ).toEqual(
+      [
+        "chromium>firefox",
+        "chromium>webkit",
+        "firefox>chromium",
+        "firefox>webkit",
+        "webkit>chromium",
+        "webkit>firefox",
+      ].sort(),
+    );
+    // The relay roads gathered relay candidates: they are not empty captures.
+    const relayOnly = pairs.filter((pair) => pair.name === "relay-only");
+    for (const pair of relayOnly) {
+      expect(pair.offer).toContain("typ relay");
+      expect(pair.offer).not.toContain("typ host");
+    }
+  });
+
+  for (const pair of pairs)
+    it(`reads ${engine(pair.browser)} ${pair.name}: offer, answer, either line ending, with address hints`, () => {
+      expect(offer(pair.offer)?.offer).toBe(pair.offer);
+      expect(answer(pair.answer)?.answer).toBe(pair.answer);
+      expect(offer(pair.offer.replace(/\r\n/g, "\n"))).not.toBeNull();
+      const hints = [
+        "100.101.102.103",
+        "fd7a:115c:a1e0:ab12:4843:cd96:6258:b240",
+      ];
+      expect(offer(withAddressHints(pair.offer, hints))).not.toBeNull();
+      expect(answer(withAddressHints(pair.answer, hints))).not.toBeNull();
+    });
+
+  for (const pair of others.cross)
+    it(`reads ${pair.answerer}'s answer to ${pair.offerer}'s offer`, () => {
+      expect(offer(pair.offer)?.offer).toBe(pair.offer);
+      expect(answer(pair.answer)?.answer).toBe(pair.answer);
+    });
+});
+
 describe("what other browsers send", () => {
   // Written from the shape Firefox and Safari's WebRTC stacks use for a data
-  // channel; not captured here, unlike the Chromium ones above.
+  // channel, beside the captures above: an srflx candidate, an IPv6 one and
+  // Safari's mDNS names, which a capture on one machine with no STUN lacks.
   const FIREFOX = sdp(
     "v=0",
     "o=mozilla...THIS_IS_SDPARTA-99.0 5175827427628424404 0 IN IP4 0.0.0.0",
