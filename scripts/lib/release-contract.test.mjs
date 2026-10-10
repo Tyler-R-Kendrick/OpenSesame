@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { stampRelease, verifyRelease } from "./pages-release.mjs";
-import { assertPrSignatures } from "./pr-signatures.mjs";
+import {
+  assertMergeGroupSignature,
+  assertPrSignatures,
+} from "./pr-signatures.mjs";
 
 const revision = "a".repeat(40);
 const earlier = "b".repeat(40);
@@ -47,6 +50,31 @@ describe("PR merge eligibility", () => {
       );
     expect(() =>
       assertPrSignatures(pr, [verified(earlier), verified(revision)], earlier),
+    ).toThrow("head changed");
+  });
+});
+
+describe("merge_group signature eligibility", () => {
+  it("accepts a verified GitHub-created merge_group head", () => {
+    expect(() =>
+      assertMergeGroupSignature(
+        { sha: revision, commit: { verification: { verified: true } } },
+        revision,
+      ),
+    ).not.toThrow();
+  });
+  it("refuses an unverified or mismatched merge_group head", () => {
+    expect(() =>
+      assertMergeGroupSignature(
+        { sha: revision, commit: { verification: { verified: false } } },
+        revision,
+      ),
+    ).toThrow("Verified signatures required");
+    expect(() =>
+      assertMergeGroupSignature(
+        { sha: earlier, commit: { verification: { verified: true } } },
+        revision,
+      ),
     ).toThrow("head changed");
   });
 });
