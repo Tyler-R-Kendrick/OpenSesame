@@ -110,13 +110,13 @@ export async function direct(browser, owner) {
   );
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
   await joinerConnects(joiner.page, reply);
+  await joined(joiner.page).waitFor({ timeout: 45_000 });
   for (const [who, page] of [
     ["owner", owner.page],
     ["joiner", joiner.page],
   ]) {
     await assertSameMachineSdpPrivacy(page, who);
   }
-  await joined(joiner.page).waitFor({ timeout: 45_000 });
   await joiner.page
     .getByRole("button", { name: "Reveal GitHub Value" })
     .click();

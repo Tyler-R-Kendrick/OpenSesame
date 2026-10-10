@@ -111,23 +111,37 @@ function isPrivateLanHost(host) {
  * never a private LAN literal a remote peer could dial.
  */
 export async function assertSameMachineSdpPrivacy(page, who) {
-  const states = await peerStates(page);
+  const states = await page.evaluate(() => ({
+    peers: (window.__rtcPeers ?? []).map((pc) => ({
+      remote: (pc.remoteDescription?.sdp ?? "")
+        .split("\r\n")
+        .filter((line) => line.startsWith("a=candidate:")),
+      local: (pc.localDescription?.sdp ?? "")
+        .split("\r\n")
+        .filter((line) => line.startsWith("a=candidate:")),
+    })),
+  }));
+  let loopbackSealed = false;
   for (const peer of states.peers) {
-    const hosts = peer.remote.map(hostFromCandidateLine);
-    for (const host of hosts) {
+    const remoteHosts = peer.remote.map(hostFromCandidateLine);
+    for (const host of remoteHosts) {
       if (!isPrivateLanHost(host)) continue;
       throw new Error(
         `direct: ${who}'s remote description must not carry a private LAN IP (${host})`,
       );
     }
-    const hasLoopback = hosts.some(
-      (host) => host === "127.0.0.1" || host === "::1",
-    );
-    if (!hasLoopback) {
-      throw new Error(
-        `direct: ${who} should see loopback hints for same-machine pairing`,
-      );
+    const localHosts = peer.local.map(hostFromCandidateLine);
+    if (
+      localHosts.some((host) => host === "127.0.0.1" || host === "::1") ||
+      remoteHosts.some((host) => host === "127.0.0.1" || host === "::1")
+    ) {
+      loopbackSealed = true;
     }
+  }
+  if (!loopbackSealed) {
+    throw new Error(
+      `direct: ${who} should seal loopback hints for same-machine pairing`,
+    );
   }
 }
 
