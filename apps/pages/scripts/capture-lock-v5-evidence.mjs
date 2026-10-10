@@ -11,19 +11,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { passTheDoor } from "./lib/front-door.mjs";
-import {
-  PIN,
-  lockVault,
-  sealLocalOnly,
-  unlockWithPin,
-} from "./lib/pages-journey.mjs";
+import { PIN, lockVault, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const mode = process.argv[2];
 const outDir = path.resolve(
   process.argv[3] ??
-    path.join(here, "..", "..", "..", "docs/evidence/2026-10-10-lock-v5-title-screen"),
+    path.join(
+      here,
+      "..",
+      "..",
+      "..",
+      "docs/evidence/2026-10-10-lock-v5-title-screen",
+    ),
 );
 
 if (mode !== "main" && mode !== "branch" && mode !== "reference") {
@@ -35,10 +36,8 @@ if (mode !== "main" && mode !== "branch" && mode !== "reference") {
 
 fs.mkdirSync(outDir, { recursive: true });
 
-const DIST =
-  process.env.PAGES_DIST ?? path.resolve(here, "..", "dist");
-const ORIGIN =
-  process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
+const DIST = process.env.PAGES_DIST ?? path.resolve(here, "..", "dist");
+const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 
 const VIEWPORTS = [
@@ -128,7 +127,7 @@ async function captureSet(browser, newPage, prefix) {
 }
 
 let browser;
-let closeHarness = async () => {};
+const closeHarness = async () => {};
 
 if (mode === "main") {
   browser = await chromium.launch();
@@ -139,15 +138,15 @@ if (mode === "main") {
   await captureSet(browser, newPage, "before");
   await browser.close();
 } else {
-  if (!fs.existsSync(path.join(DIST, "index.html"))) {
+  const hasIndex = fs.existsSync(path.join(DIST, "index.html"));
+  const hasReference = fs.existsSync(path.join(DIST, "lock-v5-reference.html"));
+  if (mode === "reference") {
+    if (!hasReference) {
+      console.error(`missing lock-v5-reference.html in dist at ${DIST}`);
+      process.exit(2);
+    }
+  } else if (!hasIndex) {
     console.error(`missing dist at ${DIST}`);
-    process.exit(2);
-  }
-  if (
-    mode === "reference" &&
-    !fs.existsSync(path.join(DIST, "lock-v5-reference.html"))
-  ) {
-    console.error(`missing lock-v5-reference.html in dist at ${DIST}`);
     process.exit(2);
   }
   const harness = createHarness({

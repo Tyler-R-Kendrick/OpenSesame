@@ -103,14 +103,7 @@ export const Wordmark = forwardRef<
     includeMark?: boolean;
   }
 >(function Wordmark(
-  {
-    className,
-    size,
-    fit,
-    as: Tag = "p",
-    replay = false,
-    includeMark = false,
-  },
+  { className, size, fit, as: Tag = "p", replay = false, includeMark = false },
   ref,
 ): ReactElement {
   const rootRef = useRef<HTMLElement | null>(null);

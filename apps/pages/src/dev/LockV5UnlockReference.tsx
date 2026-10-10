@@ -1,8 +1,9 @@
 import { useRef } from "react";
 import { CipherWordmark } from "../components/CipherWordmark/index.js";
+import { GateTools } from "../components/GateTools.js";
 import type { WordmarkHandle } from "../components/Wordmark.js";
-import { UnlockLockV5 } from "../screens/unlock/UnlockLockV5.js";
 import { ReleaseNotes } from "../screens/unlock/ReleaseNotes.js";
+import { UnlockLockV5 } from "../screens/unlock/UnlockLockV5.js";
 import { useUnlockHeroLayout } from "../screens/unlock/use-unlock-hero-layout.js";
 import "../screens/unlock.css";
 import "../components/VaultDoors/vault-doors.css";
@@ -47,6 +48,9 @@ export function LockV5UnlockReference() {
       <div className="unlock__card" ref={cardRef}>
         <div className="unlock__brand">
           <span className="unlock__wordmark unlock__wordmark--reserve" />
+          <div className="unlock__brand-tools">
+            <GateTools />
+          </div>
         </div>
         <h1 className="unlock__title">Unlock</h1>
         <div className="unlock__form" style={{ minHeight: "11rem" }} />

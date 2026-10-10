@@ -40,9 +40,14 @@ Widths: **390**, **1024**, **1280** px.
 Capture:
 
 ```bash
-VITE_BASE=/OpenSesame/ pnpm exec vite build --filter=@opensesame/pages  # or apps/pages vite build after security-profile
+cd apps/pages
+node scripts/security-profile.mjs
+VITE_BASE=/OpenSesame/ pnpm exec vite build
+PAGES_LOCK_V5_REFERENCE=1 VITE_BASE=/OpenSesame/ pnpm exec vite build --outDir dist-lock-v5-reference
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
-  node apps/pages/scripts/capture-lock-v5-evidence.mjs main|branch|reference [outDir]
+  node scripts/capture-lock-v5-evidence.mjs branch [outDir]
+PAGES_DIST=dist-lock-v5-reference PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  node scripts/capture-lock-v5-evidence.mjs reference [outDir]
 ```
 
 Settled shots wait for `.unlock__hero .cipher-wordmark--settled`. Doors shots wait for `.unlock--doors` with `--unlock-door-shift` past 12%.

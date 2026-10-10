@@ -44,10 +44,10 @@ import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
+import { LockFoot } from "./unlock/LockFoot.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
-import { LockFoot } from "./unlock/LockFoot.js";
 import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -373,10 +373,7 @@ function UnlockForm({
       totpRef,
       pendingFocus,
     });
-    beginCeremonyIfUnlocked(
-      before,
-      signInStage || showSignIn || firstRun,
-    );
+    beginCeremonyIfUnlocked(before, signInStage || showSignIn || firstRun);
   }
 
   const pinProblems =
