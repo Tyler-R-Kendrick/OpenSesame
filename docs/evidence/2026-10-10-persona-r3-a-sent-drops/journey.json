@@ -1,0 +1,46 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "enable": "Secret drops" },
+        { "visit": "access?view=sessions#sent-drops" },
+        { "measure": "footer.statusline" },
+        { "shot": "sent-drops-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "enable": "Secret drops" },
+        { "visit": "access?view=sessions#sent-drops" },
+        { "measure": "footer.statusline" },
+        { "shot": "sent-drops-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "sent-drops-1280",
+      "width": 1280,
+      "title": "Access › Sessions › Sent (desktop)",
+      "caption": "Revoke arms on first press; locked-out sends show StatusMark only.",
+      "before": "Single-press revoke; no locked_out row state",
+      "after": "Two-press revoke with armed key; locked_out receipt path"
+    },
+    {
+      "shot": "sent-drops-390",
+      "width": 390,
+      "title": "Access › Sessions › Sent (phone)",
+      "caption": "Same Sent panel at phone width.",
+      "before": "Single-press revoke; no locked_out row state",
+      "after": "Two-press revoke with armed key; locked_out receipt path"
+    }
+  ]
+}

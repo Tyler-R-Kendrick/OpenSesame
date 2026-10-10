@@ -7,7 +7,12 @@ import {
   policyLabel,
 } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconArrowRight, IconCheck, IconX } from "../../components/Icons.js";
+import {
+  IconArrowRight,
+  IconCheck,
+  IconChevronLeft,
+  IconX,
+} from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 export function PendingGrantRows({
@@ -113,7 +118,7 @@ export function PendingGrantDecision({
           <IconX size={16} />
         </IconKey>
         <IconKey label="Close grant request" onClick={close}>
-          <IconX size={16} />
+          <IconChevronLeft size={16} />
         </IconKey>
       </div>
     </fieldset>
