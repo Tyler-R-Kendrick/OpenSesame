@@ -2,8 +2,8 @@ use super::{framing, wire, Path};
 #[cfg(test)]
 use base64::{engine::general_purpose::STANDARD, Engine};
 use opensesame_human_vault::root_protection::node_data_state::{
-    NativeNodeCredentialLease, NativeNodeDataReader, NativeNodeDataScope, NativeNodeDataState,
-    NativeNodeDataWriter, NativeNodeDeviceInventory,
+    NativeNodeBootstrapLease, NativeNodeCredentialLease, NativeNodeDataReader, NativeNodeDataScope,
+    NativeNodeDataState, NativeNodeDataWriter, NativeNodeDeviceInventory,
 };
 #[cfg(unix)]
 use opensesame_human_vault::root_protection::unix_private_files::{
@@ -24,7 +24,10 @@ use readonly::OriginalReadScope;
 #[path = "ciphertext_codec.rs"]
 mod ciphertext_codec;
 use ciphertext_codec::{bytes_reply, ciphertext_input};
-
+#[path = "bootstrap.rs"]
+mod bootstrap;
+#[path = "ciphertext_publication.rs"]
+mod ciphertext_publication;
 #[path = "custody.rs"]
 mod custody;
 
@@ -47,6 +50,7 @@ struct OriginalSession {
     lease: Option<HeldPrivateWriterLease>,
     credential: Option<Arc<NativeNodeCredentialLease>>,
     body: Option<NativeNodeDataWriter>,
+    bootstrap: Option<NativeNodeBootstrapLease>,
     reader: Option<NativeNodeDataReader>,
     inventory: Option<NativeNodeDeviceInventory>,
 }
@@ -66,6 +70,7 @@ impl OriginalSession {
             || self.credential.is_some()
             || self.body.is_some()
             || self.reader.is_some()
+            || self.bootstrap.is_some()
             || self.inventory.is_some()
         {
             return Err(refused());
@@ -83,6 +88,7 @@ impl OriginalSession {
             || self.credential.is_some()
             || self.body.is_some()
             || self.reader.is_some()
+            || self.bootstrap.is_some()
             || self.inventory.is_some()
         {
             return Err(refused());
@@ -93,7 +99,7 @@ impl OriginalSession {
         })
     }
     fn try_body(&mut self, tomb: &str) -> io::Result<wire::Reply> {
-        if self.body.is_some() || self.reader.is_some() {
+        if self.body.is_some() || self.reader.is_some() || self.bootstrap.is_some() {
             return Err(refused());
         }
         let credential = self.credential.as_ref().ok_or_else(refused)?;
@@ -113,6 +119,8 @@ impl OriginalSession {
             wire::Operation::LeaseTry { logical, mode } => self.try_lease(&logical, mode)?,
             wire::Operation::CredentialTry {} => self.try_credential()?,
             wire::Operation::BodyTry { tomb } => self.try_body(&tomb)?,
+            wire::Operation::BodyOrBootstrapTry { tomb } => self.try_body_or_bootstrap(&tomb)?,
+            wire::Operation::BootstrapDestinationAbsent {} => self.bootstrap_absent()?,
             operation @ (wire::Operation::Lease { .. } | wire::Operation::LeaseClose {}) => {
                 self.apply_generic_lease(operation)?
             }
@@ -143,12 +151,7 @@ impl OriginalSession {
             wire::Operation::Identity { scope: selected } => wire::Reply::Identity {
                 value: self.read_scope()?.identity(scope(&selected))?,
             },
-            wire::Operation::BodyClose {} => {
-                if self.body.take().is_none() {
-                    return Err(refused());
-                }
-                wire::Reply::Ack
-            }
+            wire::Operation::BodyClose {} => self.close_body_custody()?,
             wire::Operation::CredentialClose {} => self.close_credential()?,
             wire::Operation::Validate {} => self.validate_resources()?,
             wire::Operation::Close {} => {
@@ -163,6 +166,7 @@ impl OriginalSession {
         let reply = match operation {
             wire::Operation::CaptureBodyReader { tomb } => {
                 if self.body.is_some()
+                    || self.bootstrap.is_some()
                     || self.reader.is_some()
                     || self.credential.is_some()
                     || self.inventory.is_some()
@@ -190,6 +194,7 @@ impl OriginalSession {
                     || self.credential.is_some()
                     || self.body.is_some()
                     || self.reader.is_some()
+                    || self.bootstrap.is_some()
                     || self.inventory.is_some()
                 {
                     return Err(refused());
@@ -204,33 +209,6 @@ impl OriginalSession {
                 if self.lease.take().is_none() {
                     return Err(refused());
                 }
-                wire::Reply::Ack
-            }
-            _ => return Err(refused()),
-        };
-        Ok(reply)
-    }
-    fn publish_ciphertext(&self, operation: wire::Operation) -> io::Result<wire::Reply> {
-        let reply = match operation {
-            wire::Operation::PublishGeneration { expected, next } => {
-                let expected = ciphertext_input(expected)?;
-                let next = ciphertext_input(next)?;
-                self.writer()?
-                    .compare_publish_generation_ciphertext(expected.as_deref(), next.as_deref())?;
-                wire::Reply::Ack
-            }
-            wire::Operation::PublishDevice {
-                logical_key,
-                expected,
-                next,
-            } => {
-                let expected = ciphertext_input(expected)?;
-                let next = ciphertext_input(next)?;
-                self.writer()?.compare_publish_modern_device_ciphertext(
-                    &logical_key,
-                    expected.as_deref(),
-                    next.as_deref(),
-                )?;
                 wire::Reply::Ack
             }
             _ => return Err(refused()),
@@ -279,6 +257,9 @@ impl OriginalSession {
         if let Some(reader) = self.reader.as_ref() {
             reader.validate()?;
         }
+        if let Some(bootstrap) = self.bootstrap.as_ref() {
+            bootstrap.validate()?;
+        }
         if let Some(lease) = self.lease.as_ref() {
             lease.validate()?;
         }
@@ -289,10 +270,11 @@ impl OriginalSession {
         self.lease.take();
         // Kernel BODY closes before the final retained credential reference.
         self.body.take();
+        let bootstrap = self.bootstrap.take().map_or(Ok(()), |held| held.close());
         self.reader.take();
         self.inventory.take();
         self.credential.take();
-        sealed
+        sealed.and(bootstrap)
     }
 }
 pub(super) fn run(state_path: &Path) -> io::Result<()> {
@@ -310,6 +292,7 @@ fn serve(
         lease: None,
         credential: None,
         body: None,
+        bootstrap: None,
         reader: None,
         inventory: None,
     };
@@ -344,3 +327,7 @@ mod ciphertext_fixture;
 #[cfg(test)]
 #[path = "lease_tests.rs"]
 mod lease_tests;
+
+#[cfg(test)]
+#[path = "bootstrap_tests.rs"]
+mod bootstrap_tests;

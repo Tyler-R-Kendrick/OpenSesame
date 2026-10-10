@@ -37,6 +37,10 @@ pub(super) enum Operation {
     BodyTry {
         tomb: String,
     },
+    BodyOrBootstrapTry {
+        tomb: String,
+    },
+    BootstrapDestinationAbsent {},
     CaptureBodyReader {
         tomb: String,
     },
@@ -102,6 +106,7 @@ mod tests {
         for kind in [
             "lease_close",
             "body_reader_close",
+            "bootstrap_destination_absent",
             "credential",
             "credential_try",
             "read_generation",

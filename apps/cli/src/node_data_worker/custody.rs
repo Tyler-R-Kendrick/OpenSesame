@@ -8,6 +8,7 @@ impl OriginalSession {
                 || self.credential.is_some()
                 || self.body.is_some()
                 || self.reader.is_some()
+                || self.bootstrap.is_some()
             {
                 return Err(refused());
             }
@@ -17,7 +18,7 @@ impl OriginalSession {
     }
     pub(super) fn capture_body(&mut self, tomb: &str) -> io::Result<wire::Reply> {
         Ok({
-            if self.body.is_some() || self.reader.is_some() {
+            if self.body.is_some() || self.reader.is_some() || self.bootstrap.is_some() {
                 return Err(refused());
             }
             let credential = self.credential.as_ref().ok_or_else(refused)?;
@@ -27,13 +28,17 @@ impl OriginalSession {
     }
     pub(super) fn close_credential(&mut self) -> io::Result<wire::Reply> {
         Ok({
-            if self.body.is_some() || self.inventory.is_some() || self.credential.take().is_none() {
+            if self.body.is_some()
+                || self.bootstrap.is_some()
+                || self.inventory.is_some()
+                || self.credential.take().is_none()
+            {
                 return Err(refused());
             }
             wire::Reply::Ack
         })
     }
-    pub(super) fn validate_resources(&self) -> io::Result<wire::Reply> {
+    pub(super) fn validate_resources(&mut self) -> io::Result<wire::Reply> {
         Ok({
             if let Some(writer) = self.body.as_ref() {
                 writer.validate()?;
