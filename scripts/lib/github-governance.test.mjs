@@ -11,7 +11,7 @@ const policy = JSON.parse(
   readFileSync(new URL("ops/github/default-branch.json", root), "utf8"),
 );
 
-describe("repository governance", () => {
+describe("repository governance ownership", () => {
   it("updates only the named policy and refuses ambiguous ownership", () => {
     expect(selectRuleset([{ name: "unrelated" }], policy.name)).toBeUndefined();
     expect(() => selectRuleset([policy, policy], policy.name)).toThrow(
@@ -28,7 +28,9 @@ describe("repository governance", () => {
       "update",
     );
   });
+});
 
+describe("repository governance default-branch rules", () => {
   it("requires current Actions checks without impossible sole-owner approval", () => {
     expect(policy.bypass_actors).toEqual([]);
     expect(policy.conditions.ref_name).toEqual({
@@ -48,18 +50,6 @@ describe("repository governance", () => {
       (rule) => rule.type === "required_status_checks",
     ).parameters;
     expect(checks.strict_required_status_checks_policy).toBe(false);
-    const queue = policy.rules.find(
-      (rule) => rule.type === "merge_queue",
-    ).parameters;
-    expect(queue).toEqual({
-      check_response_timeout_minutes: 60,
-      grouping_strategy: "ALLGREEN",
-      max_entries_to_build: 5,
-      max_entries_to_merge: 5,
-      merge_method: "SQUASH",
-      min_entries_to_merge: 1,
-      min_entries_to_merge_wait_minutes: 5,
-    });
     expect(checks.required_status_checks).toEqual([
       { context: "TypeScript", integration_id: 15368 },
       { context: "Bundle budgets", integration_id: 15368 },
@@ -73,6 +63,23 @@ describe("repository governance", () => {
     expect(review.require_code_owner_review).toBe(false);
   });
 
+  it("declares a squash merge queue that supersedes strict up-to-date", () => {
+    const queue = policy.rules.find(
+      (rule) => rule.type === "merge_queue",
+    ).parameters;
+    expect(queue).toEqual({
+      check_response_timeout_minutes: 60,
+      grouping_strategy: "ALLGREEN",
+      max_entries_to_build: 5,
+      max_entries_to_merge: 5,
+      merge_method: "SQUASH",
+      min_entries_to_merge: 1,
+      min_entries_to_merge_wait_minutes: 5,
+    });
+  });
+});
+
+describe("repository governance pages and workflows", () => {
   it("restricts Pages to the default branch, including tag/name confusion", () => {
     const branches = [
       { id: 1, type: "branch", name: "main" },
