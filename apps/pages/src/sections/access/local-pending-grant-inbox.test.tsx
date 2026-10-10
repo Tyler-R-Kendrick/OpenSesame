@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PendingShare } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import { PendingGrantDecision } from "./local-pending-grant-inbox.js";
 
-const pending = {
+const pending: PendingShare = {
   id: "pending_1",
   principalId: "prn_1",
   resourceKind: "vault",
