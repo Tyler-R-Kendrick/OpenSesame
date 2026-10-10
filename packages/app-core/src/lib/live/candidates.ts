@@ -33,6 +33,16 @@ function hintLine(line: string, address: string, at: number): string | null {
   return `a=candidate:${fresh} ${component} ${transport} ${lower} ${address} ${port} typ host${rest}`;
 }
 
+/**
+ * Where a direct session should also be reachable on one machine: loopback
+ * literals beside mDNS host names, so two tabs on the same device connect
+ * without STUN, TURN or disabling `WebRtcHideLocalIpsWithMdns`.
+ */
+export const SAME_MACHINE_LOOPBACK_HINTS: readonly string[] = [
+  "127.0.0.1",
+  "::1",
+];
+
 /** `sdp` with a copy of each host candidate at each hinted address. */
 export function withAddressHints(
   sdp: string,

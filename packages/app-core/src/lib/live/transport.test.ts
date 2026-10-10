@@ -4,7 +4,7 @@
  */
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { withAddressHints } from "./candidates.js";
+import { SAME_MACHINE_LOOPBACK_HINTS, withAddressHints } from "./candidates.js";
 import { formatLiveLink, parseLiveLink } from "./link.js";
 import { linkRoutes, routesSegment } from "./routes.js";
 import { newKeypair, newLinkSecret } from "./seal.js";
@@ -207,5 +207,11 @@ describe("address hints", () => {
 
   it("changes nothing with no address", () => {
     expect(withAddressHints(OFFER, [])).toBe(OFFER);
+  });
+
+  it("adds loopback copies for same-machine direct pairing", () => {
+    const hinted = withAddressHints(OFFER, SAME_MACHINE_LOOPBACK_HINTS);
+    expect(hinted).toContain("127.0.0.1 54400 typ host");
+    expect(hinted).toContain("::1 9 typ host tcptype active");
   });
 });

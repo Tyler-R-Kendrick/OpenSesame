@@ -20,7 +20,7 @@
  */
 
 import { isString } from "@opensesame/os-domain";
-import { withAddressHints } from "./candidates.js";
+import { SAME_MACHINE_LOOPBACK_HINTS, withAddressHints } from "./candidates.js";
 import { type ChannelMessage, readChannelMessage } from "./messages.js";
 import {
   type DialLink,
@@ -80,7 +80,12 @@ async function gathered(
   }
   const sdp = pc.localDescription?.sdp;
   if (!sdp) throw new Error("no_local_description");
-  return routing.relay ? sdp : withAddressHints(sdp, routing.addresses);
+  if (routing.relay) return sdp;
+  const hints =
+    routing.addresses.length > 0
+      ? routing.addresses
+      : SAME_MACHINE_LOOPBACK_HINTS;
+  return withAddressHints(sdp, hints);
 }
 
 /**

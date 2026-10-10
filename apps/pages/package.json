@@ -20,6 +20,7 @@
     "verify:device-identity": "node scripts/verify-device-identity.mjs",
     "verify:device-inbox": "node scripts/verify-device-inbox.mjs",
     "verify:live-join": "node scripts/verify-live-join.mjs",
+    "verify:live-local-pair": "node scripts/verify-live-local-pair.mjs",
     "verify:relay-join": "node scripts/verify-relay-join.mjs",
     "verify:relay-join-live": "node scripts/verify-relay-join-live.mjs",
     "verify:live-netns": "node scripts/verify-live-netns.mjs",

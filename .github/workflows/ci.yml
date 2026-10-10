@@ -379,6 +379,13 @@ jobs:
         run: |
           PATH="${GITHUB_WORKSPACE}/target/debug:/usr/local/cargo/bin:${PATH}" \
             pnpm --filter @opensesame/pages verify:relay-join-live
+      - name: Same-machine live session
+        # Two browser contexts, no ICE servers; loopback hints only on one machine.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:live-local-pair
 
   device-inbox:
     name: Device inbox and local notifications
