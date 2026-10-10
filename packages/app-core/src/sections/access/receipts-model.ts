@@ -35,6 +35,7 @@ const RECEIPT_LABELS: ReadonlyMap<string, string> = new Map([
   ["access.drop.locked_out", "Drop locked out"],
   ["access.drop.revoked", "Drop revoked"],
   ["access.live.granted", "Live session granted"],
+  ["access.live.ended", "Live session ended"],
   ["access.share.granted", "Share granted"],
   ["access.share.revoked", "Share revoked"],
 ]);

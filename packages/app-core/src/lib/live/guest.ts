@@ -21,6 +21,7 @@ import type { LiveLink } from "./link.js";
 import {
   type Catalog,
   type ChannelMessage,
+  type JoinReply,
   VALUE_MAX,
   characters,
   cleanText,
@@ -45,6 +46,9 @@ const REPOSTS = 30;
 /** How long a relayed seat gives the peer route before moving to the relay. */
 export const FALLBACK_MS = 8000;
 
+/** Direct connect after the owner's reply code, before the guest may retry. */
+export const CONNECTING_TIMEOUT_MS = 60_000;
+
 /** The carriers a joiner posts on, when the link names any. */
 export type GuestCarriers = Readonly<{
   post(code: string): Promise<void>;
@@ -59,6 +63,7 @@ export type GuestStatus =
   | Readonly<{ at: "preparing" }>
   | Readonly<{ at: "request"; code: string }>
   | Readonly<{ at: "connecting" }>
+  | Readonly<{ at: "connect_timeout" }>
   | Readonly<{ at: "joined"; catalog: Catalog }>
   /** The browsers found no route to each other. */
   | Readonly<{ at: "unreachable" }>
@@ -87,6 +92,8 @@ export class LiveGuest {
   /** The owner offered a relay: the carriers stay open with the seat. */
   #relayed = false;
   #fallback: ReturnType<typeof setTimeout> | null = null;
+  #connectTimer: ReturnType<typeof setTimeout> | null = null;
+  #lastReply: string | null = null;
   #keys: Keypair | null = null;
   #repost: ReturnType<typeof setInterval> | null = null;
   #next = 0;
@@ -183,15 +190,23 @@ export class LiveGuest {
     const { link, code } = this.options;
     const reply = await openReplyCode(link, code, keys, this.#id, text);
     if (!reply || this.#status.at !== "request") return false;
+    return this.#connectWithReply(text, reply);
+  }
+
+  async #connectWithReply(text: string, reply: JoinReply): Promise<boolean> {
+    const side = this.#side;
+    if (!side) return false;
     const session = this.options.carriers?.session ?? "off";
     this.#relayed = reply.relay === "nats" && session !== "off";
     this.#release();
+    this.#lastReply = text;
     this.#to({ at: "connecting" });
+    this.#armConnectTimeout();
     if (this.#relayed && session === "always") {
       void this.#toRelay();
       return true;
     }
-    const { pc } = this.#side;
+    const { pc } = side;
     pc.addEventListener("connectionstatechange", () => {
       if (pc.connectionState !== "failed" || this.#status.at !== "connecting")
         return;
@@ -245,12 +260,54 @@ export class LiveGuest {
     channel.send({ t: "hello" });
   }
 
+  #armConnectTimeout(): void {
+    if (this.#connectTimer) clearTimeout(this.#connectTimer);
+    this.#connectTimer = setTimeout(() => {
+      if (this.#status.at !== "connecting") return;
+      this.#to({ at: "connect_timeout" });
+    }, CONNECTING_TIMEOUT_MS);
+  }
+
+  #clearConnectTimeout(): void {
+    if (this.#connectTimer) clearTimeout(this.#connectTimer);
+    this.#connectTimer = null;
+  }
+
+  /** Try the same reply code again after a connect timeout. */
+  async retryConnect(): Promise<boolean> {
+    const text = this.#lastReply;
+    const keys = this.#keys;
+    if (this.#status.at !== "connect_timeout" || !text || !keys) return false;
+    const { link, code, peers, ice } = this.options;
+    const reply = await openReplyCode(link, code, keys, this.#id, text);
+    if (!reply) return false;
+    this.#clearConnectTimeout();
+    if (this.#fallback) clearTimeout(this.#fallback);
+    this.#fallback = null;
+    this.#side?.pc.close();
+    const side = await makeOffer(peers, ice);
+    if (this.#over()) {
+      side.pc.close();
+      side.channel.catch(() => undefined);
+      return false;
+    }
+    this.#side = side;
+    side.channel.then(
+      (channel) => this.#connected(channel),
+      () => {
+        if (!this.#relayed) this.#finish();
+      },
+    );
+    return this.#connectWithReply(text, reply);
+  }
+
   #connected(channel: LiveChannel): void {
     // Over already, or the seat is carried another way: not this channel.
     if (this.#over() || this.#channel) {
       channel.close();
       return;
     }
+    this.#clearConnectTimeout();
     if (this.#fallback) clearTimeout(this.#fallback);
     this.#fallback = null;
     this.#channel = channel;
@@ -259,9 +316,10 @@ export class LiveGuest {
   }
 
   #onMessage(message: ChannelMessage): void {
-    if (message.t === "catalog")
+    if (message.t === "catalog") {
+      this.#clearConnectTimeout();
       this.#to({ at: "joined", catalog: message.catalog });
-    else if (message.t === "end") this.#finish();
+    } else if (message.t === "end") this.#finish();
     else if (message.t === "value" || message.t === "denied") {
       const pending = this.#pending.get(message.req);
       this.#pending.delete(message.req);
@@ -304,6 +362,7 @@ export class LiveGuest {
 
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
+    this.#clearConnectTimeout();
     if (this.#fallback) clearTimeout(this.#fallback);
     this.#fallback = null;
     this.#relayed = false;

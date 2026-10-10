@@ -268,6 +268,9 @@ async function endings(owner, joiner, { tabTo }) {
   });
   await tabTo(owner, end);
   await owner.keyboard.press("Enter");
+  const confirmEnd = panel.getByRole("button", { name: "End for everyone" });
+  await tabTo(owner, confirmEnd);
+  await owner.keyboard.press("Enter");
   await expect(
     panel.getByLabel("Session name"),
     "End lands on the form",
