@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { version } from "../../../package.json";
 import {
   IconCheck,
@@ -146,12 +146,19 @@ function ReleasePanel({
   );
 }
 
-export function ReleaseNotes() {
+export const ReleaseNotes = forwardRef<HTMLElement>(function ReleaseNotes(
+  _props,
+  ref,
+) {
   const [active, setActive] = useState<string | null>(() =>
     gateIsStacked() ? null : (RELEASES[0]?.version ?? null),
   );
   return (
-    <aside className="unlock__notes" aria-labelledby="unlock-notes-title">
+    <aside
+      ref={ref}
+      className="unlock__notes"
+      aria-labelledby="unlock-notes-title"
+    >
       <h2 className="unlock__notes-title" id="unlock-notes-title">
         Release notes
       </h2>
@@ -171,4 +178,4 @@ export function ReleaseNotes() {
       </div>
     </aside>
   );
-}
+});
