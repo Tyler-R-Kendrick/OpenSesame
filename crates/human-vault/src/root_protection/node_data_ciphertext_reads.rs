@@ -1,6 +1,8 @@
 //! Fixed physical Node encrypted DATA lanes. No key/plaintext egress or owner grant.
+#[cfg(test)]
+use super::NativeNodeDataScope;
 use super::{
-    file_name, gate, refused, tomb_name, HeldPrivateRead, NativeNodeDataScope, NativeNodeDataState,
+    file_name, gate, refused, tomb_name, HeldPrivateRead, NativeNodeDataState,
     NativeNodeDataWriter, NativeNodeDeviceInventory, PrivateDirectory,
 };
 use crate::root_protection::node_at_rest_ciphertext::{
