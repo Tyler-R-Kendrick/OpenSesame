@@ -21,9 +21,16 @@ vi.mock("../app-root.js", () => ({
   useCapabilityGate: () => ({ approved: true }),
 }));
 
-vi.mock("../lib/use-configured.js", () => ({
-  useIdentityConfigured: () => false,
-}));
+vi.mock("../lib/use-configured.js", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("../lib/use-configured.js")
+  >();
+  return {
+    ...actual,
+    useIdentityConfigured: () => false,
+    useIdentityServes: () => false,
+  };
+});
 
 vi.mock("../lib/use-online.js", () => ({
   useOnline: () => true,
