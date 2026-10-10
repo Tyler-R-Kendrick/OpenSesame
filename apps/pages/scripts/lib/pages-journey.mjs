@@ -106,6 +106,10 @@ export async function addCapabilities(page, titles) {
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await awaitCapabilitySections(page);
     const add = capabilityOffSwitch(page, title);
+    if ((await add.count()) === 0) {
+      await capabilityOnSwitch(page, title).waitFor({ timeout: 15000 });
+      continue;
+    }
     await add.waitFor({ timeout: 15000 });
     await add.click();
     await page.getByTestId("capability-review").waitFor({
