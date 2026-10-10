@@ -1,5 +1,8 @@
+import {
+  injectedNowMs,
+  prefersReducedMotion,
+} from "../../lib/injected-clock.js";
 import { type DecryptRun, FRAME_MS } from "./cipher.js";
-import { injectedNowMs, prefersReducedMotion } from "./injected-clock.js";
 
 export { injectedNowMs as nowMs, prefersReducedMotion };
 

@@ -40,10 +40,16 @@
   color: var(--ink-2);
 }
 
-/* At 320px the bar holds the help key, Close and Skip all (each 44px on a
-   phone) beside the wordmark: the letters tier at 13px is 101px wide with its
-   mark, so nothing is hidden and Skip all is never the thing that goes off the
-   edge (ADR 0166; verify:mobile measures it). */
+/* At 320px the bar has no room for the lettering beside the help key, Close and
+   Skip all (each 44px on a phone): the mark stays and the name is still
+   announced (`.visually-hidden` beside it), and the lettering returns the moment
+   the screen is wide enough to hold it. Skip all is never the thing that goes
+   off the edge (ADR 0166). */
+@media (max-width: 359px) {
+  .setup__bar .wordmark__slots {
+    display: none;
+  }
+}
 
 /* Bar dismiss / skip-all sit after the wordmark; sizing comes from `.icon-btn`. */
 .setup__back {

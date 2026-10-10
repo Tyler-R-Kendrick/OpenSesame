@@ -11,6 +11,9 @@ import type { Layout } from "./particles.js";
 import { useCipherBoot } from "./use-cipher-boot.js";
 import { useCipherLifecycle } from "./use-cipher-lifecycle.js";
 import { prefersReducedMotion, useCipherPaint } from "./use-cipher-paint.js";
+import "./cipher-wordmark.css";
+
+export type CipherWordmarkTone = "default" | "rail";
 
 export type CipherWordmarkProps = {
   text?: string;
@@ -19,13 +22,14 @@ export type CipherWordmarkProps = {
   animateOnMount?: boolean;
   replay?: boolean;
   showCursor?: boolean;
+  theme?: CipherWordmarkTone;
   /** When set, overrides `prefers-reduced-motion`. */
   reducedMotion?: boolean;
   /** Skip animation; draw settled field frame. */
   static?: boolean;
   className?: string;
   onSettled?: () => void;
-  /** Draw the mark at plate height inside the canvas. */
+  /** Draw the punched-plate icon mark inside the canvas (standalone demos). */
   includeMark?: boolean;
 };
 
@@ -41,20 +45,18 @@ function motionDisabled(
   return reducedMotion === undefined && prefersReducedMotion();
 }
 
-function rootClass(settled: boolean, className: string | undefined): string {
+function rootClass(
+  theme: CipherWordmarkTone,
+  settled: boolean,
+  className: string | undefined,
+): string {
   const classes = ["cipher-wordmark"];
+  if (theme === "rail") classes.push("cipher-wordmark--rail");
   if (settled) classes.push("cipher-wordmark--settled");
   if (className) classes.push(className);
   return classes.join(" ");
 }
 
-/**
- * The name punched out of eleven plates on a canvas (lock-v5): a field of
- * ink particles at hero size, a solid plate in the chrome, letters alone in
- * the rail (`particles-model.ts` has the tiers). Every cell starts as hex
- * cipher; a cursor walks them left to right and locks one letter at a time.
- * Decorative: the parent carries the accessible name.
- */
 export const CipherWordmark = forwardRef<
   CipherWordmarkHandle,
   CipherWordmarkProps
@@ -65,11 +67,12 @@ export const CipherWordmark = forwardRef<
     animateOnMount = true,
     replay: replayProp = false,
     showCursor = true,
+    theme = "default",
     reducedMotion,
     static: staticSnapshot = false,
     className,
     onSettled,
-    includeMark = true,
+    includeMark = false,
   } = props;
   const rootRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -82,7 +85,7 @@ export const CipherWordmark = forwardRef<
     () => staticSnapshot || !animateOnMount,
   );
   const motionOff = motionDisabled(staticSnapshot, reducedMotion);
-  const { startRun, settleRun, resize, paint, scheduleFrame } = useCipherPaint(
+  const { startRun, resize, paint, scheduleFrame } = useCipherPaint(
     {
       rootRef,
       canvasRef,
@@ -118,8 +121,10 @@ export const CipherWordmark = forwardRef<
     motionOff,
     animateOnMount,
     replayProp,
+    runsRef,
+    settledRef,
+    setSettled,
     startRun,
-    settleRun,
     resize,
     paint,
     scheduleFrame,
@@ -137,7 +142,7 @@ export const CipherWordmark = forwardRef<
   return (
     <span
       ref={rootRef}
-      className={rootClass(settled, className)}
+      className={rootClass(theme, settled, className)}
       aria-hidden="true"
     >
       <canvas ref={canvasRef} className="cipher-wordmark__canvas" />

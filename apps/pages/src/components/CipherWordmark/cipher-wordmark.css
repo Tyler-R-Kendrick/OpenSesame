@@ -1,0 +1,54 @@
+/* Geist Mono ExtraBold subset — lock-v5 wordmark plates. OFL: fonts/OFL.txt */
+@font-face {
+  font-family: "OS Logo";
+  src: url("./fonts/os-logo.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+.cipher-wordmark {
+  display: inline-block;
+  position: relative;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.cipher-wordmark__canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.wordmark__slots {
+  display: inline-block;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-family: "OS Logo", var(--mono);
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.wordmark > svg {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cipher-wordmark__canvas {
+    transition-property: none;
+  }
+}
+
+@media (max-width: 359px) {
+  .setup__bar .wordmark__slots {
+    display: none;
+  }
+}

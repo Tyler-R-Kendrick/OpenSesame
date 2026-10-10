@@ -18,6 +18,10 @@ import { unlockWithPinAfterDuressGate } from "@opensesame/app-core/screens/unloc
 import { unlockWithProtectorAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-protector-duress.js";
 import { unlockSecondStepAfterDuressGate } from "@opensesame/app-core/screens/unlock/unlock-second-step-duress.js";
 import type { MutableRefObject } from "react";
+import {
+  cancelUnlockCeremony,
+  withUnlockCeremony,
+} from "../../lib/unlock-ceremony-arm.js";
 
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
@@ -82,16 +86,22 @@ export async function submitSecondStepUnlock(input: {
   setRecovery: (value: string) => void;
   setTotp: (value: string) => void;
 }): Promise<"duress_stop" | "done"> {
-  const outcome = await unlockSecondStepAfterDuressGate({
-    store: input.store,
-    recoveryMode: input.recoveryMode,
-    activeSecondStep: input.activeSecondStep,
-    recovery: input.recovery,
-    totp: input.totp,
-  });
+  const outcome = await withUnlockCeremony(() =>
+    unlockSecondStepAfterDuressGate({
+      store: input.store,
+      recoveryMode: input.recoveryMode,
+      activeSecondStep: input.activeSecondStep,
+      recovery: input.recovery,
+      totp: input.totp,
+    }),
+  );
   if (input.recoveryMode) input.setRecovery("");
   else input.setTotp("");
-  return outcome === "duress_session" ? "duress_stop" : "done";
+  if (outcome === "duress_session") {
+    cancelUnlockCeremony();
+    return "duress_stop";
+  }
+  return "done";
 }
 
 type ProtectorSubmit = {
@@ -109,13 +119,22 @@ async function submitProtectorUnlock(
   const controller = new AbortController();
   input.passkeyAbort.current = controller;
   try {
-    const outcome = await unlockWithProtectorAfterDuressGate(input.store, {
-      method: input.method,
-      secret: input.protectorSecret,
-      signal: controller.signal,
-    });
-    if (outcome === "needs_duress_code") return "needs_duress_code";
-    return outcome === "duress_session" ? "duress_stop" : "done";
+    const outcome = await withUnlockCeremony(() =>
+      unlockWithProtectorAfterDuressGate(input.store, {
+        method: input.method,
+        secret: input.protectorSecret,
+        signal: controller.signal,
+      }),
+    );
+    if (outcome === "needs_duress_code") {
+      cancelUnlockCeremony();
+      return "needs_duress_code";
+    }
+    if (outcome === "duress_session") {
+      cancelUnlockCeremony();
+      return "duress_stop";
+    }
+    return "done";
   } finally {
     input.setProtectorSecret("");
     if (input.passkeyAbort.current === controller)
@@ -142,32 +161,44 @@ export async function submitPrimaryMethodUnlock(input: {
     const controller = new AbortController();
     input.passkeyAbort.current = controller;
     try {
-      const outcome = await unlockWithPasskeyAfterDuressGate(
-        input.store,
-        controller.signal,
+      const outcome = await withUnlockCeremony(() =>
+        unlockWithPasskeyAfterDuressGate(input.store, controller.signal),
       );
-      if (outcome === "needs_duress_code") return "needs_duress_code";
-      return outcome === "duress_session" ? "duress_stop" : "done";
+      if (outcome === "needs_duress_code") {
+        cancelUnlockCeremony();
+        return "needs_duress_code";
+      }
+      if (outcome === "duress_session") {
+        cancelUnlockCeremony();
+        return "duress_stop";
+      }
+      return "done";
     } finally {
       if (input.passkeyAbort.current === controller)
         input.passkeyAbort.current = null;
     }
   }
   if (input.activeMethod === "pin") {
-    const pinOutcome = await unlockWithPinAfterDuressGate(
-      input.store,
-      input.pin,
+    const pinOutcome = await withUnlockCeremony(() =>
+      unlockWithPinAfterDuressGate(input.store, input.pin),
     );
     input.setPin("");
     input.setConfirm("");
-    return pinOutcome === "duress_session" ? "duress_stop" : "done";
+    if (pinOutcome === "duress_session") {
+      cancelUnlockCeremony();
+      return "duress_stop";
+    }
+    return "done";
   }
-  const passwordOutcome = await unlockWithPasswordAfterDuressGate(
-    input.store,
-    input.password,
+  const passwordOutcome = await withUnlockCeremony(() =>
+    unlockWithPasswordAfterDuressGate(input.store, input.password),
   );
   input.setPassword("");
-  return passwordOutcome === "duress_session" ? "duress_stop" : "done";
+  if (passwordOutcome === "duress_session") {
+    cancelUnlockCeremony();
+    return "duress_stop";
+  }
+  return "done";
 }
 
 export async function submitPasskeyDuressCode(input: {
@@ -175,11 +206,17 @@ export async function submitPasskeyDuressCode(input: {
   pin: string;
   setPin: (value: string) => void;
 }): Promise<"duress_stop" | "done"> {
-  const outcome = await completePasskeyDuressCode(input.store, input.pin);
+  const outcome = await withUnlockCeremony(() =>
+    completePasskeyDuressCode(input.store, input.pin),
+  );
   input.setPin("");
-  return outcome === "duress_session" ? "duress_stop" : "done";
+  if (outcome === "duress_session") {
+    cancelUnlockCeremony();
+    return "duress_stop";
+  }
+  return "done";
 }
 
 export async function submitGuestUnlock(): Promise<void> {
-  await resumeGuestSession();
+  await withUnlockCeremony(() => resumeGuestSession());
 }

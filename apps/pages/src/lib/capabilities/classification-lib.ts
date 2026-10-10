@@ -71,6 +71,8 @@ const CORE_INFRA = [
   "local-network-fetch",
   "queue",
   "pact",
+  // Harness/`__vt` clock shared by CipherWordmark, CipherDial, VaultDoors.
+  "injected-clock",
   "__tests__/",
   "__snapshots__/",
 ];

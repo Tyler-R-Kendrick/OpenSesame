@@ -1,0 +1,48 @@
+.unlock--doors .unlock__card {
+  transform: translate3d(calc(-1 * var(--unlock-door-shift, 0%)), 0, 0);
+  will-change: transform;
+}
+
+.unlock--doors .unlock__notes {
+  transform: translate3d(var(--unlock-door-shift, 0%), 0, 0);
+  will-change: transform;
+}
+
+@media (max-width: 1099px) {
+  .unlock--doors .unlock__card,
+  .unlock--doors .unlock__notes {
+    transform: translate3d(calc(-0.5 * var(--unlock-door-shift, 0%)), 0, 0);
+  }
+
+  .unlock--doors .unlock__notes {
+    transform: translate3d(calc(0.5 * var(--unlock-door-shift, 0%)), 0, 0);
+  }
+}
+
+.vault-doors__seam {
+  position: fixed;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
+  background: var(--ink);
+}
+
+.vault-doors--fade {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--canvas);
+  animation: vault-doors-fade 0.18s linear forwards;
+}
+
+@keyframes vault-doors-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
