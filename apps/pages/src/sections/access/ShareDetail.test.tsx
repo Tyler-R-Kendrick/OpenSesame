@@ -12,9 +12,8 @@ const share: LocalShare = {
   resourceId: "personal",
   resourceLabel: "Personal vault",
   policy: "open",
-  expiresAt: "2099-01-01T00:00:00.000Z",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  version: 1,
+  issuedAt: Date.parse("2026-01-01T00:00:00.000Z"),
+  expiresAt: Date.parse("2099-01-01T00:00:00.000Z"),
 };
 
 describe("ShareRow revoke", () => {
