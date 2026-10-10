@@ -12,7 +12,7 @@ export const CAPABILITY = "cli.app-integration";
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
-  activate(ctx) {
+  async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
     activation.register("shell-wrapper", {
