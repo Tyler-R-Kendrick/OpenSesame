@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
 | [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
 | [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |
 | [`2026-10-10-lock-v5-title-screen/`](2026-10-10-lock-v5-title-screen/README.md) | Lock v5 title screen evidence (2026-10-10) |
