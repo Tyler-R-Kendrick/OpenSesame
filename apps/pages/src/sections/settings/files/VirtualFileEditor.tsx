@@ -66,35 +66,74 @@ function RemoveKeys({
   );
 }
 
-/** The open file's text, and the stored copy it was read from. */
+/**
+ * The open file's text, and the stored copy it was read from. Until the
+ * stored text has arrived the file is not `loaded`: what was typed before it
+ * would be lost under it, or run into it, so nothing is typed or saved yet.
+ */
 function useFileText(
   file: VirtualFile,
   files: VirtualFileProvider,
   initial: string | undefined,
 ) {
   const [text, setText] = useState(initial ?? "");
+  const [loaded, setLoaded] = useState(initial !== undefined);
   const [outcome, setOutcome] = useState<Outcome>(null);
   useEffect(() => {
     setOutcome(null);
     if (initial !== undefined) {
       setText(initial);
+      setLoaded(true);
       return;
     }
+    setLoaded(false);
     let live = true;
     void files.read(file.path).then((stored) => {
-      if (live) setText(stored);
+      if (!live) return;
+      setText(stored);
+      setLoaded(true);
     });
     return () => {
       live = false;
     };
   }, [file.path, files, initial]);
-  return { text, setText, outcome, setOutcome };
+  return { text, setText, loaded, outcome, setOutcome };
+}
+
+/** Saving and removing the open file, each told back as an outcome. */
+function useFileWrites(
+  file: VirtualFile,
+  files: VirtualFileProvider,
+  { text, loaded, setText, setOutcome }: ReturnType<typeof useFileText>,
+  onMoved: (path: string | null) => void,
+) {
+  const save = async () => {
+    if (file.readOnly || !loaded) return;
+    const written = await files.write(file.path, text);
+    if (!written.ok) {
+      setOutcome({ tone: "err", text: written.message });
+      return;
+    }
+    setOutcome({
+      tone: written.tone ?? "ok",
+      text: written.message ?? `Saved ${written.path}.`,
+    });
+    if (written.text !== undefined) setText(written.text);
+    if (written.path !== file.path) onMoved(written.path);
+  };
+  const remove = async () => {
+    const removed = await files.remove(file.path);
+    if (removed.ok) onMoved(null);
+    else setOutcome({ tone: "err", text: removed.message });
+  };
+  return { save, remove };
 }
 
 function HeadKeys({
   file,
   outcome,
   refusal,
+  loaded,
   onSave,
   onRemove,
 }: {
@@ -102,6 +141,8 @@ function HeadKeys({
   outcome: Outcome;
   /** Why the text as it stands would be refused; a save is withheld. */
   refusal: string | null;
+  /** The stored text has arrived; until then there is nothing to save. */
+  loaded: boolean;
   onSave: () => void;
   onRemove: () => void;
 }) {
@@ -127,7 +168,7 @@ function HeadKeys({
         <button
           type="button"
           className="icon-btn icon-btn--sm"
-          disabled={refusal !== null}
+          disabled={refusal !== null || !loaded}
           aria-label={`Save ${file.path}`}
           title="Save"
           onClick={onSave}
@@ -155,35 +196,14 @@ export function VirtualFileEditor({
   /** Where the file lives after a save or a removal (null: it is gone). */
   onMoved: (path: string | null) => void;
 }) {
-  const { text, setText, outcome, setOutcome } = useFileText(
-    file,
-    files,
-    initial,
-  );
-  const check = file.readOnly
-    ? { ok: true as const }
-    : files.check(file.path, text);
-
-  const save = async () => {
-    if (file.readOnly) return;
-    const written = await files.write(file.path, text);
-    if (!written.ok) {
-      setOutcome({ tone: "err", text: written.message });
-      return;
-    }
-    setOutcome({
-      tone: written.tone ?? "ok",
-      text: written.message ?? `Saved ${written.path}.`,
-    });
-    if (written.text !== undefined) setText(written.text);
-    if (written.path !== file.path) onMoved(written.path);
-  };
-
-  const remove = async () => {
-    const removed = await files.remove(file.path);
-    if (removed.ok) onMoved(null);
-    else setOutcome({ tone: "err", text: removed.message });
-  };
+  const state = useFileText(file, files, initial);
+  const { text, setText, loaded, outcome, setOutcome } = state;
+  const { save, remove } = useFileWrites(file, files, state, onMoved);
+  // Nothing is judged before the stored text is there to judge.
+  const check =
+    file.readOnly || !loaded
+      ? { ok: true as const }
+      : files.check(file.path, text);
 
   const refusal = check.ok ? null : check.message;
   // A failed write goes to the tray; the mark in the head keeps the sentence
@@ -205,6 +225,7 @@ export function VirtualFileEditor({
           file={file}
           outcome={outcome}
           refusal={refusal}
+          loaded={loaded}
           onSave={() => void save()}
           onRemove={() => void remove()}
         />
@@ -215,6 +236,7 @@ export function VirtualFileEditor({
           path={file.path}
           source={text}
           readOnly={file.readOnly}
+          busy={!loaded}
           invalid={!check.ok}
           onChange={(next) => {
             setText(next);

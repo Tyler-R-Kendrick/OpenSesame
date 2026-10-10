@@ -86,6 +86,9 @@ the three walks that must not connect and fails the run anywhere else.
   could read the profile, then seal its result after the file viewer had saved,
   putting back what "Saved" had just written; a loaded run of the walk lost
   the TURN REST secret that way.
+- A settings file takes no typing and no save until its stored text has
+  arrived (the editor is busy and read-only until then). WebKit's fill in CI
+  typed into the empty editor and the text that arrived next ran into it.
 - A check reads what the browser itself selected (the transport's
   `selectedCandidatePairId`, or the pair Firefox marks `selected`) and waits
   for the stats to name it, rather than taking a nominated pair at one
