@@ -49,6 +49,9 @@ import {
   useRemaining,
 } from "./live-hooks.js";
 
+/** A fresh request after a timed-out attempt (ADR 0186). */
+const ASK_AGAIN = "Ask to join again";
+
 /** The glyph and sentence for where an ask stands. */
 function standing(status: GuestStatus): Standing {
   switch (status.at) {
@@ -74,7 +77,7 @@ function standing(status: GuestStatus): Standing {
       return {
         tone: "err",
         label: "Connection timed out",
-        tray: "Connection timed out — try again or check your network",
+        tray: "Connection timed out — ask again, or check your network",
       };
     case "joined":
       return {
@@ -131,7 +134,7 @@ function useAsk(held: LiveLink | null) {
         code: normalized,
         name: cleanedName,
         note: cleanText(note),
-        peers: liveUiSeams.peers,
+        transport: liveUiSeams.transport,
         useRoutes,
         carriers: liveUiSeams.carriers,
       });
@@ -289,15 +292,28 @@ export function LiveJoinSession() {
         </>
       ) : null}
       {status.at === "connect_timeout" ? (
-        <button
-          type="button"
-          className="go"
-          aria-label="Try connecting again"
-          title="Try connecting again"
-          onClick={() => void guest.retryConnect()}
-        >
-          <IconArrowRight size={18} />
-        </button>
+        <div className="go-row">
+          <button
+            type="button"
+            className="go"
+            aria-label={ASK_AGAIN}
+            title={ASK_AGAIN}
+            onClick={() =>
+              void guest.askAgain().catch(() => {
+                leaveLive();
+                reportLiveOutcome(
+                  "Live session",
+                  "This browser could not make a request code",
+                );
+              })
+            }
+          >
+            <IconArrowRight size={18} />
+          </button>
+          <span className="go-verb" aria-hidden="true">
+            {ASK_AGAIN}
+          </span>
+        </div>
       ) : null}
       {catalog ? (
         <LiveCatalog

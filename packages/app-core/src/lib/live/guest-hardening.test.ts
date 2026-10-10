@@ -7,16 +7,14 @@ import { LiveGuest } from "./guest.js";
 import { LiveHost } from "./host.js";
 import { deferred } from "./live-clock.fixture.js";
 import { FakeNet } from "./live-fakes.js";
-import { DIRECT_ONLY } from "./peer.js";
 
 async function host(net: FakeNet): Promise<LiveHost> {
   return LiveHost.start({
     admission: "open",
-    ice: DIRECT_ONLY,
     expiresAt: Date.now() + 60_000,
     catalog: () => ({ title: "T", policy: "read", expiresAt: 1, items: [] }),
     readField: async () => null,
-    peers: net.factory(),
+    transport: net.transport(),
   });
 }
 
@@ -31,8 +29,7 @@ describe("leaving while the offer is being made", () => {
       code: null,
       name: "Ada",
       note: "",
-      ice: DIRECT_ONLY,
-      peers: net.factory(),
+      transport: net.transport(),
     });
     const starting = guest.start();
     // Left before the browser had an offer: nothing to close yet.
