@@ -68,6 +68,9 @@ tempfile = "3.20.0"
 libc = { workspace = true }
 
 [dev-dependencies]
+chacha20poly1305 = { workspace = true }
+hkdf = { workspace = true }
+sha2 = { workspace = true }
 # The dev-run tests point the CLI at their own settings file, which a shipped
 # build refuses to take from the environment.
 opensesame-plugin-settings = { path = "../../crates/plugin-settings", features = ["path-override"] }
