@@ -38,8 +38,7 @@ export function ClaimDropAnnouncement() {
     display: "flex",
     gap: "0.75rem",
     margin: 0,
-    padding:
-      "max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem",
+    padding: "max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem",
     border: 0,
     borderBottom: "1px solid var(--line)",
     background: "var(--surface)",
