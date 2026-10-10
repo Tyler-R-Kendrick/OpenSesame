@@ -18,7 +18,6 @@ import {
   uninstallItemType,
 } from "@opensesame/vault-core";
 import {
-  activitySeams,
   noteVaultBodyPersisted,
   noteVaultUnlocked,
   recordActivityEvent,
@@ -132,8 +131,6 @@ import { loadVaultBody } from "./store-body.js";
 import {
   type ApplyChange,
   type VaultBodyPort,
-  bodyPortOf,
-  installDeviceKeyCarrier,
   levelDeviceKey,
   makeBodyPort,
   registerBodyPort,
@@ -749,34 +746,8 @@ export class VaultStore {
     await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
   }
 
-  /** Lets optional modules report a failed step-up without reaching into unlock state. */
-  noteFailedUnlock(): void {
-    this.#recordFailedUnlock();
-  }
-
-  /** Optional-module step-up: derived key must match the open vault session. */
-  async assertMatchesOpenVaultKey(
-    candidate: CryptoKey,
-    miss: string = PIN_MISS,
-  ): Promise<void> {
-    const current = this.#vaultKey;
-    if (!current) throw new Error("Unlock OpenSesame first.");
-    const [left, right] = await Promise.all([
-      crypto.subtle.exportKey("raw", current),
-      crypto.subtle.exportKey("raw", candidate),
-    ]);
-    if (left.byteLength !== right.byteLength) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError(miss);
-    }
-    const a = new Uint8Array(left);
-    const b = new Uint8Array(right);
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) {
-        this.#recordFailedUnlock();
-        throw new WrongPasswordError(miss);
-      }
-    }
+  stepUpSeam() {
+    return { key: this.#vaultKey, onMiss: () => this.#recordFailedUnlock() };
   }
 
   /** Recovery key, age identity or age passkey enrolled in the manifest. */
@@ -1608,16 +1579,5 @@ export class VaultStore {
   }
 }
 
-export const vaultStore = new VaultStore();
-
-// The device identity host mints through this store's body (ADR 0160 §5).
-installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
-
-// A guest's tomb is sealed and isolated like any other, so a guest's
-// actions are logged in it (PRODUCT.md: guests are first-class).
-activitySeams.activeTomb = () => {
-  const snap = vaultStore.getSnapshot();
-  return snap.status === "unlocked" && snap.tomb ? snap.tomb : null;
-};
-
+export { vaultStore } from "./vault-store-default.js";
 export { WrongPasswordError, VaultCorruptError };

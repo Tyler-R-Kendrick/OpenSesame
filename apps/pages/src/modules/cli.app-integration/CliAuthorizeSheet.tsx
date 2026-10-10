@@ -3,21 +3,60 @@
  * passkey confirmation before the daemon receives approve/deny.
  */
 
-import {
-  type PendingRequest,
-  cliAuthorizeCopy,
-  presentCliAuthorizeRequest,
-  respondCliIntegration,
-} from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import { listAvailableUnlockMethods } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { WrongPasswordError } from "@opensesame/vault-core";
-import { useMemo, useRef, useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconPasskey, IconTerminal } from "../../components/Icons.js";
+import type { cliAuthorizeCopy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import type { PendingRequest } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
+import type { RefObject } from "react";
+import { useCliAuthorizeSheet } from "./use-cli-authorize-sheet.js";
+
+function cliAuthorizeAlts(
+  canPasskey: boolean,
+  canPin: boolean,
+  copy: ReturnType<typeof cliAuthorizeCopy>,
+  pin: string,
+  setPin: (value: string) => void,
+  busy: boolean,
+  pinRef: RefObject<HTMLInputElement | null>,
+) {
+  if (canPasskey) {
+    return [
+      {
+        id: "passkey",
+        label: copy.confirmPasskey,
+        icon: <IconPasskey size={16} />,
+        render: () => <p className="found__hint">{copy.confirmPasskey}</p>,
+      },
+    ];
+  }
+  if (canPin) {
+    return [
+      {
+        id: "pin",
+        label: copy.confirmPin,
+        icon: <IconPasskey size={16} />,
+        render: () => (
+          <FieldShell
+            inputRef={pinRef}
+            label={copy.confirmPin}
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder={copy.pinPlaceholder}
+            value={pin}
+            disabled={busy}
+            onValueChange={setPin}
+          />
+        ),
+      },
+    ];
+  }
+  return [];
+}
 
 export function CliAuthorizeSheet({
   request,
@@ -29,150 +68,52 @@ export function CliAuthorizeSheet({
   onSettled: () => void;
 }) {
   const store = useVaultStore();
-  const copy = cliAuthorizeCopy();
-  const view = useMemo(() => presentCliAuthorizeRequest(request), [request]);
-  const header = store.getSnapshot().header;
-  const methods = header ? listAvailableUnlockMethods(header) : [];
-  const canPasskey = methods.includes("passkey");
-  const canPin = methods.includes("pin");
-  const [pin, setPin] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const pinRef = useRef<HTMLInputElement>(null);
-
-  const facts = [
-    { key: copy.terminalLabel, value: view.terminalLabel },
-    { key: copy.commandLabel, value: view.commandLabel },
-    ...(view.targetLine
-      ? [{ key: copy.targetLabel, value: view.targetLine }]
-      : []),
-    ...(view.fieldLine
-      ? [{ key: copy.fieldLabel, value: view.fieldLine }]
-      : []),
-  ];
-
-  async function afterConfirm(decision: "approve" | "deny") {
-    const ok = await respondCliIntegration(
-      request.requestId,
-      request.terminalSessionId,
-      decision,
-    );
-    if (!ok) {
-      setError("CLI integration could not reach the daemon.");
-      return;
-    }
-    onSettled();
-    onClose();
-  }
-
-  async function authorize() {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      if (canPasskey) {
-        const { confirmPasskeyStepUpForCli } = await import("./cli-step-up.js");
-        await confirmPasskeyStepUpForCli(store, undefined);
-      } else if (canPin) {
-        const { confirmPinStepUpForCli } = await import("./cli-step-up.js");
-        await confirmPinStepUpForCli(store, pin);
-      }
-      else throw new Error("Enroll a passkey or PIN in Settings › Security.");
-      await afterConfirm("approve");
-    } catch (failure) {
-      setError(
-        failure instanceof WrongPasswordError
-          ? failure.message
-          : failure instanceof Error
-            ? failure.message
-            : "Authorization was not completed.",
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function deny() {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await afterConfirm("deny");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const authorizeReady = canPasskey || (canPin && pin.length > 0);
+  const sheet = useCliAuthorizeSheet(store, request, onClose, onSettled);
 
   return (
     <CeremonySheet
-      title={copy.sheetTitle}
+      title={sheet.copy.sheetTitle}
       mark={<IconTerminal size={20} />}
       onClose={onClose}
-      initialFocus={canPin && !canPasskey ? pinRef : undefined}
+      initialFocus={
+        sheet.canPin && !sheet.canPasskey ? sheet.pinRef : undefined
+      }
     >
       <CeremonyShell
-        ok={error === ""}
-        name={copy.sheetTitle}
-        facts={facts}
+        ok={sheet.error === ""}
+        name={sheet.copy.sheetTitle}
+        facts={sheet.facts}
         primary={{
-          label: copy.allowKey,
+          label: sheet.copy.allowKey,
           choice: true,
-          onClick: () => void authorize(),
-          busy,
-          disabled: busy || !authorizeReady,
+          onClick: () => void sheet.authorize(),
+          busy: sheet.busy,
+          disabled: sheet.busy || !sheet.authorizeReady,
         }}
         secondary={{
-          label: copy.denyKey,
+          label: sheet.copy.denyKey,
           choice: true,
-          onClick: () => void deny(),
-          busy,
-          disabled: busy,
+          onClick: () => void sheet.deny(),
+          busy: sheet.busy,
+          disabled: sheet.busy,
         }}
-        alts={
-          canPasskey
-            ? [
-                {
-                  id: "passkey",
-                  label: copy.confirmPasskey,
-                  icon: <IconPasskey size={16} />,
-                  render: () => (
-                    <p className="found__hint">{copy.confirmPasskey}</p>
-                  ),
-                },
-              ]
-            : canPin
-              ? [
-                  {
-                    id: "pin",
-                    label: copy.confirmPin,
-                    icon: <IconPasskey size={16} />,
-                    render: () => (
-                      <FieldShell
-                        inputRef={pinRef}
-                        label={copy.confirmPin}
-                        type="password"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        placeholder={copy.pinPlaceholder}
-                        value={pin}
-                        disabled={busy}
-                        onValueChange={setPin}
-                      />
-                    ),
-                  },
-                ]
-              : []
-        }
+        alts={cliAuthorizeAlts(
+          sheet.canPasskey,
+          sheet.canPin,
+          sheet.copy,
+          sheet.pin,
+          sheet.setPin,
+          sheet.busy,
+          sheet.pinRef,
+        )}
       >
-        <p>{copy.sheetLead}</p>
+        <p>{sheet.copy.sheetLead}</p>
       </CeremonyShell>
-      {error ? (
+      {sheet.error ? (
         <FailureNotice
           id="cli-authorize:error"
-          title={copy.sheetTitle}
-          message={error}
+          title={sheet.copy.sheetTitle}
+          message={sheet.error}
         />
       ) : null}
     </CeremonySheet>

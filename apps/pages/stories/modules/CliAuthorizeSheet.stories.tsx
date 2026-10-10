@@ -6,8 +6,7 @@ import { CliAuthorizeSheet } from "../../src/modules/cli.app-integration/CliAuth
 
 const store = {
   getSnapshot: () => ({ header: {}, status: "unlocked" }),
-  noteFailedUnlock: () => {},
-  assertMatchesOpenVaultKey: async () => {},
+  stepUpSeam: () => ({ key: null, onMiss: () => {} }),
 };
 
 const withSeams: Decorator = (Story) => {
