@@ -33,6 +33,13 @@ export const TWO_FACTOR_PURPOSE =
 export const SECURITY_CHECKS_SUMMARY =
   "Compares the open vault's logins with known password breaches and with sites that offer an authenticator code you have not stored. With this on, Settings and Password health show how many passwords were found and which logins could add a second step. Press Check to run it. Only five characters of each password's hash leave this browser; the two-step site list is fetched whole and matched here.";
 
+/**
+ * What Settings says `sharing.trusted-contacts` does. Kept under the catalog's
+ * 400-character summary limit.
+ */
+export const TRUSTED_CONTACTS_SUMMARY =
+  "Name people you trust and, if you choose, require a quorum of them: a request is honoured only when enough of them approve it with their own security keys, and a recovery key is split so that no one contact, or small group, can open it. A short delay gives you time to object. Nothing is stored with a service; their devices do the work (ADR 0186).";
+
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.derived-records",
@@ -113,6 +120,16 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       alternatives: [{ slot: "transport", oneOf: ["sharing.drops"] }],
       keyAccess: "item-plaintext",
       offlineLimits: "Sharing waits until the chosen transport is reachable.",
+    },
+  ),
+  optional(
+    "sharing.trusted-contacts",
+    "Trusted contacts",
+    TRUSTED_CONTACTS_SUMMARY,
+    {
+      keyAccess: ["item-plaintext", "protector-wrap"],
+      offlineLimits:
+        "Works offline. A request waits for enough of the contacts' own security keys, and for the delay the owner set.",
     },
   ),
   optional(

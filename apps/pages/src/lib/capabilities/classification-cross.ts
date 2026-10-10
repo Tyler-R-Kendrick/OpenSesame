@@ -60,6 +60,9 @@ const LOCAL_RECORDS = [
   "local-share-grants",
   // Who may write a share (ADR 0178): the proofs local-share-grants takes.
   "proofs/share-write",
+  // A circle of trusted contacts approving a grant while the owner is away
+  // (ADR 0186): minted from plain data, imports nothing optional.
+  "proofs/quorum-approved",
   // Core vault workflows and WebMCP enforce standing shares even while the
   // optional Access administration surface is absent.
   "local-share-reach",
