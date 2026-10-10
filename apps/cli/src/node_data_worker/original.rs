@@ -36,6 +36,20 @@ fn bytes_reply(bytes: Option<Vec<u8>>) -> io::Result<wire::Reply> {
         base64: bytes.map(|value| STANDARD.encode(value)),
     })
 }
+// Decode only bounded canonical ciphertext; the genuine private producer authenticates its fixed lane.
+fn ciphertext_input(value: Option<String>) -> io::Result<Option<Vec<u8>>> {
+    let Some(text) = value else {
+        return Ok(None);
+    };
+    if text.len() > 4 * wire::MAX_DATA_BYTES.div_ceil(3) {
+        return Err(refused());
+    }
+    let bytes = STANDARD.decode(&text).map_err(|_| refused())?;
+    if bytes.len() > wire::MAX_DATA_BYTES || STANDARD.encode(&bytes) != text {
+        return Err(refused());
+    }
+    Ok(Some(bytes))
+}
 // Human/device-plane private child only: no connector, MCP, agent or Host API route.
 // A phase ACK is DATA custody, never authentication, production principal or REAL.
 struct OriginalSession {
@@ -68,6 +82,8 @@ impl OriginalSession {
                 self.body = Some(credential.capture_existing_writer(&tomb)?);
                 wire::Reply::Ack
             }
+            operation @ (wire::Operation::PublishGeneration { .. }
+            | wire::Operation::PublishDevice { .. }) => self.publish_ciphertext(operation)?,
             wire::Operation::ReadGeneration {} => {
                 bytes_reply(self.writer()?.read_optional_generation_ciphertext()?)?
             }
@@ -129,6 +145,33 @@ impl OriginalSession {
             }
         };
         Ok((reply, false))
+    }
+    fn publish_ciphertext(&self, operation: wire::Operation) -> io::Result<wire::Reply> {
+        let reply = match operation {
+            wire::Operation::PublishGeneration { expected, next } => {
+                let expected = ciphertext_input(expected)?;
+                let next = ciphertext_input(next)?;
+                self.writer()?
+                    .compare_publish_generation_ciphertext(expected.as_deref(), next.as_deref())?;
+                wire::Reply::Ack
+            }
+            wire::Operation::PublishDevice {
+                logical_key,
+                expected,
+                next,
+            } => {
+                let expected = ciphertext_input(expected)?;
+                let next = ciphertext_input(next)?;
+                self.writer()?.compare_publish_modern_device_ciphertext(
+                    &logical_key,
+                    expected.as_deref(),
+                    next.as_deref(),
+                )?;
+                wire::Reply::Ack
+            }
+            _ => return Err(refused()),
+        };
+        Ok(reply)
     }
     fn apply_inventory(&mut self, operation: wire::Operation) -> io::Result<wire::Reply> {
         let reply = match operation {
@@ -210,3 +253,7 @@ fn serve(
 #[cfg(test)]
 #[path = "original_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "publication_tests.rs"]
+mod publication_tests;
