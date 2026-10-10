@@ -805,6 +805,9 @@ async fn revoke(
 mod test_fixtures;
 
 #[cfg(test)]
+pub(crate) use test_fixtures::test_operator_token;
+
+#[cfg(test)]
 mod tests {
     pub(crate) use super::test_fixtures::{test_operator_token, test_state};
     use super::*;
