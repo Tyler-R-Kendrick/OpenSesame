@@ -196,25 +196,18 @@ describe("runSecurityChecks", () => {
     noteSecurityWatch({ phase: "idle" });
     expect(breachWatchSnapshot()).toMatchObject({
       phase: "idle",
-      label: "Breach and two-step checks are on. Not checked yet.",
+      label: "Breach and two-step checks on. Not checked.",
     });
     const range = rangeServer(new Map([[PASSWORD_SHA1, 12]]));
     const list = listServer();
-    const report = await runSecurityChecks(
-      [
-        login("GitHub", "password", "https://github.com/login"),
-        login("Mail", "unique-and-long-1", "https://accounts.google.com"),
-      ],
-      range.fetch,
-      list.fetch,
-    );
-    expect(securityWatchLabel(report)).toBe(
-      "1 of 2 passwords found in known breaches. 2 logins could add an authenticator code.",
-    );
     const items = [
       login("GitHub", "password", "https://github.com/login"),
       login("Mail", "unique-and-long-1", "https://accounts.google.com"),
     ];
+    const report = await runSecurityChecks(items, range.fetch, list.fetch);
+    expect(securityWatchLabel(report)).toBe(
+      "1 of 2 passwords found in known breaches. 2 logins could add an authenticator code.",
+    );
     noteSecurityWatch({ phase: "checked", report });
     const watch = breachWatchSnapshot();
     expect(watch.phase).toBe("checked");
@@ -239,7 +232,7 @@ describe("runSecurityChecks", () => {
     reconcileSecurityWatchWithVault(edited);
     expect(breachWatchSnapshot()).toMatchObject({
       phase: "idle",
-      label: "Breach and two-step checks are on. Not checked yet.",
+      label: "Breach and two-step checks on. Not checked.",
     });
     clearSecurityWatch();
     expect(breachWatchSnapshot().phase).toBe("off");

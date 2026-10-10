@@ -65,11 +65,11 @@ export type SecurityReport = {
 
 /** Shown in Settings and on Password health while the capability is on and no check has finished. */
 export const SECURITY_CHECKS_IDLE =
-  "Breach and two-step checks are on. Not checked yet.";
+  "Breach and two-step checks on. Not checked.";
 
 /** Shown while a check is in flight. */
 export const SECURITY_CHECKS_CHECKING =
-  "Checking logins against known breaches and two-step sites.";
+  "Checking logins against breach and two-step lists.";
 
 function noun(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
@@ -89,7 +89,7 @@ export function securityWatchLabel(report: SecurityReport): string {
   if (twoStep > 0) {
     return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
   }
-  return `${noun(checked, "login", "logins")} checked. No breaches; no missing authenticator codes.`;
+  return `${noun(checked, "login", "logins")} checked. No breaches; no missing codes.`;
 }
 
 /** Visible sentences for one login, breach first, then a missing authenticator code. */
@@ -136,9 +136,8 @@ function checkedWatch(report: SecurityReport): BreachWatch {
 }
 
 function securityCheckInputsFingerprint(items: readonly VaultItem[]): string {
-  const checked = logins(items);
-  return checked
-    .map((item) => `${item.id}\t${item.updatedAt}`)
+  return logins(items)
+    .map((item) => item.updatedAt)
     .sort()
     .join("\n");
 }
