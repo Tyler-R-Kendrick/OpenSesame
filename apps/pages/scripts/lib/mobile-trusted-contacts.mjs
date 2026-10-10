@@ -85,6 +85,26 @@ async function refusedPaste(page, run) {
   await field.fill("this is not an invitation");
   await page.waitForTimeout(450);
   await run.audit(page, run.stop("trusted-contacts-refused"));
+  // The mark's target is 2.75rem and grows into its row; it must not sit over
+  // the label it follows (the label once read "An invitatio").
+  const gap = await page.evaluate(() => {
+    const label = document.querySelector(".tc-packet-in .f__label");
+    const mark = document.querySelector(
+      ".tc-packet-in .status-mark[data-touch-twin]",
+    );
+    if (!label || !mark) return null;
+    return (
+      mark.getBoundingClientRect().left - label.getBoundingClientRect().right
+    );
+  });
+  const { harness, stop } = run;
+  harness.check(
+    gap !== null && gap >= 0,
+    `${stop("trusted-contacts-refused")}: the refused-paste mark's target clears its label (gap ${gap === null ? "not drawn" : `${Math.round(gap * 10) / 10}px`})`,
+  );
+  console.log(
+    `MEASURE ${stop("trusted-contacts-refused")}: label-to-mark target gap ${gap}px`,
+  );
 }
 
 export async function trustedContactsStops(

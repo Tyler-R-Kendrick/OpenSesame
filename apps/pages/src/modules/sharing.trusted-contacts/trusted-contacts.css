@@ -51,6 +51,15 @@
   min-width: 0;
 }
 
+/* A refused paste puts a mark beside the label. Under a finger the mark's
+   target is 2.75rem (it grows 0.75rem a side, status-twin), so the label keeps
+   0.75rem of clear space or the target would sit over its last letter. */
+@media (pointer: coarse) {
+  .tc-packet-in .f__labelrow {
+    gap: 0.8rem;
+  }
+}
+
 .tc-packet-in textarea {
   font-family: var(--mono);
   font-size: max(0.8125rem, var(--field-min));
