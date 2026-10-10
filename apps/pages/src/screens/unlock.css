@@ -1,3 +1,43 @@
+.unlock--lock-v5 {
+  position: relative;
+  overflow: hidden;
+}
+
+.unlock--lock-v5 .unlock__card,
+.unlock--lock-v5 .unlock__notes {
+  position: relative;
+  z-index: 1;
+}
+
+/* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
+.unlock__hero {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  /* font-size drives CipherWordmark em; kill the strut so the box is the canvas. */
+  line-height: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.unlock__hero-wordmark {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 400;
+  line-height: 0;
+}
+
+/* Hero mark is canvas `includeMark` at plate height — no separate SVG. */
+
+/* Reserve the brand-row height the in-card wordmark used to occupy. */
+.unlock__wordmark--reserve {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.55rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .unlock {
   min-height: 100dvh;
   display: grid;
@@ -288,8 +328,14 @@
   flex: 1 1 auto;
   min-width: 0;
   font-size: clamp(0.9rem, 3.2vw, 1.55rem);
+  font-weight: 800;
   color: var(--ink);
   max-width: 100%;
+}
+
+.unlock__brand .unlock__wordmark > svg {
+  width: 1.1em;
+  height: 1.1em;
 }
 
 /* Wordmark is a `p` in the brand row — do not restyle it as body copy.

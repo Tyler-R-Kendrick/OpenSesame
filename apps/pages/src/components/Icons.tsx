@@ -1,6 +1,5 @@
 import type { IconName } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import type { ComponentType } from "react";
-import { MARK_UNITS, markRects } from "./CipherWordmark/mark-geometry.js";
 import {
   IconAlert,
   IconClock,
@@ -71,13 +70,6 @@ export {
    where it opened. Ink slab, accent light — the one place the accent is
    identity rather than state. */
 
-/** The mark, bare, in the 24 frame: 17 units tall at a 3.5 inset (`CipherWordmark/mark-geometry.ts`). */
-const MARK = markRects(
-  MARK_UNITS,
-  (24 - MARK_UNITS) / 2,
-  (24 - MARK_UNITS) / 2,
-);
-
 export function IconMark({ className, title, size = 20 }: IconProps) {
   return (
     <svg
@@ -89,18 +81,12 @@ export function IconMark({ className, title, size = 20 }: IconProps) {
       role={title ? "img" : undefined}
     >
       {title ? <title>{title}</title> : null}
+      <rect x="3.5" y="3.5" width="12" height="17" fill="currentColor" />
       <rect
-        x={MARK.slab.x}
-        y={MARK.slab.y}
-        width={MARK.slab.w}
-        height={MARK.slab.h}
-        fill="currentColor"
-      />
-      <rect
-        x={MARK.slit.x}
-        y={MARK.slit.y}
-        width={MARK.slit.w}
-        height={MARK.slit.h}
+        x="18.2"
+        y="3.5"
+        width="2.3"
+        height="17"
         fill="var(--mark-slit, #8f8f8f)"
       />
     </svg>

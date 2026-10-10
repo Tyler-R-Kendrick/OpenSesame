@@ -1,12 +1,15 @@
-import { useEffect } from "react";
+import { type MutableRefObject, useEffect } from "react";
+import type { DecryptRun } from "./cipher.js";
 import { nowMs } from "./use-cipher-paint.js";
 
 type BootArgs = {
   motionOff: boolean;
   animateOnMount: boolean;
   replayProp: boolean;
+  runsRef: MutableRefObject<DecryptRun[]>;
+  settledRef: MutableRefObject<boolean>;
+  setSettled: (v: boolean) => void;
   startRun: () => void;
-  settleRun: () => void;
   resize: () => void;
   paint: (t: number) => void;
   scheduleFrame: () => void;
@@ -17,21 +20,29 @@ export function useCipherBoot({
   motionOff,
   animateOnMount,
   replayProp,
+  runsRef,
+  settledRef,
+  setSettled,
   startRun,
-  settleRun,
   resize,
   paint,
   scheduleFrame,
 }: BootArgs): void {
   useEffect(() => {
     if (motionOff) {
-      settleRun();
+      runsRef.current = [];
+      settledRef.current = true;
+      setSettled(true);
       resize();
       paint(nowMs());
       return;
     }
     if (animateOnMount || replayProp) startRun();
-    else settleRun();
+    else {
+      runsRef.current = [];
+      settledRef.current = true;
+      setSettled(true);
+    }
     resize();
     scheduleFrame();
   }, [
@@ -42,6 +53,8 @@ export function useCipherBoot({
     resize,
     scheduleFrame,
     startRun,
-    settleRun,
+    runsRef,
+    settledRef,
+    setSettled,
   ]);
 }
