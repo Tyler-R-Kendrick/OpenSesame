@@ -258,11 +258,12 @@
         "2026-10-09: javascript 6231->6233 and javascriptGzip stays 1905 for persona P2 local identity requests in Access (pending approval rows, revoke confirm on shares, requests tab tree) on top of sent-drop receipts. CI on the pre-merge branch measured 6229/1905; the merged tree is expected at 6233/1905 KiB; raise only to these measured minimums after CI confirms.",
         "2026-10-09: javascript 6233->6234 because CI on f63424c5 measured 6234/1905 KiB after merging main at f48efc4e; raise only to the measured minimum.",
         "2026-10-09: javascript ->6250 gzip ->1915 for verification-audit rematch (ECR postgres + greyscale/drops).",
-        "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main."
+        "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main.",
+        "2026-10-10: javascript 6250->6253 for sealing a new vault with a security key (#1023): the PRF assertion after creation, the This device / Security key choice and the step past an authenticator that cannot answer PRF, about 2 KiB on a base that already measures 6251 locally, i.e. no headroom. CI on e4ac5c2 measured 6253/1902 KiB after merging main at a99018e; raise only to the measured minimum. javascriptGzip (1902/1915) and css are within their budgets and unchanged."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6250,
+        "javascript": 6253,
         "javascriptGzip": 1915,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
