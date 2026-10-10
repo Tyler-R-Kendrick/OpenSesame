@@ -9,8 +9,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createHarness } from "./lib/static-origin-harness.mjs";
 import { lockVault, sealWithPin } from "./lib/pages-journey.mjs";
+import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const widths = [390, 1024, 1280];
 const root = fileURLToPath(new URL("../../..", import.meta.url));
@@ -92,10 +92,7 @@ async function walkReferenceDev(browser, width) {
   await page.waitForSelector(".lock-v5-demo__stage");
   await page.waitForTimeout(400);
   const stage = page.locator(".lock-v5-demo__stage");
-  await capture(
-    page,
-    path.join(outDir, `reference-lock-v5-demo-${width}.png`),
-  );
+  await capture(page, path.join(outDir, `reference-lock-v5-demo-${width}.png`));
   await stage.screenshot({
     path: path.join(outDir, `reference-stage-${width}.png`),
   });
