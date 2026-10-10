@@ -15,9 +15,9 @@ import {
 import {
   TUNNEL_ONLY,
   WATCH_RTC,
+  assertSameMachineSdpPrivacy,
   endSession,
   joinerAsks,
-  assertSameMachineSdpPrivacy,
   joinerConnects,
   ownerAdmitsByHand,
   ownerEnters,
