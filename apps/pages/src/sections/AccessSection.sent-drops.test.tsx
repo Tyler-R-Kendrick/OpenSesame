@@ -30,7 +30,7 @@ vi.mock("../lib/use-online.js", () => ({
 }));
 
 describe("AccessSection sent drops", () => {
-  const tomb = "tomb/sent-drops-access";
+  const tomb = "sent-drops-access";
 
   beforeEach(async () => {
     resetLocalDropClaimsForTests();
