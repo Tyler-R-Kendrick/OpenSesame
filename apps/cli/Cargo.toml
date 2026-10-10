@@ -59,6 +59,7 @@ ratatui = { workspace = true }
 uuid = { workspace = true }
 zeroize = { workspace = true }
 hex = { workspace = true }
+sha2 = { workspace = true }
 rand = { workspace = true }
 directories = "6.0.0"
 qr2term = "0.3.3"

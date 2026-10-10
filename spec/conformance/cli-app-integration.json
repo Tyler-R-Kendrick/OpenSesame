@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "idleTimeoutSeconds": 600,
+  "requestTimeoutSeconds": 120,
+  "pollIntervalMs": 500,
+  "daemonPaths": {
+    "ensure": "/v1/cli/app-integration/ensure",
+    "respond": "/v1/cli/app-integration/respond",
+    "pending": "/v1/cli/app-integration/pending"
+  },
+  "messages": {
+    "appUnavailable": "OpenSesame is not running. Unlock OpenSesame and allow CLI integration to reveal secrets from this terminal.",
+    "denied": "CLI integration was denied in OpenSesame.",
+    "expired": "CLI integration for this terminal expired due to inactivity. Allow it again in OpenSesame.",
+    "pending": "Waiting for you to allow CLI integration in OpenSesame…",
+    "wrongSession": "CLI integration is approved for a different terminal session."
+  },
+  "sessionCases": [
+    {
+      "id": "approve-grants-session",
+      "terminalSessionId": "term-a",
+      "action": "approve",
+      "expectEnsure": "approved"
+    },
+    {
+      "id": "deny-refuses-session",
+      "terminalSessionId": "term-b",
+      "action": "deny",
+      "expectEnsure": "denied"
+    },
+    {
+      "id": "expiry-clears-session",
+      "terminalSessionId": "term-c",
+      "action": "approve",
+      "idlePastSeconds": 601,
+      "expectEnsure": "pending"
+    },
+    {
+      "id": "session-scoped-to-terminal",
+      "terminalSessionId": "term-d",
+      "otherTerminalSessionId": "term-other",
+      "action": "approve",
+      "queryAs": "other",
+      "expectEnsure": "pending"
+    }
+  ]
+}

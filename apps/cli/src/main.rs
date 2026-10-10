@@ -4,6 +4,7 @@ mod agent_runs;
 mod attach;
 mod bridge;
 mod ceremony;
+mod cli_app_integration;
 mod certs;
 mod configs;
 mod connect;
