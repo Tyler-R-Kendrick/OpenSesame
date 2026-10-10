@@ -29,7 +29,7 @@ describe("ShareRow revoke", () => {
       <ShareRow
         share={share}
         name="Ada"
-        role="member"
+        principalRole="member"
         busy={false}
         canRevoke
         onRevoke={onRevoke}
@@ -42,7 +42,9 @@ describe("ShareRow revoke", () => {
     fireEvent.blur(key);
     expect(key.className).not.toContain("is-armed");
     await userEvent.click(key);
-    await userEvent.click(screen.getByRole("button", { name: "Confirm revoke" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Confirm revoke" }),
+    );
     expect(onRevoke).toHaveBeenCalledOnce();
   });
 });

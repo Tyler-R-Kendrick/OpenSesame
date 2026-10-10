@@ -64,14 +64,14 @@ export function PendingRow({
 export function ShareRow({
   share,
   name,
-  role,
+  principalRole,
   busy,
   canRevoke,
   onRevoke,
 }: {
   share: LocalShare;
   name: string;
-  role: string | undefined;
+  principalRole: string | undefined;
   busy: boolean;
   canRevoke: boolean;
   onRevoke: () => void;
@@ -124,7 +124,7 @@ export function ShareRow({
         label="Policy"
         value={policyLabel(share.resourceKind, share.policy)}
       />
-      <AccessFact label="Role" value={role ?? "—"} />
+      <AccessFact label="Role" value={principalRole ?? "—"} />
       <AccessFact
         label="Expires"
         value={new Date(share.expiresAt).toLocaleString()}
