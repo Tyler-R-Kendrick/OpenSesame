@@ -31,15 +31,31 @@ export function ClaimDropAnnouncement() {
 
   if (!banner) return null;
 
+  const barStyle = {
+    position: "fixed" as const,
+    inset: "0 0 auto",
+    zIndex: 40,
+    display: "flex",
+    gap: "0.75rem",
+    margin: 0,
+    padding:
+      "max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem",
+    border: 0,
+    borderBottom: "1px solid var(--line)",
+    background: "var(--surface)",
+  };
+  const textStyle = { flex: 1, minWidth: 0, margin: 0 };
+
   return (
-    <div className="claim-drop-announcement" role="alert" aria-live="assertive">
-      <p className="claim-drop-announcement__text">
-        <span className="claim-drop-announcement__title">{banner.title}</span>
+    <div style={barStyle} role="alert" aria-live="assertive">
+      <p style={textStyle}>
+        <span>{banner.title}</span>
+        {" — "}
         {banner.body}
       </p>
       <button
         type="button"
-        className="icon-btn claim-drop-announcement__dismiss"
+        className="icon-btn"
         aria-label="Dismiss"
         title="Dismiss"
         onClick={() => dismissClaimDropBanner()}
