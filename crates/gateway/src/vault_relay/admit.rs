@@ -45,7 +45,7 @@ pub(crate) fn owner_kind_of(headers: &HeaderMap) -> Result<&'static str, StatusC
         .get(OWNER_KIND)
         .and_then(|value| value.to_str().ok())
     {
-        None | Some("") | Some("user") => Ok("user"),
+        None | Some("" | "user") => Ok("user"),
         Some("organization") => Ok("organization"),
         Some(_) => Err(StatusCode::BAD_REQUEST),
     }
@@ -106,8 +106,8 @@ pub(crate) fn member_allows(
         return false;
     }
     match (action, role) {
-        (MemberAction::List, _) => true,
-        (MemberAction::Create, None | Some(OrgRole::Owner | OrgRole::Admin)) => true,
+        (MemberAction::List, _)
+        | (MemberAction::Create, None | Some(OrgRole::Owner | OrgRole::Admin)) => true,
         (MemberAction::Create, Some(OrgRole::Member)) => false,
     }
 }

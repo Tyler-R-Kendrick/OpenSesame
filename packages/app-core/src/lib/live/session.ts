@@ -48,26 +48,27 @@ import { guestCarriersFor, openCarriers, poster } from "./session-carriers.js";
 import type { CarrierSpec, LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
 
-type LiveSeams = {
+type LiveSessionSeams = {
   items: () => readonly VaultItem[];
   onLock: (handler: () => void) => () => void;
-  /** Tray/UI when the hosted session's guest list changes (Pages sets this). */
   onHostState: ((state: HostState) => void) | null;
-  /** Clear host-only tray rows when hosting ends (Pages sets this). */
   onHostingEnded: (() => void) | null;
-  /** The page's resolved plan; null until the composition store has one. */
   plan: () => EffectivePlan | null;
-  /** Hear the composition store publish, on every re-plan and activity note. */
   onPlan: (handler: () => void) => () => void;
 };
 
-export const liveSeams: LiveSeams = {
-  items: () => vaultStore.getSnapshot().items,
-  onLock: (handler) => vaultStore.onLock(handler),
+export const liveSeams: LiveSessionSeams = {
+  items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
+  onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
+  /** Tray/UI when the hosted session's guest list changes (Pages sets this). */
   onHostState: null,
+  /** Clear host-only tray rows when hosting ends (Pages sets this). */
   onHostingEnded: null,
-  plan: () => compositionStore.getSnapshot().plan,
-  onPlan: (handler) => compositionStore.subscribe(handler),
+  /** The page's resolved plan; null until the composition store has one. */
+  plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
+  /** Hear the composition store publish, on every re-plan and activity note. */
+  onPlan: (handler: () => void): (() => void) =>
+    compositionStore.subscribe(handler),
 };
 
 const CAPABILITY = "sharing.live";
