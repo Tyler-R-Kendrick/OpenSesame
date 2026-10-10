@@ -24,7 +24,7 @@ vi.mock("../app-root.js", () => ({
 vi.mock("../lib/use-configured.js", () => ({
   useHostConfigured: () => false,
   useIdentityConfigured: () => false,
-  useIdentityPlane: () => "device" as const,
+  useIdentityPlane: () => "device",
   useIdentityServes: () => false,
 }));
 
