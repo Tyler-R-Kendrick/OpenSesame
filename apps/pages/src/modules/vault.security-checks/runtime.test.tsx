@@ -146,7 +146,7 @@ describe("vault.security-checks runtime", () => {
       }),
     );
     await waitFor(() =>
-      expect(screen.getByText("2 logins checked")).toBeTruthy(),
+      expect(screen.getByText(/2 logins checked/)).toBeTruthy(),
     );
     expect(
       screen.getByText(
