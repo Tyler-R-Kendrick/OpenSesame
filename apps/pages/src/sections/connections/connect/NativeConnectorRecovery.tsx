@@ -44,7 +44,10 @@ function NativeRevocationConfirmation({
           disabled={!instructions.canConfirm || !controller.confirmRevocation}
           onChange={(event) => setAcknowledged(event.target.checked)}
         />
-        <span>I revoked this application at the provider</span>
+        <span>
+          {instructions.acknowledgementLabel ??
+            "I revoked this application at the provider"}
+        </span>
       </label>
       <FormCommit
         label="Confirm provider revocation"

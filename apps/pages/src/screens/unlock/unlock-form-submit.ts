@@ -2,11 +2,16 @@ import type {
   PasskeyProbe,
   PasskeyProbeOptions,
 } from "@opensesame/app-core/lib/vault/passkey-unlock-session.js";
+import type {
+  PasskeyAttachment,
+  PasskeyCreateOptions,
+} from "@opensesame/app-core/lib/vault/protection/adapters/webauthn-prf-ceremony.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { ProtectorUnlockInput } from "@opensesame/app-core/lib/vault/protection/unlock-protector-open.js";
 import type { SecondStepId } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import type { FormEvent, MutableRefObject } from "react";
 import {
+  stepPastUnsupported,
   submitFirstRunUnlock,
   submitGuestUnlock,
   submitPasskeyDuressCode,
@@ -17,7 +22,10 @@ import { applyUnlockSubmitFailure } from "./unlock-submit-errors.js";
 import type { PendingFocus } from "./use-refocus-after-failure.js";
 
 type UnlockStore = Readonly<{
-  createWithPasskey: (signal?: AbortSignal) => Promise<void>;
+  createWithPasskey: (
+    signal?: AbortSignal,
+    options?: PasskeyCreateOptions,
+  ) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
   createGuest: (options?: { resume?: boolean }) => Promise<void>;
   cancelTotpChallenge: () => void;
@@ -55,6 +63,9 @@ export async function submitUnlockForm(input: {
   activeSecondStep: SecondStepId | null;
   store: UnlockStore;
   passkeyAbort: MutableRefObject<AbortController | null>;
+  /** The kind of authenticator a first-run passkey seal asks for. */
+  attachment: PasskeyAttachment;
+  onSealUnsupported: (kind: PasskeyAttachment) => void;
   pin: string;
   confirm: string;
   password: string;
@@ -101,6 +112,7 @@ export async function submitUnlockForm(input: {
     }
     input.setConfirm("");
   } catch (caught) {
+    if (stepPastUnsupported(input, caught)) return;
     applyUnlockSubmitFailure({
       caught,
       awaitingSecondStep: input.awaitingSecondStep,

@@ -2,14 +2,21 @@
  * Admission for the in-process relay. Same rules as `member_allows` and
  * `publish_allows` in `crates/gateway/src/vault_relay`.
  */
+import { z } from "zod";
 
 export const FORMAT = "opensesame-vault-drive-snapshot";
+const segmentSchema = z
+  .string()
+  .min(1)
+  .max(63)
+  .regex(/^[a-z0-9]+(?:[a-z0-9-]*[a-z0-9])?$/)
+  .refine((value) => value !== "guest");
+const snapshotSchema = z
+  .object({ format: z.literal(FORMAT), v: z.literal(1) })
+  .passthrough();
 
 export function validSegment(value) {
-  if (typeof value !== "string" || value === "guest") return false;
-  if (value.length < 1 || value.length > 63) return false;
-  if (value.startsWith("-") || value.endsWith("-")) return false;
-  return /^[a-z0-9-]+$/.test(value);
+  return segmentSchema.safeParse(value).success;
 }
 
 export function addressOf(owner, slug) {
@@ -40,12 +47,7 @@ export function publishAllows(ownerKind, principal, owner, role) {
 }
 
 export function snapshotOk(value) {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    value.format === FORMAT &&
-    value.v === 1
-  );
+  return snapshotSchema.safeParse(value).success;
 }
 
 export function presentedKey(raw) {

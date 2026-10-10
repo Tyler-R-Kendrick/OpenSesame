@@ -5,13 +5,8 @@ export const MIN_STEPS = 6;
 export const MAX_STEPS = 12;
 export const FRAME_MS = 35;
 
-/**
- * The line on the plates. The brand is the letter O: a zero reads as a
- * hacker-text affectation on a product that otherwise says only true things,
- * and it makes the eye and the screen reader disagree. It is one word to
- * change, here and nowhere else.
- */
-export const DISPLAY_WORD = "OPEN SESAME";
+/** Visual line on punched plates (lock-v5). */
+export const DISPLAY_WORD = "0PEN SESAME";
 
 /**
  * Deterministic mixed scramble + target (lock-v5). Knuth seed, NR LCG, output
@@ -99,15 +94,6 @@ export function slotState(
     };
   }
   return { glyph: letter, cursor: false, frame: -1 };
-}
-
-/** The slot the cursor is on at `timeMs`, or -1 once every letter is locked. */
-export function cursorSlot(runs: DecryptRun[], timeMs: number): number {
-  const count = runs[0]?.slots.length ?? 0;
-  for (let index = 0; index < count; index += 1) {
-    if (slotState(runs, index, timeMs).cursor) return index;
-  }
-  return -1;
 }
 
 export function pruneRuns(runs: DecryptRun[], timeMs: number): DecryptRun[] {

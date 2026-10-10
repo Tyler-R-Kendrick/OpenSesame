@@ -49,13 +49,22 @@ import {
 import type { CarrierSpec, LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
 
-export const liveSeams = {
+type LiveSessionSeams = {
+  items: () => readonly VaultItem[];
+  onLock: (handler: () => void) => () => void;
+  onHostState: ((state: HostState) => void) | null;
+  onHostingEnded: (() => void) | null;
+  plan: () => EffectivePlan | null;
+  onPlan: (handler: () => void) => () => void;
+};
+
+export const liveSeams: LiveSessionSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
   onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
   /** Tray/UI when the hosted session's guest list changes (Pages sets this). */
-  onHostState: null as ((state: HostState) => void) | null,
+  onHostState: null,
   /** Clear host-only tray rows when hosting ends (Pages sets this). */
-  onHostingEnded: null as (() => void) | null,
+  onHostingEnded: null,
   /** The page's resolved plan; null until the composition store has one. */
   plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
   /** Hear the composition store publish, on every re-plan and activity note. */

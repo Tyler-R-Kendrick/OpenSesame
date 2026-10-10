@@ -10,6 +10,7 @@ import {
 } from "@opensesame/app-core/lib/notices.js";
 import {
   type OrgVaultRecord,
+  RelayRequestError,
   createOrgVault,
   listOrgVaults,
 } from "@opensesame/app-core/lib/vault-relay/client.js";
@@ -31,7 +32,8 @@ const EMPTY_DRAFT: DirectoryDraft = {
 };
 
 /** Tests inject a fetch. The product uses the relay client's own road out. */
-export const orgVaultDirectorySeams: { fetch?: typeof fetch } = {};
+type OrgVaultDirectoryPorts = { fetch?: typeof fetch };
+export const orgVaultDirectorySeams: OrgVaultDirectoryPorts = {};
 
 function notice(body: string): void {
   setStatusNotice({
@@ -47,10 +49,6 @@ function refused(status: number): string {
   if (status === 403) return "A member cannot publish that address.";
   if (status === 400) return "That address was refused.";
   return "The relay did not answer.";
-}
-
-function statusOf(error: unknown): number {
-  return error instanceof Error && "status" in error ? Number(error.status) : 0;
 }
 
 async function listVaults(
@@ -74,7 +72,7 @@ async function listVaults(
     });
     setVaults(next);
   } catch (error) {
-    notice(refused(statusOf(error)));
+    notice(refused(error instanceof RelayRequestError ? error.status : 0));
   } finally {
     setBusy(false);
   }
@@ -110,7 +108,7 @@ async function createVault(
     setDraft({ ...draft, slug: "" });
     await listVaults(draft, setVaults, setBusy);
   } catch (error) {
-    notice(refused(statusOf(error)));
+    notice(refused(error instanceof RelayRequestError ? error.status : 0));
   } finally {
     setBusy(false);
   }

@@ -5,16 +5,18 @@ import { ensureRingAtlas } from "./ring-atlas.js";
 
 /** Minimal 2d context: jsdom's has no `scale`. */
 function stubContext(): CanvasRenderingContext2D {
-  const ctx = {
+  const textAlign: CanvasTextAlign = "center";
+  const textBaseline: CanvasTextBaseline = "middle";
+  const ctx: Partial<CanvasRenderingContext2D> = {
     scale: vi.fn(),
     font: "",
-    textAlign: "center" as CanvasTextAlign,
-    textBaseline: "middle" as CanvasTextBaseline,
+    textAlign,
+    textBaseline,
     fillStyle: "",
     fillText: vi.fn(),
   };
   // SAFETY: test double implements only the methods ensureRingAtlas calls.
-  return ctx as unknown as CanvasRenderingContext2D;
+  return ctx as CanvasRenderingContext2D;
 }
 
 beforeEach(() => {

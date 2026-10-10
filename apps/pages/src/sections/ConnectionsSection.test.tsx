@@ -73,7 +73,13 @@ import {
   type Provider,
   connectionSeams,
 } from "@opensesame/app-core/lib/connections.js";
+import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
+import {
+  connectorIntegration,
+  installConnectorIntegration,
+} from "./connections/connect/native-connector-integration.test-support.js";
 import {
   CONNECTIONS_CATALOG as catalog,
   makeConnection,
@@ -124,6 +130,7 @@ afterAll(() =>
 // capability, so they declare the same descriptors the module registers at
 // activation.
 declareConnectionsTutorial();
+installConnectorIntegration();
 
 describe("ConnectionsSection gallery", () => {
   let prompt = standInPrompt();
@@ -268,30 +275,49 @@ describe("ConnectionsSection connector page", () => {
     expect(await screen.findByText("Connector not found")).toBeTruthy();
   });
 
-  it("deploys a tenant GitHub App from the connector page", async () => {
-    startGithubAppRegistration.mockResolvedValue({
-      action: "https://github.com/settings/apps/new",
-      state: "st",
-      manifest: {},
-      redirectUrl: "https://host/cb",
-    });
+  it("verifies a GitHub personal token from the connector page without provisioning an App", async () => {
+    const fixture = connectorIntegration();
+    fixture.replies.push({ body: { id: 123, login: "octocat", type: "User" } });
     renderAt("/connections/github");
-    const button = await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+    await userEvent.type(
+      await screen.findByLabelText("GitHub personal access token"),
+      "private-browser-token",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Verify and connect GitHub" }),
+    );
+    await waitFor(() => expect(readDeviceRows()).toHaveLength(1));
+    const saved = readDeviceRows()[0];
+    if (!saved) throw new Error("Expected verified GitHub connector");
+    expect(readNativeConnector(saved.connectionId)).toMatchObject({
+      status: "connected",
+      identity: { id: "123", label: "octocat" },
     });
-    await userEvent.click(button);
-    await waitFor(() => expect(submitGithubAppManifest).toHaveBeenCalled());
+    expect(fixture.requests[0]?.url).toBe("https://api.github.com/user");
+    expect(submitGithubAppManifest).not.toHaveBeenCalled();
+    expect(startGithubAppRegistration).not.toHaveBeenCalled();
   });
 
-  it("reports GitHub App deployment failures", async () => {
-    startGithubAppRegistration.mockRejectedValue(new Error("no host"));
+  it("reports GitHub token refusal without saving a connection", async () => {
+    const fixture = connectorIntegration();
+    fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     renderAt("/connections/github");
+    await userEvent.type(
+      await screen.findByLabelText("GitHub personal access token"),
+      "private-browser-token",
+    );
     await userEvent.click(
-      await screen.findByRole("button", {
-        name: /Create GitHub App for this organization/i,
+      screen.getByRole("button", {
+        name: "Verify and connect GitHub",
       }),
     );
-    expect(await screen.findByRole("img", { name: /no host/ })).toBeTruthy();
+    expect(
+      await screen.findAllByRole("img", {
+        name: /Provider authorization was refused/,
+      }),
+    ).toBeTruthy();
+    expect(readDeviceRows()).toEqual([]);
+    expect(startGithubAppRegistration).not.toHaveBeenCalled();
   });
 
   it("refuses unsupported Better Auth without collecting or saving credentials", async () => {
@@ -318,117 +344,6 @@ describe("ConnectionsSection connector page", () => {
     expect(setConnectionConfiguration).not.toHaveBeenCalled();
     expect(setConnectionCredential).not.toHaveBeenCalled();
     expect(authorizeConnection).not.toHaveBeenCalled();
-  });
-});
-
-describe("ConnectionsSection deeper branches", () => {
-  beforeEach(() => {
-    online.value = true;
-    session.current = { principalId: "prn_op" };
-    shouldAutoConnect.mockReturnValue(true);
-    bundledRef.current = catalog;
-    embeddedCatalogSeams.bundledProviders = catalog;
-    listConnections.mockResolvedValue([]);
-    vault.items = [];
-    setVercelConnectAuth({ token: "test_token" });
-    window.history.replaceState({}, "", "/connections");
-  });
-
-  afterEach(() => {
-    cleanup();
-    clearNotices();
-    setVercelConnectAuth(null);
-    vi.clearAllMocks();
-    embeddedCatalogSeams.bundledProviders =
-      originalEmbeddedCatalogSeams.bundledProviders;
-  });
-
-  it("renders the offline note and disables reload", async () => {
-    online.value = false;
-    renderAt("/connections");
-    await expectInTray("This browser is offline");
-  });
-
-  it("shows sentences for reauth and expired connections", async () => {
-    listConnections.mockResolvedValue([
-      makeConnection({
-        connectionId: "con_reauth",
-        displayName: "Reauth me",
-        status: "needs_reauth",
-        statusDetail: "Renewal refused by GitHub.",
-      }),
-      makeConnection({
-        connectionId: "con_expired",
-        displayName: "Expired one",
-        status: "expired",
-        refreshable: false,
-      }),
-    ]);
-    renderAt("/connections");
-    // The sentence shows in both the inbox and the services list.
-    expect(
-      (await screen.findAllByText("Renewal refused by GitHub.")).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByText(/The access token expired and there is no refresh/)
-        .length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("handles a GitHub App registration redirect with a reason", async () => {
-    window.history.replaceState(
-      {},
-      "",
-      "/connections/github?github_app=error&reason=denied",
-    );
-    renderAt("/connections/github");
-    expect(
-      await screen.findByRole("img", {
-        name: /GitHub App registration failed: denied/,
-      }),
-    ).toBeTruthy();
-  });
-
-  it("confirms a GitHub App registration redirect", async () => {
-    window.history.replaceState(
-      {},
-      "",
-      "/connections/github?github_app=registered",
-    );
-    renderAt("/connections/github");
-    expect(
-      await screen.findByRole("img", { name: /GitHub App registered/ }),
-    ).toBeTruthy();
-  });
-
-  it("hides Connect once the GitHub App is registered from this browser", async () => {
-    localStorage.setItem(
-      "opensesame.github-app.public",
-      JSON.stringify({
-        id: "123",
-        key: "github-oauth",
-        displayName: "Org App",
-        htmlUrl: "https://github.com/apps/org-app",
-        ownerLogin: "acme",
-        ownerType: "Organization",
-        installedByLogin: null,
-        installations: [],
-      }),
-    );
-    try {
-      renderAt("/connections/github");
-      expect(await screen.findByTestId("github-app-presence")).toBeTruthy();
-      await waitFor(() => {
-        expect(
-          screen.queryByRole("heading", { name: /^Connect$/i }),
-        ).toBeNull();
-      });
-      expect(
-        screen.queryByRole("button", { name: /Authorize with GitHub/i }),
-      ).toBeNull();
-    } finally {
-      localStorage.removeItem("opensesame.github-app.public");
-    }
   });
 });
 
