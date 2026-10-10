@@ -1,6 +1,7 @@
 /** Fixed original P-256 operations only; no Root, owner permission or lock grant. */
 import {
   type BoundaryValue,
+  isFunction,
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
@@ -67,7 +68,7 @@ class OriginalDeviceIdentityCryptoData {
       throw new Error("Original identity crypto retired.");
     for (const name of NAMES) {
       if (
-        typeof this.#methods[name] !== "function" ||
+        !isFunction(this.#methods[name]) ||
         this.#subtle[name] !== this.#methods[name]
       )
         throw new Error("Original identity crypto method changed.");
