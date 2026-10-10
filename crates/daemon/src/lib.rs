@@ -929,7 +929,7 @@ mod tests {
             vault_drive: None,
             plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
             cli_app_integration: Arc::new(Mutex::new(
-                opensesame_connector_host::password_agent::app_integration::CliAppIntegrationStore::new(),
+                opensesame_cli_app_integration::CliAppIntegrationStore::new(),
             )),
             tailnet: tailnet_admin_routes::TailnetAdminHost::detached(),
         }

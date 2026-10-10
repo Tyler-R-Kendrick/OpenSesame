@@ -1,0 +1,14 @@
+[package]
+name = "opensesame-cli-app-integration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI ↔ OpenSesame app integration session store (1Password-style)"
+
+[lib]
+name = "opensesame_cli_app_integration"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }

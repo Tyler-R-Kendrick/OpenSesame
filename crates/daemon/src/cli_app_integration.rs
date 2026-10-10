@@ -5,7 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_connector_host::password_agent::app_integration::CliAppIntegrationStore;
+use opensesame_cli_app_integration::CliAppIntegrationStore;
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
@@ -17,7 +17,7 @@ pub(crate) type SharedCliAppIntegration =
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct EnsureReq {
+pub struct EnsureReq {
     terminal_session_id: String,
     verb: String,
     reference: Option<String>,
@@ -25,7 +25,7 @@ struct EnsureReq {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct RespondReq {
+pub struct RespondReq {
     request_id: String,
     terminal_session_id: String,
     decision: String,
