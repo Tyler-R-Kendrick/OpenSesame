@@ -288,10 +288,7 @@ function noteShareDecision(
 }
 
 /** An agent or application asked for a share before a person approved it. */
-export function noteShareRequested(
-  tomb: string,
-  share: ShareReceiptIds,
-): void {
+export function noteShareRequested(tomb: string, share: ShareReceiptIds): void {
   noteShareDecision(tomb, "share.requested", share);
 }
 

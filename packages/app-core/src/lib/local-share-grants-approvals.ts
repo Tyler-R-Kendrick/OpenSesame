@@ -345,8 +345,7 @@ export async function denyPendingShare(
   });
   const current = await readPending(tomb);
   const pending = current.find((row) => row.id === id);
-  if (!pending)
-    throw new LocalDirectoryError("This approval is unavailable.");
+  if (!pending) throw new LocalDirectoryError("This approval is unavailable.");
   const next = current.filter((row) => row.id !== id);
   await writePending(tomb, next);
   noteShareDenied(tomb, {
