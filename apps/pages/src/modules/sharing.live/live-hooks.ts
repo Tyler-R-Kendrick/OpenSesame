@@ -1,7 +1,8 @@
 /**
  * The live session this tab hosts or has joined, as React state, and the
- * two browser pieces app-core does not touch: `RTCPeerConnection` and this
- * app's own address (ADR 0150).
+ * two browser pieces app-core does not touch: the transport sessions run
+ * over — WebRTC, built on this browser's `RTCPeerConnection` — and this app's
+ * own address (ADR 0150, ADR 0186).
  */
 
 import type {
@@ -18,6 +19,7 @@ import {
   currentHost,
   onLiveSessionChange,
 } from "@opensesame/app-core/lib/live/session.js";
+import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
@@ -105,8 +107,8 @@ export function useDraftField(
 
 /** Seams, so a test can stand a fake network in for the browser's. */
 export const liveUiSeams = {
-  peers: (config: RTCConfiguration): RTCPeerConnection =>
-    new RTCPeerConnection(config),
+  /** What carries sessions; another `PeerTransport` would plug in here. */
+  transport: webRtc((config) => new RTCPeerConnection(config)),
   /**
    * The carrier clients, made by `runtime.ts` from this activation's egress
    * port and taken away again on dispose: until then nothing opens, and a

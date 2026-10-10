@@ -28,9 +28,9 @@ import {
   type WriteField,
 } from "./host-peer.js";
 import type { LiveLink } from "./link.js";
-import type { Catalog } from "./messages.js";
+import type { Catalog, JoinRequest } from "./messages.js";
+import { PAIRING_MS, type PeerTransport } from "./p2p.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
-import { type IceSettings, PAIRING_MS, type PeerFactory } from "./peer.js";
 import type { Carrier } from "./rendezvous.js";
 import { type LiveRoutes, NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
@@ -84,22 +84,19 @@ export type Received =
 
 export type HostOptions = Readonly<{
   admission: Admission;
-  ice: IceSettings;
+  /** What carries each seat, over the owner's routes. */
+  transport: PeerTransport;
   /** Epoch ms; clamped to eight hours from now. */
   expiresAt: number;
   catalog: () => Catalog;
   readField: ReadField;
   /** Present when the session may write a shared field back. Absent denies. */
   writeField?: WriteField;
-  peers: PeerFactory;
   /** What the link carries for joiners: ICE servers, relay only, carriers. */
   routes?: LiveRoutes;
   /** Where a reply code goes besides the owner's screen (a carrier). */
   post?: (code: string) => void;
-  /**
-   * A seat's channel on a carrier that may carry the session (NATS), or
-   * null when none can; asked at each admission (ADR 0167).
-   */
+  /** A seat's channel on a NATS carrier, or null; asked at each admission. */
   relay?: (name: string) => Carrier | null;
   /** The link secret, when the caller minted credentials for its topic. */
   secret?: string;
@@ -109,6 +106,8 @@ export type HostOptions = Readonly<{
 type Seat = {
   guest: Guest;
   offer: string;
+  /** The joiner greets until it holds the catalog (ADR 0186). */
+  greets: boolean;
   /** The joiner's public key: its reply is sealed to it. */
   joiner: string;
   peer: HostPeer | null;
@@ -216,6 +215,7 @@ export class LiveHost {
       this.code,
       this.#owner,
       text,
+      this.options.transport.readsOffer,
     );
     if (this.#ended) return { kind: "ended" };
     if (opened.kind === "not-a-request") return opened;
@@ -250,10 +250,7 @@ export class LiveHost {
     return { kind: "not-this-session", misses: this.#misses };
   }
 
-  async #seat(
-    request: { id: string; name: string; note: string; offer: string },
-    joiner: string,
-  ): Promise<Received> {
+  async #seat(request: JoinRequest, joiner: string): Promise<Received> {
     const seated = [...this.#seats.values()].filter((seat) =>
       OPEN.has(seat.guest.state),
     );
@@ -269,6 +266,7 @@ export class LiveHost {
         reply: null,
       },
       offer: request.offer,
+      greets: request.greets,
       joiner,
       peer: null,
       admitting: false,
@@ -292,8 +290,8 @@ export class LiveHost {
     const peer = new HostPeer({
       relayed: relay !== null,
       guest: key,
-      ice: this.options.ice,
-      peers: this.options.peers,
+      transport: this.options.transport,
+      greets: seat.greets,
       catalog: this.options.catalog,
       readField: this.options.readField,
       writeField: this.options.writeField,

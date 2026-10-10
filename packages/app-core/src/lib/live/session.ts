@@ -36,31 +36,38 @@ import {
   LIVE_VAULT_LOCKED_TRAY,
   reportLiveOutcome,
 } from "./outcome-notices.js";
-import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
+import {
+  DIRECT_ROUTING,
+  type PeerRouting,
+  type TransportFactory,
+} from "./p2p.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import { type RelaySource, buildLiveHost } from "./session-build-host.js";
-import {
-  guestCarriersFor,
-  openCarriers,
-  poster,
-  rtcServers,
-} from "./session-carriers.js";
+import { guestCarriersFor, openCarriers, poster } from "./session-carriers.js";
 import type { CarrierSpec, LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
 
-export const liveSeams = {
-  items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
-  onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
+type LiveSeams = {
+  items: () => readonly VaultItem[];
+  onLock: (handler: () => void) => () => void;
   /** Tray/UI when the hosted session's guest list changes (Pages sets this). */
-  onHostState: null as ((state: HostState) => void) | null,
+  onHostState: ((state: HostState) => void) | null;
   /** Clear host-only tray rows when hosting ends (Pages sets this). */
-  onHostingEnded: null as (() => void) | null,
+  onHostingEnded: (() => void) | null;
   /** The page's resolved plan; null until the composition store has one. */
-  plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
+  plan: () => EffectivePlan | null;
   /** Hear the composition store publish, on every re-plan and activity note. */
-  onPlan: (handler: () => void): (() => void) =>
-    compositionStore.subscribe(handler),
+  onPlan: (handler: () => void) => () => void;
+};
+
+export const liveSeams: LiveSeams = {
+  items: () => vaultStore.getSnapshot().items,
+  onLock: (handler) => vaultStore.onLock(handler),
+  onHostState: null,
+  onHostingEnded: null,
+  plan: () => compositionStore.getSnapshot().plan,
+  onPlan: (handler) => compositionStore.subscribe(handler),
 };
 
 const CAPABILITY = "sharing.live";
@@ -131,9 +138,10 @@ export type HostInput = Readonly<{
   admission: Admission;
   /** Minutes; the host clamps it to eight hours. */
   minutes: number;
-  peers: PeerFactory;
-  /** The owner's transport profile; direct only when absent. */
-  transport?: LiveTransport;
+  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
+  transport: TransportFactory;
+  /** The owner's routes profile (Settings › Routes); direct when absent. */
+  routes?: LiveTransport;
   /** The shell's carrier clients, for a profile that names carriers. */
   carriers?: CarrierFactory;
 }>;
@@ -291,7 +299,8 @@ export type JoinInput = Readonly<{
   code: string | null;
   name: string;
   note: string;
-  peers: PeerFactory;
+  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
+  transport: TransportFactory;
   /**
    * Whether to use what the link names — its ICE servers and carriers. The
    * person agreed to the hosts it lists; without that, direct only.
@@ -310,9 +319,9 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   leaveLive();
   // The join screen refuses a link whose routes do not read; direct here.
   const routes = linkRoutes(input.link) ?? NO_ROUTES;
-  const ice: IceSettings = input.useRoutes
-    ? { iceServers: rtcServers(routes.ice), relay: routes.relay, addresses: [] }
-    : DIRECT_ONLY;
+  const routing: PeerRouting = input.useRoutes
+    ? { servers: routes.ice, relay: routes.relay, addresses: [] }
+    : DIRECT_ROUTING;
   let next: LiveGuest | null = null;
   const carriers = input.useRoutes
     ? openCarriers(
@@ -328,8 +337,7 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     code: input.code,
     name: input.name,
     note: input.note,
-    ice,
-    peers: input.peers,
+    transport: input.transport(routing),
     carriers: carriers ? guestCarriersFor(carriers) : null,
   });
   guest = next;

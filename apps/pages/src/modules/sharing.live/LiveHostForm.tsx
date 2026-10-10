@@ -59,8 +59,8 @@ export function LiveHostForm() {
           policy,
           admission,
           minutes,
-          peers: liveUiSeams.peers,
-          transport,
+          transport: liveUiSeams.transport,
+          routes: transport,
           carriers: liveUiSeams.carriers,
         });
       }}

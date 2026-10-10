@@ -62,7 +62,10 @@ beforeEach(() => {
     }),
   });
   Object.assign(liveSeams, { items: () => [github] });
-  Object.assign(liveUiSeams, { peers: net.factory(), carriers: bus.factory() });
+  Object.assign(liveUiSeams, {
+    transport: net.transports(),
+    carriers: bus.factory(),
+  });
   Object.assign(transportSeams, {
     tomb: () => "personal",
     read: async () => stored,
@@ -158,8 +161,8 @@ async function host(transport: LiveTransport) {
     policy: "read",
     admission: "open",
     minutes: 30,
-    peers: net.factory(),
-    transport,
+    transport: net.transports(),
+    routes: transport,
     carriers: bus.factory(),
   });
 }
