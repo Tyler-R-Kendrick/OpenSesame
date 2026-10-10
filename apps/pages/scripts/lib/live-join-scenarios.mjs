@@ -7,6 +7,7 @@
 
 import { expect } from "@playwright/test";
 import {
+  ownerSettled,
   startMqttBroker,
   startNatsServer,
   startNostrRelay,
@@ -365,7 +366,7 @@ export async function declined(browser, owner) {
       carriers: [{ kind: "nostr", url: server.url }],
     });
     const { panel, code, link } = await startSession(owner.page);
-    const before = server.frames.length;
+    const before = await ownerSettled(server);
     const joiner = await device(browser, {
       ...PHONE,
       origin: owner.origin,
