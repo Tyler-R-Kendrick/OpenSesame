@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 pub(super) const MAX_DATA_BYTES: usize = 16 * 1024 * 1024;
-pub(super) const MAX_FRAME_BYTES: usize = 24 * 1024 * 1024;
+pub(super) const MAX_FRAME_BYTES: usize = 48 * 1024 * 1024;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -20,16 +20,36 @@ pub(super) enum Scope {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub(super) enum Operation {
     Credential {},
-    Body { tomb: String },
+    Body {
+        tomb: String,
+    },
     ReadGeneration {},
-    ReadDevice { logical_key: String },
+    PublishGeneration {
+        expected: Option<String>,
+        next: Option<String>,
+    },
+    PublishDevice {
+        logical_key: String,
+        expected: Option<String>,
+        next: Option<String>,
+    },
+    ReadDevice {
+        logical_key: String,
+    },
     CaptureInventory {},
-    ReadRetired { tomb: String },
+    ReadRetired {
+        tomb: String,
+    },
     InventoryTombs {},
     OriginNames {},
     InventoryClose {},
-    Inventory { scope: Scope, maximum: usize },
-    Identity { scope: Scope },
+    Inventory {
+        scope: Scope,
+        maximum: usize,
+    },
+    Identity {
+        scope: Scope,
+    },
     BodyClose {},
     CredentialClose {},
     Validate {},
