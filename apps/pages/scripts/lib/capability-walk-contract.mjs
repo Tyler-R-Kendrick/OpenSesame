@@ -2,23 +2,13 @@
 // the production origin. Split from verify-static-origin.mjs like the other
 // contracts so the walk stays one screen per file.
 //
-<<<<<<< HEAD
-// The claim under test is an absence followed by a presence: a device that
-// has approved nothing has no rail row, no route and no section for an
-// optional capability, and the moment a person adds one through Settings ›
-// Features it is there. An absence alone proves nothing — a section can
-// vanish because it crashed — so each capability is checked both ways.
-// Always-on capabilities (ADR 0135, 0142) are the opposite claim: present
-// with nothing chosen, and never offered a switch.
-=======
 // The claim under test is an absence followed by a presence: optional
 // capabilities the PWA does not default on have no rail row until a person
-// adds them through Settings › Capabilities; Access and browser-local IAM
-// are on by product default (Tyler D2) and must already be present. An
-// absence alone proves nothing — a section can vanish because it crashed —
-// so each non-default optional is checked both ways. Always-on capabilities
-// (ADR 0135, 0142) are present with nothing chosen and never offered a switch.
->>>>>>> 2606014f9 (fix(pages): align static and device-identity walks with PWA default capabilities)
+// adds them through Settings › Features; Access and browser-local IAM are on
+// by product default and must already be present. An absence alone proves
+// nothing — a section can vanish because it crashed — so each non-default
+// optional is checked both ways. Always-on capabilities (ADR 0135, 0142) are
+// present with nothing chosen and never offered a switch.
 
 import {
   ALWAYS_ON_TITLES,
