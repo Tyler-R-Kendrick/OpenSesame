@@ -2,8 +2,9 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
+  /* Above the notes pane (z-index 1) so the index column can straddle the seam. */
+  z-index: 2;
+  overflow: visible;
 }
 
 .cipher-dial__rings {
