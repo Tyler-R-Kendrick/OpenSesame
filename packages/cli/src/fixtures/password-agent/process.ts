@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
+import { envWithoutAgentContext } from "../../reveal-gate.js";
 
 const InvocationSchema = z.object({
   args: z.array(z.string()),
@@ -95,14 +96,14 @@ export async function processFixture() {
   await chmod(join(bin, "op"), 0o700);
   await writeFile(log, "");
   await seed();
-  const env: NodeJS.ProcessEnv = {
+  const env: NodeJS.ProcessEnv = envWithoutAgentContext({
     ...process.env,
     PATH: `${bin}:${process.env.PATH}`,
     OPENSESAME_STATE_DIR: join(directory, "state"),
     PARITY_DB: database,
     PARITY_LOG: log,
     OP_SERVICE_ACCOUNT_TOKEN: undefined,
-  };
+  });
 
   return { directory, database, env, cli, calls };
 }

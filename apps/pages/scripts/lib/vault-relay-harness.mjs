@@ -5,6 +5,7 @@
  */
 
 import { createServer } from "node:http";
+import { z } from "zod";
 import {
   addressOf,
   knownRole,
@@ -24,6 +25,7 @@ const RELAY_HEALTH = {
   document: "empty",
   durable: true,
 };
+const requestObjectSchema = z.object({}).passthrough();
 
 const EXACT = {
   "GET /health/live": () => ({ status: 200, body: "ok" }),
@@ -41,7 +43,9 @@ function headerText(request, name) {
 
 async function readJson(request) {
   try {
-    return JSON.parse(String(await readBody(request)) || "{}");
+    return requestObjectSchema.parse(
+      JSON.parse(String(await readBody(request)) || "{}"),
+    );
   } catch (error) {
     if (error && error.status === 413) throw error;
     return null;
@@ -82,7 +86,7 @@ function admitCreate(parsed, principal, role) {
 
 async function createOrgVault(request, directory) {
   const parsed = await readJson(request);
-  if (!parsed || typeof parsed !== "object") return malformed();
+  if (!parsed) return malformed();
   const principal = headerText(request, "x-opensesame-principal");
   const role = headerText(request, "x-opensesame-org-role");
   const admitted = admitCreate(parsed, principal, role);
@@ -182,7 +186,7 @@ function commitPut(
 
 async function writeSnapshot(request, slots, directory, address, key, owner) {
   const parsed = await readJson(request);
-  if (!parsed || typeof parsed !== "object") return malformed();
+  if (!parsed) return malformed();
   const principal = headerText(request, "x-opensesame-principal").slice(0, 128);
   const ownerKindHeader = request.headers["x-opensesame-owner-kind"];
   const ownerKind =

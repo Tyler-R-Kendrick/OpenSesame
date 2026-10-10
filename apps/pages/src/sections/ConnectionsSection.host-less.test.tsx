@@ -23,6 +23,10 @@ import { identityHookSeams } from "../bindings/identity.js";
 import { useOnlineSeams } from "../lib/use-online.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import {
+  connectorIntegration,
+  installConnectorIntegration,
+} from "./connections/connect/native-connector-integration.test-support.js";
+import {
   CONNECTIONS_CATALOG as catalog,
   renderAt,
 } from "./connections/section-fixtures.test-support.js";
@@ -63,6 +67,7 @@ afterAll(() => {
 });
 
 declareConnectionsTutorial();
+installConnectorIntegration();
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/connections");
@@ -91,28 +96,33 @@ describe("a connector page on a device with no Host", () => {
   });
 
   it("says a failure in the bell, and clears it on leaving the page", async () => {
-    startGithubAppRegistration.mockRejectedValue(
-      new Error("GitHub refused the manifest."),
-    );
+    const fixture = connectorIntegration();
+    fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     const page = renderAt("/connections/github");
+    await userEvent.type(
+      await screen.findByLabelText("GitHub personal access token"),
+      "private-browser-token",
+    );
     await userEvent.click(
-      await screen.findByRole("button", {
-        name: /Create GitHub App for this organization/i,
+      screen.getByRole("button", {
+        name: "Verify and connect GitHub",
       }),
     );
-    expect(
-      await screen.findByRole("img", { name: "GitHub refused the manifest." }),
-    ).toBeTruthy();
+    const refusal =
+      "Provider authorization was refused; verify or replace the saved credential";
+    expect(await screen.findAllByRole("img", { name: refusal })).toBeTruthy();
     await waitFor(() =>
       expect(listNotices()).toMatchObject([
         {
           id: "connector:github",
           tone: "err",
           title: "GitHub",
-          body: "GitHub refused the manifest.",
+          body: refusal,
         },
       ]),
     );
+    expect(startGithubAppRegistration).not.toHaveBeenCalled();
+    expect(fixture.requests[0]?.url).toBe("https://api.github.com/user");
     page.unmount();
     expect(listNotices()).toEqual([]);
   });
