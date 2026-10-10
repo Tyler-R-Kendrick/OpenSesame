@@ -154,7 +154,7 @@ it("records a sender revoke and expiry as the claim id only", async () => {
     expiresAt,
     sourceItemId: "item_2",
   });
-  listOutboundDrops(Date.now() + 60_000);
+  listOutboundDrops(tomb, Date.now() + 60_000);
 
   const blob = await trails(tomb);
   expect(blob).toContain(revoked.session.claimId);
