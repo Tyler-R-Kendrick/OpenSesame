@@ -20,6 +20,7 @@ import {
   noteSecurityWatch,
   parseRange,
   parseTwoFactorList,
+  reconcileSecurityWatchWithVault,
   runSecurityChecks,
   securityWatchLabel,
 } from "./security-checks.js";
@@ -210,7 +211,11 @@ describe("runSecurityChecks", () => {
     expect(securityWatchLabel(report)).toBe(
       "1 of 2 passwords found in known breaches. 2 logins could add an authenticator code.",
     );
-    noteSecurityWatch({ phase: "checked", report });
+    const items = [
+      login("GitHub", "password", "https://github.com/login"),
+      login("Mail", "unique-and-long-1", "https://accounts.google.com"),
+    ];
+    noteSecurityWatch({ phase: "checked", report, items });
     const watch = breachWatchSnapshot();
     expect(watch.phase).toBe("checked");
     if (watch.phase !== "checked") return;
@@ -225,6 +230,17 @@ describe("runSecurityChecks", () => {
     expect(watch.lines[1]?.sentences).toEqual([
       "This site takes an authenticator code; none is stored",
     ]);
+    reconcileSecurityWatchWithVault(items);
+    expect(breachWatchSnapshot().phase).toBe("checked");
+    const edited = [
+      ...items,
+      login("Added", "another-unique-pass", "https://added.example"),
+    ];
+    reconcileSecurityWatchWithVault(edited);
+    expect(breachWatchSnapshot()).toMatchObject({
+      phase: "idle",
+      label: "Breach and two-step checks are on. Not checked yet.",
+    });
     clearSecurityWatch();
     expect(breachWatchSnapshot().phase).toBe("off");
   });
