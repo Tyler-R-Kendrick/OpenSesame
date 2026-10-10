@@ -215,7 +215,7 @@ describe("runSecurityChecks", () => {
       login("GitHub", "password", "https://github.com/login"),
       login("Mail", "unique-and-long-1", "https://accounts.google.com"),
     ];
-    noteSecurityWatch({ phase: "checked", report, items });
+    noteSecurityWatch({ phase: "checked", report });
     const watch = breachWatchSnapshot();
     expect(watch.phase).toBe("checked");
     if (watch.phase !== "checked") return;

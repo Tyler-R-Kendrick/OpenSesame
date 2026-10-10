@@ -212,10 +212,7 @@ describe("vault.security-checks runtime", () => {
     await waitFor(() =>
       expect(screen.getByText("2 logins checked")).toBeTruthy(),
     );
-    items = [
-      ...ITEMS,
-      login("Added", "fresh-secret", "https://added.example"),
-    ];
+    items = [...ITEMS, login("Added", "fresh-secret", "https://added.example")];
     view.rerender(<Panel />);
     await waitFor(() =>
       expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy(),
