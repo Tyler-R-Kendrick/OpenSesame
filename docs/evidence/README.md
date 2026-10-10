@@ -54,10 +54,13 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+<<<<<<< HEAD
 | [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
 | [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) |  |
 | [`2026-10-10-persona-r3-b1-share-revoke-armed/`](2026-10-10-persona-r3-b1-share-revoke-armed/README.md) | B1 / F7 — share revoke armed state |
 | [`2026-10-10-persona-r3-a-sent-drops/`](2026-10-10-persona-r3-a-sent-drops/README.md) | A1 / F6 — sent drops lockout and receipts |
+=======
+>>>>>>> b65fc425f (Revert "fix(pages): the wordmark decodes in place, every slot visible from the first frame (#1087)")
 | [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |
 | [`2026-10-10-lock-v5-title-screen/`](2026-10-10-lock-v5-title-screen/README.md) | Lock v5 title screen evidence (2026-10-10) |
 | [`2026-10-10-live-join-greeting/`](2026-10-10-live-join-greeting/README.md) | Live join: the catalog answers a greeting (ADR 0186) |

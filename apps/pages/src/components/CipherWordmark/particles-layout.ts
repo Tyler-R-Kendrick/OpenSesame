@@ -1,4 +1,3 @@
-import { CIPHER } from "./cipher.js";
 import {
   DRAW_CALIBRATION,
   FONT_FAMILY,
@@ -249,14 +248,9 @@ function plateMask(
   return out;
 }
 
-/**
- * Every glyph a slot can show: the word's letters and the whole cipher
- * alphabet. A slot whose reel glyph had no mask was skipped, so undecoded
- * slots drew blank and the word seemed to slide in letter by letter.
- */
 function fillMasks(layout: Layout, pad: number): void {
   const glyphs = [
-    ...new Set(`${layout.letters.join("")}${CIPHER}`.replace(/ /g, "")),
+    ...new Set(layout.letters.join("").replace(/ /g, "").split("")),
   ];
   for (const q of layout.slots) {
     if (q.space) continue;
