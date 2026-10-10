@@ -20,10 +20,7 @@
  */
 
 import { isString } from "@opensesame/os-domain";
-import {
-  SAME_MACHINE_LOOPBACK_HINTS,
-  withAddressHints,
-} from "./candidates.js";
+import { SAME_MACHINE_LOOPBACK_HINTS, withAddressHints } from "./candidates.js";
 import { type ChannelMessage, readChannelMessage } from "./messages.js";
 import {
   type DialLink,
