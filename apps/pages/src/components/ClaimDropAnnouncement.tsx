@@ -4,7 +4,7 @@ import {
   subscribeClaimDropBanner,
 } from "@opensesame/app-core/lib/claims/claim-drop-banner.js";
 import { useEffect, useSyncExternalStore } from "react";
-import { IconDismiss } from "./Icons.js";
+import { IconX } from "./Icons.js";
 
 /**
  * Optional top overlay for the latest claim or drop failure. Tray history
@@ -48,7 +48,7 @@ export function ClaimDropAnnouncement() {
         title="Dismiss"
         onClick={() => dismissClaimDropBanner()}
       >
-        <IconDismiss size={18} />
+        <IconX size={18} />
       </button>
     </div>
   );
