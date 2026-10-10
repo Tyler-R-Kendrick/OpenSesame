@@ -237,6 +237,27 @@ type ShareReceiptIds = {
   resourceId: string;
 };
 
+const SHARE_DECISION_ACTIVITY: Record<
+  "share.requested" | "share.approved" | "share.denied",
+  { type: string; summary: string; outcome: "succeeded" | "denied" }
+> = {
+  "share.requested": {
+    type: "access.share.requested",
+    summary: "Share grant requested",
+    outcome: "succeeded",
+  },
+  "share.approved": {
+    type: "access.share.approved",
+    summary: "Share grant approved",
+    outcome: "succeeded",
+  },
+  "share.denied": {
+    type: "access.share.denied",
+    summary: "Share grant denied",
+    outcome: "denied",
+  },
+};
+
 function noteShareDecision(
   tomb: string,
   kind: "share.requested" | "share.approved" | "share.denied",
@@ -249,26 +270,14 @@ function noteShareDecision(
   const key = `${kind}:${id}`;
   if (!remember(key)) return;
   const metadata: JsonObject = { subject, resourceId };
-  const denied = kind === "share.denied";
-  const type =
-    kind === "share.requested"
-      ? "access.share.requested"
-      : kind === "share.approved"
-        ? "access.share.approved"
-        : "access.share.denied";
-  const summary =
-    kind === "share.requested"
-      ? "Share grant requested"
-      : kind === "share.approved"
-        ? "Share grant approved"
-        : "Share grant denied";
+  const activity = SHARE_DECISION_ACTIVITY[kind];
   write(
     tomb,
     {
       category: "access",
-      type,
-      summary,
-      outcome: denied ? "denied" : "succeeded",
+      type: activity.type,
+      summary: activity.summary,
+      outcome: activity.outcome,
       targetType: "share",
       targetId: id,
       metadata,
