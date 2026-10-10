@@ -9,11 +9,11 @@ import {
 import {
   listOutboundDrops,
   outboundDropBearerForTests,
+  outboundDropRowStateForTests,
   recordOutboundDrop,
   refreshOutboundDropLedger,
   resetOutboundDropsForTests,
   revokeOutboundDrop,
-  outboundDropRowStateForTests,
   revokeOutboundDropById,
   seedOutboundDropForTests,
 } from "./outbound-drops.js";

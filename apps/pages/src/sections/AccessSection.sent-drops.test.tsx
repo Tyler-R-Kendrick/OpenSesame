@@ -14,8 +14,8 @@ import { unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderAccess } from "./access/workspace-test-support.js";
 import { AccessSection } from "./AccessSection.js";
+import { renderAccess } from "./access/workspace-test-support.js";
 
 vi.mock("../app-root.js", () => ({
   useCapabilityGate: () => ({ approved: true }),
@@ -61,10 +61,7 @@ describe("AccessSection sent drops", () => {
   });
 
   it("opens the Sent panel from sessions#sent-drops", async () => {
-    renderAccess(
-      <AccessSection />,
-      "/access?view=sessions#sent-drops",
-    );
+    renderAccess(<AccessSection />, "/access?view=sessions#sent-drops");
     await waitFor(() =>
       expect(screen.getByRole("heading", { name: "Sent" })).toBeTruthy(),
     );

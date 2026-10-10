@@ -195,7 +195,10 @@ export function refreshOutboundDropLedger(now = Date.now()): OutboundDrop[] {
   return sendsForTomb(tomb, now);
 }
 
-export function listOutboundDrops(tomb: string, now = Date.now()): OutboundDrop[] {
+export function listOutboundDrops(
+  tomb: string,
+  now = Date.now(),
+): OutboundDrop[] {
   syncOutboundDropLedger(now);
   return sendsForTomb(tomb, now);
 }
