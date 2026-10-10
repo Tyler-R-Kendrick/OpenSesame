@@ -1,11 +1,10 @@
 //! Genuine kernel/original AEAD publication controls. Inner payload remains synthetic DATA.
+use super::ciphertext_fixture;
 use super::*;
 #[cfg(unix)]
 use opensesame_human_vault::root_protection::unix_private_files::write_new;
 #[cfg(windows)]
 use opensesame_human_vault::root_protection::windows_private_files::write_new;
-#[path = "ciphertext_fixture.rs"]
-mod ciphertext_fixture;
 fn fixture() -> (tempfile::TempDir, Arc<PrivateDirectory>, Vec<u8>, Vec<u8>) {
     let temp = tempfile::tempdir().unwrap();
     let parent = std::fs::canonicalize(temp.path()).unwrap();
