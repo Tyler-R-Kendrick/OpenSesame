@@ -1,12 +1,12 @@
 /**
- * What a session does with its carriers and ICE servers, stated without any
- * session's state (ADR 0150 §6): the settings the browser takes, opening the
+ * What a session does with its carriers and routes, stated without any
+ * session's state (ADR 0150 §6): the routing its link takes, opening the
  * carriers a link names, and posting a code once one is up.
  */
 
 import type { GuestCarriers } from "./guest.js";
 import { sessionOver } from "./nats-route.js";
-import type { IceSettings } from "./peer.js";
+import type { PeerRouting } from "./p2p.js";
 import {
   type CarrierFactory,
   type CarrierRole,
@@ -16,22 +16,12 @@ import {
 import { newLinkSecret } from "./seal.js";
 import {
   type CarrierSpec,
-  type IceServerSpec,
   type LiveTransport,
   sessionRoutes,
 } from "./transport.js";
 
 /** How long a first post waits for a carrier to connect. */
 const CARRIER_WAIT_MS = 8000;
-
-export function rtcServers(servers: readonly IceServerSpec[]): RTCIceServer[] {
-  return servers.map((server) => {
-    const out: RTCIceServer = { urls: [...server.urls] };
-    if (server.username) out.username = server.username;
-    if (server.credential) out.credential = server.credential;
-    return out;
-  });
-}
 
 /** Open the carriers, if any are named and the shell supplied them. */
 export function openCarriers(
@@ -74,8 +64,8 @@ export function guestCarriersFor(rendezvous: Rendezvous): GuestCarriers {
 
 /**
  * A new session's link secret, the routes its link carries, the carriers the
- * owner keeps, and its ICE settings. The secret comes first: a NATS
- * credential is minted for its topic (ADR 0167).
+ * owner keeps, and how the owner's side of each link may route. The secret
+ * comes first: a NATS credential is minted for its topic (ADR 0167).
  */
 export async function hostRoutes(transport: LiveTransport, expiresAt: number) {
   const secret = newLinkSecret();
@@ -84,10 +74,10 @@ export async function hostRoutes(transport: LiveTransport, expiresAt: number) {
     expiresAt,
     await carrierTopic(secret),
   );
-  const ice: IceSettings = {
-    iceServers: rtcServers(routes.ice),
+  const routing: PeerRouting = {
+    servers: routes.ice,
     relay: transport.relay,
     addresses: transport.addresses,
   };
-  return { secret, routes, own, ice };
+  return { secret, routes, own, routing };
 }

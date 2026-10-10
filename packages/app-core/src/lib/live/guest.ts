@@ -1,22 +1,30 @@
 /**
- * The joiner's side of a live session (ADR 0150 §3–§5).
+ * The joiner's side of a live session (ADR 0150 §3–§5, ADR 0186).
  *
- * It makes a WebRTC offer and seals it, with the person's name and note,
- * into a request code only the owner can open, for the person to send the
- * owner — and, where the link names carriers, posts it on them too. It then
- * waits for the owner's reply code, pasted or carried: one that opens under
- * the secret this request shares with the owner key, and that answers this
- * very request — anything else is ignored and the request stays open. With
- * the reply, the two browsers connect: directly, through a tunnel the owner
- * named, or through the owner's TURN server — or, when the owner offers it
- * and no peer route opens, over the owner's NATS server, sealed end to end
- * (ADR 0167).
+ * It dials the owner over the session's transport (`p2p.ts`) and seals the
+ * offer, with the person's name and note, into a request code only the owner
+ * can open, for the person to send the owner — and, where the link names
+ * carriers, posts it on them too. It then waits for the owner's reply code,
+ * pasted or carried: one that opens under the secret this request shares
+ * with the owner key, and that answers this very request — anything else is
+ * ignored and the request stays open. With the reply, the two browsers
+ * connect: directly, through a tunnel the owner named, or through the
+ * owner's TURN server — or, when the owner offers it and no peer route
+ * opens, over the owner's NATS server, sealed end to end (ADR 0167).
+ *
+ * Once a channel opens it greets the owner until the catalog arrives
+ * (`greeting.ts`): no one frame is trusted to arrive. The wait is bounded:
+ * with no catalog `CONNECTING_TIMEOUT_MS` after the reply, the attempt is
+ * over — the link closes, so the owner sees the seat go — and the person may
+ * ask again with a fresh request.
  *
  * Everything it receives lives in memory. When the channel closes — the
  * owner ended it, the time ran out, the owner's tab went away, or this
  * person left — the catalog and every value are dropped.
  */
 
+import { type ChannelRequest, ChannelRequests } from "./channel-requests.js";
+import { Greeter } from "./greeting.js";
 import type { LiveLink } from "./link.js";
 import {
   type Catalog,
@@ -27,17 +35,11 @@ import {
   cleanText,
 } from "./messages.js";
 import type { NatsSession } from "./nats-route.js";
+import type { DialLink, LiveChannel, PeerTransport } from "./p2p.js";
 import { makeRequestCode, openReplyCode } from "./pairing.js";
-import {
-  type IceSettings,
-  type OfferSide,
-  type PeerFactory,
-  makeOffer,
-  takeAnswer,
-} from "./peer.js";
 import type { Carrier } from "./rendezvous.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
-import { type LiveChannel, SeatChannel, seatName } from "./seat-channel.js";
+import { SeatChannel, seatName } from "./seat-channel.js";
 
 /** How often an unanswered request is posted again on the carriers. */
 const REPOST_MS = 20_000;
@@ -46,7 +48,7 @@ const REPOSTS = 30;
 /** How long a relayed seat gives the peer route before moving to the relay. */
 export const FALLBACK_MS = 8000;
 
-/** Direct connect after the owner's reply code, before the guest may retry. */
+/** From the owner's reply to the catalog, before the attempt is given up. */
 export const CONNECTING_TIMEOUT_MS = 60_000;
 
 /** The carriers a joiner posts on, when the link names any. */
@@ -63,6 +65,7 @@ export type GuestStatus =
   | Readonly<{ at: "preparing" }>
   | Readonly<{ at: "request"; code: string }>
   | Readonly<{ at: "connecting" }>
+  /** No catalog in time: the link is closed, and the person may ask again. */
   | Readonly<{ at: "connect_timeout" }>
   | Readonly<{ at: "joined"; catalog: Catalog }>
   /** The browsers found no route to each other. */
@@ -75,28 +78,26 @@ export type GuestOptions = Readonly<{
   code: string | null;
   name: string;
   note: string;
-  ice: IceSettings;
-  peers: PeerFactory;
+  /** What carries the session, over the routes the person agreed to. */
+  transport: PeerTransport;
   carriers?: GuestCarriers | null;
 }>;
 
-type Pending = { resolve: (value: string | null) => void };
-
 export class LiveGuest {
   readonly #listeners = new Set<(status: GuestStatus) => void>();
-  readonly #pending = new Map<string, Pending>();
-  readonly #id = newRequestId();
+  readonly #requests = new ChannelRequests();
+  readonly #greeter = new Greeter();
+  /** The request this attempt made; a fresh one when the person asks again. */
+  #id = newRequestId();
   #status: GuestStatus = { at: "preparing" };
-  #side: OfferSide | null = null;
+  #peer: DialLink | null = null;
   #channel: LiveChannel | null = null;
   /** The owner offered a relay: the carriers stay open with the seat. */
   #relayed = false;
   #fallback: ReturnType<typeof setTimeout> | null = null;
   #connectTimer: ReturnType<typeof setTimeout> | null = null;
-  #lastReply: string | null = null;
   #keys: Keypair | null = null;
   #repost: ReturnType<typeof setInterval> | null = null;
-  #next = 0;
 
   constructor(private readonly options: GuestOptions) {}
 
@@ -115,36 +116,54 @@ export class LiveGuest {
     for (const listener of this.#listeners) listener(status);
   }
 
-  /**
-   * Make the offer and the request code that carries it; empty if the person
-   * left before there was one.
-   */
+  /** Dial, and make the request code; empty if the person left first. */
   async start(): Promise<string> {
-    const { link, code, name, note, peers, ice } = this.options;
-    const keys = await newKeypair();
-    this.#keys = keys;
-    const side = await makeOffer(peers, ice);
+    // The owner reads these cleaned (`readJoinRequest`); say the same here.
+    if (!cleanText(this.options.name)) throw new Error("join_name_required");
+    this.#keys = await newKeypair();
+    return this.#ask();
+  }
+
+  /** After a connect timeout: a fresh request, for the owner to let in. */
+  async askAgain(): Promise<string> {
+    if (this.#status.at !== "connect_timeout") return "";
+    this.#id = newRequestId();
+    this.#to({ at: "preparing" });
+    try {
+      return await this.#ask();
+    } catch (error) {
+      this.#finish();
+      throw error;
+    }
+  }
+
+  async #ask(): Promise<string> {
+    const { link, code, name, note, transport } = this.options;
+    const keys = this.#keys;
+    if (!keys) return "";
+    const peer = await transport.dial();
     if (this.#over()) {
-      // Left while the browser was gathering: `#finish` found no connection.
-      side.pc.close();
-      side.channel.catch(() => undefined);
+      // Left while the transport was dialing: `#finish` found no link.
+      peer.channel.catch(() => undefined);
+      peer.close();
       return "";
     }
-    this.#side = side;
-    side.channel.then(
-      (channel) => this.#connected(channel),
+    this.#peer = peer;
+    peer.channel.then(
+      (channel) => {
+        if (this.#peer === peer) this.#connected(channel);
+        else channel.close();
+      },
       () => {
-        if (!this.#relayed) this.#finish();
+        if (this.#peer === peer && !this.#relayed) this.#finish();
       },
     );
-    // The owner reads these cleaned (`readJoinRequest`); say the same here.
-    const cleanedName = cleanText(name);
-    if (!cleanedName) throw new Error("join_name_required");
     const request = await makeRequestCode(link, code, keys, {
       id: this.#id,
-      name: cleanedName,
+      name: cleanText(name),
       note: cleanText(note),
-      offer: side.offer,
+      offer: peer.handshake,
+      greets: true,
     });
     if (this.#status.at === "preparing") {
       this.#to({ at: "request", code: request });
@@ -161,10 +180,10 @@ export class LiveGuest {
     let left = REPOSTS;
     this.#repost = setInterval(() => {
       left -= 1;
-      if (this.#status.at !== "request") this.#release();
-      // Enough reposts: stop posting, but keep listening — the owner may
-      // answer long after, and a reply on a closed carrier is heard by nobody.
-      else if (left <= 0) this.#stopReposts();
+      // Answered, or enough reposts: stop posting, but keep listening — the
+      // owner may answer long after, and a reply on a closed carrier is
+      // heard by nobody.
+      if (this.#status.at !== "request" || left <= 0) this.#stopReposts();
       else void carriers.post(request);
     }, REPOST_MS);
   }
@@ -175,8 +194,8 @@ export class LiveGuest {
   }
 
   /**
-   * Done asking: a reply arrived, or the ask is over. The carriers close —
-   * unless the seat may move to one of them, when they close with the seat.
+   * Done with the carriers: the session started without them, or is over.
+   * A seat that may move to one of them keeps them, and they close with it.
    */
   #release(): void {
     this.#stopReposts();
@@ -186,37 +205,42 @@ export class LiveGuest {
   /** The owner's reply code; false (and nothing changes) if it is not one. */
   async accept(text: string): Promise<boolean> {
     const keys = this.#keys;
-    if (this.#status.at !== "request" || !this.#side || !keys) return false;
-    const { link, code } = this.options;
-    const reply = await openReplyCode(link, code, keys, this.#id, text);
-    if (!reply || this.#status.at !== "request") return false;
-    return this.#connectWithReply(text, reply);
+    const peer = this.#peer;
+    if (this.#status.at !== "request" || !peer || !keys) return false;
+    const { link, code, transport } = this.options;
+    const reply = await openReplyCode(
+      link,
+      code,
+      keys,
+      this.#id,
+      text,
+      transport.readsAnswer,
+    );
+    if (!reply || this.#status.at !== "request" || this.#peer !== peer)
+      return false;
+    return this.#connectWithReply(peer, reply);
   }
 
-  async #connectWithReply(text: string, reply: JoinReply): Promise<boolean> {
-    const side = this.#side;
-    if (!side) return false;
+  async #connectWithReply(peer: DialLink, reply: JoinReply): Promise<boolean> {
     const session = this.options.carriers?.session ?? "off";
     this.#relayed = reply.relay === "nats" && session !== "off";
-    this.#release();
-    this.#lastReply = text;
+    // The carriers stay open until the catalog comes: asking again uses them.
+    this.#stopReposts();
     this.#to({ at: "connecting" });
     this.#armConnectTimeout();
     if (this.#relayed && session === "always") {
       void this.#toRelay();
       return true;
     }
-    const { pc } = side;
-    pc.addEventListener("connectionstatechange", () => {
-      if (pc.connectionState !== "failed" || this.#status.at !== "connecting")
-        return;
+    peer.onFailed(() => {
+      if (this.#status.at !== "connecting" || this.#peer !== peer) return;
       if (this.#relayed) void this.#toRelay();
       else this.#finish({ at: "unreachable" });
     });
     if (this.#relayed)
       this.#fallback = setTimeout(() => void this.#toRelay(), FALLBACK_MS);
     try {
-      await takeAnswer(pc, reply.answer);
+      await peer.accept(reply.answer);
       return true;
     } catch {
       this.#finish();
@@ -226,11 +250,10 @@ export class LiveGuest {
 
   /**
    * Carry the seat over the relay: the peer route, if it is still trying,
-   * is dropped, and the owner hears the first sealed frame and answers it.
+   * is dropped, and the owner hears this side's greeting and answers it.
    */
   async #toRelay(): Promise<void> {
-    if (this.#fallback) clearTimeout(this.#fallback);
-    this.#fallback = null;
+    this.#clearFallback();
     const keys = this.#keys;
     if (this.#over() || this.#channel || !keys) return;
     const carrier = this.options.carriers?.seat?.(seatName(this.#id)) ?? null;
@@ -244,27 +267,23 @@ export class LiveGuest {
       carrier.close();
       return;
     }
-    this.#side?.pc.close();
-    const channel = new SeatChannel(
-      carrier,
-      {
-        link: this.options.link,
-        code: this.options.code,
-        joiner: keys.pub,
-        id: this.#id,
-        shared,
-      },
-      "joiner",
+    const peer = this.#peer;
+    this.#peer = null;
+    peer?.close();
+    const seat = { link: this.options.link, code: this.options.code };
+    this.#connected(
+      new SeatChannel(
+        carrier,
+        { ...seat, joiner: keys.pub, id: this.#id, shared },
+        "joiner",
+      ),
     );
-    this.#connected(channel);
-    channel.send({ t: "hello" });
   }
 
   #armConnectTimeout(): void {
-    if (this.#connectTimer) clearTimeout(this.#connectTimer);
+    this.#clearConnectTimeout();
     this.#connectTimer = setTimeout(() => {
-      if (this.#status.at !== "connecting") return;
-      this.#to({ at: "connect_timeout" });
+      if (this.#status.at === "connecting") this.#giveUp();
     }, CONNECTING_TIMEOUT_MS);
   }
 
@@ -273,71 +292,47 @@ export class LiveGuest {
     this.#connectTimer = null;
   }
 
-  /** Try the same reply code again after a connect timeout. */
-  async retryConnect(): Promise<boolean> {
-    const text = this.#lastReply;
-    const keys = this.#keys;
-    if (this.#status.at !== "connect_timeout" || !text || !keys) return false;
-    const { link, code, peers, ice } = this.options;
-    const reply = await openReplyCode(link, code, keys, this.#id, text);
-    if (!reply) return false;
-    this.#clearConnectTimeout();
+  #clearFallback(): void {
     if (this.#fallback) clearTimeout(this.#fallback);
     this.#fallback = null;
-    this.#side?.pc.close();
-    const side = await makeOffer(peers, ice);
-    if (this.#over()) {
-      side.pc.close();
-      side.channel.catch(() => undefined);
-      return false;
-    }
-    this.#side = side;
-    side.channel.then(
-      (channel) => this.#connected(channel),
-      () => {
-        if (!this.#relayed) this.#finish();
-      },
-    );
-    return this.#connectWithReply(text, reply);
   }
 
+  /** Over the transport or the relay: greet until the catalog arrives. */
   #connected(channel: LiveChannel): void {
     // Over already, or the seat is carried another way: not this channel.
     if (this.#over() || this.#channel) {
       channel.close();
       return;
     }
-    this.#clearConnectTimeout();
-    if (this.#fallback) clearTimeout(this.#fallback);
-    this.#fallback = null;
+    this.#clearFallback();
     this.#channel = channel;
     channel.onMessage((message) => this.#onMessage(message));
-    channel.onClose(() => this.#finish());
+    channel.onClose(() => {
+      if (this.#channel === channel) this.#finish();
+    });
+    this.#greeter.start(() => channel.send({ t: "hello" }));
   }
 
   #onMessage(message: ChannelMessage): void {
-    if (message.t === "catalog") {
-      this.#clearConnectTimeout();
-      this.#to({ at: "joined", catalog: message.catalog });
-    } else if (message.t === "end") this.#finish();
-    else if (message.t === "value" || message.t === "denied") {
-      const pending = this.#pending.get(message.req);
-      this.#pending.delete(message.req);
-      pending?.resolve(message.t === "value" ? message.value : null);
-    }
+    if (message.t === "catalog") this.#joined(message.catalog);
+    else if (message.t === "end") this.#finish();
+    else if (message.t === "value" || message.t === "denied")
+      this.#requests.answer(message);
+  }
+
+  /** The first catalog is the session; a later one answered a greeting. */
+  #joined(catalog: Catalog): void {
+    if (this.#status.at !== "connecting") return;
+    this.#greeter.stop();
+    this.#clearConnectTimeout();
+    this.#release();
+    this.#to({ at: "joined", catalog });
   }
 
   /** Replace one shared field. The saved text, or null if the owner refused. */
   edit(item: string, field: string, value: string): Promise<string | null> {
-    if (this.#status.at !== "joined" || !this.#channel)
-      return Promise.resolve(null);
     if (characters(value) > VALUE_MAX) return Promise.resolve(null);
-    this.#next += 1;
-    const req = `r${this.#next}`;
-    return new Promise((resolve) => {
-      this.#pending.set(req, { resolve });
-      this.#channel?.send({ t: "edit", req, item, field, value });
-    });
+    return this.#call({ t: "edit", item, field, value });
   }
 
   /** One concealed value, to show (`reveal`) or to copy; null if refused. */
@@ -346,33 +341,46 @@ export class LiveGuest {
     item: string,
     field: string,
   ): Promise<string | null> {
-    if (this.#status.at !== "joined" || !this.#channel)
-      return Promise.resolve(null);
-    this.#next += 1;
-    const req = `r${this.#next}`;
-    return new Promise((resolve) => {
-      this.#pending.set(req, { resolve });
-      this.#channel?.send({ t: what, req, item, field });
-    });
+    return this.#call({ t: what, item, field });
+  }
+
+  /** Only in the session: before or after it, every request is refused. */
+  #call(request: ChannelRequest): Promise<string | null> {
+    const channel = this.#channel;
+    if (this.#status.at !== "joined" || !channel) return Promise.resolve(null);
+    return this.#requests.call(channel, request);
   }
 
   #over(): boolean {
     return this.#status.at === "ended" || this.#status.at === "unreachable";
   }
 
+  /** Close this attempt's link and channel; the carriers are another matter. */
+  #drop(): void {
+    this.#greeter.stop();
+    this.#clearConnectTimeout();
+    this.#clearFallback();
+    this.#requests.drop();
+    const channel = this.#channel;
+    const peer = this.#peer;
+    this.#channel = null;
+    this.#peer = null;
+    channel?.close();
+    peer?.close();
+  }
+
+  /** No catalog in time: this attempt is over, and the owner sees it go. */
+  #giveUp(): void {
+    this.#relayed = false;
+    this.#drop();
+    this.#to({ at: "connect_timeout" });
+  }
+
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
-    this.#clearConnectTimeout();
-    if (this.#fallback) clearTimeout(this.#fallback);
-    this.#fallback = null;
     this.#relayed = false;
     this.#release();
-    for (const pending of this.#pending.values()) pending.resolve(null);
-    this.#pending.clear();
-    this.#channel?.close();
-    this.#side?.pc.close();
-    this.#channel = null;
-    this.#side = null;
+    this.#drop();
     // The catalog goes with the status it rode on.
     this.#to(end);
   }

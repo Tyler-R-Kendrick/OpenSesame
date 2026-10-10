@@ -36,16 +36,15 @@ import {
   LIVE_VAULT_LOCKED_TRAY,
   reportLiveOutcome,
 } from "./outcome-notices.js";
-import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
+import {
+  DIRECT_ROUTING,
+  type PeerRouting,
+  type TransportFactory,
+} from "./p2p.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import { type RelaySource, buildLiveHost } from "./session-build-host.js";
-import {
-  guestCarriersFor,
-  openCarriers,
-  poster,
-  rtcServers,
-} from "./session-carriers.js";
+import { guestCarriersFor, openCarriers, poster } from "./session-carriers.js";
 import type { CarrierSpec, LiveTransport } from "./transport.js";
 import type { ShareScope } from "./vault-share.js";
 
@@ -140,9 +139,10 @@ export type HostInput = Readonly<{
   admission: Admission;
   /** Minutes; the host clamps it to eight hours. */
   minutes: number;
-  peers: PeerFactory;
-  /** The owner's transport profile; direct only when absent. */
-  transport?: LiveTransport;
+  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
+  transport: TransportFactory;
+  /** The owner's routes profile (Settings › Routes); direct when absent. */
+  routes?: LiveTransport;
   /** The shell's carrier clients, for a profile that names carriers. */
   carriers?: CarrierFactory;
 }>;
@@ -300,7 +300,8 @@ export type JoinInput = Readonly<{
   code: string | null;
   name: string;
   note: string;
-  peers: PeerFactory;
+  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
+  transport: TransportFactory;
   /**
    * Whether to use what the link names — its ICE servers and carriers. The
    * person agreed to the hosts it lists; without that, direct only.
@@ -319,9 +320,9 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   leaveLive();
   // The join screen refuses a link whose routes do not read; direct here.
   const routes = linkRoutes(input.link) ?? NO_ROUTES;
-  const ice: IceSettings = input.useRoutes
-    ? { iceServers: rtcServers(routes.ice), relay: routes.relay, addresses: [] }
-    : DIRECT_ONLY;
+  const routing: PeerRouting = input.useRoutes
+    ? { servers: routes.ice, relay: routes.relay, addresses: [] }
+    : DIRECT_ROUTING;
   let next: LiveGuest | null = null;
   const carriers = input.useRoutes
     ? openCarriers(
@@ -337,8 +338,7 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     code: input.code,
     name: input.name,
     note: input.note,
-    ice,
-    peers: input.peers,
+    transport: input.transport(routing),
     carriers: carriers ? guestCarriersFor(carriers) : null,
   });
   guest = next;

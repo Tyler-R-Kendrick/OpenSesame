@@ -9,17 +9,62 @@ import { doorGuest } from "./front-door.mjs";
 import { SHARED_ITEM } from "./live-item-labels.mjs";
 import { addCapabilities, openSettingsCategory } from "./pages-journey.mjs";
 
-/** Every RTCPeerConnection's configuration, as the page made it. */
+/**
+ * Every RTCPeerConnection's configuration, as the page made it, and — for a
+ * failure — what each data channel did: its events, and the kind of every
+ * frame it sent and received (the `t` of a protocol message, never its body,
+ * so no value reaches the artifacts).
+ */
 export const WATCH_RTC = () => {
   const Native = window.RTCPeerConnection;
   window.__rtcConfigs = [];
   window.__rtcPeers = [];
+  window.__rtcChannels = [];
+  window.__rtcStates = [];
+  const t0 = performance.now();
+  const at = () => Math.round(performance.now() - t0);
+  const kind = (data) => {
+    try {
+      return JSON.parse(data).t ?? "?";
+    } catch {
+      return String(data).slice(0, 16);
+    }
+  };
+  const send = RTCDataChannel.prototype.send;
+  RTCDataChannel.prototype.send = function (data) {
+    send.call(this, data);
+    const record = window.__rtcChannels.find((r) => r.channel === this);
+    record?.sent.push(`${kind(data)}@${at()}`);
+  };
+  const watch = (channel, side) => {
+    const record = { side, channel, events: [], sent: [], heard: [] };
+    window.__rtcChannels.push(record);
+    record.events.push(`appeared:${channel.readyState}@${at()}`);
+    for (const type of ["open", "closing", "close", "error"])
+      channel.addEventListener(type, () =>
+        record.events.push(`${type}@${at()}`),
+      );
+    channel.addEventListener("message", (event) =>
+      record.heard.push(`${kind(event.data)}@${at()}`),
+    );
+  };
   // A subclass, not a wrapper function: it must stay a constructor.
   window.RTCPeerConnection = class extends Native {
     constructor(config) {
       super(config);
       window.__rtcConfigs.push(JSON.stringify(config ?? {}));
       window.__rtcPeers.push(this);
+      this.addEventListener("datachannel", (event) =>
+        watch(event.channel, "remote"),
+      );
+      this.addEventListener("connectionstatechange", () =>
+        window.__rtcStates.push(`${this.connectionState}@${at()}`),
+      );
+    }
+    createDataChannel(...args) {
+      const channel = super.createDataChannel(...args);
+      watch(channel, "local");
+      return channel;
     }
   };
 };
@@ -60,7 +105,35 @@ export async function peerStates(page) {
     marks: [...document.querySelectorAll("[role=img][aria-label]")].map(
       (node) => node.getAttribute("aria-label"),
     ),
+    states: window.__rtcStates ?? [],
+    channels: (window.__rtcChannels ?? []).map(({ channel, ...rest }) => ({
+      ...rest,
+      state: channel.readyState,
+      buffered: channel.bufferedAmount,
+    })),
   }));
+}
+
+/**
+ * On a failure, send a probe frame on every open channel of every page, so
+ * the record says whether the link still carries frames each way (a lost
+ * first frame on a live link reads differently from a dead link).
+ */
+export async function probeChannels(pages) {
+  for (const page of pages)
+    await page
+      .evaluate(() => {
+        for (const record of window.__rtcChannels ?? []) {
+          if (record.channel?.readyState !== "open") continue;
+          try {
+            record.channel.send(`probe:${record.side}`);
+          } catch (error) {
+            record.probeError = String(error);
+          }
+        }
+      })
+      .catch(() => {});
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 }
 
 /**
