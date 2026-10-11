@@ -1,16 +1,40 @@
 import { expect } from "@playwright/test";
 
-/** Read a row's position, then use the listing's real count-prefixed motion. */
+/**
+ * Read a row's position and use the listing's real count-prefixed motion,
+ * until the tree's cursor (`aria-activedescendant`) holds that row. A tree
+ * still settling after a route change can move its rows or its cursor between
+ * the read and the keys, and Enter then opens whatever row the cursor is on.
+ * A motion that previews a directory may replace the tree on a phone; that
+ * counts as arriving.
+ */
+async function moveTo(page, tree, row) {
+  const id = await row.getAttribute("id");
+  await expect(async () => {
+    const index = await row.evaluate((node) =>
+      [
+        ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
+      ].indexOf(node),
+    );
+    await page.keyboard.type(`${index + 1}gg`);
+    if (!id) return;
+    await expect
+      .poll(
+        async () =>
+          (await tree.isVisible())
+            ? await tree.getAttribute("aria-activedescendant")
+            : id,
+        { timeout: 750 },
+      )
+      .toBe(id);
+  }).toPass({ timeout: 10_000 });
+}
+
 async function chooseRow(page, tree, row, tabTo, activate = true) {
   await expect(row).toBeVisible();
   await tabTo(page, tree);
   await expect(tree).toBeFocused();
-  const index = await row.evaluate((node) =>
-    [
-      ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
-    ].indexOf(node),
-  );
-  await page.keyboard.type(`${index + 1}gg`);
+  await moveTo(page, tree, row);
   if (activate) await page.keyboard.press("Enter");
 }
 
@@ -38,12 +62,7 @@ export async function openIdentityView(page, tabTo, name) {
   await tabTo(page, tree);
   const identity = tree.getByRole("treeitem", { name: /^Identity/i });
   if ((await identity.getAttribute("aria-expanded")) !== "true") {
-    const index = await identity.evaluate((node) =>
-      [
-        ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
-      ].indexOf(node),
-    );
-    await page.keyboard.type(`${index + 1}gg`);
+    await moveTo(page, tree, identity);
     await page.keyboard.press("ArrowRight");
   }
   const category = tree.getByRole("treeitem", { name, exact: true });
