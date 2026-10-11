@@ -9,8 +9,9 @@ is laid out at 16. The rail, the drawer and the setup bar draw the field at
 already revealed skips the decrypt but still shimmers; only reduced motion holds
 it still.
 
-The captures come from two real builds of the same harness: `main` with
-#1106 (`673c0898`) and this branch. Each surface is reached the same way, in
+The captures come from two real builds of the same harness: `main` at
+`20511336` (which has #1106, and #1100's mark on every wordmark) and this
+branch. Both draw the mark beside the name; only the name's rendering changes. Each surface is reached the same way, in
 dark mode, five seconds after arrival, at the device's own pixel ratio (2 at
 1280, 3 on a phone):
 
@@ -36,9 +37,9 @@ The wordmark's computed em and canvas size. "Shimmering" means the canvas
 changes between two frames 700ms apart, five seconds after arrival.
 "Overflow" is how far the bar's furthest button reaches past the viewport.
 
-| Surface | `main` + #1106 | this branch |
+| Surface | `main` | this branch |
 |---|---|---|
-| Rail, 1280 | 12px em, 89×19px, still | 16px em, 116×23px, shimmering |
-| Setup bar, 390 | 13px em, 96×20px, still | 16px em, 116×23px, shimmering |
-| Setup bar, 320 | 13px em, 96×20px, still, overflow 0 | 16px em, 116×23px, shimmering, overflow 0 |
-| Drawer, 390 | 15px em, 109×22px, still | 16px em, 116×23px, shimmering |
+| Rail, 1280 | 12px em, 100×19px, still | 16px em, 131×23px, shimmering |
+| Setup bar, 390 | 13px em, 108×20px, still | 16px em, 131×23px, shimmering |
+| Setup bar, 320 | 13px em, 108×20px, still, overflow 0 | 16px em, 131×23px, shimmering, overflow 0 |
+| Drawer, 390 | 15px em, 123×22px, still | 16px em, 131×23px, shimmering |
