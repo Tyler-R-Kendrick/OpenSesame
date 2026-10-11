@@ -5,23 +5,20 @@ import {
 import { useSyncExternalStore } from "react";
 import { NotificationsBar } from "./NotificationsBar.js";
 
-/**
- * The bell for a screen that has no shell: the unlock screen, the front door,
- * the federated return and an unframed popup. A failure is a notice in the
- * tray and never a box in the page (DESIGN.md § Status is a symbol), so a
- * screen drawn before unlock still needs somewhere to read it. It appears
- * when the tray holds something and is absent otherwise; the unlocked shell
- * carries its own bell and does not mount this.
- *
- * It is a block in the document flow, right-aligned above the screen body —
- * never an overlay — so it cannot rest on a control such as the front door's
- * Skip.
- */
+/** Bell for shellless screens; latest claim/drop failure paints in `data-c`. */
 export function NoticeCorner() {
-  const notices = useSyncExternalStore(subscribeNotices, listNotices);
-  if (notices.length === 0) return null;
+  const n = useSyncExternalStore(subscribeNotices, listNotices);
+  if (!n.length) return null;
+  const l = n[n.length - 1];
   return (
-    <div className="notice-corner">
+    <div
+      className="notice-corner"
+      data-c={
+        l.id.startsWith("identity.claim.")
+          ? `${l.title} - ${l.body}`
+          : undefined
+      }
+    >
       <NotificationsBar />
     </div>
   );
