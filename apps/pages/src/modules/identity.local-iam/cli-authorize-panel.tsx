@@ -6,9 +6,9 @@ import {
   readString,
 } from "@opensesame/os-domain";
 import { useEffect, useState } from "react";
-import { FormCommit } from "../components/FormCommit.js";
-import { IconKey } from "../components/IconKey.js";
-import { IconX } from "../components/Icons.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconX } from "../../components/Icons.js";
 
 function daemonOrigin(): string | null {
   const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
@@ -22,7 +22,11 @@ function daemonOrigin(): string | null {
   }
 }
 
-type Row = readonly [requestId: string, terminalSessionId: string, verb: string];
+type Row = readonly [
+  requestId: string,
+  terminalSessionId: string,
+  verb: string,
+];
 
 function parseFirst(body: BoundaryValue): Row | null {
   if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
@@ -42,11 +46,14 @@ export function CliAuthorizePanel() {
     void (async () => {
       const origin = daemonOrigin();
       if (!origin) return setRow(null);
-      const res = await localNetworkFetch(`${origin}/v1/cli/app-integration/pending`, {
-        method: "GET",
-        credentials: "omit",
-        cache: "no-store",
-      });
+      const res = await localNetworkFetch(
+        `${origin}/v1/cli/app-integration/pending`,
+        {
+          method: "GET",
+          credentials: "omit",
+          cache: "no-store",
+        },
+      );
       if (!res.ok) return setRow(null);
       setRow(parseFirst(await res.json()));
     })();
@@ -56,17 +63,20 @@ export function CliAuthorizePanel() {
     setBusy(true);
     const origin = daemonOrigin();
     if (!origin) return setBusy(false);
-    const res = await localNetworkFetch(`${origin}/v1/cli/app-integration/respond`, {
-      method: "POST",
-      credentials: "omit",
-      cache: "no-store",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        requestId: row[0],
-        terminalSessionId: row[1],
-        decision,
-      }),
-    });
+    const res = await localNetworkFetch(
+      `${origin}/v1/cli/app-integration/respond`,
+      {
+        method: "POST",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          requestId: row[0],
+          terminalSessionId: row[1],
+          decision,
+        }),
+      },
+    );
     setBusy(false);
     if (res.ok) setRow(null);
   }
@@ -78,10 +88,22 @@ export function CliAuthorizePanel() {
       <div className="panel__body">
         {row === undefined ? <output>Reading CLI request…</output> : null}
         {row === null ? <p>No CLI request is waiting.</p> : null}
-        {row ? <p><code className="identity-ref">{row[2]}</code></p> : null}
         {row ? (
-          <FormCommit label="Authorize" disabled={busy} onClick={() => void decide("approve")}>
-            <IconKey label="Deny" disabled={busy} onClick={() => void decide("deny")}>
+          <p>
+            <code className="identity-ref">{row[2]}</code>
+          </p>
+        ) : null}
+        {row ? (
+          <FormCommit
+            label="Authorize"
+            disabled={busy}
+            onClick={() => void decide("approve")}
+          >
+            <IconKey
+              label="Deny"
+              disabled={busy}
+              onClick={() => void decide("deny")}
+            >
               <IconX size={16} />
             </IconKey>
           </FormCommit>
