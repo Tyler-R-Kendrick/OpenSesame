@@ -54,7 +54,15 @@ const preview: Preview = {
     a11y: { test: "todo" },
     options: {
       storySort: {
-        order: ["Design system", "Brand", "Controls", "Status", "Shell", "*"],
+        order: [
+          "Design system",
+          "Gates",
+          "Brand",
+          "Controls",
+          "Status",
+          "Shell",
+          "*",
+        ],
       },
     },
   },
