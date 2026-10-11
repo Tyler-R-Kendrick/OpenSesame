@@ -43,7 +43,8 @@ it("opens the newest release on arrival beside the card on a wide screen", () =>
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
   expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
-  expect(screen.getByRole("heading", { name: "Works" })).toBeTruthy();
+  // Under the gate's h1, so the next level down: no skipped heading level.
+  expect(screen.getByRole("heading", { level: 2, name: "Works" })).toBeTruthy();
 
   fireEvent.click(priorBtn);
   expect(priorBtn.getAttribute("aria-expanded")).toBe("true");
