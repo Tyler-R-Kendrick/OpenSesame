@@ -10,7 +10,7 @@ import {
 import { useMemo, useSyncExternalStore } from "react";
 import { Link } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
-import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
+import { IconChevronLeft, IconEdit, IconPlus } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -92,8 +92,13 @@ export function HealthPanel() {
         <div className="empty" ref={findingsRef}>
           <h2 ref={summaryRef}>No passwords to review</h2>
           <EmptyTip tip="vaultEmpty" />
-          <Link className="btn btn--primary btn--sm" to="/vault/new/account">
-            New account
+          <Link
+            className="icon-btn"
+            to="/vault/new/account"
+            aria-label="New account"
+            title="New account"
+          >
+            <IconPlus size={17} />
           </Link>
         </div>
       ) : (
