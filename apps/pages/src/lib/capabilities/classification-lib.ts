@@ -1,9 +1,9 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
+import { CLI_APP_INTEGRATION_RULES } from "./classification-cli-app.js";
 import { DEV_EVIDENCE_RULES } from "./classification-dev-evidence.js";
 import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
-import { CLI_APP_INTEGRATION_RULES } from "./classification-cli-app.js";
 import { VAULT_RELAY_RULES } from "./classification-vault-relay.js";
 import { WALLET_RULES } from "./classification-wallet.js";
 
