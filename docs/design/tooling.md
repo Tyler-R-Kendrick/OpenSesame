@@ -23,6 +23,11 @@ pnpm --filter @opensesame/pages build-storybook      # apps/pages/storybook-stat
 pnpm --filter @opensesame/pages typecheck:storybook  # the config and every story
 ```
 
+- **Browse it without a checkout.** A static build is published as a Claude
+  artifact, *OpenSesame Storybook*, with shortcuts to the front door, the unlock
+  stage, the wordmark, the mark, the controls and the status marks. Rebuild it
+  with `build-storybook` and republish the folder after a change to a
+  component or a story.
 - **It is the app, not a copy of it.** `.storybook/preview.tsx` loads the
   stylesheets `src/main.tsx` loads, in the same order, and `.storybook/host.ts`
   installs the browser host the app installs (ADR 0133), with an empty
@@ -31,8 +36,11 @@ pnpm --filter @opensesame/pages typecheck:storybook  # the config and every stor
   catalog; if a story looks wrong, the component is wrong.
 - **Stories live in `apps/pages/stories/`**, outside `src/`: the capability
   classification gate walks every file under `src` and the shipped bundle must
-  never reach a story. One file per component, grouped `Brand`, `Controls`,
-  `Status`, `Shell`.
+  never reach a story. One file per component, grouped `Gates`, `Brand`,
+  `Controls`, `Status`, `Shell`. The gates (`Gates/Front door`,
+  `Gates/Unlock stage`) are whole screens with their real motion: the
+  decode, the shimmer, the idle dial, and the ceremony from the unlock
+  story's go key.
 - **Every delivered component gets a story** with its real states (armed,
   busy, disabled with its reason, each status tone) and the sentence the
   component carries as its accessible name. Tag it `ai-generated` when an agent

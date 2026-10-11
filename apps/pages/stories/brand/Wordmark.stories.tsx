@@ -7,7 +7,11 @@ import { figma } from "../figma.js";
  * canvas. Three size tiers draw it (`CipherWordmark/particles-model.ts`):
  * letters under 16px (the rail), solid plates 16–48px (the unlock card),
  * and the particle field from 48px up (the front door's title).
- * The decrypt runs once per session; `replay` runs it again on mount.
+ * Every slot shows a cipher glyph from the first frame; a cursor walks the
+ * slots one at a time and locks each on its letter. The decrypt runs once per
+ * session; `replay` runs it again on mount. After it settles the particle
+ * field keeps its shimmer for as long as it is on screen (reduced motion holds
+ * it still); the letter and solid tiers settle still.
  */
 const meta = {
   title: "Brand/Wordmark",
