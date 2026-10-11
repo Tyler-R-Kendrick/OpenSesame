@@ -17,7 +17,6 @@ import {
 } from "./cipher.js";
 import {
   DRAW_CALIBRATION,
-  SOLID_MAX_EM,
   TYPE_MAX_EM,
   cursorBoostFor,
   tierOf,
@@ -111,14 +110,13 @@ describe("brightness cursor (not a border)", () => {
 });
 
 describe("size tiers", () => {
-  it("draws letters under 16px, solid plates to 48px, the field from 48px", () => {
+  it("draws the particle field from 16px up, a phone's hero included", () => {
     expect(TYPE_MAX_EM).toBe(16);
-    expect(SOLID_MAX_EM).toBe(48);
     expect(tierOf(12)).toBe("type");
     expect(tierOf(15.9)).toBe("type");
-    expect(tierOf(16)).toBe("solid");
-    expect(tierOf(28)).toBe("solid");
-    expect(tierOf(47.9)).toBe("solid");
+    expect(tierOf(16)).toBe("field");
+    expect(tierOf(28)).toBe("field");
+    expect(tierOf(37)).toBe("field");
     expect(tierOf(48)).toBe("field");
     expect(tierOf(90)).toBe("field");
   });

@@ -50,8 +50,8 @@ function rootClass(settled: boolean, className: string | undefined): string {
 
 /**
  * The name punched out of eleven plates on a canvas (lock-v5): a field of
- * ink particles at hero size, a solid plate in the chrome, letters alone in
- * the rail (`particles-model.ts` has the tiers). Every cell starts as hex
+ * ink particles from a 16px em up, letters alone under it in the rail
+ * (`particles-model.ts` has the tiers). Every cell starts as hex
  * cipher; a cursor walks them left to right and locks one letter at a time.
  * Decorative: the parent carries the accessible name.
  */
