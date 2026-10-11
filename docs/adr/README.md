@@ -251,3 +251,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0186](0186-live-session-transport-port-and-catalog-greeting.md) | Live sessions run over a transport port, and the catalog answers a greeting | Accepted |
 | [0187](0187-trusted-circle-quorum-sharing.md) | Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself | Accepted |
 | [0188](0188-a-vault-can-begin-from-a-file.md) | A vault can begin from a file | Accepted |
+| [0189](0189-settings-features-and-integrations.md) | Settings splits into Features and Integrations | Accepted |

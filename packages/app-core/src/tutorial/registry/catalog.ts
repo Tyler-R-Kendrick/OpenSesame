@@ -14,6 +14,7 @@
 import { contributionsSnapshot } from "../../lib/contributions.js";
 import { GUIDE_TARGETS_MORE } from "./catalog-more.js";
 import { FEATURE_TARGETS } from "./feature-catalog.js";
+import { INTEGRATION_TARGETS } from "./integration-catalog.js";
 import { SHELL_TARGETS } from "./shell-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { VAULT_TARGETS } from "./vault-catalog.js";
@@ -30,8 +31,9 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   ...SHELL_TARGETS,
   ...VAULT_TARGETS,
   ...FEATURE_TARGETS,
+  ...INTEGRATION_TARGETS,
 
-  // ── Settings: six categories and the panels people ask about ─────────
+  // ── Settings: seven categories and the panels people ask about ─────────
   {
     id: "settings.general",
     description:
@@ -56,11 +58,20 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/settings"],
     capabilityId: null,
   },
-  // Settings › Capabilities draws these in core, before any module lands.
+  // Settings › Features and Settings › Integrations draw these in core, before
+  // any module lands. Each category stands for its list by its first section.
   {
-    id: "settings.connectivity",
+    id: "settings.features-list",
     description:
-      "The first section of Settings › Capabilities, standing for all of them: each is a subheader with its providers under it, and a switch on it where the section has something optional to turn on.",
+      "The first section of Settings › Features, standing for all of them: each is a subheader with a switch on it, and a tile for each capability when a section has several.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
+    id: "settings.integrations-list",
+    description:
+      "The first section of Settings › Integrations, standing for all of them: each is a subheader with the third-party services a feature connects to under it, every one configured by reference on its own page.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",
@@ -68,7 +79,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.backup",
     description:
-      "Backups on Settings › Capabilities: choose the git provider the encrypted vault backs up to and switch it on.",
+      "Backups on Settings › Integrations: choose the git provider the encrypted vault backs up to and switch it on.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "backup.target.set",
@@ -76,7 +87,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.model-provider",
     description:
-      "Under the AI feature: two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
+      "Under AI on Settings › Integrations, while the AI feature is on: two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "model_plane.choose",
@@ -114,9 +125,17 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "identity.account_factors.enroll",
   },
   {
-    id: "settings.capabilities",
+    id: "settings.features",
     description:
-      "The Capabilities settings category: which optional features this installation has selected, what each one would expose, and the way to add or remove one.",
+      "The Features settings category: the optional features this installation can switch on, one section each, with what the switch would expose and the way to turn it off again.",
+    role: "navigation",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
+    id: "settings.integrations",
+    description:
+      "The Integrations settings category: the third-party services a feature connects to — identity providers, key services, backups, password managers, secret stores, payment providers, models and tailnets — each configured by reference.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: null,

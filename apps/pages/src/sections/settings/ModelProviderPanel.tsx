@@ -72,7 +72,7 @@ function SaveFlash({ flash }: { flash: Flash | null }) {
  * this panel only chooses which slug each role uses.
  *
  * `embedded`: drawn inside a section that already has its subheader (AI on
- * Settings › Capabilities) — no second "Models" label that would read as a
+ * Settings › Integrations) — no second "Models" label that would read as a
  * section of its own; the plane's mark moves into the tile.
  */
 export function ModelProviderPanel({
@@ -170,7 +170,7 @@ export function ModelProviderPanel({
   );
 }
 
-/** The picker as the AI section of Settings › Capabilities draws it. */
+/** The picker as the AI section of Settings › Integrations draws it. */
 export function EmbeddedModelProviderPanel() {
   return <ModelProviderPanel embedded />;
 }

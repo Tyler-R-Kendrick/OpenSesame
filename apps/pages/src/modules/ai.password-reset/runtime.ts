@@ -13,8 +13,7 @@ import { startPasswordResetScan } from "./scan.js";
 export const CAPABILITY = "ai.password-reset";
 
 /** Matches `sectionCategory("feature-password-reset")`. */
-export const PASSWORD_RESET_PANEL_CATEGORY =
-  "capabilities.feature-password-reset";
+export const PASSWORD_RESET_PANEL_CATEGORY = "features.feature-password-reset";
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,

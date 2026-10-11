@@ -32,7 +32,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "nav.settings",
     description:
-      "Rail entry that opens Settings, covering general preferences, security, connectivity, vault data and destructive actions.",
+      "Rail entry that opens Settings, covering general preferences, security, features, integrations, vault data and destructive actions.",
     role: "navigation",
     routes: [],
     capabilityId: "app.navigate",

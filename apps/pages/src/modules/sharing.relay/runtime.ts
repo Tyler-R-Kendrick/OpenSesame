@@ -10,7 +10,7 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { sectionCategory } from "../../sections/settings/CapabilitySections.js";
+import { sectionCategory } from "../../sections/settings/FeatureSections.js";
 import { createActivation } from "../activation.js";
 import { OrgVaultDirectoryPanel } from "./OrgVaultDirectoryPanel.js";
 

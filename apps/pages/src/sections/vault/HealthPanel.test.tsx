@@ -213,7 +213,7 @@ describe("HealthPanel", () => {
       screen
         .getByRole("link", { name: "Open breach and two-step checks" })
         .getAttribute("href"),
-    ).toBe("/settings/capabilities#feature-security-checks");
+    ).toBe("/settings/features#feature-security-checks");
     expect(
       screen.getByRole("link", { name: "GitHub" }).getAttribute("href"),
     ).toBe("/vault/itm_gh");

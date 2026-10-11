@@ -35,9 +35,9 @@ export function registerOptionalTutorials(): () => void {
 }
 
 /**
- * Every optional partition. The settings guides route to
- * `/settings/capabilities`, a core category, so no category registration is
- * needed beside them. What a tutorial suite needs to see the whole corpus.
+ * Every optional partition. The settings guides route to `/settings/features`
+ * and `/settings/integrations`, core categories, so no category registration
+ * is needed beside them. What a tutorial suite needs to see the whole corpus.
  */
 export function registerTutorialRealm(): () => void {
   const revokes = [registerOptionalTutorials()];

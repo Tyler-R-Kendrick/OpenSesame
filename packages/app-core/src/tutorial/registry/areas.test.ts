@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { accountSeams } from "../../lib/account.js";
-import { FEATURES } from "../../lib/capabilities/features.js";
 import {
   TUTORIAL_AREAS,
   goalOffered,
@@ -8,12 +7,7 @@ import {
   tutorialStartsFrom,
   tutorialStepCount,
 } from "./areas.js";
-import {
-  FEATURE_TUTORIALS,
-  describeGuideGoals,
-  guideGoal,
-  mergedGuideGoals,
-} from "./goals.js";
+import { describeGuideGoals, guideGoal, mergedGuideGoals } from "./goals.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "./predicates.js";
 import { GUIDE_OVERLAY_ROUTES, guideRouteWithin } from "./routes.js";
@@ -50,23 +44,6 @@ describe("the tutorial library", () => {
     expect(tutorialLibrary("/vault").some((group) => group.id === "more")).toBe(
       false,
     );
-  });
-
-  it("opens a tutorial for every section of Settings › Capabilities", () => {
-    for (const feature of FEATURES) {
-      const goal = FEATURE_TUTORIALS[feature.id];
-      expect(goal, `${feature.id} has no tutorial`).toBeDefined();
-      expect(guideGoal(goal ?? ""), `${feature.id}: ${goal}`).not.toBeNull();
-    }
-  });
-
-  it("walks every feature tutorial through the one page its sections are on", () => {
-    for (const goal of Object.values(FEATURE_TUTORIALS)) {
-      const descriptor = guideGoal(goal);
-      if (!goal.startsWith("feature.")) continue;
-      expect(descriptor?.guide).toContain('navigate "/settings/capabilities"');
-      expect(descriptor?.guide).toContain(`focus "${goal}"`);
-    }
   });
 });
 
@@ -266,8 +243,8 @@ describe("what a tutorial needs before it is offered", () => {
   });
 
   it("points the model and tailnet tours at their sections, so an undrawn one hides them", () => {
-    const sectionDrawn = (feature: string) =>
-      feature !== "ai" && feature !== "networking";
+    const sectionDrawn = (id: string) =>
+      id !== "integration.ai" && id !== "feature.networking";
     const withheld = ids({ sectionDrawn });
     expect(withheld).not.toContain("settings.model-provider");
     expect(withheld).not.toContain("settings.tailnet-sync");

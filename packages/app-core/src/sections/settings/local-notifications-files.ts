@@ -1,6 +1,6 @@
 /**
- * Settings › Capabilities › Local notifications as a file (ADR 0134, ADR
- * 0162): `settings/capabilities/local-notifications.json`, the ordered places
+ * Settings › Features › Local notifications as a file (ADR 0134, ADR
+ * 0162): `settings/features/local-notifications.json`, the ordered places
  * this device tells its person that a request is waiting. Sealed in the vault
  * (`lib/local-notifications/preference.ts`); the form's keys and this file
  * write it through one road, so the same refusals meet both.
@@ -20,7 +20,7 @@ import type {
 } from "./virtual-files.js";
 
 export const LOCAL_NOTIFICATIONS_FILE =
-  "settings/capabilities/local-notifications.json";
+  "settings/features/local-notifications.json";
 
 const FILES: readonly VirtualFile[] = [
   {

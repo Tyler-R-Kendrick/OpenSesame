@@ -210,12 +210,9 @@ export async function settingsFileStops(ctx) {
   viewerChecks(ctx.harness, label, await ctx.page.evaluate(measureViewer));
   await documentStop(
     ctx,
-    "file-capabilities",
-    fileRoute(
-      "capabilities",
-      "settings/capabilities/installation-selection.yaml",
-    ),
-    "[data-testid='capabilities-panel']",
+    "file-features",
+    fileRoute("features", "settings/features/installation-selection.yaml"),
+    "[data-testid='features-panel']",
   );
   await documentStop(
     ctx,

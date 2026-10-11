@@ -193,7 +193,7 @@ export NODE_OPTIONS="--max-old-space-size=8192"
 cd packages/capability-composition && pnpm exec vitest run
 pnpm --filter @opensesame/app-core exec vitest run src/lib/capabilities src/lib/configuration src/lib/runtime-config.test.ts
 pnpm --filter @opensesame/pages exec vitest run src/lib/capabilities
-pnpm --filter @opensesame/pages exec vitest run src/screens/capabilities src/sections/settings/CapabilitiesPanel.test.tsx
+pnpm --filter @opensesame/pages exec vitest run src/screens/capabilities src/sections/settings/FeaturesPanel.test.tsx
 pnpm --filter @opensesame/pages exec vitest run src/sw scripts/capability-compose-plugin.test.mjs scripts/verify-capability-graph.test.mjs
 
 # Layer 2, the one that costs a build

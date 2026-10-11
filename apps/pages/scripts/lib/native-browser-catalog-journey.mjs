@@ -12,7 +12,7 @@ export async function nativeVisit(page, base, route) {
 }
 
 export async function nativeEnableConnections(page, base) {
-  await nativeVisit(page, base, "settings/capabilities");
+  await nativeVisit(page, base, "settings/features");
   const toggle = page.getByRole("switch", { name: "Connections", exact: true });
   await toggle.waitFor();
   if ((await toggle.getAttribute("aria-checked")) !== "true")

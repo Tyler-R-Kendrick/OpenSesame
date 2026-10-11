@@ -1,5 +1,5 @@
 /**
- * Settings › Capabilities › Local notifications: where this device tells its
+ * Settings › Features › Local notifications: where this device tells its
  * person that a request is waiting (ADR 0162). Two rows, each one key, each
  * drawn only where its key can act (ADR 0158):
  *

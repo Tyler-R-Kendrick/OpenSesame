@@ -46,7 +46,7 @@ export function AmbientAuthPanel() {
 
   // Nothing to choose from and nothing deployed: the panel would be a
   // sentence and a key with no effect, so it is not drawn. Adding a provider
-  // (Capabilities › Identity providers) is what brings it in.
+  // (Integrations › Identity) is what brings it in.
   if (!deployed && providers.length === 0) return null;
 
   return (

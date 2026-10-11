@@ -87,7 +87,7 @@ opensesame plugins list                  # also lists pairings: origin and time,
 
 `pair` prints a code (`opensesame-plugins:v1:…`, the wire form is
 `spec/conformance/plugin-pairing.json`). Paste it into the pairing field of
-the plugin's tile in Settings › Capabilities. The code:
+the plugin's tile in Settings › Features. The code:
 
 - works **once**, within **five minutes**, and only from the page at exactly
   `--origin` (`https://host[:port]`, or `http://localhost:port`). A code

@@ -8,7 +8,13 @@ import { isSettingsDocument } from "./documents.js";
 
 describe("isSettingsDocument", () => {
   it("names a directory's own config.yaml, by file name or by path", () => {
-    for (const category of ["general", "security", "vaults", "capabilities"]) {
+    for (const category of [
+      "general",
+      "security",
+      "vaults",
+      "features",
+      "integrations",
+    ]) {
       expect(isSettingsDocument(category, "config.yaml")).toBe(true);
       expect(
         isSettingsDocument(category, `settings/${category}/config.yaml`),
@@ -16,9 +22,10 @@ describe("isSettingsDocument", () => {
     }
   });
 
-  it("names the capability documents in Capabilities and nowhere else", () => {
+  it("names the capability documents in Features and nowhere else", () => {
     for (const path of [SELECTION_FILE, POLICY_FILE, EFFECTIVE_FILE]) {
-      expect(isSettingsDocument("capabilities", path)).toBe(true);
+      expect(isSettingsDocument("features", path)).toBe(true);
+      expect(isSettingsDocument("integrations", path)).toBe(false);
       expect(isSettingsDocument("vaults", path)).toBe(false);
     }
   });
@@ -30,8 +37,8 @@ describe("isSettingsDocument", () => {
     expect(
       isSettingsDocument("vaults", "settings/item-types/marketplaces.json"),
     ).toBe(false);
-    expect(
-      isSettingsDocument("capabilities", "settings/capabilities/other.yaml"),
-    ).toBe(false);
+    expect(isSettingsDocument("features", "settings/features/other.yaml")).toBe(
+      false,
+    );
   });
 });

@@ -1,4 +1,4 @@
-/* A runtime-installed plugin inside its Capabilities section (ADR 0150 §7):
+/* A runtime-installed plugin inside its Features section (ADR 0150 §7):
    the tile's row, the install command a person copies, and the tripwires. */
 
 .plugin-tile__row {
