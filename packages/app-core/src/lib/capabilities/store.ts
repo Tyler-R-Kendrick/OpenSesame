@@ -23,7 +23,6 @@ import {
   type DistributionContract,
   type EffectivePlan,
   type InstallationCapabilitySelection,
-  buildConsentReceipt,
   resolveComposition,
 } from "@opensesame/capability-composition";
 import { noteAmbientSsoApproved } from "../ambient-auth-seam.js";
@@ -130,7 +129,6 @@ export class CompositionStore {
     adoptDocs(state, docs, this.#note);
     this.#bump("boot");
     this.#resolve();
-    await this.#commitPersonalLocalPwaDefaultsIfNeeded();
   }
 
   currentLease(): ActivationLease {
@@ -394,32 +392,6 @@ export class CompositionStore {
     this.#state.generation += 1;
     this.#minted?.abort(reason);
     this.#minted = null;
-  }
-
-  async #commitPersonalLocalPwaDefaultsIfNeeded(): Promise<void> {
-    const snap = this.#snapshot;
-    if (snap.selection !== null) return;
-    if (snap.provenance !== "personal-local") return;
-    if (snap.status !== "ready") return;
-    const catalog = this.#state.catalog;
-    const plan = snap.plan;
-    if (!catalog || !plan) return;
-    const acceptedAt = storeSeams.now();
-    const draft: InstallationCapabilitySelection = {
-      schemaVersion: 1,
-      kind: "InstallationCapabilitySelection",
-      instanceId: plan.identity.instanceId,
-      installationId: plan.identity.installationId,
-      basePolicyRevision: plan.identity.policyRevision,
-      revision: `draft-${acceptedAt}-${crypto.randomUUID().slice(0, 8)}`,
-      acceptedRequired: [],
-      selectedOptional: ["access.authority", "identity.local-iam"],
-      chosenAlternatives: {},
-      delivery: { prefetch: "selected", offlineCache: "selected-only" },
-    };
-    const preview = this.preview(draft);
-    const receipt = buildConsentReceipt(preview, catalog, acceptedAt);
-    await this.commit(draft, receipt);
   }
 }
 

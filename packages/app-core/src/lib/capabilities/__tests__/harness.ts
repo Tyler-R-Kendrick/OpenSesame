@@ -64,6 +64,7 @@ export function installStoreSeams(): void {
   storeSeams.installationId = () => FIXTURE_INSTALLATION_ID;
   storeSeams.workspaceRestriction = () => null;
   storeSeams.reviewManagedPolicy = () => ({ ok: true, diagnostics: [] });
+  storeSeams.skipPersonalLocalPwaDefaults = true;
 }
 
 /** Fresh realm: storage, seams, registry, loader, singleton store. */
