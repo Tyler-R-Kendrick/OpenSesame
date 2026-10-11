@@ -33,3 +33,16 @@ test("pins the optional Tailnet pairing leaf without changing ownership of other
     undefined,
   );
 });
+
+test("pins the claim different-link control on identity.ceremonies", () => {
+  const file =
+    "/workspace/apps/pages/src/modules/identity.ceremonies/ClaimDifferentLink.tsx";
+  const entry = {
+    classification: "optional",
+    capability: "identity.ceremonies",
+  };
+  assert.equal(
+    lazyLeafChunk(file, entry),
+    "cap-identity.claim-different-link",
+  );
+});
