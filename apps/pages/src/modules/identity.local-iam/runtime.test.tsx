@@ -26,7 +26,6 @@ const KINDS = [
   "keymap-jump",
   "route",
   "section",
-  "shell-wrapper",
   "tutorial-goal",
   "tutorial-route",
   "tutorial-target",
@@ -69,7 +68,6 @@ describe("identity.local-iam runtime", () => {
         2 +
         1 +
         2 +
-        1 +
         1 +
         1 +
         targets.length +

@@ -140,13 +140,6 @@ export const capabilityRuntime: CapabilityRuntime = {
     });
     registerTutorial(activation, TUTORIAL);
 
-    const { CliAuthorizeHost } = await import("./cli-authorize.js");
-    activation.register("shell-wrapper", {
-      id: "cli-app-integration",
-      Wrapper: CliAuthorizeHost,
-      order: 15,
-    });
-
     return activation.handle();
   },
 };

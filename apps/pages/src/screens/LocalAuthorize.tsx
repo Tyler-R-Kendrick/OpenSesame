@@ -2,7 +2,7 @@ import {
   type LocalAuthorizationRequest,
   parseLocalAuthorizationRequest,
 } from "@opensesame/static-auth";
-import { useEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router";
 import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
@@ -12,8 +12,15 @@ import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { useLocalConsent } from "./useLocalConsent.js";
 
+const CliAuthorizeLazy = lazy(() =>
+  import("./cli-authorize-panel.js").then((m) => ({
+    default: m.CliAuthorizePanel,
+  })),
+);
+
 export function LocalAuthorize() {
   const { search } = useLocation();
+  const cli = new URLSearchParams(search).get("cli") === "1";
   const { tomb } = useVault();
   const request = useMemo(() => {
     try {
@@ -22,6 +29,13 @@ export function LocalAuthorize() {
       return null;
     }
   }, [search]);
+  if (cli) {
+    return (
+      <Suspense fallback={<output>Reading CLI request…</output>}>
+        <CliAuthorizeLazy />
+      </Suspense>
+    );
+  }
   if (!request)
     return (
       <section className="panel" aria-label="Application sign-in">
