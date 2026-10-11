@@ -99,11 +99,11 @@ export const Wordmark = forwardRef<
      */
     as?: "p" | "h1";
     replay?: boolean;
-    /** Plate-height mark inside CipherWordmark (unlock hero, lock-v5). */
+    /** The mark beside the name. On everywhere: it is the one logo, the unlock's. */
     includeMark?: boolean;
   }
 >(function Wordmark(
-  { className, size, fit, as: Tag = "p", replay = false, includeMark = false },
+  { className, size, fit, as: Tag = "p", replay = false, includeMark = true },
   ref,
 ): ReactElement {
   const rootRef = useRef<HTMLElement | null>(null);

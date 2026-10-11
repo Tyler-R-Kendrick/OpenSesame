@@ -137,8 +137,12 @@ disagree. One plate grid, three renderings by em (`particles-model.ts`):
 | Tier | Em | Drawn | Where |
 | --- | --- | --- | --- |
 | field | 48px and up | ink particles with the letter cut out; the field drifts while the name decrypts, then freezes | the front door, fitted to its card (`fit`: em = width / 7.78, at most 90) |
-| solid | 16 to 48px | a solid ink plate with the letter cut out, stroked so it survives 1× | the unlock card, the setup bar at tablet width |
-| type | under 16px | the letters in ink, no plates | the rail (12px), the setup bar (13px) |
+| solid | 16 to 48px | a solid ink plate with the letter cut out, stroked so it survives 1× | the unlock card, the rail, the setup bar at tablet width |
+| type | under 16px | the letters in ink, no plates | the setup bar at phone width (13px) |
+
+Every rendering carries the mark, the door ajar, beside the name: it is one
+logo, the one the unlock card shows, and `Wordmark` includes it unless a
+caller turns it off. The field tier's fit already counts the mark.
 
 An 11px particle plate keeps 290 of its 1,400 cut-out pixels and reads as
 redacted blocks, so the small tiers exist. The element's font-size is the
@@ -150,7 +154,7 @@ the active plate brightening (never a stroked frame) while its glyph steps at
 35ms a frame for 6–12 frames, then locks on its letter and flashes once.
 2.31–4.62s in all, once per session: the gate a person arrives on owns the
 moment, and every wordmark mounted after it — the setup ceremony, the rail —
-stands still on its letters. The unlock screen's wordmark replays it on each
+stands still, already settled. The unlock screen's wordmark replays it on each
 mount. The plates are decorative; assistive technology reads `open-sesame`
 once. Reduced motion shows the finished word at once, the field frozen.
 `verify:static` samples the real page (`scripts/lib/wordmark-contract.mjs`):
@@ -801,12 +805,12 @@ The rail renders as a mono filesystem tree (see "VFS interaction model")
 rooted at the prompt line `guest@personal:/`: directory rows with counts
 and g-jump key chips. Selection is inverse video (see "Selection"). The
 phone section drawer lists every rail section and nothing else.
-Password health is a review page. The vault tree lists it as `health`,
-after favorites and before the type directories, on a wide screen and on
-a phone's first pane. Choosing it opens `/vault/health`. It is not a
-vault filter chip: the filter sheet does not link it, and it does not
-narrow the list. When the report has findings, the notifications sheet
-still carries Review passwords.
+Password health is a review page. It is not a tree row, a type directory
+or a vault filter chip: the vault's own row offers it in its context menu
+as Password health, and choosing it opens `/vault/health`. The filter sheet
+does not link it, and it does not narrow the list. On the report the tree's
+cursor stands on the `vault/` row. When the report has findings, the
+notifications sheet still carries Review passwords.
 
 Identity's children and its content tabs share the URL's `view` selection;
 the rail and tabs always name the same view. Connections has separate

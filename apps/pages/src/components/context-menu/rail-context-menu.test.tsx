@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   filterLink,
@@ -11,6 +11,11 @@ import {
   seedVault,
 } from "../app-shell.test-harness.js";
 import { ContextMenuLayer } from "./ContextMenuLayer.js";
+
+/** Where the shell's router is, so a test can see a menu item navigate. */
+function RouteProbe() {
+  return <output aria-label="route">{useLocation().pathname}</output>;
+}
 
 /**
  * The rail is the filesystem, and it answers a right-click like one: the
@@ -139,18 +144,33 @@ describe("the rail's context menu", () => {
     expect(document.activeElement).toBe(first);
   });
 
-  it("opens password health without offering to create an item there", () => {
+  it("offers password health from the vault's menu, not as a tree row", () => {
+    renderShell(
+      "/vault",
+      <>
+        <ContextMenuLayer />
+        <RouteProbe />
+      </>,
+    );
+    expect(
+      screen.queryByRole("treeitem", { name: "Password health" }),
+    ).toBeNull();
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+    fireEvent.click(
+      within(menu()).getByRole("menuitem", { name: "Password health" }),
+    );
+    expect(screen.getByLabelText("route").textContent).toBe("/vault/health");
+  });
+
+  it("offers password health on the vault only, not on its filters", () => {
     renderShell("/vault", <ContextMenuLayer />);
-    const health = screen.getByRole("treeitem", { name: "Password health" });
-    expect(health.getAttribute("href")).toBe("/vault/health");
-    fireEvent.contextMenu(health);
-    expect(within(menu()).getByRole("menuitem", { name: "Open" })).toBeTruthy();
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "all" }));
     expect(
-      within(menu()).queryByRole("menuitem", { name: "New item" }),
+      within(menu()).queryByRole("menuitem", { name: "Password health" }),
     ).toBeNull();
     expect(
-      within(menu()).queryByRole("menuitem", { name: "Empty trash" }),
-    ).toBeNull();
+      within(menu()).getByRole("menuitem", { name: "New item" }),
+    ).toBeTruthy();
   });
 
   it("asks twice before emptying the trash", () => {
