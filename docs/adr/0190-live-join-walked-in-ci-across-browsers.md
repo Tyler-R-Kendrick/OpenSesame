@@ -1,4 +1,4 @@
-# ADR 0189 — The live join walk gates merges, across three browsers
+# ADR 0190 — The live join walk gates merges, across three browsers
 
 - **Status:** Accepted
 - **Date:** 2026-10-10
