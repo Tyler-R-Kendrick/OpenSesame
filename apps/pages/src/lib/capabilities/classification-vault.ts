@@ -49,6 +49,16 @@ const CLOUD_ADAPTERS = [
 
 export const VAULT_LIB_RULES = [
   core(
+    "src/lib/original-device-identity-fence-data",
+    null,
+    "fixed original identity serialization; no Root or factor admission",
+  ),
+  core(
+    "src/lib/original-device-identity-pending-data",
+    null,
+    "per-Store original generation deduplication; no authentication authority",
+  ),
+  core(
     "src/lib/original-device-identity-seal-data",
     "identity.brokered-signin",
     "fixed device identity record sealing and accepted-work retirement",
