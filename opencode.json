@@ -13,6 +13,11 @@
         "X-Goog-Api-Key": "{env:STITCH_API_KEY}"
       },
       "enabled": true
+    },
+    "shadcn": {
+      "type": "local",
+      "command": ["npx", "-y", "shadcn@4.21.4", "mcp"],
+      "enabled": true
     }
   }
 }

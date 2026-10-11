@@ -55,6 +55,12 @@
       "skillPath": "skills/scandinavian-design/SKILL.md",
       "computedHash": "b1856501e2bbdee6b3958799510c2474ea5b597a88300850df74ce200bc50b01"
     },
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "skillPath": "skills/shadcn/SKILL.md",
+      "computedHash": "da388f632cd83783c02967446e21941c9ee8291ccb43ba74c23f7d4e9b7c298c"
+    },
     "shadcn-ui": {
       "source": "google-labs-code/stitch-skills",
       "sourceType": "github",
