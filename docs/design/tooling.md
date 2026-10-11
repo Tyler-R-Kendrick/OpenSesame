@@ -100,6 +100,32 @@ prototype back as static HTML.
   `react-vite-dashboard` and `stitch::react-native` describe stacks this app
   does not use. An agent reaching for them in `apps/pages` is off the contract.
 
+## shadcn/ui: DESIGN.md as a design-system page
+
+The `shadcn` skill (shadcn-ui/ui `skills/shadcn`) reads a `DESIGN.md` and
+restyles shadcn/ui from it: it scaffolds a scratch Vite app from a style,
+installs every component, maps the frontmatter tokens and the prose rules onto
+the theme and the component recipes, and builds a design-system page with
+contrast-checked colour pairs, pinned state matrices and do/don't pairs
+(`.claude/skills/shadcn/design-system.md`). It is how an agent checks that this
+repository's `DESIGN.md` is complete enough to theme a different component
+library: a rule that cannot be expressed in tokens shows up as a gap.
+
+- **Where it runs.** In a scratch directory outside the repository, never in
+  `apps/pages`: the app has no `components.json`, no Tailwind, and its controls
+  are its own (`docs/design/controls.md`). Nothing moves from the shadcn page
+  into `apps/pages`.
+- **How to run it.** Ask for it by name: "build a shadcn design system from
+  `DESIGN.md` with the lyra style". `lyra` (boxy, sharp, mono) is the style
+  closest to this system's geometry; the theme maps the greyscale ladder, the
+  app's own night palette, radius 0 on every step (and an unlayered rule for
+  `rounded-full`), hairline elevation, the ink focus outline and the 44px
+  coarse-pointer floor; `destructive` is ink, because a control is never red.
+- **MCP.** `shadcn@4.21.4 mcp` (stdio, pinned) is registered next to Storybook
+  and Stitch for Claude Code, Cursor, Codex and OpenCode. It searches and views
+  registries; `get_project_registries` errors here by design, since the
+  repository has no `components.json`.
+
 ## Per-agent configuration
 
 Skills are installed by the skills CLI (`npx skills add
@@ -107,7 +133,7 @@ google-labs-code/stitch-skills -y --copy -a <agent>`), pinned in
 `skills-lock.json`; `npx skills update` refreshes them. The MCP files name the
 same two servers everywhere.
 
-| Agent | Skills | MCP servers (Storybook + Stitch) |
+| Agent | Skills | MCP servers (Storybook + Stitch + shadcn) |
 |-------|--------|----------------------------------|
 | Claude Code | `.claude/skills/` (copies), and the `stitch-design`, `stitch-build`, `stitch-utilities` plugins enabled in `.claude/settings.json` from the `google-labs-code/stitch-skills` marketplace | `.mcp.json` (`${STITCH_API_KEY}`) |
 | Cursor | `.agents/skills/` | `.cursor/mcp.json` (`${env:STITCH_API_KEY}`) |
