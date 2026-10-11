@@ -145,7 +145,7 @@ export async function visit(page, base, route) {
 
 /** Identity (the section the panel is in), then Networking (the panel). */
 export async function deviceManagementOn(page, base) {
-  await visit(page, base, "settings/capabilities");
+  await visit(page, base, "settings/features");
   for (const name of ["Identity", "Networking"]) {
     const toggle = page.getByRole("switch", { name, exact: true });
     if ((await toggle.getAttribute("aria-checked")) === "true") continue;

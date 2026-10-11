@@ -7,7 +7,7 @@
  * seals a local vault with no service at all, and beside a sealed vault the
  * store runs the guest in its own isolated tomb. The one thing that takes
  * these away is the operator's own "Allow guests" switch in Settings ›
- * Capabilities (`guest-access.ts`), which is on unless somebody turned it
+ * Features (`guest-access.ts`), which is on unless somebody turned it
  * off. Every placement reads that switch here, so none can drift from it.
  *
  * One pattern, two placements, both reading the switch. The front door's

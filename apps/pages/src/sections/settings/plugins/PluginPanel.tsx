@@ -1,5 +1,5 @@
 /**
- * A runtime-installed plugin inside its Settings › Capabilities section
+ * A runtime-installed plugin inside its Settings › Features section
  * (ADR 0150 §7): what the paired daemon says about it, one key that switches
  * it there, and — for the surrogate proxy — its recent tripwires.
  *

@@ -16,7 +16,7 @@ export function syncSteps(base) {
   }
 
   async function networkingOn(page) {
-    await visit(page, "settings/capabilities");
+    await visit(page, "settings/features");
     await page.getByRole("switch", { name: "Networking", exact: true }).click();
     await page
       .getByTestId("capability-review")

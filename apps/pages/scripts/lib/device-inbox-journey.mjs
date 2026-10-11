@@ -79,7 +79,7 @@ async function asksNothingAtLoad(t) {
  */
 async function allowSystemNotifications(t) {
   const { main, context } = t;
-  await main.goto(`${BASE}/settings/capabilities`);
+  await main.goto(`${BASE}/settings/features`);
   await unlockVault(main);
   const allow = main.getByRole("button", {
     name: "Allow system notifications",

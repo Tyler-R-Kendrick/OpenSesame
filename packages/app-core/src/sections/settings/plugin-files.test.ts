@@ -44,7 +44,7 @@ describe("a plugin as a Settings file (ADR 0134)", () => {
     expect(ensure).toHaveBeenCalled();
     current = view();
     expect(files.list().map((file) => file.path)).toEqual([
-      "settings/capabilities/plugins/surrogate-proxy.json",
+      "settings/features/plugins/surrogate-proxy.json",
     ]);
   });
 
@@ -82,7 +82,7 @@ describe("a plugin as a Settings file (ADR 0134)", () => {
     expect((await files.write(path, '{"enabled":false}')).ok).toBe(false);
     expect((await files.remove(path)).ok).toBe(false);
     await expect(
-      files.read("settings/capabilities/plugins/other.json"),
+      files.read("settings/features/plugins/other.json"),
     ).rejects.toThrow();
   });
 });

@@ -2,7 +2,7 @@
  * `vault.security-checks` — breach and two-step checks of the open vault's
  * logins (`lib/vault/security-checks.ts`). Turning it on publishes an idle
  * standing (Password health and this panel both read it) and draws the
- * check in two places: the Capabilities section, where the switch is, and
+ * check in two places: the Features section, where the switch is, and
  * Settings › Vaults. Nothing is fetched until a person presses Check.
  *
  * Egress, all through `ctx.egress` under the two declared purposes: Have I
@@ -22,7 +22,7 @@ import {
 import { createActivation } from "../activation.js";
 
 /** Matches `sectionCategory("feature-security-checks")`. */
-const SECTION_CATEGORY = "capabilities.feature-security-checks";
+const SECTION_CATEGORY = "features.feature-security-checks";
 
 export const CAPABILITY = "vault.security-checks";
 

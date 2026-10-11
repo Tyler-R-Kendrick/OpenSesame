@@ -17,7 +17,7 @@ export const ALWAYS_ON_TITLES = new Set([
 ]);
 
 /**
- * The switch Settings › Capabilities offers for one optional capability, by
+ * The switch Settings › Features offers for one optional capability, by
  * its catalog title: a tile's switch in a section with several, or the
  * section's own subheader switch where the capability is its only one. Both
  * carry `data-capability-title`, so a walk never needs to know which.
@@ -42,7 +42,7 @@ export function capabilityOnSwitch(page, title) {
   );
 }
 
-/** Wait for Settings › Capabilities to draw its sections. */
+/** Wait for Settings › Features to draw its sections. */
 export async function awaitCapabilitySections(page) {
   // The panel may still be arriving; a silent return here would leave the
   // switches missing and the walk failing somewhere that looks unrelated.

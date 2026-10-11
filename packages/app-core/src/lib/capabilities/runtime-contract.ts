@@ -127,8 +127,8 @@ export type SettingsPanelContribution = Readonly<{
   /**
    * The panel's own files (ADR 0134), listed under the category its
    * `category` names up to the first dot: a panel drawn inside a
-   * Capabilities section (`capabilities.feature-<id>`) lists its files
-   * under Capabilities.
+   * Features section (`features.feature-<id>`) lists its files
+   * under Features.
    */
   files?: VirtualFileProvider;
 }>;

@@ -11,7 +11,7 @@
  * quietly given it back.
  *
  * The same text is the Settings form's state and the Settings file
- * `settings/capabilities/local-notifications.json` (ADR 0134): both write
+ * `settings/features/local-notifications.json` (ADR 0134): both write
  * through `writePreference`, so the same refusals meet both.
  */
 

@@ -5,7 +5,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { useCategoryFiles } from "./providers.js";
 
-const PATH = "settings/capabilities/plugins/surrogate-proxy.json";
+const PATH = "settings/features/plugins/surrogate-proxy.json";
 
 const files: VirtualFileProvider = {
   list: () => [
@@ -25,25 +25,21 @@ describe("a panel's files under its category (ADR 0134)", () => {
     revokes = [];
   });
 
-  it("lists a Capabilities section panel's file under Capabilities, one provider across renders", async () => {
+  it("lists a Features section panel's file under Features, one provider across renders", async () => {
     revokes.push(
       registerContributionForTest("settings-panel", {
         id: "plugin-surrogate-proxy",
         label: "Surrogate proxy",
-        category: "capabilities.feature-surrogates",
+        category: "features.feature-surrogates",
         Panel: () => null,
         order: 10,
         files,
       }),
     );
-    const { result, rerender } = renderHook(() =>
-      useCategoryFiles("capabilities"),
-    );
+    const { result, rerender } = renderHook(() => useCategoryFiles("features"));
     const first = result.current;
     const paths = first?.list().map((file) => file.path) ?? [];
-    expect(paths).toContain(
-      "settings/capabilities/installation-selection.yaml",
-    );
+    expect(paths).toContain("settings/features/installation-selection.yaml");
     expect(paths).toContain(PATH);
     expect(await first?.read(PATH)).toContain("surrogate-proxy");
     rerender();
@@ -51,9 +47,9 @@ describe("a panel's files under its category (ADR 0134)", () => {
   });
 
   it("lists the capability documents when no panel adds a file", () => {
-    const { result } = renderHook(() => useCategoryFiles("capabilities"));
+    const { result } = renderHook(() => useCategoryFiles("features"));
     expect(result.current?.list().map((file) => file.path)).toContain(
-      "settings/capabilities/installation-selection.yaml",
+      "settings/features/installation-selection.yaml",
     );
   });
 
@@ -62,7 +58,7 @@ describe("a panel's files under its category (ADR 0134)", () => {
       registerContributionForTest("settings-panel", {
         id: "plugin-surrogate-proxy",
         label: "Surrogate proxy",
-        category: "capabilities.feature-surrogates",
+        category: "features.feature-surrogates",
         Panel: () => null,
         order: 10,
         files,

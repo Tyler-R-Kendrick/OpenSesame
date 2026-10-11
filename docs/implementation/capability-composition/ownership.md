@@ -73,7 +73,7 @@ and are the only definitions.
 | **S06** loader/runtime | `packages/app-core/src/lib/capabilities/{store,loader,registry,authority,lease}.ts` | store, `loadApprovedModule`, `activateApprovedCapability`, registrars, `assertCurrentOperationAuthority`, `admitOperation` |
 | **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `apps/pages/scripts/build-profile.mjs`, `apps/pages/scripts/verify-capability-graph.mjs`, `apps/pages/vite.config.ts` (plugin wiring only), `tools/quality/bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
 | **S08** workers | `apps/pages/src/sw.ts`, `apps/pages/src/sw-push.ts`, `apps/pages/src/sw/**`, `packages/app-core/src/lib/capabilities/worker-controller.ts`, `apps/pages/scripts/build-workers.mjs` | core-only worker, push variant, owned caches, asset-plan messages, registration controller |
-| **S09** setup/consent UI | `apps/pages/src/screens/capabilities/**`, `apps/pages/src/screens/SetupScreen.tsx`, `apps/pages/src/screens/FrontDoor.tsx` (requirements panel patch), `apps/pages/src/sections/settings/CapabilitiesPanel*.tsx` | purpose cards, capability cards, draft/review/apply, Settings › Capabilities |
+| **S09** setup/consent UI | `apps/pages/src/screens/capabilities/**`, `apps/pages/src/screens/SetupScreen.tsx`, `apps/pages/src/screens/FrontDoor.tsx` (requirements panel patch), `apps/pages/src/sections/settings/{Features,Integrations}Panel*.tsx` | purpose cards, capability cards, draft/review/apply, Settings › Features and Integrations |
 | **S10** shell | `apps/pages/src/components/{AppShell,RailRows,NavDrawer,Crumbs,SettingsTree,KeymapSheet}.tsx`, `apps/pages/src/lib/keymap.ts`, `packages/app-core/src/lib/command-bar/types.ts`, `packages/app-core/src/webmcp/navigation.ts` | contribution-driven navigation, commands, shortcuts, help |
 | **S11–S16** module owners | `apps/pages/src/modules/<capability-id>/runtime.ts` (+ moved feature code; 37 modules today) | one `capabilityRuntime` per optional capability |
 | **S17** OpenFeature | `packages/app-core/src/lib/capabilities/openfeature.ts` | local read-only provider over the store snapshot |
@@ -335,7 +335,7 @@ Legacy Playwright verifiers walk every section. A device that has approved
 nothing has no rail row for an optional capability's section (ADR 0130), so a
 journey that needs one switches it on the way a person does:
 `addCapabilities(page, titles)` in `apps/pages/scripts/lib/pages-journey.mjs`
-opens Settings › Capabilities, presses each capability's switch and waits for the
+opens Settings › Features, presses each capability's switch and waits for the
 review to commit; an always-on capability is skipped, since it has no switch.
 `rich-explicit` remains a profile (`apps/pages/capability-profiles/rich-explicit.json`)
 built by `build:profile`, and the build's default when no profile is named.

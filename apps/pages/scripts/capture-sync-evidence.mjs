@@ -6,7 +6,7 @@
 //   compose <raw-dir> <evidence-dir> side-by-side sheets of the two
 //
 // Walks:
-//   capabilities  Settings › Capabilities, scrolled to Environments and what
+//   capabilities  Settings › Features, scrolled to Environments and what
 //                 follows it: the Breach and two-step checks section is new
 //   checks        that capability on, two logins saved, Settings › Vaults,
 //                 its key pressed: findings as glyphs (the two services are
@@ -72,7 +72,7 @@ async function visit(page, route) {
 }
 
 async function switchOn(page, name) {
-  await visit(page, "settings/capabilities");
+  await visit(page, "settings/features");
   const toggle = page.getByRole("switch", { name, exact: true });
   if (!(await toggle.count())) return false;
   await toggle.first().scrollIntoViewIfNeeded();
@@ -99,7 +99,7 @@ async function marksIn(page, selector) {
 }
 
 async function capabilitiesWalk(page, shot) {
-  await visit(page, "settings/capabilities");
+  await visit(page, "settings/features");
   const anchor = page
     .locator(".conn-group", { hasText: "Environments" })
     .first();

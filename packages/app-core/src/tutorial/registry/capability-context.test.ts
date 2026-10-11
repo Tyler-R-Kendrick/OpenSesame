@@ -34,8 +34,8 @@ describe("authored route-scoped capability context", () => {
   it("places browser pairing and identity verification on their relevant routes", () => {
     const ids = (route: string) =>
       capabilitiesForContext(CAPABILITIES, route, []).map((item) => item.id);
-    expect(ids("/settings/capabilities")).toContain("browser.pairing.begin");
-    expect(ids("/settings/capabilities")).toContain(
+    expect(ids("/settings/features")).toContain("browser.pairing.begin");
+    expect(ids("/settings/features")).toContain(
       "browser.identity.authenticate",
     );
     expect(ids("/connections")).toContain("browser.identity.authenticate");
