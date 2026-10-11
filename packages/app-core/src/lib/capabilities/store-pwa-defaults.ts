@@ -5,11 +5,11 @@
  */
 
 import {
-  buildConsentReceipt,
   type InstallationCapabilitySelection,
+  buildConsentReceipt,
 } from "@opensesame/capability-composition";
-import type { CompositionStore } from "./store.js";
 import { storeSeams } from "./store-seams.js";
+import type { CompositionStore } from "./store.js";
 
 export async function applyPersonalLocalPwaDefaults(
   store: CompositionStore,

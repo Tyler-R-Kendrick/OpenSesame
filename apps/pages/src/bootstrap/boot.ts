@@ -18,8 +18,8 @@ import {
   vaultIdOf,
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
-import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { applyPersonalLocalPwaDefaults } from "@opensesame/app-core/lib/capabilities/store-pwa-defaults.js";
+import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { captureAliasArrivalFromPage } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import {
   bindClaimLockReset,
