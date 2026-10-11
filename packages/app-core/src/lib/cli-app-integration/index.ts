@@ -7,14 +7,11 @@ export {
 } from "./session.js";
 export { cliAppIntegrationPolicy } from "./policy.js";
 export {
-  listCliIntegrationPending,
-  respondCliIntegration,
+  cliAuthorizeCopy,
   cliAppIntegrationDaemonSeams,
+  listCliIntegrationPending,
+  presentCliAuthorizeRequest,
+  respondCliIntegration,
+  type CliAuthorizeView,
   type CliIntegrationDecision,
 } from "./daemon-client.js";
-export {
-  cliAuthorizeCopy,
-  presentCliAuthorizeRequest,
-  terminalSessionLabel,
-  type CliAuthorizeView,
-} from "./present.js";
