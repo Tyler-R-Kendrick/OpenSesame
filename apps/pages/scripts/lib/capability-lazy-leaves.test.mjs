@@ -56,4 +56,3 @@ test("pins optional vault.security-checks app-core leaf when Rollup classifies i
     "cap-vault.security-checks",
   );
 });
-

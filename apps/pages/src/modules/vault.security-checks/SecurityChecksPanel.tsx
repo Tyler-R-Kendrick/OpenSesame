@@ -54,7 +54,6 @@ export function securityChecksPanel(
   return function SecurityChecksPanel() {
     const vault = useVault();
     const { tomb, items } = vault;
-    // biome-ignore lint/correctness/useExhaustiveDependencies: tomb and items are the vault fingerprint
     useEffect(() => {
       reconcileSecurityWatchWithVault(tomb, items);
     }, [tomb, items]);
