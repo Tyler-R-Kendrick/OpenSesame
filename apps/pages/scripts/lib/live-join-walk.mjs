@@ -29,10 +29,13 @@ export {
  * the clipboard, because only Chromium lets a test read it (WebKit wants a
  * person's paste) and in Firefox the clipboard is the whole browser's, so a
  * read could meet another context's copy.
+ *
+ * Idempotent: a driver that installs it as an init script and `copyFrom`,
+ * which installs it again on the page it is handed, wrap `writeText` once.
  */
 export const COPY_WATCH = () => {
   const clipboard = navigator.clipboard;
-  if (!clipboard?.writeText) return;
+  if (!clipboard?.writeText || window.__copies) return;
   const native = clipboard.writeText.bind(clipboard);
   window.__copies = [];
   clipboard.writeText = (text) => {
@@ -55,8 +58,14 @@ export const COPY_WATCH = () => {
  * Press a copy key and return what it copied, once the browser took it. A
  * copy the browser refused fails the walk: that is a person left without the
  * code.
+ *
+ * It installs the watch itself, so a driver that never added `COPY_WATCH` as an
+ * init script (verify-live-local-pair, the netns and session walks) still
+ * works: the watch is in place before the click, and a copy made before the
+ * install is not one this call was waiting for.
  */
 export async function copyFrom(page, key) {
+  await page.evaluate(COPY_WATCH);
   const before = await page.evaluate(() => window.__copies?.length ?? 0);
   await key.click();
   const entry = await (
