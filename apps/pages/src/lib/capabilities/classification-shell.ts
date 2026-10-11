@@ -82,7 +82,7 @@ export const SHELL_RULES = [
   core(
     "src/lib/zod-jitless",
     null,
-    "zod runs jitless under the CSP, set by the host boot before anything parses (ADR 0189)",
+    "zod runs jitless under the CSP, set by the host boot before anything parses (ADR 0190)",
   ),
   core("src/test-host", null, "the app-core test host (ADR 0133)"),
   core("src/ports", null, "the app-core port accessors (ADR 0133)"),
