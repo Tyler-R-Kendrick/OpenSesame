@@ -55,6 +55,8 @@ const KINDS = [
   "drop.revoked",
   "live.granted",
   "live.ended",
+  "share.approved",
+  "share.denied",
   "share.granted",
   "share.revoked",
 ] as const satisfies readonly ReceiptKind[];
@@ -81,7 +83,7 @@ describe("the decisions a receipt can record", () => {
     }
     expect(
       [...byType.values()].filter((value) => value === "denied"),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
   });
 });
 
