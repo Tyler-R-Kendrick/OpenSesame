@@ -61,3 +61,13 @@ test("pins the relay client to its capability's chunk and nothing else under vau
     undefined,
   );
 });
+
+test("pins the claim different-link control on identity.ceremonies", () => {
+  const file =
+    "/workspace/apps/pages/src/modules/identity.ceremonies/ClaimDifferentLink.tsx";
+  const entry = {
+    classification: "optional",
+    capability: "identity.ceremonies",
+  };
+  assert.equal(lazyLeafChunk(file, entry), "cap-identity.claim-different-link");
+});
