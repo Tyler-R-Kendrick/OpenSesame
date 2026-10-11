@@ -1,5 +1,5 @@
 /**
- * A root key: the authority a person hands an app or an agent (ADR 0189 §3).
+ * A root key: the authority a person hands an app or an agent (ADR 0190 §3).
  *
  * Every other key descends from one of these, and nothing else creates one, so
  * "nobody can mint authority they were not given" is a statement about this

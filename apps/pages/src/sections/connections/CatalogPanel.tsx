@@ -52,7 +52,7 @@ function browserProtocolLabel(
     : `${label} (browser unavailable)`;
 }
 
-/** A model provider's tile also says which API it speaks (ADR 0189). */
+/** A model provider's tile also says which API it speaks (ADR 0190). */
 function withModelProtocol(provider: Provider, label: string): string {
   const protocol =
     provider.category === "ai_model_provider"

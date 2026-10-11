@@ -1,5 +1,5 @@
 /**
- * A refusal has two faces (ADR 0189 §4).
+ * A refusal has two faces (ADR 0190 §4).
  *
  * The wire face is an RFC error code and a fixed sentence: a caller learns that
  * it was refused, never which of a dozen checks said so, because that is how a

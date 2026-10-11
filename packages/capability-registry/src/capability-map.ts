@@ -126,7 +126,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "connectors.connect.configure": "connectors.external",
     "connectors.connect.authorize_user": "connectors.external",
     "connectors.connect.token_check": "connectors.external",
-    // Model keys (ADR 0189): the broker is bound while External connectors is
+    // Model keys (ADR 0190): the broker is bound while External connectors is
     // active, because the credential a key stands for is that capability's.
     "models.keys.mint": "connectors.external",
     "models.keys.read": "connectors.external",

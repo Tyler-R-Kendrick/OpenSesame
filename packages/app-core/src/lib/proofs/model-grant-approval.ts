@@ -1,5 +1,5 @@
 /**
- * A person approved this exact model grant (ADR 0178, ADR 0189).
+ * A person approved this exact model grant (ADR 0178, ADR 0190).
  *
  * `ModelGrantApproved<G>` is the only thing that lets the broker create a root
  * key, and it is minted only here. It says four things about the draft named

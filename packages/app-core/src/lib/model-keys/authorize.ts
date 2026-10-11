@@ -1,5 +1,5 @@
 /**
- * The last hop: may this call go out on this key? (ADR 0189 §5)
+ * The last hop: may this call go out on this key? (ADR 0190 §5)
  *
  * Everything the key was narrowed to is enforced here, once, on the call as it
  * will be sent. The caller never supplies a host, a header or a credential:

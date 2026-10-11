@@ -138,7 +138,7 @@ export const CAPABILITY_TUTORIALS = {
   "connectors.connect.configure": "connection.create",
   "connectors.connect.authorize_user": "connection.create",
   "connectors.connect.token_check": "connection.create",
-  // Model keys (ADR 0189) are made on the page of a connection a person added.
+  // Model keys (ADR 0190) are made on the page of a connection a person added.
   "models.keys.mint": "settings.model-provider",
   "models.keys.read": "settings.model-provider",
   "models.keys.revoke": "settings.model-provider",

@@ -10,12 +10,12 @@ import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog
 import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { settingsPageSources } from "./page-tree.js";
 import {
   installPanelFixture,
   panelVault,
-  renderPanel,
-} from "./capabilities-panel.test-support.js";
-import { settingsPageSources } from "./page-tree.js";
+  renderIntegrationsPanel,
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 
@@ -60,7 +60,7 @@ function tileNames(list: string): string[] {
 
 describe("connector tiles while Connections is off", () => {
   it("draws no tile that would open a page nothing routes", () => {
-    renderPanel();
+    renderIntegrationsPanel();
     for (const name of [
       "WorkOS",
       "Auth0",
@@ -77,7 +77,7 @@ describe("connector tiles while Connections is off", () => {
   });
 
   it("keeps a history road as its switch, with no link", () => {
-    renderPanel();
+    renderIntegrationsPanel();
     expect(
       screen.getByRole("switch", { name: "GitLab vault history" }),
     ).toBeTruthy();
@@ -87,14 +87,14 @@ describe("connector tiles while Connections is off", () => {
 
   it("does not draw the vault-sealed keys either: their pages are not routed", () => {
     unlockedVault();
-    renderPanel();
+    renderIntegrationsPanel();
     expect(screen.queryByText("AWS KMS")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
   });
 
   it("is not changed by a Host that is named and granted", () => {
     nameAHostWithALiveGrant();
-    renderPanel();
+    renderIntegrationsPanel();
     expect(screen.queryByText("Better Auth")).toBeNull();
     expect(screen.queryByText("1Password")).toBeNull();
   });
@@ -103,7 +103,7 @@ describe("connector tiles while Connections is off", () => {
 describe("connector tiles once Connections routes its pages", () => {
   it("draws a key or a configuration with no Connect credential", () => {
     installConnections();
-    renderPanel();
+    renderIntegrationsPanel();
     for (const name of [
       "WorkOS",
       "Auth0",
@@ -123,7 +123,7 @@ describe("connector tiles once Connections routes its pages", () => {
 
   it("links them to their pages and keeps Connect's connectors", () => {
     installConnections();
-    renderPanel();
+    renderIntegrationsPanel();
     expect(tileNames("Identity providers")).toEqual(
       expect.arrayContaining(["WorkOS", "Auth0", "Better Auth"]),
     );
@@ -138,7 +138,7 @@ describe("connector tiles once Connections routes its pages", () => {
 
   it("leaves out a section that still has nothing to configure", () => {
     installConnections();
-    renderPanel();
+    renderIntegrationsPanel();
     expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
     for (const title of [
       "Password managers",
@@ -147,15 +147,16 @@ describe("connector tiles once Connections routes its pages", () => {
     ]) {
       expect(screen.getByRole("heading", { name: title }), title).toBeTruthy();
     }
-    // A section with a switch keeps it even with no connector tiles.
-    // Household sharing has no surface, so Sharing is not that section here.
-    expect(screen.getByRole("switch", { name: "Item types" })).toBeTruthy();
+    // No section here carries a switch: those are Features.
+    expect(screen.queryAllByRole("switch")).toHaveLength(
+      screen.queryAllByRole("switch", { name: /vault history/ }).length,
+    );
   });
 
   it("draws the vault-sealed keys only for an unlocked vault", () => {
     installConnections();
     unlockedVault();
-    renderPanel();
+    renderIntegrationsPanel();
     expect(tileNames("Encryption providers")).toEqual([
       "AWS KMS",
       "Google Cloud KMS",
@@ -165,7 +166,7 @@ describe("connector tiles once Connections routes its pages", () => {
   it("draws the same with a Host named and granted: it opens nothing more", () => {
     installConnections();
     const before = (() => {
-      renderPanel();
+      renderIntegrationsPanel();
       return tileNames("Identity providers");
     })();
     nameAHostWithALiveGrant();
@@ -175,14 +176,14 @@ describe("connector tiles once Connections routes its pages", () => {
 });
 
 describe("the rail and the page index list what the page draws", () => {
-  const capabilities = (empty: readonly string[]) =>
-    settingsPageSources({ emptyFeatures: empty })
-      .find((tab) => tab.id === "capabilities")
+  const integrations = (empty: readonly string[]) =>
+    settingsPageSources({ emptyIntegrations: empty })
+      .find((tab) => tab.id === "integrations")
       ?.sections?.map((entry) => entry.label);
 
   it("leaves out a section that draws nothing", () => {
-    expect(capabilities([])).toContain("Password managers");
-    const listed = capabilities(["password-managers", "local-storage"]);
+    expect(integrations([])).toContain("Password managers");
+    const listed = integrations(["password-managers", "local-storage"]);
     expect(listed).not.toContain("Password managers");
     expect(listed).not.toContain("Local storage");
     expect(listed).toContain("Backups");

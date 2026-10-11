@@ -13,7 +13,7 @@ export async function nativeVisit(page, base, route) {
 }
 
 export async function nativeEnableConnections(page, base) {
-  await nativeVisit(page, base, "settings/capabilities");
+  await nativeVisit(page, base, "settings/features");
   const toggle = page.getByRole("switch", { name: "Connections", exact: true });
   await toggle.waitFor();
   if ((await toggle.getAttribute("aria-checked")) !== "true")
@@ -38,7 +38,7 @@ async function catalogRows(page) {
 
 /**
  * A model provider's first connection from the Add catalog is a sheet over the
- * catalog, not a page (ADR 0189): the walk waits for whichever the route drew.
+ * catalog, not a page (ADR 0190): the walk waits for whichever the route drew.
  */
 async function nativeArrival(page, row) {
   const heading = page.getByRole("heading", { name: row.name, exact: true });

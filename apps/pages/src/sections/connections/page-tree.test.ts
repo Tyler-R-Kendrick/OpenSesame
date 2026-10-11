@@ -159,7 +159,7 @@ describe("connections page tree", () => {
   it("groups the bundled catalog under the new leading sections", () => {
     const groups = catalogPageSections(getBundledProviders());
     const bindings = featureBindingSections(getBundledProviders());
-    // Every model provider moved out of "Agent harnesses" into its own section (ADR 0189).
+    // Every model provider moved out of "Agent harnesses" into its own section (ADR 0190).
     expect(bindings.map((group) => group.label).slice(0, 5)).toEqual([
       "Identity",
       "Backup/recovery",

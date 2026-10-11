@@ -1,6 +1,6 @@
 /**
  * The making of one shown-once key, from the press that starts it to the sheet
- * that is closed over it (ADR 0189 §6). A key is shown once, so nothing here
+ * that is closed over it (ADR 0190 §6). A key is shown once, so nothing here
  * may let it be made without being seen: the sheet cannot be dismissed while
  * one is being made, a key that finishes after the sheet is gone is revoked on
  * the spot, and the press that made the key cannot also be the one that closes

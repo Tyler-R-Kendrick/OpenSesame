@@ -3,7 +3,7 @@ import { ModelKeyRefusal } from "./errors.js";
 import { ANTHROPIC, GEMINI } from "./harness.test-support.js";
 import { type CallProtocol, inspectCall } from "./protocols.js";
 
-/** Tools are priced by the provider outside the tokens a budget counts (ADR 0189 §6). */
+/** Tools are priced by the provider outside the tokens a budget counts (ADR 0190 §6). */
 export const SCHEMA = {
   type: "object",
   properties: { city: { type: "string" } },

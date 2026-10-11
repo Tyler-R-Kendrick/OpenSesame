@@ -1,6 +1,6 @@
 import type { Named } from "@gdp-ts/core";
 /**
- * The model key broker (ADR 0189): the one object an issuer holds.
+ * The model key broker (ADR 0190): the one object an issuer holds.
  *
  * It issues a root key against a person's approval, exchanges a key for a
  * narrower one (RFC 8693), says whether a call may go out on a key and what it

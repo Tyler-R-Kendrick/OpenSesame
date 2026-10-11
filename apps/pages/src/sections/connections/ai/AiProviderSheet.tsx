@@ -1,5 +1,5 @@
 /**
- * Add a model provider (ADR 0189): a name, a key, a test that saves nothing,
+ * Add a model provider (ADR 0190): a name, a key, a test that saves nothing,
  * and a save that proves the key first. It is the whole of connecting one — no
  * page, no method to choose, no scope to read — over the catalog the tile came
  * from. The key is sealed on this device and is sent only to the host its

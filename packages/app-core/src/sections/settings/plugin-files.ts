@@ -1,6 +1,6 @@
 /**
  * A runtime-installed plugin as a Settings file (ADR 0134; ADR 0150 §7):
- * `settings/capabilities/plugins/<id>.json`, what the paired daemon last said
+ * `settings/features/plugins/<id>.json`, what the paired daemon last said
  * about it. Read-only — the daemon's own `plugins.json` is the record, and
  * the one write a person makes from Pages is the plugin's switch in its
  * section, which goes to the daemon and comes back here on the next read.
@@ -13,7 +13,7 @@ import type { PluginEntry } from "../../lib/plugins/catalog.js";
 import type { PluginView } from "../../lib/plugins/session.js";
 import type { VirtualFile, VirtualFileProvider } from "./virtual-files.js";
 
-export const PLUGINS_DIRECTORY = "settings/capabilities/plugins";
+export const PLUGINS_DIRECTORY = "settings/features/plugins";
 
 export function pluginFilePath(plugin: PluginEntry): string {
   return `${PLUGINS_DIRECTORY}/${plugin.id}.json`;

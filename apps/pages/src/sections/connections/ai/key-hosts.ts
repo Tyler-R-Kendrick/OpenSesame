@@ -1,5 +1,5 @@
 /**
- * The host Test connection and Save send a pasted key to (ADR 0189 §2). It is
+ * The host Test connection and Save send a pasted key to (ADR 0190 §2). It is
  * read from the request the connector runtime builds, not from the catalog's
  * `model_api` block: a provider may verify a key at one host and serve models
  * at another (Hugging Face verifies at `huggingface.co`, serves at

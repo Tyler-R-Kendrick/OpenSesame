@@ -95,7 +95,7 @@ node build.mjs
 
 ## What is implemented
 
-The models path is built, in the AI section of Settings › Capabilities rather
+The models path is built, in the AI section of Settings › Integrations rather
 than on the board — the board itself is still a design. `ModelProviderPanel`
 (`apps/pages/src/sections/settings/ModelProviderPanel.tsx`) carries the sheet's
 list and its ordering, the capability ladder and the bypass rule, and reports at

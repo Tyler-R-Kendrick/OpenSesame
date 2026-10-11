@@ -1,5 +1,5 @@
 /**
- * What the authority will send (ADR 0189 §6).
+ * What the authority will send (ADR 0190 §6).
  *
  * `executeNativeApiRequest` refuses a body it does not trust before any request
  * leaves: an array over 100 items, a string over 65536 characters, an object

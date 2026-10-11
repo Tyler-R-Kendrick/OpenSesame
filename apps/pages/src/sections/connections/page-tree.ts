@@ -98,7 +98,7 @@ export function catalogPageSections(
 
 /**
  * Source order, except the model providers: eighty-odd tiles are found by
- * name, so they are listed by it (ADR 0189).
+ * name, so they are listed by it (ADR 0190).
  */
 function inCatalogOrder(
   category: Provider["category"],
@@ -110,7 +110,7 @@ function inCatalogOrder(
   );
 }
 
-/** Feature bindings live under Settings → Connections, not Add a connection. */
+/** Feature bindings live under Settings → Integrations, not Add a connection. */
 export function featureBindingSections(
   providers: readonly Provider[],
 ): PageTreeSource[] {
@@ -130,7 +130,7 @@ export function featureBindingSections(
     groups.push({
       id: category,
       label: CATEGORY_LABELS[category],
-      href: `/settings/connections#${category}`,
+      href: `/settings/integrations#${category}`,
       items: items.map((provider) =>
         leaf(
           provider.id,

@@ -1,5 +1,5 @@
 /**
- * The broker of the running page (ADR 0189).
+ * The broker of the running page (ADR 0190).
  *
  * One capability activation binds one broker and releases it when it ends, the
  * same shape as `bindHostedModelAuthority`: a caller that was handed a broker

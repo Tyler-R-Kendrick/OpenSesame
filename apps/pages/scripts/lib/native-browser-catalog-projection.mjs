@@ -47,7 +47,7 @@ export const NATIVE_CONNECT_PLAN_JSON = source.connectPlanJson;
 
 /**
  * Model providers: a first connection from the Add catalog opens the Add sheet
- * (ADR 0189), so these ids are walked as a sheet there and as a page from
+ * (ADR 0190), so these ids are walked as a sheet there and as a page from
  * Settings, which never opens one.
  */
 export const NATIVE_AI_MODEL_PROVIDER_IDS = new Set(source.aiModelProviderIds);

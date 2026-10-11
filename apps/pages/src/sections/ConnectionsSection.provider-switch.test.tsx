@@ -213,7 +213,7 @@ describe("moving between connector pages", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "go to /connections/openai" }),
     );
-    // A model provider's first connection is the Add sheet, not a page (ADR 0189).
+    // A model provider's first connection is the Add sheet, not a page (ADR 0190).
     await screen.findByRole("dialog", { name: "Connect a model provider" });
     expect(screen.getByLabelText("OpenAI API key")).toHaveProperty("value", "");
     expect(listNotices()).toEqual([]);

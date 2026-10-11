@@ -51,7 +51,7 @@ const idsPath = join(here, "../src/lib/ai-model-provider-ids.generated.ts");
  * The ids of the `ai_model_provider` rows, in catalog order, as a module of
  * their own. Bundling decides which rows Pages draws before a Host answers
  * (`bundled-provider-ids.ts`), and that list sits on the boot path, so it
- * cannot import the whole catalog to find them (ADR 0189).
+ * cannot import the whole catalog to find them (ADR 0190).
  */
 export function renderAiProviderIds(raw = readFileSync(viewPath, "utf8")) {
   const ids = JSON.parse(raw)

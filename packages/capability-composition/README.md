@@ -54,7 +54,7 @@ capability build: run `pnpm --filter @opensesame/pages build:profile` and
 - [ADR 0135](../../docs/adr/0135-always-on-capabilities-and-feature-rollups.md)
   — always-on capabilities and feature rollups
 - [ADR 0142](../../docs/adr/0142-capabilities-page-one-list-honest-defaults.md)
-  — Settings › Capabilities: one list, honest defaults (operator withdrawal of
+  — Settings › Features: one list, honest defaults (operator withdrawal of
   always-on capabilities)
 - [Operator guide](../../docs/operators/capability-composition.md) ·
   [Verification method](../../docs/validation/capability-composition.md)

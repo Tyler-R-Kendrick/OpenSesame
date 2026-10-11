@@ -3,11 +3,11 @@ import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubl
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { sectionCategory } from "./CapabilitySections.js";
+import { sectionCategory } from "./FeatureSections.js";
 import {
   installPanelFixture,
   renderPanel,
-} from "./capabilities-panel.test-support.js";
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 

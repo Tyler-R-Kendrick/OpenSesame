@@ -105,34 +105,24 @@ describe("AppShell rail navigation", () => {
     expect(filterLink(container, "/vault", "all").className).toContain(
       "is-active",
     );
-    expect(
-      filterLink(container, "/vault/health", "health").className,
-    ).not.toContain("is-active");
+    expect(container.querySelector('a[href="/vault/health"]')).toBeNull();
   });
-  it("lists password health after favorites and selects it on its page", () => {
+  it("keeps password health out of the tree; on its page the cursor stands on the vault row", () => {
     const onVault = renderShell("/vault");
-    const tree = screen.getByRole("tree", { name: "Sections" });
-    tree.focus();
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
-    const health = filterLink(onVault.container, "/vault/health", "health");
-    expect(health.className).toContain("is-active");
-    expect(health.getAttribute("aria-label")).toBe("Password health");
-    expect(health.getAttribute("title")).toBe("Password health");
-    expect(health.querySelector(".railtree__count")).toBeNull();
-    fireEvent.keyDown(tree, { key: "ArrowDown" });
     expect(
-      filterLink(onVault.container, "/vault?f=account", "accounts").className,
-    ).toContain("is-active");
+      onVault.container.querySelector('a[href="/vault/health"]'),
+    ).toBeNull();
     onVault.unmount();
 
     const onHealth = renderShell("/vault/health");
-    expect(
-      filterLink(onHealth.container, "/vault/health", "health").className,
-    ).toContain("is-active");
+    const tree = screen.getByRole("tree", { name: "Sections" });
     expect(
       filterLink(onHealth.container, "/vault", "all").className,
     ).not.toContain("is-active");
+    const cursor = document.getElementById(
+      tree.getAttribute("aria-activedescendant") ?? "",
+    );
+    expect(cursor?.getAttribute("aria-label")).toBe("Vault");
   });
   it("handles vaults with no folders and no items", () => {
     vault.items = [];
@@ -188,15 +178,11 @@ describe("AppShell rail navigation", () => {
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "j" });
     expect(
-      filterLink(container, "/vault/health", "health").className,
-    ).toContain("is-active");
-    fireEvent.keyDown(tree, { key: "j" });
-    expect(
       filterLink(container, "/vault?f=account", "accounts").className,
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "ArrowUp" });
     expect(
-      filterLink(container, "/vault/health", "health").className,
+      filterLink(container, "/vault?f=favorites", "favorites").className,
     ).toContain("is-active");
   });
   it("walks off the open vault directory onto the next section", () => {

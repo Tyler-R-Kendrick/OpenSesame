@@ -268,19 +268,19 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
   {
     id: "plugin.surrogate-proxy.panel",
     description:
-      "Settings › Capabilities draws the surrogate proxy's panel: a daemon is paired, or this device may pair one.",
+      "Settings › Features draws the surrogate proxy's panel: a daemon is paired, or this device may pair one.",
     read: () => pluginPanelDrawn("surrogate-proxy"),
   },
   {
     id: "plugin.browser-autofill.panel",
     description:
-      "Settings › Capabilities draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
+      "Settings › Features draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
     read: () => pluginPanelDrawn("browser-autofill"),
   },
   {
     id: "support.model-picks",
     description:
-      "Settings › Capabilities draws the voice and inference picks under AI. The on-device model contributes that panel, so the picks are absent while it is unapproved.",
+      "Settings › Integrations draws the voice and inference picks under AI. The on-device model contributes that panel, so the picks are absent while it is unapproved.",
     read: () => supportModelPicks(),
   },
 ];

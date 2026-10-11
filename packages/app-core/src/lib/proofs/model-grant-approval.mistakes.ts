@@ -1,5 +1,5 @@
 /**
- * Mistakes the type checker must keep refusing (ADR 0178, ADR 0189).
+ * Mistakes the type checker must keep refusing (ADR 0178, ADR 0190).
  *
  * Each `@ts-expect-error` is a way to mint a root model key without the
  * approval of the exact grant it carries. `tsc` fails the build if one starts

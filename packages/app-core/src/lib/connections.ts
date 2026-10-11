@@ -103,7 +103,7 @@ export type Provider = {
   egress: Egress;
   operations: string[];
   configurationFields?: ConfigurationField[];
-  /** How a hosted model row is spoken to (ADR 0189); absent on every other row. */
+  /** How a hosted model row is spoken to (ADR 0190); absent on every other row. */
   modelApi?: ModelApi;
 };
 

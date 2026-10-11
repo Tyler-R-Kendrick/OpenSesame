@@ -52,6 +52,7 @@ const CATALOG_SOURCE = read("catalog.ts")
   .replace("...SHELL_TARGETS,", read("shell-catalog.ts"))
   .replace("...VAULT_TARGETS,", read("vault-catalog.ts"))
   .replace("...FEATURE_TARGETS,", read("feature-catalog.ts"))
+  .replace("...INTEGRATION_TARGETS,", read("integration-catalog.ts"))
   .replace("...GUIDE_TARGETS_MORE,", CATALOG_MORE_SOURCE);
 
 /**

@@ -19,9 +19,10 @@ import {
   PERSONAL_SELECTION,
   installPanelFixture,
   openConnectorPages,
+  renderIntegrationsPanel,
   renderPanel,
   withReceipt,
-} from "./capabilities-panel.test-support.js";
+} from "./settings-panels.test-support.js";
 
 import { activateForTest } from "../../modules/runtime-test-kit.js";
 import * as localAi from "../../modules/support.local-ai/runtime.js";
@@ -66,22 +67,22 @@ describe("what a switch cannot say is said beside it", () => {
     ).toBe("true");
   });
 
-  it("draws AI's model picks only while AI is on", async () => {
+  it("draws AI's model picks, on Integrations, only while AI is on", async () => {
     // The fixture runs WebMCP tools, so AI is on — and the picker is the
     // on-device model's own panel, so it arrives with that capability.
     const revoke = await activateForTest(localAi, ["settings-panel"]);
-    const on = renderPanel();
+    const on = renderIntegrationsPanel();
     expect(on.container.querySelector("#model-provider")).not.toBeNull();
     cleanup();
     selecting(["vault.passkey-records"]);
-    const off = renderPanel();
+    const off = renderIntegrationsPanel();
     expect(off.container.querySelector("#model-provider")).toBeNull();
     // Connectors stay configurable by reference once Connect's roads are installed.
     connectRoadSeams.usesConnect = usesConnect;
     connectRoadSeams.hasConnectRoute = hasConnectRoute;
     openConnectorPages();
     cleanup();
-    const referenced = renderPanel();
+    const referenced = renderIntegrationsPanel();
     expect(
       referenced.getByRole("list", { name: "AI providers" }).textContent,
     ).toContain("Anthropic");

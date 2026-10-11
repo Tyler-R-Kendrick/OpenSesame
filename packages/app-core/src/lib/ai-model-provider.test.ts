@@ -1,5 +1,5 @@
 /**
- * The AI model provider category (ADR 0189): one catalog row each, spoken to
+ * The AI model provider category (ADR 0190): one catalog row each, spoken to
  * through a closed protocol, and the browser's connect plan for a row never
  * disagrees with the row it came from.
  */

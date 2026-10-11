@@ -67,7 +67,7 @@ export function isFeatureBindingCategory(category: ProviderCategory): boolean {
 /**
  * Bound in Settings and also a catalog of their own: a person adds an AI model
  * provider from "Add a connection" the same way as any other connector
- * (ADR 0189), and the AI section of Capabilities still lists it as a binding.
+ * (ADR 0190), and the AI section of Capabilities still lists it as a binding.
  */
 const CATALOG_LISTED_BINDINGS = new Set<ProviderCategory>([
   "ai_model_provider",

@@ -1,6 +1,6 @@
 /**
  * Switching every optional capability on, the way a person does: Settings ›
- * Capabilities and each section's own switch. Some capabilities reload the
+ * Features and each section's own switch. Some capabilities reload the
  * document, and a load locks the vault, so this unlocks and carries on until
  * no switch is left off.
  */
@@ -14,13 +14,13 @@ export const SUPPORT_MODEL_TITLES = Object.freeze([
   "Remote support model",
 ]);
 
-/** Back on Settings › Capabilities, unlocked: a load locks the vault. */
-async function atCapabilities(page, url) {
+/** Back on Settings › Features, unlocked: a load locks the vault. */
+async function atFeatures(page, url) {
   if (await unlockIfLocked(page)) {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await unlockIfLocked(page);
   }
-  if (!page.url().includes("/settings/capabilities")) {
+  if (!page.url().includes("/settings/features")) {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await unlockIfLocked(page);
   }
@@ -85,7 +85,7 @@ async function modelIsOff(page, title) {
  * first model back on. A navigation in that window drops the commit.
  */
 export async function ensureModelsOff(page, { origin, base, verbose = false }) {
-  const url = `${origin}${base}settings/capabilities`;
+  const url = `${origin}${base}settings/features`;
   await page.goto(url, { waitUntil: "domcontentloaded" });
   await unlockIfLocked(page);
   await awaitCapabilitySections(page).catch(() => {});
@@ -117,9 +117,9 @@ export async function enableEverything(
   page,
   { origin, base, verbose = false },
 ) {
-  const url = `${origin}${base}settings/capabilities`;
+  const url = `${origin}${base}settings/features`;
   for (let round = 0; round < 80; round += 1) {
-    await atCapabilities(page, url);
+    await atFeatures(page, url);
     const pressed = await switchNextOn(page, round, verbose);
     if (pressed) continue;
     const locked = await page

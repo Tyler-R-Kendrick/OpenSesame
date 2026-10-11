@@ -2,7 +2,7 @@ import { ADR_MODEL_KEYS } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
- * Model keys (ADR 0189): a person hands an app or an agent a key that stands
+ * Model keys (ADR 0190): a person hands an app or an agent a key that stands
  * for a saved model provider's credential without being it. The key is made
  * in the page by the person, narrowed by RFC 8693 token exchange, and spent
  * through the same connection that holds the credential. It lives in the

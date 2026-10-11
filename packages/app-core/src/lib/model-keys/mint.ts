@@ -1,5 +1,5 @@
 /**
- * A person hands an app or an agent a model key (ADR 0189 §3, §6).
+ * A person hands an app or an agent a model key (ADR 0190 §3, §6).
  *
  * This is the one ceremony that creates authority. It runs the vault's own
  * `manage_grants` check, so the duress ceilings and the operator rule apply
@@ -42,7 +42,7 @@ export type MintChoice = Readonly<{
 }>;
 
 /**
- * What the person did on the sheet (ADR 0189 §3): the digest of the draft as
+ * What the person did on the sheet (ADR 0190 §3): the digest of the draft as
  * the sheet displayed it, when they pressed Create, and which press it was. A
  * press makes one key: the same confirmation presented twice is refused.
  */

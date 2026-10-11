@@ -8,7 +8,7 @@ makes (`stubModelProvider`: an empty `GET /v1/models` with CORS headers, the way
 the Pages tests answer it); the sheet still sends it, reads it and draws what it
 makes of it. The key typed into the sheet is a placeholder, not a credential.
 
-Decision: [ADR 0189](../../adr/0189-model-keys-and-token-exchange.md).
+Decision: [ADR 0190](../../adr/0190-model-keys-and-token-exchange.md).
 
 ## The catalog
 
@@ -66,7 +66,7 @@ mouse and 44 × 44px on a phone.
 
 ## What is not pictured
 
-- The keys cannot be spent from another origin yet (ADR 0189 §9); there is
+- The keys cannot be spent from another origin yet (ADR 0190 §9); there is
   nothing to show for that. The exchange and the spend are covered by the
   conformance vectors (`spec/conformance/model-key-exchange-vectors.json`) and
   the test suites, not by a screenshot.

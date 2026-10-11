@@ -10,7 +10,7 @@ import {
 import { deriveChild } from "./derive.js";
 import { parseModelAccessDetails } from "./details.js";
 /**
- * RFC 8693 token exchange for model keys (ADR 0189 §3–§4).
+ * RFC 8693 token exchange for model keys (ADR 0190 §3–§4).
  *
  * `exchange` is the whole path from a request's parameters to a derived key,
  * in the order that keeps a refusal from teaching a prober anything: shape,

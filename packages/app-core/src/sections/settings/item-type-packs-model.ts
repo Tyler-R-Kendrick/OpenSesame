@@ -102,7 +102,7 @@ function sentenceFor(
       : `${title} stays on: this vault has ${held} items of it.`;
   }
   if (control === "managed") {
-    return `${title} is on through a capability in Settings › Capabilities.`;
+    return `${title} is on through a capability in Settings › Features.`;
   }
   switch (phase) {
     case "queued":

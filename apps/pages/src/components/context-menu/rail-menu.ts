@@ -1,13 +1,20 @@
 import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { railRowId } from "../RailRows.js";
+import { setRailCursor } from "../rail-cursor.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
 import { copyText, navigationGroup, shellGroup } from "./page-menu.js";
 
 type Navigate = (to: string) => void;
+
+/** The `sharing.live` settings tab and the panel in it that hosts a session. */
+const LIVE_CATEGORY = "live";
+const LIVE_HOST_PANEL = "live-session";
 
 /** What the row under the pointer is, read from the attributes it renders. */
 function describe(row: HTMLElement) {
@@ -88,6 +95,19 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
       run: () => navigate(kind ? `/vault/new/${kind}` : "/vault/new"),
     },
   ];
+  // The vault's own row (level 1) carries the report; a filter or a kind does not.
+  if (entry.level === 1 && entry.to === "/vault") {
+    items.push({
+      id: "health",
+      label: "Password health",
+      // Focus returns to this row when the menu closes, so the cursor must
+      // move here too or it keeps the "all items" row it stood on before.
+      run: () => {
+        setRailCursor(railRowId("/vault"));
+        navigate("/vault/health");
+      },
+    });
+  }
   const share = vaultShare(navigate);
   if (share) items.push(share);
   return items;
@@ -96,11 +116,17 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
 /** Ways to hand this vault to someone else, only the ones this install has. */
 function vaultShare(navigate: Navigate): MenuItem | null {
   const ways: MenuItem[] = [];
-  if (contributionsSnapshot("route").some((entry) => entry.path === "/live")) {
+  // Hosting is Settings › Live sessions › Live session. `/live` is the join
+  // screen — the other end of the link this opens — so it is never the target.
+  if (
+    contributionsSnapshot("settings-category").some(
+      (entry) => entry.id === LIVE_CATEGORY,
+    )
+  ) {
     ways.push({
       id: "share-session",
       label: "Session",
-      run: () => navigate("/live"),
+      run: () => navigate(settingsPath(LIVE_CATEGORY, LIVE_HOST_PANEL)),
     });
   }
   if (isCommandSection("/access")) {

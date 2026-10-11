@@ -123,7 +123,7 @@ export const connectPlanCapabilities: readonly Capability[] = [
   },
 ];
 
-/** Every connector capability: directory, plans, and the model keys a connection backs (ADR 0189). */
+/** Every connector capability: directory, plans, and the model keys a connection backs (ADR 0190). */
 export const connectorCapabilities: readonly Capability[] = [
   ...connectorDirectoryCapabilities,
   ...connectPlanCapabilities,

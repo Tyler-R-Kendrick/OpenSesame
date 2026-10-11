@@ -214,7 +214,7 @@ describe("Settings' file viewer", () => {
     const revoke = registerContributionForTest("settings-category", {
       id: "notes",
       label: "Notes",
-      guideId: "settings.capabilities",
+      guideId: "settings.features",
       Panel: () => null,
       order: 300,
       files,
@@ -261,7 +261,7 @@ describe("a write's outcome, as the provider states it", () => {
     const revoke = registerContributionForTest("settings-category", {
       id: "notes",
       label: "Notes",
-      guideId: "settings.capabilities",
+      guideId: "settings.features",
       Panel: () => null,
       order: 300,
       files,
@@ -307,7 +307,7 @@ describe("a refused write", () => {
     const revoke = registerContributionForTest("settings-category", {
       id: "notes",
       label: "Notes",
-      guideId: "settings.capabilities",
+      guideId: "settings.features",
       Panel: () => null,
       order: 300,
       files,
@@ -328,12 +328,12 @@ describe("a refused write", () => {
   });
 });
 
-describe("Capabilities' documents", () => {
+describe("Features' documents", () => {
   it("are the page, so the viewer lists none of them and opens none as text", () => {
     render(
       <Viewer
-        category="capabilities"
-        initial="settings/capabilities/installation-selection.yaml"
+        category="features"
+        initial="settings/features/installation-selection.yaml"
       />,
     );
     const names = [...document.querySelectorAll(".vfiles__file")].map(

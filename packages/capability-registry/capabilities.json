@@ -6249,19 +6249,19 @@
     "excluded": {
       "cli": {
         "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_host": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_client": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "webmcp": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       }
     }
   },
@@ -6280,19 +6280,19 @@
     "excluded": {
       "cli": {
         "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_host": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_client": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "webmcp": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       }
     }
   },
@@ -6311,19 +6311,19 @@
     "excluded": {
       "cli": {
         "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_host": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_client": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "webmcp": {
         "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       }
     }
   },
@@ -6342,19 +6342,19 @@
     "excluded": {
       "cli": {
         "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_host": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_client": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "webmcp": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       }
     }
   },
@@ -6373,19 +6373,19 @@
     "excluded": {
       "cli": {
         "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_host": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "mcp_client": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       },
       "webmcp": {
         "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
-        "adr": "0189-model-keys-and-token-exchange.md"
+        "adr": "0190-model-keys-and-token-exchange.md"
       }
     }
   },

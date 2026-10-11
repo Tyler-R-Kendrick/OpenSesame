@@ -72,7 +72,7 @@ function renderAt(route: string) {
 }
 
 const documentPath = (name: string) =>
-  encodeURIComponent(`settings/capabilities/${name}`);
+  encodeURIComponent(`settings/features/${name}`);
 const textEditor = () => document.querySelector(".set-raw__stage");
 
 // A page's own document is not a second, textual view of it: opening
@@ -80,24 +80,38 @@ const textEditor = () => document.querySelector(".set-raw__stage");
 // document draws the designed page, like every other page in the app.
 describe("a page's own files", () => {
   it.each([
-    ["config.yaml", "/settings/capabilities?file=config.yaml"],
+    ["config.yaml", "/settings/features?file=config.yaml"],
     [
       "installation-selection.yaml",
-      `/settings/capabilities?file=${documentPath("installation-selection.yaml")}`,
+      `/settings/features?file=${documentPath("installation-selection.yaml")}`,
     ],
     [
       "instance-policy.yaml",
-      `/settings/capabilities?file=${documentPath("instance-policy.yaml")}`,
+      `/settings/features?file=${documentPath("instance-policy.yaml")}`,
     ],
     [
       "effective-plan.yaml",
-      `/settings/capabilities?file=${documentPath("effective-plan.yaml")}`,
+      `/settings/features?file=${documentPath("effective-plan.yaml")}`,
     ],
-  ])("draw the Capabilities page, not the text of %s", (_name, route) => {
+  ])("draw the Features page, not the text of %s", (_name, route) => {
     renderAt(route);
-    expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
+    expect(screen.getByTestId("features-panel")).toBeTruthy();
     expect(textEditor()).toBeNull();
     expect(screen.queryByRole("navigation", { name: "Files" })).toBeNull();
+  });
+
+  it("draw the Integrations page for its config.yaml", () => {
+    renderAt("/settings/integrations?file=config.yaml");
+    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
+    expect(textEditor()).toBeNull();
+  });
+
+  it("follow an old link to a capability document to where it moved", () => {
+    renderAt(
+      `/settings/capabilities?file=${encodeURIComponent("settings/capabilities/effective-plan.yaml")}`,
+    );
+    expect(screen.getByTestId("features-panel")).toBeTruthy();
+    expect(textEditor()).toBeNull();
   });
 
   it("draw the page for any category's config.yaml", () => {
@@ -118,10 +132,30 @@ describe("a page's own files", () => {
     expect(textEditor()).not.toBeNull();
   });
 
-  it("draw Capabilities without an Endpoints panel", () => {
-    renderAt("/settings/capabilities");
+  it("draw Features without an Endpoints panel", () => {
+    renderAt("/settings/features");
     expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
     expect(screen.queryByLabelText("Connections service")).toBeNull();
     expect(screen.queryByLabelText("Local agent")).toBeNull();
+  });
+});
+
+// An old link lands where what it named lives now (ADR 0189).
+describe("a link to the retired Capabilities page", () => {
+  it("opens Features, at the section the link named", () => {
+    renderAt("/settings/capabilities#feature-identity");
+    expect(screen.getByTestId("features-panel")).toBeTruthy();
+    expect(document.getElementById("feature-identity")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Features" })
+        .getAttribute("aria-current"),
+    ).toBe("page");
+  });
+
+  it("opens Integrations for a built-in function's section, under its new anchor", () => {
+    renderAt("/settings/capabilities#feature-backups");
+    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
+    expect(document.getElementById("integration-backups")).toBeTruthy();
   });
 });

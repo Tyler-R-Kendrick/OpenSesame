@@ -1,5 +1,5 @@
 /**
- * Which tools a call may carry (ADR 0189 §6).
+ * Which tools a call may carry (ADR 0190 §6).
  *
  * A provider bills a tool it runs for the caller (a web search, a code
  * sandbox, a computer session) outside the tokens a budget counts, so a key

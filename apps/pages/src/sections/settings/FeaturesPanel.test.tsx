@@ -16,17 +16,14 @@ import {
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { expectInTray } from "../../components/tray.test-support.js";
-import {
-  CapabilitiesPanel,
-  capabilitiesPanelSeams,
-} from "./CapabilitiesPanel.js";
+import { FeaturesPanel, capabilitiesPanelSeams } from "./FeaturesPanel.js";
+import { SettingsFileContext } from "./files/context.js";
 import {
   PERSONAL_SELECTION,
   installPanelFixture,
   panelVault,
   renderPanel,
-} from "./capabilities-panel.test-support.js";
-import { SettingsFileContext } from "./files/context.js";
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 
@@ -135,7 +132,7 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     render(
       <MemoryRouter>
         <SettingsFileContext.Provider value={{ openFile }}>
-          <CapabilitiesPanel />
+          <FeaturesPanel />
         </SettingsFileContext.Provider>
       </MemoryRouter>,
     );

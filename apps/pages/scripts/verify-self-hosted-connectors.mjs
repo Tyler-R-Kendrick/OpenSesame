@@ -35,7 +35,7 @@ async function visit(page, route) {
 }
 
 async function enableConnections(page) {
-  await visit(page, "settings/capabilities");
+  await visit(page, "settings/features");
   const toggle = page.getByRole("switch", { name: "Connections", exact: true });
   await toggle.waitFor();
   if ((await toggle.getAttribute("aria-checked")) !== "true")

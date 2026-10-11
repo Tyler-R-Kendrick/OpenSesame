@@ -80,7 +80,7 @@ encoder, and scrubs the credential from every response and DOM read. It is an
   optional, or a crate enables it.
 - **One switch, shared with the proxy.** Login substitution has no switch of
   its own. It runs only while the `surrogate-proxy` plugin is installed,
-  recorded on and not forced off, so Settings › Capabilities, `opensesame
+  recorded on and not forced off, so Settings › Features, `opensesame
   plugins enable|disable surrogate-proxy` and
   `OPENSESAME_PLUGIN_SURROGATE_PROXY=off` govern the proxy and the login form
   together. `LoginRoad::choose(declared, &plugin_state)` is that check, pure:
