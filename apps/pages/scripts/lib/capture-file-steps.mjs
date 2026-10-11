@@ -8,11 +8,13 @@ import { writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { importSteps } from "./capture-import-steps.mjs";
 
 const repoRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 
 export function fileSteps({ press }) {
   return {
+    ...importSteps(),
     /**
      * `{ "pickFileOptional": { "key": "Import items", "file": "docs/…/app.env" } }`.
      * A base build that has no such key is a legitimate difference, not a

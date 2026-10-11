@@ -1,6 +1,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { STALE_BUILD } from "../../../lib/chunk-load.js";
 import type { MergePlan } from "../../../lib/vault/import/merge.js";
 import type {
   DetectInput,
@@ -281,6 +282,14 @@ describe("import model", () => {
     expect(messageFrom(new Error(""))).toBe("That file could not be read.");
     expect(messageFrom("nope")).toBe("That file could not be read.");
     expect(messageFrom(new Error("Too big"))).toBe("Too big");
+    // A chunk a newer deploy replaced is the page being stale, not the file.
+    expect(
+      messageFrom(
+        new TypeError(
+          "Failed to fetch dynamically imported module: https://example.test/assets/device-identity-carry-Bvwzak28.js",
+        ),
+      ),
+    ).toBe(STALE_BUILD);
   });
 });
 
