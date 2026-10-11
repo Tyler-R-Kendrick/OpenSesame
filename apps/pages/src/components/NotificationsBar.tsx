@@ -25,7 +25,6 @@ import { buildHealthReport } from "@opensesame/app-core/lib/vault/health.js";
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -80,7 +79,7 @@ export type NoticesSnapshot = {
 export function useNotices(): NoticesSnapshot {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
   const { items } = notificationsBarDependencies.useVault();
-  const health = useMemo(() => buildHealthReport(items), [items]);
+  const health = buildHealthReport(items);
   const queued = loadQueue().length;
   const count = notices.length + queued + (health.findings.length > 0 ? 1 : 0);
   return { notices, health, queued, count };
@@ -132,11 +131,10 @@ function NotificationsBarDefault({
       {form === "panel" ? null : (
         <button
           type="button"
-          className={["cx__btn", count > 0 ? "cx__btn--attn" : "cx__btn--off"]
-            .filter(Boolean)
-            .join(" ")}
+          className={
+            count > 0 ? "cx__btn cx__btn--attn" : "cx__btn cx__btn--off"
+          }
           aria-label={label}
-          title={label}
           onClick={() => setOpen(true)}
         >
           <IconBell />
@@ -219,23 +217,11 @@ function NotificationsBarDefault({
                     ok={false}
                     top="Guest session"
                     name={notice.title}
-                    facts={(() => {
-                      const rows: { key: string; value: string }[] = [];
-                      if (notice.userCode) {
-                        rows.push({
-                          key: "Consent code",
-                          value: notice.userCode,
-                        });
-                      }
-                      if (notice.body.includes("backup account")) {
-                        rows.push({
-                          key: "Backups",
-                          value:
-                            "Provisional Postgres accounts claim with this sign-in",
-                        });
-                      }
-                      return rows;
-                    })()}
+                    facts={
+                      notice.userCode
+                        ? [{ key: "Consent code", value: notice.userCode }]
+                        : []
+                    }
                     primary={{
                       label: "Sign in to claim",
                       icon: <IconLogin size={18} />,

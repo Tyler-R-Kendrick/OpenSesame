@@ -24,6 +24,10 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useFileWaitingForVault,
+  usePendingImport,
+} from "../bindings/pending-import.js";
 import { FailureNotice } from "../components/FailureNotice.js";
 import { IconKey } from "../components/IconKey.js";
 import {
@@ -41,16 +45,15 @@ import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
-import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
-import { LockFoot } from "./unlock/LockFoot.js";
+import { PendingImportNote } from "./unlock/ImportRoad.js";
 import { MethodIcon } from "./unlock/MethodIcon.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { DurabilityNote, LockoutNote } from "./unlock/Notes.js";
 import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
-import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { UnlockFoot } from "./unlock/UnlockFoot.js";
 import { UnlockStage } from "./unlock/UnlockStage.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
 import {
@@ -109,10 +112,14 @@ export function UnlockScreen() {
   // The front door (ADR 0115, ADR 0150 §1): no vault and no setup record.
   // An answered or skipped ceremony retires it; guest prepare leaves status
   // empty (no wrap on disk), which is Unlock.
+  // A file chosen at the door retires it for the seal screen: the vault that
+  // file is for is made first (ADR 0188).
+  const startsFromFile = useFileWaitingForVault(status);
   const frontDoor =
     status === "empty" &&
     tomb !== GUEST_TOMB &&
-    unlockScreenDependencies.loadSetup() === null;
+    unlockScreenDependencies.loadSetup() === null &&
+    !startsFromFile;
 
   if (join.screen) return join.screen;
   if (ceremony) {
@@ -188,7 +195,11 @@ function UnlockForm({
   const passkeyHost = checkWebauthnHost();
   const passkeyOk = usePasskeyRoad(passkeyHost.ok);
   // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
-  const [localOnly, setLocalOnly] = useState(false);
+  const [localOnlyChosen, setLocalOnly] = useState(false);
+  // A vault that begins from a file is sealed on this device, whichever road
+  // the file was chosen from (ADR 0188); removing the file gives the road back.
+  const startsFromFile = usePendingImport() !== null && firstRun;
+  const localOnly = localOnlyChosen || startsFromFile;
   const signInStage = firstRun && !localOnly;
   // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.
   const [signingIn, setSigningIn] = useState(() =>
@@ -464,6 +475,8 @@ function UnlockForm({
           />
         ) : null}
       </div>
+
+      {startsFromFile ? <PendingImportNote /> : null}
 
       <RequirementsGate
         onOpenSetup={(join) => onOpenSetup("capabilities", join)}
@@ -785,37 +798,20 @@ function UnlockForm({
         </form>
       )}
 
-      <div className="unlock__foot">
-        {firstRun && localOnly ? (
-          <button
-            type="button"
-            className="unlock__switch"
-            onClick={() => setLocalOnly(false)}
-          >
-            Sign in instead
-          </button>
-        ) : null}
-        {/* Guest tomb beside a sealed vault (GuestRoad.tsx). Not on
-              sign-in or a keyless tomb — Unlock resumes that tomb. Allow
-              guests is the only gate (AGENTS.md §5). */}
-        {!firstRun && !showSignIn && !showReset ? (
-          <GuestUnlockSwitch
-            busy={busy}
-            setBusy={setBusy}
-            setError={setError}
-            hidden={guestKeyless}
-          />
-        ) : null}
-        {!firstRun && !showSignIn ? (
-          <ResetVault
-            open={showReset}
-            onOpen={() => setShowReset(true)}
-            onDelete={() => void store.destroy()}
-            onKeep={() => setShowReset(false)}
-          />
-        ) : null}
-        <LockFoot variant="foot" hideReset={showReset} />
-      </div>
+      <UnlockFoot
+        firstRun={firstRun}
+        offerSignIn={firstRun && localOnly && !startsFromFile}
+        showSignIn={showSignIn}
+        showReset={showReset}
+        guestKeyless={guestKeyless}
+        busy={busy}
+        setBusy={setBusy}
+        setError={setError}
+        onSignIn={() => setLocalOnly(false)}
+        onAskReset={() => setShowReset(true)}
+        onKeepVault={() => setShowReset(false)}
+        onDeleteVault={() => void store.destroy()}
+      />
     </UnlockStage>
   );
 }

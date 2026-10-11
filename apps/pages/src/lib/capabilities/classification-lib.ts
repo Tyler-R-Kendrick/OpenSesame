@@ -69,6 +69,8 @@ const CORE_INFRA = [
   "probe-failure",
   "opener-policy",
   "bounded-response",
+  // A lazy chunk a newer deploy replaced, told as a stale page (ADR 0188).
+  "chunk-load",
   "urls",
   "agent-page-dump",
   "local-network-fetch",

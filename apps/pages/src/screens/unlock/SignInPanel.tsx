@@ -76,6 +76,7 @@ import { landFocus } from "../../lib/focus.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
+import { ImportRoadButton } from "./ImportRoad.js";
 import { MagicLinkStage } from "./MagicLinkStage.js";
 import { SignInSocialBar } from "./SignInSocialBar.js";
 
@@ -345,15 +346,20 @@ export function SignInPanel(props: Props) {
       {identifierEngaged ? null : (
         <div className="signin__more">
           {props.placement === "primary" ? (
-            <button
-              ref={localOnlyRef}
-              type="button"
-              className="unlock__switch"
-              disabled={busy}
-              onClick={props.onUseLocalOnly}
-            >
-              Use without an account
-            </button>
+            <>
+              <button
+                ref={localOnlyRef}
+                type="button"
+                className="unlock__switch"
+                disabled={busy}
+                onClick={props.onUseLocalOnly}
+              >
+                Use without an account
+              </button>
+              {/* Begin from a file instead: the door's third road, once the
+                  door has retired (ADR 0188). */}
+              <ImportRoadButton variant="foot" />
+            </>
           ) : null}
         </div>
       )}

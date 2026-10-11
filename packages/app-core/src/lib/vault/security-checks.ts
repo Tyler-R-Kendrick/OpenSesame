@@ -67,10 +67,6 @@ export type SecurityReport = {
 export const SECURITY_CHECKS_IDLE =
   "Breach and two-step checks are on. Not checked yet.";
 
-/** Shown while a check is in flight. */
-export const SECURITY_CHECKS_CHECKING =
-  "Checking logins against known breaches and two-step sites.";
-
 function noun(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
@@ -135,6 +131,15 @@ function checkedWatch(report: SecurityReport): BreachWatch {
   };
 }
 
+let checkedScope: string | null = null;
+
+function securityWatchScope(tomb: string, items: readonly VaultItem[]): string {
+  return `${tomb}\0${logins(items)
+    .map((item) => item.updatedAt)
+    .sort()
+    .join("|")}`;
+}
+
 export type SecurityWatchNote =
   | { phase: "off" }
   | { phase: "idle" }
@@ -146,15 +151,17 @@ export type SecurityWatchNote =
 export function noteSecurityWatch(note: SecurityWatchNote): void {
   switch (note.phase) {
     case "off":
+      checkedScope = null;
       publishBreachWatch({ phase: "off" });
       return;
     case "idle":
+      checkedScope = null;
       publishBreachWatch({ phase: "idle", label: SECURITY_CHECKS_IDLE });
       return;
     case "checking":
       publishBreachWatch({
         phase: "checking",
-        label: SECURITY_CHECKS_CHECKING,
+        label: "Checking logins against known breaches and two-step sites.",
       });
       return;
     case "error":
@@ -163,6 +170,18 @@ export function noteSecurityWatch(note: SecurityWatchNote): void {
     case "checked":
       publishBreachWatch(checkedWatch(note.report));
       return;
+  }
+}
+
+export function reconcileSecurityWatchWithVault(
+  tomb: string,
+  items: readonly VaultItem[],
+): void {
+  if (
+    checkedScope !== null &&
+    checkedScope !== securityWatchScope(tomb, items)
+  ) {
+    noteSecurityWatch({ phase: "idle" });
   }
 }
 
@@ -306,6 +325,7 @@ export async function runSecurityChecks(
   fetchRange: CheckFetch,
   fetchList: CheckFetch,
   now: () => Date = () => new Date(),
+  watchTomb?: string,
 ): Promise<SecurityReport> {
   const checked = logins(items);
   const counts = await breachCounts(checked.map(wholePassword), fetchRange);
@@ -331,5 +351,12 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
-  return { checkedAt: now().toISOString(), checked: checked.length, findings };
+  if (watchTomb !== undefined) {
+    checkedScope = securityWatchScope(watchTomb, items);
+  }
+  return {
+    checkedAt: now().toISOString(),
+    checked: checked.length,
+    findings,
+  };
 }

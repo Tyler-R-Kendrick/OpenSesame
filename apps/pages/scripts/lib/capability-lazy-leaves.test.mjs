@@ -33,3 +33,26 @@ test("pins the optional Tailnet pairing leaf without changing ownership of other
     undefined,
   );
 });
+
+test("pins the claim different-link control on identity.ceremonies", () => {
+  const file =
+    "/workspace/apps/pages/src/modules/identity.ceremonies/ClaimDifferentLink.tsx";
+  const entry = {
+    classification: "optional",
+    capability: "identity.ceremonies",
+  };
+  assert.equal(lazyLeafChunk(file, entry), "cap-identity.claim-different-link");
+});
+
+test("pins optional vault.security-checks app-core leaf when Rollup classifies it shared", () => {
+  const file = "/workspace/packages/app-core/src/lib/vault/security-checks.ts";
+  const entry = {
+    classification: "shared",
+    capability: null,
+  };
+  assert.equal(lazyLeafChunk(file, entry), "cap-vault.security-checks");
+  assert.equal(
+    lazyLeafChunk(file.replaceAll("/", "\\"), entry),
+    "cap-vault.security-checks",
+  );
+});
