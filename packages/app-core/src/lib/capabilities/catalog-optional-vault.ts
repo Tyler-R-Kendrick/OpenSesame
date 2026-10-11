@@ -34,6 +34,13 @@ export const SECURITY_CHECKS_SUMMARY =
   "Compares the open vault's logins with known password breaches and with sites that offer an authenticator code you have not stored. With this on, Settings and Password health show how many passwords were found and which logins could add a second step. Press Check to run it. Only five characters of each password's hash leave this browser; the two-step site list is fetched whole and matched here.";
 
 /**
+ * What Settings says `vault.environments` does (ADR 0194). Kept under the
+ * catalog's 400-character summary limit.
+ */
+export const ENVIRONMENTS_SUMMARY =
+  "Give a vault's keys a value for each environment (development, staging, production) and mark each key required where it must have one. A .env.schema is generated from them and holds no values; a required key with no value in an environment is flagged in the bell. Adds an Environments key to the vault. Values stay sealed in the vault.";
+
+/**
  * What Settings says `sharing.trusted-contacts` does. Kept under the catalog's
  * 400-character summary limit.
  */
@@ -78,11 +85,12 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "Both browsers must reach each other: the same network, a tunnel address, or a TURN server the owner names; a session ends when the owner's tab closes.",
     },
   ),
-  optional(
-    "vault.environments",
-    "Environments",
-    "Named values for vault items.",
-  ),
+  optional("vault.environments", "Environments", ENVIRONMENTS_SUMMARY, {
+    operationIds: ["vault.environments.manage"],
+    keyAccess: "item-plaintext",
+    offlineLimits:
+      "Works offline. Values are sealed in the vault body with everything else and sync with it; nothing is fetched.",
+  }),
   optional(
     "storage.encrypted-search",
     "Encrypted search",

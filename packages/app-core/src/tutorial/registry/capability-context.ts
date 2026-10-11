@@ -61,6 +61,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vault.item-types.install": ["/settings"],
     "vault.export": ["/vault"],
     "vault.import": ["/vault"],
+    "vault.environments": ["/vault"],
     "client.support": [],
     "client.command-bar": [],
     "app.install": ["/settings"],

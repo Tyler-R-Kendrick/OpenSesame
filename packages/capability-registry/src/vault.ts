@@ -5,6 +5,7 @@ import { passwordWorkflowCapabilities } from "./password-workflows.js";
 import { vaultCircleCapabilities } from "./vault-circle.js";
 import { vaultCliCapabilities } from "./vault-cli.js";
 import { vaultDuressCapabilities } from "./vault-duress.js";
+import { vaultEnvironmentCapabilities } from "./vault-environments.js";
 import { vaultFileCapabilities } from "./vault-files.js";
 import { vaultInteropCapabilities } from "./vault-interop.js";
 import { vaultLoginDraftCapabilities } from "./vault-login-draft.js";
@@ -23,6 +24,7 @@ export const vaultCapabilities: readonly Capability[] = [
   ...vaultFileCapabilities,
   ...vaultCircleCapabilities,
   ...vaultCliCapabilities,
+  ...vaultEnvironmentCapabilities,
   ...vaultInteropCapabilities,
   ...vaultTravelCapabilities,
   ...vaultDuressCapabilities,

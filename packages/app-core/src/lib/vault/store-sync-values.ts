@@ -339,6 +339,11 @@ export function graftOnto(
   }
   if (whole) {
     const next: VaultItem = { ...incoming, ...kept };
+    // An entry written before environments cannot say what an item's cells
+    // are: it must not erase them (ADR 0194).
+    if (!incoming.environments && current.environments) {
+      next.environments = current.environments;
+    }
     // A manifest never says which account a credential is bound to.
     if (next.kind === "credential" && current.kind === "credential") {
       next.accountId = current.accountId;

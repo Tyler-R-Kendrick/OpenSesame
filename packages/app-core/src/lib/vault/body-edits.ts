@@ -99,6 +99,19 @@ export function emptyTrash(body: VaultBody): void {
   );
 }
 
+/** A new folder, named as the person typed it, with an id of its own. */
+export function newFolder(name: string): Folder {
+  return {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function appendFolder(body: VaultBody, folder: Folder): void {
+  body.folders = [...body.folders, folder];
+}
+
 export function deleteFolder(body: VaultBody, id: string): void {
   body.folders = body.folders.filter((folder) => folder.id !== id);
   body.tombstones = withTombstone(body.tombstones, "folders", [id]);
@@ -178,6 +191,7 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.tombstones = merged.tombstones;
   body.deviceIdentityKey = merged.deviceIdentityKey;
   body.masterWrap = merged.masterWrap;
+  body.environments = merged.environments;
 }
 
 /** A copy of what a failed write must put back, so memory never runs ahead of disk. */
@@ -199,6 +213,9 @@ export function bodyBeforeWrite(body: VaultBody): VaultBody {
       : undefined),
     ...(body.masterWrap !== undefined
       ? { masterWrap: body.masterWrap }
+      : undefined),
+    ...(body.environments !== undefined
+      ? { environments: body.environments }
       : undefined),
   };
 }
