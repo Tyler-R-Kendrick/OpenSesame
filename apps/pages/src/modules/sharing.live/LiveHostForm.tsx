@@ -13,7 +13,6 @@ import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlay } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { liveUiSeams } from "./live-hooks.js";
 import {
   ADMISSIONS,
   DURATIONS,
@@ -23,7 +22,7 @@ import {
   SCOPES,
   routesSummary,
 } from "./live-host-form-parts.js";
-import { useStartSession } from "./live-start.js";
+import { startInput, useStartSession } from "./live-start.js";
 import { useLiveTransport } from "./live-transport-hooks.js";
 
 export { routesSummary } from "./live-host-form-parts.js";
@@ -50,19 +49,7 @@ export function LiveHostForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (!ready) return;
-        start({
-          title: title.trim(),
-          scope:
-            scope === "vault"
-              ? { kind: "vault" }
-              : { kind: "items", ids: [...chosen] },
-          policy,
-          admission,
-          minutes,
-          transport: liveUiSeams.transport,
-          routes: transport,
-          carriers: liveUiSeams.carriers,
-        });
+        start(startInput({ title, scope, chosen, policy, admission, minutes }));
       }}
     >
       <FieldShell

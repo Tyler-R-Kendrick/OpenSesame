@@ -101,7 +101,7 @@ describe("the Bundle budgets aggregate", () => {
     ];
     const gated = jobs
       .filter(([, , body]) =>
-        /\n {4}if: needs\.changes\.outputs\.(bundle_matrix|push|tutorials|device_inbox|device_identity) (==|!=) '(true|\[\])'/.test(
+        /\n {4}if: needs\.changes\.outputs\.(bundle_matrix|push|tutorials|device_inbox|device_identity|live_join) (==|!=) '(true|\[\])'/.test(
           `\n${body}`,
         ),
       )
@@ -116,6 +116,7 @@ describe("the Bundle budgets aggregate", () => {
         "tutorials-e2e",
         "device-inbox",
         "device-identity-e2e",
+        "live-join-e2e",
       ]),
     );
     for (const name of gated) {
