@@ -265,12 +265,13 @@
         "2026-10-10: javascript 6258->6457 and javascriptGzip 1915->1966 for Settings > Trusted contacts (ADR 0187): the quorum engine (SLIP-0039, HPKE, the ledger, the desk) and the owner, contact and recipient screens, with the CXF export and Import hand-offs. They load only from the module's two lazy chunks, which a device fetches only with the capability on: cap-sharing.trusted-contacts (77 KiB) and its shared chunk (101 KiB), plus a 2.5 KiB stylesheet. A fresh /OpenSesame/ build of the tree merged with main at 115a39a measures 6457/1966 KiB JavaScript raw/gzip; raise only to the measured minimum. Nothing reaches the boot path; the hardened profiles exclude the module and measure 3677/972 KiB, under their unchanged ceilings.",
         "2026-10-10: javascriptGzip 1966->1967 on the tree merged with main at b61bd55 (the armed state on an identity share revoke, #1042, landed after the Trusted contacts ceilings were measured). A fresh build measures 6457/1967 KiB JavaScript raw/gzip; raise only to the measured minimum.",
         "2026-10-11: javascript 6258->6259 for the cipher dial at rest on the front door (useIdleDial pulls CipherDial into the door's chunk) and the hero shimmer that keeps running after the decode settles. Measured 6259 KiB; raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged.",
-        "2026-10-11: javascript 6457->6458 on the tree merged with main at d307626 (the cipher dial on the front door and the hero shimmer, +1 KiB on main's own ceiling, landed after the Trusted contacts ceilings were measured). A fresh build measures 6458 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum."
+        "2026-10-11: javascript 6457->6458 on the tree merged with main at d307626 (the cipher dial on the front door and the hero shimmer, +1 KiB on main's own ceiling, landed after the Trusted contacts ceilings were measured). A fresh build measures 6458 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum.",
+        "2026-10-11: javascript 6458->6474 and javascriptGzip 1967->1973 for Settings > Capabilities > Password reset (ADR 0188): reset mailboxes as email-account vault items (the add, edit and remove panel with its advanced server and login fields), the in-browser JMAP reader, the ledger of messages already acted on, the embedded email-account definition and the legacy-list adoption. They load only from the capability's lazy chunks (cap-ai.password-reset, 5.6 KiB, and the shared password-reset chunk, about 10 KiB), which a device fetches only with the capability on; the old reset-address list code that left the shared chunk (-4.7 KiB) is already netted out. A fresh /OpenSesame/ build of this branch merged with main at dcc1557 measures 6474/1973 KiB JavaScript raw/gzip against 6458/1967 on the base; raise only to the measured minimum. css and the hardened profile ceilings are unchanged."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6458,
-        "javascriptGzip": 1967,
+        "javascript": 6474,
+        "javascriptGzip": 1973,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",
