@@ -91,6 +91,60 @@ export const TUNNEL_ONLY = (address) => {
 };
 
 /** Every peer connection's states, and the page's status marks: for a failure. */
+const PRIVATE_IPV4 = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/;
+
+function hostFromCandidateLine(line) {
+  const body = line.startsWith("a=candidate:")
+    ? line.slice("a=candidate:".length)
+    : line;
+  return body.split(" ")[4] ?? "";
+}
+
+function isPrivateLanHost(host) {
+  if (!host || host.endsWith(".local")) return false;
+  if (host === "127.0.0.1" || host === "::1") return false;
+  return PRIVATE_IPV4.test(host);
+}
+
+/**
+ * Direct pairing on one machine: sealed descriptions name mDNS and loopback,
+ * never a private LAN literal a remote peer could dial.
+ */
+export async function assertSameMachineSdpPrivacy(page, who) {
+  const states = await page.evaluate(() => ({
+    peers: (window.__rtcPeers ?? []).map((pc) => ({
+      remote: (pc.remoteDescription?.sdp ?? "")
+        .split("\r\n")
+        .filter((line) => line.startsWith("a=candidate:")),
+      local: (pc.localDescription?.sdp ?? "")
+        .split("\r\n")
+        .filter((line) => line.startsWith("a=candidate:")),
+    })),
+  }));
+  let loopbackSealed = false;
+  for (const peer of states.peers) {
+    const remoteHosts = peer.remote.map(hostFromCandidateLine);
+    for (const host of remoteHosts) {
+      if (!isPrivateLanHost(host)) continue;
+      throw new Error(
+        `direct: ${who}'s remote description must not carry a private LAN IP (${host})`,
+      );
+    }
+    const localHosts = peer.local.map(hostFromCandidateLine);
+    if (
+      localHosts.some((host) => host === "127.0.0.1" || host === "::1") ||
+      remoteHosts.some((host) => host === "127.0.0.1" || host === "::1")
+    ) {
+      loopbackSealed = true;
+    }
+  }
+  if (!loopbackSealed) {
+    throw new Error(
+      `direct: ${who} should seal loopback hints for same-machine pairing`,
+    );
+  }
+}
+
 export async function peerStates(page) {
   return page.evaluate(() => ({
     peers: (window.__rtcPeers ?? []).map((pc) => ({

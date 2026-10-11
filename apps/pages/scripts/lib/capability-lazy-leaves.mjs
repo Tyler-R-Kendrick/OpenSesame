@@ -65,12 +65,21 @@ const LAZY_LEAVES = [
   // load with the module and stay off the bootstrap. `push.ts` is the worker
   // half and is not matched here.
   ["/src/lib/push-", "notifications.web-push", "cap-notifications.web-push"],
+  [
+    "/src/modules/identity.ceremonies/ClaimDifferentLink",
+    "identity.ceremonies",
+    "cap-identity.claim-different-link",
+  ],
 ];
 
 export function lazyLeafChunk(id, entry) {
   const path = toPosix(id);
   for (const [dir, capability, name] of LAZY_LEAVES) {
-    if (path.includes(dir) && entry.capability === capability) return name;
+    if (!path.includes(dir)) continue;
+    const pinSharedVaultLeaf =
+      entry.classification === "shared" &&
+      dir.startsWith("/packages/app-core/src/lib/vault/");
+    if (entry.capability === capability || pinSharedVaultLeaf) return name;
   }
   return undefined;
 }

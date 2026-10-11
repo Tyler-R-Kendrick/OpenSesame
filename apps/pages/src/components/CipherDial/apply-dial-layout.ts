@@ -58,7 +58,7 @@ function applyRingLayerMask(
   h: number,
   notesR: QuietRect | null,
 ): void {
-  const mask = buildQuietMask(w, h, layout.quiet);
+  const mask = buildQuietMask(w, h, layout.quiet, true);
   layer.style.maskImage = mask;
   layer.style.webkitMaskImage = mask;
   layer.style.maskSize = `${w}px ${h}px`;

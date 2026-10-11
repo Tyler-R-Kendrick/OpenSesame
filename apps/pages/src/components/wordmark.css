@@ -9,8 +9,8 @@
   font-display: block;
 }
 
-/* The element's font-size is the plate em: under 16px letters alone, 16 to
-   48px solid plates, 48px and up the particle field (CipherWordmark). */
+/* The element's font-size is the plate em: under 16px letters alone, from
+   16px up the particle field (CipherWordmark). */
 .wordmark {
   display: inline-flex;
   align-items: center;
