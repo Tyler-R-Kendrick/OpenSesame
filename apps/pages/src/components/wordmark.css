@@ -9,13 +9,8 @@
   font-display: block;
 }
 
-<<<<<<< HEAD
 /* The element's font-size is the plate em: the particle field at every size,
    16px the floor (CipherWordmark). */
-=======
-/* The element's font-size is the plate em: under 16px letters alone, from
-   16px up the particle field (CipherWordmark). */
->>>>>>> origin/main
 .wordmark {
   display: inline-flex;
   align-items: center;

@@ -15,16 +15,7 @@ import {
   pruneRuns,
   slotState,
 } from "./cipher.js";
-<<<<<<< HEAD
 import { DRAW_CALIBRATION, cursorBoostFor } from "./particles.js";
-=======
-import {
-  DRAW_CALIBRATION,
-  TYPE_MAX_EM,
-  cursorBoostFor,
-  tierOf,
-} from "./particles.js";
->>>>>>> origin/main
 import { stubCanvas2d } from "./test-canvas.js";
 
 afterEach(() => {
@@ -113,22 +104,6 @@ describe("brightness cursor (not a border)", () => {
   });
 });
 
-<<<<<<< HEAD
-=======
-describe("size tiers", () => {
-  it("draws the particle field from 16px up, a phone's hero included", () => {
-    expect(TYPE_MAX_EM).toBe(16);
-    expect(tierOf(12)).toBe("type");
-    expect(tierOf(15.9)).toBe("type");
-    expect(tierOf(16)).toBe("field");
-    expect(tierOf(28)).toBe("field");
-    expect(tierOf(37)).toBe("field");
-    expect(tierOf(48)).toBe("field");
-    expect(tierOf(90)).toBe("field");
-  });
-});
-
->>>>>>> origin/main
 describe("CipherWordmark", () => {
   it("renders a canvas and publishes slot timings", () => {
     const { container } = render(<CipherWordmark static />);

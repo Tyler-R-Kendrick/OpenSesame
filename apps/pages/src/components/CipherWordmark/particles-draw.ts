@@ -115,34 +115,6 @@ function paintBins(
   }
 }
 
-<<<<<<< HEAD
-=======
-function glyphFont(ctx: CanvasRenderingContext2D, layout: Layout): number {
-  ctx.font = `${layout.fpx}px ${FONT_FAMILY}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  return layout.cellH / 2 + (layout.asc * layout.fpx) / 2;
-}
-
-/** Under 16px: no plates — the letters in ink on the same grid. */
-function drawTypeTier(opts: PlateOpts): void {
-  const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
-    opts;
-  const by = pad + glyphFont(ctx, layout);
-  for (let si = 0; si < layout.slots.length; si += 1) {
-    const q = layout.slots[si];
-    if (q.space) continue;
-    const st = slotState(runs, si, timeMs);
-    const active = showCursor && st.cursor;
-    ctx.fillStyle = inkAlpha(
-      inkRgb,
-      active ? calibration.smallCursorActive : calibration.smallCursorRest,
-    );
-    ctx.fillText(st.glyph, q.x + q.w / 2, by);
-  }
-}
-
->>>>>>> origin/main
 function drawIconMark(
   ctx: CanvasRenderingContext2D,
   layout: Layout,
@@ -185,24 +157,7 @@ export function drawWordmark(opts: DrawWordmarkOpts): void {
     calibration,
     frozenField,
     showCursor,
-<<<<<<< HEAD
   });
   paintBins(ctx, bins, inkRgb);
-=======
-  };
-  if (tier === "type") drawTypeTier(plateOpts);
-  else {
-    const bins = fillBins({
-      layout,
-      runs,
-      timeMs,
-      inkRgb,
-      calibration,
-      frozenField,
-      showCursor,
-    });
-    paintBins(ctx, bins, inkRgb);
-  }
->>>>>>> origin/main
   if (showMark) drawIconMark(ctx, layout, pad, inkRgb, slit);
 }
