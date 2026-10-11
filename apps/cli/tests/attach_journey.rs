@@ -30,6 +30,9 @@ fn command(store: &Path, args: &[&str]) -> Command {
         .env("GIT_COMMITTER_NAME", "Test")
         .env("GIT_COMMITTER_EMAIL", "test@example.com")
         .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
     command
 }
 

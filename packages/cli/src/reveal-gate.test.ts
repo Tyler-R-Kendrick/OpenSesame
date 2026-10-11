@@ -5,28 +5,83 @@ import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
 import {
   type HumanRevealRequest,
   assertHumanReveal,
+  detectAgentContext,
+  envWithoutAgentContext,
   humanRevealRefusal,
 } from "./reveal-gate.js";
+
+function restoreEnv(name: string, previous: string | undefined): void {
+  if (previous === undefined) Reflect.deleteProperty(process.env, name);
+  else process.env[name] = previous;
+}
+
+function assertStaticHumanReveal(request: HumanRevealRequest): void {
+  const refusal = humanRevealRefusal(request);
+  if (refusal) throw new Error(refusal);
+}
 
 describe("cli reveal gate conformance", () => {
   for (const caseRow of gate.cases) {
     it(caseRow.id, () => {
+      const env = { ...process.env };
+      for (const rule of gate.agentContextEnv) {
+        env[rule.name] = undefined;
+      }
+      if (caseRow.agentContext) {
+        env.OPENSESAME_AGENT_LAUNCH_HANDLE = "fixture-handle";
+      }
       const request: HumanRevealRequest = {
         verb: caseRow.reference ? "read" : "env-resolve",
         reveal: caseRow.reveal,
         desktop: caseRow.desktop,
         reference: caseRow.reference ?? undefined,
+        env,
         stdinIsTty: caseRow.stdinTty,
         stdoutIsTty: caseRow.stdoutTty,
       };
       const refusal = humanRevealRefusal(request);
       if (caseRow.expect === "refuse") {
         expect(refusal).toBeTruthy();
+        expect(() => assertStaticHumanReveal(request)).toThrow();
       } else {
         expect(refusal).toBeUndefined();
+        expect(() => assertStaticHumanReveal(request)).not.toThrow();
       }
     });
   }
+
+  it("detects verified agent markers only (refuse-only)", () => {
+    const saved = new Map<string, string | undefined>();
+    for (const rule of gate.agentContextEnv) {
+      saved.set(rule.name, process.env[rule.name]);
+      Reflect.deleteProperty(process.env, rule.name);
+    }
+    try {
+      process.env.OPENSESAME_AGENT_LAUNCH_HANDLE = "h";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_LAUNCH_HANDLE");
+      process.env.OPENSESAME_AGENT_CLIENT_ID = "c";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_CLIENT_ID");
+      process.env.CLAUDECODE = "1";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CLAUDECODE");
+      process.env.CURSOR_AGENT = "1";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CURSOR_AGENT");
+      process.env.CI = "true";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "CI");
+      process.env.GITHUB_ACTIONS = "true";
+      expect(detectAgentContext()).toBe(true);
+      Reflect.deleteProperty(process.env, "GITHUB_ACTIONS");
+      expect(detectAgentContext()).toBe(false);
+    } finally {
+      for (const [name, previous] of saved) {
+        restoreEnv(name, previous);
+      }
+    }
+  });
 
   it("app integration approve allows reveal", async () => {
     const request: HumanRevealRequest = {
@@ -34,6 +89,7 @@ describe("cli reveal gate conformance", () => {
       reveal: true,
       desktop: true,
       reference: "op://v/i/f",
+      env: envWithoutAgentContext(process.env),
       stdinIsTty: true,
       stdoutIsTty: true,
       appIntegration: {
@@ -49,6 +105,7 @@ describe("cli reveal gate conformance", () => {
       reveal: true,
       desktop: true,
       reference: "op://v/i/f",
+      env: envWithoutAgentContext(process.env),
       stdinIsTty: true,
       stdoutIsTty: true,
       appIntegration: {
@@ -61,7 +118,7 @@ describe("cli reveal gate conformance", () => {
 
 describe("cli reveal gate subprocess refusal", () => {
   afterEach(() => {
-    Reflect.deleteProperty(process.env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
+    Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_LAUNCH_HANDLE");
   });
 
   it("refuses read when stdout is piped", () => {
@@ -71,6 +128,7 @@ describe("cli reveal gate subprocess refusal", () => {
         reveal: true,
         desktop: true,
         reference: "op://v/i/f",
+        env: envWithoutAgentContext(process.env),
         stdinIsTty: true,
         stdoutIsTty: false,
       }),

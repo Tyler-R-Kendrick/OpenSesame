@@ -24,6 +24,34 @@ export interface HumanRevealRequest {
   appIntegration?: CliAppIntegrationPort | undefined;
 }
 
+type AgentRule = (typeof gate.agentContextEnv)[number];
+
+function ruleMatches(rule: AgentRule, env: NodeJS.ProcessEnv): boolean {
+  const raw = env[rule.name];
+  if (raw === undefined || raw === "") return false;
+  if (rule.match === "nonEmpty") return true;
+  if (rule.match === "equals") return raw === rule.value;
+  return false;
+}
+
+/** Refuse-only: a missing marker never grants human reveal. */
+export function detectAgentContext(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return gate.agentContextEnv.some((rule) => ruleMatches(rule, env));
+}
+
+/** Copy `source` with verified agent-context markers removed (tests, subprocess fixtures). */
+export function envWithoutAgentContext(
+  source: NodeJS.ProcessEnv,
+): NodeJS.ProcessEnv {
+  const env = { ...source };
+  for (const rule of gate.agentContextEnv) {
+    Reflect.deleteProperty(env, rule.name);
+  }
+  return env;
+}
+
 function ttyPair(request: HumanRevealRequest) {
   const stdin =
     request.stdinIsTty !== undefined
@@ -39,6 +67,10 @@ function ttyPair(request: HumanRevealRequest) {
 export function humanRevealRefusal(
   request: HumanRevealRequest,
 ): string | undefined {
+  const env = request.env ?? process.env;
+  if (request.verb !== "run" && detectAgentContext(env)) {
+    return `Refusing plaintext ${request.verb} in an agent context. ${gate.migrationHint}`;
+  }
   const { stdin, stdout } = ttyPair(request);
   if (request.verb !== "run") {
     if (!stdin || !stdout) {

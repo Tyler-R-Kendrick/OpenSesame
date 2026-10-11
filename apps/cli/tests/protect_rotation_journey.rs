@@ -20,6 +20,9 @@ fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output 
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
+    opensesame_connector_host::password_agent::reveal_gate::strip_agent_context_env(
+        &mut command,
+    );
     let mut child = command.spawn().expect("failed to run the opensesame binary");
     child
         .stdin
