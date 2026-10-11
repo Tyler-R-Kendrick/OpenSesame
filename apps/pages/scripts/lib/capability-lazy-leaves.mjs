@@ -81,17 +81,6 @@ const LAZY_LEAVES = [
     "identity.ceremonies",
     "cap-identity.claim-different-link",
   ],
-  // CLI authorize UI: keep daemon client + step-up off `main` (ADR 0130 §4).
-  [
-    "/src/modules/cli.app-integration/",
-    "cli.app-integration",
-    "cap-cli.app-integration",
-  ],
-  [
-    "/packages/app-core/src/lib/cli-app-integration/policy-runtime",
-    "cli.app-integration",
-    "cli-policy",
-  ],
 ];
 
 export function lazyLeafChunk(id, entry) {

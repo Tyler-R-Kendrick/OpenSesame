@@ -13,9 +13,6 @@
 
 import { type AuthoredDescriptor, alwaysOn, optional } from "./descriptor.js";
 
-export const CLI_APP_INTEGRATION_PURPOSE =
-  "local daemon CLI integration while the vault is unlocked";
-
 export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "identity.local-iam",
@@ -29,12 +26,19 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.local.organizations.membership.manage",
         "identity.local.organizations.read",
         "identity.local.passkeys.manage",
+        "cli.app_integration.list",
+        "cli.app_integration.respond",
       ],
       egress: [
         {
           class: "user-mediated-navigation",
           purpose: "the redirect back to a registered local application",
           automatic: false,
+        },
+        {
+          class: "peer-or-local-network",
+          purpose: "loopback daemon CLI",
+          automatic: true,
         },
       ],
       browserPermissions: ["webauthn"],
@@ -92,25 +96,6 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       requiresService: true,
       offlineLimits:
         "Snapshots queue locally and push when the remote is reachable.",
-    },
-  ),
-  optional(
-    "cli.app-integration",
-    "CLI integration",
-    "Approve CLI requests in this browser while the vault is unlocked.",
-    {
-      operationIds: ["cli.app_integration.list", "cli.app_integration.respond"],
-      egress: [
-        {
-          class: "peer-or-local-network",
-          purpose: CLI_APP_INTEGRATION_PURPOSE,
-          automatic: true,
-        },
-      ],
-      browserPermissions: ["webauthn"],
-      keyAccess: "protector-wrap",
-      offlineLimits:
-        "Needs the local daemon on loopback or the tailnet; nothing leaves this device.",
     },
   ),
   alwaysOn(
