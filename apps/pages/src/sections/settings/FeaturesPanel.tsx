@@ -1,18 +1,19 @@
 /**
- * Settings › Capabilities — how this installation is used.
+ * Settings › Features — which optional parts of this installation are on.
  *
- * One list of sections, each drawn the same way (`CapabilitySections`): a
- * subheader, the switch on it where the section has optional capabilities,
- * and the tiles configured under it. Guests first; then identity, keys,
- * storage, sharing, payments, AI, networking, notifications and telemetry;
- * then, for the operator of this device, the instance policy
+ * One list of sections, each drawn the same way (`FeatureSections`): a
+ * subheader and the switch on it, with a tile and switch for each capability
+ * where a section has several. Guests first; then identity, access, the
+ * vault's extras, sharing, payments, AI, networking, notifications and
+ * telemetry; then, for the operator of this device, the instance policy
  * (`InstanceCapabilitiesPanel`, never shown to a member — SURFACE-06).
  *
  * A switch commits in place (`useCapabilityChange`). The documents behind
  * the page — the selection, the operator's policy, the effective plan — are
  * files beside this directory's `config.yaml` (`capability-files.ts`), and
  * this page is how each of them is seen: opening any of them from the rail or
- * the address draws this page, never their text.
+ * the address draws this page, never their text. The services a feature
+ * connects to are on Settings › Integrations (ADR 0188).
  */
 
 import { withdrawnAlwaysOn } from "@opensesame/app-core/lib/capabilities/features.js";
@@ -20,7 +21,7 @@ import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabili
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { CapabilitySections } from "./CapabilitySections.js";
+import { FeatureSections } from "./FeatureSections.js";
 import { InstanceCapabilitiesPanel } from "./InstanceCapabilitiesPanel.js";
 import {
   type CapabilityChange,
@@ -81,26 +82,26 @@ function WithdrawnNotice({ change }: { change: CapabilityChange }) {
 function Body({ change }: { change: CapabilityChange }) {
   return (
     <>
-      <CapabilitySections current={change.current} onPropose={change.propose} />
+      <FeatureSections current={change.current} onPropose={change.propose} />
       <InstanceCapabilitiesPanel />
     </>
   );
 }
 
-export function CapabilitiesPanel() {
+export function FeaturesPanel() {
   const change = useCapabilityChange();
   return (
-    <section className="panel" data-testid="capabilities-panel">
+    <section className="panel" data-testid="features-panel">
       <div className="panel__head capspanel__head">
-        <h2>Capabilities</h2>
+        <h2>Features</h2>
       </div>
       <div className="panel__body capspanel">
         <RestartNotice change={change} />
         <WithdrawnNotice change={change} />
         {change.notice ? <StatusMark tone="err" label={change.notice} /> : null}
         <FailureNotice
-          id="settings:capabilities"
-          title="Capabilities"
+          id="settings:features"
+          title="Features"
           message={change.notice}
         />
         <Body change={change} />

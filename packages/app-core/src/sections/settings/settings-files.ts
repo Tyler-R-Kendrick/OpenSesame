@@ -130,20 +130,23 @@ const VAULTS = [
   { key: "activeProjectId", kind: "string" },
 ] as const satisfies readonly SettingsField[];
 
-const CONNECTIVITY = [
-  { key: "hostApi", kind: "string" },
-  { key: "identityApi", kind: "string" },
-  { key: "daemonApi", kind: "string" },
+/**
+ * Settings › Features: what the plan approved — adding or retiring a
+ * capability is a reviewed plan with a consent receipt, so the file only
+ * reports it (ADR 0188).
+ */
+const FEATURE_FIELDS = [
+  { key: "approved", kind: "list", readonly: true },
 ] as const satisfies readonly SettingsField[];
 
 /**
- * Settings › Capabilities: the endpoints its providers are configured with
- * (Connections folded in, ADR 0135), and what the plan approved — adding or
- * retiring one is a reviewed plan with a consent receipt.
+ * Settings › Integrations: the endpoints its providers are configured with
+ * (Connections folded in, ADR 0135).
  */
-const CAPABILITIES = [
-  { key: "approved", kind: "list", readonly: true },
-  ...CONNECTIVITY,
+const INTEGRATION_FIELDS = [
+  { key: "hostApi", kind: "string" },
+  { key: "identityApi", kind: "string" },
+  { key: "daemonApi", kind: "string" },
 ] as const satisfies readonly SettingsField[];
 
 const FIELDS = new Map<string, readonly SettingsField[]>([
@@ -151,9 +154,8 @@ const FIELDS = new Map<string, readonly SettingsField[]>([
   ["keybindings", KEYBINDINGS],
   ["security", SECURITY],
   ["vaults", VAULTS],
-  // An older link to Connections reads as Capabilities.
-  ["connections", CAPABILITIES],
-  ["capabilities", CAPABILITIES],
+  ["features", FEATURE_FIELDS],
+  ["integrations", INTEGRATION_FIELDS],
 ]);
 
 export function settingsFields(category: string): readonly SettingsField[] {
@@ -167,7 +169,7 @@ export function settingsFields(category: string): readonly SettingsField[] {
  */
 export function legacySettingsFilePath(category: string): string {
   // The endpoints were kept as Connections' file before the fold.
-  const file = category === "capabilities" ? "connections" : category;
+  const file = category === "integrations" ? "connections" : category;
   return `settings/${file}.yaml`;
 }
 

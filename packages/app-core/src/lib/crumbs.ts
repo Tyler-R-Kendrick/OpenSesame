@@ -9,6 +9,7 @@ import {
 import { resolveTypeId } from "@opensesame/vault-item-types";
 import { accessPath, isAccessView } from "./access-routes.js";
 import { contributionsSnapshot } from "./contributions.js";
+import { SETTINGS_HASH_ALIAS } from "./settings-aliases.js";
 import { resolveFilterSlug } from "./vault-filter-slug.js";
 
 export type Crumb = {
@@ -19,16 +20,18 @@ export type Crumb = {
 
 /**
  * The categories the core Settings page always has, in tab order —
- * General → Keybindings → Security → Vaults → Capabilities → Danger. `connections` is an
- * older category that now reads as Capabilities (`SETTINGS_HASH_ALIAS`); a
- * module may still contribute a category of its own.
+ * General → Keybindings → Security → Vaults → Features → Integrations →
+ * Danger (ADR 0188). `capabilities` and `connections` are retired names that
+ * still read as one of them (`SETTINGS_HASH_ALIAS`); a module may still
+ * contribute a category of its own.
  */
 export const SETTINGS_CATEGORIES = [
   "general",
   "keybindings",
   "security",
   "vaults",
-  "capabilities",
+  "features",
+  "integrations",
   "danger",
 ] as const;
 export type CoreSettingsCategory = (typeof SETTINGS_CATEGORIES)[number];
@@ -41,7 +44,8 @@ export const SETTINGS_CATEGORY_LABEL = {
   connections: "Connections",
   security: "Security",
   vaults: "Vaults",
-  capabilities: "Capabilities",
+  features: "Features",
+  integrations: "Integrations",
   danger: "Danger",
 } as const satisfies Readonly<Record<SettingsCategory, string>>;
 
@@ -80,20 +84,6 @@ export const WALLET_CATEGORY_LABEL = {
   passes: "Spending passes",
   methods: "Payment methods",
 } satisfies Record<WalletCategory, string>;
-
-/**
- * Legacy hashes and paths that are not themselves a settings category. The
- * Connections, Backups and Cloud secrets categories became Settings ›
- * Capabilities, where each provider is configured under its feature.
- */
-const SETTINGS_HASH_ALIAS = new Map<string, string>([
-  ["taskbus", "capabilities"],
-  ["connectivity", "capabilities"],
-  ["connections", "capabilities"],
-  ["backups", "capabilities"],
-  ["cloud-secrets", "capabilities"],
-  ["unlock", "security"],
-]);
 
 const VAULT_FILTER_LABEL = new Map([
   ["favorites", "Favorites"],
@@ -154,7 +144,7 @@ export function settingsCategoryFromHash(
   return aliased !== undefined && isSettingsCategory(aliased) ? aliased : null;
 }
 
-/** `/settings/connections` or `/settings#connectivity` → connections. */
+/** `/settings/connections` or `/settings#connectivity` → integrations. */
 export function settingsCategoryFromLocation(
   pathname: string,
   hash: string,
@@ -375,7 +365,7 @@ function settingsCrumbs(
     const provider = decodeURIComponent(parts[2]);
     const crumbs: Crumb[] = [
       { label: "Settings", to: "/settings" },
-      { label: "Capabilities", to: "/settings/capabilities" },
+      { label: "Integrations", to: "/settings/integrations" },
       { label: provider },
     ];
     if (parts[3]) {

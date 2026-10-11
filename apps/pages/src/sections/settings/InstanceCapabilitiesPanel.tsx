@@ -6,7 +6,7 @@
  * sees a policy control (SURFACE-06) — the section renders nothing, not a
  * disabled form. It is the purpose presets and nothing else: what each
  * capability's policy leaves it is already said where that capability's
- * switch is, and the policy document is `settings/capabilities/instance-policy.yaml`,
+ * switch is, and the policy document is `settings/features/instance-policy.yaml`,
  * beside the installation's selection (ADR 0134, ADR 0142). Choosing a preset writes through
  * `saveLocalInstancePolicy`, the one writer of `capabilities.policy.local.v1`.
  */

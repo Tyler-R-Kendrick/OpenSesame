@@ -1,18 +1,14 @@
 /**
- * Settings › Capabilities — every section, drawn one way.
+ * Settings › Features — every section, drawn one way.
  *
- * A section is a subheader and the tiles configured under it, the same
- * group the Connections catalogue draws (`conn-group`). Where a section has
- * optional capabilities, its switch sits on the subheader: one switch over
- * all of them, through the same review and consent receipt as a single one.
- * A section with more than one optional capability also lists each as a
- * tile with its own switch, beside its providers — so no second list of
- * capabilities is needed anywhere on the page. A section with none is a
- * function every installation has (ADR 0142): the same subheader, no switch.
- *
- * Nothing collapses: a section's providers are drawn whether or not its
- * switch is on, because a connector is configured by reference and binding
- * one needs nothing the switch adds.
+ * A section is a subheader and the switch on it: one switch over all of the
+ * section's optional capabilities, through the same review and consent
+ * receipt as a single one. A section with more than one also lists each as
+ * a tile with its own switch, so no second list of capabilities is needed
+ * anywhere on the page. A section with nothing to switch on this device is
+ * not drawn (ADR 0158). The third-party services a feature connects to are
+ * configured on Settings › Integrations, and nothing here waits on them
+ * (ADR 0188).
  */
 
 import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
@@ -33,42 +29,29 @@ import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabili
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useCallback } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { capabilityStatus } from "../../screens/capabilities/status.js";
-import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "../connections/ConnectorMark.js";
 import {
   CapabilitySwitch,
   GuestSection,
   SectionHead,
 } from "./CapabilitySwitch.js";
-import { ProviderTiles } from "./ProviderTiles.js";
-import { featureDraws } from "./provider-tile-items.js";
-
-/** `support.local-ai`'s model picker, drawn in the AI section once AI is on. */
-export const MODEL_PROVIDER_PANEL = "model-provider";
+import { WithdrawnMark, titleOf } from "./SectionMarks.js";
 
 /**
  * The `settings-panel` category that draws a panel inside one section
- * (`capabilities.feature-<id>`) — a category no settings route renders on
+ * (`features.feature-<id>`) — a category no settings route renders on
  * its own, so the panel appears in its section and nowhere else.
  */
 export function sectionCategory(sectionId: string): string {
-  return `capabilities.${sectionId}`;
+  return `features.${sectionId}`;
 }
 
 type Propose = (proposal: FeatureProposal) => void;
-
-function titleOf(id: CapabilityId): string {
-  return (
-    capabilityPorts.CAPABILITY_CATALOG.capabilities.find(
-      (entry) => entry.id === id,
-    )?.title ?? id
-  );
-}
 
 /** What a switch already says — on or off — needs no mark beside it. */
 const SAID_BY_SWITCH: ReadonlySet<string> = new Set([
@@ -227,23 +210,10 @@ function CapabilityTile({
   );
 }
 
-/** An always-on capability behind this section that an operator withdrew. */
-function WithdrawnMark({ feature }: { feature: Feature }) {
-  const { plan } = useComposition();
-  const withdrawn = (feature.backedBy ?? []).filter((id) => {
-    const state = plan?.capabilities[id];
-    return state?.tier === "core" && !state.approved;
-  });
-  if (withdrawn.length === 0) return null;
-  const label = `withdrawn by operator: ${withdrawn.map(titleOf).join(", ")}`;
-  return <StatusMark tone="err" label={label} />;
-}
-
 type SectionProps = {
   feature: Feature;
   current: FeatureProposal;
   onPropose: Propose;
-  sectionRef?: (element: HTMLElement | null) => void;
   /** The first section drawn: its subheader stands for the list in a tutorial. */
   first?: boolean;
 };
@@ -252,13 +222,11 @@ function CapabilitySection({
   feature,
   current,
   onPropose,
-  sectionRef,
   first = false,
 }: SectionProps) {
   const { plan } = useComposition();
-  const roads = useConnectorRoads();
   const ownHead = useGuideTarget<HTMLDivElement>(`feature.${feature.id}`);
-  const listHead = useGuideTarget<HTMLDivElement>("settings.connectivity");
+  const listHead = useGuideTarget<HTMLDivElement>("settings.features-list");
   const headRef = useCallback(
     (element: HTMLDivElement | null) => {
       ownHead(element);
@@ -269,36 +237,25 @@ function CapabilitySection({
   const identityApi = useIdentityConfigured();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
-  // The model picks configure AI and probe the browser and the harnesses on
-  // mount: they are AI's own code, drawn once AI is on — unlike a provider
-  // tile, which is a connector configured by reference.
-  const models = feature.models === true && featureState(feature, plan).on;
   const panels = useContributions("settings-panel");
-  const ModelPanel = panels.find(
-    (panel) => panel.id === MODEL_PROVIDER_PANEL,
-  )?.Panel;
   // A capability's own panel inside its section (a runtime-installed
   // plugin's state and switch): there only while its module is active.
   const own = panels.filter((panel) => panel.category === sectionCategory(id));
-  // A subheader over nothing is not drawn: no switch and no connector whose
-  // page has something to do on this device (ADR 0158).
-  if (!featureDraws(feature, roads.tile, plan, { identityApi })) return null;
+  // A subheader over nothing is not drawn: no switch on this device (ADR 0158).
+  if (!isSwitchable(feature, plan, { identityApi })) return null;
   return (
     <section
       className="conn-group capsection"
       id={id}
       aria-labelledby={`${id}-title`}
-      ref={sectionRef}
     >
       <SectionHead id={`${id}-title`} title={feature.title} headRef={headRef}>
-        <WithdrawnMark feature={feature} />
-        {isSwitchable(feature, plan, { identityApi }) ? (
-          <SectionSwitch
-            feature={feature}
-            current={current}
-            onPropose={onPropose}
-          />
-        ) : null}
+        <WithdrawnMark backedBy={feature.backedBy} />
+        <SectionSwitch
+          feature={feature}
+          current={current}
+          onPropose={onPropose}
+        />
       </SectionHead>
       {feature.id === "security-checks" && own.length === 0 ? (
         <p className="capsection__summary">{SECURITY_CHECKS_SUMMARY}</p>
@@ -316,40 +273,14 @@ function CapabilitySection({
           ))}
         </ul>
       ) : null}
-      {models && ModelPanel ? (
-        <GuideTarget id="settings.model-provider">
-          <ModelPanel />
-        </GuideTarget>
-      ) : null}
       {own.map(({ id: panelId, Panel }) => (
         <Panel key={panelId} />
-      ))}
-      {feature.providerCategories.map((category) => (
-        <ProviderTiles
-          key={category}
-          category={category}
-          label={
-            feature.title.endsWith("providers")
-              ? feature.title
-              : `${feature.title} providers`
-          }
-        />
       ))}
     </section>
   );
 }
 
-/** The backup guide points at the Backups section. */
-function BackupsSection(props: SectionProps) {
-  return (
-    <CapabilitySection
-      {...props}
-      sectionRef={useGuideTarget<HTMLElement>("settings.backup")}
-    />
-  );
-}
-
-export function CapabilitySections({
+export function FeatureSections({
   current,
   onPropose,
 }: {
@@ -357,29 +288,24 @@ export function CapabilitySections({
   onPropose: Propose;
 }) {
   const { plan } = useComposition();
-  const roads = useConnectorRoads();
   const identityApi = useIdentityConfigured();
   const context = { identityApi };
   const features = FEATURES.map((feature) => shown(feature, plan, context));
   const first = features.find((feature) =>
-    featureDraws(feature, roads.tile, plan, context),
+    isSwitchable(feature, plan, context),
   )?.id;
   return (
-    <div className="capsections" id="settings-connections">
+    <div className="capsections" id="settings-features">
       <GuestSection />
-      {features.map((feature) => {
-        const Section =
-          feature.id === "backups" ? BackupsSection : CapabilitySection;
-        return (
-          <Section
-            key={feature.id}
-            feature={feature}
-            current={current}
-            onPropose={onPropose}
-            first={feature.id === first}
-          />
-        );
-      })}
+      {features.map((feature) => (
+        <CapabilitySection
+          key={feature.id}
+          feature={feature}
+          current={current}
+          onPropose={onPropose}
+          first={feature.id === first}
+        />
+      ))}
     </div>
   );
 }

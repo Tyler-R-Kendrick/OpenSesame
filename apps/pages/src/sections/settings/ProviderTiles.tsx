@@ -1,7 +1,7 @@
 /**
  * The connectors one family binds to, drawn as tiles — the rows Settings ›
  * Connections used to carry, now drawn under the feature (or the always-on
- * group) that uses them on Settings › Capabilities. Each tile opens its
+ * group) that uses them on Settings › Integrations. Each tile opens its
  * connector page (`/settings/connections/<provider>`) while Connections is on,
  * and a backup road wears its enable switch. A connector with nothing to do
  * on this device draws no tile, and a tile never links to a page that is not

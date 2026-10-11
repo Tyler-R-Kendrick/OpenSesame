@@ -42,10 +42,16 @@ export const settingsTabs: readonly SettingsTab[] = [
   },
   { id: "vaults", label: "Vaults", guideId: "settings.vaults", order: 200 },
   {
-    id: "capabilities",
-    label: "Capabilities",
-    guideId: "settings.capabilities",
+    id: "features",
+    label: "Features",
+    guideId: "settings.features",
     order: 400,
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    guideId: "settings.integrations",
+    order: 450,
   },
   { id: "danger", label: "Danger", guideId: "settings.danger", order: 1000 },
 ];

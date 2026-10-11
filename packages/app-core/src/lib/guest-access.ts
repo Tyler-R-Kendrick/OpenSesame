@@ -6,7 +6,7 @@
  * because no Identity API is configured, not because a vault already exists
  * (AGENTS.md §5, ADR 0033). The only thing that removes it is this record,
  * written when the operator of the installation turns "Allow guests" off in
- * Settings › Capabilities. Absent, unreadable or malformed reads as allowed:
+ * Settings › Features. Absent, unreadable or malformed reads as allowed:
  * the failure direction of this switch is the guest road staying up.
  *
  * It lives under its own key beside `settings.v1`, so an edit to the ways

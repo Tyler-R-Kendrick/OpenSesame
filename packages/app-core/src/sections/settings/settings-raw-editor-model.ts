@@ -57,12 +57,18 @@ export function readDoc(category: string, state: SettingsState): SettingsDoc {
       keybindings: {},
     };
   }
-  // Connections folded into Capabilities (ADR 0135); its old link still
-  // opens the same file.
-  if (category === "capabilities" || category === "connections") {
+  // What the plan approved is Features' (ADR 0188); the endpoints the
+  // providers are configured with are Integrations' (Connections folded in,
+  // ADR 0135).
+  if (category === "features") {
+    return {
+      values: { approved: [...state.approvedCapabilities] },
+      keybindings: {},
+    };
+  }
+  if (category === "integrations") {
     return {
       values: {
-        approved: [...state.approvedCapabilities],
         hostApi: pages.hostApi,
         identityApi: pages.identityApi,
         daemonApi: pages.daemonApi,

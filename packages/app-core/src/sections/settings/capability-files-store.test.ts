@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * Settings › Capabilities as files against the REAL composition store
+ * Settings › Features as files against the REAL composition store
  * (personal-local, booted with the package fixtures) and the default ports.
  * The test double does not enforce the commit preflight's rule that a draft
  * may not reuse the committed revision (CONSENT-08), so the starter's fixed
