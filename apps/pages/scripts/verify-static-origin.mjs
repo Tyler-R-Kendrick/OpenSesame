@@ -8,13 +8,15 @@
 // Google return leg. The run fails on any page error, any console error
 // other than the SPA-fallback 404, any request to a loopback address, any
 // missing asset, or any failed check below.
-//   A. first screen: the front door — the two roads, the compiled broker +
+//   A. first screen: the front door — the three roads, the compiled broker +
 //      guest, no setup wall (ADR 0115)
 //   B. guest → inside the app → every section, and every subtree within Access,
 //      by in-app navigation
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
 //   D. deep link: the icon resolves under the base, not under the route
+//   F. a vault that begins from a file: a backup opened by its own PIN, a
+//      .env file, and changing one's mind (ADR 0188)
 // After B and C, nothing the app stored may rest in the clear (ADR 0149).
 import fs from "node:fs";
 import path from "node:path";
@@ -28,6 +30,7 @@ import {
 import { checkEditorPaths } from "./lib/editor-path-contract.mjs";
 import { checkEditorRoutes } from "./lib/editor-routes-contract.mjs";
 import { checkEditorTabOrder } from "./lib/editor-tab-order-contract.mjs";
+import { walkFirstRunImport } from "./lib/first-run-import-contract.mjs";
 import {
   checkFrontDoor,
   walkSetupCeremony,
@@ -59,12 +62,13 @@ if (!fs.existsSync(path.join(DIST, "index.html"))) {
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
-const { log, failures, check, setStep, launch, newPage, snap } = createHarness({
+const h = createHarness({
   dist: DIST,
   origin: ORIGIN,
   base: BASE,
   out: OUT,
 });
+const { log, failures, check, setStep, launch, newPage, snap } = h;
 
 const browser = await launch();
 // ---- A + B: first screen, then guest through every section
@@ -330,6 +334,9 @@ const browser = await launch();
   );
   await context.close();
 }
+
+// ---- F: a vault that begins from a file (ADR 0188)
+await walkFirstRunImport({ h, browser, ORIGIN, BASE, OUT });
 
 await browser.close();
 fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));

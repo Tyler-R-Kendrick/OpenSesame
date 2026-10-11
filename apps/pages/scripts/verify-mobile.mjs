@@ -124,7 +124,7 @@ async function openOverflowRow(page, pattern, label) {
   await page.waitForTimeout(350);
 }
 
-/** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
+/** The front door: its three roads, and the guest road in the corner (ADR 0150 §1, ADR 0188). */
 async function frontDoor(page, stop) {
   await helpKey(page, stop("front-door"), harness);
   await audit(page, stop("front-door"));
