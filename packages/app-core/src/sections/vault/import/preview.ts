@@ -22,9 +22,8 @@ import {
 /** Rows drawn in the preview before it collapses to a count. */
 export const PREVIEW_LIMIT = 60;
 
-/** What the file picker offers. */
-export const IMPORT_ACCEPT =
-  ".env,.csv,.json,.1pux,.zip,.kdbx,text/plain,text/csv,application/json";
+/** What the file picker offers — the front door's picker offers the same. */
+export { IMPORT_ACCEPT } from "../../../lib/vault/pending-import.js";
 
 function productOf(label: string): string {
   return label.split(" (")[0] ?? label;

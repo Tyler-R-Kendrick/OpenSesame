@@ -208,4 +208,10 @@ describe("address hints", () => {
   it("changes nothing with no address", () => {
     expect(withAddressHints(OFFER, [])).toBe(OFFER);
   });
+
+  it("adds loopback copies for same-machine direct pairing", () => {
+    const hinted = withAddressHints(OFFER, ["127.0.0.1", "::1"]);
+    expect(hinted).toContain("127.0.0.1 54400 typ host");
+    expect(hinted).toContain("::1 9 typ host tcptype active");
+  });
 });

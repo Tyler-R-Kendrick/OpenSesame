@@ -3598,6 +3598,17 @@ details[open] > summary::before {
     max(0.5rem, env(safe-area-inset-left));
 }
 
+.notice-corner[data-c]::before {
+  content: attr(data-c);
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 40;
+  right: 0;
+  padding: max(0.75rem, env(safe-area-inset-top)) 1rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
 @media (pointer: coarse) {
   .notice-corner .cx__btn {
     min-width: 2.75rem;
