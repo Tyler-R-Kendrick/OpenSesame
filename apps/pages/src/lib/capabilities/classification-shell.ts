@@ -191,6 +191,9 @@ export const SHELL_RULES = [
   ),
 
   // --- components: the shell by default ------------------------------------
+  ...each("src/lib/", ["notices", "notice-toast", "notice-desktop"], (p) =>
+    core(p, null, "the notice tray and its toasts, always on (ADR 0162)"),
+  ),
   core("src/components/", SHELL, "rail, chrome, controls, status"),
   ...each("src/components/", ["InstallMark", "InstallOffer"], (p) =>
     core(p, "install.pwa", "install offer surface"),

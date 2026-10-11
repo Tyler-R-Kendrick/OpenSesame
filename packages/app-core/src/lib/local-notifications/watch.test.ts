@@ -64,6 +64,61 @@ describe("a request that arrives", () => {
     await r.stop();
   });
 
+  it("toasts in the page, and never also rings the desktop, while the person is here", async () => {
+    const r = rig({ hidden: false });
+    await r.settle();
+    r.state.rows = [row(REF_A)];
+    await r.fire("other-tab");
+    expect(r.deliver.toast).toHaveBeenCalledOnce();
+    expect(r.deliver.toast).toHaveBeenCalledWith(
+      { kind: "local-access", action: "review", ref: REF_A },
+      1,
+    );
+    expect(r.deliver.system).not.toHaveBeenCalled();
+    await r.stop();
+  });
+
+  it("rings the desktop once, and no toast, when the person is away and desktop is on", async () => {
+    const r = rig({ hidden: true });
+    await r.settle();
+    r.state.rows = [row(REF_A)];
+    await r.fire("other-tab");
+    await r.fire("change");
+    expect(r.deliver.system).toHaveBeenCalledOnce();
+    expect(r.deliver.toast).not.toHaveBeenCalled();
+    await r.stop();
+  });
+
+  it("neither rings nor toasts when away and desktop is off: the tray alone", async () => {
+    const r = rig({
+      hidden: true,
+      preference: { version: 1, destinations: ["in_app", "tab_title"] },
+    });
+    await r.settle();
+    r.state.rows = [row(REF_A)];
+    await r.fire("other-tab");
+    expect(r.deliver.system).not.toHaveBeenCalled();
+    expect(r.deliver.toast).not.toHaveBeenCalled();
+    expect(r.calls).toContain("inApp:1");
+    await r.stop();
+  });
+
+  it("tells the device whether desktop is on, and takes it down with the marks", async () => {
+    const on = rig({ hidden: true });
+    await on.settle();
+    expect(on.deliver.desktop).toHaveBeenLastCalledWith(true);
+    await on.stop();
+    expect(on.deliver.desktop).toHaveBeenLastCalledWith(false);
+
+    const off = rig({
+      hidden: true,
+      environment: { tabTitle: true, system: "default" },
+    });
+    await off.settle();
+    expect(off.deliver.desktop).toHaveBeenLastCalledWith(false);
+    await off.stop();
+  });
+
   it("does not ring when the browser has not permitted it", async () => {
     for (const system of ["default", "denied", "unsupported"] as const) {
       const r = rig({ hidden: true, environment: { tabTitle: true, system } });
@@ -168,8 +223,10 @@ describe("what takes the marks down", () => {
     const deliver: Deliveries = {
       inApp: vi.fn(),
       tabTitle: vi.fn(),
+      toast: vi.fn(),
       system: vi.fn(),
       closeSystem: vi.fn(),
+      desktop: vi.fn(),
     };
     await watchInbox(
       {
