@@ -55,10 +55,13 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-11-lock-v5-dial-shimmer/`](2026-10-11-lock-v5-dial-shimmer/README.md) | Lock-v5: the shimmer runs on, the dial is on the front door, the key is in front |
+| [`2026-10-11-hero-field-on-phones/`](2026-10-11-hero-field-on-phones/README.md) | Every gate's hero is the particle field, a phone's included |
+| [`2026-10-11-dial-under-card/`](2026-10-11-dial-under-card/README.md) | The cipher dial carries on behind the gate's card |
 | [`2026-10-11-ai-model-providers/`](2026-10-11-ai-model-providers/README.md) | AI model providers: their own section, a one-sheet add, and keys for apps |
 | [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
 | [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
 | [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) |  |
+| [`2026-10-10-persona-r3-c2-claim-different-link/`](2026-10-10-persona-r3-c2-claim-different-link/README.md) | C2 / F5 — claim route different link |
 | [`2026-10-10-persona-r3-b1-share-revoke-armed/`](2026-10-10-persona-r3-b1-share-revoke-armed/README.md) | B1 / F7 — share revoke armed state |
 | [`2026-10-10-persona-r3-a-sent-drops/`](2026-10-10-persona-r3-a-sent-drops/README.md) | A1 / F6 — sent drops lockout and receipts |
 | [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |

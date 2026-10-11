@@ -56,9 +56,8 @@ export function fitEm(columnPx: number, fit: WordmarkFit): number {
 }
 
 /**
- * Measure the parent column and size the hero to it. The tier follows the
- * em on its own: a 320px phone gets solid plates at 37px, never a cropped
- * field (particles need 48px to survive).
+ * Measure the parent column and size the hero to it. A 320px phone gets the
+ * particle field at a 37px em, never a cropped one.
  */
 function useFitEm(
   ref: { current: HTMLElement | null },
