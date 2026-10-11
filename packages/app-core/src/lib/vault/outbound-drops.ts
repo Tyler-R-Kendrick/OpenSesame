@@ -12,7 +12,12 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { noteDropExpired, noteDropRevoked } from "../sharing-receipts.js";
+import { activitySeams } from "../activity-log.js";
+import {
+  flushHeldDropNotes,
+  noteDropExpired,
+  noteDropRevoked,
+} from "../sharing-receipts.js";
 import {
   LocalDropClaimError,
   type LocalDropRevocation,
@@ -37,7 +42,11 @@ export type OutboundDrop = {
   sourceItemId: string | null;
 };
 
-type StoredSend = OutboundDrop & { bearerToken: string };
+type StoredSend = OutboundDrop & {
+  bearerToken: string;
+  /** Sealing vault; absent on rows written before tomb scoping. */
+  tomb?: string;
+};
 
 type OutboundDropStore = {
   sends: Record<string, StoredSend>;
@@ -83,7 +92,7 @@ function readSend(value: BoundaryValue | undefined): StoredSend | null {
   const vaultItemId = optionalId(row.vaultItemId);
   const sourceItemId = optionalId(row.sourceItemId);
   if (vaultItemId === undefined || sourceItemId === undefined) return null;
-  return {
+  const send: StoredSend = {
     claimId: row.claimId,
     bearerToken: row.bearerToken,
     name: row.name,
@@ -93,6 +102,11 @@ function readSend(value: BoundaryValue | undefined): StoredSend | null {
     vaultItemId,
     sourceItemId,
   };
+  if (row.tomb !== undefined) {
+    if (!isString(row.tomb)) return null;
+    send.tomb = row.tomb;
+  }
+  return send;
 }
 
 function isOutboundState(
@@ -125,10 +139,12 @@ export function recordOutboundDrop(input: {
   expiresAt: string;
   vaultItemId?: string | null;
   sourceItemId?: string | null;
+  tomb?: string;
 }): void {
+  const sealingTomb = input.tomb ?? activitySeams.activeTomb();
   const now = new Date().toISOString();
   const store = readStore();
-  store.sends[input.claimId] = {
+  const row: StoredSend = {
     claimId: input.claimId,
     bearerToken: input.bearerToken,
     name: input.name.trim() || "Shared item",
@@ -138,6 +154,8 @@ export function recordOutboundDrop(input: {
     vaultItemId: input.vaultItemId ?? null,
     sourceItemId: input.sourceItemId ?? null,
   };
+  if (sealingTomb) row.tomb = sealingTomb;
+  store.sends[input.claimId] = row;
   writeStore(store);
 }
 
@@ -146,31 +164,48 @@ export function recordOutboundDrop(input: {
  * expired, and that same clock wipes claim ciphertext that can no longer
  * be opened.
  */
-/** Run expiry receipts and return the sender ledger (product UI + unlock hooks). */
-export function refreshOutboundDropLedger(now = Date.now()): OutboundDrop[] {
-  return listOutboundDrops(now);
-}
-
-export function listOutboundDrops(now = Date.now()): OutboundDrop[] {
+function syncOutboundDropLedger(now = Date.now()): void {
   disposeExpiredLocalDropClaims(now);
   expireOutboundDrops(now);
+  flushHeldDropNotes();
+}
+
+function rowForList(row: StoredSend, now: number): OutboundDrop {
+  const expired = row.state === "pending" && Date.parse(row.expiresAt) <= now;
+  const state: OutboundDropState = expired ? "expired" : row.state;
+  return {
+    claimId: row.claimId,
+    name: row.name,
+    expiresAt: row.expiresAt,
+    createdAt: row.createdAt,
+    state,
+    vaultItemId: row.vaultItemId,
+    sourceItemId: row.sourceItemId,
+  };
+}
+
+function sendsForTomb(tomb: string, now: number): OutboundDrop[] {
   const store = readStore();
   return Object.values(store.sends)
-    .map((row) => {
-      const expired =
-        row.state === "pending" && Date.parse(row.expiresAt) <= now;
-      const state: OutboundDropState = expired ? "expired" : row.state;
-      return {
-        claimId: row.claimId,
-        name: row.name,
-        expiresAt: row.expiresAt,
-        createdAt: row.createdAt,
-        state,
-        vaultItemId: row.vaultItemId,
-        sourceItemId: row.sourceItemId,
-      };
-    })
+    .filter((row) => row.tomb === tomb)
+    .map((row) => rowForList(row, now))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Run expiry receipts and return the sender ledger for the open vault. */
+export function refreshOutboundDropLedger(now = Date.now()): OutboundDrop[] {
+  syncOutboundDropLedger(now);
+  const tomb = activitySeams.activeTomb();
+  if (!tomb) return [];
+  return sendsForTomb(tomb, now);
+}
+
+export function listOutboundDrops(
+  tomb: string,
+  now = Date.now(),
+): OutboundDrop[] {
+  syncOutboundDropLedger(now);
+  return sendsForTomb(tomb, now);
 }
 
 /** Consumed and revoked stick. A later note must not relabel them. */
@@ -205,8 +240,11 @@ function expireOutboundDrops(now = Date.now()): void {
 /** Revoke from the sender list without handling the bearer in UI. */
 export async function revokeOutboundDropById(
   claimId: string,
+  tomb: string,
 ): Promise<LocalDropRevocation> {
-  const bearer = readStore().sends[claimId]?.bearerToken;
+  const row = readStore().sends[claimId];
+  if (!row || row.tomb !== tomb) return "missing";
+  const bearer = row.bearerToken;
   if (!bearer) return "missing";
   return revokeOutboundDrop(claimId, bearer);
 }
@@ -263,4 +301,17 @@ export function resetOutboundDropsForTests(): void {
 /** Test seam — bearer is never shown in product UI. */
 export function outboundDropBearerForTests(claimId: string): string | null {
   return readStore().sends[claimId]?.bearerToken ?? null;
+}
+
+export function outboundDropRowStateForTests(
+  claimId: string,
+): OutboundDropState | null {
+  return readStore().sends[claimId]?.state ?? null;
+}
+
+/** Test seam — legacy rows without a tomb stay off the ledger but still expire. */
+export function seedOutboundDropForTests(row: StoredSend): void {
+  const store = readStore();
+  store.sends[row.claimId] = row;
+  writeStore(store);
 }

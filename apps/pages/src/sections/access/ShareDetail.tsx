@@ -64,14 +64,14 @@ export function PendingRow({
 export function ShareRow({
   share,
   name,
-  role,
+  principalRole,
   busy,
   canRevoke,
   onRevoke,
 }: {
   share: LocalShare;
   name: string;
-  role: string | undefined;
+  principalRole: string | undefined;
   busy: boolean;
   canRevoke: boolean;
   onRevoke: () => void;
@@ -80,6 +80,11 @@ export function ShareRow({
   useEffect(() => {
     if (!busy) setConfirming(false);
   }, [busy]);
+  useEffect(() => {
+    if (!confirming) return;
+    const timer = window.setTimeout(() => setConfirming(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirming]);
   const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
   return (
     <AccessDetail
@@ -94,12 +99,18 @@ export function ShareRow({
           <IconKey
             label={revokeLabel}
             small
+            armed={confirming}
             disabled={busy || !canRevoke}
+            onBlur={() => setConfirming(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setConfirming(false);
+            }}
             onClick={() => {
               if (!confirming) {
                 setConfirming(true);
                 return;
               }
+              setConfirming(false);
               onRevoke();
             }}
           >
@@ -113,7 +124,7 @@ export function ShareRow({
         label="Policy"
         value={policyLabel(share.resourceKind, share.policy)}
       />
-      <AccessFact label="Role" value={role ?? "—"} />
+      <AccessFact label="Role" value={principalRole ?? "—"} />
       <AccessFact
         label="Expires"
         value={new Date(share.expiresAt).toLocaleString()}

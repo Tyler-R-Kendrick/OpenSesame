@@ -3,7 +3,7 @@ import { liveItemPickLabels } from "@opensesame/app-core/lib/live/item-pick-labe
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
 import type { LiveTransport } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { activeItems } from "@opensesame/vault-core";
+import { activeItems, listedItems } from "@opensesame/vault-core";
 import { useMemo } from "react";
 import { useDeviceVaults } from "../../bindings/vaults.js";
 import { FieldRow } from "../../components/FieldRow.js";
@@ -79,7 +79,7 @@ export function ItemChoice({
   onChange: (next: Set<string>) => void;
 }) {
   const { items } = useVault();
-  const live = activeItems(items);
+  const live = listedItems(activeItems(items));
   const labels = useMemo(() => liveItemPickLabels(live), [live]);
   const vaults = useDeviceVaults();
   const vaultLabel = vaults.find(

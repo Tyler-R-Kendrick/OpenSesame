@@ -80,6 +80,7 @@ export function accessPanel(
     requests: ["local-requests", "hosted-requests"],
     sessions: [
       "local-sessions",
+      "sent-drops",
       "local-authority-templates",
       "vault-share-sessions",
       "access-receipts",
