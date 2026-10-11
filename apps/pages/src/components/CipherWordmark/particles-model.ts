@@ -6,19 +6,14 @@ export const PARTICLE_SEED = 1337;
 export const ALPHA_LEVELS = 24;
 
 /**
- * The wordmark is the particle field (DESIGN.md § Mark): plates of ink
- * particles with the letter cut out, from a 16px em up — a phone's hero
- * included. The solid-plate rendering a hero once fell to under 48px was
- * rejected and is gone. Under 16px the chrome still draws the letters alone
- * (the rail, the setup bar): an 11px particle plate keeps 290 of its 1,400
- * cut-out pixels and reads as redacted blocks.
+ * The wordmark is the particle field everywhere (DESIGN.md § Mark): plates of
+ * ink particles with the letter cut out, decoding and then shimmering — the
+ * gates' heroes, the rail, the drawer and the setup bar alike. The letters-
+ * alone and solid-plate renderings were rejected and are gone. Under a 16px em
+ * a plate loses most of its cut-out and reads as redacted blocks, so 16px is
+ * the floor: a smaller em is laid out at 16.
  */
-export const TYPE_MAX_EM = 16;
-export type WordmarkTier = "type" | "field";
-
-export function tierOf(em: number): WordmarkTier {
-  return em < TYPE_MAX_EM ? "type" : "field";
-}
+export const FIELD_MIN_EM = 16;
 
 /** The wordmark's width in ems, mark and gap included: fit a hero with it. */
 export const WORDMARK_WIDTH_EM = 7.78;
@@ -75,9 +70,6 @@ export type DrawCalibration = {
    */
   cursorBoostLight: number;
   cursorBoostDark: number;
-  /** Solid-plate cursor: resting vs active plate alpha. */
-  smallCursorRest: number;
-  smallCursorActive: number;
 };
 
 export const DRAW_CALIBRATION: DrawCalibration = {
@@ -87,8 +79,6 @@ export const DRAW_CALIBRATION: DrawCalibration = {
   alpha: 0.92,
   cursorBoostLight: 1.35,
   cursorBoostDark: 1.48,
-  smallCursorRest: 0.88,
-  smallCursorActive: 1,
 };
 
 /** Light ink on a dark surface → dark theme. */
