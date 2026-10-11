@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import {
   discardPendingImport,
+  holdPendingImport,
   peekPendingImport,
 } from "@opensesame/app-core/lib/vault/pending-import.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -141,5 +142,36 @@ describe("starting a vault from a file once the door has retired", () => {
     };
     render(<UnlockScreen />);
     expect(screen.queryByRole("button", { name: "Import a file" })).toBeNull();
+  });
+
+  it("lets a held file go when the vault it was for is found sealed and locked", () => {
+    setupHolder.current = ANSWERED;
+    holdPendingImport(env());
+    v.state = {
+      status: "locked",
+      header: { unlocks: {} },
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingSecondStep: false,
+    };
+    render(<UnlockScreen />);
+    expect(peekPendingImport()).toBeNull();
+  });
+
+  it("keeps the file while the unlock ceremony still has this screen up after the seal", () => {
+    setupHolder.current = ANSWERED;
+    const file = env();
+    holdPendingImport(file);
+    v.state = {
+      status: "unlocked",
+      header: { unlocks: {} },
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingSecondStep: false,
+    };
+    render(<UnlockScreen />);
+    expect(peekPendingImport()).toBe(file);
   });
 });

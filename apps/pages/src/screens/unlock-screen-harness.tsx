@@ -22,7 +22,8 @@ import {
 import { expect, vi } from "vitest";
 
 export type TestVaultState = {
-  status: "empty" | "locked";
+  /** `unlocked` is the moment the unlock ceremony still holds this screen. */
+  status: "empty" | "locked" | "unlocked";
   /** Active tomb id — `guest` is the isolated guest tomb (a keyless one
    *  unlocks by guest entry; one with enrolled keys offers them). */
   tomb?: string | null;

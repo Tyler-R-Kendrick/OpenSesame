@@ -24,7 +24,10 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { usePendingImport } from "../bindings/pending-import.js";
+import {
+  useFileWaitingForVault,
+  usePendingImport,
+} from "../bindings/pending-import.js";
 import { FailureNotice } from "../components/FailureNotice.js";
 import { IconKey } from "../components/IconKey.js";
 import {
@@ -111,7 +114,7 @@ export function UnlockScreen() {
   // empty (no wrap on disk), which is Unlock.
   // A file chosen at the door retires it for the seal screen: the vault that
   // file is for is made first (ADR 0188).
-  const startsFromFile = usePendingImport() !== null;
+  const startsFromFile = useFileWaitingForVault(status);
   const frontDoor =
     status === "empty" &&
     tomb !== GUEST_TOMB &&
@@ -195,8 +198,7 @@ function UnlockForm({
   const [localOnlyChosen, setLocalOnly] = useState(false);
   // A vault that begins from a file is sealed on this device, whichever road
   // the file was chosen from (ADR 0188); removing the file gives the road back.
-  const pendingFile = usePendingImport();
-  const startsFromFile = firstRun && pendingFile !== null;
+  const startsFromFile = firstRun && usePendingImport() !== null;
   const localOnly = localOnlyChosen || startsFromFile;
   const signInStage = firstRun && !localOnly;
   // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.
@@ -474,9 +476,7 @@ function UnlockForm({
         ) : null}
       </div>
 
-      {startsFromFile && pendingFile ? (
-        <PendingImportNote file={pendingFile} />
-      ) : null}
+      {startsFromFile ? <PendingImportNote /> : null}
 
       <RequirementsGate
         onOpenSetup={(join) => onOpenSetup("capabilities", join)}

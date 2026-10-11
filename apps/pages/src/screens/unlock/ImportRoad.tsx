@@ -17,6 +17,7 @@ import {
   holdPendingImport,
 } from "@opensesame/app-core/lib/vault/pending-import.js";
 import { useRef } from "react";
+import { usePendingImport } from "../../bindings/pending-import.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconDownload, IconX } from "../../components/Icons.js";
 
@@ -94,7 +95,9 @@ export function ImportRoadButton({
  * The seal screen's one fact about the file: which it is, and the key that
  * lets it go. Nothing was read, so nothing more can be said of it.
  */
-export function PendingImportNote({ file }: { file: File }) {
+export function PendingImportNote() {
+  const file = usePendingImport();
+  if (!file) return null;
   return (
     <output className="note unlock__import" aria-live="polite">
       <IconDownload size={16} />
