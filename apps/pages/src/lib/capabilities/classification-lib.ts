@@ -7,7 +7,6 @@ import { VAULT_RELAY_RULES } from "./classification-vault-relay.js";
 import { WALLET_RULES } from "./classification-wallet.js";
 
 export { VAULT_RELAY_RULES };
-
 const L = "src/lib/";
 const SHELL = "shell.navigation";
 const SIGNIN = "identity.brokered-signin";
@@ -27,7 +26,6 @@ const CORE_INFRA = [
   "vfs",
   "projects",
   "vaults",
-  // Dotted mark for a vault, person or organization, drawn in the shell prompt (ADR 0165).
   "glyph",
   "last-vault",
   "theme",
@@ -391,7 +389,8 @@ export const LIB_RULES = [
     `${L}push`,
     "notifications.web-push",
     "push enrolment and payload rendering",
-  ), ...CLI_APP_INTEGRATION_RULES,
+  ),
+  ...CLI_APP_INTEGRATION_RULES,
   ...each(L, LOCAL_AI_FILES, (p) =>
     optional(p, LOCAL_AI, "on-device model plane; MIXED — remote"),
   ),
