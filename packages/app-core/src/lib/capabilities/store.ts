@@ -130,13 +130,12 @@ export class CompositionStore {
     adoptDocs(state, docs, this.#note);
     this.#bump("boot");
     this.#resolve();
-    if (!storeSeams.skipPersonalLocalPwaDefaults) {
+    if (import.meta.env.MODE !== "test") {
       const snap = this.#snapshot;
       const catalog = this.#state.catalog;
       if (
         snap.selection === null &&
         snap.provenance === "personal-local" &&
-        snap.status === "ready" &&
         snap.plan &&
         catalog
       ) {

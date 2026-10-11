@@ -42,6 +42,4 @@ export const storeSeams = {
     ok: true,
     diagnostics: [],
   }),
-  /** Unit tests skip PWA default commit; `store-pwa-defaults.test.ts` clears this. */
-  skipPersonalLocalPwaDefaults: false,
 };
