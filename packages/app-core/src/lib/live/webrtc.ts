@@ -80,7 +80,12 @@ async function gathered(
   }
   const sdp = pc.localDescription?.sdp;
   if (!sdp) throw new Error("no_local_description");
-  return routing.relay ? sdp : withAddressHints(sdp, routing.addresses);
+  return routing.relay
+    ? sdp
+    : withAddressHints(
+        sdp,
+        routing.addresses.length ? routing.addresses : ["127.0.0.1", "::1"],
+      );
 }
 
 /**

@@ -4,11 +4,11 @@ How OpenSesame resets a password the person has forgotten, in a browser it does
 not own, without a model, the Host, a log or a provider's record ever being given
 the password, the emailed link or the mailbox login.
 
-Decision record: [ADR 0189](../adr/0189-forgot-password-ceremony-remote-browser.md)
+Decision record: [ADR 0190](../adr/0190-forgot-password-ceremony-remote-browser.md)
 (**Proposed**; nothing here is built). Builds on
 [web-login rotation](web-login-rotation.md), the
 [recipe schema](rotation-recipe-schema.md) and
-[ADR 0188](../adr/0188-password-reset-mailboxes-are-vault-items.md), which gave a
+[ADR 0189](../adr/0189-password-reset-mailboxes-are-vault-items.md), which gave a
 login a mailbox. Threat model:
 [web-login rotation](../security/web-login-rotation-threat-model.md), whose S1 this
 design makes stronger in one case (§8).
@@ -67,7 +67,7 @@ kind of runner, not a second protocol.
 | Mail server | no | yes (it is the mailbox) | yes | no | no |
 
 The last two rows are the same on purpose: the difference between B and C is who
-operates the browser, not what it sees. That is why C needs consent (ADR 0189 §9).
+operates the browser, not what it sees. That is why C needs consent (ADR 0190 §9).
 
 ## 3. The run
 
@@ -206,7 +206,7 @@ change run is 11 steps and 8 hooked records) are different for this run kind.
   reaches the person, and a stolen driver cannot clear its tracks.
 - **One mailbox per delegation.** The delegation names it; the matcher names the
   senders and the link's shape. A mailbox is an `email-account` vault item
-  (ADR 0188) or a `ConnectionRef` to a Gmail or Graph connection.
+  (ADR 0189) or a `ConnectionRef` to a Gmail or Graph connection.
 - **Accepted mail:** received after `T0`, within the recipe's window (default 15
   minutes), from a pinned sender domain, matching the subject hints, carrying
   exactly one link or code that fits the pinned shape. The first such message
@@ -327,7 +327,7 @@ and is never replayed unattended; the existing trust ladder applies unchanged.
 | The mailbox login stolen from the driver | read-only reader; per-delegation, per-origin scope; delegation TTL and revocation; sealed to the driver's key | reader has no write call (type-level); revocation test |
 | The provider keeps or steals the new password | class C is off by default, consented per provider and site, receipt-recorded; class B recommended | consent receipt binding test |
 | The provider records the session | recording never requested; a returned recording refuses the run | conformance |
-| The provider lies (reports "present" or "logged in") | **not defended**; no integrity claim for class C (ADR 0189 §9.5) | documentation test: copy never says "attested" for class C |
+| The provider lies (reports "present" or "logged in") | **not defended**; no integrity claim for class C (ADR 0190 §9.5) | documentation test: copy never says "attested" for class C |
 | A hostile page instructs the planner | page text is `UntrustedText`; the planner's output is a selector the driver validates; `navigate` is origin-pinned | prompt-injection fixtures |
 | The planner picks the wrong field | the new-password field must be a visible, unique password input beside its confirmation; presence is asserted fail-closed | executor tests |
 | A candidate lost after the site accepted it | seal and backup acknowledged before anything is typed | `assert_source_order` extended |
@@ -405,6 +405,6 @@ apply (`pnpm audit:daemon-deps` unchanged, `pnpm audit:plugin-boundary`, Clippy)
   [changelog](https://developers.cloudflare.com/browser-run/changelog/).
 - [Playwright MCP](https://github.com/microsoft/playwright-mcp) and
   [Chrome DevTools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp).
-- In this repository: ADR 0076, 0081, 0159 (§10, §15, §16), 0188; the
+- In this repository: ADR 0076, 0081, 0159 (§10, §15, §16), 0189; the
   [recipe schema](rotation-recipe-schema.md); the connector catalog row
   `cloudflare` in `spec/connectors/catalog.json`.

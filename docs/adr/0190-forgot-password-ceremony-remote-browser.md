@@ -1,14 +1,14 @@
-# ADR 0189 — Forgot-password ceremony: a value-blind reset through a remote browser
+# ADR 0190 — Forgot-password ceremony: a value-blind reset through a remote browser
 
 - **Status:** Proposed (design only; nothing in this ADR is built)
 - **Date:** 2026-10-11
 - **Amends (proposed):** [ADR 0076](0076-autonomous-web-login-rotation.md) §3 constraint 6 and §7 — a third class of sandbox, chosen and paid for by the person (§9 below). Nothing else in 0076 changes.
-- **Builds on:** [ADR 0005](0005-authority-handle-connectionref.md) (a caller holds a reference, never the value), [ADR 0065](0065-agent-surface-parity.md) (agent-surface parity), [ADR 0076](0076-autonomous-web-login-rotation.md) (the ladder, the tool boundary, custody before submit), [ADR 0081](0081-live-session-observation.md) (one holder of the page, a control lease), [ADR 0083](0083-browser-plane-inference-fallback.md) (the model plane), [ADR 0086](0086-wallet-native-interaction-layer.md) (an approval means what its digest says), [ADR 0130](0130-operator-controlled-capability-composition.md) (optional capabilities, consent), [ADR 0138](0138-self-issued-identity-one-native-host.md) (one native binary, roles as subcommands), [ADR 0139](0139-one-definition-every-target.md) (one definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md), [ADR 0157](0157-logs-and-events-carry-no-secrets.md), [ADR 0158](0158-settings-rows-act-or-are-absent.md), [ADR 0159](0159-agent-hooks-interceptor.md) (hooked transport, pinned authority, closed verbs), [ADR 0188](0188-password-reset-mailboxes-are-vault-items.md) (mailboxes are vault items)
+- **Builds on:** [ADR 0005](0005-authority-handle-connectionref.md) (a caller holds a reference, never the value), [ADR 0065](0065-agent-surface-parity.md) (agent-surface parity), [ADR 0076](0076-autonomous-web-login-rotation.md) (the ladder, the tool boundary, custody before submit), [ADR 0081](0081-live-session-observation.md) (one holder of the page, a control lease), [ADR 0083](0083-browser-plane-inference-fallback.md) (the model plane), [ADR 0086](0086-wallet-native-interaction-layer.md) (an approval means what its digest says), [ADR 0130](0130-operator-controlled-capability-composition.md) (optional capabilities, consent), [ADR 0138](0138-self-issued-identity-one-native-host.md) (one native binary, roles as subcommands), [ADR 0139](0139-one-definition-every-target.md) (one definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md), [ADR 0157](0157-logs-and-events-carry-no-secrets.md), [ADR 0158](0158-settings-rows-act-or-are-absent.md), [ADR 0159](0159-agent-hooks-interceptor.md) (hooked transport, pinned authority, closed verbs), [ADR 0189](0189-password-reset-mailboxes-are-vault-items.md) (mailboxes are vault items)
 - **Design:** [Forgot-password ceremony](../architecture/forgot-password-ceremony.md) — the state machine, the verbs, the provider contract, the recipe addition and the test plan.
 
 ## Context
 
-[ADR 0188](0188-password-reset-mailboxes-are-vault-items.md) gave a login a
+[ADR 0189](0189-password-reset-mailboxes-are-vault-items.md) gave a login a
 mailbox and the app a way to read it, and recorded what it does not do: nothing
 in the repository resets a *forgotten* password. The Host's web-login runner
 replays a **change** of password for a person who is logged in
@@ -153,13 +153,13 @@ must never be in a page. So:
   `Mail.Read` scopes the connector catalog already lists. It never deletes,
   moves, flags or marks mail, so the site's own "your password was changed"
   notice still reaches the person, and a stolen driver cannot hide a takeover.
-  A native driver also lifts ADR 0188's JMAP-only limit: IMAP and POP3 are
+  A native driver also lifts ADR 0189's JMAP-only limit: IMAP and POP3 are
   readable here.
 - **Only mail after `T0`, from the expected sender, once.** `await_mail`
   accepts a message that arrived after the request, within a window, matching a
   pinned matcher (sender domains, subject hints, the link's host and path
   shape). The first acceptable message wins; a second is ignored. A reset
-  message nobody asked for is **never acted on**: ADR 0188's scan only
+  message nobody asked for is **never acted on**: ADR 0189's scan only
   announces it, and a run starts only from a person's approval (§8).
 - **The link is a bearer capability and is treated as one.** `open_mail_link`
   refuses unless the link is `https`, carries no userinfo, and its origin is in
@@ -235,7 +235,7 @@ autonomy. No solver, no fingerprint impersonation, no residential egress.
 ### 8. Consent, approval and credits
 
 - **A capability of its own.** `agents.remote-browser` (optional, default off)
-  holds the providers a person has configured; `ai.password-reset` (ADR 0188)
+  holds the providers a person has configured; `ai.password-reset` (ADR 0189)
   gains the action that starts a run. Each provider's credential is a
   `ConnectionRef` (the connector catalog's `cloudflare` row already names
   `api.cloudflare.com` and the token verify path; the browser operations are
@@ -324,7 +324,7 @@ The residual risks are written next to S1 in the threat model, not argued away.
   request is an email to a person; the ceremony must not be a way to send
   someone a hundred.
 - **The run starts only from a person.** Mail that arrives unasked is announced
-  (ADR 0188), never acted on.
+  (ADR 0189), never acted on.
 - **The mailbox is bound by the delegation, not by the run.** A run may read only
   the mailbox its delegation names, only for its own origin's matcher.
 - **The reset link, the code and the candidate are in no log, record, notice,
@@ -387,7 +387,7 @@ later phase.
   once a planner exists, and cheaper on every later run because the first leaves
   a signed recipe.
 - **A mailbox login is now an account-takeover key for every site its address
-  resets.** That was true of ADR 0188's reader; a driver that holds it, and a
+  resets.** That was true of ADR 0189's reader; a driver that holds it, and a
   provider that sees the reset link, widen it. The controls are scope (read-only,
   per-origin, per-delegation), approval (a person per run), and the absence of
   any value on any record. They reduce the risk; they do not remove it.

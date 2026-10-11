@@ -1,4 +1,4 @@
-# ADR 0188 — Password reset: mailboxes are vault items, read in the browser, bound by id
+# ADR 0189 — Password reset: mailboxes are vault items, read in the browser, bound by id
 
 - **Status:** Accepted (mailboxes, binding and the in-browser JMAP reader built and tested; the Host-side reset ceremony is not built — see *What this does not do*)
 - **Date:** 2026-10-11
@@ -105,7 +105,7 @@ one notice that names it and the reason in a word; reading it again clears it.
 ## What this does not do
 
 - **It does not reset a forgotten password.** The design for the ceremony that
-  would is [ADR 0189](0189-forgot-password-ceremony-remote-browser.md) (proposed). The Host's web-login runner
+  would is [ADR 0190](0190-forgot-password-ceremony-remote-browser.md) (proposed). The Host's web-login runner
   replays a *change* of password for a person who is logged in
   (`run_change_password_hooked`); there is no forgot-password run kind, no step
   that waits for a message, and no verb that follows an emailed link. A real

@@ -14,7 +14,7 @@ code enforces the T4 one-time consent or per-domain opt-in of §2 (only comments
 name them).
 Amended by: [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) (§6.3,
 login-form substitution).
-Amended by (proposed): [ADR 0189](0189-forgot-password-ceremony-remote-browser.md)
+Amended by (proposed): [ADR 0190](0190-forgot-password-ceremony-remote-browser.md)
 (§3 constraint 6 and §7: a class of sandbox the person names and pays for, under
 conditions; not accepted until that ADR is).
 Supplements: ADR 0005 ([ConnectionRef over SecretRef](0005-authority-handle-connectionref.md)),

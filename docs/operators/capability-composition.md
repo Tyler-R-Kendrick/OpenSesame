@@ -59,7 +59,7 @@ OpenFeature flag). The minimal vault's only creatable kinds are `secret` and
 project onto that secret and stay out until Item types is on. Password reset
 (`ai.password-reset`) is its own section, off until chosen, and it depends on
 the account item type (`vault.derived-records`). Its mailboxes are
-`email-account` vault items (ADR 0188); the one network call it makes is to the
+`email-account` vault items (ADR 0189); the one network call it makes is to the
 JMAP server a person named on a mailbox.
 
 **Withdrawing an always-on capability.** A verified instance policy may list
