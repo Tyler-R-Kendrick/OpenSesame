@@ -300,7 +300,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // Read-only tailnet listener (ADR 0048 §8, D9): whois identity, no bearer.
     #[cfg(all(unix, feature = "tailscale"))]
     spawn_tailnet(&listen, &state).await;
-
+    let _listener_state = state;
     tcp_handle.await?;
     Ok(())
 }
