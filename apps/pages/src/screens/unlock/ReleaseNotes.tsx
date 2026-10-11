@@ -72,7 +72,7 @@ function NoteList({
   if (items.length === 0) return null;
   return (
     <section className="unlock__notes-section" aria-label={label}>
-      <h3 className="unlock__notes-head">{label}</h3>
+      <h2 className="unlock__notes-head">{label}</h2>
       <ul className="unlock__notes-list">
         {items.map((line) => (
           <li key={line}>
