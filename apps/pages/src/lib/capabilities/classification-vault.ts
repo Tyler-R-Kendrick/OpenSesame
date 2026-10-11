@@ -49,6 +49,11 @@ const CLOUD_ADAPTERS = [
 
 export const VAULT_LIB_RULES = [
   core(
+    "src/lib/original-device-identity-seal-data",
+    "identity.brokered-signin",
+    "fixed device identity record sealing and accepted-work retirement",
+  ),
+  core(
     "src/lib/original-device-identity-crypto-data",
     "identity.brokered-signin",
     "fixed P256 device identity operations and accepted-work retirement",
