@@ -22,6 +22,7 @@
 
 import {
   captureClaimArrivalFromPage,
+  discardClaimArrival,
   peekClaimArrival,
   rememberClaimArrival,
   takeClaimArrival,
@@ -47,7 +48,7 @@ import {
   ClaimPaused,
   ClaimReviewForm,
 } from "./ClaimSteps.js";
-import { useClaimCeremony } from "./useClaimCeremony.js";
+import { claimHookSeams, useClaimCeremony } from "./useClaimCeremony.js";
 
 // The drop opener and the decryption it runs arrive only when a drop does:
 // a claim, a paste or a refusal never loads them.
@@ -140,7 +141,6 @@ export function ClaimRoute() {
     captureClaimArrivalFromPage();
     return peekClaimArrival();
   });
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on arrival
   useEffect(() => {
     if (location.search || location.hash) {
@@ -169,6 +169,19 @@ export function ClaimRoute() {
           <ClaimFlow arrival={arrival} onArrival={setArrival} root={root} />
         )}
       </div>
+      {arrival.kind !== "none" ? (
+        <button
+          type="button"
+          className="unlock__switch"
+          onClick={() => {
+            discardClaimArrival();
+            claimHookSeams.ceremony().forget();
+            setArrival({ kind: "none" });
+          }}
+        >
+          Use a different link
+        </button>
+      ) : null}
       <Link to="/vault">Vault</Link>
     </div>
   );

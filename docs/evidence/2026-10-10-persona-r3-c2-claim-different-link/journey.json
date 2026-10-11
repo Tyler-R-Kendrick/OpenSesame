@@ -1,0 +1,44 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "claim" },
+        { "measure": "footer.statusline" },
+        { "shot": "claim-route-1280" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "claim" },
+        { "measure": "footer.statusline" },
+        { "shot": "claim-route-390" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "claim-route-1280",
+      "width": 1280,
+      "title": "Claim route (desktop)",
+      "caption": "After a link is consumed, Use a different link clears arrival and returns to idle.",
+      "before": "No way to abandon a consumed claim link in the same sitting",
+      "after": "Use a different link resets the ceremony"
+    },
+    {
+      "shot": "claim-route-390",
+      "width": 390,
+      "title": "Claim route (phone)",
+      "caption": "Same control at phone width.",
+      "before": "No way to abandon a consumed claim link in the same sitting",
+      "after": "Use a different link resets the ceremony"
+    }
+  ]
+}

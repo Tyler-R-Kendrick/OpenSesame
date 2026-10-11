@@ -54,6 +54,70 @@ export function toneOf(step: ClaimStep): ClaimTone | null {
   return waiting ? "warn" : "err";
 }
 
+function applyClaimStep(
+  live: { current: boolean },
+  setStep: (step: ClaimStep) => void,
+  next: ClaimStep | null,
+) {
+  if (!next || !live.current) return;
+  setStep(next);
+  if (toneOf(next) === "err" && next.message) reportClaim(next.message);
+  if (next.phase.kind === "token" || next.phase.kind === "done") {
+    takeClaimArrival();
+  }
+}
+
+async function runClaimStep(
+  generation: number,
+  arrivalGeneration: { current: number },
+  live: { current: boolean },
+  setBusy: (busy: boolean) => void,
+  apply: (next: ClaimStep | null) => void,
+  work: () => Promise<ClaimStep | null>,
+) {
+  setBusy(true);
+  try {
+    const next = await work();
+    if (generation !== arrivalGeneration.current) return;
+    apply(next);
+  } finally {
+    if (generation === arrivalGeneration.current && live.current) {
+      setBusy(false);
+    }
+  }
+}
+
+function startFromArrival(
+  ceremony: ClaimCeremony,
+  arrivalGeneration: { current: number },
+  live: { current: boolean },
+  setStep: (step: ClaimStep) => void,
+  setBusy: (busy: boolean) => void,
+  apply: (next: ClaimStep | null) => void,
+  arrival: ClaimArrival,
+) {
+  const start = claimStartFor(ceremony, arrival);
+  if (start.kind === "load") {
+    void runClaimStep(
+      arrivalGeneration.current,
+      arrivalGeneration,
+      live,
+      setBusy,
+      apply,
+      () => ceremony.load(start.token, start.presented),
+    );
+    return;
+  }
+  if (start.kind === "refused") {
+    apply({ phase: IDLE.phase, message: start.message });
+    return;
+  }
+  if (start.kind === "idle") {
+    setStep(IDLE);
+    setBusy(false);
+  }
+}
+
 export const claimHookSeams = {
   ceremony: (): ClaimCeremony => claimCeremony,
 };
@@ -62,11 +126,11 @@ export function useClaimCeremony(arrival: ClaimArrival): ClaimView {
   const ceremony = claimHookSeams.ceremony();
   const session = useIdentitySession();
   const [step, setStep] = useState<ClaimStep>(IDLE);
-  // An arrival that loads starts busy, so the paste field never flashes.
   const [busy, setBusy] = useState(
     () => claimStartFor(ceremony, arrival).kind === "load",
   );
   const live = useRef(true);
+  const arrivalGeneration = useRef(0);
 
   useEffect(() => {
     live.current = true;
@@ -75,36 +139,36 @@ export function useClaimCeremony(arrival: ClaimArrival): ClaimView {
     };
   }, []);
 
-  const apply = useCallback((next: ClaimStep | null) => {
-    if (!next || !live.current) return;
-    setStep(next);
-    if (toneOf(next) === "err" && next.message) reportClaim(next.message);
-    // Spent, refused for good, or accepted: nothing left for the route to hold.
-    if (next.phase.kind === "token" || next.phase.kind === "done") {
-      takeClaimArrival();
-    }
-  }, []);
+  const apply = useCallback(
+    (next: ClaimStep | null) => applyClaimStep(live, setStep, next),
+    [],
+  );
 
   const run = useCallback(
-    async (work: () => Promise<ClaimStep | null>) => {
-      setBusy(true);
-      try {
-        apply(await work());
-      } finally {
-        if (live.current) setBusy(false);
-      }
-    },
+    (work: () => Promise<ClaimStep | null>) =>
+      runClaimStep(
+        arrivalGeneration.current,
+        arrivalGeneration,
+        live,
+        setBusy,
+        apply,
+        work,
+      ),
     [apply],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: an arrival starts the ceremony once
   useEffect(() => {
-    const start = claimStartFor(ceremony, arrival);
-    if (start.kind === "load") {
-      void run(() => ceremony.load(start.token, start.presented));
-    } else if (start.kind === "refused") {
-      apply({ phase: IDLE.phase, message: start.message });
-    }
+    arrivalGeneration.current += 1;
+    startFromArrival(
+      ceremony,
+      arrivalGeneration,
+      live,
+      setStep,
+      setBusy,
+      apply,
+      arrival,
+    );
   }, [arrival]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a session appearing is the only trigger
