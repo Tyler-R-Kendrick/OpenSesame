@@ -250,3 +250,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0185](0185-native-browser-connectors.md) | Browser connectors execute compiled provider contracts | Accepted |
 | [0186](0186-live-session-transport-port-and-catalog-greeting.md) | Live sessions run over a transport port, and the catalog answers a greeting | Accepted |
 | [0187](0187-trusted-circle-quorum-sharing.md) | Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself | Accepted |
+| [0188](0188-password-reset-mailboxes-are-vault-items.md) | Password reset: mailboxes are vault items, read in the browser, bound by id | Accepted |

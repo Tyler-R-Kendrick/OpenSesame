@@ -158,7 +158,7 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "feature.password-reset",
     description:
-      "The Password reset section of Settings › Capabilities: its switch adds finding a reset message in a mailbox and running a website's reset ceremony.",
+      "The Password reset section of Settings › Capabilities: its switch adds email accounts as vault items, a mailbox choice on each login, and checking those mailboxes for a reset message to start a website's reset ceremony.",
     role: "surface",
     routes: ["/settings"],
     capabilityId: null,

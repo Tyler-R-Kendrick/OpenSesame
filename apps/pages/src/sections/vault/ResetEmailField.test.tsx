@@ -5,17 +5,19 @@ import {
   double,
   installDoublePorts,
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
-import {
-  addResetEmail,
-  resetPasswordResetMailForTest,
-} from "@opensesame/app-core/lib/password-reset-mail.js";
+import { mailboxItem } from "@opensesame/app-core/lib/password-reset/mailbox.test-support.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import type { VaultItem } from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ResetEmailField } from "./ResetEmailField.js";
 
 installDoublePorts();
 
-const state = { approved: false };
+/** What the test changes between renders. */
+type Scene = { approved: boolean; items: VaultItem[] };
+
+const state: Scene = { approved: false, items: [] };
 
 /** The double's snapshot, with exactly `approved` as the approved capabilities. */
 function snapshotApproving(approved: readonly string[]): CompositionSnapshot {
@@ -24,8 +26,11 @@ function snapshotApproving(approved: readonly string[]): CompositionSnapshot {
   return { ...base, plan: { ...base.plan, approvedCapabilities: approved } };
 }
 
+const mailbox = (address: string, name = "") => mailboxItem({ address }, name);
+
 beforeEach(() => {
   state.approved = false;
+  state.items = [];
   const hidden = snapshotApproving([]);
   const shown = snapshotApproving(["ai.password-reset"]);
   Object.assign(capabilityPorts, {
@@ -34,17 +39,30 @@ beforeEach(() => {
       getSnapshot: () => (state.approved ? shown : hidden),
     },
   });
+  const base = vaultStore.getSnapshot();
+  const snapshots = new Map<
+    VaultItem[],
+    ReturnType<typeof vaultStore.getSnapshot>
+  >();
+  vi.spyOn(vaultStore, "getSnapshot").mockImplementation(() => {
+    const cached = snapshots.get(state.items);
+    if (cached) return cached;
+    const next = { ...base, items: state.items };
+    snapshots.set(state.items, next);
+    return next;
+  });
 });
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   state.approved = false;
-  resetPasswordResetMailForTest();
+  state.items = [];
 });
 
 describe("ResetEmailField", () => {
   it("stays hidden until password reset is on and a mailbox exists", () => {
-    addResetEmail("a@example.com");
+    state.items = [mailbox("a@example.com")];
     const { container, rerender } = render(
       <ResetEmailField emailId={undefined} onChange={() => {}} />,
     );
@@ -56,9 +74,19 @@ describe("ResetEmailField", () => {
     expect(screen.getByRole("option", { name: "None" })).toBeTruthy();
   });
 
-  it("writes the chosen mailbox id", () => {
+  it("draws nothing when the vault has no mailbox and the login names none", () => {
     state.approved = true;
-    const email = addResetEmail("a@example.com");
+    const { container } = render(
+      <ResetEmailField emailId={undefined} onChange={() => {}} />,
+    );
+    expect(container.querySelector("select")).toBeNull();
+  });
+
+  it("lists every mailbox, by name when it has one, and writes the chosen item's id", () => {
+    state.approved = true;
+    const home = mailbox("a@example.com", "Home");
+    const work = mailbox("b@example.com");
+    state.items = [work, home];
     const chosen: Array<string | undefined> = [];
     render(
       <ResetEmailField
@@ -66,13 +94,29 @@ describe("ResetEmailField", () => {
         onChange={(id) => chosen.push(id)}
       />,
     );
-    fireEvent.change(screen.getByRole("combobox", { name: "Reset email" }), {
-      target: { value: email?.id },
-    });
-    expect(chosen).toEqual([email?.id]);
-    fireEvent.change(screen.getByRole("combobox", { name: "Reset email" }), {
-      target: { value: "" },
-    });
-    expect(chosen).toEqual([email?.id, undefined]);
+    const options = screen
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    // Name order: "b@example.com" sorts before "Home".
+    expect(options).toEqual(["None", "b@example.com", "Home (a@example.com)"]);
+    const select = screen.getByRole("combobox", { name: "Reset email" });
+    fireEvent.change(select, { target: { value: home.id } });
+    fireEvent.change(select, { target: { value: "" } });
+    expect(chosen).toEqual([home.id, undefined]);
+  });
+
+  it("shows None for a mailbox that is gone, and still offers the rest", () => {
+    state.approved = true;
+    state.items = [mailbox("a@example.com")];
+    render(<ResetEmailField emailId="trashed-id" onChange={() => {}} />);
+    const select = screen.getByRole("combobox", { name: "Reset email" });
+    expect(select).toHaveProperty("value", "");
+    expect(screen.getAllByRole("option")).toHaveLength(2);
+  });
+
+  it("is still drawn for a login whose mailbox is gone, so it can be cleared", () => {
+    state.approved = true;
+    render(<ResetEmailField emailId="trashed-id" onChange={() => {}} />);
+    expect(screen.getByRole("combobox", { name: "Reset email" })).toBeTruthy();
   });
 });

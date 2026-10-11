@@ -1,14 +1,22 @@
 /**
- * `ai.password-reset` — mailboxes for the existing website password-reset
- * ceremony. The panel and the scan load only after this capability is
- * approved. Login items read the mailbox list from core and stay hidden
- * until then.
+ * `ai.password-reset` — the vault's reset mailboxes, and the check of the ones
+ * a login names for a password-reset message, handed on to the existing
+ * website password-reset ceremony. The panel and the scan load only after this
+ * capability is approved. Login items read the mailbox items from the vault
+ * and stay hidden until then.
+ *
+ * Egress: the one JMAP server a person named on a mailbox, through
+ * `ctx.egress.fetch` under `PASSWORD_RESET_MAIL_PURPOSE`. The Host is asked
+ * only for a rotation of an origin, never given a link or a message.
+ * Side effects: none at import; the check starts as a background job under the
+ * lease and stops with it.
  */
 
+import { PASSWORD_RESET_MAIL_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
 import { PasswordResetMailPanel } from "./panel.js";
-import { startPasswordResetScan } from "./scan.js";
+import { createPasswordResetScan } from "./scan.js";
 
 export const CAPABILITY = "ai.password-reset";
 
@@ -28,9 +36,16 @@ export const capabilityRuntime: CapabilityRuntime = {
       Panel: PasswordResetMailPanel,
       order: 10,
     });
+    const scan = createPasswordResetScan({
+      fetch: (url, init) =>
+        ctx.egress.fetch(url, init, {
+          capability: CAPABILITY,
+          purpose: PASSWORD_RESET_MAIL_PURPOSE,
+        }),
+    });
     activation.register("background-job", {
       id: "password-reset-mail",
-      start: startPasswordResetScan,
+      start: scan.start,
     });
     return activation.handle();
   },
