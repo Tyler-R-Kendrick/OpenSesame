@@ -1,15 +1,20 @@
 import { createItem } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  addResetEmail,
+  accountsBoundTo,
   autonomousPasswordResetReady,
   installAutonomousResetReady,
-  listResetEmails,
+  mailboxOf,
   matchResetMail,
   normalizeResetAddress,
-  removeResetEmail,
+  resetMailboxes,
   resetPasswordResetMailForTest,
 } from "./password-reset-mail.js";
+import {
+  JMAP_MAILBOX,
+  type MailboxValues,
+  mailboxItem,
+} from "./password-reset/mailbox.test-support.js";
 import { entryToVaultItem, vaultItemToEntry } from "./vault/store-sync.js";
 
 afterEach(() => {
@@ -17,37 +22,71 @@ afterEach(() => {
 });
 
 describe("reset mailboxes", () => {
-  it("keeps a trimmed address, and refuses a duplicate or a shapeless one", () => {
+  it("keeps a trimmed address, and refuses an address that is not one", () => {
     expect(normalizeResetAddress("  A@Example.com ")).toBe("a@example.com");
     expect(normalizeResetAddress("a@b")).toBeNull();
     expect(normalizeResetAddress("a@@b.com")).toBeNull();
-    const first = addResetEmail("A@Example.com", "personal");
-    expect(first?.address).toBe("a@example.com");
-    expect(addResetEmail("a@example.com", "personal")).toBeNull();
-    expect(addResetEmail("not-an-email", "personal")).toBeNull();
-    expect(listResetEmails("personal").map((email) => email.address)).toEqual([
-      "a@example.com",
-    ]);
+    expect(normalizeResetAddress("not-an-email")).toBeNull();
   });
 
-  it("stores each vault's list apart from the others", () => {
-    addResetEmail("a@example.com", "personal");
-    addResetEmail("b@example.com", "guest");
-    expect(listResetEmails("personal").map((email) => email.address)).toEqual([
-      "a@example.com",
-    ]);
-    expect(listResetEmails("guest").map((email) => email.address)).toEqual([
-      "b@example.com",
-    ]);
-    expect(listResetEmails("other")).toEqual([]);
+  it("reads a mailbox from an email-account item, by name else address", () => {
+    expect(
+      mailboxOf(mailboxItem({ address: " A@Example.com " })),
+    ).toMatchObject({
+      address: "a@example.com",
+      name: "a@example.com",
+      readable: false,
+    });
+    expect(
+      mailboxOf(mailboxItem({ address: "a@example.com" }, "Home")),
+    ).toMatchObject({ name: "Home" });
   });
 
-  it("removes one address and leaves a dangling id off the list", () => {
-    const email = addResetEmail("a@example.com", "personal");
-    removeResetEmail(email?.id ?? "", "personal");
-    expect(listResetEmails("personal")).toEqual([]);
-    removeResetEmail("missing", "personal");
-    expect(listResetEmails("personal")).toEqual([]);
+  it("calls a mailbox readable only with a JMAP server over TLS and a password", () => {
+    const readable = (values: MailboxValues) =>
+      mailboxOf(mailboxItem(values))?.readable;
+    expect(readable(JMAP_MAILBOX)).toBe(true);
+    expect(readable({ ...JMAP_MAILBOX, incomingProtocol: "imap" })).toBe(false);
+    expect(readable({ ...JMAP_MAILBOX, security: "none" })).toBe(false);
+    expect(readable({ address: "a@example.com" })).toBe(false);
+    const { incoming: _server, ...noServer } = JMAP_MAILBOX;
+    expect(readable(noServer)).toBe(false);
+    const { password: _password, ...noPassword } = JMAP_MAILBOX;
+    expect(readable(noPassword)).toBe(false);
+    expect(
+      readable({ ...JMAP_MAILBOX, incoming: { host: " ", port: "" } }),
+    ).toBe(false);
+  });
+
+  it("ignores items that are not mailboxes, trashed ones, and ones with no address", () => {
+    const home = mailboxItem({ address: "a@example.com" }, "Home");
+    const trashed = {
+      ...mailboxItem({ address: "b@example.com" }),
+      deletedAt: "2026-10-01T00:00:00.000Z",
+    };
+    const unaddressed = mailboxItem({ address: "nope" });
+    expect(mailboxOf(createItem("account", "Example"))).toBeNull();
+    expect(
+      resetMailboxes([home, trashed, unaddressed, createItem("account", "x")]),
+    ).toEqual([expect.objectContaining({ id: home.id, name: "Home" })]);
+  });
+
+  it("finds the accounts bound to a mailbox", () => {
+    const mailbox = mailboxItem({ address: "a@example.com" });
+    const bound = createItem("account", "Bound");
+    bound.resetEmailId = mailbox.id;
+    const trashed = {
+      ...createItem("account", "Gone"),
+      deletedAt: "2026-10-01T00:00:00.000Z",
+    };
+    trashed.resetEmailId = mailbox.id;
+    const other = createItem("account", "Other");
+    other.resetEmailId = "elsewhere";
+    expect(
+      accountsBoundTo([mailbox, bound, trashed, other], mailbox.id).map(
+        (item) => item.id,
+      ),
+    ).toEqual([bound.id]);
   });
 
   it("reports the ceremony only while a plane is installed", async () => {
