@@ -14,7 +14,6 @@ import {
   buildConsentReceipt,
   reviewCompositionChange,
 } from "@opensesame/capability-composition";
-
 export type ResolveWithReceipt = (
   draft: InstallationCapabilitySelection,
   receipt: ConsentReceipt | null,
