@@ -70,6 +70,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { keepBrowserOutput } from "./lib/browser-output.mjs";
 import { dedicatedSite } from "./lib/live-dedicated.mjs";
 import {
   NO_ROUTE_STEPS,
@@ -138,6 +139,7 @@ const TURN =
   process.env.LIVE_TURN_SERVER ??
   path.join(ROOT, ".cache/live-fixtures/bin/live-turn");
 fs.mkdirSync(OUT, { recursive: true });
+keepBrowserOutput(path.join(OUT, "browsers.log"));
 
 const harness = createHarness({
   dist: DIST,
@@ -318,7 +320,7 @@ try {
 pair = "";
 
 for (const entry of log)
-  if (entry.kind === "PAGE-ERROR" || entry.kind === "CONSOLE-ERROR")
+  if (["PAGE-ERROR", "CONSOLE-ERROR", "PAGE-CRASH"].includes(entry.kind))
     failures.push(`[${entry.step}] ${entry.kind} ${entry.detail}`);
 // The browser saying ICE failed is expected only where the walk must not connect.
 for (const entry of log)

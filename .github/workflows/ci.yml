@@ -649,10 +649,13 @@ jobs:
           VITE_BASE: /OpenSesame/
           LIVE_OWNER: ${{ matrix.owner }}
           LIVE_JOINERS: chromium,firefox,webkit
+          # Each browser's own output, where a crashed content process says
+          # why; the walk writes it to browsers.log, not this log.
+          DEBUG: pw:browser
         run: pnpm --filter @opensesame/pages verify:live-join
       - name: Keep what the walk saw
-        # Screenshots of every open page and each channel's events and frame
-        # kinds (never a body), for the failure.
+        # Screenshots of every open page, each channel's events and frame
+        # kinds (never a body) and the browsers' output, for the failure.
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:

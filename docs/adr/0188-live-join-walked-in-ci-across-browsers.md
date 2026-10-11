@@ -94,6 +94,14 @@ the three walks that must not connect and fails the run anywhere else.
   for the stats to name it, rather than taking a nominated pair at one
   instant, which a loaded run can read before the controlled side has
   marked it.
+- A page whose content process crashes is reported as a crash (`PAGE-CRASH`,
+  with its step and engine) and fails the run, rather than surfacing as a
+  control that never appeared. Each browser's own output
+  (`DEBUG=pw:browser`) is kept as `browsers.log` beside the screenshots,
+  because a crashed process says why only there. The first CI run after
+  merging the front door's always-on dial lost the WebKit owner's page on the
+  dedicated build that way, and eight runs on a 4-core machine did not
+  reproduce it.
 - Firefox's and WebKit's descriptions join Chromium's as the SDP reader's test
   vectors (`__fixtures__/firefox-webkit-sdp.json`), so a reader change that
   would refuse them fails a unit test before any browser runs.
