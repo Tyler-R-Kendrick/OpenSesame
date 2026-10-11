@@ -21,6 +21,7 @@ import {
   recordActivityEvent,
 } from "./activity-log.js";
 import {
+  RECEIPT_KINDS,
   type ReceiptKind,
   type ReceiptRef,
   flushReceipts,
@@ -228,6 +229,41 @@ export function noteLiveSessionGranted(
     },
     "live.granted",
     { liveSessionId: session, subject: guest },
+  );
+}
+
+const GRANT_RECEIPT_KIND = [
+  "share.approved",
+  "share.denied",
+] as const satisfies readonly [ReceiptKind, ReceiptKind];
+
+/** Identity share grant decision after a person approves or denies. */
+export function noteShareGrantStep(
+  tomb: string,
+  step: 0 | 1,
+  share: { id: string; principalId: string; resourceId: string },
+): void {
+  const id = blindId(share.id);
+  const subject = blindId(share.principalId);
+  const resourceId = blindId(share.resourceId);
+  const kind = GRANT_RECEIPT_KIND[step];
+  if (!tomb || !id || !subject || !resourceId) return;
+  if (!remember(`${kind}:${id}`)) return;
+  const [type, outcome] = RECEIPT_KINDS[kind];
+  const metadata: JsonObject = { subject, resourceId };
+  write(
+    tomb,
+    {
+      category: "access",
+      type,
+      summary: `Share ${kind.slice(6)}`,
+      outcome,
+      targetType: "share",
+      targetId: id,
+      metadata,
+    },
+    kind,
+    { shareId: id, subject, resourceId },
   );
 }
 

@@ -41,6 +41,7 @@ import {
   requireManageGrants,
   systemShareWrite,
 } from "./proofs/share-write.js";
+import { noteShareGrantStep } from "./sharing-receipts.js";
 import { listDeviceVaults } from "./vaults.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -316,6 +317,7 @@ export function approvePendingShare(
       tomb,
       (await readPending(tomb)).filter((row) => row.id !== id),
     );
+    noteShareGrantStep(tomb, 0, pending);
     return shares;
   });
 }
@@ -329,9 +331,10 @@ export async function denyPendingShare(
     await requireManageGrants(named);
   });
   const current = await readPending(tomb);
-  if (!current.some((row) => row.id === id))
-    throw new LocalDirectoryError("This approval is unavailable.");
+  const pending = current.find((row) => row.id === id);
+  if (!pending) throw new LocalDirectoryError("This approval is unavailable.");
   const next = current.filter((row) => row.id !== id);
   await writePending(tomb, next);
+  noteShareGrantStep(tomb, 1, pending);
   return next;
 }
