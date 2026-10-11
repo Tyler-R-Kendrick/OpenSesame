@@ -1,8 +1,8 @@
 /**
- * The walks verify:live-join takes (ADR 0150): direct, a simulated tunnel,
- * each carrier and a declined route (relay only through TURN is
- * `live-join-relayed.mjs`). The runner
- * (`verify-live-join.mjs`) binds the harness and launches the browsers.
+ * The walks verify:live-join takes (ADR 0150): direct, each carrier and a
+ * declined route (the tunnel is `live-join-tunnel.mjs`, relay only through
+ * TURN `live-join-relayed.mjs`). The runner (`verify-live-join.mjs`) binds the
+ * harness and launches the browsers.
  */
 
 import { expect } from "@playwright/test";
@@ -13,17 +13,15 @@ import {
   startNostrRelay,
   startNtfyServer,
 } from "./live-carriers.mjs";
-import { defaultRouteAddress, engineOf, lacks } from "./live-engines.mjs";
+import { engineOf } from "./live-engines.mjs";
 import {
-  TUNNEL_ONLY,
   WATCH_RTC,
   assertSameMachineSdpPrivacy,
   endSession,
+  gatheredHosts,
   joinerAsks,
   joinerConnects,
   ownerAdmitsByHand,
-  ownerEnters,
-  selectedPairs,
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
@@ -36,15 +34,11 @@ let device;
 let shot;
 let configs;
 let joined;
-let launch;
 let SECRET;
-let ORIGIN;
-let BASE;
 let PHONE;
 let PASSTHROUGH;
 let NATS;
 let NTFY;
-let note;
 let TLS;
 
 /**
@@ -64,15 +58,11 @@ export function bindWalk(walk) {
     shot,
     configs,
     joined,
-    launch,
     SECRET,
-    ORIGIN,
-    BASE,
     PHONE,
     PASSTHROUGH,
     NATS,
     NTFY,
-    note,
     TLS,
   } = walk);
 }
@@ -118,11 +108,17 @@ export async function direct(browser, owner) {
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
   await joinerConnects(joiner.page, reply);
   await joined(joiner.page).waitFor({ timeout: 45_000 });
+  // What a browser put in a description itself is its own doing; what the
+  // app sealed beside it must be loopback (live-sdp-privacy.mjs).
+  const own = new Set([
+    ...(await gatheredHosts(owner.page)),
+    ...(await gatheredHosts(joiner.page)),
+  ]);
   for (const [who, page] of [
     ["owner", owner.page],
     ["joiner", joiner.page],
   ]) {
-    await assertSameMachineSdpPrivacy(page, who);
+    await assertSameMachineSdpPrivacy(page, who, { own });
   }
   await joiner.page
     .getByRole("button", { name: "Reveal GitHub Value" })
@@ -158,127 +154,6 @@ export async function direct(browser, owner) {
     "ending dropped the value",
   );
   await joiner.context.close();
-}
-
-async function tunnelWithout(browser, owner, init) {
-  setStep("tunnel-no-address");
-  await setRoutes(owner.page, {});
-  const session = await startSession(owner.page, { admission: "open" });
-  const lost = await device(browser, {
-    init,
-    origin: owner.origin,
-    dist: owner.dist,
-  });
-  const request = await joinerAsks(lost.page, {
-    link: session.link,
-    name: "Bo",
-  });
-  const reply = await ownerAdmitsByHand(
-    owner.page,
-    session.panel,
-    request,
-    "Bo",
-    { admit: false },
-  );
-  await joinerConnects(lost.page, reply);
-  const reached = await joined(lost.page)
-    .waitFor({ timeout: 20_000 })
-    .then(
-      () => true,
-      () => false,
-    );
-  check(!reached, "tunnel: with no address named, the browsers never meet");
-  await shot(lost.page, "tunnel-1-no-address");
-  await endSession(session.panel);
-  await lost.context.close();
-}
-
-async function tunnelWith(browser, owner, init, address) {
-  setStep("tunnel-address");
-  await setRoutes(owner.page, { addresses: [address] });
-  await shot(owner.page, "tunnel-2-routes");
-  const session = await startSession(owner.page, { admission: "open" });
-  check(
-    !session.link.includes(address),
-    "the owner's address is not in the link",
-  );
-  const joiner = await device(browser, {
-    ...PHONE,
-    init,
-    origin: owner.origin,
-    dist: owner.dist,
-  });
-  const request = await joinerAsks(joiner.page, {
-    link: session.link,
-    name: JOINER,
-  });
-  const reply = await ownerAdmitsByHand(
-    owner.page,
-    session.panel,
-    request,
-    JOINER,
-    { admit: false },
-  );
-  await joinerConnects(joiner.page, reply);
-  await joined(joiner.page).waitFor({ timeout: 45_000 });
-  const pairs = await selectedPairs(joiner.page);
-  check(
-    pairs.some((pair) => pair.address === address),
-    `tunnel: connected at the named address (${JSON.stringify(pairs)})`,
-  );
-  const made = [
-    ...(await configs(owner.page)),
-    ...(await configs(joiner.page)),
-  ];
-  check(
-    made.every((config) => config.iceServers.length === 0),
-    "tunnel: no ICE server",
-  );
-  await shot(joiner.page, "tunnel-3-joined");
-  await endSession(session.panel);
-}
-
-/**
- * The tunnel walk, owner in `ownerEngine`, joiner in `joinerEngine`, both with
- * mDNS hiding on as every browser ships it. The tunnel address is this
- * machine's default-route address (`defaultRouteAddress`). Without it named,
- * the two never meet — except where an engine cannot hide its host address
- * (WebKit here), whose own candidate is that address: that half is not taken.
- */
-export async function tunnel(wreckage, ownerEngine, joinerEngine) {
-  setStep("tunnel");
-  const address = await defaultRouteAddress();
-  const ownerBrowser = await launch(ownerEngine, { mdns: "hidden" });
-  const joinerBrowser =
-    joinerEngine === ownerEngine
-      ? ownerBrowser
-      : await launch(joinerEngine, { mdns: "hidden" });
-  const init = [[TUNNEL_ONLY, address]];
-  try {
-    const owner = await device(ownerBrowser, { init });
-    await ownerEnters(owner.page, {
-      origin: ORIGIN,
-      base: BASE,
-      secret: SECRET,
-    });
-    const shown = [ownerEngine, joinerEngine].filter((engine) =>
-      lacks(engine, "mdns-hiding"),
-    );
-    if (shown.length === 0) await tunnelWithout(joinerBrowser, owner, init);
-    else
-      note(
-        `tunnel-no-address: ${[...new Set(shown)].join(" and ")} cannot hide its host address`,
-      );
-    await tunnelWith(joinerBrowser, owner, init, address);
-  } catch (error) {
-    await wreckage(ownerBrowser, `tunnel-${ownerEngine}`);
-    if (joinerBrowser !== ownerBrowser)
-      await wreckage(joinerBrowser, `tunnel-${joinerEngine}`);
-    throw error;
-  } finally {
-    await ownerBrowser.close();
-    if (joinerBrowser !== ownerBrowser) await joinerBrowser.close();
-  }
 }
 
 async function startCarrier(kind) {

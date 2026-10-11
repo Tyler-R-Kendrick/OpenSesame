@@ -1,4 +1,4 @@
-# ADR 0188 — The live join walk gates merges, across three browsers
+# ADR 0189 — The live join walk gates merges, across three browsers
 
 - **Status:** Accepted
 - **Date:** 2026-10-10
@@ -69,6 +69,17 @@ that holds WebKit reaches its carriers through a TLS front, as production
 does. The walk reads each copied code from the app's own clipboard write,
 which still goes to the browser and must succeed, because only Chromium lets a
 test read the clipboard back.
+
+**What the app seals is checked apart from what the browser gathered.** A
+direct pair on one machine seals loopback hints and never a private LAN
+address a remote peer could dial (`direct()`, `lib/live-sdp-privacy.mjs`). A
+browser that hides its host addresses puts none in a description, so any LAN
+literal there is the app's and fails. The walk shows them in the clear, so a
+description carries each browser's own: a literal is excused only where a
+browser of the walk gathered it, and one the app added is not. A check on the
+address alone passed in a sandbox whose address is not private (192.0.2.0/24)
+and would have failed every pair on a runner, whose address is (10.x), which
+is why the check is relative and its tests use a runner's address.
 
 **The browser's own diagnostics are not the app's errors**, and only where
 they are the expected outcome: Firefox's "ICE failed" console error passes in

@@ -18,7 +18,7 @@ because the file is where such a profile gets fixed.
 
 The rest of this branch has no visible change: the CI job, the
 three-browser walk, zod running jitless, the wordmark resizing on the next frame,
-and MQTT on native timers. See [ADR 0188](../../adr/0188-live-join-walked-in-ci-across-browsers.md).
+and MQTT on native timers. See [ADR 0189](../../adr/0189-live-join-walked-in-ci-across-browsers.md).
 
 ## Routes, 1280 × 900
 

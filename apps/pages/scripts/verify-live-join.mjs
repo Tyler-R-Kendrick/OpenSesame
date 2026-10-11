@@ -92,8 +92,8 @@ import {
   carried,
   declined,
   direct,
-  tunnel,
 } from "./lib/live-join-scenarios.mjs";
+import { bindTunnel, tunnel } from "./lib/live-join-tunnel.mjs";
 import { openLive, ownerEnters } from "./lib/live-join-walk.mjs";
 import { mintTurnCert } from "./lib/live-turn.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -181,11 +181,24 @@ const TLS = { cert: undefined };
 const note = (what) => harness.record("NOT-TAKEN", named(what));
 
 bindWalk({
-  note,
   TLS,
   check,
   setStep,
   failures,
+  device,
+  shot,
+  configs,
+  joined,
+  SECRET,
+  PHONE,
+  PASSTHROUGH,
+  NATS,
+  NTFY,
+});
+bindTunnel({
+  note,
+  check,
+  setStep,
   device,
   shot,
   configs,
@@ -195,9 +208,6 @@ bindWalk({
   ORIGIN,
   BASE,
   PHONE,
-  PASSTHROUGH,
-  NATS,
-  NTFY,
 });
 bindRelayed({
   check,
