@@ -56,6 +56,8 @@
     "verify:native-connectors": "node scripts/verify-native-connectors-journey.mjs",
     "verify:native-public-protocol": "node scripts/verify-native-public-protocol.mjs",
     "verify:provider-auth": "node scripts/verify-provider-auth.mjs",
+    "verify:quorum-browser": "node scripts/verify-quorum-browser.mjs",
+    "verify:trusted-contacts": "node scripts/verify-trusted-contacts.mjs",
     "storybook": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build --output-dir storybook-static",
     "typecheck:storybook": "tsc -p .storybook/tsconfig.json"

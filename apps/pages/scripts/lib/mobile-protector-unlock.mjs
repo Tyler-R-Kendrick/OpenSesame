@@ -9,9 +9,10 @@
 import fs from "node:fs";
 import { passTheDoor } from "./front-door.mjs";
 
-const PIN = "48291037";
+export const PIN = "48291037";
 
-async function sealWithPin(page) {
+/** The no-account road behind the door, sealed with a device PIN (ADR 0180). */
+export async function sealWithPin(page) {
   await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).tap();
   await page.waitForTimeout(500);

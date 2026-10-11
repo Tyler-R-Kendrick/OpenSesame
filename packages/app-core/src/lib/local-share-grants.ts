@@ -307,13 +307,17 @@ export async function createLocalShareAs<T>(
   // earlier revocation newest, so the standing grant stays off (the safe way)
   // and the grant the person made still stands — failing here would only
   // invite a retry that grants twice.
-  if (share.resourceKind === "connection" && authority.kind === "ManageGrants")
+  if (
+    share.resourceKind === "connection" &&
+    authority.kind !== "SystemShareWrite"
+  )
     await recordConnectionShareEvent(
       tomb,
       "access.connection.granted",
       share,
     ).catch(() => undefined);
-  if (authority.kind === "ManageGrants") noteLocalShare(tomb, "granted", share);
+  if (authority.kind !== "SystemShareWrite")
+    noteLocalShare(tomb, "granted", share);
   return next.filter((row) => row.expiresAt > Date.now());
 }
 

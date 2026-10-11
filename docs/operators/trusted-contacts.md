@@ -1,0 +1,365 @@
+# Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
+
+Capability `sharing.trusted-contacts` ([ADR 0187](../adr/0187-trusted-circle-quorum-sharing.md)).
+Optional, default off, no network. Turn it on in Settings › Capabilities, under
+Sharing, and Settings gains a **Trusted contacts** tab with three panels. The
+behaviour is in `packages/app-core/src/lib/quorum/` and the screens are
+`apps/pages/src/modules/sharing.trusted-contacts/`. This page says what it
+does, how to configure a circle, and what it does not promise.
+
+Where the screens are, one panel for each side of a circle:
+
+- **Circles** is yours as the owner: the circles you keep, each with its rule
+  ("2 of 3"), its epoch, how many contacts it has and where it stands (waiting
+  for contacts, armed, a recovery open, retired).
+- **Guarding** is yours as a contact: the circles that asked you to take a part,
+  whose each is, whether you hold a share or only a seat, and where it stands.
+- **Recovery** is yours as the one getting something back: the recoveries you
+  started from a circle's recovery file, with how many contacts have approved
+  and how many have released their share.
+
+The panels are lists; each ceremony that changes one (inviting, taking a share,
+approving, releasing, recovering) is a sheet opened from its key. A panel is
+absent, not disabled, while the vault is locked, a guest or a decoy, because a
+circle holds an owner key and a contact a wrapped share, and neither belongs in
+a session that is thrown away. Everything between people is a packet you copy
+and hand over yourself.
+
+## What it is for
+
+If you cannot act — a lost device, an illness — you want someone to be able to
+help. One trusted person holding the whole authority is one point of failure:
+if they turn malicious, are phished or are coerced, you lose everything the
+authority covered. A **circle** spreads that authority across several people
+and asks several of them to agree.
+
+It does two different things, and a circle can do either or both:
+
+| | What the contacts do | What you get |
+|---|---|---|
+| **Recover a key** | each holds one share of a recovery key for an emergency collection | the collection can be decrypted by a quorum, and by no smaller group |
+| **Approve an action** | each approves one specific request with their own security key | the action (today, a time-limited share of one item to a person) goes ahead without you |
+
+They are separate on purpose. Approving an action releases no key; recovering a
+key needs release, which needs approval and a delay first.
+
+## The parts
+
+- **A guardian** is a person you invited and who agreed (their security key
+  signed the enrollment). They may register a **backup key**. It unwraps the
+  same share and never adds a vote.
+- **A circle** is your list of guardians in one or more groups, a threshold in
+  each group, and a threshold over the groups. "3 of 5"; or "2 of 3 family **and**
+  2 of 4 friends".
+- **A request** is one thing a guardian is asked to approve: the operation, the
+  scope, who receives, and three times — approvals close, shares may be
+  released, the request lapses. The sentence a guardian reads is built from the
+  request's fields; it cannot say something the request does not.
+- **Two clocks.** The *approval window* (minutes) is how long contacts have to
+  gather. The *release delay* (hours or days) is how long you have to notice and
+  cancel before any share leaves a contact's device. They are separate settings.
+- **A cancellation** is signed with your owner key and stops a request in every
+  ledger and guardian device that hears of it.
+
+## Choosing a configuration
+
+| You want | Use | Tolerates | Note |
+|---|---|---|---|
+| a small, reliable circle | **2 of 3** | one unavailable | the default to start from |
+| more people, still survivable | **3 of 5** | two unavailable | needs five genuinely independent people |
+| trust that is not equal | two groups, e.g. 2-of-3 family and 2-of-4 friends | per group | no single group can act alone |
+| every one must agree | **n of n** | nobody | any refusal or lost key blocks recovery; the policy warns |
+| one contact | 1 of 1 | — | allowed, warned about: it is emergency access with a delay |
+
+Independence is yours to judge. Two guardians in one household, or whose
+backup keys sit in one shared account, are one point of failure; give them the
+same *custody domain* and the policy warns when a quorum fits inside one.
+Avoid circles whose recovery depends on the vault being recovered.
+
+Leave **user verification** on (a PIN or biometric as well as a touch) and a
+**delay** of at least a day or two unless you have a reason not to; the policy
+warns about both.
+
+## What a guardian needs
+
+A WebAuthn authenticator that supports the **PRF extension** if the circle
+holds shares (a share is wrapped under a key only that authenticator
+reproduces). An authenticator without PRF can still approve actions in an
+action-only circle. Enrollment records whether the extension answered; the
+real test is the round trip at hand-over: the guardian's device wraps the
+share, **reopens it with a fresh touch**, and checks it against your commitment
+before reporting success. A key whose PRF is unstable fails there, not in the
+emergency.
+
+Keys belong to an origin. A guardian registers under the circle's RP ID and
+origins and must approve from one of them.
+
+## The sequence (screens)
+
+Each step is a key in a panel's head or on a row; nothing is typed that is not a
+name, a number or a pasted packet.
+
+**Owner, in Circles.**
+
+1. **Start a circle** opens a sheet. Name it, say what it protects (everything
+   in the vault, a folder, or approvals only) and press **Make the invitation**.
+   The invitation is a line of text with a QR code beside it: **Copy
+   invitation** and hand it to each contact over any road you trust.
+2. Each contact answers with a line of text. Paste it into **A contact's
+   answer** and press **Add this contact**. A **Household** name keeps two
+   people who share an account from counting as two.
+3. **Set the rule** (how many must agree; with two groups, how many of each and
+   how many groups) and **Set the clocks** (minutes to approve, hours before a
+   share is released, days a request lasts, whether a PIN or biometric is
+   required). Warnings about a risky rule are marks beside it, not refusals.
+4. **Make the circle.** One packet per contact appears, and for a circle that
+   protects something a recovery file: **Save the recovery file** and **Copy
+   <name>'s packet** for each. They rest sealed in the vault until every
+   receipt is in, so closing the sheet loses nothing; **Hand out the packets**
+   on the circle brings them back. Paste each contact's receipt into **A
+   contact's receipt**; when the last is in the circle reads *Armed*.
+5. Later, open the circle for **Invite more people**, **Change the circle** (a
+   new epoch: replace, add or remove a contact, refresh shares, change the
+   rule), **Ask contacts to approve a share**, **Cancel a request** and **Retire
+   this circle** (two presses).
+
+**Contact, in Guarding.**
+
+1. **Accept an invitation**: paste it, check the facts (the owner's key
+   fingerprint, the origin it must be opened at) and give your name; **Agree**
+   asks for your security key. Copy your answer and send it back. An
+   agreement still waiting for the owner shows as a row you can forget.
+2. **Take what an owner sent**: paste the packet; your key is touched twice
+   (to wrap, then to prove it opens). Copy your receipt.
+3. **Answer a request**: paste it. The sheet states, derived from the request's
+   own fields, what is being asked and for whom, with the recipient's key as a
+   fingerprint to check by another road. **Approve** (security key), copy the
+   approval. After the delay, paste the request and the approvals so far and
+   **Release my share**; your device checks the quorum itself first.
+
+**Recipient, in Recovery.**
+
+1. **Start a recovery**: choose the recovery file, name this device, **Send the
+   request** and copy it to the contacts.
+2. Paste each approval or release into **An approval or a release**. The sheet
+   counts them against what the rule needs and says when releases open; **Copy
+   the approvals** hands the list to the contacts.
+3. When it is complete, **Open the recovery**. **Save the recovered items** or
+   **Put them in this vault**; until one of them is done the recovery stays, and
+   it is still there after a reload.
+
+## The sequence (code)
+
+```ts
+import * as q from "@opensesame/app-core/lib/quorum/index.js";
+
+// Owner: keys, an invitation, and guardians who answer it.
+const owner = q.generateOwnerKeys();
+const circleId = q.newCircleId();
+const invite = q.createInvite({ circleId, label: "Family", rpId, origins, ownerKey: owner.publicKey, requireUserVerification: true, now });
+// Each guardian's device:  q.enrollGuardian({ invite, currentOrigin, name, keyLabels, ceremony })
+// Back at the owner:       q.acceptEnrollment({ invite, enrollment, custodyDomain, contactRef, now })
+
+// Owner: one call makes the signed policy, the bundle and a sealed share per guardian.
+const { signedPolicy, bundle, deliveries } = await q.createCircle({ draft, owner, payload, now });
+// Each guardian:  q.acceptDelivery({ delivery, signedPolicy, pinnedOwnerKey, guardianId, hpkeSecretKey, ceremony })
+//   -> { holding, receipt }; the owner checks  q.verifyCustodyReceipt(signedPolicy, receipt)
+
+// Recovery, owner absent. The recipient raises a request with a fresh key:
+const { request, recipient } = q.startRecovery({ signedPolicy, recipientLabel, now });
+const ledger = q.QuorumLedger.open(signedPolicy, request);
+// Guardians:  q.buildApproval({ seat, request, ceremony, now })  -> ledger.submitApproval(...)
+// After the delay:  q.buildRelease({ holding, approvals: ledger.approvalList(), request, ceremony, now })
+//   (the guardian's device verifies the approvals itself, then releases)  -> ledger.submitRelease(...)
+const payloadBack = await q.completeRecovery({ ledger, recipientSecretKey: recipient.secretKey, bundle });
+
+// Action only: a quorum-approved standing share, through the existing share ledger.
+//   q.createRequest({ operation: "grant-access", grant, ... }); then q.grantFromQuorum({ tomb, ledger })
+```
+
+Every packet (`invite`, `enrollment`, `share-delivery`, `custody-receipt`,
+request, `approval`, `release`, `cancellation`) is plain JSON with no
+plaintext secret in it, so it can travel over any road — a message, a QR, a
+Drop, a live session.
+
+## Recovering without the browser
+
+The native `opensesame` binary recovers a circle with no browser, no network
+and no vault: it recombines the guardians' shares and opens the recovery bundle
+you kept. You need the bundle (JSON; it holds nothing secret, so keep it
+somewhere that outlives your device) and enough shares. Both verbs are for a
+person at a terminal and are not offered to agents.
+
+**How many shares.** Exactly the threshold of groups, and exactly each chosen
+group's member threshold. A circle of "2 of 3 family and 2 of 3 friends" is
+opened by two family shares and two friends' shares: four in all. More are
+refused rather than ignored, so a stray extra share cannot hide a bad one.
+Use the bundle and shares of the **same circle and epoch**.
+
+**1. Check the bundle.** This verifies the owner's signature on the policy and
+prints the circle's public shape: id, epoch, groups and thresholds, guardians'
+names and timings. It reads no share.
+
+```bash
+opensesame --output text vault circle inspect --bundle family.bundle.json
+```
+
+If you wrote the owner's public key down, add `--owner-key <key>`; a bundle
+signed by any other key is then refused.
+
+**2. Collect the shares.** Each guardian reads theirs out as 20 or 33 words.
+Put them in a file, one per line (blank lines and lines starting with `#` are
+skipped), and keep the file private.
+
+```bash
+( umask 077; cat > shares.txt )     # paste the shares, then Ctrl-D
+```
+
+**3. Recover.**
+
+```bash
+opensesame vault circle recover --bundle family.bundle.json \
+  --share-file shares.txt --out recovered.json
+```
+
+The payload goes to `--out` as an owner-only file (mode 0600) and is never
+printed; an existing file is not replaced without `--force`. `--out -` writes
+to a pipe or redirect instead, and is refused on a terminal. What you see on
+stderr is the circle, then each share matched to the guardian the owner
+committed it to, by name:
+
+```
+circle c-vXrjLBsCboDC "Family", epoch 1, signed by owner key zOf_mS_CZTMQOf3dhuwiVx6yD6oJvEwSVAsXsk2yQqI
+share 1: Ada (family)
+share 2: Cy (family)
+share 3: Eli (friends)
+share 4: Fay (friends)
+wrote recovered.json
+recovered 243 bytes from 4 shares
+```
+
+A share no guardian of the circle committed to is reported as such (it is
+damaged, or from another circle), and a share that does not decode is named by
+its position. No share is ever echoed back.
+
+**Other ways to hand over shares.** `--share -` reads them from stdin, one per
+line (`gpg -d shares.txt.gpg | opensesame vault circle recover … --share -`); on
+a terminal it asks for each one without echo and stops at an empty line.
+`--share '<words>'` works but is visible to other users through `ps` and stays
+in your shell history, so the command warns about it.
+
+**What it checks.** The policy's canonical digest and the owner's Ed25519
+signature over it; each share's RS1024 checksum and SLIP-0039's own digest;
+that no share asks for more key-stretching than 640 000 PBKDF2 iterations in
+all (exponent 6, the same ceiling the browser keeps); and finally that the recombined
+key authenticates the bundle. A wrong set of shares fails at one of those
+steps and writes nothing.
+
+### Worked example
+
+The repository carries a small circle with test-only keys,
+`spec/conformance/quorum-recovery-fixture.json`, that the browser code made and
+both readers open. From the repository root, with `jq`:
+
+```bash
+fixture=spec/conformance/quorum-recovery-fixture.json
+jq '.bundle' $fixture > fixture-bundle.json
+jq -r '.guardians[] | select(.id=="ada" or .id=="cy" or .id=="eli" or .id=="fay") | .mnemonic' \
+  $fixture > fixture-shares.txt
+opensesame --output text vault circle inspect --bundle fixture-bundle.json
+opensesame vault circle recover --bundle fixture-bundle.json \
+  --share-file fixture-shares.txt --out fixture-recovered.json
+cat fixture-recovered.json
+```
+
+The last command prints the fixture's payload, a short JSON document (the
+`payloadText` field of the fixture). Ada and Cy are the family's two, Eli and
+Fay the friends'. Drop one of the four shares and the command stops with
+`expected 2 groups, got 1`; change one word and it names the share.
+
+## If OpenSesame is not there
+
+Shares are SLIP-0039 mnemonics written with an **empty passphrase**, so any
+conforming tool recombines the threshold of them (one per guardian in a plain
+circle, one group's worth per group otherwise) into the recovery secret. The
+native `opensesame vault circle recover` above is one such tool; the reference
+implementation (`shamir-mnemonic`) and any hardware wallet's SLIP-0039 recovery
+are others. The wordlist and format are fixed by the standard.
+
+Opening the bundle from the secret takes about twenty lines in any language
+with HKDF and XChaCha20-Poly1305. A bundle is
+`{ v: 1, signedPolicy, nonce, ciphertext }`, the last two base64url without
+padding. With `circleId`, `epoch` and `digest` read from `signedPolicy.policy`
+and `signedPolicy.digest`, and `frame(f1, f2, …)` meaning each field written as
+its UTF-8 byte length in decimal, a NUL byte, then its bytes:
+
+- key = HKDF-SHA256 over the secret, 32 bytes, with salt
+  `SHA-256(frame("opensesame:quorum-collection-salt:v1", circleId))` and info
+  `frame("opensesame:quorum-collection:v1", circleId, epoch)`;
+- associated data = `frame("opensesame:quorum-collection-aad:v1", digest,
+  circleId, epoch)`;
+- plaintext = XChaCha20-Poly1305 open of `ciphertext` (tag appended) under that
+  key, the 24-byte `nonce` and that data. It is the JSON text of the payload.
+
+This does not check the owner's signature on the policy; `inspect` does.
+
+## Item types
+
+Two optional item types hold the records
+(`marketplace/item-types/optional/`, installable from the default marketplace):
+
+- **Trusted circle** — your record: rule, state, contacts, the signed policy,
+  and your owner signing key (concealed; line one of the `pass` entry).
+- **Guardian share** — what a guardian holds for someone else: the signed
+  policy and their **wrapped** share (concealed). Never a mnemonic.
+
+## Operator controls
+
+The capability is off unless a person turns it on; an instance policy can
+**prohibit** it (`prohibited: [sharing.trusted-contacts]`) or leave it out of a
+distribution. It makes no request, so it reaches no service: it declares a
+user-mediated hand-off (the packets a person copies and passes on) and two
+browser permissions, `webauthn` for the contacts' security keys and
+`clipboard-write` for the Copy key beside a packet. Settings shows its switch
+in the Sharing section, and the tab exists only while it is on.
+
+## What it does not do
+
+- A quorum is delegated authority; fewer than the threshold learn nothing, the
+  threshold has everything you gave it.
+- A guardian's browser sees their one share while it is released.
+- The key a request names as its recipient is shown to every guardian as a
+  fingerprint. Confirm by another road that it is your new device's.
+- The delay is kept by honest devices and the ledger's clock; a static
+  recovery page cannot enforce one. A cancellation reaches only those who hear
+  of it.
+- Changing guardians is a new circle with new shares. Old shares still open the
+  old bundle.
+- A quorum approval is not a downstream session; a service's own bearer session
+  outlives it. Revealed secrets still need rotating at their provider.
+- Not yet tested on physical security keys. Tests use a virtual authenticator
+  that produces real WebAuthn artifacts.
+
+## Verifying it
+
+```bash
+pnpm --filter @opensesame/app-core exec vitest run src/lib/quorum
+```
+
+runs the 45 SLIP-0039 vectors (`spec/conformance/slip39/`), the RFC 9180
+Appendix A.1 and A.2 vectors (`spec/conformance/hpke-rfc9180-vectors.json`),
+the protocol end to end, and the attacks listed in the ADR. Neither vector file
+is ever edited or regenerated to make a reader pass.
+
+The native reader reads the same files:
+
+```bash
+export CARGO_TARGET_DIR=$HOME/.cache/packages/cargo-target
+cargo +1.88.0 test -p opensesame-quorum-recovery   # the 45 + the RFC 9180 vectors, the committed fixture
+scripts/test/quorum-recovery-interop.sh            # TypeScript and Rust, each against the other's output
+```
+
+`spec/conformance/quorum-recovery-fixture.json` (test-only keys) is opened by
+`recovery-fixture.test.ts` and by `crates/quorum-recovery/tests/fixture.rs`; the
+script has TypeScript write a fresh circle, the native reader open it and write
+a bundle and releases of its own, and TypeScript open those.

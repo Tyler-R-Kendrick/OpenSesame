@@ -1,0 +1,271 @@
+{
+  "about": "Test-only keys: every key, share and secret in this file was generated for it and protects nothing. A two-level circle (2 of 3 family and 2 of 3 friends) made by packages/app-core/src/lib/quorum/recovery-fixture.test.ts; opened by that file and by crates/quorum-recovery/tests/fixture.rs.",
+  "generator": "packages/app-core/src/lib/quorum/recovery-fixture.test.ts",
+  "ownerPublicKey": "zOf_mS_CZTMQOf3dhuwiVx6yD6oJvEwSVAsXsk2yQqI",
+  "bundle": {
+    "v": 1,
+    "signedPolicy": {
+      "policy": {
+        "v": 1,
+        "circleId": "c-vXrjLBsCboDC",
+        "epoch": 1,
+        "label": "Family",
+        "collection": "Family emergency",
+        "rpId": "vault.example.test",
+        "origins": ["https://vault.example.test"],
+        "ownerKey": "zOf_mS_CZTMQOf3dhuwiVx6yD6oJvEwSVAsXsk2yQqI",
+        "groupThreshold": 2,
+        "groups": [
+          {
+            "id": "family",
+            "threshold": 2,
+            "guardianIds": ["ada", "ben", "cy"]
+          },
+          {
+            "id": "friends",
+            "threshold": 2,
+            "guardianIds": ["dee", "eli", "fay"]
+          }
+        ],
+        "guardians": [
+          {
+            "id": "ada",
+            "name": "Ada",
+            "contactRef": null,
+            "custodyDomain": "home-ada",
+            "hpkePublicKey": "JEgYrCinzhNbU50-mN02k27ANtJnl8IdwsWn0AdFXnI",
+            "credentials": [
+              {
+                "credentialId": "oSZZ4cbLvsIqcpBk04mOVg",
+                "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEVnMK-ByXXMKeuI0c2KZ87DNVc8QHjH05AYOTAAwMES9NmI-o_5TYYb41g34zi43-CJvo_bcvu-1I0hBjCTluAQ",
+                "alg": -7,
+                "label": "Security key",
+                "prf": true,
+                "addedAt": "2026-10-10T12:00:00.000Z"
+              }
+            ]
+          },
+          {
+            "id": "ben",
+            "name": "Ben",
+            "contactRef": null,
+            "custodyDomain": "home-ben",
+            "hpkePublicKey": "TQkwBj9VM-vyIz7h0JQhVVBMadILCJ0RwXLV8iPDvBE",
+            "credentials": [
+              {
+                "credentialId": "5HZXVpItOb1rsy0mO5LDUg",
+                "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZhbYUws-Fpq5LERZBYPsRmwHgtC7pp4TpV0bM8kW8zTogZqYH-FNVqcTimWV12jmk0z3fovuhEUK66xeohiVKA",
+                "alg": -7,
+                "label": "Security key",
+                "prf": true,
+                "addedAt": "2026-10-10T12:00:00.000Z"
+              }
+            ]
+          },
+          {
+            "id": "cy",
+            "name": "Cy",
+            "contactRef": null,
+            "custodyDomain": "home-cy",
+            "hpkePublicKey": "iy9xEYyz3bgeTAPXiazzHpUS7otK3HbhKfZg7GfZJRI",
+            "credentials": [
+              {
+                "credentialId": "DJGHoWgAtp1EOdiimRPiCw",
+                "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENbn-pHh7FTJWWYFK-3EtJTOBCdnVGqvbnGA1S0MUGcFiPhRrwq7VTUZqzZpCyi2sCihZL0DGvAaNEHbWRjEY0A",
+                "alg": -7,
+                "label": "Security key",
+                "prf": true,
+                "addedAt": "2026-10-10T12:00:00.000Z"
+              }
+            ]
+          },
+          {
+            "id": "dee",
+            "name": "Dee",
+            "contactRef": null,
+            "custodyDomain": "home-dee",
+            "hpkePublicKey": "vTRpBh8ib9gYG4SXb88RXL7szK-U1oz-XtVSc5yF3Qs",
+            "credentials": [
+              {
+                "credentialId": "99kALmW5Aj7eUFoUJubiwQ",
+                "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEs7HAU-0B8spVP8wyUxYHwnKaJFksHrWi-FmS-2nDZ4HtUtTQEWMO7z9J6HJ3pKsGTPTlgV1Hsw9qpUPMvhEvvQ",
+                "alg": -7,
+                "label": "Security key",
+                "prf": true,
+                "addedAt": "2026-10-10T12:00:00.000Z"
+              }
+            ]
+          },
+          {
+            "id": "eli",
+            "name": "Eli",
+            "contactRef": null,
+            "custodyDomain": "home-eli",
+            "hpkePublicKey": "ECsKA8xKFyauj6EALSqgs_V6VcgU5RYmFqDAZ7v133g",
+            "credentials": [
+              {
+                "credentialId": "IQslVJ09shQ2nBr7iSkL9Q",
+                "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEdOEhsqu_K5SNMcM8NsWnnKLBHHdbWv0Z8Zq2nfwrMjrdZfL_qgkHtsINGpcMOZD55cW4_z7m0RVU8yXuz_lmlg",
+                "alg": -7,
+                "label": "Security key",
+                "prf": true,
+                "addedAt": "2026-10-10T12:00:00.000Z"
+              }
+            ]
+          },
+          {
+            "id": "fay",
+            "name": "Fay",
+            "contactRef": null,
+            "custodyDomain": "home-fay",
+            "hpkePublicKey": "glmDD1m1TzmSLN8nxBGj-UCHT5IMB2h1lF3xD7gRCWM",
+            "credentials": [
+              {
+                "credentialId": "j4IlNZC_TVfvQUBj8b_urQ",
+                "publicKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERDX8cIuhwBTsluOaaFduxzUDEeCDNVDYkO09Om-jwbR3Gc2dancLuLG6onmiI_VCJsciT-ROwgf6rYyKx2-olA",
+                "alg": -7,
+                "label": "Security key",
+                "prf": true,
+                "addedAt": "2026-10-10T12:00:00.000Z"
+              }
+            ]
+          }
+        ],
+        "shareCommitments": {
+          "ada": "sha256:4491e8073b421697da8dea14aa74178ca89de7433e0aa1c3c689e3bba128ef82",
+          "ben": "sha256:2b2e491ab4a95c7d172ff575fbd531f5ef456a5390ba59594d68088cd70e5f6e",
+          "cy": "sha256:b7e7221b212cd4039fa5417a0bf433145b315e1d22776590ea7f2621bb8aeab7",
+          "dee": "sha256:0d181faec25ff63b397b53d6ddeee16508c69a2ef93d7ca2f898fb078a55e167",
+          "eli": "sha256:0ce2e92cba18734746cd54e0e97bead4c726cdd643f19dd7c10bc7ad4a456571",
+          "fay": "sha256:8afea21257f857052ad062e82c06155c48fac3260df24d485fa1da43eef9ee27"
+        },
+        "operations": ["recover-collection"],
+        "approvalWindowSec": 900,
+        "releaseDelaySec": 86400,
+        "requestLifetimeSec": 604800,
+        "requireUserVerification": true,
+        "createdAt": "2026-10-10T12:00:00.000Z"
+      },
+      "digest": "sha256:558983e274a80f92bda7380893c9e894bc1c2c9fd8c9647e868a5ab8b2a4644a",
+      "signature": "lAN8JFE-r1i4rjFxK2LuraINCFXIDfAezvskh64gKzza2mmacrUqf_Rnbv-6fWLJSXxwzhQrDWhX1oMn0nkaAA"
+    },
+    "nonce": "_9EbTw_0Ne4hg3P0CJucbY4VxWyfoXWD",
+    "ciphertext": "eQdw-2vtrt2fwCqt53YJERGSVYSisu6fCw817slljp8oUlKMeLCXwm3gs3XTqhnOlBZPjArnZF1dbdorzmZB5J4L4RTYZOjCiHckdDi3UnGDXg3a-fKHeBDWOx8GhIvoOrjKto_AOfPmh925OUiQcbc2T_fj1PAoCuePBFWCqZZi4qF5jv9o7ZnugG9wsq-DCbAHU2yokWdNmUFtnIWl7O-SGXIoCPB4vuvlmO9suMSWdfQ-2ppHc3Rrg1luNwut1zj14e0cFDqvKD69l5HENA1B7YeREMLBhoMIxmOFlyav8XPMfSkVgOHNyulHhVhceEtCiSesRaz6n3qowmhB4ZVhkA"
+  },
+  "payload": {
+    "kind": "emergency-collection",
+    "name": "Family emergency",
+    "items": [
+      {
+        "path": "Bank/Checking",
+        "username": "fixture",
+        "secret": "fixture-only-1"
+      },
+      {
+        "path": "Home/Wi-Fi",
+        "secret": "fixture-only-2"
+      }
+    ],
+    "note": "unicode survives the trip: é, 日本語, 🔐"
+  },
+  "payloadText": "{\"kind\":\"emergency-collection\",\"name\":\"Family emergency\",\"items\":[{\"path\":\"Bank/Checking\",\"username\":\"fixture\",\"secret\":\"fixture-only-1\"},{\"path\":\"Home/Wi-Fi\",\"secret\":\"fixture-only-2\"}],\"note\":\"unicode survives the trip: é, 日本語, 🔐\"}",
+  "quorum": ["ada", "cy", "eli", "fay"],
+  "guardians": [
+    {
+      "id": "ada",
+      "name": "Ada",
+      "group": "family",
+      "mnemonic": "patent thorn acrobat echo armed cargo inside acquire manager carbon watch dive frozen texture romantic herd smell craft fatigue math walnut shaft weapon bracelet home mother sidewalk quick dress voting activity laden dwarf",
+      "hpkeSecretKey": "NBK56RxA2BFo9SduEKBpwseFd_PVLitVBOZ-SXHefyI",
+      "delivery": {
+        "v": 1,
+        "kind": "share-delivery",
+        "circleId": "c-vXrjLBsCboDC",
+        "guardianId": "ada",
+        "epoch": 1,
+        "enc": "mWdkzLBwCj8BykksBHf47tPCor7IbjvZfcMCTJTw9Fw",
+        "ciphertext": "aubnn_xUShC8uXDSzJvh1mD_2ukmiQHljswJJjwsXQ3NmTGiu4FRtLILFD7xEq5RmLUhXI9SVdG372xy4rcSxK0OHSLk3F2k9acJx9Djomqy2Bg2nXyMCofvtx7je5odNseHYZsauOf2Mx9_5qeW0Xs1kFWd9UbUapa115cNp1j2wm4NT-k-yTpLpFtMFGioNEQF3OJnVISTVMQFiQ63HpeeQCew4I1mKZ5Lep6MjkuzvSIpmEbXjSzJ_ihlWGbTPSB-jez053uRR-1Gao2nD8e5DSRyn3H3vtnEBCZT_4gJz8M5hN7U0DCdEiCjSA"
+      }
+    },
+    {
+      "id": "ben",
+      "name": "Ben",
+      "group": "family",
+      "mnemonic": "patent thorn acrobat email admit pacific reject prize adapt join champion texture floral decent depict romantic herald champion aircraft aluminum depend force afraid oral company miracle elevator debris capture multiple midst counter typical",
+      "hpkeSecretKey": "kPRmec--FmYvEadWmRhaIyW96bWku_84HoxE2V4ksSY",
+      "delivery": {
+        "v": 1,
+        "kind": "share-delivery",
+        "circleId": "c-vXrjLBsCboDC",
+        "guardianId": "ben",
+        "epoch": 1,
+        "enc": "2k_5gLVYs3LKJA_H-PQGyAqh8JPyTrRRsHdken3ASzM",
+        "ciphertext": "LxCwCHhDv1za8lMtyUA4rSDsSfu_PMDfsHHG5DmYgDAXupGiMw7k1sG4qu6b671bfU_JNIU7rFh6zvfvBzhln0AdjlvT3j7mBx3MGOj04PMdqOp9RFYvzthfy27NMMQWXM5_deZNJCjFrn7Pj0tkhjCpm0KxcpUV1_h0umeRv1_r3kIgUX8LjD479nlKyjR1lDQH8K8NLz5vZWOJcj4wqUloVOJbhjOlAlVP4EYV42vsffipqT0mzlHSxTLdnJKQsWaYex3PTAc02JMVFHzC2cUj4T0TGTKxbt-nBSogxgUCWvd8xPTssV8pQiSM4UTaB90bSo1c-8OYOpPYFrRHShs"
+      }
+    },
+    {
+      "id": "cy",
+      "name": "Cy",
+      "group": "family",
+      "mnemonic": "patent thorn acrobat entrance adult talent vampire desert easel firm faint toxic taxi enemy response smart dish dish yelp tricycle laser curly body aircraft fragment forbid satisfy provide shaped impact formal enforce focus",
+      "hpkeSecretKey": "B1rU2b0eqiE7vOdCyYUkfnowO1IpBkksAVj4rdQ46BQ",
+      "delivery": {
+        "v": 1,
+        "kind": "share-delivery",
+        "circleId": "c-vXrjLBsCboDC",
+        "guardianId": "cy",
+        "epoch": 1,
+        "enc": "nReouuydI2atEOCjzT2OvGUJ1ziRL6JyFNJ4iY4kIGE",
+        "ciphertext": "4W7zWi9Ac-6WoM0bUNNeyA-4iSwJN9a--mJLR8iYBnJ5GT0ZIpchdaAbfQ8uTIbnh3sB2kWnTVFHJ5ztrRD3JUgthpSLhsQ5Npub6qFuforkWqiGhsBrsVrzksTjpLy0iy8dHWSebY0_wKQNjZffZ-ALhCfNURDL4QH-5JmKfcO3bGXHu8sJCdH_a4JfI1nN_wMPAiVAe_skIGHTjrsxlr8kmAeusa4VZenPzBVSL4W4Pq9z-gL_6pDfPfA-DcXfbjN029dIrnDA5jwyusH02aS9vCqspwT9bPzOpPrz7vmyCEUgo5uh5aPlSH-_MIE"
+      }
+    },
+    {
+      "id": "dee",
+      "name": "Dee",
+      "group": "friends",
+      "mnemonic": "patent thorn beard echo adorn ranked beam vocal camera voting stick shame withdraw necklace hairy raspy source strategy primary juice smell shadow retailer subject vegan thorn exhaust very friar toxic surprise receiver minister",
+      "hpkeSecretKey": "NaLVsBSZaFdCgZMjm5YnifNDh_LcV4CEbX4Vtzmanfg",
+      "delivery": {
+        "v": 1,
+        "kind": "share-delivery",
+        "circleId": "c-vXrjLBsCboDC",
+        "guardianId": "dee",
+        "epoch": 1,
+        "enc": "lWdNwnUVCtD53M_X07cRNrxiBAUfVK1w3sq6xP8B5ys",
+        "ciphertext": "xJz4FYysP6xs_glaCPlmssB7u_vmPf0s5qnS0-3RBk-vlRmKRy-wWX58XApp5Xf3wi6xeH64Eot_znJpM9mLXy2D6u20L-3OllnfzvQ9AgtY_jbQ3_z_yDw8Had8uEy1sUBUFt2QkuS6UfXj_5sYGhQuh6ykGIm_LGMeND_5hAwlYACbBdI6SWz8lZ7Fx2NxBbfQsyMx32lYPK1q3FkpqDDBSm9M1p3fDmCvXc9vb4Ipjpc5_YqKjwuoZ50vEBX6seGjEeoYwT6xXskqaEHQ7UonZvHehNM1-e6Zkb7crmv-8KFQIX4oaXqRDyCqwdzY-1VM"
+      }
+    },
+    {
+      "id": "eli",
+      "name": "Eli",
+      "group": "friends",
+      "mnemonic": "patent thorn beard email average thorn short detailed damage elbow necklace elite fiction element tidy forget inside fridge imply huge darkness fact penalty failure trust fangs furl plains inside blue lyrics leaf trial",
+      "hpkeSecretKey": "OTcwdC53tLwqv-BymmNRJmM2CHLT-nG1bDuN-L5AjJ8",
+      "delivery": {
+        "v": 1,
+        "kind": "share-delivery",
+        "circleId": "c-vXrjLBsCboDC",
+        "guardianId": "eli",
+        "epoch": 1,
+        "enc": "zGi_ZBCxJbNdsdQAHqN2iR6IFTV24WqoYqGzi8iAJXw",
+        "ciphertext": "BhYPlnpxNSTfBKpffB8jan9VlKVK4DVRb9OX1WMIpxNQfPLxDFJYfFMQiLzFbLvQ-yByjNAI5ToksxOjiN0mXEvQU342Tpk4hN2btq7_ORCVi6mNrO7HcSwyrXf_d_oFSLuH636Zx_rUiQgGRPZaVd3DDrqlTqGZUpji_uu7h3svsq7xICsTrWyjRXHJlm_LcSs9lOOw__gTktpuzUjLVuTnWQUuorFbKlUhHKIq0NX9DBMLUzEcKkCBvn5JAKKL-vjeuTwRGB4yyuM4tF_4xXAFCnh7urjdJ2zba7whT3-QcvaoZr6ffGZ6"
+      }
+    },
+    {
+      "id": "fay",
+      "name": "Fay",
+      "group": "friends",
+      "mnemonic": "patent thorn beard entrance ambition stadium river browser should submit flea realize arcade unfold have advocate often snake aluminum dream avoid width marathon pecan gather apart home elbow pistol length tracks overall velvet",
+      "hpkeSecretKey": "ZF76VLZTy6YmE1IMOCE2v7GwSSixdtN8F-dHC0IK3aA",
+      "delivery": {
+        "v": 1,
+        "kind": "share-delivery",
+        "circleId": "c-vXrjLBsCboDC",
+        "guardianId": "fay",
+        "epoch": 1,
+        "enc": "NcJk2rvvk0A8EKc371DTLLNaw9G6VpG2YBS4F6jg1HA",
+        "ciphertext": "h7tjiaa-sMKig0vbqDOyB7eyPOGKw_qLmXWIhZmYN0MchhojRCKSkpcFNQwcikzbG71_zhQRP_0dCw9-77VhFcYbNXpwsIWVgOQB6gtXheHmvveewr-wM1Kb_v0B9jsIxkFHxRqLdj68wzuzUbHIY8SngAVAJxNlh_GP3kJYoGP5UJTtWYwO9l6V9TxxNFJeE3fhLZHI5Aex4QdoTc3Cby6EhgSEu8IulMrhyGSf51DH9QmiHX4Sco5KDGyCeSr7DDYCqU0FHK1fV2wjpSy_SofkLBdivKErlNEIQt790Dd2rwMgV6LCpfJ0fQwfZVLai9gl"
+      }
+    }
+  ]
+}

@@ -125,6 +125,7 @@ describe("switchFeature", () => {
       "wallet.spending",
       "sharing.live",
       "sharing.household",
+      "sharing.trusted-contacts",
       "sharing.relay",
     ]);
   });

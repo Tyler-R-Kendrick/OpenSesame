@@ -262,12 +262,15 @@
         "2026-10-10: javascript 6250->6253 for sealing a new vault with a security key (#1023): the PRF assertion after creation, the This device / Security key choice and the step past an authenticator that cannot answer PRF, about 2 KiB on a base that already measures 6251 locally, i.e. no headroom. CI on e4ac5c2 measured 6253/1902 KiB after merging main at a99018e; raise only to the measured minimum. javascriptGzip (1902/1915) and css are within their budgets and unchanged.",
         "2026-10-10: javascript 6253 -> 6255 for ADR 0186, the live session catalog greeting and transport port: the joiner's greeting schedule, the owner's answer and per-seat cap, the Ask to join again road and the PeerTransport seam with its WebRTC adapter. Against main at a99018e it adds 1.22 KiB raw and 0.54 KiB gzip (6249.70 -> 6250.92 KiB); merged with main at 0d4a950 the production build measures 6254.62/1902.12 KiB. Raise only to the measured minimum; gzip, CSS and profile ceilings are unchanged.",
         "2026-10-10: javascript 6255->6258 for the cursor lock-v5 title screen (#1016, #1018, #1017) replacing the restored #947 port (#1026): the eleven-ring CipherDial with its glyph, ornament and overlay painters, the unlock stage and hero layout, the ceremony arm and the release-notes column. Measured 6257 KiB on main at 0d4a9502 with the stack applied (6253 there), and 6258 after merging main at 2631dcba (6255 there, #1024); raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged.",
-        "2026-10-11: javascript 6258->6259 for the cipher dial at rest on the front door (useIdleDial pulls CipherDial into the door's chunk) and the hero shimmer that keeps running after the decode settles. Measured 6259 KiB; raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged."
+        "2026-10-10: javascript 6258->6457 and javascriptGzip 1915->1966 for Settings > Trusted contacts (ADR 0187): the quorum engine (SLIP-0039, HPKE, the ledger, the desk) and the owner, contact and recipient screens, with the CXF export and Import hand-offs. They load only from the module's two lazy chunks, which a device fetches only with the capability on: cap-sharing.trusted-contacts (77 KiB) and its shared chunk (101 KiB), plus a 2.5 KiB stylesheet. A fresh /OpenSesame/ build of the tree merged with main at 115a39a measures 6457/1966 KiB JavaScript raw/gzip; raise only to the measured minimum. Nothing reaches the boot path; the hardened profiles exclude the module and measure 3677/972 KiB, under their unchanged ceilings.",
+        "2026-10-10: javascriptGzip 1966->1967 on the tree merged with main at b61bd55 (the armed state on an identity share revoke, #1042, landed after the Trusted contacts ceilings were measured). A fresh build measures 6457/1967 KiB JavaScript raw/gzip; raise only to the measured minimum.",
+        "2026-10-11: javascript 6258->6259 for the cipher dial at rest on the front door (useIdleDial pulls CipherDial into the door's chunk) and the hero shimmer that keeps running after the decode settles. Measured 6259 KiB; raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged.",
+        "2026-10-11: javascript 6457->6458 on the tree merged with main at d307626 (the cipher dial on the front door and the hero shimmer, +1 KiB on main's own ceiling, landed after the Trusted contacts ceilings were measured). A fresh build measures 6458 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6259,
-        "javascriptGzip": 1915,
+        "javascript": 6458,
+        "javascriptGzip": 1967,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",
@@ -288,9 +291,10 @@
           "mode controls, scope disclosures, step markers and icon upload",
           "styles (~1.1 KiB minified). The full Pages build measures 169 KiB",
           "CSS. JavaScript, gzip and profile budgets remain unchanged.",
-          "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration."
+          "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration.",
+          "2026-10-10: 172 -> 175 for Settings > Trusted contacts (ADR 0187): the module's frame, circles, guarding and recovery stylesheets, plus its panels' shared rules, are lazy and load with the capability. The tree merged with main at 115a39a measures 175 KiB; the hardened profiles exclude the module and are unchanged."
         ],
-        "css": 172,
+        "css": 175,
         "largestAsset": 12800
       }
     }
