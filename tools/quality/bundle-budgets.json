@@ -261,11 +261,12 @@
         "2026-10-09: persona round 3 live join rebased onto main at 40d72b3d: join screen copy, invalid-code handling on disabled Ask, LiveJoinRoute split, and related join routes; raise ceilings only if budgets-shard measurement exceeds main.",
         "2026-10-10: javascript 6250->6253 for sealing a new vault with a security key (#1023): the PRF assertion after creation, the This device / Security key choice and the step past an authenticator that cannot answer PRF, about 2 KiB on a base that already measures 6251 locally, i.e. no headroom. CI on e4ac5c2 measured 6253/1902 KiB after merging main at a99018e; raise only to the measured minimum. javascriptGzip (1902/1915) and css are within their budgets and unchanged.",
         "2026-10-10: javascript 6253 -> 6255 for ADR 0186, the live session catalog greeting and transport port: the joiner's greeting schedule, the owner's answer and per-seat cap, the Ask to join again road and the PeerTransport seam with its WebRTC adapter. Against main at a99018e it adds 1.22 KiB raw and 0.54 KiB gzip (6249.70 -> 6250.92 KiB); merged with main at 0d4a950 the production build measures 6254.62/1902.12 KiB. Raise only to the measured minimum; gzip, CSS and profile ceilings are unchanged.",
-        "2026-10-10: javascript 6255->6258 for the cursor lock-v5 title screen (#1016, #1018, #1017) replacing the restored #947 port (#1026): the eleven-ring CipherDial with its glyph, ornament and overlay painters, the unlock stage and hero layout, the ceremony arm and the release-notes column. Measured 6257 KiB on main at 0d4a9502 with the stack applied (6253 there), and 6258 after merging main at 2631dcba (6255 there, #1024); raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged."
+        "2026-10-10: javascript 6255->6258 for the cursor lock-v5 title screen (#1016, #1018, #1017) replacing the restored #947 port (#1026): the eleven-ring CipherDial with its glyph, ornament and overlay painters, the unlock stage and hero layout, the ceremony arm and the release-notes column. Measured 6257 KiB on main at 0d4a9502 with the stack applied (6253 there), and 6258 after merging main at 2631dcba (6255 there, #1024); raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged.",
+        "2026-10-11: javascript 6258->6259 for the cipher dial at rest on the front door (useIdleDial pulls CipherDial into the door's chunk) and the hero shimmer that keeps running after the decode settles. Measured 6259 KiB; raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6258,
+        "javascript": 6259,
         "javascriptGzip": 1915,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
