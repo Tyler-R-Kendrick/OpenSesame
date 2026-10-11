@@ -115,7 +115,9 @@ pub fn probe_unix_socket(path: &Path) -> SocketState {
     }
 }
 
+/// Return the free state on platforms without a Unix socket probe.
 #[cfg(not(unix))]
+#[must_use]
 pub fn probe_unix_socket(_path: &Path) -> SocketState {
     SocketState::Free
 }
@@ -139,6 +141,11 @@ pub fn takeover_if_dead(path: &Path) -> Result<SocketState, crate::BridgeError> 
     Ok(state)
 }
 
+/// Return the free state without removing a filesystem entry on this platform.
+///
+/// # Errors
+///
+/// This platform implementation does not return an error.
 #[cfg(not(unix))]
 pub fn takeover_if_dead(path: &Path) -> Result<SocketState, crate::BridgeError> {
     Ok(probe_unix_socket(path))
