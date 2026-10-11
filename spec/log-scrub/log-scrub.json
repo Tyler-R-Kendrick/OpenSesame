@@ -90,6 +90,13 @@
       "replace": "[REDACTED]"
     },
     {
+      "id": "model-key",
+      "description": "An OpenSesame model key: `osk_` and exactly 43 base64url characters (`packages/app-core/src/lib/model-keys`, ADR 0188). A bearer shown to a person once. It runs ahead of the generic shapes so none of them can bite a piece out of a key body first, and it has no leading word boundary: a key glued to a label (`model_key_osk_…`) must not survive, and 43 characters after the prefix leave no room for a false hit. A key under a secret-named label, a secret URL parameter or a `Bearer`/`DPoP` scheme is already taken by that rule first; this one is for the key with nothing to name it.",
+      "pattern": "osk_[A-Za-z0-9_-]{43}",
+      "flags": "",
+      "replace": "[REDACTED]"
+    },
+    {
       "id": "opensesame-token",
       "description": "Our own bearer shapes: claim and delegation tokens (`osc_clm_`, `osc_dlg_`, `osc_at_`), SCIM tokens, webhook signing secrets.",
       "pattern": "\\b(?:osc_[a-z]{2,6}_[A-Za-z0-9_.~-]{6,}|sct_[A-Za-z0-9_-]{8,}|whsec_[A-Za-z0-9+/=_-]{8,})",
@@ -206,6 +213,76 @@
       "expect": "hook [REDACTED] ok"
     },
     {
+      "rule": "model-key",
+      "input": "osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": "[REDACTED]"
+    },
+    {
+      "rule": "model-key",
+      "input": "issued osk_Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_ to ada; shown once",
+      "expect": "issued [REDACTED] to ada; shown once"
+    },
+    {
+      "rule": "model-key",
+      "input": "a osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA b osk_Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_-Ab_ c",
+      "expect": "a [REDACTED] b [REDACTED] c"
+    },
+    {
+      "rule": "model-key",
+      "input": "GET /v1/models?ref=osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA 200",
+      "expect": "GET /v1/models?ref=[REDACTED] 200"
+    },
+    {
+      "rule": "model-key",
+      "input": "open https://app.example/keys#ref=osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&page=2",
+      "expect": "open https://app.example/keys#ref=[REDACTED]&page=2"
+    },
+    {
+      "rule": "model-key",
+      "input": "DELETE /v1/keys/osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/revoke",
+      "expect": "DELETE /v1/keys/[REDACTED]/revoke"
+    },
+    {
+      "rule": "url-secret-param",
+      "input": "open https://app.example/keys#key=osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&page=2",
+      "expect": "open https://app.example/keys#key=[REDACTED]&page=2"
+    },
+    {
+      "rule": "labelled-value",
+      "input": "Authorization: DPoP osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "expect": "Authorization: [REDACTED]"
+    },
+    {
+      "rule": "auth-scheme",
+      "input": "sent DPoP osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA upstream",
+      "expect": "sent DPoP [REDACTED] upstream"
+    },
+    {
+      "rule": "auth-scheme",
+      "input": "sent Bearer osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA upstream",
+      "expect": "sent Bearer [REDACTED] upstream"
+    },
+    {
+      "rule": "model-key",
+      "input": "{\"modelKey\":\"osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\"user\":\"ada\"}",
+      "expect": "{\"modelKey\":\"[REDACTED]\",\"user\":\"ada\"}"
+    },
+    {
+      "rule": "model-key",
+      "input": "MODEL_KEY=osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ok",
+      "expect": "MODEL_KEY=[REDACTED] ok"
+    },
+    {
+      "rule": "model-key",
+      "input": "model_key_osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA end",
+      "expect": "model_key_[REDACTED] end"
+    },
+    {
+      "rule": "model-key",
+      "input": "令牌osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA ok",
+      "expect": "令牌[REDACTED] ok"
+    },
+    {
       "rule": "provider-token",
       "input": "pat ghp_abcdefghijklmnopqrstuvwxyz0123456789 ok",
       "expect": "pat [REDACTED] ok"
@@ -274,6 +351,11 @@
     "requestDigest sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
     "tokenizer=fast monkeypatch=on",
     "the bearer of bad news",
+    "short by one osk_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "a space ends the run osk_AAAAAAAAAAAAAAAAAAAA AAAAAAAAAAAAAAAAAAAAAAA",
+    "a preview is not a key osk_AbCdEfGh",
+    "kiosk_mode=on tabs=3",
+    "OSK_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA is not the prefix",
     "policy digest matched; approval settled",
     "{\"eventType\":\"vault.unlocked\",\"outcome\":\"success\"}"
   ],

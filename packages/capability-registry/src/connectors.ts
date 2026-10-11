@@ -1,4 +1,5 @@
 import type { Capability, CapabilityExclusion } from "./index.js";
+import { modelKeyCapabilities } from "./model-keys.js";
 
 const ADR_CONNECTOR_DIRECTORY = "0115-front-door-and-connector-directory.md";
 const ADR_CONNECTOR_PLANS = "0147-connector-plans-and-user-token-proof.md";
@@ -122,8 +123,9 @@ export const connectPlanCapabilities: readonly Capability[] = [
   },
 ];
 
-/** Every connector capability, directory and plans alike. */
+/** Every connector capability: directory, plans, and the model keys a connection backs (ADR 0188). */
 export const connectorCapabilities: readonly Capability[] = [
   ...connectorDirectoryCapabilities,
   ...connectPlanCapabilities,
+  ...modelKeyCapabilities,
 ];

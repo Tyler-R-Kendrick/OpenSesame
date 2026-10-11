@@ -111,6 +111,8 @@ const CONNECTOR_RECORDS = [
   "connections",
   "connections-integrations",
   "connections-local-git",
+  "model-api",
+  "provider-category",
   "connector-directory",
   "connector-settings",
   "nango-directory",
@@ -147,6 +149,21 @@ export const CROSS_RULES = [
     `${L}native-`,
     "connectors.external",
     "native provider authorization and connection runtime",
+  ),
+  optional(
+    `${L}model-keys/`,
+    "connectors.external",
+    "model keys: the broker, the RFC 8693 exchange, the last-hop check and their test fixtures (ADR 0188)",
+  ),
+  optional(
+    `${L}ai-model-provider`,
+    "connectors.external",
+    "which catalogue rows are model providers and how each is spoken to (ADR 0188)",
+  ),
+  optional(
+    `${L}proofs/model-grant-approval`,
+    "connectors.external",
+    "the proof that a person approved this exact model key grant (ADR 0178, ADR 0188)",
   ),
   optional(
     `${L}connector-action-capability`,

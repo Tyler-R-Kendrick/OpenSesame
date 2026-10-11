@@ -126,6 +126,13 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "connectors.connect.configure": "connectors.external",
     "connectors.connect.authorize_user": "connectors.external",
     "connectors.connect.token_check": "connectors.external",
+    // Model keys (ADR 0188): the broker is bound while External connectors is
+    // active, because the credential a key stands for is that capability's.
+    "models.keys.mint": "connectors.external",
+    "models.keys.read": "connectors.external",
+    "models.keys.revoke": "connectors.external",
+    "models.keys.exchange": "connectors.external",
+    "models.keys.invoke": "connectors.external",
 
     // --- optional: git remote backup ------------------------------------
     "backup.status": "backup.git-remote",

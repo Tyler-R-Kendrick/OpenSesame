@@ -138,4 +138,10 @@ export const CAPABILITY_TUTORIALS = {
   "connectors.connect.configure": "connection.create",
   "connectors.connect.authorize_user": "connection.create",
   "connectors.connect.token_check": "connection.create",
+  // Model keys (ADR 0188) are made on the page of a connection a person added.
+  "models.keys.mint": "settings.model-provider",
+  "models.keys.read": "settings.model-provider",
+  "models.keys.revoke": "settings.model-provider",
+  "models.keys.exchange": "settings.model-provider",
+  "models.keys.invoke": "settings.model-provider",
 } satisfies Readonly<Record<string, GuideGoalId>>;

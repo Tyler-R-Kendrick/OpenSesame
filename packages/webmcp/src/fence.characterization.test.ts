@@ -21,6 +21,9 @@ const ENV_FIXTURES = [
   },
 ];
 
+/** Synthetic: `osk_` and 43 base64url characters, none of them a real key. */
+const MODEL_KEY = `osk_${"A".repeat(43)}`;
+
 const TEXT_FIXTURES = [
   "",
   "plain status text with nothing sensitive",
@@ -33,6 +36,17 @@ const TEXT_FIXTURES = [
   "ghp_abcdefghijklmnop",
   "-----BEGIN PRIVATE KEY-----",
   "secret://vault/item",
+  MODEL_KEY,
+  `your key is ${MODEL_KEY}; it is shown once`,
+  `{"note":"${MODEL_KEY}"}`,
+  `Authorization: DPoP ${MODEL_KEY}`,
+  `model_key_${MODEL_KEY}`,
+  `osk_${"Ab_-".repeat(10)}Ab_`,
+  `osk_${"A".repeat(42)}`,
+  `osk_${"A".repeat(20)} ${"A".repeat(23)}`,
+  `OSK_${"A".repeat(43)}`,
+  "osk_AbCdEfGh",
+  "kiosk_mode=on tabs=3",
 ];
 
 describe("fence characterization against @opensesame/observability", () => {

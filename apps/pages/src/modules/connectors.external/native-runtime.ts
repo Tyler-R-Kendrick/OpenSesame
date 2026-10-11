@@ -17,6 +17,7 @@ import { LeaseAbortedError, anySignal, runUnlessAborted } from "../signals.js";
 import { bindLinearRuntime } from "./linear-runtime.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
+import { bindNativeModelKeys } from "./native-model-keys-runtime.js";
 import { bindNativeModelRuntime } from "./native-model-runtime.js";
 import { bindNativeOAuthRuntime } from "./native-oauth-runtime.js";
 import { bindNativeTwitchValidation } from "./native-twitch-validation.js";
@@ -174,6 +175,7 @@ export function bindProviderRuntime(
   bindNativeRuntime(ctx, activation);
   bindNativeApiRuntime(activation);
   bindNativeModelRuntime(activation);
+  bindNativeModelKeys(activation);
   bindNativeOAuthRuntime(activation);
   bindNativeTwitchValidation(activation);
   bindNativeVaultRuntime(activation);

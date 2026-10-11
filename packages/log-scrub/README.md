@@ -22,7 +22,7 @@ test vectors are written once, and each plane runs every vector.
 
 | Export | What it does |
 |---|---|
-| `scrubText(text)` | Rewrites every secret the text carries: PEM blocks, DSN passwords, `#token=` and `?code=` parameters, `label: value` pairs, cookie headers, bearer and DPoP credentials, JWTs, `osc_*` tokens, vendor keys. Idempotent. |
+| `scrubText(text)` | Rewrites every secret the text carries: PEM blocks, DSN passwords, `#token=` and `?code=` parameters, `label: value` pairs, cookie headers, bearer and DPoP credentials, JWTs, `osk_*` model keys, `osc_*` tokens, vendor keys. Idempotent. |
 | `scrubValue(value)` | A deep copy with sensitive keys censored (`accessToken`, `x-api-key`, `db_password`), every string scrubbed, errors flattened, binary replaced, cycles and depth cut. |
 | `scrubStrings(value)` | The value layer only: every string scrubbed, no key censored, for an output whose own key policy is deliberate (the device-flow CLI printing a `user_code`). |
 | `describeError(error)` | An error, or whatever was thrown, as one scrubbed line (its stack when it has one), for an entry point's last-resort `console.error`. |

@@ -42,9 +42,9 @@ JWTs, `osc_` tokens and PEM blocks were invisible to it.
 ## Decision
 
 1. **One scrubber, written once.** `spec/log-scrub/log-scrub.json` is the
-   definition: nine ordered value rules (PEM, DSN userinfo, secret URL
-   parameters, cookie lines, labelled values, bearer/DPoP, JWT, our own token
-   shapes, vendor key shapes), the key-name rule, and a vector table with
+   definition: ten ordered value rules (PEM, DSN userinfo, secret URL
+   parameters, cookie lines, labelled values, bearer/DPoP, JWT, model keys
+   (`osk_`, ADR 0188), our own token shapes, vendor key shapes), the key-name rule, and a vector table with
    negative controls (`token_type=Bearer` and `the bearer of bad news` must
    survive). `@opensesame/log-scrub` (TypeScript) and `crates/redaction`
    (Rust) each compile it and run every vector, so a rule is added once and

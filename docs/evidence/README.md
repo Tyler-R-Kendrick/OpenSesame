@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-11-lock-v5-dial-shimmer/`](2026-10-11-lock-v5-dial-shimmer/README.md) | Lock-v5: the shimmer runs on, the dial is on the front door, the key is in front |
+| [`2026-10-11-ai-model-providers/`](2026-10-11-ai-model-providers/README.md) | AI model providers: their own section, a one-sheet add, and keys for apps |
 | [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
 | [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
 | [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) |  |
