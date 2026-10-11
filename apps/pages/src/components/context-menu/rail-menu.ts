@@ -5,6 +5,8 @@ import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { railRowId } from "../RailRows.js";
+import { setRailCursor } from "../rail-cursor.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
 import { copyText, navigationGroup, shellGroup } from "./page-menu.js";
 
@@ -93,6 +95,19 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
       run: () => navigate(kind ? `/vault/new/${kind}` : "/vault/new"),
     },
   ];
+  // The vault's own row (level 1) carries the report; a filter or a kind does not.
+  if (entry.level === 1 && entry.to === "/vault") {
+    items.push({
+      id: "health",
+      label: "Password health",
+      // Focus returns to this row when the menu closes, so the cursor must
+      // move here too or it keeps the "all items" row it stood on before.
+      run: () => {
+        setRailCursor(railRowId("/vault"));
+        navigate("/vault/health");
+      },
+    });
+  }
   const share = vaultShare(navigate);
   if (share) items.push(share);
   return items;
