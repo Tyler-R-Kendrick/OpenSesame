@@ -60,11 +60,20 @@ const ITEMS = [
 
 const originalHooks = { ...vaultHooksSeams };
 let status = "unlocked";
+let tomb = "personal";
+let items = ITEMS;
 
 beforeEach(() => {
   status = "unlocked";
+  tomb = "personal";
+  items = ITEMS;
   Object.assign(vaultHooksSeams, {
-    useVault: () => ({ ...vaultStore.getSnapshot(), status, items: ITEMS }),
+    useVault: () => ({
+      ...vaultStore.getSnapshot(),
+      status,
+      tomb,
+      items,
+    }),
   });
 });
 
@@ -195,14 +204,6 @@ describe("vault.security-checks runtime", () => {
   });
 
   it("clears a finished check when vault logins change", async () => {
-    let items = ITEMS;
-    Object.assign(vaultHooksSeams, {
-      useVault: () => ({
-        ...vaultStore.getSnapshot(),
-        status,
-        items,
-      }),
-    });
     const { handle, Panel, view } = await mountedPanel();
     fireEvent.click(
       screen.getByRole("button", {
@@ -213,6 +214,24 @@ describe("vault.security-checks runtime", () => {
       expect(screen.getByText("2 logins checked")).toBeTruthy(),
     );
     items = [...ITEMS, login("Added", "fresh-secret", "https://added.example")];
+    view.rerender(<Panel />);
+    await waitFor(() =>
+      expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy(),
+    );
+    await handle.dispose();
+  });
+
+  it("clears a finished check when the active vault changes", async () => {
+    const { handle, Panel, view } = await mountedPanel();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Check logins against breaches and two-step sites",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("2 logins checked")).toBeTruthy(),
+    );
+    tomb = "project-other";
     view.rerender(<Panel />);
     await waitFor(() =>
       expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy(),

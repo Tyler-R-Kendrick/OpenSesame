@@ -14,6 +14,7 @@ import { breachWatchSnapshot } from "./health.js";
 import {
   type CheckFetch,
   PWNED_RANGE_URL,
+  SECURITY_CHECKS_IDLE,
   TWO_FACTOR_LIST_URL,
   breachCounts,
   clearSecurityWatch,
@@ -196,7 +197,7 @@ describe("runSecurityChecks", () => {
     noteSecurityWatch({ phase: "idle" });
     expect(breachWatchSnapshot()).toMatchObject({
       phase: "idle",
-      label: "Breach and two-step checks on. Not checked.",
+      label: SECURITY_CHECKS_IDLE,
     });
     const range = rangeServer(new Map([[PASSWORD_SHA1, 12]]));
     const list = listServer();
@@ -204,7 +205,13 @@ describe("runSecurityChecks", () => {
       login("GitHub", "password", "https://github.com/login"),
       login("Mail", "unique-and-long-1", "https://accounts.google.com"),
     ];
-    const report = await runSecurityChecks(items, range.fetch, list.fetch);
+    const report = await runSecurityChecks(
+      items,
+      range.fetch,
+      list.fetch,
+      undefined,
+      "personal",
+    );
     expect(securityWatchLabel(report)).toBe(
       "1 of 2 passwords found in known breaches. 2 logins could add an authenticator code.",
     );
@@ -223,16 +230,29 @@ describe("runSecurityChecks", () => {
     expect(watch.lines[1]?.sentences).toEqual([
       "This site takes an authenticator code; none is stored",
     ]);
-    reconcileSecurityWatchWithVault(items);
+    reconcileSecurityWatchWithVault("personal", items);
     expect(breachWatchSnapshot().phase).toBe("checked");
     const edited = [
       ...items,
       login("Added", "another-unique-pass", "https://added.example"),
     ];
-    reconcileSecurityWatchWithVault(edited);
+    reconcileSecurityWatchWithVault("personal", edited);
     expect(breachWatchSnapshot()).toMatchObject({
       phase: "idle",
-      label: "Breach and two-step checks on. Not checked.",
+      label: SECURITY_CHECKS_IDLE,
+    });
+    await runSecurityChecks(
+      items,
+      range.fetch,
+      list.fetch,
+      undefined,
+      "personal",
+    );
+    noteSecurityWatch({ phase: "checked", report });
+    reconcileSecurityWatchWithVault("project-other", items);
+    expect(breachWatchSnapshot()).toMatchObject({
+      phase: "idle",
+      label: SECURITY_CHECKS_IDLE,
     });
     clearSecurityWatch();
     expect(breachWatchSnapshot().phase).toBe("off");

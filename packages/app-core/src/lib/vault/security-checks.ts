@@ -65,7 +65,7 @@ export type SecurityReport = {
 
 /** Shown in Settings and on Password health while the capability is on and no check has finished. */
 export const SECURITY_CHECKS_IDLE =
-  "Breach and two-step checks on. Not checked.";
+  "Breach and two-step checks are on. Not checked yet.";
 
 function noun(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
@@ -85,7 +85,7 @@ export function securityWatchLabel(report: SecurityReport): string {
   if (twoStep > 0) {
     return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
   }
-  return `${noun(checked, "login", "logins")} checked. No breaches; no missing codes.`;
+  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.`;
 }
 
 /** Visible sentences for one login, breach first, then a missing authenticator code. */
@@ -131,13 +131,13 @@ function checkedWatch(report: SecurityReport): BreachWatch {
   };
 }
 
-let checkedLoginFingerprint: string | null = null;
+let checkedScope: string | null = null;
 
-function loginFingerprint(items: readonly VaultItem[]): string {
-  return logins(items)
+function securityWatchScope(tomb: string, items: readonly VaultItem[]): string {
+  return `${tomb}\0${logins(items)
     .map((item) => item.updatedAt)
     .sort()
-    .join("|");
+    .join("|")}`;
 }
 
 export type SecurityWatchNote =
@@ -151,17 +151,17 @@ export type SecurityWatchNote =
 export function noteSecurityWatch(note: SecurityWatchNote): void {
   switch (note.phase) {
     case "off":
-      checkedLoginFingerprint = null;
+      checkedScope = null;
       publishBreachWatch({ phase: "off" });
       return;
     case "idle":
-      checkedLoginFingerprint = null;
+      checkedScope = null;
       publishBreachWatch({ phase: "idle", label: SECURITY_CHECKS_IDLE });
       return;
     case "checking":
       publishBreachWatch({
         phase: "checking",
-        label: "Checking logins for breaches and missing codes.",
+        label: "Checking logins against known breaches and two-step sites.",
       });
       return;
     case "error":
@@ -174,11 +174,12 @@ export function noteSecurityWatch(note: SecurityWatchNote): void {
 }
 
 export function reconcileSecurityWatchWithVault(
+  tomb: string,
   items: readonly VaultItem[],
 ): void {
   if (
-    checkedLoginFingerprint !== null &&
-    loginFingerprint(items) !== checkedLoginFingerprint
+    checkedScope !== null &&
+    checkedScope !== securityWatchScope(tomb, items)
   ) {
     noteSecurityWatch({ phase: "idle" });
   }
@@ -324,6 +325,7 @@ export async function runSecurityChecks(
   fetchRange: CheckFetch,
   fetchList: CheckFetch,
   now: () => Date = () => new Date(),
+  watchTomb?: string,
 ): Promise<SecurityReport> {
   const checked = logins(items);
   const counts = await breachCounts(checked.map(wholePassword), fetchRange);
@@ -349,7 +351,9 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
-  checkedLoginFingerprint = loginFingerprint(items);
+  if (watchTomb !== undefined) {
+    checkedScope = securityWatchScope(watchTomb, items);
+  }
   return {
     checkedAt: now().toISOString(),
     checked: checked.length,
