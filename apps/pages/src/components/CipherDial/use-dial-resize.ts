@@ -26,7 +26,7 @@ export function useDialResize(
     }
 
     // Theme flips change --ink without a resize; rebake ring atlases.
-    if ("MutationObserver" in globalThis) {
+    if (typeof MutationObserver !== "undefined") {
       const mo = new MutationObserver(() => relayout());
       mo.observe(document.documentElement, {
         attributes: true,

@@ -67,6 +67,9 @@ export type SecurityReport = {
 export const SECURITY_CHECKS_IDLE =
   "Breach and two-step checks are on. Not checked yet.";
 
+const SECURITY_CHECKS_CHECKING =
+  "Checking logins against known breaches and two-step sites.";
+
 function noun(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
@@ -131,13 +134,10 @@ function checkedWatch(report: SecurityReport): BreachWatch {
   };
 }
 
-let checkedScope: string | null = null;
+let watchScope = "";
 
-function securityWatchScope(tomb: string, items: readonly VaultItem[]): string {
-  return `${tomb}\0${logins(items)
-    .map((item) => item.updatedAt)
-    .sort()
-    .join("|")}`;
+function watchScopeOf(tomb: string, items: readonly VaultItem[]): string {
+  return `${tomb}\0${logins(items).length}`;
 }
 
 export type SecurityWatchNote =
@@ -151,17 +151,17 @@ export type SecurityWatchNote =
 export function noteSecurityWatch(note: SecurityWatchNote): void {
   switch (note.phase) {
     case "off":
-      checkedScope = null;
+      watchScope = "";
       publishBreachWatch({ phase: "off" });
       return;
     case "idle":
-      checkedScope = null;
+      watchScope = "";
       publishBreachWatch({ phase: "idle", label: SECURITY_CHECKS_IDLE });
       return;
     case "checking":
       publishBreachWatch({
         phase: "checking",
-        label: "Checking logins against known breaches and two-step sites.",
+        label: SECURITY_CHECKS_CHECKING,
       });
       return;
     case "error":
@@ -177,12 +177,9 @@ export function reconcileSecurityWatchWithVault(
   tomb: string,
   items: readonly VaultItem[],
 ): void {
-  if (
-    checkedScope !== null &&
-    checkedScope !== securityWatchScope(tomb, items)
-  ) {
-    noteSecurityWatch({ phase: "idle" });
-  }
+  const next = watchScopeOf(tomb, items);
+  if (!watchScope || watchScope === next) return;
+  noteSecurityWatch({ phase: "idle" });
 }
 
 /** Capability off: Password health drops the breach block. */
@@ -352,7 +349,7 @@ export async function runSecurityChecks(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
   if (watchTomb !== undefined) {
-    checkedScope = securityWatchScope(watchTomb, items);
+    watchScope = watchScopeOf(watchTomb, items);
   }
   return {
     checkedAt: now().toISOString(),

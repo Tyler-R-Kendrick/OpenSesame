@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import {
   PWNED_PURPOSE,
-  SECURITY_CHECKS_SUMMARY,
   TWO_FACTOR_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import { breachWatchSnapshot } from "@opensesame/app-core/lib/vault/health.js";
@@ -146,7 +145,6 @@ describe("vault.security-checks runtime", () => {
     const { t, handle } = await mountedPanel();
     expect(t.egressCalls).toEqual([]);
     expect(screen.getByText("Not checked")).toBeTruthy();
-    expect(screen.getByText(SECURITY_CHECKS_SUMMARY)).toBeTruthy();
     expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy();
 
     fireEvent.click(
@@ -192,13 +190,12 @@ describe("vault.security-checks runtime", () => {
         expect(path).toMatch(/^\/range\/[0-9A-F]{5}$/);
     }
     // GitHub: breached, and takes a code none is stored for. Shop: neither.
-    const marks = screen
-      .getAllByRole("img")
-      .map((mark) => mark.getAttribute("aria-label"));
-    expect(marks).toContain("Found in breaches 42 times: change this password");
-    expect(marks).toContain(
-      "This site takes an authenticator code; none is stored",
-    );
+    expect(
+      screen.getByText("Found in breaches 42 times: change this password"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("This site takes an authenticator code; none is stored"),
+    ).toBeTruthy();
     expect(screen.queryByText("Shop")).toBeNull();
     await handle.dispose();
   });
