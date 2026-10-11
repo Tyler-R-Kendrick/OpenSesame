@@ -6,20 +6,18 @@ export const PARTICLE_SEED = 1337;
 export const ALPHA_LEVELS = 24;
 
 /**
- * One plate grid, three renderings by em size (DESIGN.md § Mark): letters
- * alone under 16px, a solid plate with the letter cut out from 16 to 48px, a
- * field of particles with the letter cut out from 48px up. Measured on the
- * product, an 11px particle plate keeps 290 of its 1,400 cut-out pixels and
- * reads as redacted blocks, so the small tiers exist.
+ * The wordmark is the particle field (DESIGN.md § Mark): plates of ink
+ * particles with the letter cut out, from a 16px em up — a phone's hero
+ * included. The solid-plate rendering a hero once fell to under 48px was
+ * rejected and is gone. Under 16px the chrome still draws the letters alone
+ * (the rail, the setup bar): an 11px particle plate keeps 290 of its 1,400
+ * cut-out pixels and reads as redacted blocks.
  */
 export const TYPE_MAX_EM = 16;
-export const SOLID_MAX_EM = 48;
-export type WordmarkTier = "type" | "solid" | "field";
+export type WordmarkTier = "type" | "field";
 
 export function tierOf(em: number): WordmarkTier {
-  if (em < TYPE_MAX_EM) return "type";
-  if (em < SOLID_MAX_EM) return "solid";
-  return "field";
+  return em < TYPE_MAX_EM ? "type" : "field";
 }
 
 /** The wordmark's width in ems, mark and gap included: fit a hero with it. */
