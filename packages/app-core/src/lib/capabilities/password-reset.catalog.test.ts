@@ -1,7 +1,7 @@
 /**
  * What `ai.password-reset` is in the catalog: its own section, dependent on the
  * login item types, declaring the one request it makes and the one operation it
- * owns (ADR 0189).
+ * owns (ADR 0190).
  */
 import { describe, expect, it } from "vitest";
 import { PASSWORD_RESET_MAIL_PURPOSE } from "./catalog-optional-services.js";

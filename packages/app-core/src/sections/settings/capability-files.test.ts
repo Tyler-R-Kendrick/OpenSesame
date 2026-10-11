@@ -1,5 +1,5 @@
 /**
- * Settings › Capabilities as files (ADR 0134): the capability documents sit
+ * Settings › Features as files (ADR 0134): the capability documents sit
  * beside `config.yaml` and are written through the S04 adapter, so the file
  * viewer meets the refusals the switches do.
  */
@@ -79,7 +79,7 @@ describe("capabilities as files", () => {
     expect(listed[1]?.readOnly).toBe(false);
     expect(listed[2]?.readOnly).toBe(true);
     for (const file of listed) {
-      expect(file.path.startsWith("settings/capabilities/")).toBe(true);
+      expect(file.path.startsWith("settings/features/")).toBe(true);
     }
   });
 
@@ -161,7 +161,7 @@ describe("capabilities as files", () => {
     expect(await provider.read(EFFECTIVE_FILE)).toContain(
       "approvedCapabilities",
     );
-    expect(await provider.read("settings/capabilities/nope.yaml")).toBe("");
+    expect(await provider.read("settings/features/nope.yaml")).toBe("");
   });
 
   it("refuses text the adapter's parser refuses, and any write to the effective plan", async () => {

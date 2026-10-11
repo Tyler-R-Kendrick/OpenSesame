@@ -135,7 +135,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "settings.core",
     "Settings",
-    "General, Security, Vaults, Danger and Capabilities, the deployment setup record and the runtime endpoint file.",
+    "General, Security, Vaults, Features, Integrations and Danger, the deployment setup record and the runtime endpoint file.",
     {
       operationIds: ["setup.first_run"],
       egress: [

@@ -61,7 +61,7 @@ opensesame daemon drive rm <slot>       # close it; paired devices stop syncing
 
 ## 3. Pair devices
 
-Turn on **Networking** in Settings › Capabilities on each device; the
+Turn on **Networking** in Settings › Features on each device; the
 **Tailnet sync** panel then appears under Settings › Vaults.
 
 - **The device that has the vault:** unlock it, press the row's

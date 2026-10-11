@@ -3,7 +3,7 @@
 //
 // Guest, decoy and locked vaults draw no panel, so the walk starts from the
 // door the way a person does — Enter on Set up, Skip all, the local seal, a PIN
-// — and switches the capability on from Settings › Capabilities. After that
+// — and switches the capability on from Settings › Features. After that
 // every claim is about where the keyboard is:
 //   - the tab is reached by `g s` and Tab, and it leaves the keys in reading
 //     order: Start a circle, Accept an invitation, Take what an owner sent,

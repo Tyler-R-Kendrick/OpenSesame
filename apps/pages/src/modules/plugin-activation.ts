@@ -1,8 +1,8 @@
 /**
  * What a runtime-installed plugin's capability contributes when it is
  * activated (ADR 0150 §7): one session over the daemon it is handed, the
- * plugin's tile inside its Settings › Capabilities section, the file that
- * mirrors it (`settings/capabilities/plugins/<id>.json`, ADR 0134), and its
+ * plugin's tile inside its Settings › Features section, the file that
+ * mirrors it (`settings/features/plugins/<id>.json`, ADR 0134), and its
  * walkthrough.
  *
  * Shared by the two plugin modules, so it imports no optional code: the
@@ -17,7 +17,7 @@ import { createPluginSession } from "@opensesame/app-core/lib/plugins/session.js
 import { pluginFiles } from "@opensesame/app-core/sections/settings/plugin-files.js";
 import { provideGuidePluginPanel } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import { createElement } from "react";
-import { sectionCategory } from "../sections/settings/CapabilitySections.js";
+import { sectionCategory } from "../sections/settings/FeatureSections.js";
 import { notifySettingsFilesChanged } from "../sections/settings/files/revision.js";
 import { PluginPanel } from "../sections/settings/plugins/PluginPanel.js";
 import type { Activation } from "./activation.js";

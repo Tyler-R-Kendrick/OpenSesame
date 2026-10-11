@@ -36,7 +36,7 @@ export const backupSyncCapabilities: readonly Capability[] = [
     id: "backup.status",
     // The Host reads its server-side target (ADR 0039); Pages reads the
     // browser-local target that replaced it there (ADR 0128's backup road),
-    // drawn by Settings › Capabilities › Backups.
+    // drawn by Settings › Integrations › Backups.
     title: "Read vault backup posture",
     plane: "host",
     kind: "read",

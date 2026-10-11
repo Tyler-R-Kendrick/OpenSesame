@@ -2,7 +2,7 @@ import { ADR_PASSWORD_RESET } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
- * Password reset (ADR 0189): the email accounts a vault keeps for resetting a
+ * Password reset (ADR 0190): the email accounts a vault keeps for resetting a
  * login, as `email-account` items. The mailbox's login can read mail for every
  * account its address is used on, so setting one up is something a person does
  * in Settings and is withheld from every agent surface. Binding a mailbox to a

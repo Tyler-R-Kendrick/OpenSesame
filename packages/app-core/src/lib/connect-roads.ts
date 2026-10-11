@@ -15,7 +15,7 @@
  * connector form saves through one, and a form only a Host could take is not
  * drawn: pressing its key could only fail (ADR 0151, amended 2026-10-03).
  *
- * One definition, so the tiles under Settings › Capabilities, the connector
+ * One definition, so the tiles under Settings › Integrations, the connector
  * page and the forms on it agree about what is offered. Pure reads of the
  * seamed session state; the React shell subscribes and asks again.
  */

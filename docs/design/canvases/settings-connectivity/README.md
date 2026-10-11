@@ -13,8 +13,8 @@ Published canvas:
 > (`apps/pages/src/components/MoreMenu.tsx`) lists the connections as named rows
 > and opens a connection ceremony (`ConnectionCeremony.tsx`). Settings has no
 > Connectivity category (its core categories are General, Keybindings, Security,
-> Vaults, Capabilities and Danger); the two addresses are an Endpoints panel
-> under Settings › Capabilities. The open questions below predate that build,
+> Vaults, Features, Integrations and Danger); the two addresses are an
+> Endpoints panel under Settings › Integrations. The open questions below predate that build,
 > and `discoverTailscaleDaemon` is not in this checkout.
 
 ## Artboards

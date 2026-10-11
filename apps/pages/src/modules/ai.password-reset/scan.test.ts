@@ -12,7 +12,7 @@ import {
 import type { JsonValue } from "@opensesame/os-domain";
 import { type VaultItem, createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { sectionCategory } from "../../sections/settings/CapabilitySections.js";
+import { sectionCategory } from "../../sections/settings/FeatureSections.js";
 import { PASSWORD_RESET_PANEL_CATEGORY } from "./runtime.js";
 import { createPasswordResetScan } from "./scan.js";
 

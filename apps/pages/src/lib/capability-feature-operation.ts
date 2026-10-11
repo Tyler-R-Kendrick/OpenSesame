@@ -44,7 +44,7 @@ const OWNERS: FeatureOwners = {
   local_storage: (provider) => savedLocalStorageOperation(provider),
 };
 
-/** The owning feature's operation for one connector the Capabilities page lists. */
+/** The owning feature's operation for one connector the Integrations page lists. */
 export function runCapabilityFeature(provider: Provider): FeatureOperation {
   switch (provider.category) {
     case "agent_harnesses":

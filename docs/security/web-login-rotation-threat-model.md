@@ -229,9 +229,9 @@ Two honest notes on what live observation does **not** do:
   and interface obligations decay faster than type-level ones. Capture-time
   stripping (`UntrustedText`) is the part that does not.
 
-## Proposed addendum: a hosted browser the person chose (ADR 0190)
+## Proposed addendum: a hosted browser the person chose (ADR 0191)
 
-**Not accepted.** [ADR 0190](../adr/0190-forgot-password-ceremony-remote-browser.md)
+**Not accepted.** [ADR 0191](../adr/0191-forgot-password-ceremony-remote-browser.md)
 proposes a forgot-password ceremony that may run in a hosted browser the person
 named and pays for (class C), which ADR 0076 constraint 6 refuses today. If it is
 accepted, S1 above gets one stronger case: the provider's operator holds the

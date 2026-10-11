@@ -50,6 +50,19 @@ describe("parseCommand", () => {
     );
   });
 
+  it("opens the successor of a retired settings directory's config.yaml (ADR 0189)", () => {
+    expect(parseCommand("settings/capabilities/config.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings/features?file=config.yaml",
+      label: "settings/features/config.yaml",
+    });
+    expect(parseCommand("settings/connections/config.yaml")).toEqual({
+      action: "open_path",
+      path: "/settings/integrations?file=config.yaml",
+      label: "settings/integrations/config.yaml",
+    });
+  });
+
   it("opens prefs aliases and refuses ledger path guesses", () => {
     expect(parseCommand("settings/prefs.yaml")).toEqual({
       action: "open_path",

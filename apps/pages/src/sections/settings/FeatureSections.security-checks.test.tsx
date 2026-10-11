@@ -17,11 +17,11 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { securityChecksPanel } from "../../modules/vault.security-checks/SecurityChecksPanel.js";
-import { sectionCategory } from "./CapabilitySections.js";
+import { sectionCategory } from "./FeatureSections.js";
 import {
   installPanelFixture,
   renderPanel,
-} from "./capabilities-panel.test-support.js";
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 installPanelFixture();

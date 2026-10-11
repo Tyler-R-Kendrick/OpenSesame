@@ -53,13 +53,13 @@ names one is read as though it did not.
 Connections, Access and Identity are optional (ADR 0153). The minimal plan
 approves `vault.passwords`, `activity.log` and `settings.core` and no
 optional capability. `~/connections`, `~/access` and `~/identity` load only
-after their Settings › Capabilities switch is on (`capability.<id>` is the
+after their Settings › Features switch is on (`capability.<id>` is the
 OpenFeature flag). The minimal vault's only creatable kinds are `secret` and
 `file`. Account, note, card, passkey, certificate and the other built-in types
 project onto that secret and stay out until Item types is on. Password reset
 (`ai.password-reset`) is its own section, off until chosen, and it depends on
 the account item type (`vault.derived-records`). Its mailboxes are
-`email-account` vault items (ADR 0189); the one network call it makes is to the
+`email-account` vault items (ADR 0190); the one network call it makes is to the
 JMAP server a person named on a mailbox.
 
 **Withdrawing an always-on capability.** A verified instance policy may list
@@ -67,8 +67,9 @@ an always-on capability in `prohibited`. The capability is then withdrawn: it
 is not approved and its module is not loaded. Every always-on capability that
 depends on it goes with it. An optional capability that depends on it sees a
 prohibited dependency. Statically linked core cannot be withdrawn, because it
-has no module to leave out. Settings › Capabilities says "withdrawn by
-operator" in a notice and on the section the capability backs.
+has no module to leave out. Settings › Features says "withdrawn by
+operator" in a notice, and so does the section the capability backs (a
+feature section, or the integration whose providers work through it).
 
 A policy a version-1 preset wrote (`presetProvenance.version: 1`) listed
 every optional id the preset did not offer, so it may name the site broker,
@@ -125,30 +126,38 @@ hand-off. Prohibit it (`prohibited: [sharing.trusted-contacts]`) and the
 Settings › Trusted contacts tab is gone with it. The operator guide is
 [`trusted-contacts.md`](trusted-contacts.md#operator-controls).
 
-Settings › Capabilities is one list of **sections**
-(`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
-way: a subheader and the tiles configured under it. In order: Guests,
-Identity, Access, Connections, Directory, Encryption, Certificate authority,
-Backups, Password managers, Cloud secret storage, Local storage, Encrypted
-search, Item types, Environments, Breach and two-step checks, Browser autofill,
-Sharing, Payments, AI, Password reset, Surrogate credentials, Networking, Local
-notifications, Notifications, Telemetry, and — for the operator — Instance
-policy. A section is drawn only where it has a switch or a tile that acts (ADR
-0158): External telemetry and Certificate authority are optional so an
-operator can prohibit them, but have no Pages code behind them, so they have
-no switch (`NO_SURFACE` in `feature-surface.ts`) and Telemetry, left with nothing to
-draw, is absent, except while the plan already approves one: its switch then
-stays, so it can be turned off. Connector tiles (Backups, Password managers,
-Cloud secret storage, Local storage, and the providers under Identity,
-Payments, AI and Networking) are the Connections capability's pages
-(`/settings/connections/<id>`, ADR 0153), so they are drawn while Connections
-runs and not before. A capability another running one is built on shows
-*needed by …* in place of its switch. A section with optional
-capabilities carries one switch on its
-subheader over all of them; a section with more than one (Sharing, AI) also
-lists each as a tile with its own switch. A section of an always-on function
-has no switch. Every optional capability and every connector family has
-exactly one section. **Guests** is on unless an operator turns it off.
+Settings is split in two (ADR 0189). **Settings › Features** is the feature
+flags: one list of **sections**
+(`packages/app-core/src/lib/capabilities/features.ts`), each a subheader and the
+switch on it. In order: Guests, Identity, Access, Connections, Directory,
+Certificate authority, Encrypted search, Item types, Environments, Breach and
+two-step checks, Browser autofill, Sharing, Payments, AI, Password reset,
+Surrogate credentials, Networking, Local notifications, Notifications,
+Telemetry, and — for the operator — Instance policy. A section is drawn only
+where it has a switch that acts (ADR 0158): External telemetry and Certificate
+authority are optional so an operator can prohibit them, but have no Pages code
+behind them, so they have no switch (`NO_SURFACE` in `feature-surface.ts`) and
+Telemetry, left with nothing to draw, is absent, except while the plan already
+approves one: its switch then stays, so it can be turned off. A capability
+another running one is built on shows *needed by …* in place of its switch. A
+section carries one switch on its subheader over all its capabilities; a
+section with more than one (Sharing, AI) also lists each as a tile with its own
+switch. Every optional capability has exactly one section. **Guests** is on
+unless an operator turns it off.
+
+**Settings › Integrations** is the third-party connections that extend a feature
+or replace what it does on its own, one section per feature-binding connector
+family (`packages/app-core/src/lib/capabilities/integrations.ts`): Identity,
+Encryption, Certificate authority, Backups, Password managers, Cloud secret
+storage, Local storage, Payments, AI (the model picks too, while AI is on) and
+Networking. A connector is configured by reference — its page, its credential
+sealed in the vault — so nothing here is a switch or a reviewed plan, and a
+section draws whether or not the feature it extends is on. Connector tiles are
+the Connections capability's pages (`/settings/connections/<id>`, ADR 0153), so
+they are drawn while Connections runs and not before; a history road under
+Backups is its own switch and acts without a page. Every connector family has
+exactly one section. An old link to Settings › Capabilities, its sections or its
+documents is redirected to the right page (`retiredSettingsAddress`).
 
 **Runtime-installed plugins** (ADR 0150 §7, `spec/plugins/catalog.json`).
 Browser autofill (`vault.browser-autofill`) and Surrogate credentials
@@ -163,7 +172,7 @@ off or forced off, one key that switches it there (`PUT /v1/plugins/{id}`),
 and for the proxy its recent tripwires by event, time and subject. A forced
 off plugin (`OPENSESAME_PLUGIN_<ID>=off` on the daemon) cannot be turned on
 from Pages. Each plugin's state is also the read-only file
-`settings/capabilities/plugins/<id>.json`. With no daemon paired — a guest,
+`settings/features/plugins/<id>.json`. With no daemon paired — a guest,
 a locked vault, nothing paired — the tile sends nothing.
 
 ## 2. The five scopes, and which one wins
@@ -270,7 +279,7 @@ display paths `capabilities/instance-policy.yaml`,
 `capabilities/installation-selection.yaml`,
 `capabilities/vault-restriction.yaml` and `capabilities/effective-plan.yaml`
 (read-only). `.yml` is an accepted alias for each. Settings' file viewer lists
-three of them, under `settings/capabilities/`:
+three of them, under `settings/features/`:
 `installation-selection.yaml`, `instance-policy.yaml` (listed, read and written
 only for the device's operator, and refused while a deployment owns the
 policy) and `effective-plan.yaml` (read-only). The vault restriction is not
@@ -533,9 +542,9 @@ Five different facts, five different places. None of them implies another.
 |---|---|
 | What does this release **contain**? | `dist/capability-distribution.json` |
 | Which file carries which capability? | `dist/capability-graph.json` (source module → chunk, static and dynamic edges, CSS/asset edges, workers, public files, classification with rationale) |
-| What does the policy **permit**, and why not? | Settings › Capabilities: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the file `settings/capabilities/effective-plan.yaml`. The policy authored on this device is `settings/capabilities/instance-policy.yaml`, listed to the device's operator only |
-| What did this device **select and accept**? | Settings › Capabilities, the file `settings/capabilities/installation-selection.yaml` |
-| What did the resolver **decide**? | Settings › Capabilities, the file `settings/capabilities/effective-plan.yaml`, read-only |
+| What does the policy **permit**, and why not? | Settings › Features: a capability the policy does not permit shows its reason as a mark in place of its switch; the full reason codes (`explainCapability`) are in the file `settings/features/effective-plan.yaml`. The policy authored on this device is `settings/features/instance-policy.yaml`, listed to the device's operator only |
+| What did this device **select and accept**? | Settings › Features, the file `settings/features/installation-selection.yaml` |
+| What did the resolver **decide**? | Settings › Features, the file `settings/features/effective-plan.yaml`, read-only |
 | What is **cached** and what is the worker doing? | the offline status in Settings (`online-only`, `saving`, `saved`, `partial`, `storage-unavailable`), and `saved offline` on an approved capability not running here whose page modules the worker saved |
 | What is **loaded and running** right now? | the switch says on or off; beside it a status glyph says what a switch cannot — `starting`, `consent required`, `restart required`, `reload to start`, `saved offline`, `conflict`, `acceptance required`, `selected · not yet applied`, `needed by …` |
 
@@ -611,7 +620,7 @@ Match the reason code to the scope that refused it:
 - `PROHIBITED_BY_INSTANCE` / `NOT_PERMITTED_BY_INSTANCE` → the operator policy.
   Edit and bump the revision.
 - `DENIED_BY_WORKSPACE` / `DISABLED_IN_VAULT` → the per-vault restriction.
-- `NOT_SELECTED` → select it in Settings › Capabilities and apply.
+- `NOT_SELECTED` → select it in Settings › Features and apply.
 - `CONSENT_REQUIRED` → review and accept the delta.
 - `REQUIRED_NOT_ACCEPTED` → a required root is unaccepted, so *nothing* optional
   is approved. Accept it or the join stays refused.
@@ -625,7 +634,7 @@ Match the reason code to the scope that refused it:
 
 ### Stopping something right now
 
-Settings › Capabilities turns a capability off with its switch: the ordinary
+Settings › Features turns a capability off with its switch: the ordinary
 reviewed commit with the root removed. The store's emergency disable
 (`compositionStore.emergencyDisable`) is not on that page any more (ADR 0142
 §3) — a second key per capability beside its switch was the page saying the

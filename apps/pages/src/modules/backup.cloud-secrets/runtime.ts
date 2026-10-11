@@ -2,7 +2,7 @@
  * `backup.cloud-secrets` — sealed secrets mirrored to a cloud secret store
  * (the `cloud_secret_storage` family: Doppler, Infisical, AWS Secrets
  * Manager, HashiCorp Vault, …). Always on: that family's binding tiles are
- * drawn by Settings › Capabilities among the always-on provider groups.
+ * drawn by Settings › Integrations among the always-on provider groups.
  *
  * It draws nothing under Settings › Security: the SOPS document row was
  * removed on purpose, and `runtime.test.tsx` fails if a panel comes back.

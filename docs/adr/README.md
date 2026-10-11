@@ -251,5 +251,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0186](0186-live-session-transport-port-and-catalog-greeting.md) | Live sessions run over a transport port, and the catalog answers a greeting | Accepted |
 | [0187](0187-trusted-circle-quorum-sharing.md) | Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself | Accepted |
 | [0188](0188-a-vault-can-begin-from-a-file.md) | A vault can begin from a file | Accepted |
-| [0189](0189-password-reset-mailboxes-are-vault-items.md) | Password reset: mailboxes are vault items, read in the browser, bound by id | Accepted |
-| [0190](0190-forgot-password-ceremony-remote-browser.md) | Forgot-password ceremony: a value-blind reset through a remote browser | Proposed |
+| [0189](0189-settings-features-and-integrations.md) | Settings splits into Features and Integrations | Accepted |
+| [0190](0190-password-reset-mailboxes-are-vault-items.md) | Password reset: mailboxes are vault items, read in the browser, bound by id | Accepted |
+| [0191](0191-forgot-password-ceremony-remote-browser.md) | Forgot-password ceremony: a value-blind reset through a remote browser | Proposed |

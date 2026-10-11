@@ -1,0 +1,273 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            ".section__inner [role=switch]",
+            ".section__inner a[href*='/settings/connections/']"
+          ]
+        },
+        {
+          "shot": "390-features"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings/connections"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            ".section__inner [role=switch]",
+            ".section__inner a[href*='/settings/connections/']"
+          ]
+        },
+        {
+          "shot": "390-integrations"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings/capabilities#feature-backups"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            "#feature-backups",
+            "#integration-backups"
+          ]
+        },
+        {
+          "shot": "390-backups-anchor"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "count": [".set__nav-link"]
+        },
+        {
+          "report": ".set__nav"
+        },
+        {
+          "shot": "390-settings-nav"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            ".section__inner [role=switch]",
+            ".section__inner a[href*='/settings/connections/']"
+          ]
+        },
+        {
+          "shot": "1280-features"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings/connections"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            ".section__inner [role=switch]",
+            ".section__inner a[href*='/settings/connections/']"
+          ]
+        },
+        {
+          "shot": "1280-integrations"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings/capabilities#feature-backups"
+        },
+        {
+          "count": [
+            ".section__inner .capsection__title",
+            "#feature-backups",
+            "#integration-backups"
+          ]
+        },
+        {
+          "shot": "1280-backups-anchor"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "featureOptional": "Connections"
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "count": [".set__nav-link"]
+        },
+        {
+          "report": ".set__nav"
+        },
+        {
+          "shot": "1280-settings-nav"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-features",
+      "width": 390,
+      "title": "Features: the switches, and nothing to connect \u2014 390 \u00d7 844",
+      "caption": "The old /settings/capabilities link lands on Features. It keeps every switch and drops the connector tiles, which moved to Integrations.",
+      "before": "one page: 20 sections, 38 switches, 45 connector tiles",
+      "after": "Features: 16 sections, 31 switches, 0 connector tiles"
+    },
+    {
+      "shot": "390-integrations",
+      "width": 390,
+      "title": "Integrations: what a feature connects to \u2014 390 \u00d7 844",
+      "caption": "The old /settings/connections link lands on Integrations: each section is the third-party services of one feature or built-in function, configured by reference. The only switches are the Backups history roads.",
+      "before": "the same single page: 20 sections, 38 switches, 45 tiles",
+      "after": "Integrations: 8 sections, 7 switches (Backups history roads), 45 tiles"
+    },
+    {
+      "shot": "390-backups-anchor",
+      "width": 390,
+      "title": "A link to a built-in function's section follows it \u2014 390 \u00d7 844",
+      "caption": "#feature-backups named a section of Capabilities. Backups is built in and has no switch, so its section is on Integrations, and the link lands there under #integration-backups.",
+      "before": "#feature-backups: 1 on the page, #integration-backups: 0",
+      "after": "#feature-backups: 0, #integration-backups: 1"
+    },
+    {
+      "shot": "390-settings-nav",
+      "width": 390,
+      "title": "The Settings strip: Features and Integrations \u2014 390 \u00d7 844",
+      "caption": "One tab becomes two. On a phone the strip scrolls itself to the selected tab.",
+      "before": "6 tabs: General Keybindings Security Vaults Capabilities Danger",
+      "after": "7 tabs: General Keybindings Security Vaults Features Integrations Danger"
+    },
+    {
+      "shot": "1280-features",
+      "width": 1280,
+      "title": "Features: the switches, and nothing to connect \u2014 1280 \u00d7 900",
+      "caption": "The old /settings/capabilities link lands on Features. It keeps every switch and drops the connector tiles, which moved to Integrations.",
+      "before": "one page: 20 sections, 38 switches, 45 connector tiles",
+      "after": "Features: 16 sections, 31 switches, 0 connector tiles"
+    },
+    {
+      "shot": "1280-integrations",
+      "width": 1280,
+      "title": "Integrations: what a feature connects to \u2014 1280 \u00d7 900",
+      "caption": "The old /settings/connections link lands on Integrations: each section is the third-party services of one feature or built-in function, configured by reference. The only switches are the Backups history roads.",
+      "before": "the same single page: 20 sections, 38 switches, 45 tiles",
+      "after": "Integrations: 8 sections, 7 switches (Backups history roads), 45 tiles"
+    },
+    {
+      "shot": "1280-backups-anchor",
+      "width": 1280,
+      "title": "A link to a built-in function's section follows it \u2014 1280 \u00d7 900",
+      "caption": "#feature-backups named a section of Capabilities. Backups is built in and has no switch, so its section is on Integrations, and the link lands there under #integration-backups.",
+      "before": "#feature-backups: 1 on the page, #integration-backups: 0",
+      "after": "#feature-backups: 0, #integration-backups: 1"
+    },
+    {
+      "shot": "1280-settings-nav",
+      "width": 1280,
+      "title": "The Settings strip: Features and Integrations \u2014 1280 \u00d7 900",
+      "caption": "One tab becomes two. On a phone the strip scrolls itself to the selected tab.",
+      "before": "6 tabs: General Keybindings Security Vaults Capabilities Danger",
+      "after": "7 tabs: General Keybindings Security Vaults Features Integrations Danger"
+    }
+  ]
+}

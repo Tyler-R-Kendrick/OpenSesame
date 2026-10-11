@@ -157,14 +157,14 @@ The local `dev` command starts the Host, the Identity API and the mock upstream
 IdPs with the PWA (`scripts/dev/pages-dev.sh`). Static hosting cannot run the
 Identity plane, so a static deployment names any Identity service in the setup
 sign-in step or the Identity section's **Sign-in service** field, and the
-connections service and local agent under **Settings › Capabilities › Endpoints**;
+connections service and local agent under **Settings › Integrations › Endpoints**;
 with none configured, a section works on what the device holds and draws nothing
 for a service that is not there ([ADR 0090](../../docs/adr/0090-static-frontend-complete-without-backend.md)).
 
 ## Git sealed store
 
 Backups to git remotes (`backup.git-remote`, always on) run in the browser:
-**Settings › Capabilities** draws the git providers under Backups, and a GitHub
+**Settings › Integrations** draws the git providers under Backups, and a GitHub
 App is registered from this browser through the relay's `/api/github-app/*`
 routes ([relay README](server/README.md)). The repository picker (on the GitHub
 connector page, present when the optional Connections section is on) lists or

@@ -1,5 +1,5 @@
 /**
- * Settings › Capabilities — the switch every section and capability tile
+ * Settings › Features — the switch every section and capability tile
  * wears, and the Guests section, which is a switch and nothing else.
  *
  * "Allow guests" is the one switch that is not a capability: the guest road

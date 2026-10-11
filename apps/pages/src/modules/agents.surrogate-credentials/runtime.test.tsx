@@ -39,7 +39,7 @@ describe("agents.surrogate-credentials runtime", () => {
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const [panel] = t.entries("settings-panel");
     expect(panel?.id).toBe("plugin-surrogate-proxy");
-    expect(panel?.category).toBe("capabilities.feature-surrogates");
+    expect(panel?.category).toBe("features.feature-surrogates");
     // No daemon is paired here: nothing is listed, nothing is asked.
     expect(panel?.files?.list()).toEqual([]);
     await Promise.resolve();
