@@ -16,7 +16,6 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
 use clap::Subcommand;
-use opensesame_connector_host::password_agent::reveal_gate::agent_context_detected;
 use opensesame_quorum_recovery::slip39::decode_share;
 use opensesame_quorum_recovery::{
     match_shares, recover, BundleError, RecoverError, RecoveryBundle, ShareMatch,
@@ -113,7 +112,6 @@ pub(crate) fn run(output: &str, cmd: CircleCmd) -> anyhow::Result<()> {
             owner_key,
             force,
         } => {
-            refuse_in_agent_context()?;
             let bundle = read_bundle(&bundle, owner_key.as_deref())?;
             let shares = collect_shares(&share, &share_file)?;
             recover_to(&bundle, &shares, &out, force)
@@ -124,17 +122,6 @@ pub(crate) fn run(output: &str, cmd: CircleCmd) -> anyhow::Result<()> {
             Ok(())
         }
     }
-}
-
-/// The same refuse-only agent detection the `pass` reveal verbs use
-/// (`spec/conformance/cli-reveal-gate.json`): recovery is a person's act, and
-/// the detection can refuse but never allow.
-fn refuse_in_agent_context() -> anyhow::Result<()> {
-    anyhow::ensure!(
-        !agent_context_detected(),
-        "Refusing to recover a circle in an agent context: it is a person's act at a terminal"
-    );
-    Ok(())
 }
 
 fn read_bundle(path: &Path, owner_key: Option<&str>) -> anyhow::Result<RecoveryBundle> {

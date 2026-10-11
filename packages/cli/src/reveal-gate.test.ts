@@ -1,12 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
   type: "json",
 };
 import {
   type HumanRevealRequest,
   assertHumanReveal,
-  detectAgentContext,
-  envWithoutAgentContext,
   humanRevealRefusal,
 } from "./reveal-gate.js";
 
@@ -20,22 +18,32 @@ function assertStaticHumanReveal(request: HumanRevealRequest): void {
   if (refusal) throw new Error(refusal);
 }
 
+const AGENT_MARKERS: ReadonlyArray<{ name: string; value: string }> = [
+  { name: "CURSOR_AGENT", value: "1" },
+  { name: "CI", value: "true" },
+  { name: "GITHUB_ACTIONS", value: "true" },
+  { name: "OPENSESAME_AGENT_LAUNCH_HANDLE", value: "fixture-handle" },
+];
+
+function envWithMarkers(
+  base: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const env = { ...base };
+  for (const { name, value } of AGENT_MARKERS) {
+    env[name] = value;
+  }
+  return env;
+}
+
 describe("cli reveal gate conformance", () => {
   for (const caseRow of gate.cases) {
     it(caseRow.id, () => {
-      const env = { ...process.env };
-      for (const rule of gate.agentContextEnv) {
-        env[rule.name] = undefined;
-      }
-      if (caseRow.agentContext) {
-        env.OPENSESAME_AGENT_LAUNCH_HANDLE = "fixture-handle";
-      }
       const request: HumanRevealRequest = {
         verb: caseRow.reference ? "read" : "env-resolve",
         reveal: caseRow.reveal,
         desktop: caseRow.desktop,
         reference: caseRow.reference ?? undefined,
-        env,
+        env: process.env,
         stdinIsTty: caseRow.stdinTty,
         stdoutIsTty: caseRow.stdoutTty,
       };
@@ -49,78 +57,62 @@ describe("cli reveal gate conformance", () => {
       }
     });
   }
+});
 
-  it("detects verified agent markers only (refuse-only)", () => {
+describe("cli reveal gate — agent env markers are not a gate", () => {
+  const terminalRead: HumanRevealRequest = {
+    verb: "read",
+    reveal: true,
+    desktop: true,
+    reference: "op://v/i/f",
+    stdinIsTty: true,
+    stdoutIsTty: true,
+  };
+
+  it("does not refuse the static gate when CI-style markers are set", () => {
+    const request = { ...terminalRead, env: envWithMarkers() };
+    expect(humanRevealRefusal(request)).toBeUndefined();
+  });
+
+  it("refuses without app integration approval even when markers are set", async () => {
+    const request = {
+      ...terminalRead,
+      env: envWithMarkers(),
+      appIntegration: { ensureReveal: async () => "deny" },
+    };
+    await expect(assertHumanReveal(request)).rejects.toThrow(/denied/i);
+  });
+
+  it("reveals with app integration approval even when markers are set", async () => {
+    const request = {
+      ...terminalRead,
+      env: envWithMarkers(),
+      appIntegration: { ensureReveal: async () => "approve" },
+    };
+    await expect(assertHumanReveal(request)).resolves.toBeUndefined();
+  });
+
+  it("refuses without approval when markers are absent", async () => {
     const saved = new Map<string, string | undefined>();
-    for (const rule of gate.agentContextEnv) {
-      saved.set(rule.name, process.env[rule.name]);
-      Reflect.deleteProperty(process.env, rule.name);
+    for (const { name } of AGENT_MARKERS) {
+      saved.set(name, process.env[name]);
+      Reflect.deleteProperty(process.env, name);
     }
     try {
-      process.env.OPENSESAME_AGENT_LAUNCH_HANDLE = "h";
-      expect(detectAgentContext()).toBe(true);
-      Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_LAUNCH_HANDLE");
-      process.env.OPENSESAME_AGENT_CLIENT_ID = "c";
-      expect(detectAgentContext()).toBe(true);
-      Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_CLIENT_ID");
-      process.env.CLAUDECODE = "1";
-      expect(detectAgentContext()).toBe(true);
-      Reflect.deleteProperty(process.env, "CLAUDECODE");
-      process.env.CURSOR_AGENT = "1";
-      expect(detectAgentContext()).toBe(true);
-      Reflect.deleteProperty(process.env, "CURSOR_AGENT");
-      process.env.CI = "true";
-      expect(detectAgentContext()).toBe(true);
-      Reflect.deleteProperty(process.env, "CI");
-      process.env.GITHUB_ACTIONS = "true";
-      expect(detectAgentContext()).toBe(true);
-      Reflect.deleteProperty(process.env, "GITHUB_ACTIONS");
-      expect(detectAgentContext()).toBe(false);
+      const request = {
+        ...terminalRead,
+        appIntegration: { ensureReveal: async () => "deny" },
+      };
+      await expect(assertHumanReveal(request)).rejects.toThrow(/denied/i);
     } finally {
       for (const [name, previous] of saved) {
         restoreEnv(name, previous);
       }
     }
   });
-
-  it("app integration approve allows reveal", async () => {
-    const request: HumanRevealRequest = {
-      verb: "read",
-      reveal: true,
-      desktop: true,
-      reference: "op://v/i/f",
-      env: envWithoutAgentContext(process.env),
-      stdinIsTty: true,
-      stdoutIsTty: true,
-      appIntegration: {
-        ensureReveal: async () => "approve",
-      },
-    };
-    await expect(assertHumanReveal(request)).resolves.toBeUndefined();
-  });
-
-  it("app integration deny refuses reveal", async () => {
-    const request: HumanRevealRequest = {
-      verb: "read",
-      reveal: true,
-      desktop: true,
-      reference: "op://v/i/f",
-      env: envWithoutAgentContext(process.env),
-      stdinIsTty: true,
-      stdoutIsTty: true,
-      appIntegration: {
-        ensureReveal: async () => "deny",
-      },
-    };
-    await expect(assertHumanReveal(request)).rejects.toThrow(/denied/i);
-  });
 });
 
 describe("cli reveal gate subprocess refusal", () => {
-  afterEach(() => {
-    Reflect.deleteProperty(process.env, "OPENSESAME_AGENT_LAUNCH_HANDLE");
-  });
-
   it("refuses read when stdout is piped", () => {
     expect(
       humanRevealRefusal({
@@ -128,7 +120,6 @@ describe("cli reveal gate subprocess refusal", () => {
         reveal: true,
         desktop: true,
         reference: "op://v/i/f",
-        env: envWithoutAgentContext(process.env),
         stdinIsTty: true,
         stdoutIsTty: false,
       }),
