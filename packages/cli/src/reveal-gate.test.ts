@@ -7,6 +7,7 @@ import {
   assertHumanReveal,
   humanRevealRefusal,
 } from "./reveal-gate.js";
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 
 function restoreEnv(name: string, previous: string | undefined): void {
   if (previous === undefined) Reflect.deleteProperty(process.env, name);
@@ -75,19 +76,25 @@ describe("cli reveal gate — agent env markers are not a gate", () => {
   });
 
   it("refuses without app integration approval even when markers are set", async () => {
+    const denyPort: CliAppIntegrationPort = {
+      ensureReveal: async () => "deny",
+    };
     const request = {
       ...terminalRead,
       env: envWithMarkers(),
-      appIntegration: { ensureReveal: async () => "deny" },
+      appIntegration: denyPort,
     };
     await expect(assertHumanReveal(request)).rejects.toThrow(/denied/i);
   });
 
   it("reveals with app integration approval even when markers are set", async () => {
+    const approvePort: CliAppIntegrationPort = {
+      ensureReveal: async () => "approve",
+    };
     const request = {
       ...terminalRead,
       env: envWithMarkers(),
-      appIntegration: { ensureReveal: async () => "approve" },
+      appIntegration: approvePort,
     };
     await expect(assertHumanReveal(request)).resolves.toBeUndefined();
   });
@@ -99,9 +106,12 @@ describe("cli reveal gate — agent env markers are not a gate", () => {
       Reflect.deleteProperty(process.env, name);
     }
     try {
+      const denyPort: CliAppIntegrationPort = {
+        ensureReveal: async () => "deny",
+      };
       const request = {
         ...terminalRead,
-        appIntegration: { ensureReveal: async () => "deny" },
+        appIntegration: denyPort,
       };
       await expect(assertHumanReveal(request)).rejects.toThrow(/denied/i);
     } finally {
