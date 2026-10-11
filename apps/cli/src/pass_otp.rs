@@ -123,6 +123,8 @@ mod tests {
 
     #[test]
     fn uri_is_withheld_without_reveal_off_a_terminal() {
+        let _agent_guard =
+            opensesame_connector_host::password_agent::reveal_gate::AgentContextGuard::clear_markers();
         let Ok(PassOtpCmd::Uri { reveal, .. }) = parse(&["uri", "Dev/otp"]) else {
             panic!("uri parses");
         };
