@@ -59,7 +59,6 @@ import {
 import { bootstrapTheme } from "../lib/theme.js";
 import { bootBucket } from "./bucket.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
-import { ensurePwaDefaultCapabilities } from "./ensure-pwa-default-capabilities.js";
 
 export type CoreBoot = Readonly<{
   runtimeConfig: ParsedRuntimeConfig;
@@ -163,7 +162,10 @@ export async function bootCore(): Promise<CoreBoot> {
       now: bootSeams.now(),
     }),
   });
-  await ensurePwaDefaultCapabilities();
+  const { commitPersonalLocalPwaDefaultsIfNeeded } = await import(
+    "@opensesame/app-core/lib/capabilities/store-pwa-defaults.js"
+  );
+  await commitPersonalLocalPwaDefaultsIfNeeded(compositionStore, bootSeams.now);
   const stopInvalidation = startInvalidationWatch(compositionStore);
   const stopWatching = () => {
     stopTypes();
