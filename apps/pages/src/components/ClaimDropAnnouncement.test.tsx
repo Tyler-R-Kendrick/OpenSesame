@@ -22,8 +22,9 @@ describe("ClaimDropAnnouncement", () => {
     });
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(1);
-    expect(screen.getByText("Second.")).toBeTruthy();
-    expect(screen.queryByText("First.")).toBeNull();
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toContain("Second.");
+    expect(alert.textContent).not.toContain("First.");
   });
 
   it("dismisses from the key and from Escape", () => {
