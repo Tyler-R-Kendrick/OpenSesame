@@ -8,7 +8,8 @@ export function relayJoinPath(path) {
   if (path.startsWith("apps/pages/scripts/lib/vault-relay")) return true;
   if (
     path === "apps/pages/scripts/verify-relay-join.mjs" ||
-    path === "apps/pages/scripts/verify-relay-join-live.mjs"
+    path === "apps/pages/scripts/verify-relay-join-live.mjs" ||
+    path === "apps/pages/scripts/verify-live-local-pair.mjs"
   ) {
     return true;
   }

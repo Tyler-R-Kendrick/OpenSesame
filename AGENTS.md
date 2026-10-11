@@ -262,7 +262,7 @@ VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:static
 # Drives dist/ under https://tyler-r-kendrick.github.io/OpenSesame/ in
-# headless Chromium: first screen is the front door's two roads + the guest
+# headless Chromium: first screen is the front door's three roads + the guest
 # Skip (no setup wall, no sign-in), guest walks every section, Google via a
 # mocked shoo.dev lands unlocked once setup is skipped, deep links resolve. Fails on any page error, console error, loopback request,
 # missing asset, or on-screen "No Identity API" copy.
@@ -506,6 +506,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
 | `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0163): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Capabilities section in `registry/feature-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
+| `packages/app-core/src/lib/vault/pending-import.ts`, `apps/pages/src/screens/unlock/ImportRoad.tsx`, `apps/pages/src/sections/vault/import/ImportKey.tsx` | A vault that begins from a file (ADR 0188): the front door's third road and sign-in's foot link hold the chosen `File` — unread, in memory, never written — while the vault is sealed the ordinary way (passkey or PIN); the Import key takes it once the vault is open and opens the sheet every import uses, so an OpenSesame backup is opened by its own unlock and a `.env` file previews and merges. The door imports no pipeline: the slot, the picker's accept list and the road are core, the pipeline and sheet stay `vault.interop-formats`'s. `lib/chunk-load.ts` tells a failed lazy chunk as a stale page, and a restore's post-write identity notice never fails it |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
 | `packages/log-scrub`, `spec/log-scrub/log-scrub.json`, `crates/redaction` | The one secret scrubber (ADR 0157): the spec holds the ordered value rules, the key-name rule and the vectors; the TypeScript package and the Rust crate each compile it and run every vector. `ScrubWriter` / `ScrubMakeWriter` scrub every Rust log line at the sink; `SecurityNotice::scrubbed()` and `sign_receipt` scrub events and receipts |
@@ -660,10 +661,13 @@ Do not add new top-level directories or loose root files — find the group.
   **front door** (`screens/FrontDoor.tsx`,
   [ADR 0115](docs/adr/0115-front-door-and-connector-directory.md),
   [ADR 0150](docs/adr/0150-live-sessions-browser-to-browser.md) §1): the
-  wordmark at hero scale and exactly two roads made large — **Set up your
-  own** and **Join a session** — with the guest road as the card's corner
-  **Skip**. The door asks no sign-in question: a device with no vault has
-  nothing to sign in to. Join is on every deployment, the shared GitHub
+  wordmark at hero scale and three roads made large — **Set up your
+  own**, **Join a session** and **Import a file**
+  ([ADR 0188](docs/adr/0188-a-vault-can-begin-from-a-file.md): a backup or a
+  `.env` file is held, unread, in `lib/vault/pending-import.ts` while the vault
+  is sealed, and the Import key opens its sheet on it) — with the guest road
+  as the card's corner **Skip**. The door asks no sign-in question: a device
+  with no vault has nothing to sign in to. Join is on every deployment, the shared GitHub
   Pages origin included: it opens a live session browser to browser over
   WebRTC, paired by codes the two people pass each other — no server, relay,
   STUN or TURN by default (`sharing.live`, `lib/live/`, consent first); an
@@ -776,7 +780,7 @@ Do not add new top-level directories or loose root files — find the group.
   required: the front door's corner "Skip" (`screens/FrontDoor.tsx`, the
   door's one guest road, where a `/guest` link lands) and "Skip to the guest
   vault" in the unlock form's footer in
-  `apps/pages/src/screens/UnlockScreen.tsx`, beside a sealed vault, including
+  `apps/pages/src/screens/unlock/UnlockFoot.tsx`, beside a sealed vault, including
   a guest tomb that enrolled a key. It is not drawn on the sign-in panel, and
   not beside a keyless guest tomb, where Unlock resumes that tomb and a second
   guest control would duplicate it. The sign-in panel

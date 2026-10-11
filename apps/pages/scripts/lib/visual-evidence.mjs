@@ -78,10 +78,21 @@ function figure(side, file, width, note, label = side) {
  * One row of a sheet: the same screen from the base build and from the branch.
  * A row with a `gate` file has no base to show — the screen is one the branch
  * adds — and is drawn from the five-browser gate's own screenshots
- * (`EVIDENCE_GATE_DIR`), labelled as such.
+ * (`EVIDENCE_GATE_DIR`), labelled as such. A row with `"added": true` is the
+ * same case drawn from this journey's own "after" capture.
  */
-function row({ shot, gate, heading, before = "", after = "" }, width, dirs) {
+function row(
+  { shot, gate, added, heading, before = "", after = "" },
+  width,
+  dirs,
+) {
   const head = heading ? `<h2>${heading}</h2>` : "";
+  if (added) {
+    // A screen the branch adds: the base build cannot reach it, so there is no
+    // "before" to pair it with, and the sheet says so rather than showing one.
+    const file = path.join(dirs.after, `${shot}.png`);
+    return `${head}<div class="pair">${figure("after", file, width, after, "after — a screen the base build cannot reach")}</div>`;
+  }
   if (gate) {
     const file = path.join(process.env.EVIDENCE_GATE_DIR ?? "", gate);
     return `${head}<div class="pair">${figure("after", file, width, after, "after, from the five-browser gate")}</div>`;
