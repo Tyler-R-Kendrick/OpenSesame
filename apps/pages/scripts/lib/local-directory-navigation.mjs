@@ -2,14 +2,19 @@ import { expect } from "@playwright/test";
 
 /**
  * Read a row's position and use the listing's real count-prefixed motion,
- * until the tree's cursor (`aria-activedescendant`) holds that row. A tree
- * still settling after a route change can move its rows or its cursor between
- * the read and the keys, and Enter then opens whatever row the cursor is on.
- * A motion that previews a directory may replace the tree on a phone; that
- * counts as arriving.
+ * until the row holds the cursor. A tree still settling after a route change
+ * can move its rows or its cursor between the read and the keys, and Enter
+ * then opens whatever row the cursor is on. The cursor is the tree's
+ * `aria-activedescendant`, or, where a preview remounted the tree and it fell
+ * back to the route, the row's own `aria-selected`; a preview that replaced
+ * the tree on a phone counts as arriving.
  */
 async function moveTo(page, tree, row) {
   const id = await row.getAttribute("id");
+  const arrived = async () =>
+    !(await tree.isVisible()) ||
+    (await tree.getAttribute("aria-activedescendant")) === id ||
+    (await row.getAttribute("aria-selected")) === "true";
   await expect(async () => {
     const index = await row.evaluate((node) =>
       [
@@ -18,15 +23,7 @@ async function moveTo(page, tree, row) {
     );
     await page.keyboard.type(`${index + 1}gg`);
     if (!id) return;
-    await expect
-      .poll(
-        async () =>
-          (await tree.isVisible())
-            ? await tree.getAttribute("aria-activedescendant")
-            : id,
-        { timeout: 750 },
-      )
-      .toBe(id);
+    await expect.poll(arrived, { timeout: 750 }).toBe(true);
   }).toPass({ timeout: 10_000 });
 }
 
