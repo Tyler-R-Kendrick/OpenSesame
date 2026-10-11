@@ -42,7 +42,12 @@ import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { KIND_LABEL, createItem, randomBytes } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { withPassword } from "../../../sections/vault/account.test-support.js";
-import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
+import {
+  approved,
+  profilePlan,
+  profilePlanWithPwaDefaults,
+  profileSelection,
+} from "./vault-profiles.js";
 
 const PASSWORD = "correct horse battery staple";
 const PIN = "918273645";
@@ -104,7 +109,7 @@ beforeEach(async () => {
 
 describe("VAULT-01 — the vault works with every optional service blocked", () => {
   it("creates, locks, unlocks, edits and backs up under minimal-local", async () => {
-    const plan = profilePlan("minimal-local");
+    const plan = profilePlanWithPwaDefaults("minimal-local");
     const pwaDefaults = new Set(["access.authority", "identity.local-iam"]);
     for (const id of optionalCapabilityIds())
       expect(approved(plan, id), id).toBe(pwaDefaults.has(id));

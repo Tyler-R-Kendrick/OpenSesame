@@ -111,7 +111,7 @@ const approvedOptional = (plan: EffectivePlan): string[] => {
 };
 
 const EXPECTED = {
-  "minimal-local": ["access.authority", "identity.local-iam"],
+  "minimal-local": [],
   "family-local": [],
   "family-sharing-selected": ["sharing.household"],
   // Git backup is always on (ADR 0142): the provider path needs nothing optional.

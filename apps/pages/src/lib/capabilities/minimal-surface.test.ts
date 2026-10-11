@@ -8,7 +8,11 @@
 import { capabilityFlagKey } from "@opensesame/app-core/lib/capabilities/openfeature.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { describe, expect, it } from "vitest";
-import { profilePlan, profileSelection } from "./__tests__/vault-profiles.js";
+import {
+  profilePlan,
+  profilePlanWithPwaDefaults,
+  profileSelection,
+} from "./__tests__/vault-profiles.js";
 
 const SECTIONS = [
   "connectors.external",
@@ -30,22 +34,15 @@ const SECTION_FLAGS = [
 ] as const satisfies readonly CapabilityId[];
 
 describe("minimal surface", () => {
-  it("approves vault, activity, settings, Access and browser-local IAM", () => {
+  it("approves vault, activity and settings with no optional in the profile", () => {
     const plan = profilePlan("minimal-local");
     for (const id of ["vault.passwords", "activity.log", "settings.core"]) {
       expect(plan.capabilities[id]?.approved, id).toBe(true);
     }
-    for (const id of ["access.authority", "identity.local-iam"] as const) {
-      expect(plan.capabilities[id]?.approved, id).toBe(true);
-      expect(plan.approvedModules, id).toContain(`${id}/runtime`);
-    }
     expect(plan.approvedModules).toContain("activity.log/runtime");
     expect(plan.approvedItemKinds).toEqual(["file", "secret"]);
-    const stillOff = SECTION_FLAGS.filter(
-      (id) => id !== "access.authority" && id !== "identity.local-iam",
-    );
     for (const id of [
-      ...stillOff,
+      ...SECTION_FLAGS,
       "support.local-ai",
       "support.remote-ai",
       "agents.webmcp",
@@ -53,6 +50,14 @@ describe("minimal surface", () => {
       expect(plan.capabilities[id]?.approved, id).toBe(false);
       expect(plan.approvedModules, id).not.toContain(`${id}/runtime`);
       expect(capabilityFlagKey(id)).toBe(`capability.${id}`);
+    }
+  });
+
+  it("approves Access and browser-local IAM after personal-local PWA defaults", () => {
+    const plan = profilePlanWithPwaDefaults("minimal-local");
+    for (const id of ["access.authority", "identity.local-iam"] as const) {
+      expect(plan.capabilities[id]?.approved, id).toBe(true);
+      expect(plan.approvedModules, id).toContain(`${id}/runtime`);
     }
   });
 
