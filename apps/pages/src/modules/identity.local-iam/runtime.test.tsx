@@ -1,9 +1,11 @@
+import { configureHost } from "@opensesame/app-core/host.js";
 import { deviceIdentityFetch } from "@opensesame/app-core/lib/device-identity-host.js";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { identityServes } from "@opensesame/app-core/lib/identity-plane.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   enabledIdentityViews,
   resetIdentityViewsForTests,
@@ -24,6 +26,7 @@ const KINDS = [
   "keymap-jump",
   "route",
   "section",
+  "shell-wrapper",
   "tutorial-goal",
   "tutorial-route",
   "tutorial-target",
@@ -31,6 +34,10 @@ const KINDS = [
 ];
 
 describe("identity.local-iam runtime", () => {
+  beforeEach(() => {
+    configureHost(createTestHost());
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     resetIdentityViewsForTests();
@@ -58,7 +65,16 @@ describe("identity.local-iam runtime", () => {
       // 1 section + 2 routes + 1 section command + 2 tab commands + 1 jump
       // + 1 unlock effect + tutorial descriptors
       count:
-        1 + 2 + 1 + 2 + 1 + 1 + targets.length + goals.length + routes.length,
+        1 +
+        2 +
+        1 +
+        2 +
+        1 +
+        1 +
+        1 +
+        targets.length +
+        goals.length +
+        routes.length,
     });
   });
 
