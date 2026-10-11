@@ -25,6 +25,14 @@ export const WEB_PUSH_ENROLMENT_PURPOSE =
 export const TAILNET_DEVICES_PURPOSE =
   "the daemon a person paired for tailnet device management, which holds the Tailscale credential";
 
+/**
+ * What `ai.password-reset` declares for the JMAP server a person named on a
+ * reset mailbox. Egress classifies a request by the purpose it names, exactly,
+ * so the module imports this rather than retypes it.
+ */
+export const PASSWORD_RESET_MAIL_PURPOSE =
+  "the JMAP mail server a person named on a reset mailbox, read for password-reset messages";
+
 export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "agents.webmcp",
@@ -50,8 +58,22 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "ai.password-reset",
     "Password reset",
-    "Find a password-reset message in a configured mailbox and run the website password-reset ceremony for that login.",
-    { dependencies: ["vault.derived-records"] },
+    "Keep email accounts as vault items, bind one to each login, and check the ones a login names for a password-reset message. When one arrives you are told, and the website password-reset ceremony is asked to start for that site.",
+    {
+      // The login item types: a mailbox is chosen on the account editor.
+      dependencies: ["vault.derived-records"],
+      operationIds: ["password_reset.mailboxes.manage"],
+      egress: [
+        {
+          class: "external-service",
+          purpose: PASSWORD_RESET_MAIL_PURPOSE,
+          automatic: true,
+        },
+      ],
+      keyAccess: "item-plaintext",
+      offlineLimits:
+        "Mail is read only while the mail server is reachable; offline nothing is checked and nothing is queued.",
+    },
   ),
   optional(
     "support.remote-ai",

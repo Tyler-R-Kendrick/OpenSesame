@@ -5122,6 +5122,33 @@
     }
   },
   {
+    "id": "password_reset.mailboxes.manage",
+    "title": "Add, change and remove the email accounts password reset reads",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/password-reset/mailbox-store.ts:addMailbox",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
+        "adr": "0190-password-reset-mailboxes-are-vault-items.md"
+      },
+      "mcp_client": {
+        "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
+        "adr": "0190-password-reset-mailboxes-are-vault-items.md"
+      },
+      "webmcp": {
+        "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
+        "adr": "0190-password-reset-mailboxes-are-vault-items.md"
+      }
+    }
+  },
+  {
     "id": "secrets.materialize",
     "title": "Reveal secrets, acquire leases, run crypto plans",
     "plane": "host",
