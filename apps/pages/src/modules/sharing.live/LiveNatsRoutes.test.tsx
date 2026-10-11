@@ -9,6 +9,7 @@ import { transportFileText } from "@opensesame/app-core/lib/live/transport.js";
 import {
   DIRECT_TRANSPORT,
   type LiveTransport,
+  type TransportRead,
 } from "@opensesame/app-core/lib/live/transport.js";
 import {
   cleanup,
@@ -29,8 +30,13 @@ beforeEach(() => {
   Object.assign(transportSeams, {
     tomb: () => "personal",
     read: async () => stored,
-    write: async (_tomb: string, next: LiveTransport) => {
-      stored = next;
+    edit: async (
+      _tomb: string,
+      apply: (current: LiveTransport) => TransportRead,
+    ) => {
+      const next = apply(stored);
+      if (next.ok) stored = next.transport;
+      return next;
     },
   });
 });

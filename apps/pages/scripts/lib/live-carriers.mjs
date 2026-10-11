@@ -110,6 +110,29 @@ export async function startNostrRelay({ host = "127.0.0.1", tls } = {}) {
   };
 }
 
+/**
+ * Wait until the owner listens on `relay` (its subscription is in) and has
+ * gone quiet; resolves to the frame count then, after which every frame is
+ * somebody else's. A session's link can be on screen before its subscription
+ * reaches the relay (later still through a TLS front), so a count taken at
+ * once would credit the owner's own subscription to whoever came next.
+ */
+export async function ownerSettled(
+  relay,
+  { timeout = 15_000, quiet = 500 } = {},
+) {
+  const deadline = Date.now() + timeout;
+  const listening = () =>
+    relay.frames.some((frame) => frame.startsWith('["REQ"'));
+  for (let seen = -1; ; ) {
+    if (listening() && seen === relay.frames.length) return seen;
+    if (Date.now() > deadline)
+      throw new Error("the owner never listened on the carrier");
+    seen = relay.frames.length;
+    await new Promise((resolve) => setTimeout(resolve, quiet));
+  }
+}
+
 /** An MQTT 3.1.1/5 broker (aedes) behind a WebSocket listener. */
 export async function startMqttBroker() {
   const port = await freePort();

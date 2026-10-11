@@ -7,11 +7,13 @@
 
 import { expect } from "@playwright/test";
 import {
+  ownerSettled,
   startMqttBroker,
   startNatsServer,
   startNostrRelay,
   startNtfyServer,
 } from "./live-carriers.mjs";
+import { defaultRouteAddress, engineOf, lacks } from "./live-engines.mjs";
 import {
   TUNNEL_ONLY,
   WATCH_RTC,
@@ -24,6 +26,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { reachableBy } from "./live-tls-front.mjs";
 
 let check;
 let setStep;
@@ -40,6 +43,8 @@ let PHONE;
 let PASSTHROUGH;
 let NATS;
 let NTFY;
+let note;
+let TLS;
 
 /**
  * The joiner's name. It has a space in it, which base64url never does, so
@@ -66,6 +71,8 @@ export function bindWalk(walk) {
     PASSTHROUGH,
     NATS,
     NTFY,
+    note,
+    TLS,
   } = walk);
 }
 
@@ -179,13 +186,13 @@ async function tunnelWithout(browser, owner, init) {
   await lost.context.close();
 }
 
-async function tunnelWith(browser, owner, init) {
+async function tunnelWith(browser, owner, init, address) {
   setStep("tunnel-address");
-  await setRoutes(owner.page, { addresses: ["127.0.0.1"] });
+  await setRoutes(owner.page, { addresses: [address] });
   await shot(owner.page, "tunnel-2-routes");
   const session = await startSession(owner.page, { admission: "open" });
   check(
-    !session.link.includes("127.0.0.1"),
+    !session.link.includes(address),
     "the owner's address is not in the link",
   );
   const joiner = await device(browser, {
@@ -209,7 +216,7 @@ async function tunnelWith(browser, owner, init) {
   await joined(joiner.page).waitFor({ timeout: 45_000 });
   const pairs = await selectedPairs(joiner.page);
   check(
-    pairs.some((pair) => pair.address === "127.0.0.1"),
+    pairs.some((pair) => pair.address === address),
     `tunnel: connected at the named address (${JSON.stringify(pairs)})`,
   );
   const made = [
@@ -224,25 +231,46 @@ async function tunnelWith(browser, owner, init) {
   await endSession(session.panel);
 }
 
-export async function tunnel(wreckage) {
+/**
+ * The tunnel walk, owner in `ownerEngine`, joiner in `joinerEngine`, both with
+ * mDNS hiding on as every browser ships it. The tunnel address is this
+ * machine's default-route address (`defaultRouteAddress`). Without it named,
+ * the two never meet — except where an engine cannot hide its host address
+ * (WebKit here), whose own candidate is that address: that half is not taken.
+ */
+export async function tunnel(wreckage, ownerEngine, joinerEngine) {
   setStep("tunnel");
-  // mDNS hiding on, as every browser ships: host addresses are .local names.
-  const browser = await launch();
-  const init = [[TUNNEL_ONLY, "127.0.0.1"]];
+  const address = await defaultRouteAddress();
+  const ownerBrowser = await launch(ownerEngine, { mdns: "hidden" });
+  const joinerBrowser =
+    joinerEngine === ownerEngine
+      ? ownerBrowser
+      : await launch(joinerEngine, { mdns: "hidden" });
+  const init = [[TUNNEL_ONLY, address]];
   try {
-    const owner = await device(browser, { init });
+    const owner = await device(ownerBrowser, { init });
     await ownerEnters(owner.page, {
       origin: ORIGIN,
       base: BASE,
       secret: SECRET,
     });
-    await tunnelWithout(browser, owner, init);
-    await tunnelWith(browser, owner, init);
+    const shown = [ownerEngine, joinerEngine].filter((engine) =>
+      lacks(engine, "mdns-hiding"),
+    );
+    if (shown.length === 0) await tunnelWithout(joinerBrowser, owner, init);
+    else
+      note(
+        `tunnel-no-address: ${[...new Set(shown)].join(" and ")} cannot hide its host address`,
+      );
+    await tunnelWith(joinerBrowser, owner, init, address);
   } catch (error) {
-    await wreckage(browser, "tunnel");
+    await wreckage(ownerBrowser, `tunnel-${ownerEngine}`);
+    if (joinerBrowser !== ownerBrowser)
+      await wreckage(joinerBrowser, `tunnel-${joinerEngine}`);
     throw error;
   } finally {
-    await browser.close();
+    await ownerBrowser.close();
+    if (joinerBrowser !== ownerBrowser) await joinerBrowser.close();
   }
 }
 
@@ -256,11 +284,16 @@ async function startCarrier(kind) {
 
 export async function carried(browser, owner, kind) {
   setStep(`carrier-${kind}`);
-  const server = await startCarrier(kind);
-  if (server.missing) {
-    failures.push(`[carrier-${kind}] no server binary at ${server.missing}`);
+  const started = await startCarrier(kind);
+  if (started.missing) {
+    failures.push(`[carrier-${kind}] no server binary at ${started.missing}`);
     return;
   }
+  // Over TLS where the pair holds an engine that refuses plain loopback.
+  const server =
+    kind === "broadcast"
+      ? started
+      : await reachableBy(started, [owner.engine, engineOf(browser)], TLS.cert);
   if (kind === "ntfy") PASSTHROUGH.push(new URL(server.url).origin);
   try {
     await setRoutes(owner.page, { carriers: [{ kind, url: server.url }] });
@@ -323,13 +356,17 @@ export async function carried(browser, owner, kind) {
 
 export async function declined(browser, owner) {
   setStep("carrier-declined");
-  const server = await startNostrRelay();
+  const server = await reachableBy(
+    await startNostrRelay(),
+    [owner.engine, engineOf(browser)],
+    TLS.cert,
+  );
   try {
     await setRoutes(owner.page, {
       carriers: [{ kind: "nostr", url: server.url }],
     });
     const { panel, code, link } = await startSession(owner.page);
-    const before = server.frames.length;
+    const before = await ownerSettled(server);
     const joiner = await device(browser, {
       ...PHONE,
       origin: owner.origin,
