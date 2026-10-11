@@ -22,6 +22,7 @@
 
 import {
   captureClaimArrivalFromPage,
+  forgetClaim,
   peekClaimArrival,
   rememberClaimArrival,
   takeClaimArrival,
@@ -47,12 +48,16 @@ import {
   ClaimPaused,
   ClaimReviewForm,
 } from "./ClaimSteps.js";
-import { useClaimCeremony } from "./useClaimCeremony.js";
+import { claimHookSeams, useClaimCeremony } from "./useClaimCeremony.js";
 
-// The drop opener and the decryption it runs arrive only when a drop does:
-// a claim, a paste or a refusal never loads them.
 const DropClaimScreen = lazy(() =>
   import("./DropClaimScreen.js").then((m) => ({ default: m.DropClaimScreen })),
+);
+
+const ClaimDifferentLink = lazy(() =>
+  import("./ClaimDifferentLink.js").then((m) => ({
+    default: m.ClaimDifferentLink,
+  })),
 );
 
 /** An ownership claim, step by step; with nothing arrived, a place to paste. */
@@ -71,9 +76,6 @@ function ClaimFlow({
   const said = { tone, words: step.message };
   const { phase } = step;
 
-  // A step that arrives after a load replaces the one that held the focus;
-  // when nothing holds it now — or only the page's own landmark, which the
-  // frame focuses on arrival — it lands on the new step's first key.
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new step is the trigger
   useEffect(() => {
     const onLandmark = document.activeElement === root.current?.closest("main");
@@ -134,13 +136,10 @@ export function ClaimRoute() {
   const location = useLocation();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement | null>(null);
-  // An in-app navigation to `/claim#token=…` never passed through boot: read
-  // it here, the same way. What boot took waits in memory until spent.
   const [arrival, setArrival] = useState<ClaimArrival>(() => {
     captureClaimArrivalFromPage();
     return peekClaimArrival();
   });
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on arrival
   useEffect(() => {
     if (location.search || location.hash) {
@@ -149,8 +148,6 @@ export function ClaimRoute() {
   }, []);
 
   const drop = arrival.kind === "drop" ? arrival : null;
-  // The way back is outside the ceremony's focus root. A step that has not
-  // drawn its own control yet must not land the keyboard on this link.
   return (
     <div className="section__inner">
       <div ref={root}>
@@ -166,9 +163,29 @@ export function ClaimRoute() {
             />
           </Suspense>
         ) : (
-          <ClaimFlow arrival={arrival} onArrival={setArrival} root={root} />
+          <ClaimFlow
+            key={
+              arrival.kind === "claim" || arrival.kind === "drop"
+                ? arrival.token
+                : arrival.kind
+            }
+            arrival={arrival}
+            onArrival={setArrival}
+            root={root}
+          />
         )}
       </div>
+      {arrival.kind !== "none" ? (
+        <Suspense fallback={null}>
+          <ClaimDifferentLink
+            onChoose={() => {
+              forgetClaim();
+              claimHookSeams.ceremony().forget();
+              setArrival({ kind: "none" });
+            }}
+          />
+        </Suspense>
+      ) : null}
       <Link to="/vault">Vault</Link>
     </div>
   );

@@ -65,6 +65,11 @@ const LAZY_LEAVES = [
   // load with the module and stay off the bootstrap. `push.ts` is the worker
   // half and is not matched here.
   ["/src/lib/push-", "notifications.web-push", "cap-notifications.web-push"],
+  [
+    "/src/modules/identity.ceremonies/ClaimDifferentLink",
+    "identity.ceremonies",
+    "cap-identity.claim-different-link",
+  ],
 ];
 
 export function lazyLeafChunk(id, entry) {
