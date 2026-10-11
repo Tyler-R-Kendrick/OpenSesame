@@ -53,9 +53,6 @@ const CORE_INFRA = [
   "tree-motion",
   "page-to-tree",
   "listing-page",
-  "notices",
-  "notice-toast",
-  "notice-desktop",
   // Tray history sealed at rest, and the boot that installs it (ADR 0163).
   "notice-tray-persist",
   "tray-boot",
