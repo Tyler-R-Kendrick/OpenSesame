@@ -102,6 +102,12 @@ the sealed body. The file is parsed in the tab with the File API; nothing is upl
 parsed value reaches plaintext storage on the way in. The key and the sheet belong to the
 always-on `vault.interop-formats` capability (`src/modules/vault.interop-formats/`).
 
+A device with no vault yet has the same road on its **front door** — **Import a file** — and on
+first-run sign-in: a backup (`opensesame-offline-backup-….json`) or a `.env` file is held, unread,
+while the vault is sealed with a passkey or a PIN, and the same sheet then opens on it by itself
+(ADR 0188). An encrypted backup is opened by its own unlock — its PIN, passkey or master
+password — whichever the new vault was sealed with.
+
 | Product | Formats | Notes |
 | --- | --- | --- |
 | Bitwarden | `.json`, `.csv` | JSON keeps folders, item types, per-URI match rules, and the hidden flag on custom fields. Identities become notes, since there is no identity type here. |

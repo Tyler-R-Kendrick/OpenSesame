@@ -33,6 +33,7 @@ import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { JoinRoadButton } from "./join/JoinRoad.js";
 import { GuestSkip } from "./unlock/GuestRoad.js";
 import { useIdleDial } from "./unlock/IdleDial.js";
+import { ImportRoadButton } from "./unlock/ImportRoad.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import "./unlock.css";
@@ -117,6 +118,9 @@ export function FrontDoor({
             </span>
           </button>
           <JoinRoadButton onOpen={onOpenJoin} />
+          {/* The third road: a vault that begins from a file, held until it
+              is sealed (ADR 0188). */}
+          <ImportRoadButton />
         </fieldset>
 
         <div className="door__theme">
