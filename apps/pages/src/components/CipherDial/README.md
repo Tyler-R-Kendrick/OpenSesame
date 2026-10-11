@@ -2,7 +2,7 @@
 
 Decorative lock-v5 astrolabe dial behind the unlock gate: cipher rings, bezel
 ornament, index line, and decoded `0PEN SESAME` readout on the column divider.
-Ink only; quiet-masked under the credential card. On wide layouts rings clip
+Ink only; the rings fade to 30% under the credential card on a feathered 56px band (`mask.ts`), so the dial carries on behind it rather than being cut off. On wide layouts rings clip
 at the notes divider; on narrow, opaque notes sit above the dial so the
 corner arc stays visible in the empty band.
 
