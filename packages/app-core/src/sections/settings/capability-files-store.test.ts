@@ -13,7 +13,6 @@ import {
   durable,
   freshRealm,
 } from "../../lib/capabilities/__tests__/harness.js";
-import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import { compositionStore } from "../../lib/capabilities/store.js";
 import { SELECTION_SOURCE_KV_KEY } from "../../lib/configuration/capabilities-keys.js";
 import {
@@ -23,19 +22,6 @@ import {
 import { SELECTION_FILE, capabilityFiles } from "./capability-files.js";
 
 const PASSKEYS = "vault.passkey-records";
-
-function addPasskeysToSelectionYaml(yaml: string): string {
-  if (yaml.includes(`- ${PASSKEYS}`)) return yaml;
-  if (/selectedOptional:\s*\[\]/.test(yaml)) {
-    return yaml.replace(
-      /selectedOptional:\s*\[\]/,
-      `selectedOptional:\n  - ${PASSKEYS}`,
-    );
-  }
-  const block = yaml.match(/selectedOptional:\n(?: {2}- .+\n)+/);
-  if (!block) throw new Error("unrecognized selectedOptional block");
-  return yaml.replace(block[0], `${block[0]}  - ${PASSKEYS}\n`);
-}
 
 /** The real store and ports, with the catalog the store was booted with. */
 function realPorts(): CapabilityConfigPorts {
@@ -71,15 +57,15 @@ describe("the selection file against the real store", () => {
     // The editor's text is whatever the store reads back; the person changes
     // one capability and leaves `revision:` alone.
     const stored = await files.read(SELECTION_FILE);
-    const edited = addPasskeysToSelectionYaml(stored);
+    const edited = stored.replace(
+      "selectedOptional: []",
+      `selectedOptional:\n  - ${PASSKEYS}`,
+    );
     expect(edited).not.toBe(stored);
 
     const second = await files.write(SELECTION_FILE, edited);
     expect(second).toMatchObject({ ok: true });
-    expect(committed()?.selectedOptional).toEqual([
-      ...PWA_DEFAULT_OPTIONALS,
-      PASSKEYS,
-    ]);
+    expect(committed()?.selectedOptional).toEqual([PASSKEYS]);
     expect(committed()?.revision).not.toBe("draft-initial");
     expect(committed()?.revision).toMatch(/^draft-.+-[0-9a-f]{8}$/);
 
@@ -93,25 +79,24 @@ describe("the selection file against the real store", () => {
     const files = provider();
     await files.write(SELECTION_FILE, await files.read(SELECTION_FILE));
     const stored = await files.read(SELECTION_FILE);
-    const edited = `# why\n${addPasskeysToSelectionYaml(stored)}`.replace(
-      /^(kind:.*)$/m,
-      "$1 # kept",
-    );
+    const edited = `# why\n${stored}`
+      .replace("selectedOptional: []", `selectedOptional: [${PASSKEYS}]`)
+      .replace(/^(kind:.*)$/m, "$1 # kept");
     const outcome = await files.write(SELECTION_FILE, edited);
     if (!outcome.ok) throw new Error(outcome.message);
     expect(outcome.text?.startsWith("# why\n")).toBe(true);
     expect(outcome.text).toContain("# kept");
     expect(outcome.text?.split("\n").length).toBe(edited.split("\n").length);
-    expect(committed()?.selectedOptional).toEqual([
-      ...PWA_DEFAULT_OPTIONALS,
-      PASSKEYS,
-    ]);
+    expect(committed()?.selectedOptional).toEqual([PASSKEYS]);
   });
 
   it("a comments-only edit after that commits nothing and keeps its bytes", async () => {
     const files = provider();
     await files.write(SELECTION_FILE, await files.read(SELECTION_FILE));
-    const edited = addPasskeysToSelectionYaml(await files.read(SELECTION_FILE));
+    const edited = (await files.read(SELECTION_FILE)).replace(
+      "selectedOptional: []",
+      `selectedOptional: [${PASSKEYS}]`,
+    );
     await files.write(SELECTION_FILE, edited);
     const before = compositionStore.getSnapshot();
 
@@ -141,11 +126,14 @@ describe("the selection file against the real store", () => {
     await mine.write(SELECTION_FILE, starter);
     const outcome = await theirs.write(
       SELECTION_FILE,
-      addPasskeysToSelectionYaml(starter),
+      starter.replace(
+        "selectedOptional: []",
+        `selectedOptional: [${PASSKEYS}]`,
+      ),
     );
 
     expect(outcome.ok).toBe(false);
     if (!outcome.ok) expect(outcome.message).toContain("another session");
-    expect(committed()?.selectedOptional).toEqual([...PWA_DEFAULT_OPTIONALS]);
+    expect(committed()?.selectedOptional).toEqual([]);
   });
 });

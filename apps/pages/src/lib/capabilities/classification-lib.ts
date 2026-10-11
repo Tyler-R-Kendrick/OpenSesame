@@ -29,7 +29,6 @@ const CORE_INFRA = [
   "vaults",
   // Dotted mark for a vault, person or organization, drawn in the shell prompt (ADR 0165).
   "glyph",
-  "display-monogram",
   "last-vault",
   "theme",
   "focus",

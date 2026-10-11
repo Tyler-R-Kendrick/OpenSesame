@@ -1,5 +1,4 @@
 /** @vitest-environment jsdom */
-import { PWA_DEFAULT_OPTIONALS } from "@opensesame/app-core/lib/capabilities/pwa-defaults.js";
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import {
   double,
@@ -20,7 +19,10 @@ describe("ensurePwaDefaultCapabilities", () => {
     expect(capabilityPorts.compositionStore.getSnapshot().selection).toBeNull();
     await ensurePwaDefaultCapabilities();
     const selection = capabilityPorts.compositionStore.getSnapshot().selection;
-    expect(selection?.selectedOptional).toEqual([...PWA_DEFAULT_OPTIONALS]);
+    expect(selection?.selectedOptional).toEqual([
+      "access.authority",
+      "identity.local-iam",
+    ]);
     expect(selection?.delivery).toEqual({
       prefetch: "selected",
       offlineCache: "selected-only",

@@ -4,7 +4,6 @@
  * viewer meets the refusals the switches do.
  */
 import { beforeEach, describe, expect, it } from "vitest";
-import { PWA_DEFAULT_OPTIONALS } from "../../lib/capabilities/pwa-defaults.js";
 import {
   LOCAL_POLICY_SOURCE_KV_KEY,
   SELECTION_SOURCE_KV_KEY,
@@ -251,7 +250,7 @@ describe("capabilities as files", () => {
       expect(double.commits[0]?.draft.revision).toBe(STARTER_REVISION);
       expect(double.getSnapshot().selection).toMatchObject({
         revision: STARTER_REVISION,
-        selectedOptional: [...PWA_DEFAULT_OPTIONALS],
+        selectedOptional: [],
       });
       expect(await provider.read(SELECTION_FILE)).toContain(
         `revision: ${STARTER_REVISION}`,
