@@ -109,4 +109,4 @@ dead link.
   each transport, which every adapter would have to write again.
 - `verify:live-join` still runs in no CI job (`scripts/lib/ci-gate-drivers.mjs`).
   *2026-10-10 note:* it does now, across three browsers
-  ([ADR 0188](0188-live-join-walked-in-ci-across-browsers.md)).
+  ([ADR 0189](0189-live-join-walked-in-ci-across-browsers.md)).
