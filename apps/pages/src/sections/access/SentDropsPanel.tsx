@@ -4,7 +4,6 @@
  */
 
 import { listReceipts } from "@opensesame/app-core/lib/device-receipts.js";
-import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
   type OutboundDrop,
   type OutboundDropState,
@@ -19,8 +18,8 @@ import {
 import { isString } from "@opensesame/os-domain";
 import { useCallback, useEffect, useState } from "react";
 import { useCapabilityGate } from "../../app-root.js";
-import { FailureNotice } from "../../components/FailureNotice.js";
-import { IconRefresh, IconX } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconX } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useFailureNotice } from "../../components/use-failure-notice.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -66,13 +65,20 @@ function SentDropRow({
   onRevoked: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const mark = STATUS[drop.state];
   const trail = receiptsForClaim(events, drop.claimId);
+  const revokeLabel = armed ? "Confirm" : "Revoke";
 
   useFailureNotice(`sent-drop-revoke:${drop.claimId}`, "Sent", revokeError);
 
   async function revoke(): Promise<void> {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    setArmed(false);
     setBusy(true);
     setRevokeError(null);
     try {
@@ -82,13 +88,13 @@ function SentDropRow({
         return;
       }
       if (outcome === "already_consumed") {
-        setRevokeError("This send was already opened and cannot be revoked.");
+        setRevokeError("Already opened.");
         onRevoked();
         return;
       }
-      setRevokeError("This send could not be revoked on this device.");
+      setRevokeError("Revoke unavailable.");
     } catch {
-      setRevokeError("This send could not be revoked. Try again.");
+      setRevokeError("Revoke failed.");
     } finally {
       setBusy(false);
     }
@@ -100,26 +106,20 @@ function SentDropRow({
         <span className="access-sent-drop__name">{drop.name}</span>
         <StatusMark tone={mark.tone} label={mark.label} />
         {drop.state === "pending" ? (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="Revoke this send"
-            title="Revoke this send"
+          <IconKey
+            label={revokeLabel}
+            armed={armed}
             disabled={busy}
+            onBlur={() => setArmed(false)}
             onClick={() => void revoke()}
           >
             <IconX size={16} />
-          </button>
+          </IconKey>
         ) : null}
       </div>
-      <span className="vault-row__meta">
-        {formatTime(drop.createdAt)} · until {formatTime(drop.expiresAt)}
-      </span>
+      <span className="vault-row__meta">{formatTime(drop.createdAt)}</span>
       {trail.length > 0 ? (
-        <ul
-          className="access-trail access-sent-drop__trail"
-          aria-label="Send receipts"
-        >
+        <ul className="access-trail access-sent-drop__trail">
           {trail.map((event) => (
             <li key={event.id}>
               <span className="access-trail__when">
@@ -135,9 +135,7 @@ function SentDropRow({
             </li>
           ))}
         </ul>
-      ) : (
-        <span className="vault-row__meta">No receipts yet for this send.</span>
-      )}
+      ) : null}
     </li>
   );
 }
@@ -147,26 +145,16 @@ export function SentDropsPanel() {
   const { tomb } = useVault();
   const [sends, setSends] = useState<OutboundDrop[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
-  const [failed, setFailed] = useState(false);
-
   const reload = useCallback(() => {
     setSends(listOutboundDrops(tomb));
     void listReceipts(tomb, 80)
-      .then((rows) => {
-        setEvents(rows);
-        setFailed(false);
-      })
-      .catch(() => {
-        setEvents([]);
-        setFailed(true);
-      });
+      .then((rows) => setEvents(rows))
+      .catch(() => setEvents([]));
   }, [tomb]);
 
   useEffect(() => {
     if (!approved) return;
-    const off = subscribeLocalIamChanges(reload);
     reload();
-    return off;
   }, [approved, reload]);
 
   if (!approved) return null;
@@ -178,27 +166,9 @@ export function SentDropsPanel() {
     >
       <div className="section__subhead">
         <h2 id="access-sent-drops-head">Sent</h2>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="Refresh sent list"
-          title="Refresh sent list"
-          onClick={reload}
-        >
-          <IconRefresh size={16} />
-        </button>
       </div>
-      {failed ? (
-        <FailureNotice
-          id="sent-drops-receipts"
-          title="Sent"
-          message="Receipts for sends did not load. Refresh to try again."
-        />
-      ) : null}
       {sends.length === 0 ? (
-        <p className="hint">
-          No sends yet. Share once from a secret to list it here.
-        </p>
+        <p className="hint">No sends yet.</p>
       ) : (
         <ul className="access-sent-drops__list">
           {sends.map((drop) => (
