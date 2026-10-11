@@ -160,7 +160,8 @@ async function sentGit(provider: Provider): Promise<Used> {
 
 async function featureUse(provider: Provider): Promise<Used> {
   const category = provider.category;
-  if (category === "agent_harnesses") return sentModel(provider);
+  if (category === "agent_harnesses" || category === "ai_model_provider")
+    return sentModel(provider);
   if (category === "networking") return sentTailnet(provider);
   if (category === "backup_recovery") return sentGit(provider);
   if (category === "identity") {
@@ -264,6 +265,7 @@ describe("capability features refuse unimplemented connector dispatch", () => {
     const listed = listedProviders().filter(
       (provider) =>
         provider.category !== "agent_harnesses" &&
+        provider.category !== "ai_model_provider" &&
         provider.category !== "networking" &&
         forgeForProvider(provider.id) === null,
     );

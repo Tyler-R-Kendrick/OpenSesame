@@ -480,6 +480,14 @@ button.conn-tile__link {
   color: var(--ink-3);
 }
 
+/* The key to test a model provider's key, and what the test said. */
+.ai-sheet__test {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
 .conn-tile__body {
   display: grid;
   gap: 1rem;

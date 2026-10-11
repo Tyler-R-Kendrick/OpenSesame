@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 418,
-    "violations": 645,
-    "oversizedLines": 213567
+    "files": 417,
+    "violations": 644,
+    "oversizedLines": 213051
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -228,7 +228,7 @@
       "max-lines": 506
     },
     "crates/connection-broker/src/catalog.rs": {
-      "max-lines": 821
+      "max-lines": 763
     },
     "crates/connection-broker/src/config.rs": {
       "max-lines": 676
@@ -247,9 +247,6 @@
     },
     "crates/connection-broker/src/lib.rs": {
       "max-lines": 2394
-    },
-    "crates/connection-broker/src/model.rs": {
-      "max-lines": 430
     },
     "crates/connection-broker/src/rotation.rs": {
       "max-lines": 1727
@@ -563,7 +560,7 @@
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/connections.ts": {
-      "max-lines": 472
+      "max-lines": 459
     },
     "packages/app-core/src/lib/crumbs.ts": {
       "complexity": 1
@@ -749,7 +746,7 @@
       "complexity": 1
     },
     "packages/contracts/src/connections.ts": {
-      "max-lines": 436
+      "max-lines": 421
     },
     "packages/control-plane/src/__tests__/api.test.ts": {
       "max-lines": 2288

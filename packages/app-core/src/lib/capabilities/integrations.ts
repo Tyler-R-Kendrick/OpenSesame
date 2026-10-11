@@ -86,7 +86,7 @@ export const INTEGRATIONS: readonly Integration[] = [
   integration("payments", "Payments", ["wallet"], {
     extendsFeature: "payments",
   }),
-  integration("ai", "AI", ["agent_harnesses"], {
+  integration("ai", "AI", ["agent_harnesses", "ai_model_provider"], {
     extendsFeature: "ai",
     models: true,
   }),

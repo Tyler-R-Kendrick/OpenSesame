@@ -27,7 +27,7 @@ table, run by both planes.
 
 | Item | What it does |
 |---|---|
-| `redact_text(&str) -> String` | Rewrites every secret the text carries: PEM blocks, `scheme://user:pass@host` userinfo, secret URL parameters (`#token=…`, `?code=…`), Cookie lines, `label: value` pairs (compound labels such as `session_token` and `x-api-key` included, quoted values and `Authorization: Basic …`), bearer and DPoP credentials, JWTs, `osc_*` and `whsec_` tokens, vendor key shapes. Idempotent. |
+| `redact_text(&str) -> String` | Rewrites every secret the text carries: PEM blocks, `scheme://user:pass@host` userinfo, secret URL parameters (`#token=…`, `?code=…`), Cookie lines, `label: value` pairs (compound labels such as `session_token` and `x-api-key` included, quoted values and `Authorization: Basic …`), bearer and DPoP credentials, JWTs, `osk_*` model keys, `osc_*` and `whsec_` tokens, vendor key shapes. Idempotent. |
 | `redact_json(&Value) -> Value` | The value of every sensitive key censored at any depth (`accessToken`, `db_password`; not `tokenType`; booleans and null kept), and every string scrubbed. |
 | `is_sensitive_key(&str)` | Whether a key is named like a secret. |
 | `ScrubWriter<W>` / `Format` | An `io::Write` that scrubs whole lines on their way to a sink; a JSON line is decoded and scrubbed field by field. |

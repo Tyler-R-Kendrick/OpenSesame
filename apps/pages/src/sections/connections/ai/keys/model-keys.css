@@ -1,0 +1,122 @@
+/* Keys handed to apps and agents for one model provider (ADR 0192). */
+
+.mkey__row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.mkey__row:first-child {
+  border-top: 0;
+}
+
+.mkey__row--child {
+  padding-inline-start: 2.5rem;
+}
+
+.mkey__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.mkey__copy h3,
+.mkey__copy p {
+  margin: 0;
+}
+
+.mkey__copy p {
+  margin-top: 0.2rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+/* The key as it is shown once: the whole of it, wrapped, never clipped in a field. */
+.mkey__token {
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  overflow: visible;
+}
+
+.mkey__token-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* A choice among a few named sizes: the words are the thing chosen. The radio
+   is the whole of the square, drawn nothing of its own, so a tap anywhere on
+   it picks and the arrow keys move between squares. */
+.mkey-group > legend {
+  margin-bottom: 0.3rem;
+  padding: 0;
+}
+
+.mkey-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.mkey-choice {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.mkey-choice input[type="radio"] {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.mkey-choice:has(input:checked) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+
+.mkey-choice:has(input:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.mkey-choice:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (pointer: coarse) {
+  .mkey-choice {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .mkey__row {
+    flex-wrap: wrap;
+  }
+}

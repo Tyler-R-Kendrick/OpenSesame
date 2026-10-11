@@ -138,16 +138,38 @@ describe("connections page tree", () => {
     ).not.toContain("github");
   });
 
+  it("lists the model providers by name, and every other section in source order", () => {
+    const groups = catalogPageSections(getBundledProviders());
+    const ai = groups.find((group) => group.id === "ai_model_provider");
+    const names = (ai?.items ?? []).map((item) => item.label);
+    expect(names.length).toBeGreaterThan(50);
+    expect(names).toEqual(
+      [...names].sort((a, b) =>
+        a.localeCompare(b, "en", { sensitivity: "base" }),
+      ),
+    );
+    const developer = groups.find((group) => group.id === "developer");
+    const source = getBundledProviders()
+      .filter((provider) => provider.category === "developer")
+      .map((provider) => provider.id);
+    const listed = (developer?.items ?? []).map((item) => item.id);
+    expect(listed).toEqual(source.filter((id) => listed.includes(id)));
+  });
+
   it("groups the bundled catalog under the new leading sections", () => {
     const groups = catalogPageSections(getBundledProviders());
     const bindings = featureBindingSections(getBundledProviders());
+    // Every model provider moved out of "Agent harnesses" into its own section (ADR 0192).
     expect(bindings.map((group) => group.label).slice(0, 5)).toEqual([
       "Identity",
       "Backup/recovery",
       "Encryption (secrets in git)",
       "Password managers",
-      "Agent harnesses",
+      "AI model providers",
     ]);
+    expect(bindings.map((group) => group.label)).not.toContain(
+      "Agent harnesses",
+    );
     expect(groups.map((group) => group.label)).not.toContain("Identity");
     expect(groups.map((group) => group.label)).not.toContain("Backup/recovery");
     expect(groups.map((group) => group.label)).toContain("Managed");

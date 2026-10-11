@@ -1,3 +1,4 @@
+import { AI_MODEL_PROVIDER_IDS } from "./ai-model-provider-ids.generated.js";
 import type { ConfigurationField } from "./connections.js";
 
 /**
@@ -32,14 +33,12 @@ export const HOST_PROVIDER_IDS = [
   "linear",
 ] as const;
 
-export const LLM_PROVIDER_IDS = [
-  "anthropic",
-  "openai",
-  "azure-openai",
-  "aws-bedrock",
-  "openrouter",
-  "huggingface",
-] as const;
+/**
+ * Every hosted model provider the catalog lists (ADR 0192), generated from
+ * the catalog's `ai_model_provider` rows so a new row is drawn without a
+ * second list to keep in step.
+ */
+export const LLM_PROVIDER_IDS = AI_MODEL_PROVIDER_IDS;
 
 export const IDENTITY_PROVIDER_IDS = [
   "better-auth",
