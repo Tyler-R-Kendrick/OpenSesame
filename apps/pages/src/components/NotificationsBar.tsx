@@ -10,6 +10,10 @@ import {
   defaultUpstream,
 } from "@opensesame/app-core/lib/federation.js";
 import {
+  arrivalSurface,
+  desktopRinging,
+} from "@opensesame/app-core/lib/notice-toast.js";
+import {
   type Notice,
   dismissNotice,
   listNotices,
@@ -28,6 +32,7 @@ import {
 } from "react";
 import { Link, useNavigate } from "react-router";
 import { useModalFocus } from "../lib/modal-focus.js";
+import { tabAway } from "../lib/notice-desktop.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CeremonyLink } from "./CeremonyLauncher.js";
@@ -93,10 +98,15 @@ function NotificationsBarDefault({
   const { notices, health, queued, count } = useNotices();
   const [open, setOpen] = useState(form === "panel");
 
+  // An arrival that a toast or a desktop ring already announced does not also
+  // open this sheet. Only one that nothing could show (the tab is away and
+  // desktop is off) opens it, so the person finds it on their return.
   useEffect(() => {
     return subscribeNoticeArrivals((notice) => {
       if (notice.kind !== "status") return;
       if (notice.tone !== "err" && notice.tone !== "warn") return;
+      if (arrivalSurface({ away: tabAway(), desktop: desktopRinging() }))
+        return;
       setOpen(true);
     });
   }, []);
