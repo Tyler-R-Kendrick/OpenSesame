@@ -208,6 +208,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "model_plane.read": "support.local-ai",
     "model_plane.choose": "support.local-ai",
 
+    // --- optional: password reset ---------------------------------------
+    "password_reset.mailboxes.manage": "ai.password-reset",
+
     // --- optional: wallet -----------------------------------------------
     "wallet.capabilities.read": "wallet.spending",
     "wallet.budgets.read": "wallet.spending",
