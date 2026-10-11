@@ -7,6 +7,30 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { MailboxForm, type SaveOutcome } from "./MailboxForm.js";
 
 /**
+ * Whether the app reads this mailbox. A check when it can; a warning when a
+ * server is named that it cannot read (it needs JMAP over TLS and a password);
+ * nothing for an address alone, which is not a fault and has no mark to give.
+ */
+function ReadMark({
+  mailbox,
+  configured,
+}: {
+  mailbox: ResetMailbox;
+  configured: boolean;
+}) {
+  if (mailbox.readable) {
+    return <StatusMark tone="ok" label="Its mail can be read" />;
+  }
+  if (!configured) return null;
+  return (
+    <StatusMark
+      tone="warn"
+      label="Its mail is not read: it needs a JMAP server over TLS and a password"
+    />
+  );
+}
+
+/**
  * One mailbox: its name and address, whether the app can read its mail, an
  * edit key and — only while no login is bound to it — a remove key. A control
  * whose precondition is unmet is absent, not disabled (ADR 0158).
@@ -44,14 +68,7 @@ export function MailboxRow({
   }
   return (
     <div className="field-inline" data-mailbox={mailbox.id}>
-      <StatusMark
-        tone={mailbox.readable ? "ok" : "idle"}
-        label={
-          mailbox.readable
-            ? "Its mail can be read"
-            : "Address only: its mail is not read"
-        }
-      />
+      <ReadMark mailbox={mailbox} configured={draft.server.host !== ""} />
       <span>
         {mailbox.name === mailbox.address
           ? mailbox.address

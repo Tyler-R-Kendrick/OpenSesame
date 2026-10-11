@@ -185,6 +185,30 @@ describe("PasswordResetMailPanel", () => {
     ).toBe("app-password-1");
   });
 
+  it("marks a named server it cannot read, and draws no mark for an address alone", async () => {
+    await open();
+    render(<PasswordResetMailPanel />);
+    type("Reset email", "plain@example.com");
+    await press("Add reset email");
+    expect(screen.queryByRole("img")).toBeNull();
+
+    await press("Show mail server");
+    type("Reset email", "old@example.com");
+    type("Mail server", "imap.example.com");
+    fireEvent.change(screen.getByLabelText("Protocol"), {
+      target: { value: "imap" },
+    });
+    await press("Add reset email");
+    expect(
+      screen.getByRole("img", {
+        name: "Its mail is not read: it needs a JMAP server over TLS and a password",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("img", { name: "Its mail can be read" }),
+    ).toBeNull();
+  });
+
   it("marks a bad port on the port field", async () => {
     await open();
     render(<PasswordResetMailPanel />);
