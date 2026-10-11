@@ -23,7 +23,7 @@ import "./wordmark.css";
  * Whether a wordmark has already revealed itself this session. The decrypt is
  * the one authored moment of an arrival; a second gate mounting seconds later
  * — the setup ceremony after the front door, the rail after unlock — arrives
- * still. Tests reset it between renders.
+ * settled, its field still shimmering. Tests reset it between renders.
  */
 export const wordmarkSeams = { revealed: false };
 

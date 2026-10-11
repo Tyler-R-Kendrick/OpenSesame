@@ -7,7 +7,6 @@ import {
   drawWordmark,
   readInkRgb,
   readSlit,
-  tierOf,
 } from "./particles.js";
 
 const PAD = 4;
@@ -61,9 +60,9 @@ export function paintCipherFrame(args: {
   };
 }
 
-/** The particle tier shimmers for as long as it is on screen. */
+/** The particle field shimmers for as long as it is on screen. */
 export function shimmers(layout: Layout | null): boolean {
-  return layout !== null && tierOf(layout.em) === "field";
+  return layout !== null;
 }
 
 export function scheduleCipherLoop(args: {
