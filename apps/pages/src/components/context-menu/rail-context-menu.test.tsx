@@ -1,7 +1,8 @@
 /** @vitest-environment jsdom */
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   filterLink,
@@ -202,6 +203,88 @@ describe("the rail's context menu", () => {
     expect(
       screen.queryByRole("treeitem", { name: "Back to vault" }),
     ).toBeNull();
+  });
+});
+
+/**
+ * Share › Session hands this vault to people who open a link, so it lands on
+ * the panel that hosts one. `/live` is the other side of that link — the join
+ * screen — and is never where an owner broadcasts from.
+ */
+describe("the vault row's Share › Session entry", () => {
+  let revokeShell: readonly (() => void)[] = [];
+  let revokeLive: readonly (() => void)[] = [];
+  beforeEach(() => {
+    revokeShell = registerContributedShell();
+    seedVault();
+  });
+  afterEach(() => {
+    for (const revoke of [...revokeLive, ...revokeShell]) revoke();
+    revokeLive = [];
+    revokeShell = [];
+    resetShellRender();
+  });
+
+  /** `sharing.live` as its runtime registers it: the join route and the tab. */
+  function activateLive() {
+    revokeLive = [
+      registerContributionForTest("route", {
+        id: "live",
+        path: "/live",
+        element: () => null,
+        framed: true,
+        order: 48,
+        gate: "any",
+      }),
+      registerContributionForTest("settings-category", {
+        id: "live",
+        label: "Live sessions",
+        guideId: "settings.live",
+        Panel: () => null,
+        panels: [
+          { id: "live-session", label: "Live session" },
+          { id: "live-routes", label: "Routes" },
+        ],
+        order: 320,
+      }),
+    ];
+  }
+
+  function Where() {
+    const { pathname, hash } = useLocation();
+    return <output data-testid="where">{`${pathname}${hash}`}</output>;
+  }
+
+  function openShareSession() {
+    renderShell(
+      "/vault",
+      <>
+        <Where />
+        <ContextMenuLayer />
+      </>,
+    );
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Session" }));
+  }
+
+  it("opens the panel that hosts a live session, not the join screen", () => {
+    activateLive();
+    openShareSession();
+    expect(screen.getByTestId("where").textContent).toBe(
+      "/settings/live#live-session",
+    );
+  });
+
+  it("offers no Session while Live sessions is off", () => {
+    renderShell("/vault", <ContextMenuLayer />);
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Vault" }));
+    // Access is still on, so Share is drawn — with only its other way.
+    fireEvent.click(screen.getByRole("menuitem", { name: /Share/ }));
+    expect(
+      screen.getByRole("menuitem", { name: "Person or agent" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("menuitem", { name: "Session" })).toBeNull();
   });
 });
 
