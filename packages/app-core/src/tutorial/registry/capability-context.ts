@@ -29,7 +29,10 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "identity.local.passkeys.manage": ["/identity"],
     "identity.local.organizations.member": ["/identity"],
     "identity.local.agent.keys.manage": ["/identity"],
-    "identity.local.application.authorize": ["/identity"],
+    "identity.local.application.authorize": [
+      "/identity",
+      "/identity/authorize",
+    ],
     "identity.agents.manage": ["/identity"],
     "access.sessions.review": ["/access"],
     "access.grant": ["/access"],
