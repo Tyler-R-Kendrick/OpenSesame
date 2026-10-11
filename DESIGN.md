@@ -134,6 +134,7 @@ it with the letter O: a zero is one word to change (`DISPLAY_WORD`), and the
 default stays the letter because a zero makes the eye and the screen reader
 disagree. The wordmark is the particle field (`particles-model.ts`):
 
+<<<<<<< HEAD
 | Em | Drawn | Where |
 | --- | --- | --- |
 | 16px and up — 16px is the floor | ink particles with the letter cut out; the field drifts while the name decrypts and keeps shimmering after it settles | every gate's hero (the front door fitted to its card, em = width / 7.78, at most 90; the unlock and sign-in hero above the card), a phone's included; the rail, the phone drawer and the setup bar at 16px |
@@ -144,6 +145,18 @@ plates (a hero under 48px fell to them). Under a 16px em a particle plate
 loses most of its cut-out and reads as redacted blocks, so a smaller em is laid
 out at 16. The element's font-size is the plate em, so a stylesheet sizes the
 wordmark the way it sizes text.
+=======
+| Tier | Em | Drawn | Where |
+| --- | --- | --- | --- |
+| field | 16px and up | ink particles with the letter cut out; the field drifts while the name decrypts and keeps shimmering after it settles | every gate's hero: the front door fitted to its card (em = width / 7.78, at most 90), the unlock and sign-in hero above the card, a phone's included |
+| type | under 16px | the letters in ink, no plates | the rail (12px), the setup bar (13px) |
+
+The solid-plate rendering (a hero under 48px used to fall to it) is rejected
+and gone: a phone's hero keeps the field. An 11px particle plate keeps 290 of
+its 1,400 cut-out pixels and reads as redacted blocks, so the chrome under
+16px still draws the letters. The element's font-size is the plate em, so a
+stylesheet sizes the wordmark the way it sizes text.
+>>>>>>> origin/main
 
 The name decrypts on arrival: every cell starts as hex ciphertext — the
 glyphs a digest is written in — and a cursor walks the cells left to right,

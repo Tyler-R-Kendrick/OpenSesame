@@ -26,6 +26,10 @@ export {
   markRects,
 } from "./mark-geometry.js";
 export {
+<<<<<<< HEAD
   FIELD_MIN_EM,
+=======
+  TYPE_MAX_EM,
+>>>>>>> origin/main
   WORDMARK_WIDTH_EM,
 } from "./particles-model.js";
