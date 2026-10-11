@@ -1,0 +1,115 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "scrollToOptional": "^Routes$"
+        },
+        {
+          "count": ["[aria-label='Open transport.json']", "#live-routes"]
+        },
+        {
+          "measure": "#live-routes .panel__head"
+        },
+        {
+          "shot": "1280-routes"
+        },
+        {
+          "pressOptional": "^Open transport\\.json$"
+        },
+        {
+          "count": ["textarea[aria-label='settings/live/transport.json']"]
+        },
+        {
+          "shot": "1280-transport-file"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "scrollToOptional": "^Routes$"
+        },
+        {
+          "count": ["[aria-label='Open transport.json']", "#live-routes"]
+        },
+        {
+          "measure": "#live-routes .panel__head"
+        },
+        {
+          "measure": "[aria-label='Open transport.json']"
+        },
+        {
+          "shot": "390-routes"
+        },
+        {
+          "pressOptional": "^Open transport\\.json$"
+        },
+        {
+          "count": ["textarea[aria-label='settings/live/transport.json']"]
+        },
+        {
+          "shot": "390-transport-file"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-routes",
+      "width": 1280,
+      "title": "Settings \u203a Live sessions, 1280 \u00d7 900: Routes",
+      "caption": "Where a TURN server's REST secret is written: the file behind Routes, which the Form has no field for.",
+      "before": "no key on the heading (count [aria-label='Open transport.json']: 0); heading 960\u00d740 \u2014 nothing leads to settings/live/transport.json since config.yaml became the page",
+      "after": "the Open transport.json key on the heading (count: 1); heading still 960\u00d740"
+    },
+    {
+      "shot": "1280-transport-file",
+      "width": 1280,
+      "title": "Settings, 1280 \u00d7 900: after pressing the key",
+      "caption": "The same walk, one press later.",
+      "before": "the key is not there to press: still Routes (count textarea[aria-label='settings/live/transport.json']: 0)",
+      "after": "settings/live/transport.json in the file viewer, its editor drawn (count: 1)"
+    },
+    {
+      "shot": "390-routes",
+      "width": 390,
+      "title": "Settings \u203a Live sessions, 390 \u00d7 844: Routes",
+      "caption": "The same on a phone, in a touch context.",
+      "before": "no key (count 0); heading 358\u00d740",
+      "after": "the key at 44\u00d744 (the touch floor); the heading 358\u00d756 to hold it"
+    },
+    {
+      "shot": "390-transport-file",
+      "width": 390,
+      "title": "Settings, 390 \u00d7 844: after pressing the key",
+      "caption": "The file on a phone.",
+      "before": "still Routes (editor count 0)",
+      "after": "settings/live/transport.json in the file viewer (editor count 1)"
+    }
+  ]
+}

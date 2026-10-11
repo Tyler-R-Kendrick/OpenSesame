@@ -88,6 +88,11 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "connectors.connect.token_check",
         "connectors.directory.sync",
         "integrations.read",
+        "models.keys.exchange",
+        "models.keys.invoke",
+        "models.keys.mint",
+        "models.keys.read",
+        "models.keys.revoke",
         "providers.list",
       ],
       egress: [

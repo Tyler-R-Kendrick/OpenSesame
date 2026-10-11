@@ -1,30 +1,14 @@
 import { z } from "zod";
+import { ModelApiSchema } from "./model-api.js";
+import { ProviderCategorySchema } from "./provider-category.js";
+
+export * from "./model-api.js";
+export * from "./provider-category.js";
 
 /**
  * Connection broker wire contract (ADR 0032). Snake_case wire names; every
  * object is `.strict()` so unexpected credential fields fail closed.
  */
-
-export const ProviderCategorySchema = z.enum([
-  "identity",
-  "backup_recovery",
-  "encryption",
-  "password_managers",
-  "agent_harnesses",
-  "networking",
-  "wallet",
-  "cloud_secret_storage",
-  "local_storage",
-  "developer",
-  "productivity",
-  "communication",
-  "storage",
-  "crm",
-  "testing",
-  "certificates",
-  "custom",
-]);
-export type ProviderCategory = z.infer<typeof ProviderCategorySchema>;
 
 export const ProviderAuthKindSchema = z.enum([
   "oauth2_authorization_code",
@@ -112,6 +96,7 @@ export const ProviderSchema = z
     connection_configuration_fields: z
       .array(ConfigurationFieldDefSchema)
       .default([]),
+    model_api: ModelApiSchema.optional(),
   })
   .strict();
 export type Provider = z.infer<typeof ProviderSchema>;

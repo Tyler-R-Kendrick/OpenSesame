@@ -9,6 +9,13 @@
  * closes, out of reach of leaving, ending or locking — so it is asked to
  * reject on the first failure, with reconnecting held off until a broker has
  * answered. After that a dropped connection is retried, and `close()` ends it.
+ *
+ * Its timers are the page's own. By default the client runs them in a worker
+ * started from a Blob URL that it revokes on the next tick, which WebKit
+ * (Safari) can lose the race to load: the worker fails, the keepalive with
+ * it, and the page logs the failed load. A carrier lives for an exchange of
+ * codes and reconnects if a broker drops it, so a throttled timer costs it
+ * nothing a worker would have saved.
  */
 
 import type { Carrier } from "@opensesame/app-core/lib/live/rendezvous.js";
@@ -34,6 +41,7 @@ export async function mqttCarrier(
       clean: true,
       reconnectPeriod: 0,
       connectTimeout: 8000,
+      timerVariant: "native",
     },
     false,
   );

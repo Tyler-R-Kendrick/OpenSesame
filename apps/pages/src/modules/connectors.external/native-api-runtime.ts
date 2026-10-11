@@ -4,6 +4,7 @@ import {
   configureNativeApiConnector,
   invokeNativeApiConnector,
   nativeApiCleanup,
+  testNativeApiCredential,
   verifyNativeApiConnector,
 } from "@opensesame/app-core/lib/native-api-connectors.js";
 import {
@@ -138,6 +139,17 @@ function configureApi(
     transport,
   );
 }
+function testApi(
+  input: NativeDriverInput,
+  transport: ReturnType<typeof nativeProviderTransport>,
+) {
+  transport.assertCurrent();
+  if (input.providerId === "s3" || input.providerId === "github")
+    throw new Error("This provider verifies only when it is saved");
+  if (instance(input.providerId))
+    throw new Error("This provider verifies only when it is saved");
+  return testNativeApiCredential(input, transport);
+}
 async function invokeApi(
   id: string,
   operation: string,
@@ -187,6 +199,7 @@ export function bindNativeApiRuntime(activation: Activation): void {
     registerNativeConnectorDriver("api-key", {
       supports: supportedApiProvider,
       configure: (input) => configureApi(input, transport),
+      test: (input) => testApi(input, transport),
       verify: (id) => {
         transport.assertCurrent();
         const provider = providerOf(id);

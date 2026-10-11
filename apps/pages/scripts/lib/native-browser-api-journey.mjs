@@ -5,6 +5,7 @@ import {
   nativeVerifiedCapture,
 } from "./native-browser-api-lifecycle.mjs";
 import { nativeVisit } from "./native-browser-catalog-journey.mjs";
+import { NATIVE_AI_MODEL_PROVIDER_IDS } from "./native-browser-catalog-projection.mjs";
 /** Human controls against real compiled HTTP handlers, with encrypted cold reload. */
 import { unlockWithPin } from "./pages-journey.mjs";
 
@@ -131,7 +132,14 @@ export async function nativeApiJourney(
   { base, out, label },
 ) {
   harness.setStep(`${label}-api-${fixture.providerId}`);
-  await nativeVisit(page, base, `connections/${fixture.providerId}`);
+  // A model provider's first connection from the Add catalog is a sheet
+  // (walked in the catalog journey and in `nativeAiSheetJourney`); its page,
+  // with the method step and Verify and connect, is the one Settings opens.
+  await nativeVisit(
+    page,
+    base,
+    `${NATIVE_AI_MODEL_PROVIDER_IDS.has(fixture.providerId) ? "settings/" : ""}connections/${fixture.providerId}`,
+  );
   await page
     .getByRole("heading", { name: fixture.name, exact: true })
     .waitFor();

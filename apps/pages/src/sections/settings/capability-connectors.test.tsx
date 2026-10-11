@@ -97,7 +97,10 @@ describe("capability connectors the page lists", () => {
         expect(packed, provider.id).not.toContain(value);
       }
       const run = runCapabilityFeature(provider);
-      if (provider.category === "agent_harnesses") {
+      if (
+        provider.category === "agent_harnesses" ||
+        provider.category === "ai_model_provider"
+      ) {
         expect(run).toEqual({ ok: false, providerId: provider.id });
         expect(globalThis.fetch).not.toHaveBeenCalled();
         covered.push(provider.id);

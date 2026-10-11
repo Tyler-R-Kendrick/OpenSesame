@@ -25,12 +25,21 @@ export function useCipherLifecycle({
     const root = rootRef.current;
     const canvas = canvasRef.current;
     if (!root || !canvas) return;
+    // Sizing the canvas sizes the root this watches. Done inside the
+    // callback, that is a resize the same delivery cannot report, which
+    // browsers flag as a ResizeObserver loop (WebKit as a page error). The
+    // next frame takes it instead, and once the canvas fits the root stops
+    // changing, so nothing more is asked.
+    let frame = 0;
     const ro =
       globalThis.ResizeObserver === undefined
         ? null
         : new ResizeObserver(() => {
-            resize();
-            paint(nowMs());
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => {
+              resize();
+              paint(nowMs());
+            });
           });
     ro?.observe(root);
     const io =
@@ -62,6 +71,7 @@ export function useCipherLifecycle({
       attributeFilter: ["data-theme"],
     });
     return () => {
+      cancelAnimationFrame(frame);
       ro?.disconnect();
       io?.disconnect();
       mo?.disconnect();

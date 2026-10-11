@@ -79,6 +79,11 @@ export const SHELL_RULES = [
   core("src/bootstrap/", null, "core-only boot (S05)"),
   core("src/host/", null, "installs the app-core host before boot (ADR 0133)"),
   core("src/host", null, "the app-core host and its ports (ADR 0133)"),
+  core(
+    "src/lib/zod-jitless",
+    null,
+    "zod runs jitless under the CSP, set by the host boot before anything parses (ADR 0193)",
+  ),
   core("src/test-host", null, "the app-core test host (ADR 0133)"),
   core("src/ports", null, "the app-core port accessors (ADR 0133)"),
   core("src/no-host-import", null, "proof the core loads with no host"),
@@ -334,6 +339,11 @@ export const SHELL_RULES = [
     "src/lib/bundled-provider-ids",
     "settings.core",
     "bundled catalog ids the capabilities page draws",
+  ),
+  core(
+    "src/lib/ai-model-provider-ids.generated",
+    "settings.core",
+    "the catalog's model-provider ids, which the bundled catalog labels above read (ADR 0192)",
   ),
   shared(
     "src/lib/connect-callback",

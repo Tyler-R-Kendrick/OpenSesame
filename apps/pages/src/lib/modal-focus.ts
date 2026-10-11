@@ -5,12 +5,18 @@ import { handlePaneEscape } from "./pane-escape.js";
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
-/** Keep keyboard focus inside a modal sheet and restore its trigger on close. */
+/**
+ * Keep keyboard focus inside a modal sheet and restore its trigger on close.
+ * `initial` is where focus lands on open; a ref that holds no element by then
+ * (a field a touch screen skips, one not drawn on this arrival) lands on
+ * `fallback` instead, so focus is never left behind the scrim.
+ */
 export function useModalFocus(
   open: boolean,
   container: RefObject<HTMLElement | null>,
   initial: RefObject<HTMLElement | null>,
   close: () => void,
+  fallback?: RefObject<HTMLElement | null>,
 ): void {
   // The latest `close`, read when a key arrives. A caller passes a new
   // function on every render; keying the effect on it would re-run it — and
@@ -20,7 +26,7 @@ export function useModalFocus(
   useEffect(() => {
     if (!open) return;
     const trigger = document.activeElement;
-    initial.current?.focus();
+    (initial.current ?? fallback?.current)?.focus();
 
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
@@ -47,7 +53,7 @@ export function useModalFocus(
       window.removeEventListener("keydown", onKey);
       if (trigger instanceof HTMLElement) trigger.focus();
     };
-  }, [container, initial, open]);
+  }, [container, fallback, initial, open]);
 }
 
 function trapTab(event: KeyboardEvent, pane: HTMLElement | null): void {

@@ -17,6 +17,8 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { DRIVER_GATES } from "./ci-gate-drivers.mjs";
 export { DRIVER_GATES } from "./ci-gate-drivers.mjs";
+import { liveJoinFixturePath } from "./ci-live-join.mjs";
+export { liveJoinFixturePath };
 import { relayJoinPath, relayProcessGate } from "./ci-relay-join.mjs";
 export { relayJoinPath };
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
@@ -39,6 +41,7 @@ export const JOB_GATES = [
   "device-inbox",
   "device-identity",
   "push",
+  "live-join",
 ];
 export const ALL_GATES = [...SHARD_GATES, ...JOB_GATES];
 
@@ -222,6 +225,11 @@ function pagesSection(path) {
   if (path.startsWith(`${PAGES_SRC}/sections/settings/security/`)) {
     return gates("budgets", "journeys", "auth", "device-identity");
   }
+  // The file viewer is where the live walk writes a TURN REST secret
+  // (settings/live/transport.json, opened from Routes).
+  if (path.startsWith(`${PAGES_SRC}/sections/settings/files/`)) {
+    return gates("budgets", "journeys", "live-join");
+  }
   return gates("budgets", "journeys");
 }
 
@@ -240,7 +248,8 @@ function pagesSource(path) {
   }
   if (rest.startsWith("lib/")) return pagesLib(path);
   if (rest.startsWith("sections/")) return pagesSection(path);
-  // The shell and its shared controls: keys, touch, the walk of every tutorial.
+  // The shell and its shared controls: keys, touch, the walk of every tutorial,
+  // and the live walk, the one gate that runs Firefox and WebKit as well.
   if (underAny(rest, ["components", "bindings"])) {
     return gates(
       "budgets",
@@ -249,6 +258,7 @@ function pagesSource(path) {
       "static",
       "journeys",
       "tutorials",
+      "live-join",
     );
   }
   // AGENTS.md: "Changes to a tutorial, the Support sheet, the tutorial card or
@@ -262,6 +272,10 @@ function coreSource(path) {
   const rest = path.slice(`${CORE_SRC}/`.length);
   if (under(rest, "tutorial")) return gates("budgets", "tutorials");
   if (under(rest, "webmcp")) return gates("budgets");
+  // The Live sessions profile file is the live walk's (ADR 0150 §6).
+  if (rest.startsWith("sections/settings/live-")) {
+    return gates("budgets", "journeys", "tutorials", "live-join");
+  }
   // The settings view-models decide which rows a tour can point at.
   if (under(rest, "sections")) return gates("budgets", "journeys", "tutorials");
   if (under(rest, "lib/keymap")) {
@@ -319,6 +333,7 @@ function isNativeConnectorPath(path) {
 function gatesByPath(path, reach) {
   if (isDocPath(path) || isTestPath(path)) return gates();
   if (relayProcessGate(path)) return gates("journeys");
+  if (liveJoinFixturePath(path)) return gates("live-join");
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();

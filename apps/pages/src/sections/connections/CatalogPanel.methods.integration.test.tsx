@@ -1,4 +1,8 @@
 /** @vitest-environment jsdom */
+import {
+  isAiModelProvider,
+  modelProtocolLabel,
+} from "@opensesame/app-core/lib/ai-model-provider.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
@@ -36,7 +40,13 @@ it("uses compiled provider protocols across the full public catalog and keeps le
   for (const provider of mergeVercelCatalog(getBundledProviders())) {
     const plan = connectPlan(provider.id);
     if (!plan) {
-      expect(catalogMethodLabel(provider)).toBe(authKindLabel(provider));
+      // A model provider's tile also says which API it speaks (ADR 0192).
+      const protocol = isAiModelProvider(provider)
+        ? ` · ${modelProtocolLabel(provider.id)}`
+        : "";
+      expect(catalogMethodLabel(provider)).toBe(
+        `${authKindLabel(provider)}${protocol}`,
+      );
       continue;
     }
     const label = catalogMethodLabel(provider);

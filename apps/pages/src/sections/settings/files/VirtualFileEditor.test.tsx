@@ -42,6 +42,39 @@ function area(): HTMLTextAreaElement {
 }
 
 describe("VirtualFileEditor", () => {
+  it("takes no typing and no save until the stored text has arrived", async () => {
+    let arrive: (text: string) => void = () => undefined;
+    const write = vi.fn(async (path: string) => ({ ok: true as const, path }));
+    render(
+      <VirtualFileEditor
+        file={file}
+        files={provider({
+          read: () =>
+            new Promise<string>((resolve) => {
+              arrive = resolve;
+            }),
+          write,
+        })}
+        onMoved={() => undefined}
+      />,
+    );
+    const save = screen.getByRole("button", { name: `Save ${file.path}` });
+    // Typed now, it would be lost under the stored text or run into it.
+    expect(area().readOnly).toBe(true);
+    expect(area().getAttribute("aria-busy")).toBe("true");
+    expect(save.hasAttribute("disabled")).toBe(true);
+    // An empty field is not yet a refusal: nothing has been read to judge.
+    expect(area().getAttribute("aria-invalid")).toBeNull();
+    fireEvent.click(save);
+    expect(write).not.toHaveBeenCalled();
+
+    arrive('{"order": 1}\n');
+    await vi.waitFor(() => expect(area().readOnly).toBe(false));
+    expect(area().value).toBe('{"order": 1}\n');
+    expect(area().getAttribute("aria-busy")).toBeNull();
+    expect(save.hasAttribute("disabled")).toBe(false);
+  });
+
   it("marks a draft that would be refused and raises nothing in the tray", async () => {
     render(
       <VirtualFileEditor

@@ -80,7 +80,8 @@ pkey=/etc/ssl/turn.key
 In Routes, add `turn:turn.example.com:3478` (UDP) and
 `turns:turn.example.com:443?transport=tcp` (TLS over TCP, which passes most
 firewalls). Put the `static-auth-secret` in the file as `"secret"`, not in the
-Form's credential field. The link then carries only a credential minted for
+Form's credential field: the key on the Routes heading opens
+`settings/live/transport.json`. The link then carries only a credential minted for
 this session (`<expiry>:osl`, HMAC-SHA1), never the secret.
 
 Where the TURN server can live:
@@ -260,11 +261,27 @@ browsers over real WebRTC. Build the app first, and also the dedicated build,
 `https://opensesame.example.test`). The carrier and declined walks run on it:
 their servers are on loopback, which is local operator authority the shared
 GitHub Pages origin may not reach, so the run fails without that build.
+
+Every walk runs once for each joiner's browser: the owner in `LIVE_OWNER`
+(default `chromium`), each joiner in `LIVE_JOINERS` (default the owner's), from
+Chromium, Firefox and WebKit as the pinned Playwright installs them (`pnpm
+exec playwright install --with-deps chromium firefox webkit`). CI runs one
+shard per owner, each with all three joiners, so every ordered pair walks every
+road. Two things a browser cannot be told on a test machine are not walked
+with it, and the run says so (`NOT TAKEN`): TLS to a TURN server with a
+throwaway certificate (only Chromium can be told to trust one key; a real
+`turns:` server's certificate is publicly trusted), and, for WebKit, which
+never hides its host address here, the tunnel half that must not meet. WebKit,
+like Safari, refuses a plain socket to loopback from an https page, so where a
+pair holds it each carrier is reached through a TLS front, as in production.
+
 The roads:
 
 - direct pairing;
 - a simulated tailnet, which never connects without the address and connects
-  at it with one;
+  at it with one (the tunnel address is this machine's default-route address:
+  an interface every browser gathers on and hides behind an mDNS name, as a
+  tailnet address is);
 - each carrier, with nothing pasted:
   - Nostr (a relay in the test process);
   - MQTT (aedes);
@@ -305,8 +322,8 @@ missing server fails the run; it is never skipped silently.
 
 - relay-only through a TURN server that authenticates with a REST secret
   (coturn's `use-auth-secret`): the owner types the profile file
-  (`settings/live/transport.json`, opened from the command bar; the Routes
-  Form has no secret field) with the server's `"secret"`, saves it and reads it
+  (`settings/live/transport.json`, opened from the key on the Routes heading;
+  the Form has no secret field) with the server's `"secret"`, saves it and reads it
   back, and the app mints each session's credential. `live-turn` runs with
   `-rest-secret`, and the walk asserts both peers authenticated with zero
   failures, the link carries a `<expiry>:osl` username and its HMAC-SHA1
