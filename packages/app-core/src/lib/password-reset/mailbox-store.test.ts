@@ -180,6 +180,37 @@ describe("a vault's reset mailboxes", () => {
     expect(mailboxes()).toHaveLength(1);
   });
 
+  it("refuses a server the reader could not open, and records one it does not read as written", async () => {
+    for (const host of [
+      "mail.example.com:8443",
+      "http://mail.example.com",
+      "mail.example.com/jmap",
+      "localhost",
+    ]) {
+      expect(
+        await addMailbox(store, {
+          address: "a@example.com",
+          name: "",
+          server: { ...SERVER, host },
+        }),
+      ).toEqual({ ok: false, refusal: "host" });
+    }
+    expect(mailboxes()).toEqual([]);
+    const pasted = await addMailbox(store, {
+      address: "a@example.com",
+      name: "",
+      server: { ...SERVER, host: "https://mail.example.com/" },
+    });
+    expect(pasted.ok).toBe(true);
+    const imap = await addMailbox(store, {
+      address: "b@example.com",
+      name: "",
+      server: { ...SERVER, protocol: "imap", host: "imap.example.com:993" },
+    });
+    expect(imap.ok).toBe(true);
+    expect(mailboxes()).toHaveLength(2);
+  });
+
   it("drops a half-written server: a host is what makes it advanced", async () => {
     await addMailbox(store, {
       address: "a@example.com",

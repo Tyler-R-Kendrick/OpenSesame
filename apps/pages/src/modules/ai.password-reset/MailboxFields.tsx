@@ -5,6 +5,7 @@ import {
   type MailboxServer,
 } from "@opensesame/app-core/lib/password-reset/mailbox-store.js";
 import { useId } from "react";
+import type { InvalidField } from "./mailbox-copy.js";
 
 function TextField({
   id,
@@ -82,12 +83,14 @@ function ChoiceField<T extends string>({
 function ServerFields({
   id,
   server,
+  invalidHost,
   invalidPort,
   savedPassword,
   onChange,
 }: {
   id: string;
   server: MailboxServer;
+  invalidHost: boolean;
   invalidPort: boolean;
   savedPassword: boolean;
   onChange: (patch: Partial<MailboxServer>) => void;
@@ -98,6 +101,7 @@ function ServerFields({
         id={`${id}-host`}
         label="Mail server"
         plain
+        invalid={invalidHost}
         value={server.host}
         onChange={(host) => onChange({ host })}
       />
@@ -156,7 +160,7 @@ export function MailboxFields({
 }: {
   draft: MailboxDraft;
   advanced: boolean;
-  invalid: "address" | "port" | null;
+  invalid: InvalidField | null;
   /** The mailbox already holds a password: a blank one here keeps it. */
   savedPassword: boolean;
   onChange: (next: MailboxDraft) => void;
@@ -183,6 +187,7 @@ export function MailboxFields({
           <ServerFields
             id={id}
             server={draft.server}
+            invalidHost={invalid === "host"}
             invalidPort={invalid === "port"}
             savedPassword={savedPassword}
             onChange={(patch) =>

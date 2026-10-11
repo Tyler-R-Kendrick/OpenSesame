@@ -12,11 +12,12 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { MailboxFields } from "./MailboxFields.js";
+import type { InvalidField } from "./mailbox-copy.js";
 
 /** What a save answered: done, or the field to mark (none when it was not a field's fault). */
 export type SaveOutcome =
   | { readonly ok: true }
-  | { readonly ok: false; readonly field: "address" | "port" | null };
+  | { readonly ok: false; readonly field: InvalidField | null };
 
 /**
  * One mailbox being added or changed. Enter in a field saves; the chevron
@@ -41,7 +42,7 @@ export function MailboxForm({
 }) {
   const [draft, setDraft] = useState(initial);
   const [advanced, setAdvanced] = useState(startAdvanced);
-  const [invalid, setInvalid] = useState<"address" | "port" | null>(null);
+  const [invalid, setInvalid] = useState<InvalidField | null>(null);
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (busy) return;

@@ -18,6 +18,7 @@ import {
 } from "@opensesame/vault-core";
 import type { FieldValues } from "@opensesame/vault-item-types";
 import {
+  READABLE_PROTOCOL,
   type ResetMailbox,
   isMailboxItem,
   mailboxOf,
@@ -25,6 +26,7 @@ import {
 } from "../password-reset-mail.js";
 import type { VaultStore } from "../vault/store.js";
 import { type ResetMailTypeHost, ensureResetMailType } from "./mail-type.js";
+import { usableHost } from "./mailbox-connection.js";
 
 export const MAIL_PROTOCOLS = ["imap", "pop3", "jmap", "exchange"] as const;
 export const MAIL_SECURITIES = ["tls", "starttls", "none"] as const;
@@ -72,7 +74,12 @@ export const EMPTY_DRAFT: MailboxDraft = {
 };
 
 /** Why a mailbox was not saved. A screen marks the field; it never quotes a value. */
-export type MailboxRefusal = "address" | "duplicate" | "port" | "missing";
+export type MailboxRefusal =
+  | "address"
+  | "duplicate"
+  | "host"
+  | "port"
+  | "missing";
 
 export type MailboxSave =
   | { readonly ok: true; readonly mailbox: ResetMailbox }
@@ -126,6 +133,17 @@ function validPort(port: string): boolean {
   return number >= 1 && number <= 65535;
 }
 
+/**
+ * A server the app would read but could not open: a host with a port, a path or
+ * a scheme other than https in it. Another protocol, or no TLS, is only kept as
+ * written, so what it holds is not held to the reader's rule.
+ */
+function unreadableHost(server: MailboxServer): boolean {
+  const reads =
+    server.protocol === READABLE_PROTOCOL && server.security !== "none";
+  return reads && server.host.trim() !== "" && !usableHost(server.host);
+}
+
 function valuesOf(
   draft: MailboxDraft,
   address: string,
@@ -168,6 +186,7 @@ function check(
 ): Checked {
   const address = normalizeResetAddress(draft.address);
   if (address === null) return { ok: false, refusal: "address" };
+  if (unreadableHost(draft.server)) return { ok: false, refusal: "host" };
   if (!validPort(draft.server.port.trim())) {
     return { ok: false, refusal: "port" };
   }

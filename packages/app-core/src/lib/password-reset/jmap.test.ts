@@ -1,5 +1,5 @@
 import type { JsonValue } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { JmapError, type MailFetch, readRecentMessages } from "./jmap.js";
 import type { MailConnection } from "./mailbox-connection.js";
 
@@ -241,6 +241,48 @@ describe("when the server cannot be read", () => {
         )
       ).code,
     ).toBe("malformed");
+  });
+
+  it("ends a server that never answers as unreachable, and aborts what it started", async () => {
+    vi.useFakeTimers();
+    try {
+      let started: AbortSignal | null | undefined;
+      const hung: MailFetch = (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          started = init.signal;
+          init.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        });
+      const pending = refusal(hung);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect((await pending).code).toBe("unreachable");
+      expect(started?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ends a server that stalls halfway through its answer as unreachable", async () => {
+    vi.useFakeTimers();
+    try {
+      const stalled: MailFetch = async (_url, init) =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              init.signal?.addEventListener("abort", () =>
+                controller.error(new DOMException("aborted", "AbortError")),
+              );
+            },
+          }),
+          { status: 200 },
+        );
+      const pending = refusal(stalled);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect((await pending).code).toBe("unreachable");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never puts the login or the server's words in an error", async () => {

@@ -13,7 +13,10 @@
  *   (the egress port refuses them);
  * - the `apiUrl` it names must be on the same origin as the session, or the
  *   login would be sent to a place the person never chose;
- * - an error carries a code and nothing the server said, and never the login.
+ * - an error carries a code and nothing the server said, and never the login;
+ * - a pass has one deadline for the session, the call and reading both bodies,
+ *   so a server that never answers ends as `unreachable` and cannot hold the
+ *   scan that called it.
  */
 
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
@@ -43,6 +46,8 @@ const MAIL = "urn:ietf:params:jmap:mail";
 const SESSION_PATHS = ["/jmap/session", "/.well-known/jmap"] as const;
 const DEFAULT_LIMIT = 25;
 const MAX_BODY_BYTES = 16_384;
+/** The whole pass: the session, the call and the bodies. */
+const PASS_TIMEOUT_MS = 30_000;
 
 export type ReadOptions = {
   /** Only messages received at or after this time. */
@@ -64,20 +69,26 @@ async function request(
   fetcher: MailFetch,
   url: string,
   init: RequestInit,
+  signal: AbortSignal,
 ): Promise<Response> {
   try {
-    return await fetcher(url, init);
+    return await fetcher(url, { ...init, signal });
   } catch {
     throw new JmapError("unreachable");
   }
 }
 
-async function jsonOf(response: Response): Promise<JsonObject> {
+async function jsonOf(
+  response: Response,
+  signal: AbortSignal,
+): Promise<JsonObject> {
   try {
     const body = overlapCast(await response.json());
     if (isJsonObject(body)) return body;
   } catch {
-    // Not JSON: the same answer as JSON of the wrong shape.
+    // Not JSON: the same answer as JSON of the wrong shape, unless the
+    // deadline cut the body short.
+    if (signal.aborted) throw new JmapError("unreachable");
   }
   throw new JmapError("malformed");
 }
@@ -95,6 +106,7 @@ function accountOf(session: JsonObject): string | null {
 async function openSession(
   connection: MailConnection,
   fetcher: MailFetch,
+  signal: AbortSignal,
 ): Promise<Session> {
   const headers = {
     authorization: authorization(connection),
@@ -102,17 +114,17 @@ async function openSession(
   };
   let last: JmapFailure = "unsupported";
   for (const path of SESSION_PATHS) {
-    const response = await request(fetcher, `${connection.origin}${path}`, {
-      method: "GET",
-      headers,
-      credentials: "omit",
-      redirect: "manual",
-    });
+    const response = await request(
+      fetcher,
+      `${connection.origin}${path}`,
+      { method: "GET", headers, credentials: "omit", redirect: "manual" },
+      signal,
+    );
     if (response.status === 401 || response.status === 403) {
       throw new JmapError("unauthorized");
     }
     if (!response.ok) continue;
-    const session = await jsonOf(response);
+    const session = await jsonOf(response, signal);
     const accountId = accountOf(session);
     if (!isString(session.apiUrl) || accountId === null) {
       last = "malformed";
@@ -213,24 +225,36 @@ export async function readRecentMessages(
   fetcher: MailFetch,
   options: ReadOptions,
 ): Promise<ResetMailMessage[]> {
-  const session = await openSession(connection, fetcher);
-  const response = await request(fetcher, session.apiUrl, {
-    method: "POST",
-    headers: {
-      authorization: authorization(connection),
-      "content-type": "application/json",
-      accept: "application/json",
-    },
-    credentials: "omit",
-    redirect: "manual",
-    body: JSON.stringify({
-      using: [CORE, MAIL],
-      methodCalls: methodCalls(session.accountId, options),
-    }),
-  });
-  if (response.status === 401 || response.status === 403) {
-    throw new JmapError("unauthorized");
+  const deadline = new AbortController();
+  const timer = setTimeout(() => deadline.abort(), PASS_TIMEOUT_MS);
+  const { signal } = deadline;
+  try {
+    const session = await openSession(connection, fetcher, signal);
+    const response = await request(
+      fetcher,
+      session.apiUrl,
+      {
+        method: "POST",
+        headers: {
+          authorization: authorization(connection),
+          "content-type": "application/json",
+          accept: "application/json",
+        },
+        credentials: "omit",
+        redirect: "manual",
+        body: JSON.stringify({
+          using: [CORE, MAIL],
+          methodCalls: methodCalls(session.accountId, options),
+        }),
+      },
+      signal,
+    );
+    if (response.status === 401 || response.status === 403) {
+      throw new JmapError("unauthorized");
+    }
+    if (!response.ok) throw new JmapError("unsupported");
+    return messagesOf(await jsonOf(response, signal), connection);
+  } finally {
+    clearTimeout(timer);
   }
-  if (!response.ok) throw new JmapError("unsupported");
-  return messagesOf(await jsonOf(response), connection);
 }

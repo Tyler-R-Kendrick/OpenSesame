@@ -32,6 +32,11 @@ function cleanHost(raw: string): string | null {
   return host;
 }
 
+/** Whether the reader can use `raw` as a server: the same rule `connectionOf` applies. */
+export function usableHost(raw: string): boolean {
+  return cleanHost(raw) !== null;
+}
+
 function cleanPort(raw: string): string | null {
   const port = raw.trim();
   if (port === "" || port === "443") return "";

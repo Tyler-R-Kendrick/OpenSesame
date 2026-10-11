@@ -223,6 +223,26 @@ describe("password reset scan", () => {
     expect(listNotices()).toEqual([]);
   });
 
+  it("names a mailbox whose server address cannot be used, instead of skipping it quietly", async () => {
+    const home = mailboxItem(
+      {
+        ...JMAP_MAILBOX,
+        incoming: { host: "mail.example.com:8443", port: "" },
+      },
+      "Home",
+    );
+    const { fetcher, calls } = server(() => RESET_MAIL);
+    await scanOf([home, login(home.id)], fetcher, async () => true).scan();
+    expect(calls).toEqual([]);
+    expect(listNotices()).toEqual([
+      expect.objectContaining({
+        tone: "warn",
+        title: "Reset email not read",
+        body: "Home: The mail server address could not be used.",
+      }),
+    ]);
+  });
+
   it("does nothing while the vault is locked", async () => {
     const home = mailboxItem(JMAP_MAILBOX, "Home");
     const { fetcher, calls } = server(() => RESET_MAIL);

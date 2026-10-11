@@ -209,6 +209,22 @@ describe("PasswordResetMailPanel", () => {
     ).toBeNull();
   });
 
+  it("marks a server that cannot be opened on the mail server field", async () => {
+    await open();
+    render(<PasswordResetMailPanel />);
+    await press("Show mail server");
+    type("Reset email", "me@example.com");
+    type("Mail server", "mail.example.com:8443");
+    await press("Add reset email");
+    expect(
+      screen.getByLabelText("Mail server").getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(listNotices().map((notice) => notice.body)).toContain(
+      "The mail server is a host name, such as mail.example.com.",
+    );
+    expect(mailboxes()).toEqual([]);
+  });
+
   it("marks a bad port on the port field", async () => {
     await open();
     render(<PasswordResetMailPanel />);

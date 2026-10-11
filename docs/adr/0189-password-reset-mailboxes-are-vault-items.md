@@ -89,7 +89,16 @@ The reader keeps a login on the server named: the session document's `apiUrl`
 must be on the same origin as the server, no redirect is followed, a username
 sends Basic and none sends a bearer token, and an error carries a code
 (`unauthorized`, `unreachable`, `unsupported`, `malformed`) and nothing the
-server said.
+server said. A pass has one
+30-second deadline for the session, the call and reading both answers, so a
+server that never answers ends as `unreachable` and cannot hold the scan.
+
+A server the reader could not open is refused when it is saved, not skipped
+later: the mail server is a plain host name (a port goes in the port field),
+checked by the same rule the reader applies, and only for a mailbox the app
+would read (JMAP over TLS). Another protocol is kept as written. An item edited
+outside the form can still carry an address the reader cannot use; the scan names
+it in the tray like any other mailbox it cannot read.
 
 ### 5. A reset message is announced once; the Host is asked with an origin only
 

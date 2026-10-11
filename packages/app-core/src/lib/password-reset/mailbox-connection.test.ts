@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { connectionOf } from "./mailbox-connection.js";
+import { connectionOf, usableHost } from "./mailbox-connection.js";
 import { JMAP_MAILBOX, mailboxItem } from "./mailbox.test-support.js";
 
 describe("the connection a mailbox describes", () => {
@@ -65,6 +65,25 @@ describe("the connection a mailbox describes", () => {
         }),
       ),
     ).toBeNull();
+  });
+
+  it("says which hosts the reader can open, by the rule connectionOf applies", () => {
+    for (const host of [
+      "mail.example.com",
+      " mail.example.com ",
+      "https://Mail.Example.com/",
+    ]) {
+      expect(usableHost(host)).toBe(true);
+    }
+    for (const host of [
+      "",
+      "localhost",
+      "mail.example.com:8443",
+      "http://mail.example.com",
+      "mail.example.com/jmap",
+    ]) {
+      expect(usableHost(host)).toBe(false);
+    }
   });
 
   it("is none for something that is not a mailbox", () => {

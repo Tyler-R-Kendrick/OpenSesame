@@ -41,6 +41,7 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { VaultItem } from "@opensesame/vault-core";
 
 const EVERY_MS = 60_000;
+const UNUSABLE_SERVER = "The mail server address could not be used.";
 
 export type ScanDeps = {
   /** The capability's egress, bound to the purpose it declared. */
@@ -113,8 +114,17 @@ export function createPasswordResetScan(deps: ScanDeps) {
       if (accountsBoundTo(all, mailbox.id).length === 0) continue;
       const item = all.find((entry) => entry.id === mailbox.id);
       const connection = item ? connectionOf(item) : null;
-      if (!connection) continue;
       const noticeId = `password-reset-read:${mailbox.id}`;
+      if (!connection) {
+        // Shown as readable but not openable: a server edited outside the form.
+        setStatusNotice({
+          id: noticeId,
+          tone: "warn",
+          title: "Reset email not read",
+          body: `${mailbox.name}: ${UNUSABLE_SERVER}`,
+        });
+        continue;
+      }
       try {
         messages.push(
           ...(await readRecentMessages(connection, deps.fetch, { since })),
