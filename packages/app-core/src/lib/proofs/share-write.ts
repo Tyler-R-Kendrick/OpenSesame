@@ -20,6 +20,7 @@
  */
 
 import { type Named, type Proof, defineProof } from "@gdp-ts/core";
+import type { QuorumApproved } from "./quorum-approved.js";
 
 const ManageGrantsProver = defineProof("ManageGrants");
 const SystemShareWriteProver = defineProof("SystemShareWrite");
@@ -30,8 +31,15 @@ export interface ManageGrants<T> extends Proof<"ManageGrants", [T]> {}
 /** The caller is system code writing shares for the tomb named `T`. */
 export interface SystemShareWrite<T> extends Proof<"SystemShareWrite", [T]> {}
 
-/** What a share write needs to hold, for the tomb it writes. */
-export type ShareWriteAuthority<T> = ManageGrants<T> | SystemShareWrite<T>;
+/**
+ * What a share write needs to hold, for the tomb it writes. `QuorumApproved`
+ * is minted in `quorum-approved.ts`: a circle of the owner's trusted contacts
+ * approved this exact grant while the owner was away (ADR 0187).
+ */
+export type ShareWriteAuthority<T> =
+  | ManageGrants<T>
+  | SystemShareWrite<T>
+  | QuorumApproved<T>;
 
 /**
  * Run the `manage_grants` check and return its proof. Throws exactly what

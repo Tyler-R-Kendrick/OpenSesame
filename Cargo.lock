@@ -3738,6 +3738,7 @@ dependencies = [
  "opensesame-plugin-settings",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
+ "opensesame-quorum-recovery",
  "opensesame-redaction",
  "opensesame-rotation-web",
  "opensesame-sealed-log",
@@ -4466,6 +4467,28 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
+]
+
+[[package]]
+name = "opensesame-quorum-recovery"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm 0.10.3",
+ "base64 0.22.1",
+ "chacha20poly1305",
+ "ed25519-dalek",
+ "hex",
+ "hkdf",
+ "hmac 0.12.1",
+ "pbkdf2 0.12.2",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.19",
+ "url",
+ "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

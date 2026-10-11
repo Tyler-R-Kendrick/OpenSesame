@@ -18,8 +18,19 @@
   }
 }
 
+/* The dial makes no stacking context of its own, so its two layers sit on
+   either side of the panes: the rings behind the card and notes, the cipher
+   key (index and readout) in front of them. */
 .unlock--lock-v5 .cipher-dial {
+  z-index: auto;
+}
+
+.unlock--lock-v5 .cipher-dial__rings {
   z-index: 0;
+}
+
+.unlock--lock-v5 .cipher-dial__overlay {
+  z-index: 4;
 }
 
 .unlock--lock-v5 .unlock__notes {

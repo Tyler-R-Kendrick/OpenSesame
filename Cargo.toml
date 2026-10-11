@@ -17,6 +17,7 @@ members = [
   "crates/authn",
   "crates/authz",
   "crates/xkeys",
+  "crates/quorum-recovery",
   "crates/grants",
   "crates/broker",
   "crates/claims",

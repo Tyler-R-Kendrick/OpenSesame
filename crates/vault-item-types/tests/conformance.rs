@@ -321,3 +321,40 @@ fn the_native_projection_round_trips_for_every_built_in_type() {
         );
     }
 }
+
+/// The optional marketplace corpus (`marketplace/item-types/optional/`) is read
+/// by the PWA when a person installs a type, and a `pass` entry of one of them
+/// is read here: both planes must accept every definition, and agree on its
+/// native projection (ADR 0087 §8, ADR 0139).
+#[test]
+fn every_optional_marketplace_definition_parses_and_round_trips() {
+    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../marketplace/item-types/optional");
+    let mut seen = Vec::new();
+    for entry in std::fs::read_dir(&dir).expect("the optional corpus exists") {
+        let path = entry.expect("a readable entry").path();
+        if path.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path).expect("a readable definition");
+        let definition = parse_definition(&text, Trust::Community)
+            .unwrap_or_else(|errors| panic!("{} is invalid:\n{errors}", path.display()));
+        let stem = path.file_stem().and_then(|s| s.to_str()).expect("a name");
+        assert_eq!(definition.metadata.id, stem, "a file is named for its type");
+        let once = to_entry(&definition, &text_values(&definition));
+        let twice = to_entry(&definition, &from_entry(&definition, &once).values);
+        assert_eq!(twice.secret, once.secret, "`{stem}` lost its secret line");
+        assert_eq!(twice.trailer, once.trailer, "`{stem}` lost trailer content");
+        assert!(
+            !once.secret.contains('\n'),
+            "`{stem}` wrote a newline onto line one"
+        );
+        seen.push(stem.to_owned());
+    }
+    for expected in ["trusted-circle", "guardian-share"] {
+        assert!(
+            seen.iter().any(|s| s == expected),
+            "`{expected}` is missing"
+        );
+    }
+}

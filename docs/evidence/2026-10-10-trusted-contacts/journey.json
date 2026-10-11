@@ -1,0 +1,462 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "enable": "Trusted contacts"
+        },
+        {
+          "centerOptional": "Sharing"
+        },
+        {
+          "count": [
+            "[role=\"switch\"][data-capability-title=\"Trusted contacts\"]",
+            "[role=\"switch\"][data-capability-title=\"Trusted contacts\"][aria-checked=\"true\"]"
+          ]
+        },
+        {
+          "measure": "[role=\"switch\"][data-capability-title=\"Trusted contacts\"]"
+        },
+        {
+          "shot": "1280-switch"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "scrollToOptional": "^Settings$"
+        },
+        {
+          "count": ".set__nav-link"
+        },
+        {
+          "report": ".set__nav"
+        },
+        {
+          "shot": "1280-strip"
+        },
+        {
+          "open": "Trusted contacts"
+        },
+        {
+          "count": [
+            ".panel[aria-label='Circles']",
+            ".panel[aria-label='Guarding']",
+            ".panel[aria-label='Recovery']"
+          ]
+        },
+        {
+          "measure": "#circle-new, #guarding-accept, #guarding-take, #guarding-answer, #recovery-start"
+        },
+        {
+          "labels": ".panel[aria-label='Circles'] .status-mark, .panel[aria-label='Guarding'] .status-mark, .panel[aria-label='Recovery'] .status-mark"
+        },
+        {
+          "shot": "1280-panels"
+        },
+        {
+          "pressOptional": "Start a circle"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "shot": "1280-circle-name"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Family"
+          }
+        },
+        {
+          "pressOptional": "Make the invitation"
+        },
+        {
+          "measure": ".qr__img"
+        },
+        {
+          "shot": "1280-circle-invite"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Accept an invitation"
+        },
+        {
+          "fillOptional": {
+            "label": "An invitation",
+            "text": "osq1.invite.eyJ2IjoxfQ.000000"
+          }
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "labels": ".tc-packet-in .status-mark"
+        },
+        {
+          "measure": ".tc-packet-in .f__label, .tc-packet-in .status-mark"
+        },
+        {
+          "count": ["[role='alert']", ".note--err"]
+        },
+        {
+          "shot": "1280-accept"
+        },
+        {
+          "escape": null
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Start a recovery"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "shot": "1280-recovery"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "enable": "Trusted contacts"
+        },
+        {
+          "centerOptional": "Sharing"
+        },
+        {
+          "count": [
+            "[role=\"switch\"][data-capability-title=\"Trusted contacts\"]",
+            "[role=\"switch\"][data-capability-title=\"Trusted contacts\"][aria-checked=\"true\"]"
+          ]
+        },
+        {
+          "measure": "[role=\"switch\"][data-capability-title=\"Trusted contacts\"]"
+        },
+        {
+          "shot": "390-switch"
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "scrollToOptional": "^Settings$"
+        },
+        {
+          "count": ".set__nav-link"
+        },
+        {
+          "report": ".set__nav"
+        },
+        {
+          "shot": "390-strip"
+        },
+        {
+          "open": "Trusted contacts"
+        },
+        {
+          "count": [
+            ".panel[aria-label='Circles']",
+            ".panel[aria-label='Guarding']",
+            ".panel[aria-label='Recovery']"
+          ]
+        },
+        {
+          "measure": "#circle-new, #guarding-accept, #guarding-take, #guarding-answer, #recovery-start"
+        },
+        {
+          "labels": ".panel[aria-label='Circles'] .status-mark, .panel[aria-label='Guarding'] .status-mark, .panel[aria-label='Recovery'] .status-mark"
+        },
+        {
+          "shot": "390-panels"
+        },
+        {
+          "pressOptional": "Start a circle"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "shot": "390-circle-name"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Family"
+          }
+        },
+        {
+          "pressOptional": "Make the invitation"
+        },
+        {
+          "measure": ".qr__img"
+        },
+        {
+          "shot": "390-circle-invite"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Accept an invitation"
+        },
+        {
+          "fillOptional": {
+            "label": "An invitation",
+            "text": "osq1.invite.eyJ2IjoxfQ.000000"
+          }
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "labels": ".tc-packet-in .status-mark"
+        },
+        {
+          "measure": ".tc-packet-in .f__label, .tc-packet-in .status-mark"
+        },
+        {
+          "count": ["[role='alert']", ".note--err"]
+        },
+        {
+          "shot": "390-accept"
+        },
+        {
+          "escape": null
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Start a recovery"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "shot": "390-recovery"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-tab",
+      "width": 1280,
+      "title": "The tab appears — 1280 × 800",
+      "caption": "Trusted contacts is an optional capability. Same steps on both builds: seal a vault with a PIN, open Settings › Capabilities, press the Trusted contacts switch if there is one, then open Settings. The base build has no such switch, so its Settings stays as it was.",
+      "rows": [
+        {
+          "shot": "1280-switch",
+          "heading": "Settings › Capabilities › Sharing",
+          "before": "Trusted contacts switch: 0 found",
+          "after": "Trusted contacts switch: 1 found, on (aria-checked true), 38×22"
+        },
+        {
+          "shot": "1280-strip",
+          "heading": "Settings, tab strip",
+          "before": "6 tabs: General, Keybindings, Security, Vaults, Capabilities, Danger",
+          "after": "7 tabs: … Vaults, Trusted contacts, Capabilities, Danger"
+        }
+      ]
+    },
+    {
+      "shot": "390-tab",
+      "width": 390,
+      "title": "The tab appears — 390 × 844",
+      "caption": "Trusted contacts is an optional capability. Same steps on both builds: seal a vault with a PIN, open Settings › Capabilities, press the Trusted contacts switch if there is one, then open Settings. The base build has no such switch, so its Settings stays as it was.",
+      "rows": [
+        {
+          "shot": "390-switch",
+          "heading": "Settings › Capabilities › Sharing",
+          "before": "Trusted contacts switch: 0 found",
+          "after": "Trusted contacts switch: 1 found, on (aria-checked true), 44×44"
+        },
+        {
+          "shot": "390-strip",
+          "heading": "Settings, tab strip",
+          "before": "6 tabs: General, Keybindings, Security, Vaults, Capabilities, Danger",
+          "after": "7 tabs: … Vaults, Trusted contacts, Capabilities, Danger; the strip scrolls sideways at this width"
+        }
+      ]
+    },
+    {
+      "shot": "1280-panels",
+      "width": 1280,
+      "title": "The empty tab — 1280 × 800",
+      "caption": "A vault sealed with a PIN, with nothing yet in it: Settings › Trusted contacts draws its three panels — Circles for the people who guard what you keep, Guarding for circles others asked you to join, Recovery for getting something back — each with the keys that start a ceremony and a mark that says there is nothing yet.",
+      "before": "Trusted contacts panels: 0 found; head keys: none",
+      "after": "3 panels (Circles, Guarding, Recovery); head keys 24×24: Circles 1, Guarding 3, Recovery 1. Marks: “No circles yet.” · “Nothing held for anyone yet.” · “No recoveries in progress.”"
+    },
+    {
+      "shot": "390-panels",
+      "width": 390,
+      "title": "The empty tab — 390 × 844",
+      "caption": "A vault sealed with a PIN, with nothing yet in it: Settings › Trusted contacts draws its three panels — Circles for the people who guard what you keep, Guarding for circles others asked you to join, Recovery for getting something back — each with the keys that start a ceremony and a mark that says there is nothing yet.",
+      "before": "Trusted contacts panels: 0 found; head keys: none",
+      "after": "3 panels (Circles, Guarding, Recovery); head keys 44×44: Circles 1, Guarding 3, Recovery 1. Marks: “No circles yet.” · “Nothing held for anyone yet.” · “No recoveries in progress.”"
+    },
+    {
+      "shot": "1280-circle",
+      "width": 1280,
+      "title": "Start a circle — 1280 × 800",
+      "caption": "The Circles key opens a sheet at the right edge. The first step names the circle and says what it protects; making the invitation shows it as one line to copy and as a QR code. Nothing leaves the browser: the invitation is a packet the owner hands on over a road they already trust.",
+      "rows": [
+        {
+          "shot": "1280-circle-name",
+          "heading": "Step 1: name it, say what it protects",
+          "before": "Start a circle key: none; sheet: none",
+          "after": "sheet 424×800 at the right edge"
+        },
+        {
+          "shot": "1280-circle-invite",
+          "heading": "The invitation",
+          "before": "QR code: none",
+          "after": "QR code 144×144"
+        }
+      ]
+    },
+    {
+      "shot": "390-circle",
+      "width": 390,
+      "title": "Start a circle — 390 × 844",
+      "caption": "The Circles key opens a sheet from the bottom edge. The first step names the circle and says what it protects; making the invitation shows it as one line to copy and as a QR code. Nothing leaves the browser: the invitation is a packet the owner hands on over a road they already trust.",
+      "rows": [
+        {
+          "shot": "390-circle-name",
+          "heading": "Step 1: name it, say what it protects",
+          "before": "Start a circle key: none; sheet: none",
+          "after": "sheet 390×445 from the bottom edge"
+        },
+        {
+          "shot": "390-circle-invite",
+          "heading": "The invitation",
+          "before": "QR code: none",
+          "after": "QR code 144×144"
+        }
+      ]
+    },
+    {
+      "shot": "1280-accept",
+      "width": 1280,
+      "title": "A refused paste — 1280 × 800",
+      "caption": "Accept an invitation takes a pasted packet. Pasting an invitation whose check has been broken (…eyJ2IjoxfQ.000000) is refused where it was pasted: a mark on the field, whose sentence is the mark’s own label, and nothing written in the page. The key beside the field stays off.",
+      "before": "Accept an invitation: not on this build; error marks: none",
+      "after": "mark 20×20 beside a 94×18 label; label “This packet was cut off or changed on the way.”; [role=alert]: 0, .note--err: 0"
+    },
+    {
+      "shot": "390-accept",
+      "width": 390,
+      "title": "A refused paste — 390 × 844",
+      "caption": "Accept an invitation takes a pasted packet. Pasting an invitation whose check has been broken (…eyJ2IjoxfQ.000000) is refused where it was pasted: a mark on the field, whose sentence is the mark’s own label, and nothing written in the page. The key beside the field stays off.",
+      "before": "Accept an invitation: not on this build; error marks: none",
+      "after": "mark 44×44 at 106,688 beside a 94×18 label at 18,701; label “This packet was cut off or changed on the way.”; [role=alert]: 0, .note--err: 0 (the mark’s 44px target overlaps the label by 6px)"
+    },
+    {
+      "shot": "1280-recovery",
+      "width": 1280,
+      "title": "Start a recovery — 1280 × 800",
+      "caption": "The Recovery key opens a sheet that asks for the recovery file the circle’s owner saved and a name for this device. The Send key stays off until a file has been read.",
+      "before": "Start a recovery key: none; sheet: none",
+      "after": "sheet 424×800 at the right edge"
+    },
+    {
+      "shot": "390-recovery",
+      "width": 390,
+      "title": "Start a recovery — 390 × 844",
+      "caption": "The Recovery key opens a sheet that asks for the recovery file the circle’s owner saved and a name for this device. The Send key stays off until a file has been read.",
+      "before": "Start a recovery key: none; sheet: none",
+      "after": "sheet 390×381 from the bottom edge"
+    },
+    {
+      "shot": "1280-gate-circle",
+      "width": 1280,
+      "title": "Populated, owner and guardian — 1280 × 900",
+      "caption": "Not a before/after pair. A circle with people in it needs other people’s packets, which a two-build walk cannot stage without faking them. These are screenshots from the five-browser gate (verify:trusted-contacts: an owner, three guardians and a recipient, each in a browser of their own with a virtual security key), walked on this build at this width. The base build has no such screen. ",
+      "rows": [
+        {
+          "gate": "1280/06_Owner_Family_armed.png",
+          "heading": "The owner: the circle is armed",
+          "after": "page text: “Family · 2 of 3 · epoch 1 · 3 contacts”; sheet: “Armed”, a packet each for Ada, Bo and Cy"
+        },
+        {
+          "gate": "1280/17_Cy_key_not_verified.png",
+          "heading": "A guardian: the circle held, a request on it, an approval refused",
+          "after": "page text: “Family · Held for 3253-7168-07d1-7645 · share · epoch 1”; sheet: “Answer a request”, with a check and an error mark (the gate’s “key not verified” step)"
+        }
+      ]
+    },
+    {
+      "shot": "1280-gate-recovery",
+      "width": 1280,
+      "title": "Populated, recipient — 1280 × 900",
+      "caption": "Not a before/after pair. A circle with people in it needs other people’s packets, which a two-build walk cannot stage without faking them. These are screenshots from the five-browser gate (verify:trusted-contacts: an owner, three guardians and a recipient, each in a browser of their own with a virtual security key), walked on this build at this width. The base build has no such screen. ",
+      "rows": [
+        {
+          "gate": "1280/08_Recipient_approved.png",
+          "heading": "The recipient: a recovery in progress",
+          "after": "page text: “Family · 2 approved · 0 released”; sheet: “Family recovery”, the request and the approvals so far"
+        },
+        {
+          "gate": "1280/12_Recipient_import.png",
+          "heading": "The recipient: the recovered row, and the Import sheet it opens",
+          "after": "page text: “Family · Recovered”; sheet: Import, “recovered-Family.json”, 1 secret"
+        }
+      ]
+    },
+    {
+      "shot": "390-gate-circle",
+      "width": 390,
+      "title": "Populated, owner and guardian — 390 × 900",
+      "caption": "Not a before/after pair. A circle with people in it needs other people’s packets, which a two-build walk cannot stage without faking them. These are screenshots from the five-browser gate (verify:trusted-contacts: an owner, three guardians and a recipient, each in a browser of their own with a virtual security key), walked on this build at this width. The base build has no such screen. This 390-wide viewport has a mouse, not a touch context: the gate’s phone run checks the walk fits the width, and the 44px touch sizes are measured in the paired sheets.",
+      "rows": [
+        {
+          "gate": "390/06_Owner_Family_armed.png",
+          "heading": "The owner: the circle is armed",
+          "after": "page text: “Family · 2 of 3 · epoch 1 · 3 contacts”; sheet: “Armed”, a packet each for Ada, Bo and Cy"
+        },
+        {
+          "gate": "390/17_Cy_key_not_verified.png",
+          "heading": "A guardian: the circle held, a request on it, an approval refused",
+          "after": "page text: “Family · Held for 3253-7168-07d1-7645 · share · epoch 1”; sheet: “Answer a request”, with a check and an error mark (the gate’s “key not verified” step)"
+        }
+      ]
+    },
+    {
+      "shot": "390-gate-recovery",
+      "width": 390,
+      "title": "Populated, recipient — 390 × 900",
+      "caption": "Not a before/after pair. A circle with people in it needs other people’s packets, which a two-build walk cannot stage without faking them. These are screenshots from the five-browser gate (verify:trusted-contacts: an owner, three guardians and a recipient, each in a browser of their own with a virtual security key), walked on this build at this width. The base build has no such screen. This 390-wide viewport has a mouse, not a touch context: the gate’s phone run checks the walk fits the width, and the 44px touch sizes are measured in the paired sheets.",
+      "rows": [
+        {
+          "gate": "390/08_Recipient_approved.png",
+          "heading": "The recipient: a recovery in progress",
+          "after": "page text: “Family · 2 approved · 0 released”; sheet: “Family recovery”, the request and the approvals so far"
+        },
+        {
+          "gate": "390/12_Recipient_import.png",
+          "heading": "The recipient: the recovered row, and the Import sheet it opens",
+          "after": "page text: “Family · Recovered”; sheet: Import, “recovered-Family.json”, 1 secret"
+        }
+      ]
+    }
+  ]
+}

@@ -49,9 +49,10 @@ export type ImportFlow = Readonly<{
 /**
  * The sheet's React binding over the import model: one transition at a
  * time, each outcome landing in one place. A failure is a mark in the sheet
- * and a status notice in the tray — never a box in the page.
+ * and a status notice in the tray — never a box in the page. `onDone` runs
+ * once, when a merge or a restore has been written.
  */
-export function useImportFlow(file: File): ImportFlow {
+export function useImportFlow(file: File, onDone?: () => void): ImportFlow {
   const { items, folders } = useVault();
   const store = useVaultStore();
   const [stage, setStage] = useState<ImportStage>({
@@ -76,6 +77,8 @@ export function useImportFlow(file: File): ImportFlow {
     current.current = next;
     setStage(next);
     setError(outcome.error);
+    // Whoever opened the sheet may need to know the items are in the vault.
+    if (next.step === "done" && before.step !== "done") onDone?.();
     if (outcome.error !== null) {
       setStatusNotice({
         id: NOTICE,

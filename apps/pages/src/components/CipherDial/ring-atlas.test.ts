@@ -1,20 +1,23 @@
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RingSpec } from "./layout-types.js";
 import { ensureRingAtlas } from "./ring-atlas.js";
 
 /** Minimal 2d context: jsdom's has no `scale`. */
 function stubContext(): CanvasRenderingContext2D {
+  const textAlign: CanvasTextAlign = "center";
+  const textBaseline: CanvasTextBaseline = "middle";
   const ctx = {
     scale: vi.fn(),
     font: "",
-    textAlign: "center" as CanvasTextAlign,
-    textBaseline: "middle" as CanvasTextBaseline,
+    textAlign,
+    textBaseline,
     fillStyle: "",
     fillText: vi.fn(),
   };
-  // SAFETY: test double implements only the methods ensureRingAtlas calls.
-  return ctx as unknown as CanvasRenderingContext2D;
+  // The double implements only the methods ensureRingAtlas calls.
+  return overlapCast(ctx);
 }
 
 beforeEach(() => {

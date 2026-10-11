@@ -57,7 +57,15 @@ function sortKeys(value: BoundaryValue): BoundaryValue {
   const obj: MutableBoundaryObject = overlapCast(value);
   const out: MutableBoundaryObject = {};
   for (const key of Object.keys(obj).sort()) {
-    out[key] = sortKeys(obj[key]);
+    // Defined, not assigned: `out["__proto__"] = x` calls the prototype
+    // setter and writes no property at all, so a `__proto__` member would
+    // silently fall out of the digest. The node twin does the same.
+    Object.defineProperty(out, key, {
+      value: sortKeys(obj[key]),
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   return out;
 }

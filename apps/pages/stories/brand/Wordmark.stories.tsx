@@ -4,10 +4,14 @@ import { figma } from "../figma.js";
 
 /**
  * The brand line: the mark and the name punched out of ink plates on the
- * canvas. Three size tiers draw it (`CipherWordmark/particles-model.ts`):
- * letters under 16px (the rail), solid plates 16–48px (the unlock card),
- * and the particle field from 48px up (the front door's title).
- * The decrypt runs once per session; `replay` runs it again on mount.
+ * canvas (`CipherWordmark/particles-model.ts`): the particle field from a
+ * 16px em up, every gate's hero included; the rail under 16px draws the
+ * letters alone.
+ * Every slot shows a cipher glyph from the first frame; a cursor walks the
+ * slots one at a time and locks each on its letter. The decrypt runs once per
+ * session; `replay` runs it again on mount. After it settles the particle
+ * field keeps its shimmer for as long as it is on screen (reduced motion holds
+ * it still); the letters under 16px settle still.
  */
 const meta = {
   title: "Brand/Wordmark",
@@ -26,11 +30,6 @@ type Story = StoryObj<typeof meta>;
 /** The rail's wordmark at 12px: letters in ink on the plate grid. */
 export const Letters: Story = {
   args: { size: 12, replay: true },
-};
-
-/** The unlock card's wordmark: solid plates at 24px, replayed on mount. */
-export const Solid: Story = {
-  args: { size: 24, replay: true },
 };
 
 /** The front door's title: the particle field at 62px, as the page's `h1`. */

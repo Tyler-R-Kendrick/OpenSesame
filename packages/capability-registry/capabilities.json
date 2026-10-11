@@ -4987,6 +4987,141 @@
     }
   },
   {
+    "id": "quorum.circle.manage",
+    "title": "Start, change, cancel a request for and retire a circle of trusted contacts",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/owner.ts:createFromDraft",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.share.ask",
+    "title": "Ask a circle to approve sharing something with a person",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/owner-act.ts:askToShare",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.guardian.hold",
+    "title": "Accept an invitation and hold a share for someone else",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/guardian.ts:takeWelcome",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.request.approve",
+    "title": "Approve a request, or release a share to it, with a security key",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/guardian-act.ts:approveRequest",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.recover",
+    "title": "Gather approvals and releases and open what a circle protects",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/recipient.ts:openRecovery",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
     "id": "secrets.materialize",
     "title": "Reveal secrets, acquire leases, run crypto plans",
     "plane": "host",
@@ -7334,6 +7469,84 @@
       "android": {
         "reason": "the native binary's copy of a vault.file capability; this target's gap is recorded once, on the opensesame-id row",
         "adr": "0139-one-definition-every-target.md"
+      }
+    }
+  },
+  {
+    "id": "vault.circle.recover",
+    "title": "Recover a trusted-contacts circle's payload from its shares without a browser",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame vault circle recover",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "pwa": {
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "extension": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "android": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "vault.circle.inspect",
+    "title": "Verify a recovery bundle's owner signature and show the circle's public shape",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame vault circle inspect",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "pwa": {
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "extension": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "android": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
       }
     }
   },

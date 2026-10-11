@@ -7,6 +7,7 @@ import {
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
 import { tailnetDeviceCapabilities } from "./tailnet-devices.js";
+import { trustedContactCapabilities } from "./trusted-contacts.js";
 
 /**
  * Getting a vault off one device: the server-side backup posture (ADR 0039)
@@ -150,4 +151,5 @@ export const backupSyncCapabilities: readonly Capability[] = [
     },
   },
   ...tailnetDeviceCapabilities,
+  ...trustedContactCapabilities,
 ];
