@@ -198,7 +198,7 @@ function UnlockForm({
   const [localOnlyChosen, setLocalOnly] = useState(false);
   // A vault that begins from a file is sealed on this device, whichever road
   // the file was chosen from (ADR 0188); removing the file gives the road back.
-  const startsFromFile = firstRun && usePendingImport() !== null;
+  const startsFromFile = usePendingImport() !== null && firstRun;
   const localOnly = localOnlyChosen || startsFromFile;
   const signInStage = firstRun && !localOnly;
   // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.

@@ -174,4 +174,31 @@ describe("starting a vault from a file once the door has retired", () => {
     render(<UnlockScreen />);
     expect(peekPendingImport()).toBe(file);
   });
+
+  it("keeps rendering when the vault flips between sealed and empty in one mounted screen, as a wipe makes it", () => {
+    // A hook called only on first run changes the hook order here, and React
+    // unmounts the whole tree: a blank page after the wipe code.
+    setupHolder.current = ANSWERED;
+    const sealed = {
+      status: "locked" as const,
+      header: { unlocks: {} },
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingSecondStep: false,
+    };
+    v.state = sealed;
+    const { rerender } = render(<UnlockScreen />);
+    expect(screen.getByText("Forgotten how to unlock?")).toBeTruthy();
+
+    v.state = { ...sealed, status: "empty", header: null };
+    rerender(<UnlockScreen />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Sign in",
+    );
+
+    v.state = sealed;
+    rerender(<UnlockScreen />);
+    expect(screen.getByText("Forgotten how to unlock?")).toBeTruthy();
+  });
 });
