@@ -25,7 +25,7 @@ import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js
 import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
-import { AppRootNotices } from "./app-root-notices.js";
+import { NoticeCorner } from "./components/NoticeCorner.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 import {
@@ -388,7 +388,7 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
 
   return (
     <AppSlotsContext.Provider value={resolved}>
-      <AppRootNotices shellless={shellless} />
+      {shellless ? <NoticeCorner shellless /> : null}
       {body}
       <ContextMenuLayer />
     </AppSlotsContext.Provider>

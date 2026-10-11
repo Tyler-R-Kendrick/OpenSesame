@@ -1,24 +1,36 @@
+import { CLAIM_DROP_BAR_ID } from "@opensesame/app-core/lib/claims/route-model.js";
 import {
-  dismissClaimDropBanner,
-  showClaimDropBanner,
-} from "@opensesame/app-core/lib/claims/claim-drop-banner.js";
+  clearNotices,
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ClaimDropAnnouncement } from "./ClaimDropAnnouncement.js";
+import { NoticeCorner } from "./NoticeCorner.js";
 
 afterEach(() => {
-  dismissClaimDropBanner();
+  clearNotices();
   cleanup();
 });
 
 describe("ClaimDropAnnouncement", () => {
   it("shows one alert and replaces it instead of stacking", () => {
-    render(<ClaimDropAnnouncement />);
+    render(<NoticeCorner />);
     act(() => {
-      showClaimDropBanner({ title: "Claim", body: "First." });
-      showClaimDropBanner({ title: "Drop", body: "Second." });
+      setStatusNotice({
+        id: CLAIM_DROP_BAR_ID,
+        tone: "err",
+        title: "Claim",
+        body: "First.",
+      });
+      setStatusNotice({
+        id: CLAIM_DROP_BAR_ID,
+        tone: "err",
+        title: "Drop",
+        body: "Second.",
+      });
     });
     const alerts = screen.getAllByRole("alert");
     expect(alerts).toHaveLength(1);
@@ -27,18 +39,18 @@ describe("ClaimDropAnnouncement", () => {
     expect(alert.textContent).not.toContain("First.");
   });
 
-  it("dismisses from the key and from Escape", () => {
-    render(<ClaimDropAnnouncement />);
+  it("clears when the bar notice is dismissed from the tray", () => {
+    render(<NoticeCorner />);
     act(() => {
-      showClaimDropBanner({ title: "Claim", body: "Refused." });
+      setStatusNotice({
+        id: CLAIM_DROP_BAR_ID,
+        tone: "err",
+        title: "Claim",
+        body: "Refused.",
+      });
     });
-    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
-    expect(screen.queryByRole("alert")).toBeNull();
-
-    act(() => {
-      showClaimDropBanner({ title: "Drop", body: "Again." });
-    });
-    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getByRole("alert")).toBeTruthy();
+    act(() => dismissNotice(CLAIM_DROP_BAR_ID));
     expect(screen.queryByRole("alert")).toBeNull();
   });
 });

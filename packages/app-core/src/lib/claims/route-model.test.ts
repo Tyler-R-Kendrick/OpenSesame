@@ -7,10 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { clearNotices, listNotices } from "../notices.js";
 import { CLAIM_WORDS, type ClaimCeremony } from "./ceremony.js";
 import {
-  claimDropBannerSnapshot,
-  dismissClaimDropBanner,
-} from "./claim-drop-banner.js";
-import {
+  CLAIM_DROP_BAR_ID,
   CLAIM_NOTICE,
   claimEntry,
   claimStartFor,
@@ -30,7 +27,6 @@ const ceremony: Pick<ClaimCeremony, "start"> = {
 afterEach(() => {
   sessionStorage.clear();
   clearNotices();
-  dismissClaimDropBanner();
 });
 
 describe("claimStartFor", () => {
@@ -101,7 +97,9 @@ describe("the claim notice", () => {
       title: "Drop",
       body: "This drop was already opened.",
     });
-    expect(claimDropBannerSnapshot()).toMatchObject({
+    expect(
+      listNotices().find((notice) => notice.id === CLAIM_DROP_BAR_ID),
+    ).toMatchObject({
       title: "Drop",
       body: "This drop was already opened.",
     });

@@ -14,14 +14,17 @@ import {
   type NoticeOpen,
   appendStatusNotice,
   dismissNotice,
+  setStatusNotice,
 } from "../notices.js";
 import type { ClaimCeremony, ClaimStart } from "./ceremony.js";
-import { showClaimDropBanner } from "./claim-drop-banner.js";
 import { type ClaimArrival, readClaimArrival } from "./link.js";
 import { claimStash } from "./stash.js";
 
 /** Tray rows for claim and drop outcomes share this id prefix. */
 export const CLAIM_NOTICE = "identity.claim";
+
+/** One replaceable top-bar row for the latest claim or drop failure. */
+export const CLAIM_DROP_BAR_ID = `${CLAIM_NOTICE}.bar`;
 
 /** Status glyph on the page — the tray carries the full sentence (ADR 0163). */
 export const CLAIM_FAILURE_MARK = "Claim could not continue";
@@ -87,7 +90,12 @@ export function reportClaim(words: string, title = TITLE): void {
     body: words,
     open: unlockOpen(words),
   });
-  showClaimDropBanner({ title, body: words });
+  setStatusNotice({
+    id: CLAIM_DROP_BAR_ID,
+    tone: "err",
+    title,
+    body: words,
+  });
 }
 
 /** Legacy single-slot id; new outcomes are not removed when the field clears. */
