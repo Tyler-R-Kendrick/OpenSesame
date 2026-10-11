@@ -60,7 +60,7 @@ await page.keyboard.press("Escape");
 await page.keyboard.press("g");
 await page.keyboard.press("s");
 await expect(page).toHaveURL(/\/settings(?:[/?].*)?$/);
-await page.getByRole("link", { name: "Capabilities", exact: true }).click();
+await page.getByRole("link", { name: "Features", exact: true }).click();
 await awaitCapabilitySections(page);
 const addAccess = capabilityOffSwitch(page, "Access authority");
 await expect(addAccess).toHaveCount(1);

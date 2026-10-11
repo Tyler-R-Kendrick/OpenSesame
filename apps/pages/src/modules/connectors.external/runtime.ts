@@ -1,7 +1,7 @@
 /**
  * `connectors.external` — provider connections by reference (ADR 0115),
  * optional and off until chosen: the Connections section and its rail entries, the connector
- * settings pages (whose tiles Settings › Capabilities draws under each
+ * settings pages (whose tiles Settings › Integrations draws under each
  * feature), the setup connectors tab, the
  * connection WebMCP tools, and the unlock effects that seal a parked
  * directory sync and arm Connect.
@@ -187,7 +187,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       order: 10,
     });
     // Where the vault lives: the S3-compatible bucket, the same form as
-    // Settings › Capabilities › Local storage (ADR 0182).
+    // Settings › Integrations › Local storage (ADR 0182).
     activation.register("setup-panel", {
       id: "storage",
       tab: "storage",

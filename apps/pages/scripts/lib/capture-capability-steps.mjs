@@ -6,13 +6,25 @@
  */
 import { capabilityOffSwitch } from "./always-on.mjs";
 
+/**
+ * Open the page that holds the switches: Settings › Features. A capture walks
+ * the base build and this one the same way (AGENTS.md §5), and a base from
+ * before the split (ADR 0189) names that page Capabilities, so it is asked for
+ * by its old name when there is no Features page to land on.
+ */
+export async function openFeatures(openSettings, page) {
+  await openSettings(page, "Features");
+  if ((await page.getByTestId("features-panel").count()) === 0)
+    await openSettings(page, "Capabilities");
+}
+
 export function capabilitySteps({ press, openSettings }) {
-  /** Press a Settings › Capabilities switch. It commits in place. */
+  /** Press a Settings › Features switch. It commits in place. */
   async function apply(page, control) {
     await press(control);
     await page.waitForTimeout(400);
     if ((await page.getByTestId("capability-review").count()) !== 0) {
-      throw new Error("Settings › Capabilities opened a review");
+      throw new Error("Settings › Features opened a review");
     }
     await page.waitForTimeout(600);
   }
@@ -55,7 +67,7 @@ export function capabilitySteps({ press, openSettings }) {
      * one has no switch: skipped.
      */
     async enable(page, title) {
-      await openSettings(page, "Capabilities");
+      await openFeatures(openSettings, page);
       const add = capabilityOffSwitch(page, title);
       if (await add.count()) await apply(page, add.first());
     },
@@ -64,7 +76,7 @@ export function capabilitySteps({ press, openSettings }) {
      * page stays on the connector list.
      */
     async propose(page, title) {
-      await openSettings(page, "Capabilities");
+      await openFeatures(openSettings, page);
       const add = capabilityOffSwitch(page, title);
       if (!(await add.count()))
         throw new Error(
@@ -83,13 +95,13 @@ export function capabilitySteps({ press, openSettings }) {
      * that has not grown it yet is a legitimate difference, not a miss.
      */
     async featureOptional(page, title) {
-      await openSettings(page, "Capabilities");
+      await openFeatures(openSettings, page);
       const toggle = page.getByRole("switch", { name: title, exact: true });
       if (await toggle.count()) await apply(page, toggle.first());
     },
     /** A whole section, by its own switch — what a person actually turns on. */
     async feature(page, title) {
-      await openSettings(page, "Capabilities");
+      await openFeatures(openSettings, page);
       const toggle = page.getByRole("switch", { name: title, exact: true });
       if (!(await toggle.count()))
         throw new Error(

@@ -1,4 +1,4 @@
-import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import { INTEGRATIONS } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { connectorActs } from "@opensesame/app-core/lib/connect-roads.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import {
@@ -23,8 +23,8 @@ export function listedProviders(): Provider[] {
     connectorActs(provider, false) ? ("page" as const) : null;
   const seen = new Set<string>();
   const providers: Provider[] = [];
-  for (const feature of FEATURES) {
-    for (const category of feature.providerCategories) {
+  for (const integration of INTEGRATIONS) {
+    for (const category of integration.providerCategories) {
       for (const item of providerTileItems(category, tile)) {
         if (seen.has(item.provider.id)) continue;
         if (item.provider.authKind === "oauth2_authorization_code") continue;

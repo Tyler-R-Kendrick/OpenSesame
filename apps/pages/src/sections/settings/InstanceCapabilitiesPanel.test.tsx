@@ -8,7 +8,7 @@ import { instancePanelSeams } from "./InstanceCapabilitiesPanel.js";
 import {
   installPanelFixture,
   renderPanel,
-} from "./capabilities-panel.test-support.js";
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 installPanelFixture();

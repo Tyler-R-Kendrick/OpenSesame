@@ -105,12 +105,14 @@ it("names one config.yaml per directory, and routes to it", () => {
   expect(settingsConfigRoute("security")).toBe(
     "/settings/security?file=config.yaml",
   );
-  // Connections folded into Capabilities: one directory, one file, which
-  // starts from the text the endpoints were kept in.
-  expect(settingsFilePath("capabilities")).toBe(
-    "settings/capabilities/config.yaml",
+  // Connections folded into Capabilities, which split in two (ADR 0189): the
+  // switches are Features' directory, and the endpoints Integrations', whose
+  // file starts from the text the endpoints were kept in.
+  expect(settingsFilePath("features")).toBe("settings/features/config.yaml");
+  expect(settingsFilePath("integrations")).toBe(
+    "settings/integrations/config.yaml",
   );
-  expect(legacySettingsFilePath("capabilities")).toBe(
+  expect(legacySettingsFilePath("integrations")).toBe(
     "settings/connections.yaml",
   );
   expect(isSettingsConfigSearch("?file=config.yaml")).toBe(true);
@@ -143,20 +145,31 @@ it("reports read-only state and refuses a file that rewrites it", () => {
   });
 });
 
-it("writes Capabilities' endpoints beside what the plan approved", () => {
+it("writes Integrations' endpoints, and leaves what the plan approved to Features", () => {
   const current = {
-    values: { approved: ["ai.webllm"], hostApi: "", identityApi: "" },
+    values: { hostApi: "", identityApi: "" },
     keybindings: {},
   };
   const endpoint = decodeSettings(
-    "capabilities",
+    "integrations",
     'hostApi: "https://host.example"\n',
     current,
   );
   expect(endpoint.ok).toBe(true);
+  // A capability is approved by a reviewed plan, never by an endpoint file.
+  expect(decodeSettings("integrations", "approved: [ai.webllm]\n").ok).toBe(
+    false,
+  );
+  const approved = { values: { approved: ["ai.webllm"] }, keybindings: {} };
   expect(
-    decodeSettings("capabilities", "approved: [ai.webllm, sync]\n", current).ok,
+    decodeSettings("features", "approved: [ai.webllm]\n", approved).ok,
+  ).toBe(true);
+  expect(
+    decodeSettings("features", "approved: [ai.webllm, sync]\n", approved).ok,
   ).toBe(false);
+  expect(decodeSettings("features", 'hostApi: "https://h.example"\n').ok).toBe(
+    false,
+  );
 });
 
 it("gives a directory with no settings a file that says so", () => {

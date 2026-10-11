@@ -131,7 +131,7 @@ export async function connect(page, label) {
 }
 
 export async function chooseCapability(page, title) {
-  await go(page, "/settings/capabilities");
+  await go(page, "/settings/features");
   await awaitCapabilitySections(page);
   const add = capabilityOffSwitch(page, title);
   await add.waitFor({ timeout: 15000 });
@@ -306,7 +306,7 @@ export async function lateActivation(browser) {
     await new Promise((resolve) => setTimeout(resolve, 6000));
     await route.fallback();
   });
-  await go(page, "/settings/capabilities");
+  await go(page, "/settings/features");
   await awaitCapabilitySections(page);
   const add = capabilityOffSwitch(page, "Browser-local IAM");
   await add.waitFor({ timeout: 15000 });

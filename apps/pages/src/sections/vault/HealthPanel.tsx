@@ -51,7 +51,7 @@ function BreachWatchBlock({
           ))
         : null}
       <p>
-        <Link to={settingsPath("capabilities", "feature-security-checks")}>
+        <Link to={settingsPath("features", "feature-security-checks")}>
           Open breach and two-step checks
         </Link>
       </p>

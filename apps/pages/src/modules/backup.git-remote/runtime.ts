@@ -7,7 +7,7 @@
  *
  * Always on (ADR 0142): it runs entirely in the browser, and a git history
  * remote already defaults to GitHub, so the default installation has it.
- * Settings › Capabilities draws its tiles (the git providers) under Backups.
+ * Settings › Integrations draws its tiles (the git providers) under Backups.
  * Contributed: the backup observer as a background job, held off by a plan
  * that denies external services. The Connections section is optional
  * (ADR 0153) and this capability does not depend on it. Connector settings

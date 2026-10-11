@@ -94,7 +94,7 @@ export function catalogPageSections(
   return groups;
 }
 
-/** Feature bindings live under Settings → Connections, not Add a connection. */
+/** Feature bindings live under Settings → Integrations, not Add a connection. */
 export function featureBindingSections(
   providers: readonly Provider[],
 ): PageTreeSource[] {
@@ -114,7 +114,7 @@ export function featureBindingSections(
     groups.push({
       id: category,
       label: CATEGORY_LABELS[category],
-      href: `/settings/connections#${category}`,
+      href: `/settings/integrations#${category}`,
       items: items.map((provider) =>
         leaf(
           provider.id,
