@@ -5136,15 +5136,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
-        "adr": "0188-password-reset-mailboxes-are-vault-items.md"
+        "adr": "0189-password-reset-mailboxes-are-vault-items.md"
       },
       "mcp_client": {
         "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
-        "adr": "0188-password-reset-mailboxes-are-vault-items.md"
+        "adr": "0189-password-reset-mailboxes-are-vault-items.md"
       },
       "webmcp": {
         "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
-        "adr": "0188-password-reset-mailboxes-are-vault-items.md"
+        "adr": "0189-password-reset-mailboxes-are-vault-items.md"
       }
     }
   },
