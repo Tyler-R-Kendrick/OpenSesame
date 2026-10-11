@@ -49,10 +49,13 @@ function statusLabel(watch: BreachWatch): string {
   return watch.label;
 }
 
-function useSecurityCheckWatch(items: VaultSnapshot["items"]) {
+function useSecurityCheckWatch(
+  tomb: VaultSnapshot["tomb"],
+  items: VaultSnapshot["items"],
+) {
   useEffect(() => {
-    reconcileSecurityWatchWithVault(items);
-  }, [items]);
+    reconcileSecurityWatchWithVault(tomb, items);
+  }, [tomb, items]);
   return useSyncExternalStore(
     subscribeBreachWatch,
     breachWatchSnapshot,
@@ -68,13 +71,18 @@ function runCheck(
 ) {
   if (busy || !open) return;
   noteSecurityWatch({ phase: "checking" });
-  runSecurityChecks(vault.items, fetches.range, fetches.twoFactor).then(
+  runSecurityChecks(
+    vault.items,
+    fetches.range,
+    fetches.twoFactor,
+    undefined,
+    vault.tomb,
+  ).then(
     (report) => noteSecurityWatch({ phase: "checked", report }),
     (caught) =>
       noteSecurityWatch({
         phase: "error",
-        message:
-          caught instanceof Error ? caught.message : "The check failed.",
+        message: caught instanceof Error ? caught.message : "The check failed.",
       }),
   );
 }
@@ -163,9 +171,7 @@ function SecurityChecksPanelBody({
             </IconKey>
           }
         />
-        {watch.phase === "checked" ? (
-          <SecurityCheckRows watch={watch} />
-        ) : null}
+        {watch.phase === "checked" ? <SecurityCheckRows watch={watch} /> : null}
       </div>
     </section>
   );
@@ -176,7 +182,7 @@ export function securityChecksPanel(
 ): ComponentType {
   return function SecurityChecksPanel() {
     const vault = useVault();
-    const watch = useSecurityCheckWatch(vault.items);
+    const watch = useSecurityCheckWatch(vault.tomb, vault.items);
     return (
       <SecurityChecksPanelBody vault={vault} fetches={fetches} watch={watch} />
     );

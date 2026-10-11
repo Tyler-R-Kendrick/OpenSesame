@@ -2,8 +2,10 @@
 import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
-import { SECURITY_CHECKS_IDLE } from "@opensesame/app-core/lib/vault/security-checks.js";
-import { clearSecurityWatch } from "@opensesame/app-core/lib/vault/security-checks.js";
+import {
+  SECURITY_CHECKS_IDLE,
+  clearSecurityWatch,
+} from "@opensesame/app-core/lib/vault/security-checks.js";
 import { MAX_SUMMARY_LENGTH } from "@opensesame/capability-composition";
 import {
   type AccountItem,
