@@ -51,6 +51,11 @@ export function livePages({ harness, origin, dist, out, passthrough, named }) {
     for (const [script, arg] of init)
       await made.context.addInitScript(script, arg);
     made.page.on("websocket", (socket) => sockets.push(socket.url()));
+    // A crashed page answers nothing, and the wait that was on it reads as a
+    // control that never appeared: say it crashed, where, and in what engine.
+    made.page.on("crash", (page) =>
+      harness.record("PAGE-CRASH", `${engine} ${page.url().slice(0, 200)}`),
+    );
     made.page.on("console", (message) => {
       const text = message.text().slice(0, 400);
       if (message.type() !== "error") {
