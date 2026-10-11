@@ -1,5 +1,5 @@
 /**
- * The writes environments make to a vault body (ADR 0192): a closed set of
+ * The writes environments make to a vault body (ADR 0194): a closed set of
  * edits, each applied inside the one sealed write the store runs for it.
  *
  * It is a closed set on purpose. `VaultStore.editEnvironments` takes one of

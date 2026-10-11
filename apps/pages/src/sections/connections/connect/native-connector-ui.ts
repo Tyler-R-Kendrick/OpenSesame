@@ -91,6 +91,8 @@ export type NativeConnectorController = {
   cancelAuthorization: () => void;
   load: () => NativeConnectorView | null;
   configure: (input: NativeConfigureInput) => Promise<NativeConnectorView>;
+  /** Prove the credentials against the provider without saving anything. */
+  test?: (input: NativeConfigureInput) => Promise<{ label: string }>;
   connect: (input: NativeConfigureInput) => Promise<NativeConnectorView>;
   authorize: (actor?: string) => Promise<void>;
   verify: () => Promise<NativeConnectorView>;

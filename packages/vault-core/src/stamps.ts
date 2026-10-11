@@ -49,7 +49,7 @@ export function valueKey(name: string): string {
 export function listEntryKey(list: string, id: string): string {
   return `${list}.${id}`;
 }
-/** An item's cell for one environment (ADR 0192), the way a typed value is a field. */
+/** An item's cell for one environment (ADR 0194), the way a typed value is a field. */
 export function cellKey(name: string): string {
   return `environments.${name}`;
 }

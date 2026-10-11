@@ -31,7 +31,7 @@ export const ADR_TRUSTED_CONTACTS = "0187-trusted-circle-quorum-sharing.md";
 export const ADR_PASSWORD_RESET =
   "0190-password-reset-mailboxes-are-vault-items.md";
 export const ADR_ENVIRONMENTS =
-  "0192-vault-environments-values-on-items-schema-generated.md";
+  "0194-vault-environments-values-on-items-schema-generated.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
@@ -246,3 +246,4 @@ export const AUTHENTICATOR_HANDOFF: CapabilityExclusion = {
     "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
   adr: ADR_PAGES_CEREMONIES,
 };
+export const ADR_MODEL_KEYS = "0192-model-keys-and-token-exchange.md";

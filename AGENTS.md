@@ -339,17 +339,24 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # entries; and a password retired before the switch is still refused as used
 # before, found through a blind index. Run before touching `lib/encrypted-db/`,
 # the history-backup or password-history stores, or `ports.keyRange`.
-PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+LIVE_OWNER=chromium LIVE_JOINERS=chromium,firefox,webkit \
   pnpm --filter @opensesame/pages verify:live-join
-# Same harness, live sessions (ADR 0150) in real browser contexts over real
-# WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
+# Same harness, live sessions (ADR 0150, ADR 0193) in real browser contexts over
+# real WebRTC, every walk once per joiner browser: the owner in LIVE_OWNER, the
+# joiners in LIVE_JOINERS (chromium, firefox, webkit as the pinned Playwright
+# installs them: `pnpm exec playwright install --with-deps chromium firefox
+# webkit`; PLAYWRIGHT_CHROMIUM may point Chromium elsewhere). A walk an engine
+# cannot take here prints NOT TAKEN with why (lib/live-engines.mjs). CI runs it
+# as "Live join (<owner> owner)", three shards with every joiner each, folded
+# into the required Bundle budgets check. Needs a second build first: `pnpm --filter @opensesame/pages
 # build:live-dedicated` (dist-live-dedicated, stamped `dedicated_origin` for
 # https://opensesame.example.test). The carrier and declined walks run on it,
 # because a carrier on loopback or a LAN is local operator authority the shared
 # github.io origin may not reach (`mayPairLocalAuthority`); verify:live-join
 # fails without that build. Direct: codes passed by hand, no WebSocket, no request off the
-# origin, no ICE server. Tunnel: mDNS on and only the tunnel address routes —
-# never meets without Routes' address, meets at it with one. Carriers: an
+# origin, no ICE server. Tunnel: mDNS on and only the tunnel address (this
+# machine's default-route address) routes — never meets without Routes' address,
+# meets at it with one. Carriers: an
 # in-process Nostr relay, aedes MQTT, a real nats-server (the mTLS fixture
 # pin), a real ntfy (LIVE_NTFY_SERVER, default .cache/live-fixtures/bin/ntfy)
 # and BroadcastChannel each pair with nothing pasted and see no plaintext; a
@@ -358,8 +365,10 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # and TLS (`turns:`, a self-signed certificate trusted by its public key alone)
 # on live-turn (pion/turn, scripts/test/live-turn), whose per-transport counters
 # show which one carried the browsers; and through a TURN REST secret typed into
-# `settings/live/transport.json` (the app mints the credential, the link never
-# carries the secret; a wrong server secret must fail). A missing server fails the run
+# `settings/live/transport.json`, opened from the key on the Routes heading (the
+# app mints the credential, the link never carries the secret; a wrong server
+# secret must fail). Where a pair holds WebKit, which like Safari refuses plain
+# loopback from https, each carrier is reached through a TLS front. A missing server fails the run
 # (LIVE_CARRIERS / LIVE_SCENARIOS narrow it; `pnpm test:live-fixtures` builds them). Run
 # before touching lib/live, the join road, Routes or sharing.live. Operator
 # guide: docs/operators/live-sessions.md.
@@ -467,6 +476,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0169): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
 | `packages/app-core/src/lib/encrypted-db/`, `apps/pages/src/modules/storage.encrypted-search/` | Searchable encryption over IndexedDB (ADR 0175, optional `storage.encrypted-search`): one object store and one multi-entry index hold every table, so no table, column, index or key name is on disk; rows are sealed, padded and keyed by a hash; CryptDB's layers run as blind indexes built on the first query that needs them (`eq`/join group, Boldyreva-style `order`, `keyword`/prefix) and dropped completely. `history-backup-*` and `vault/password-history-*` answer through a store seam the module points here, moving what the device-sealed databases held and deleting them. `names.ts` is core: Reset this browser derives the hashed database names from it |
 | `packages/app-core/src/lib/tailnet-admin/`, `apps/pages/src/modules/networking.tailnet-devices/` | Identity › Devices for the tailnet's real machines (optional `networking.tailnet-devices`, needs `networking.tailnet` + `identity.local-iam`): sealed pairing, the daemon client, approve/rename/tag/routes/exit node/expire/remove, Add a device (auth key shown once), auth keys, activity. Refused on the shared-origin demo. End to end: `pnpm --filter @opensesame/pages verify:tailnet-devices` (real daemon + Tailscale stub + dedicated build) |
+| `packages/app-core/src/lib/model-keys/`, `apps/pages/src/sections/connections/ai/`, `apps/pages/src/modules/connectors.external/native-model-keys-runtime.ts`, `spec/conformance/model-key-exchange-vectors.json` | Model providers and keys for apps and agents (ADR 0192). Providers are the `ai_model_provider` catalog category, each row carrying a closed `model_api` protocol; adding one is `AiProviderSheet` (name, key, Test connection that saves nothing, Save that proves the key first). A **model key** (`osk_…`, only its digest kept, memory only) stands for a saved provider connection without being it: a root key is made only from a draft a person approved (`proofs/model-grant-approval.ts`, bound to the draft's digest), a derived key by RFC 8693 token exchange that can only narrow (RFC 8707 canonical resource, RFC 9396 `model_access` detail, RFC 9449 DPoP, budget conserved between parent and child), and `authorize`/`invokeWithModelKey` are the only road from a key to a provider call. Nothing here is agent-reachable; another origin cannot present a key yet (ADR 0192 §9). The one behaviour definition is the vectors file, replayed by `vectors.test.ts` |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
@@ -515,7 +525,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/secret-fs/`, `packages/app-core/src/node/{secret-files,vault-directory}.ts`, `spec/secret-files/` | Secrets as files (ADR 0182), written on Effect 4: the `SecretFiles` contract (read/write/remove/list, revision = SHA-256, path rule, four typed failures), its backends — the emulation, a confined atomic directory over Effect `FileSystem` (Node layer in `src/node`), and an S3-compatible bucket (`s3.ts` over the `s3-sigv4.ts` signer; a browser needs no server of ours) — the `resilient` wrapper (attempt timeout, jittered retries, circuit breaker, lost-answer confirmation), the layout (`vault.json` manifest + `secrets/<folder>/<name>.<kind>.json`, one sealed document per secret), and `vfs-files.ts`, which lays the VFS seams (`vfs-seams.ts`) over any of them. One conformance suite per layer runs against every backend. The CLI keeps its vault at `<state>/vault/` through `useVaultDirectory`. Names are visible on disk by design; values never are |
 | `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0170): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
-| `packages/vault-core/src/{environments,environment-keys}.ts`, `packages/app-core/src/lib/vault/{body-environments,environments*}.ts`, `apps/pages/src/modules/vault.environments/` | Vault environments (ADR 0192, optional `vault.environments`, off by default and absent from the minimal profile): an item is a key in the generated `.env.schema` exactly when it carries `environments` (a sealed value and a required flag per environment), the body carries the environment list (a removal is a marker), both merged cell by cell like a typed item's values; the store takes one of a closed set of typed edits (`body-environments.ts`, core); the schema is a view (`@required=forEnv(...)`, never a value); a required key with no value in any environment raises one tray notice owned by a background job, not a panel. The surface is the vault's own: an Environments key in the path strip, the Add menu and `/environments` in the command bar, opening a sheet at `/vault?environments=1` |
+| `packages/vault-core/src/{environments,environment-keys}.ts`, `packages/app-core/src/lib/vault/{body-environments,environments*}.ts`, `apps/pages/src/modules/vault.environments/` | Vault environments (ADR 0194, optional `vault.environments`, off by default and absent from the minimal profile): an item is a key in the generated `.env.schema` exactly when it carries `environments` (a sealed value and a required flag per environment), the body carries the environment list (a removal is a marker), both merged cell by cell like a typed item's values; the store takes one of a closed set of typed edits (`body-environments.ts`, core); the schema is a view (`@required=forEnv(...)`, never a value); a required key with no value in any environment raises one tray notice owned by a background job, not a panel. The surface is the vault's own: an Environments key in the path strip, the Add menu and `/environments` in the command bar, opening a sheet at `/vault?environments=1` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item types: embeds the built-in corpus (`marketplace/item-types/builtin/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
@@ -1415,7 +1425,10 @@ CI lives in `.github/workflows/`:
   shard or in two, and `ci-gates.test.mjs` on a `verify-*` driver with no gate
   row. A new gate goes in exactly one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
-  waits for, and runs when the Pages build or the server code it imports changes.
+  waits for, and runs when the Pages build or the server code it imports changes;
+  so is "Live join" (`verify:live-join`, three shards, one per owner browser,
+  each walking Chromium, Firefox and WebKit joiners), which also runs when a
+  live server's source (`scripts/test/live-turn`, the fixture scripts) changes.
   The TypeScript check also waits on the signature preflight (the `changes`
   job), and its tests job runs changed-file lint and `pnpm quality`. The Rust
   check also waits on the Android and Swift native jobs when a diff touches

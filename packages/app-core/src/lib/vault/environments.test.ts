@@ -1,5 +1,5 @@
 /**
- * The environments model (ADR 0192): which items are keys, the schema they
+ * The environments model (ADR 0194): which items are keys, the schema they
  * generate, where a required value is missing, and the edits that write it.
  * The schema is also parsed by the repo's pinned `@env-spec/parser`, the
  * reader every other tool in the repo uses, so the text is the real dialect.

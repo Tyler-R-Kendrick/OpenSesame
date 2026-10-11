@@ -648,6 +648,46 @@
     }
   },
   {
+    "id": "models.keys.mint",
+    "title": "Create a model key for an app or agent from a saved provider",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/model-keys/mint.ts:mintModelKey"
+    }
+  },
+  {
+    "id": "models.keys.read",
+    "title": "List the model keys handed out and what each may still do",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/model-keys/broker.ts:ModelKeyBroker"
+    }
+  },
+  {
+    "id": "models.keys.revoke",
+    "title": "Revoke a model key and every key made from it",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/model-keys/broker.ts:ModelKeyBroker"
+    }
+  },
+  {
+    "id": "models.keys.exchange",
+    "title": "Exchange a model key for a narrower one (RFC 8693)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/model-keys/exchange.ts:exchangeKey"
+    }
+  },
+  {
+    "id": "models.keys.invoke",
+    "title": "Call a model provider with a model key, never its credential",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/model-keys/gateway.ts:invokeWithModelKey"
+    }
+  },
+  {
     "id": "identity.admin",
     "title": "People, providers, devices, orgs, OAuth clients, audit",
     "plane": "identity",

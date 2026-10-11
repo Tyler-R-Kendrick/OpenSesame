@@ -44,6 +44,8 @@ export type NativeApiOperationDefinition = {
   origin?: string;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** Called once, just before a request can leave; nothing thrown before it was sent. */
+  onDispatch?: () => void;
 };
 function safeProjection(
   value: BoundaryValue,
@@ -157,6 +159,19 @@ function projectedResponse(
     throw new NativeApiError("response");
   }
 }
+function announcing(
+  transport: NativeProviderTransport,
+  onDispatch: (() => void) | undefined,
+): NativeProviderTransport {
+  if (!onDispatch) return transport;
+  return {
+    assertCurrent: () => transport.assertCurrent(),
+    fetch: (input, init) => {
+      onDispatch();
+      return transport.fetch(input, init);
+    },
+  };
+}
 /** Only trusted drivers may pass definitions/projectors; neither is a UI request input. */
 export async function executeNativeApiRequest(
   id: string,
@@ -198,7 +213,10 @@ export async function executeNativeApiRequest(
       revision: record.revision,
       fingerprint: record.configuration.fingerprint,
     });
-    const reply = await nativeApiHttp(request, transport);
+    const reply = await nativeApiHttp(
+      request,
+      announcing(transport, definition.onDispatch),
+    );
     const output = projectedResponse(reply, project);
     safeProjection(
       output,

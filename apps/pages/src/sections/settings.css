@@ -87,6 +87,12 @@
   border-bottom-color: color-mix(in srgb, var(--err) 22%, var(--line));
 }
 
+/* The vault's row runs the panel's width, so its key ends where the rule
+   and the trash rows' keys end, not at the prose measure. */
+.set__danger .keyed-row {
+  max-width: none;
+}
+
 .set__danger-target {
   flex: 1;
   min-width: 0;

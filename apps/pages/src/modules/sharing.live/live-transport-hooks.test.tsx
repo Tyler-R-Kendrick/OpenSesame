@@ -8,6 +8,7 @@
  */
 import {
   TRANSPORT_PATH,
+  TransportRefused,
   storeSeams,
   writeLiveTransport,
 } from "@opensesame/app-core/lib/live/transport-store.js";
@@ -19,7 +20,11 @@ import { VfsError } from "@opensesame/app-core/lib/vfs.js";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { withAddress, withCarrier } from "./live-transport-edits.js";
-import { transportSeams, useLiveTransport } from "./live-transport-hooks.js";
+import {
+  settledTransport,
+  transportSeams,
+  useLiveTransport,
+} from "./live-transport-hooks.js";
 
 const files = new Map<string, Uint8Array>();
 type Control = {
@@ -29,12 +34,17 @@ type Control = {
   failing: Set<number>;
   locked: boolean;
   calls: number;
+  /** How long each read takes, by its call number (ms). */
+  readDelays: number[];
+  reads: number;
 };
 const control: Control = {
   delays: [],
   failing: new Set(),
   locked: false,
   calls: 0,
+  readDelays: [],
+  reads: 0,
 };
 
 /** The vfs under the real store: a memory whose writes take as long as told. */
@@ -42,7 +52,11 @@ const memory = {
   refresh: async () => undefined,
   read: async (tomb: string) => {
     if (control.locked) throw new VfsError("locked", "locked");
+    // A sealed read opens what it found when it began, however long it takes.
     const bytes = files.get(`${tomb}/${TRANSPORT_PATH}`);
+    await new Promise((resolve) =>
+      setTimeout(resolve, control.readDelays[control.reads++] ?? 0),
+    );
     if (!bytes) throw new VfsError("not-found", "none");
     return bytes;
   },
@@ -74,6 +88,8 @@ beforeEach(() => {
     failing: new Set<number>(),
     locked: false,
     calls: 0,
+    readDelays: [],
+    reads: 0,
   });
   Object.assign(transportSeams, { tomb: () => "personal" });
   Object.assign(storeSeams, memory);
@@ -183,6 +199,48 @@ describe("edits made while an earlier write is still being sealed", () => {
   });
 });
 
+describe("the profile a Start press reads", () => {
+  // The Form and the Routes panel each hold their own copy of the profile; a
+  // person adds a carrier on one and presses Start on the other. The press
+  // has to start with the carrier, whatever the seal is still doing.
+  it("is the profile with every edit asked for so far, though the seal is still out", async () => {
+    control.delays = [120];
+    const routes = await ready();
+    const form = await ready();
+    void routes.result.current.change((now) => withCarrier(now, NOSTR));
+    // The panel shows it at once; the form's own copy does not have it yet.
+    await waitFor(() =>
+      expect(routes.result.current.transport.carriers).toEqual([NOSTR]),
+    );
+    expect(form.result.current.transport.carriers).toEqual([]);
+    expect((await settledTransport()).carriers).toEqual([NOSTR]);
+    expect(sealed().carriers).toEqual([NOSTR]);
+  });
+
+  it("holds edits that have not yet reached the store, queued behind an earlier one", async () => {
+    control.delays = [80, 0, 0];
+    const { result } = await ready();
+    void result.current.change((now) => withAddress(now, "100.64.0.1"));
+    void result.current.change((now) => withCarrier(now, NOSTR));
+    void result.current.change((now) => withAddress(now, "100.64.0.2"));
+    const read = await settledTransport();
+    expect(read.addresses).toEqual(["100.64.0.1", "100.64.0.2"]);
+    expect(read.carriers).toEqual([NOSTR]);
+  });
+
+  it("is direct only where nothing was ever written, and refuses a profile that cannot be used", async () => {
+    expect(await settledTransport()).toEqual(DIRECT_TRANSPORT);
+    put('{"relay": true, "ice": [');
+    await expect(settledTransport()).rejects.toThrow(TransportRefused);
+  });
+
+  it("still answers when an edit it waited on was refused", async () => {
+    const { result } = await ready();
+    void result.current.change((now) => ({ ...now, relay: true }));
+    expect(await settledTransport()).toEqual(DIRECT_TRANSPORT);
+  });
+});
+
 describe("a saved profile that cannot be used", () => {
   it("is refused, not read as direct only", async () => {
     put('{"relay": true, "ice": [');
@@ -226,6 +284,28 @@ describe("a saved profile that cannot be used", () => {
 });
 
 describe("a write from elsewhere", () => {
+  it("is never put back by an edit that read the profile before it landed", async () => {
+    const { result } = await ready();
+    // The edit's read (the second) is slow; the file viewer saves meanwhile.
+    control.readDelays = [0, 80];
+    let edited: Promise<string | null> = Promise.resolve(null);
+    act(() => {
+      edited = result.current.change((now) => withAddress(now, "100.64.0.9"));
+    });
+    await sleep(20);
+    const saved = writeLiveTransport("personal", {
+      ...DIRECT_TRANSPORT,
+      carriers: [NOSTR],
+    });
+    await act(async () => {
+      await Promise.all([edited, saved]);
+    });
+    expect(sealed().carriers).toEqual([NOSTR]);
+    await waitFor(() =>
+      expect(result.current.transport.carriers).toEqual([NOSTR]),
+    );
+  });
+
   it("the file viewer's write reaches the screen", async () => {
     const { result } = await ready();
     await act(async () => {

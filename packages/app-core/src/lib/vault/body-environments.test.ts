@@ -1,5 +1,5 @@
 /**
- * The edits environments make to a vault body (ADR 0192): each is validated
+ * The edits environments make to a vault body (ADR 0194): each is validated
  * against the body it lands on, and an edit that does not fit throws.
  */
 

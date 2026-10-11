@@ -11,7 +11,11 @@
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
 import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
+import { zodJitless } from "@opensesame/app-core/lib/zod-jitless.js";
 import { shellBuild } from "./shell-build.js";
+
+// Before any schema module loads: zod must not probe for eval under the CSP.
+zodJitless();
 
 configureHost(
   composeHost(browserPorts(), {

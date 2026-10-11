@@ -1,6 +1,6 @@
 /**
  * Keeps the tray honest about environments for as long as the capability's
- * lease holds (ADR 0192). It reads the open vault, so a lock clears the tray
+ * lease holds (ADR 0194). It reads the open vault, so a lock clears the tray
  * (the shell does that) and the next unlock brings the notice back; it is a
  * background job, not a panel, so it exists whether or not anyone opens the
  * sheet.

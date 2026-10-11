@@ -9,213 +9,78 @@ import { doorGuest } from "./front-door.mjs";
 import { SHARED_ITEM } from "./live-item-labels.mjs";
 import { addCapabilities, openSettingsCategory } from "./pages-journey.mjs";
 
+// The WebRTC instrumentation the walks read, kept with the RTC helpers.
+export {
+  TUNNEL_ONLY,
+  WATCH_RTC,
+  peerStates,
+  probeChannels,
+  selectedPairs,
+} from "./live-rtc.mjs";
+export {
+  assertSameMachineSdpPrivacy,
+  gatheredHosts,
+} from "./live-sdp-privacy.mjs";
+
 /**
- * Every RTCPeerConnection's configuration, as the page made it, and — for a
- * failure — what each data channel did: its events, and the kind of every
- * frame it sent and received (the `t` of a protocol message, never its body,
- * so no value reaches the artifacts).
+ * Every text the page hands the clipboard, and whether the browser took it.
+ * The app's own `writeText` call still reaches the browser's clipboard and
+ * hears its real answer; the walk reads the code from here, not back off
+ * the clipboard, because only Chromium lets a test read it (WebKit wants a
+ * person's paste) and in Firefox the clipboard is the whole browser's, so a
+ * read could meet another context's copy.
+ *
+ * Idempotent: a driver that installs it as an init script and `copyFrom`,
+ * which installs it again on the page it is handed, wrap `writeText` once.
  */
-export const WATCH_RTC = () => {
-  const Native = window.RTCPeerConnection;
-  window.__rtcConfigs = [];
-  window.__rtcPeers = [];
-  window.__rtcChannels = [];
-  window.__rtcStates = [];
-  const t0 = performance.now();
-  const at = () => Math.round(performance.now() - t0);
-  const kind = (data) => {
-    try {
-      return JSON.parse(data).t ?? "?";
-    } catch {
-      return String(data).slice(0, 16);
-    }
-  };
-  const send = RTCDataChannel.prototype.send;
-  RTCDataChannel.prototype.send = function (data) {
-    send.call(this, data);
-    const record = window.__rtcChannels.find((r) => r.channel === this);
-    record?.sent.push(`${kind(data)}@${at()}`);
-  };
-  const watch = (channel, side) => {
-    const record = { side, channel, events: [], sent: [], heard: [] };
-    window.__rtcChannels.push(record);
-    record.events.push(`appeared:${channel.readyState}@${at()}`);
-    for (const type of ["open", "closing", "close", "error"])
-      channel.addEventListener(type, () =>
-        record.events.push(`${type}@${at()}`),
-      );
-    channel.addEventListener("message", (event) =>
-      record.heard.push(`${kind(event.data)}@${at()}`),
+export const COPY_WATCH = () => {
+  const clipboard = navigator.clipboard;
+  if (!clipboard?.writeText || window.__copies) return;
+  const native = clipboard.writeText.bind(clipboard);
+  window.__copies = [];
+  clipboard.writeText = (text) => {
+    const entry = { text: String(text), ok: null, error: null };
+    window.__copies.push(entry);
+    return native(text).then(
+      () => {
+        entry.ok = true;
+      },
+      (error) => {
+        entry.ok = false;
+        entry.error = String(error);
+        throw error;
+      },
     );
-  };
-  // A subclass, not a wrapper function: it must stay a constructor.
-  window.RTCPeerConnection = class extends Native {
-    constructor(config) {
-      super(config);
-      window.__rtcConfigs.push(JSON.stringify(config ?? {}));
-      window.__rtcPeers.push(this);
-      this.addEventListener("datachannel", (event) =>
-        watch(event.channel, "remote"),
-      );
-      this.addEventListener("connectionstatechange", () =>
-        window.__rtcStates.push(`${this.connectionState}@${at()}`),
-      );
-    }
-    createDataChannel(...args) {
-      const channel = super.createDataChannel(...args);
-      watch(channel, "local");
-      return channel;
-    }
   };
 };
 
 /**
- * A tunnel between two machines, played on one: the other side's mDNS names
- * do not resolve and nothing else routes, so the only remote candidate a
- * page keeps is one at `address` — where the other device is reachable
- * through the tunnel. Without an address hint, nothing is left to try.
+ * Press a copy key and return what it copied, once the browser took it. A
+ * copy the browser refused fails the walk: that is a person left without the
+ * code.
+ *
+ * It installs the watch itself, so a driver that never added `COPY_WATCH` as an
+ * init script (verify-live-local-pair, the netns and session walks) still
+ * works: the watch is in place before the click, and a copy made before the
+ * install is not one this call was waiting for.
  */
-export const TUNNEL_ONLY = (address) => {
-  const set = RTCPeerConnection.prototype.setRemoteDescription;
-  RTCPeerConnection.prototype.setRemoteDescription = function (description) {
-    if (!description?.sdp) return set.call(this, description);
-    const sdp = description.sdp
-      .split("\r\n")
-      .filter(
-        (line) =>
-          !line.startsWith("a=candidate:") || line.split(" ")[4] === address,
-      )
-      .join("\r\n");
-    return set.call(this, { type: description.type, sdp });
-  };
-};
-
-/** Every peer connection's states, and the page's status marks: for a failure. */
-const PRIVATE_IPV4 = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/;
-
-function hostFromCandidateLine(line) {
-  const body = line.startsWith("a=candidate:")
-    ? line.slice("a=candidate:".length)
-    : line;
-  return body.split(" ")[4] ?? "";
-}
-
-function isPrivateLanHost(host) {
-  if (!host || host.endsWith(".local")) return false;
-  if (host === "127.0.0.1" || host === "::1") return false;
-  return PRIVATE_IPV4.test(host);
-}
-
-/**
- * Direct pairing on one machine: sealed descriptions name mDNS and loopback,
- * never a private LAN literal a remote peer could dial.
- */
-export async function assertSameMachineSdpPrivacy(page, who) {
-  const states = await page.evaluate(() => ({
-    peers: (window.__rtcPeers ?? []).map((pc) => ({
-      remote: (pc.remoteDescription?.sdp ?? "")
-        .split("\r\n")
-        .filter((line) => line.startsWith("a=candidate:")),
-      local: (pc.localDescription?.sdp ?? "")
-        .split("\r\n")
-        .filter((line) => line.startsWith("a=candidate:")),
-    })),
-  }));
-  let loopbackSealed = false;
-  for (const peer of states.peers) {
-    const remoteHosts = peer.remote.map(hostFromCandidateLine);
-    for (const host of remoteHosts) {
-      if (!isPrivateLanHost(host)) continue;
-      throw new Error(
-        `direct: ${who}'s remote description must not carry a private LAN IP (${host})`,
-      );
-    }
-    const localHosts = peer.local.map(hostFromCandidateLine);
-    if (
-      localHosts.some((host) => host === "127.0.0.1" || host === "::1") ||
-      remoteHosts.some((host) => host === "127.0.0.1" || host === "::1")
-    ) {
-      loopbackSealed = true;
-    }
-  }
-  if (!loopbackSealed) {
-    throw new Error(
-      `direct: ${who} should seal loopback hints for same-machine pairing`,
-    );
-  }
-}
-
-export async function peerStates(page) {
-  return page.evaluate(() => ({
-    peers: (window.__rtcPeers ?? []).map((pc) => ({
-      connection: pc.connectionState,
-      ice: pc.iceConnectionState,
-      gathering: pc.iceGatheringState,
-      signaling: pc.signalingState,
-      remote: (pc.remoteDescription?.sdp ?? "")
-        .split("\r\n")
-        .filter((line) => line.startsWith("a=candidate:")),
-    })),
-    marks: [...document.querySelectorAll("[role=img][aria-label]")].map(
-      (node) => node.getAttribute("aria-label"),
-    ),
-    states: window.__rtcStates ?? [],
-    channels: (window.__rtcChannels ?? []).map(({ channel, ...rest }) => ({
-      ...rest,
-      state: channel.readyState,
-      buffered: channel.bufferedAmount,
-    })),
-  }));
-}
-
-/**
- * On a failure, send a probe frame on every open channel of every page, so
- * the record says whether the link still carries frames each way (a lost
- * first frame on a live link reads differently from a dead link).
- */
-export async function probeChannels(pages) {
-  for (const page of pages)
-    await page
-      .evaluate(() => {
-        for (const record of window.__rtcChannels ?? []) {
-          if (record.channel?.readyState !== "open") continue;
-          try {
-            record.channel.send(`probe:${record.side}`);
-          } catch (error) {
-            record.probeError = String(error);
-          }
-        }
-      })
-      .catch(() => {});
-  await new Promise((resolve) => setTimeout(resolve, 3000));
-}
-
-/**
- * What each peer connection selected, once connected: local and remote type,
- * and — for a relayed local candidate — the protocol the browser spoke to its
- * TURN server (`udp`, `tcp` or `tls`).
- */
-export async function selectedPairs(page) {
-  return page.evaluate(async () => {
-    const out = [];
-    for (const pc of window.__rtcPeers ?? []) {
-      if (pc.connectionState !== "connected") continue;
-      const stats = await pc.getStats();
-      for (const report of stats.values()) {
-        if (report.type !== "candidate-pair" || !report.nominated) continue;
-        if (report.state !== "succeeded") continue;
-        const local = stats.get(report.localCandidateId);
-        const remote = stats.get(report.remoteCandidateId);
-        out.push({
-          local: local?.candidateType,
-          remote: remote?.candidateType,
-          relayProtocol: local?.relayProtocol,
-          address: remote?.address ?? remote?.ip,
-        });
-      }
-    }
-    return out;
-  });
+export async function copyFrom(page, key) {
+  await page.evaluate(COPY_WATCH);
+  const before = await page.evaluate(() => window.__copies?.length ?? 0);
+  await key.click();
+  const entry = await (
+    await page.waitForFunction(
+      (at) => {
+        const made = window.__copies?.[at];
+        return made && made.ok !== null ? made : null;
+      },
+      before,
+      { timeout: 10_000 },
+    )
+  ).jsonValue();
+  if (!entry.ok)
+    throw new Error(`the browser refused the copy: ${entry.error}`);
+  return entry.text;
 }
 
 export async function ownerEnters(page, { origin, base, secret }) {
@@ -322,8 +187,10 @@ export async function startSession(
     admission === "invite"
       ? (await session.locator(".live-code").innerText()).trim()
       : null;
-  await session.getByRole("button", { name: "Copy the link" }).click();
-  const link = await page.evaluate(() => navigator.clipboard.readText());
+  const link = await copyFrom(
+    page,
+    session.getByRole("button", { name: "Copy the link" }),
+  );
   return { panel: session, code, link };
 }
 
@@ -353,8 +220,7 @@ export async function joinerAsks(page, { link, code, name, routes = null }) {
   await page.getByRole("button", { name: "Ask to join" }).click();
   const copy = page.getByRole("button", { name: "Copy your request code" });
   await copy.waitFor({ timeout: 20_000 });
-  await copy.click();
-  return page.evaluate(() => navigator.clipboard.readText());
+  return copyFrom(page, copy);
 }
 
 /**
@@ -376,8 +242,7 @@ export async function ownerAdmitsByHand(
     name: `Copy the reply code for ${name}`,
   });
   await copy.waitFor({ timeout: 20_000 });
-  await copy.click();
-  return page.evaluate(() => navigator.clipboard.readText());
+  return copyFrom(page, copy);
 }
 
 export async function joinerConnects(page, reply) {

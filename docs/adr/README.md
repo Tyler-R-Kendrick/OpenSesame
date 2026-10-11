@@ -254,4 +254,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0189](0189-settings-features-and-integrations.md) | Settings splits into Features and Integrations | Accepted |
 | [0190](0190-password-reset-mailboxes-are-vault-items.md) | Password reset: mailboxes are vault items, read in the browser, bound by id | Accepted |
 | [0191](0191-forgot-password-ceremony-remote-browser.md) | Forgot-password ceremony: a value-blind reset through a remote browser | Proposed |
-| [0192](0192-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |
+| [0192](0192-model-keys-and-token-exchange.md) | Model providers are a category, and a key for one is issued by exchange, never shared | Accepted |
+| [0193](0193-live-join-walked-in-ci-across-browsers.md) | The live join walk gates merges, across three browsers | Accepted |
+| [0194](0194-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |

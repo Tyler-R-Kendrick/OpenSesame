@@ -1,5 +1,5 @@
 /**
- * What a merge does about values for an environment that was removed (ADR 0192).
+ * What a merge does about values for an environment that was removed (ADR 0194).
  *
  * Removing an environment deletes its cells in the same write, on the device
  * that removes it. A device that had not seen the removal can still set a value

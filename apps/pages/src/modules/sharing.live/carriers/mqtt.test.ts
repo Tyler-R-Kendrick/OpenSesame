@@ -1,7 +1,8 @@
 /** @vitest-environment node */
 /**
- * The MQTT carrier's client options: no retry of a first connection, and
- * reconnecting only once a broker has answered; a failed subscription closes
+ * The MQTT carrier's client options: no retry of a first connection,
+ * reconnecting only once a broker has answered, and the page's own timers
+ * rather than a worker from a Blob URL; a failed subscription closes
  * the client rather than leaking it. The connector is injected — the real
  * client against a broker that hangs up is `mqtt.reconnect.test.ts`.
  */
@@ -10,7 +11,11 @@ import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it, vi } from "vitest";
 import { type Connect, mqttCarrier } from "./mqtt.js";
 
-type Options = { reconnectPeriod?: number; username?: string };
+type Options = {
+  reconnectPeriod?: number;
+  username?: string;
+  timerVariant?: string;
+};
 type Call = {
   url: string;
   options: Options;
@@ -48,8 +53,13 @@ describe("mqttCarrier", () => {
     expect(calls).toEqual([
       {
         url: "wss://broker.example.test",
-        // Nothing reconnects while the first connection is in flight.
-        options: expect.objectContaining({ reconnectPeriod: 0, username: "u" }),
+        // Nothing reconnects while the first connection is in flight, and
+        // the timers are the page's: no Blob-URL worker for WebKit to lose.
+        options: expect.objectContaining({
+          reconnectPeriod: 0,
+          username: "u",
+          timerVariant: "native",
+        }),
         allowRetries: false,
       },
     ]);

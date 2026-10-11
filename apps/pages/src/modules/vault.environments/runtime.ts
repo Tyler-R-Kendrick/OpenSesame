@@ -1,5 +1,5 @@
 /**
- * `vault.environments` — named environments for a vault's keys (ADR 0192).
+ * `vault.environments` — named environments for a vault's keys (ADR 0194).
  * The key in the vault's path strip, the sheet it opens, and the tray notice
  * for a required value that is missing. All of it arrives here, so the shell
  * never imports it and a plan that leaves the capability off never loads it.

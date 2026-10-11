@@ -17,6 +17,7 @@ import {
   orgSignInState,
 } from "./capture-org-signin-steps.mjs";
 import { answerRouting, routingState } from "./capture-routing-steps.mjs";
+import { sheetSteps } from "./capture-sheet-steps.mjs";
 import { doorGuest } from "./front-door.mjs";
 
 /** The sealed synthetic drop a journey names (`dropManifest`), or `null`. */
@@ -245,6 +246,7 @@ function arrivalSteps({ press }) {
 export function ceremonySteps({ press }) {
   return {
     ...arrivalSteps({ press }),
+    ...sheetSteps({ press }),
     /** Type into a labelled field and leave it, when this build has one. */
     async fillOptional(page, { label, text }) {
       const field = page.getByLabel(label, { exact: true }).first();

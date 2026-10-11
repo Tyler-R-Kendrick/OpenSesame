@@ -1,5 +1,5 @@
 /**
- * Environment cells through the sealed-store bridge (ADR 0192): an item that
+ * Environment cells through the sealed-store bridge (ADR 0194): an item that
  * is a key comes back from its entry as one, an entry written before
  * environments existed cannot erase an item's cells, and a trailer that
  * claims anything else is read as the cells it validly describes.
