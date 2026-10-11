@@ -1,4 +1,4 @@
-import { cliAppIntegrationPolicy } from "./policy.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 
 export type EnsureStatus =
   | "approved"

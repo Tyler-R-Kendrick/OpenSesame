@@ -5,7 +5,7 @@ export {
   type EnsureStatus,
   type PendingRequest,
 } from "./session.js";
-export { cliAppIntegrationPolicy } from "./policy.js";
+export { cliAppIntegrationPolicy } from "./policy-runtime.js";
 export {
   cliAuthorizeCopy,
   cliAppIntegrationDaemonSeams,

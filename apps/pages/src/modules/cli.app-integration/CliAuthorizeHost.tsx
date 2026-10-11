@@ -2,7 +2,7 @@ import {
   type PendingRequest,
   listCliIntegrationPending,
 } from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy.js";
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy-runtime.js";
 import { mayPairLocalAuthority } from "@opensesame/app-core/lib/deployment-profile.js";
 import { type ReactNode, useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";

@@ -32,9 +32,6 @@ export function useCliAuthorizeSheet(
     ...(view.targetLine
       ? [{ key: copy.targetLabel, value: view.targetLine }]
       : []),
-    ...(view.fieldLine
-      ? [{ key: copy.fieldLabel, value: view.fieldLine }]
-      : []),
   ];
 
   async function afterConfirm(decision: "approve" | "deny") {

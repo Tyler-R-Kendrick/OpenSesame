@@ -1,6 +1,6 @@
 import { localNetworkFetch } from "../local-network-fetch.js";
 import { loadSettings } from "../settings.js";
-import { cliAppIntegrationPolicy } from "./policy.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 import type { PendingRequest } from "./session.js";
 
 export type CliIntegrationDecision = "approve" | "deny";
