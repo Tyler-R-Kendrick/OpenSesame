@@ -191,14 +191,16 @@ export async function openRequest(page, reason, status) {
   await returnToAccessList(page);
   const entries = workspace.getByRole("treeitem");
   await expect(entries.first()).toBeVisible({ timeout: 30_000 });
-  const ids = await entries.evaluateAll((rows) =>
-    rows.map((row) => row.dataset.recordId),
-  );
-  for (const [index, id] of ids.entries()) {
+  const count = await entries.count();
+  for (let index = 0; index < count; index++) {
     await returnToAccessList(page);
+    const row = workspace.getByRole("treeitem").nth(index);
+    const id = await row.getAttribute("data-record-id");
+    if (!id) continue;
     const entry = workspace.locator(`.vault__list [data-record-id="${id}"]`);
     await workspace.getByRole("tree", { name: "Local requests items" }).focus();
     await page.keyboard.type(`${index + 1}gg`);
+    await expect(entry).toBeVisible({ timeout: 30_000 });
     await expect(entry).toHaveClass(/is-cursor/);
     await page.keyboard.press("Enter");
     await expect(entry).toHaveAttribute("aria-selected", "true");
