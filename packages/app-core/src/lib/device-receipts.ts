@@ -64,6 +64,8 @@ export const RECEIPT_KINDS = {
   "live.ended": ["access.live.ended", "succeeded"],
   "share.granted": ["access.share.granted", "succeeded"],
   "share.revoked": ["access.share.revoked", "succeeded"],
+  "share.approved": ["access.share.approved", "succeeded"],
+  "share.denied": ["access.share.denied", "denied"],
 } as const satisfies Record<string, readonly [string, AuditOutcome]>;
 
 export type ReceiptKind = keyof typeof RECEIPT_KINDS;

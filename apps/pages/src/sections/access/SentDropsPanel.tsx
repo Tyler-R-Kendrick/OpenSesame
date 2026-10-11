@@ -88,13 +88,13 @@ function SentDropRow({
         return;
       }
       if (outcome === "already_consumed") {
-        setRevokeError("Already opened; cannot revoke.");
+        setRevokeError("Already opened.");
         onRevoked();
         return;
       }
-      setRevokeError("Could not revoke on this device.");
+      setRevokeError("Revoke unavailable.");
     } catch {
-      setRevokeError("Could not revoke. Try again.");
+      setRevokeError("Revoke failed.");
     } finally {
       setBusy(false);
     }
