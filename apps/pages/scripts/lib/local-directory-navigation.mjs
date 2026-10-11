@@ -11,17 +11,30 @@ import { expect } from "@playwright/test";
  */
 async function moveTo(page, tree, row) {
   const id = await row.getAttribute("id");
+  const quick = { timeout: 200 };
+  const read = (locator, name) =>
+    locator.getAttribute(name, quick).catch(() => null);
   const arrived = async () =>
     !(await tree.isVisible()) ||
-    (await tree.getAttribute("aria-activedescendant")) === id ||
-    (await row.getAttribute("aria-selected")) === "true";
+    (await read(tree, "aria-activedescendant")) === id ||
+    (await read(row, "aria-selected")) === "true";
+  let typed = false;
   await expect(async () => {
-    const index = await row.evaluate((node) =>
-      [
-        ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
-      ].indexOf(node),
+    // A retry types again only while the row is still to reach: once a
+    // preview has replaced the tree, keys would land in the listing.
+    if (typed && (await arrived())) return;
+    const index = await row.evaluate(
+      (node) =>
+        [
+          ...node
+            .closest('[role="tree"]')
+            .querySelectorAll('[role="treeitem"]'),
+        ].indexOf(node),
+      undefined,
+      { timeout: 1000 },
     );
     await page.keyboard.type(`${index + 1}gg`);
+    typed = true;
     if (!id) return;
     await expect.poll(arrived, { timeout: 750 }).toBe(true);
   }).toPass({ timeout: 10_000 });
