@@ -7,6 +7,12 @@ import {
 import { NOTICE_ROUTE } from "@opensesame/app-core/lib/local-notifications/notice.js";
 import { writePreference } from "@opensesame/app-core/lib/local-notifications/preference.js";
 import type { WatchTrigger } from "@opensesame/app-core/lib/local-notifications/watch.js";
+import {
+  type ToastMessage,
+  desktopRinging,
+  setDesktopRinging,
+  subscribeToasts,
+} from "@opensesame/app-core/lib/notice-toast.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
@@ -123,6 +129,34 @@ describe("the tab's mark", () => {
       setAppBadge: () => Promise.reject(new Error("not installed")),
     });
     expect(() => tabTitle(1)).not.toThrow();
+  });
+});
+
+describe("the toast", () => {
+  it("says a new request in the request's own words, and leads to the list", () => {
+    const seen: ToastMessage[] = [];
+    const off = subscribeToasts((toast) => seen.push(toast));
+    const { toast } = browserDeliveries(() => undefined);
+    toast(NOTICE, 2);
+    off();
+    expect(seen).toEqual([
+      {
+        id: REF,
+        tone: "warn",
+        title: "Requests waiting",
+        body: "2 requests are waiting for you.",
+        open: { to: NOTICE_ROUTE, label: "Review requests" },
+      },
+    ]);
+  });
+
+  it("carries the desktop flag the watcher sets, and nothing else", () => {
+    const { desktop } = browserDeliveries(() => undefined);
+    desktop(true);
+    expect(desktopRinging()).toBe(true);
+    desktop(false);
+    expect(desktopRinging()).toBe(false);
+    setDesktopRinging(false);
   });
 });
 

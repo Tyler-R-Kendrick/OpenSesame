@@ -1,0 +1,24 @@
+{
+  "390": {
+    "toast": {
+      "x": 22,
+      "y": 60,
+      "w": 352,
+      "h": 129
+    },
+    "toastText": "Claim Could not start a guest session. Try again.",
+    "bell": "Notifications — 1 pending",
+    "title": "OpenSesame"
+  },
+  "1280": {
+    "toast": {
+      "x": 912,
+      "y": 55,
+      "w": 352,
+      "h": 109
+    },
+    "toastText": "Claim Could not start a guest session. Try again.",
+    "bell": "Notifications — 1 pending",
+    "title": "OpenSesame"
+  }
+}

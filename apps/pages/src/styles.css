@@ -803,9 +803,10 @@ input[type="radio"] {
 .app {
   display: grid;
   grid-template-columns: var(--rail-w) 1fr;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   grid-template-areas:
     "rail main"
+    "rail toasts"
     "status status";
   height: 100dvh;
   overflow: hidden;
@@ -1208,6 +1209,40 @@ body {
 
 .notice-card--err h3 {
   color: var(--err);
+}
+
+/* Toasts: the transient echo of a tray notice (ADR 0162). A row of the frame,
+   right-aligned, between the content and the statusline; empty, it has no
+   height. It takes room only while a toast shows, so nothing rests on a
+   control (DESIGN.md § Layout). Shellless screens draw it as a block, as the
+   notice corner does. Neutral shadow only. */
+.toasts {
+  grid-area: toasts;
+  display: grid;
+  gap: 0.5rem;
+  width: min(22rem, calc(100% - 32px));
+  margin: 0.5rem 16px 0 auto;
+}
+
+.toasts:empty {
+  margin: 0;
+}
+
+.toast {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: toast-in 160ms var(--ease);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
 }
 
 /* ——— Status keys ————————————————————————————————————————
@@ -1722,9 +1757,10 @@ body {
      Sections stay behind the bar's menu key — no tab bar. */
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: minmax(0, 1fr) auto auto;
     grid-template-areas:
       "main"
+      "toasts"
       "status";
     height: 100dvh;
   }

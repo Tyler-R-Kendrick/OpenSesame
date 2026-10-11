@@ -11,11 +11,11 @@
  *
  *  - The in-app mark (the bell) and the tab mark (title and badge) follow the
  *    inbox: they say how many wait and clear when none do.
- *  - A system notification rings once, for a request this tab had not seen,
- *    and only when the person is not looking (the tab is hidden) and the
- *    change came from somewhere else. A notice at start-up, or while the page
- *    is in front of the person, would be a doorbell rung at someone already
- *    at the door.
+ *  - A request this tab had not seen rings once. If the person is away (the
+ *    tab is hidden) and desktop is on, it is a system notification; if they
+ *    are here, it is a toast in the page, never both. Neither rings at start-up
+ *    or when the tab returns to the front, which would be a doorbell rung at
+ *    someone already at the door.
  *  - It never decides anything and carries only `{ kind, action, ref }`.
  *  - An inbox it cannot read is a mark it cannot stand behind: it clears
  *    every mark rather than leave a stale one. It keeps what it has already
@@ -53,10 +53,14 @@ export type Deliveries = Readonly<{
   inApp(waiting: number | null): void;
   /** The tab's title and the app badge: how many wait, or 0 to clear. */
   tabTitle(waiting: number): void;
+  /** A toast in the page, for a request that came while the person is here. */
+  toast(notice: LocalNotice, waiting: number): void;
   /** A system notification for one notice among `waiting`. */
   system(notice: LocalNotice, waiting: number): void;
   /** Withdraw a system notification that is still showing. */
   closeSystem(): void;
+  /** Whether a system notification may ring for this device now. */
+  desktop(on: boolean): void;
 }>;
 
 export type WatchPorts = Readonly<{
@@ -91,6 +95,7 @@ function clearMarks(ports: WatchPorts): void {
   ports.deliver.inApp(null);
   ports.deliver.tabTitle(0);
   ports.deliver.closeSystem();
+  ports.deliver.desktop(false);
 }
 
 /** The preference now, or the last one read: a failure turns nothing on. */
@@ -106,7 +111,10 @@ async function currentPreference(
   return memory.preference;
 }
 
-/** Mark what waits, and ring the one that is new if the person is away. */
+/**
+ * Mark what waits, and ring the one that is new, once: a system notification
+ * if the person is away and desktop is on, else a toast if they are here.
+ */
 function show(
   ports: WatchPorts,
   memory: Memory,
@@ -117,11 +125,15 @@ function show(
   const count = rows.length;
   ports.deliver.inApp(count > 0 ? count : null);
   ports.deliver.tabTitle(places.includes("tab_title") ? count : 0);
+  const ringing = places.includes("system");
+  ports.deliver.desktop(ringing);
   const first = rows.find((row) => !memory.seen.has(row.ref));
   memory.seen = new Set(rows.map((row) => row.ref));
   const away = ports.hidden();
-  if (first !== undefined && mayRing(why) && away && places.includes("system"))
-    ports.deliver.system(noticeOf(first), count);
+  if (first !== undefined && mayRing(why)) {
+    if (away && ringing) ports.deliver.system(noticeOf(first), count);
+    else if (!away) ports.deliver.toast(noticeOf(first), count);
+  }
   // Nobody needs a doorbell once nothing waits or they are back.
   if (count === 0 || !away) ports.deliver.closeSystem();
 }
