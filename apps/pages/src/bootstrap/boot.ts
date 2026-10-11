@@ -162,10 +162,6 @@ export async function bootCore(): Promise<CoreBoot> {
       now: bootSeams.now(),
     }),
   });
-  const { commitPersonalLocalPwaDefaultsIfNeeded } = await import(
-    "@opensesame/app-core/lib/capabilities/store-pwa-defaults.js"
-  );
-  await commitPersonalLocalPwaDefaultsIfNeeded(compositionStore, bootSeams.now);
   const stopInvalidation = startInvalidationWatch(compositionStore);
   const stopWatching = () => {
     stopTypes();
