@@ -47,14 +47,6 @@ const LAZY_LEAVES = [
     "vault.security-checks",
     "cap-vault.security-checks",
   ],
-  // CLI app-integration core (daemon client, policy, presenter): the Pages
-  // module is partitioned, but onlyExplicitManualChunks leaves its app-core
-  // deps on main without this leaf (ADR 0130 §4).
-  [
-    "/packages/app-core/src/lib/cli-app-integration/",
-    "cli.app-integration",
-    "cap-cli.app-integration",
-  ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
   // Plugin pairing is reached by the tailnet sync and device-management
@@ -88,6 +80,17 @@ const LAZY_LEAVES = [
     "/src/modules/identity.ceremonies/ClaimDifferentLink",
     "identity.ceremonies",
     "cap-identity.claim-different-link",
+  ],
+  // CLI authorize UI: keep daemon client + step-up off `main` (ADR 0130 §4).
+  [
+    "/src/modules/cli.app-integration/",
+    "cli.app-integration",
+    "cap-cli.app-integration",
+  ],
+  [
+    "/packages/app-core/src/lib/cli-app-integration/policy-runtime",
+    "cli.app-integration",
+    "cli-policy",
   ],
 ];
 

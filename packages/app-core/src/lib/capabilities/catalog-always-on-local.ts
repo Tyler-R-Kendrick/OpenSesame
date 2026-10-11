@@ -14,7 +14,7 @@
 import { type AuthoredDescriptor, alwaysOn, optional } from "./descriptor.js";
 
 export const CLI_APP_INTEGRATION_PURPOSE =
-  "the local daemon's CLI app-integration routes while OpenSesame is unlocked";
+  "local daemon CLI integration while the vault is unlocked";
 
 export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
@@ -97,7 +97,7 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "cli.app-integration",
     "CLI integration",
-    "Approve OpenSesame CLI requests from this browser while the vault is unlocked (1Password-style terminal sessions).",
+    "Approve CLI requests in this browser while the vault is unlocked.",
     {
       operationIds: ["cli.app_integration.list", "cli.app_integration.respond"],
       egress: [

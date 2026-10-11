@@ -1,0 +1,41 @@
+import type { PendingRequest } from "@opensesame/app-core/lib/cli-app-integration/pending-request.js";
+import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { WrongPasswordError } from "@opensesame/vault-core";
+import {
+  confirmPasskeyStepUpForCli,
+  confirmPinStepUpForCli,
+} from "./cli-step-up.js";
+import { respondCliIntegration } from "./cli-daemon-client.js";
+
+export async function approveCliIntegrationRequest(
+  store: VaultStore,
+  request: PendingRequest,
+  opts: { canPasskey: boolean; canPin: boolean; pin: string },
+): Promise<void> {
+  if (opts.canPasskey) await confirmPasskeyStepUpForCli(store, undefined);
+  else if (opts.canPin) await confirmPinStepUpForCli(store, opts.pin);
+  else throw new Error("Enroll a passkey or PIN in Settings › Security.");
+  const ok = await respondCliIntegration(
+    request.requestId,
+    request.terminalSessionId,
+    "approve",
+  );
+  if (!ok) throw new Error("CLI integration could not reach the daemon.");
+}
+
+export async function denyCliIntegrationRequest(
+  request: PendingRequest,
+): Promise<void> {
+  const ok = await respondCliIntegration(
+    request.requestId,
+    request.terminalSessionId,
+    "deny",
+  );
+  if (!ok) throw new Error("CLI integration could not reach the daemon.");
+}
+
+export function cliAuthorizeErrorMessage(cause: unknown): string {
+  if (cause instanceof WrongPasswordError) return cause.message;
+  if (cause instanceof Error) return cause.message;
+  return "Authorization was not completed.";
+}

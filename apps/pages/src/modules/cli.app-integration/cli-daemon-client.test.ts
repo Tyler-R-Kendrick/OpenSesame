@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  cliAppIntegrationDaemonSeams,
+  cliDaemonClientSeams,
   listCliIntegrationPending,
   respondCliIntegration,
-} from "./daemon-client.js";
+} from "./cli-daemon-client.js";
 
-describe("cli app integration daemon client", () => {
+describe("cli daemon client", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   it("lists pending rows from the daemon", async () => {
-    cliAppIntegrationDaemonSeams.base = () => "http://127.0.0.1:18790";
-    cliAppIntegrationDaemonSeams.fetch = vi.fn(async () =>
+    cliDaemonClientSeams.base = () => "http://127.0.0.1:18790";
+    cliDaemonClientSeams.fetch = vi.fn(async () =>
       Response.json({
         pending: [
           {
@@ -30,8 +30,8 @@ describe("cli app integration daemon client", () => {
   });
 
   it("posts approve decisions", async () => {
-    cliAppIntegrationDaemonSeams.base = () => "http://127.0.0.1:18790";
-    cliAppIntegrationDaemonSeams.fetch = vi.fn(async () =>
+    cliDaemonClientSeams.base = () => "http://127.0.0.1:18790";
+    cliDaemonClientSeams.fetch = vi.fn(async () =>
       Response.json({ status: "approved" }),
     );
     await expect(
