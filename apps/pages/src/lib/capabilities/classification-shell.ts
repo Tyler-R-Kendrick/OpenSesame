@@ -79,6 +79,11 @@ export const SHELL_RULES = [
   core("src/bootstrap/", null, "core-only boot (S05)"),
   core("src/host/", null, "installs the app-core host before boot (ADR 0133)"),
   core("src/host", null, "the app-core host and its ports (ADR 0133)"),
+  core(
+    "src/lib/zod-jitless",
+    null,
+    "zod runs jitless under the CSP, set by the host boot before anything parses (ADR 0193)",
+  ),
   core("src/test-host", null, "the app-core test host (ADR 0133)"),
   core("src/ports", null, "the app-core port accessors (ADR 0133)"),
   core("src/no-host-import", null, "proof the core loads with no host"),
@@ -186,6 +191,9 @@ export const SHELL_RULES = [
   ),
 
   // --- components: the shell by default ------------------------------------
+  ...each("src/lib/", ["notices", "notice-toast", "notice-desktop"], (p) =>
+    core(p, null, "the notice tray and its toasts, always on (ADR 0162)"),
+  ),
   core("src/components/", SHELL, "rail, chrome, controls, status"),
   ...each("src/components/", ["InstallMark", "InstallOffer"], (p) =>
     core(p, "install.pwa", "install offer surface"),

@@ -26,6 +26,8 @@ export const DRIVER_GATES = {
   "verify-tutorials.mjs": ["tutorials"],
   "verify-tutorials-profiles.mjs": ["tutorials"],
   "verify-push.mjs": ["push"],
+  // ADR 0150: every walk, every ordered pair of browsers, three shards.
+  "verify-live-join.mjs": ["live-join"],
   // The contract suite's vitest blocks run in the TypeScript job; its browser
   // half is the gates above.
   "verify-experience.mjs": null,
@@ -40,7 +42,6 @@ export const DRIVER_GATES = {
   "verify-duress-browser.mjs": null,
   "verify-duress-offline.mjs": null,
   "verify-duress.mjs": null,
-  "verify-live-join.mjs": null,
   // Same-machine direct join: two contexts, no ICE servers (journeys-2).
   "verify-live-local-pair.mjs": ["journeys"],
   // ADR 0181: the journeys shard runs the relay join walk.

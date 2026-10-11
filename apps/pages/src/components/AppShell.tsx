@@ -32,6 +32,7 @@ import {
 } from "./RailRows.js";
 import { SessionPrompt } from "./SessionPrompt.js";
 import { Statusline } from "./Statusline.js";
+import { ToastStack } from "./ToastStack.js";
 import { Wordmark } from "./Wordmark.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 import { PageTreeExpansionProvider } from "./page-tree-expansion.js";
@@ -139,6 +140,10 @@ function Shell({ children }: { children?: ReactNode }) {
         <DuressPresentationOverlay />
         {children}
       </div>
+
+      {/* A row of the frame, not an overlay: it takes height only while a toast
+          shows, so nothing rests on a control (DESIGN.md § Layout). */}
+      <ToastStack />
 
       <Statusline />
 

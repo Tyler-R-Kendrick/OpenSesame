@@ -54,9 +54,11 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-11-toast-notices/`](2026-10-11-toast-notices/README.md) | Toasts for notices — before and after |
 | [`2026-10-11-password-reset-mailboxes/`](2026-10-11-password-reset-mailboxes/README.md) | Password reset: mailboxes as vault items |
 | [`2026-10-11-lock-v5-dial-shimmer/`](2026-10-11-lock-v5-dial-shimmer/README.md) | Lock-v5: the shimmer runs on, the dial is on the front door, the key is in front |
 | [`2026-10-11-hero-field-on-phones/`](2026-10-11-hero-field-on-phones/README.md) | Every gate's hero is the particle field, a phone's included |
+| [`2026-10-11-health-key-danger-bin/`](2026-10-11-health-key-danger-bin/README.md) | The health report's add key, and the Danger row's bin at the row end |
 | [`2026-10-11-first-run-import/`](2026-10-11-first-run-import/README.md) | A vault that begins from a file — before / after |
 | [`2026-10-11-features-and-integrations/`](2026-10-11-features-and-integrations/README.md) | Settings splits into Features and Integrations (ADR 0189) |
 | [`2026-10-11-dial-under-card/`](2026-10-11-dial-under-card/README.md) | The cipher dial carries on behind the gate's card |
@@ -71,6 +73,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |
 | [`2026-10-10-lock-v5-title-screen/`](2026-10-10-lock-v5-title-screen/README.md) | Lock v5 title screen evidence (2026-10-10) |
 | [`2026-10-10-live-join-greeting/`](2026-10-10-live-join-greeting/README.md) | Live join: the catalog answers a greeting (ADR 0186) |
+| [`2026-10-10-live-join-browsers/`](2026-10-10-live-join-browsers/README.md) | Live join across three browsers: the road to transport.json |
 | [`2026-10-10-frontdoor-contract/`](2026-10-10-frontdoor-contract/README.md) | Front-door visual contract after the merged brand update |
 | [`2026-10-10-design-tooling/`](2026-10-10-design-tooling/README.md) | Design tooling: Storybook on the app's own CSS |
 | [`2026-10-10-connector-self-review/`](2026-10-10-connector-self-review/README.md) | Connector self-review |

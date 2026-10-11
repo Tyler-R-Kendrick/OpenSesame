@@ -58,6 +58,10 @@ export function rig(options: RigOptions = {}) {
       calls.push(`system:${notice.ref}:${waiting}`),
     ),
     closeSystem: vi.fn(() => calls.push("close")),
+    toast: vi.fn((notice, waiting) =>
+      calls.push(`toast:${notice.ref}:${waiting}`),
+    ),
+    desktop: vi.fn(),
   };
   const state: RigState = {
     rows: [],
