@@ -18,7 +18,7 @@ import {
   reconcileSecurityWatchWithVault,
   runSecurityChecks,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
-import type { VaultSnapshot } from "@opensesame/app-core/lib/vault/store.js";
+import type { VaultState } from "@opensesame/app-core/lib/vault/store.js";
 import { type ComponentType, useEffect, useSyncExternalStore } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconShield } from "../../components/Icons.js";
@@ -50,8 +50,8 @@ function statusLabel(watch: BreachWatch): string {
 }
 
 function useSecurityCheckWatch(
-  tomb: VaultSnapshot["tomb"],
-  items: VaultSnapshot["items"],
+  tomb: VaultState["tomb"],
+  items: VaultState["items"],
 ) {
   useEffect(() => {
     reconcileSecurityWatchWithVault(tomb, items);
@@ -64,7 +64,7 @@ function useSecurityCheckWatch(
 }
 
 function runCheck(
-  vault: VaultSnapshot,
+  vault: VaultState,
   fetches: SecurityCheckFetches,
   busy: boolean,
   open: boolean,
@@ -127,7 +127,7 @@ function SecurityChecksPanelBody({
   fetches,
   watch,
 }: {
-  vault: VaultSnapshot;
+  vault: VaultState;
   fetches: SecurityCheckFetches;
   watch: BreachWatch;
 }) {
