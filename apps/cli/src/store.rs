@@ -17,7 +17,7 @@ use opensesame_sealed_store::{
 use regex::Regex;
 
 pub fn require_reveal(reveal: bool) -> anyhow::Result<()> {
-    opensesame_connector_host::password_agent::reveal_gate::assert_pass_reveal(reveal)
+    crate::cli_app_integration::require_pass_reveal(reveal)
 }
 
 pub(crate) fn prompt_password(prompt: &str) -> anyhow::Result<String> {

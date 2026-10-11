@@ -27,6 +27,7 @@ mod agent_capability;
 mod args;
 pub use args::Args;
 pub use plugin_routes::recent_notices as plugin_notices;
+mod cli_app_integration;
 mod cli_probe;
 mod discovery;
 mod duress_receiver;
@@ -99,6 +100,7 @@ struct App {
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
     /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
     plugins: plugin_routes::PluginHost,
+    cli_app_integration: cli_app_integration::SharedCliAppIntegration,
     /// Tailnet device management (ADR 0169).
     tailnet: tailnet_admin_routes::TailnetAdminHost,
 }
@@ -454,6 +456,7 @@ fn router(state: App) -> Router {
             "/v1/mint",
             post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
         )
+        .merge(cli_app_integration::routes())
         .route("/v1/toolbar/status", get(toolbar::toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
@@ -799,15 +802,14 @@ async fn revoke(
 }
 
 #[cfg(test)]
-fn test_operator_token() -> &'static str {
-    static TOKEN: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-        format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
-    });
-    &TOKEN
-}
+mod test_fixtures;
+
+#[cfg(test)]
+pub(crate) use test_fixtures::test_operator_token;
 
 #[cfg(test)]
 mod tests {
+    pub(crate) use super::test_fixtures::{test_operator_token, test_state};
     use super::*;
 
     #[tokio::test]
@@ -889,33 +891,6 @@ mod tests {
                 "upstream_unreachable",
             ],
         );
-    }
-
-    pub(crate) fn test_state(host_api: &str) -> App {
-        let http = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_millis(400))
-            .connect_timeout(std::time::Duration::from_millis(200))
-            .build()
-            .unwrap();
-        App {
-            sessions: Arc::new(Mutex::new(HashMap::new())),
-            capabilities: Arc::new(Mutex::new(HashMap::new())),
-            host_api: host_api.to_string(),
-            identity_api: "http://127.0.0.1:1".into(),
-            http,
-            operator_token: test_operator_token().into(),
-            allowed_uids: opensesame_uds_authn::default_allowed_uids(),
-            discover_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            mint_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
-            token_source_factory: Arc::new(|_| None),
-            duress_peer: None,
-            vault_drive: None,
-            plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
-            tailnet: tailnet_admin_routes::TailnetAdminHost::detached(),
-        }
     }
 
     fn test_app(host_api: &str) -> (Router, App) {

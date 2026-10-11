@@ -303,7 +303,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1464
+      "max-lines": 1439
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338

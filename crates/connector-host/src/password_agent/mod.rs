@@ -4,6 +4,7 @@ pub mod env;
 pub mod lease;
 pub mod policy;
 pub mod request;
+pub mod app_integration;
 pub mod reveal_gate;
 pub mod service;
 pub mod writes;

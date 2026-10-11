@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+opensesame-cli-app-integration = { path = "../cli-app-integration" }
 opensesame-domain = { path = "../domain" }
 # L2 constrained HTTP admits through the surrogate ledger and executes through
 # the broker (ADR 0150 §6.7). A more stable crate than this one, with no
