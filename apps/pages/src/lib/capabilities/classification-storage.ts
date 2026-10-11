@@ -10,6 +10,11 @@ const SHELL = "shell.navigation";
 const GIT = "backup.git-remote";
 
 export const STORAGE_LIB_RULES = [
+  core(
+    `${L}origin-file-publication`,
+    null,
+    "original guarded device-sealed record publication; supplies no vault admission",
+  ),
   // Core, and in no Pages entry: a host installs it (the CLI today) and the
   // build's graph never reaches it until the hosted-store wiring lands.
   core(

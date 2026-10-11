@@ -1,12 +1,16 @@
-/** Bounded actual origin-file reads and cleanup of an owned empty placeholder. */
+/** Bounded original fixed-entry origin reads and cleanup of an owned empty placeholder. */
 import { isSealedAtRest } from "./at-rest/cipher.js";
 import { openOriginFile, sealedFileBound } from "./at-rest/origin-files.js";
-
+import {
+  type OriginalOriginFileData,
+  captureOriginalOriginDirectoryData,
+  captureOriginalOriginFileData,
+} from "./origin-file-publication-fixed-receiver-data.js";
 export type OriginRecord = {
   handle: FileSystemFileHandle | null;
   value: string | null;
+  entry: OriginalOriginFileData | null;
 };
-
 export function checkPublicationLimit(value: string, maxBytes: number): void {
   if (
     !Number.isSafeInteger(maxBytes) ||
@@ -17,60 +21,91 @@ export function checkPublicationLimit(value: string, maxBytes: number): void {
     throw new Error("Invalid guarded storage publication limit.");
   }
 }
-
 export async function readOriginRecord(
   root: FileSystemDirectoryHandle,
   name: string,
   maxBytes: number,
-  check: () => void,
+  original: () => void,
   requireDeviceSeal = false,
 ): Promise<OriginRecord> {
+  // Snapshot actual receivers before any caller callback at each delivered resource.
+  const directory = captureOriginalOriginDirectoryData(root);
+  let entry: OriginalOriginFileData | null = null;
+  const check = () => {
+    original();
+    directory.check();
+    entry?.check();
+  };
   check();
   let handle: FileSystemFileHandle;
   try {
-    handle = await root.getFileHandle(name);
+    handle = await directory.get.call(root, name);
+    entry = captureOriginalOriginFileData(handle);
     check();
   } catch (error) {
     check();
-    if (error instanceof DOMException && error.name === "NotFoundError") {
-      return { handle: null, value: null };
-    }
+    if (error instanceof DOMException && error.name === "NotFoundError")
+      return { handle: null, value: null, entry: null };
     throw error;
   }
-  const file = await handle.getFile();
-  check();
-  if (file.size > sealedFileBound(maxBytes)) {
+  const file = await entry.get.call(handle);
+  const textMethod = file.text;
+  const size = file.size;
+  const current = () => {
+    check();
+    if (file.text !== textMethod || file.size !== size)
+      throw new Error("Original origin file readback changed.");
+  };
+  current();
+  if (size > sealedFileBound(maxBytes))
     throw new Error("Storage record exceeds read limit.");
-  }
-  const text = await file.text();
-  check();
-  if (new TextEncoder().encode(text).length > sealedFileBound(maxBytes)) {
+  const text = await textMethod.call(file);
+  current();
+  if (new TextEncoder().encode(text).length > sealedFileBound(maxBytes))
     throw new Error("Storage record exceeds read limit.");
-  }
-  if (requireDeviceSeal && !isSealedAtRest(text)) {
+  if (requireDeviceSeal && !isSealedAtRest(text))
     throw new Error("Original device record is not sealed.");
-  }
   const value = await openOriginFile(name, text);
-  check();
+  current();
   if (value === null) throw new Error("Storage record does not open.");
   checkPublicationLimit(value, maxBytes);
-  return { handle, value };
+  return { handle, value, entry };
 }
-
-/** Caller still holds the original record locks; never delete a changed entry. */
+/** Caller retains original locks; fixed cleanup never deletes a changed entry. */
 export async function removeOwnEmptyPlaceholder(
   root: FileSystemDirectoryHandle,
   name: string,
   created: FileSystemFileHandle,
+  directory = captureOriginalOriginDirectoryData(root),
+  owned = captureOriginalOriginFileData(created),
 ): Promise<void> {
+  const check = () => {
+    directory.check();
+    owned.check();
+  };
+  check();
   let current: FileSystemFileHandle;
+  let entry: OriginalOriginFileData;
   try {
-    current = await root.getFileHandle(name);
+    current = await directory.get.call(root, name);
+    entry = captureOriginalOriginFileData(current);
+    check();
+    entry.check();
   } catch (error) {
+    check();
     if (error instanceof DOMException && error.name === "NotFoundError") return;
     throw error;
   }
-  if (!(await created.isSameEntry(current))) return;
-  if ((await current.getFile()).size !== 0) return;
-  await root.removeEntry(name);
+  const same = await owned.same.call(created, current);
+  check();
+  entry.check();
+  if (!same) return;
+  const file = await entry.get.call(current);
+  const size = file.size;
+  check();
+  entry.check();
+  if (size !== 0) return;
+  await directory.remove.call(root, name);
+  check();
+  entry.check();
 }
