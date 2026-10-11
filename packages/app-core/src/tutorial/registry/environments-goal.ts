@@ -10,6 +10,7 @@ export const ENVIRONMENTS_GOAL = {
   title: "Give a key a value in each environment",
   routes: [],
   capabilities: ["vault.environments"],
+  requires: ["shell.wide"],
   guide: [
     "guide/1",
     'goal "vault.environments"',

@@ -214,3 +214,16 @@
     min-height: 2.75rem;
   }
 }
+
+/* A status mark that answers a tap paints a 44px target over its neighbours
+   (styles.css, `.status-mark[data-touch-twin]`): keep it clear of the key's
+   name and of the item's name on the line below. */
+@media (pointer: coarse) {
+  .env__id {
+    row-gap: 0.8rem;
+  }
+
+  .env__id .status-mark {
+    margin: -0.75rem -0.75rem -0.75rem 0.25rem;
+  }
+}

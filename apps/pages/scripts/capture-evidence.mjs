@@ -34,7 +34,6 @@ import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { fieldSteps } from "./lib/capture-field-steps.mjs";
-import { footSteps } from "./lib/capture-foot-steps.mjs";
 import { openHarness } from "./lib/capture-harness.mjs";
 import { holdSteps } from "./lib/capture-hold-steps.mjs";
 import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
@@ -199,7 +198,6 @@ const STEPS = {
   ...holdSteps(),
   ...tapStep({ press }),
   ...fieldSteps({ press }),
-  ...footSteps(),
   ...readSteps(),
   ...metricsSteps(),
   ...vaultSteps({ press, visit: (page, route) => STEPS.visit(page, route) }),
