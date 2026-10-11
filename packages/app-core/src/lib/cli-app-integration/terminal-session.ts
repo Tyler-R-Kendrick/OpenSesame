@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "@noble/hashes/sha2";
+import { bytesToHex } from "@noble/hashes/utils";
 
 /** Stable id for the interactive terminal session (1Password-style app integration). */
 export function deriveTerminalSessionId(
@@ -9,5 +10,5 @@ export function deriveTerminalSessionId(
   const tty = env.OPENSESAME_CLI_TTY ?? "";
   const shellPid = env.OPENSESAME_CLI_SHELL_PID ?? "";
   const payload = `${tty}\0${shellPid}`;
-  return createHash("sha256").update(payload).digest("hex").slice(0, 32);
+  return bytesToHex(sha256(new TextEncoder().encode(payload))).slice(0, 32);
 }
