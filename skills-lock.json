@@ -19,6 +19,12 @@
       "skillPath": "plugins/stitch-utilities/skills/enhance-prompt/SKILL.md",
       "computedHash": "71cc23e9ec5fc6361e12453495fa8c683f6cf26f3efaf9b230b0f43e0a32cc96"
     },
+    "gdp-ts": {
+      "source": "rauchg/gdp-ts",
+      "sourceType": "github",
+      "skillPath": "skills/gdp-ts/SKILL.md",
+      "computedHash": "77779b495dbb6291b953d87610e394319f85430fbb4b4b09c8c8a1e06d92e1e3"
+    },
     "minimalist-ui": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
