@@ -26,7 +26,6 @@ export {
   markRects,
 } from "./mark-geometry.js";
 export {
-  SOLID_MAX_EM,
   TYPE_MAX_EM,
   WORDMARK_WIDTH_EM,
   type WordmarkTier,
