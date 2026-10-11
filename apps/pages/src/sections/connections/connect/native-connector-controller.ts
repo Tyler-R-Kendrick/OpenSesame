@@ -163,9 +163,18 @@ export function nativeConnectorController(
     ["oauth", "oidc", "mcp"].includes(method)
       ? nativeOAuthBrowserPort().prepareAuthorization?.()
       : undefined;
+  const test = async (input: NativeConfigureInput) => {
+    if (plan.refused)
+      throw new Error("This provider connection is unavailable");
+    const driver = nativeConnectorDriver(input.method, plan.id);
+    if (!driver.test)
+      throw new Error("This provider verifies only when it is saved");
+    return driver.test({ ...input, providerId: plan.id });
+  };
   return {
     load,
     configure,
+    test,
     cancelAuthorization: () => nativeOAuthBrowserPort().cancelAuthorization?.(),
     connect: async (input) => {
       const release = reserve(input.method);

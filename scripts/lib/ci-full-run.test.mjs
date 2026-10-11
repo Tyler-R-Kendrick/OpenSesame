@@ -51,7 +51,12 @@ describe("the whole-repository run", () => {
     for (const area of ["typescript", "bundle", "rust", "mtls", "push"]) {
       expect(out[area], area).toBe("true");
     }
-    for (const job of ["tutorials", "device_inbox", "device_identity"]) {
+    for (const job of [
+      "tutorials",
+      "device_inbox",
+      "device_identity",
+      "live_join",
+    ]) {
       expect(out[job], job).toBe("true");
     }
     expect(JSON.parse(out.bundle_matrix)).toEqual(loadShards(root));

@@ -31,6 +31,8 @@ export type NativeConnectorDriver = {
   cleanup: NativeProviderCleanup;
   supports: (providerId: string) => boolean;
   configure: (input: NativeDriverInput) => Promise<NativeConnectorView>;
+  /** Prove a credential against its provider and save nothing. */
+  test?: (input: NativeDriverInput) => Promise<{ label: string }>;
   verify: (connectionId: string) => Promise<NativeConnectorView>;
   authorize?: (connectionId: string, actor?: string) => Promise<void>;
   invoke: (

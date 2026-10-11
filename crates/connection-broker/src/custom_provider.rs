@@ -237,6 +237,7 @@ pub fn derive_provider(request: &CreateCustomProvider) -> Result<Provider> {
         operations: vec!["http.authorized".into()],
         integration_configuration_fields: Vec::new(),
         connection_configuration_fields: Vec::new(),
+        model_api: None,
     })
 }
 

@@ -4821,7 +4821,7 @@ components:
       properties:
         id: { type: string }
         display_name: { type: string }
-        category: { type: string, enum: [encryption, cloud_secret_storage, password_managers, local_storage, developer, productivity, communication, storage, crm, payments, identity, testing, custom] }
+        category: { type: string, enum: [identity, backup_recovery, encryption, password_managers, agent_harnesses, ai_model_provider, networking, wallet, cloud_secret_storage, local_storage, developer, productivity, communication, storage, crm, testing, certificates, custom, payments] }
         docs_url: { type: string, format: uri }
         provenance_url: { type: string, format: uri }
         catalog_revision: { type: string, minLength: 1 }
@@ -4840,6 +4840,14 @@ components:
         connection_configuration_fields:
           type: array
           items: { $ref: "#/components/schemas/ConfigurationFieldDef" }
+        model_api:
+          description: How an ai_model_provider row is spoken to (ADR 0192). Absent on every other row; a row names a closed protocol and never a path or a header.
+          type: object
+          additionalProperties: false
+          required: [protocol]
+          properties:
+            protocol: { type: string, enum: [openai_chat, anthropic_messages, gemini_generate_content, rest_json] }
+            base_url: { type: string, format: uri }
     CreateCustomProvider:
       type: object
       additionalProperties: false
