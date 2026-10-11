@@ -5,7 +5,7 @@ import {
   noteSecurityWatch,
   runSecurityChecks,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
-import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import type { VaultState } from "@opensesame/app-core/lib/vault/store.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconShield } from "../../components/Icons.js";
 import { StatusMark, type StatusTone } from "../../components/StatusMark.js";
@@ -27,7 +27,7 @@ type BodyProps = {
   watch: BreachWatch;
   label: string;
   open: boolean;
-  vault: VaultStore;
+  vault: VaultState;
   fetches: { range: CheckFetch; twoFactor: CheckFetch };
 };
 
