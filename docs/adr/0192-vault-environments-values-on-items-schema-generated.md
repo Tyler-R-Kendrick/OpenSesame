@@ -113,6 +113,10 @@ generates 4 keys. Removing a key from the schema deletes the property.
 is the environment list: name → when it was added, or when it was removed. A
 removal stays as a marker so another device cannot resurrect the name; per name,
 the later `at` wins and a tie goes to removal, so either merge order agrees.
+A value a device that had not seen the removal wrote for that name afterwards is
+dropped when the bodies merge (`environment-purge.ts`), so a removed environment
+leaves no secret on either side; only a removal marker counts, and the key
+itself stays in the schema.
 
 Both are sealed in the body and covered by ADR 0149 like every other field, and
 neither can reach a subtitle, search text or a file name (ADR 0087's
@@ -241,6 +245,12 @@ a value gets a `ConnectionRef` and an Intent (ADR 0005), not a `.env`.
   surprise.
 - Trash, purge, restore and field-level merge behave for cells because the cells
   are on the item. A purged item leaves no orphan cell.
+- Removing an environment on one device while another sets a value for it
+  converges with no value left: the cell merges per cell, and the merge then
+  drops cells of any environment the merged list has removed. A cell written
+  for an older incarnation of a name that was removed and added back before the
+  other device synced still shows under the new one; that narrower case is not
+  handled.
 - The pass-style sealed-store bridge enumerates item properties by kind; it
   carries `environments` in its JSON trailer so a round trip does not erase a
   key's cells.

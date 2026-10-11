@@ -169,6 +169,90 @@ describe("the environment list across two devices", () => {
   });
 });
 
+describe("an environment one device removed", () => {
+  const live: VaultEnvironments = {
+    staging: { at: "2026-01-01T00:00:00.000Z" },
+    production: { at: "2026-01-01T00:00:00.000Z" },
+  };
+  const withoutStaging: VaultEnvironments = {
+    ...live,
+    staging: { at: "2026-01-04T00:00:00.000Z", removed: true },
+  };
+  const bodyOf = (
+    environments: VaultEnvironments,
+    item: NoteItem,
+  ): VaultBody => ({ v: 1, items: [item], folders: [], environments });
+
+  const base = {
+    ...key("k"),
+    environments: {
+      staging: { value: "s0" },
+      production: { value: "p0", required: true },
+    },
+  };
+
+  it("leaves no value behind when the other device wrote one in the meantime", () => {
+    // This device removed staging (its cells went with it); the other, still
+    // seeing staging, set a value for it afterwards.
+    const here = editedAt(
+      T1,
+      (item) => ({
+        ...item,
+        environments: { production: { value: "p0", required: true } },
+      }),
+      base,
+    );
+    const there = editedAt(
+      T2,
+      (item) => ({
+        ...item,
+        environments: {
+          ...item.environments,
+          staging: { value: "late secret" },
+        },
+      }),
+      base,
+    );
+    const orders: ReadonlyArray<readonly [VaultBody, VaultBody]> = [
+      [bodyOf(withoutStaging, here), bodyOf(live, there)],
+      [bodyOf(live, there), bodyOf(withoutStaging, here)],
+    ];
+    for (const [a, b] of orders) {
+      const merged = mergeVaultBodies(a, b);
+      const [item] = merged.items;
+      expect(item?.environments).toEqual({
+        production: { value: "p0", required: true },
+      });
+      expect(JSON.stringify(merged)).not.toContain("late secret");
+    }
+  });
+
+  it("keeps every cell of an environment that is still live", () => {
+    const merged = mergeVaultBodies(
+      bodyOf(live, base),
+      bodyOf(live, { ...base }),
+    );
+    expect(merged.items[0]?.environments).toEqual(base.environments);
+  });
+
+  it("keeps the key itself when its last cell goes", () => {
+    const only = { ...base, environments: { staging: { value: "s0" } } };
+    const merged = mergeVaultBodies(
+      bodyOf(withoutStaging, { ...base, environments: {} }),
+      bodyOf(live, only),
+    );
+    expect(merged.items[0]?.environments).toEqual({});
+  });
+
+  it("holds when a vault has no environment list at all", () => {
+    const merged = mergeVaultBodies(
+      { v: 1, items: [base], folders: [] },
+      { v: 1, items: [base], folders: [] },
+    );
+    expect(merged.items[0]?.environments).toEqual(base.environments);
+  });
+});
+
 describe("an item's cells across two devices", () => {
   const ORIGINAL = {
     ...key("k"),

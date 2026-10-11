@@ -8,6 +8,7 @@
  * travels as a tombstone so the other side's older copy cannot bring it back.
  */
 import { mergeDeviceKeyFields } from "./device-key.js";
+import { withoutRemovedCells } from "./environment-purge.js";
 import { mergeEnvironments } from "./environments.js";
 import { changedAt, mergeItem } from "./item-merge.js";
 import type {
@@ -61,7 +62,8 @@ export function mergeVaultBodies(
     items: mergeItems(left.items, right.items)
       .filter((item) => !purgedSince(deadItems[item.id], item))
       .filter((item) => !orphanedByPurge(item, deadItems))
-      .map((item) => rehomed(item, deadFolders)),
+      .map((item) => rehomed(item, deadFolders))
+      .map((item) => withoutRemovedCells(item, environments)),
     folders: newest(left.folders, right.folders, folderVersion).filter(
       (folder) => deadFolders[folder.id] === undefined,
     ),
