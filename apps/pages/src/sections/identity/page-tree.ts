@@ -13,6 +13,11 @@ import {
   IDENTITY_VIEWS,
 } from "@opensesame/app-core/lib/section-view-names.js";
 import type { HostedIdentityRows } from "./hosted-identity-rail.js";
+export function identityMonogram(displayName: string): string {
+  const letter = displayName.trim().charAt(0);
+  return letter ? letter.toLocaleUpperCase() : "?";
+}
+
 export type IdentityRailSnapshot = {
   hosted?: HostedIdentityRows;
   directory?: readonly LocalIdentity[];
