@@ -228,3 +228,18 @@ Two honest notes on what live observation does **not** do:
 - The render rules that keep the thought lane inert are interface obligations,
   and interface obligations decay faster than type-level ones. Capture-time
   stripping (`UntrustedText`) is the part that does not.
+
+## Proposed addendum: a hosted browser the person chose (ADR 0191)
+
+**Not accepted.** [ADR 0191](../adr/0191-forgot-password-ceremony-remote-browser.md)
+proposes a forgot-password ceremony that may run in a hosted browser the person
+named and pays for (class C), which ADR 0076 constraint 6 refuses today. If it is
+accepted, S1 above gets one stronger case: the provider's operator holds the
+session **and** the password just typed **and** the reset link just opened, and
+the driver cannot verify what a dishonest provider reports, so a class C run claims
+confidentiality against the planner and the Host and never integrity against the
+provider. The controls are the person's consent per provider and site, a receipt
+that records the class, confinement enforced where the provider can and attested
+where it cannot, recording provably off, no automatic fallback, and an
+organization policy that can forbid the class. The abuse cases for the ceremony
+are in [the design](../architecture/forgot-password-ceremony.md#8-abuse-cases).

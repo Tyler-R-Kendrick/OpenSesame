@@ -146,7 +146,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: breach and two-step checks (ADR 0080 §5) ------------
     "vault.health.security_check": "vault.security-checks",
 
-    // --- optional: environments (ADR 0190) ------------------------------
+    // --- optional: environments (ADR 0192) ------------------------------
     "vault.environments.manage": "vault.environments",
 
     // --- optional: tailnet networking -----------------------------------
@@ -210,6 +210,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.tutorial": "support.guided-help",
     "model_plane.read": "support.local-ai",
     "model_plane.choose": "support.local-ai",
+
+    // --- optional: password reset ---------------------------------------
+    "password_reset.mailboxes.manage": "ai.password-reset",
 
     // --- optional: wallet -----------------------------------------------
     "wallet.capabilities.read": "wallet.spending",

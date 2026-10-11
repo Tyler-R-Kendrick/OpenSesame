@@ -1,5 +1,5 @@
 /**
- * Environments in a vault body (ADR 0190).
+ * Environments in a vault body (ADR 0192).
  *
  * An item is a key in the vault's `.env.schema` exactly when it carries an
  * `environments` object, one cell per environment: the value sealed for that

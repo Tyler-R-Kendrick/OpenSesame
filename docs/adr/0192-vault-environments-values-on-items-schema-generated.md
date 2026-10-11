@@ -1,4 +1,4 @@
-# ADR 0190 — Vault environments: values live on the items, the `.env.schema` is generated from them
+# ADR 0192 — Vault environments: values live on the items, the `.env.schema` is generated from them
 
 - **Status:** Accepted
 - **Date:** 2026-10-11

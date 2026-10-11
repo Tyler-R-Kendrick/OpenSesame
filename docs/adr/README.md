@@ -252,4 +252,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0187](0187-trusted-circle-quorum-sharing.md) | Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself | Accepted |
 | [0188](0188-a-vault-can-begin-from-a-file.md) | A vault can begin from a file | Accepted |
 | [0189](0189-settings-features-and-integrations.md) | Settings splits into Features and Integrations | Accepted |
-| [0190](0190-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |
+| [0190](0190-password-reset-mailboxes-are-vault-items.md) | Password reset: mailboxes are vault items, read in the browser, bound by id | Accepted |
+| [0191](0191-forgot-password-ceremony-remote-browser.md) | Forgot-password ceremony: a value-blind reset through a remote browser | Proposed |
+| [0192](0192-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |

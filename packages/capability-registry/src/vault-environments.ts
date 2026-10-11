@@ -6,7 +6,7 @@ import type { Capability, CapabilityExclusion } from "./index.js";
  * sheet. An agent that could write one would put a credential in the vault
  * under nobody's hand, and one that could read one would carry it in its
  * context; an agent that needs a value gets a ConnectionRef and an Intent
- * (ADR 0005), never a `.env` (ADR 0190 §6).
+ * (ADR 0005), never a `.env` (ADR 0192 §6).
  */
 const HUMAN_ENVIRONMENT_VALUES: CapabilityExclusion = {
   reason:
@@ -15,7 +15,7 @@ const HUMAN_ENVIRONMENT_VALUES: CapabilityExclusion = {
 };
 
 /**
- * Named environments on a vault (`vault.environments`, ADR 0190): the vault
+ * Named environments on a vault (`vault.environments`, ADR 0192): the vault
  * path strip's Environments key and the sheet it opens, where a vault's keys
  * get a value and a required rule per environment and the `.env.schema` they
  * generate is shown. The person's own act on this device, with no agent

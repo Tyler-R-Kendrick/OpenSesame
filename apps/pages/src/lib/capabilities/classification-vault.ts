@@ -115,6 +115,11 @@ export const VAULT_LIB_RULES = [
     "sharing.trusted-contacts",
     "trusted contacts: guardian policy, quorum approvals, SLIP-0039 shares, HPKE release (ADR 0187)",
   ),
+  optional(
+    "src/lib/password-reset/",
+    "ai.password-reset",
+    "reset mailboxes as vault items, their JMAP reader and the ledger of messages acted on; the item editor reads only ../password-reset-mail",
+  ),
 ];
 
 export const TUTORIAL_RULES = [

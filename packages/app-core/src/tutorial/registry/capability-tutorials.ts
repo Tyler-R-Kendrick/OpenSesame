@@ -134,6 +134,7 @@ export const CAPABILITY_TUTORIALS = {
   "quorum.guardian.hold": "settings.trusted-contacts.circle",
   "quorum.request.approve": "settings.trusted-contacts.circle",
   "quorum.recover": "settings.trusted-contacts.circle",
+  "password_reset.mailboxes.manage": "feature.password-reset",
   "connectors.directory.sync": "connection.create",
   "connectors.bind": "access.connectors",
   "connectors.connect.configure": "connection.create",
