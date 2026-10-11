@@ -21,7 +21,10 @@ export type CipherWordmarkProps = {
   showCursor?: boolean;
   /** When set, overrides `prefers-reduced-motion`. */
   reducedMotion?: boolean;
-  /** Skip animation; draw settled field frame. */
+  /**
+   * Arrive settled: no decrypt. The field still shimmers for as long as it is
+   * on screen; only reduced motion holds it still.
+   */
   static?: boolean;
   className?: string;
   onSettled?: () => void;
@@ -33,11 +36,8 @@ export type CipherWordmarkHandle = {
   replay: () => void;
 };
 
-function motionDisabled(
-  staticSnapshot: boolean,
-  reducedMotion: boolean | undefined,
-): boolean {
-  if (staticSnapshot || reducedMotion === true) return true;
+function motionDisabled(reducedMotion: boolean | undefined): boolean {
+  if (reducedMotion === true) return true;
   return reducedMotion === undefined && prefersReducedMotion();
 }
 
@@ -50,8 +50,8 @@ function rootClass(settled: boolean, className: string | undefined): string {
 
 /**
  * The name punched out of eleven plates on a canvas (lock-v5): a field of
- * ink particles from a 16px em up, letters alone under it in the rail
- * (`particles-model.ts` has the tiers). Every cell starts as hex
+ * ink particles at every size, 16px em the floor (`particles-model.ts`).
+ * Every cell starts as hex
  * cipher; a cursor walks them left to right and locks one letter at a time.
  * Decorative: the parent carries the accessible name.
  */
@@ -62,7 +62,7 @@ export const CipherWordmark = forwardRef<
   const {
     text = DISPLAY_WORD,
     size,
-    animateOnMount = true,
+    animateOnMount: animateProp = true,
     replay: replayProp = false,
     showCursor = true,
     reducedMotion,
@@ -78,10 +78,9 @@ export const CipherWordmark = forwardRef<
   const rafRef = useRef<number>(0);
   const settledRef = useRef(false);
   const visibleRef = useRef(true);
-  const [settled, setSettled] = useState(
-    () => staticSnapshot || !animateOnMount,
-  );
-  const motionOff = motionDisabled(staticSnapshot, reducedMotion);
+  const animateOnMount = animateProp && !staticSnapshot;
+  const [settled, setSettled] = useState(() => !animateOnMount);
+  const motionOff = motionDisabled(reducedMotion);
   const { startRun, settleRun, resize, paint, scheduleFrame } = useCipherPaint(
     {
       rootRef,

@@ -5,14 +5,12 @@ import {
   ALPHA_LEVELS,
   DRAW_CALIBRATION,
   type DrawCalibration,
-  FONT_FAMILY,
   type Layout,
   type Particle,
   TAU,
   cursorBoostFor,
   inkAlpha,
   particleField,
-  tierOf,
 } from "./particles-model.js";
 
 export type DrawWordmarkOpts = {
@@ -28,17 +26,6 @@ export type DrawWordmarkOpts = {
   showMark: boolean;
   /** The mark's slit colour (`--mark-slit`). */
   slit: string;
-  showCursor: boolean;
-};
-
-type PlateOpts = {
-  ctx: CanvasRenderingContext2D;
-  layout: Layout;
-  runs: DecryptRun[];
-  timeMs: number;
-  pad: number;
-  inkRgb: [number, number, number];
-  calibration: DrawCalibration;
   showCursor: boolean;
 };
 
@@ -128,31 +115,6 @@ function paintBins(
   }
 }
 
-function glyphFont(ctx: CanvasRenderingContext2D, layout: Layout): number {
-  ctx.font = `${layout.fpx}px ${FONT_FAMILY}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "alphabetic";
-  return layout.cellH / 2 + (layout.asc * layout.fpx) / 2;
-}
-
-/** Under 16px: no plates — the letters in ink on the same grid. */
-function drawTypeTier(opts: PlateOpts): void {
-  const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
-    opts;
-  const by = pad + glyphFont(ctx, layout);
-  for (let si = 0; si < layout.slots.length; si += 1) {
-    const q = layout.slots[si];
-    if (q.space) continue;
-    const st = slotState(runs, si, timeMs);
-    const active = showCursor && st.cursor;
-    ctx.fillStyle = inkAlpha(
-      inkRgb,
-      active ? calibration.smallCursorActive : calibration.smallCursorRest,
-    );
-    ctx.fillText(st.glyph, q.x + q.w / 2, by);
-  }
-}
-
 function drawIconMark(
   ctx: CanvasRenderingContext2D,
   layout: Layout,
@@ -182,34 +144,20 @@ export function drawWordmark(opts: DrawWordmarkOpts): void {
     showCursor,
   } = opts;
   const calibration = opts.calibration ?? DRAW_CALIBRATION;
-  const tier = tierOf(layout.em);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  const plateOpts = {
-    ctx,
+  const bins = fillBins({
     layout,
     runs,
     timeMs,
-    pad,
     inkRgb,
     calibration,
+    frozenField,
     showCursor,
-  };
-  if (tier === "type") drawTypeTier(plateOpts);
-  else {
-    const bins = fillBins({
-      layout,
-      runs,
-      timeMs,
-      inkRgb,
-      calibration,
-      frozenField,
-      showCursor,
-    });
-    paintBins(ctx, bins, inkRgb);
-  }
+  });
+  paintBins(ctx, bins, inkRgb);
   if (showMark) drawIconMark(ctx, layout, pad, inkRgb, slit);
 }

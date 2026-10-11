@@ -26,8 +26,6 @@ export {
   markRects,
 } from "./mark-geometry.js";
 export {
-  TYPE_MAX_EM,
+  FIELD_MIN_EM,
   WORDMARK_WIDTH_EM,
-  type WordmarkTier,
-  tierOf,
 } from "./particles-model.js";
