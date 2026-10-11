@@ -41,8 +41,5 @@ test("pins the claim different-link control on identity.ceremonies", () => {
     classification: "optional",
     capability: "identity.ceremonies",
   };
-  assert.equal(
-    lazyLeafChunk(file, entry),
-    "cap-identity.claim-different-link",
-  );
+  assert.equal(lazyLeafChunk(file, entry), "cap-identity.claim-different-link");
 });
