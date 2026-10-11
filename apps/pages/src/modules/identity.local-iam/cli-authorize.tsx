@@ -83,7 +83,11 @@ async function respond(
   );
   if (!response.ok) return false;
   const body: BoundaryValue = await response.json();
-  if (!isJsonObject(body) || body.status === undefined || body.status === null) {
+  if (
+    !isJsonObject(body) ||
+    body.status === undefined ||
+    body.status === null
+  ) {
     return false;
   }
   const status = readString(body.status);
@@ -162,7 +166,9 @@ function CliAuthorizeSheet({
               } else if (canPin) {
                 await store.unlockWithPin(pin);
               } else {
-                throw new Error("Enroll a passkey or PIN in Settings › Security.");
+                throw new Error(
+                  "Enroll a passkey or PIN in Settings › Security.",
+                );
               }
               if (
                 !(await respond(
