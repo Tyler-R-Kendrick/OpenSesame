@@ -284,7 +284,11 @@ export function NavTree() {
   const sectionOpen = Boolean(
     section && isBranch(section) && expandFor(section.to).expanded,
   );
-  currentToRef.current = section && !sectionOpen ? section.to : selectedTo;
+  // The report is no row of the tree: while it is open the cursor stands on the
+  // vault's own row, as it does when the section is closed.
+  const onReport = selectedTo === "/vault/health";
+  currentToRef.current =
+    section && (!sectionOpen || onReport) ? section.to : selectedTo;
   const listed = useMemo(() => listedItems(items), [items]);
   const counts = useVaultCounts(listed);
 
@@ -305,7 +309,7 @@ export function NavTree() {
       // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
       tabIndex={0}
       aria-activedescendant={
-        cursorId ?? railRowId(currentToRef.current, sectionOpen)
+        cursorId ?? railRowId(currentToRef.current, sectionOpen && !onReport)
       }
       onContextMenu={(event) => {
         const row = railRowAt(event.target);

@@ -200,13 +200,11 @@ describe("AppShell", () => {
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
   });
   it.each(["/vault", "/vault/health"])(
-    "lists password health in the vault tree on %s",
+    "keeps password health out of the vault tree on %s",
     (path) => {
       renderShell(path);
       const tree = screen.getByRole("tree", { name: "Sections" });
-      const health = tree.querySelector('a[href="/vault/health"]');
-      expect(health?.getAttribute("aria-label")).toBe("Password health");
-      expect(health?.textContent).toContain("health");
+      expect(tree.querySelector('a[href="/vault/health"]')).toBeNull();
       expect(
         document.getElementById(
           tree.getAttribute("aria-activedescendant") ?? "",
