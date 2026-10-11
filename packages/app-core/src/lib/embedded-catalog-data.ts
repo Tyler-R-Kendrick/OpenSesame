@@ -34,7 +34,7 @@ export const HOST_PROVIDER_IDS = [
 ] as const;
 
 /**
- * Every hosted model provider the catalog lists (ADR 0190), generated from
+ * Every hosted model provider the catalog lists (ADR 0192), generated from
  * the catalog's `ai_model_provider` rows so a new row is drawn without a
  * second list to keep in step.
  */

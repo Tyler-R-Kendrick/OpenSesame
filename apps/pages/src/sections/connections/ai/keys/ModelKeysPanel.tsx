@@ -4,7 +4,7 @@ import {
   notifyModelKeys,
 } from "@opensesame/app-core/lib/model-keys/active.js";
 /**
- * The keys handed to apps and agents for one saved model provider (ADR 0190).
+ * The keys handed to apps and agents for one saved model provider (ADR 0192).
  *
  * A key stands for the provider's credential without being it: whoever holds
  * one can spend what it was narrowed to, through this device, until it ends or

@@ -1,5 +1,5 @@
 /**
- * Every live key, and what each may still spend (ADR 0190 §6).
+ * Every live key, and what each may still spend (ADR 0192 §6).
  *
  * The ledger is memory, by design: a key does not outlive the vault session
  * that issued it, so locking, reloading or closing the tab revokes every key

@@ -1,4 +1,4 @@
-# ADR 0190 — Model providers are a category, and a key for one is issued by exchange, never shared
+# ADR 0192 — Model providers are a category, and a key for one is issued by exchange, never shared
 
 - **Status:** Accepted (catalog, add sheet, broker, mint/list/revoke panel and conformance vectors built and tested; the channel by which another origin presents a key is not built — §9)
 - **Date:** 2026-10-11

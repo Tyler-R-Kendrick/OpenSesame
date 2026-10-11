@@ -86,7 +86,7 @@ pub enum Category {
     Encryption,
     PasswordManagers,
     AgentHarnesses,
-    /// Hosted model APIs (ADR 0190): a key held in the vault, exchanged for a
+    /// Hosted model APIs (ADR 0192): a key held in the vault, exchanged for a
     /// narrower, short-lived key before an app or agent may use it.
     AiModelProvider,
     Networking,
@@ -331,7 +331,7 @@ pub struct Provider {
     pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
     #[serde(default)]
     pub connection_configuration_fields: Vec<ConfigurationFieldDef>,
-    /// Present on, and only on, `ai_model_provider` rows (ADR 0190).
+    /// Present on, and only on, `ai_model_provider` rows (ADR 0192).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_api: Option<ModelApiSpec>,
 }

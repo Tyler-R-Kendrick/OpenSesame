@@ -1,25 +1,47 @@
 /**
  * Mailboxes a vault may use for password reset, and the pure match from a
- * message to a login. The list is configuration, one tomb at a time, in the
- * same sense as capability bindings: a missing map does not copy another
- * vault's addresses. The message reader is a seam; nothing here fetches mail.
+ * message to a login. A mailbox is an `email-account` item in the vault, so it
+ * is sealed, synced, shared and trashed like any other item and a vault with no
+ * such item has none: a missing item does not copy another vault's addresses.
+ * An account binds one by its item id (`AccountItem.resetEmailId`).
+ *
+ * This file is the reading half, shared with the item editor and the model
+ * plane's readiness check. Writing a mailbox, installing its type and reading
+ * its mail live in `./password-reset/`, which only the capability loads. The
+ * message reader is a seam; nothing here fetches mail.
  */
 
+import { isString } from "@opensesame/os-domain";
 import {
-  type JsonObject,
-  type JsonValue,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
-import { activeCapabilityVaultId } from "./capability-connector-scope.js";
-import { kvDelete, kvGet, kvSet } from "./kv.js";
+  type AccountItem,
+  type TypedItem,
+  type VaultItem,
+  activeItems,
+} from "@opensesame/vault-core";
+import type { FieldValues } from "@opensesame/vault-item-types";
 
-export const PASSWORD_RESET_MAIL_KEY = "password-reset-mail.v1";
+/** The item type a mailbox is kept in. */
+export const RESET_MAILBOX_TYPE = "email-account";
 
+/** What the match needs of a mailbox. */
 export type ResetEmail = { id: string; address: string };
 
+/** A mailbox as a list shows it. Never a credential. */
+export type ResetMailbox = ResetEmail & {
+  /** The item's name, else its address. */
+  name: string;
+  /**
+   * Whether the app can read its mail: a JMAP server over TLS and a password.
+   * A browser cannot open an IMAP or POP3 socket, so those are kept as the
+   * server a mailbox names and are not read here. An address alone is still a
+   * mailbox a login can bind, and its address is what the reset form is given.
+   */
+  readable: boolean;
+};
+
 export type ResetMailMessage = {
+  /** The reader's own id for the message, so a message is acted on once. */
+  id?: string;
   mailbox: string;
   subject: string;
   text: string;
@@ -31,10 +53,12 @@ export type ResetLoginRef = {
   uris: readonly string[];
 };
 
-export type ResetMailMatch = { itemId: string; origin: string };
-
-const listeners = new Set<() => void>();
-let epoch = 0;
+export type ResetMailMatch = {
+  itemId: string;
+  origin: string;
+  /** The message that matched, when the reader gave it an id. */
+  messageId?: string;
+};
 
 type Ready = () => boolean | Promise<boolean>;
 let ready: Ready = () => false;
@@ -42,15 +66,6 @@ let ready: Ready = () => false;
 export const passwordResetMailSeams = {
   listMessages: async (_address: string): Promise<ResetMailMessage[]> => [],
 };
-
-export function resetEmailEpoch(): number {
-  return epoch;
-}
-
-export function subscribeResetEmails(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
 
 /** The website password-reset ceremony is reachable. Default is no. */
 export function installAutonomousResetReady(next: Ready): () => void {
@@ -66,10 +81,8 @@ export async function autonomousPasswordResetReady(): Promise<boolean> {
 }
 
 export function resetPasswordResetMailForTest(): void {
-  kvDelete(PASSWORD_RESET_MAIL_KEY);
   ready = () => false;
   passwordResetMailSeams.listMessages = async () => [];
-  emit();
 }
 
 export function normalizeResetAddress(input: string): string | null {
@@ -85,38 +98,57 @@ export function normalizeResetAddress(input: string): string | null {
   return address;
 }
 
-export function listResetEmails(
-  vaultId = activeCapabilityVaultId(),
-): readonly ResetEmail[] {
-  return readAll().byVault[vaultId] ?? [];
+export function isMailboxItem(item: VaultItem): item is TypedItem {
+  return item.kind === "typed" && item.typeId === RESET_MAILBOX_TYPE;
 }
 
-export function addResetEmail(
-  input: string,
-  vaultId = activeCapabilityVaultId(),
-): ResetEmail | null {
-  const address = normalizeResetAddress(input);
-  if (!address) return null;
-  const all = readAll();
-  const current = all.byVault[vaultId] ?? [];
-  if (current.some((email) => email.address === address)) return null;
-  const email = { id: crypto.randomUUID(), address };
-  all.byVault[vaultId] = [...current, email];
-  writeAll(all);
-  return email;
+function text(value: FieldValues[string] | undefined): string {
+  return isString(value) ? value.trim() : "";
 }
 
-export function removeResetEmail(
-  id: string,
-  vaultId = activeCapabilityVaultId(),
-): void {
-  const all = readAll();
-  const current = all.byVault[vaultId] ?? [];
-  const next = current.filter((email) => email.id !== id);
-  if (next.length === current.length) return;
-  if (next.length === 0) delete all.byVault[vaultId];
-  else all.byVault[vaultId] = next;
-  writeAll(all);
+function hostOf(value: FieldValues[string] | undefined): string {
+  if (value === undefined || isString(value) || Array.isArray(value)) return "";
+  return (value.host ?? "").trim();
+}
+
+/** The incoming protocol the in-browser reader speaks. */
+export const READABLE_PROTOCOL = "jmap";
+
+/** The mailbox an item is, or `null` when it is not one or its address is not one. */
+export function mailboxOf(item: VaultItem): ResetMailbox | null {
+  if (!isMailboxItem(item)) return null;
+  const address = normalizeResetAddress(text(item.values.address));
+  if (address === null) return null;
+  return {
+    id: item.id,
+    address,
+    name: item.name.trim() || address,
+    readable:
+      hostOf(item.values.incoming) !== "" &&
+      text(item.values.password) !== "" &&
+      text(item.values.incomingProtocol) === READABLE_PROTOCOL &&
+      text(item.values.security) !== "none",
+  };
+}
+
+/** The vault's mailboxes in name order. Zero, one or many; trashed ones are not listed. */
+export function resetMailboxes(
+  items: readonly VaultItem[],
+): readonly ResetMailbox[] {
+  return activeItems([...items])
+    .flatMap((item) => mailboxOf(item) ?? [])
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+}
+
+/** The accounts that name a mailbox as theirs. */
+export function accountsBoundTo(
+  items: readonly VaultItem[],
+  mailboxId: string,
+): readonly AccountItem[] {
+  return activeItems([...items]).filter(
+    (item): item is AccountItem =>
+      item.kind === "account" && item.resetEmailId === mailboxId,
+  );
 }
 
 const RESET_HINT = /\b(reset|recover|recovery)\b|change[ -]?password/i;
@@ -139,58 +171,17 @@ export function matchResetMail(
     for (const item of items) {
       if (item.resetEmailId !== emailId) continue;
       const origin = originFor(link, item.uris);
-      const key = `${item.id}\n${origin}`;
+      const key = `${item.id}\n${origin}\n${message.id ?? ""}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      matches.push({ itemId: item.id, origin });
+      matches.push({
+        itemId: item.id,
+        origin,
+        ...(message.id === undefined ? undefined : { messageId: message.id }),
+      });
     }
   }
   return matches;
-}
-
-function emit(): void {
-  epoch += 1;
-  for (const listener of listeners) listener();
-}
-
-type Stored = { byVault: Record<string, ResetEmail[]> };
-
-function readAll(): Stored {
-  const raw = kvGet(PASSWORD_RESET_MAIL_KEY);
-  if (!raw) return { byVault: {} };
-  try {
-    const parsed = overlapCast(JSON.parse(raw));
-    if (!isJsonObject(parsed) || !isJsonObject(parsed.byVault)) {
-      return { byVault: {} };
-    }
-    return { byVault: emailsByVault(parsed.byVault) };
-  } catch {
-    return { byVault: {} };
-  }
-}
-
-function writeAll(stored: Stored): void {
-  kvSet(PASSWORD_RESET_MAIL_KEY, JSON.stringify(stored));
-  emit();
-}
-
-function emailsByVault(value: JsonObject): Record<string, ResetEmail[]> {
-  const rows: Array<[string, ResetEmail[]]> = [];
-  for (const [vaultId, entries] of Object.entries(value)) {
-    if (!Array.isArray(entries)) continue;
-    const emails = entries.flatMap(emailFrom);
-    if (emails.length > 0) rows.push([vaultId, emails]);
-  }
-  return Object.fromEntries(rows);
-}
-
-function emailFrom(value: JsonValue): ResetEmail[] {
-  if (!isJsonObject(value) || !isString(value.id) || !isString(value.address)) {
-    return [];
-  }
-  const address = normalizeResetAddress(value.address);
-  if (!address) return [];
-  return [{ id: value.id, address }];
 }
 
 function resetUrl(message: ResetMailMessage): URL | null {

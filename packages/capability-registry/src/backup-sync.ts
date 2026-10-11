@@ -6,6 +6,7 @@ import {
 } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
+import { passwordResetCapabilities } from "./password-reset.js";
 import { tailnetDeviceCapabilities } from "./tailnet-devices.js";
 import { trustedContactCapabilities } from "./trusted-contacts.js";
 
@@ -152,4 +153,5 @@ export const backupSyncCapabilities: readonly Capability[] = [
   },
   ...tailnetDeviceCapabilities,
   ...trustedContactCapabilities,
+  ...passwordResetCapabilities,
 ];

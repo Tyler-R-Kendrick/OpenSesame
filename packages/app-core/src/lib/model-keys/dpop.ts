@@ -1,5 +1,5 @@
 /**
- * RFC 9449 proof-of-possession, verified on the issuer's side (ADR 0190).
+ * RFC 9449 proof-of-possession, verified on the issuer's side (ADR 0192).
  *
  * A model key that names a key thumbprint is worth nothing to a thief who has
  * only the key: every use carries a proof signed by the thumbprint's key, for

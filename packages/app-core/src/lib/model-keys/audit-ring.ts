@@ -1,5 +1,5 @@
 /**
- * What the page's broker did, kept in memory (ADR 0190 §9).
+ * What the page's broker did, kept in memory (ADR 0192 §9).
  *
  * Events are value-blind by construction (a key id, a client, a provider, a
  * stable reason: never a key, a proof or a prompt), so keeping them is safe,

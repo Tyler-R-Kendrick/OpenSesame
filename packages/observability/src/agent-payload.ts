@@ -51,7 +51,7 @@ const SECRET_MARKERS = [
 
 /**
  * Credentials a substring cannot name. A model key is `osk_` and exactly 43
- * base64url characters (ADR 0190); `osk_` alone sits inside `kiosk_mode`, so it
+ * base64url characters (ADR 0192); `osk_` alone sits inside `kiosk_mode`, so it
  * is matched by its shape, on the text as written (the body is case-sensitive).
  * The same pattern as the `model-key` rule in `spec/log-scrub/log-scrub.json`.
  */

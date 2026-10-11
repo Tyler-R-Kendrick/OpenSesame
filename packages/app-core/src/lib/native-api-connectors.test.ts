@@ -237,7 +237,7 @@ describe("provider-verified sealed native API connections", () => {
   });
 });
 
-describe("testing a key without saving it (ADR 0190)", () => {
+describe("testing a key without saving it (ADR 0192)", () => {
   const draft = () => {
     const { providerId, parameters, credentials } = nativeApiDraft("openai");
     return { providerId, parameters, credentials };

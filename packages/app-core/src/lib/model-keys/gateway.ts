@@ -1,5 +1,5 @@
 /**
- * Spend a model key (ADR 0190 §5–§6): authorize, send through the connection's
+ * Spend a model key (ADR 0192 §5–§6): authorize, send through the connection's
  * own authority, settle.
  *
  * The caller names a key, a route relative to the provider and a body. It never

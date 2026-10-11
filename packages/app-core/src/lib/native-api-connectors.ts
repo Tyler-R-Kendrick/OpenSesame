@@ -257,7 +257,7 @@ export async function configureNativeApiConnector(
   );
 }
 /**
- * Prove a key against its provider and keep nothing (ADR 0190). It makes the
+ * Prove a key against its provider and keep nothing (ADR 0192). It makes the
  * request `configureNativeApiConnector` makes, through the same admission and
  * transport, and answers only the provider's own label: no record is written,
  * so a key that fails leaves no trace and a key that passes is still the

@@ -53,7 +53,7 @@ export async function nativeApiForgetJourney(
     .getByRole("heading", { name: fixture.name, exact: true })
     .waitFor();
   // A model provider with no connection opens the Add sheet on arrival
-  // (ADR 0190); removing the connection from its page leaves the page.
+  // (ADR 0192); removing the connection from its page leaves the page.
   const addSheet = page.getByRole("form", {
     name: `Connect ${fixture.name}`,
     exact: true,

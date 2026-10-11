@@ -1,6 +1,6 @@
 /**
  * Saving a model provider's key closes the Add sheet and lands on the
- * Connections list (ADR 0190). The confirmation belongs to the page it lands
+ * Connections list (ADR 0192). The confirmation belongs to the page it lands
  * on: raised under the provider's own scope it would be dropped by the very
  * navigation the save causes.
  */

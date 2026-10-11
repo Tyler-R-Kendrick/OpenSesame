@@ -1,4 +1,4 @@
-/** How a hosted model row is spoken to (ADR 0190): a closed protocol and, unless the endpoint is the person's own, its base URL. */
+/** How a hosted model row is spoken to (ADR 0192): a closed protocol and, unless the endpoint is the person's own, its base URL. */
 export type ModelApi = {
   protocol:
     | "openai_chat"

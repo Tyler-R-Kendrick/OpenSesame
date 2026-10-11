@@ -1,6 +1,6 @@
 /**
  * What the "create a key" sheet offers and how it reads what was typed
- * (ADR 0190 §6). Pure, so the choices a person sees and the draft they approve
+ * (ADR 0192 §6). Pure, so the choices a person sees and the draft they approve
  * are tested apart from the screen.
  *
  * The choices are few on purpose. A budget is one of three named sizes and a

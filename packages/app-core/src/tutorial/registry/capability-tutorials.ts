@@ -133,12 +133,13 @@ export const CAPABILITY_TUTORIALS = {
   "quorum.guardian.hold": "settings.trusted-contacts.circle",
   "quorum.request.approve": "settings.trusted-contacts.circle",
   "quorum.recover": "settings.trusted-contacts.circle",
+  "password_reset.mailboxes.manage": "feature.password-reset",
   "connectors.directory.sync": "connection.create",
   "connectors.bind": "access.connectors",
   "connectors.connect.configure": "connection.create",
   "connectors.connect.authorize_user": "connection.create",
   "connectors.connect.token_check": "connection.create",
-  // Model keys (ADR 0190) are made on the page of a connection a person added.
+  // Model keys (ADR 0192) are made on the page of a connection a person added.
   "models.keys.mint": "settings.model-provider",
   "models.keys.read": "settings.model-provider",
   "models.keys.revoke": "settings.model-provider",

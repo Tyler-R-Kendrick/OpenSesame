@@ -344,6 +344,14 @@
     }
   },
   {
+    "id": "password_reset.mailboxes.manage",
+    "title": "Add, change and remove the email accounts password reset reads",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/password-reset/mailbox-store.ts:addMailbox"
+    }
+  },
+  {
     "id": "identity.interaction.approve",
     "title": "Approve a cross-device interaction",
     "plane": "identity",

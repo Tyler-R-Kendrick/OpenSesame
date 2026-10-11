@@ -12,7 +12,7 @@ import {
 } from "@opensesame/app-core/lib/model-keys/types.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 /**
- * Model keys (ADR 0190): the broker that stands between an app or an agent and
+ * Model keys (ADR 0192): the broker that stands between an app or an agent and
  * a saved model provider's credential. Only External connectors reads native
  * authority, so only this file tells the broker which saved connections are
  * real; the broker itself holds no credential and writes nothing to disk.
@@ -23,7 +23,7 @@ import type { Activation } from "../activation.js";
 /**
  * A page cannot attach a proof key to a request it did not make, and a key
  * held in memory dies with the tab, so a key here need not be bound to a
- * sender (ADR 0190 §4). A deployment that reaches the broker over a channel
+ * sender (ADR 0192 §4). A deployment that reaches the broker over a channel
  * that can sign asks for `dpop_required` instead.
  */
 export const PAGE_POLICY: BrokerPolicy = {

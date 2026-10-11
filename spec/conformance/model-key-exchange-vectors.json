@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Model key exchange (ADR 0190): the decisions a conforming implementation makes. Each case issues one root key, then runs its steps in order. An exchange is RFC 8693 token exchange with an RFC 9396 `model_access` detail; a call is the last-hop check. `dpop_optional` is the policy, so no proof is needed; DPoP is covered by the TypeScript suite and by RFC 9449.",
+  "description": "Model key exchange (ADR 0192): the decisions a conforming implementation makes. Each case issues one root key, then runs its steps in order. An exchange is RFC 8693 token exchange with an RFC 9396 `model_access` detail; a call is the last-hop check. `dpop_optional` is the policy, so no proof is needed; DPoP is covered by the TypeScript suite and by RFC 9449.",
   "now_ms": 1791720000000,
   "policy": {
     "senderConstraint": "dpop_optional",

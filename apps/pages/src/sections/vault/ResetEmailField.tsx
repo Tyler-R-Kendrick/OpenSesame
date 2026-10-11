@@ -1,30 +1,26 @@
-import { activeCapabilityVaultId } from "@opensesame/app-core/lib/capability-connector-scope.js";
 import {
-  listResetEmails,
-  resetEmailEpoch,
-  subscribeResetEmails,
+  type ResetMailbox,
+  resetMailboxes,
 } from "@opensesame/app-core/lib/password-reset-mail.js";
-import { subscribeProjects } from "@opensesame/app-core/lib/projects.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 
-function subscribe(listener: () => void): () => void {
-  const stopMail = subscribeResetEmails(listener);
-  const stopVault = vaultStore.subscribe(listener);
-  const stopProjects = subscribeProjects(listener);
-  return () => {
-    stopMail();
-    stopVault();
-    stopProjects();
-  };
+function items() {
+  return vaultStore.getSnapshot().items;
 }
 
-function snapshot(): string {
-  return `${activeCapabilityVaultId()}\n${resetEmailEpoch()}`;
+function optionLabel(mailbox: ResetMailbox): string {
+  return mailbox.name === mailbox.address
+    ? mailbox.address
+    : `${mailbox.name} (${mailbox.address})`;
 }
 
-/** The login's mailbox, when password reset is on and a mailbox exists. */
+/**
+ * The login's mailbox: one of the vault's email accounts, when password reset
+ * is on and the vault has one. Zero, one or many; the choice is the item's id,
+ * so renaming a mailbox or changing its server leaves the login bound.
+ */
 export function ResetEmailField({
   emailId,
   onChange,
@@ -33,12 +29,14 @@ export function ResetEmailField({
   onChange: (emailId: string | undefined) => void;
 }) {
   const { plan } = useComposition();
-  useSyncExternalStore(subscribe, snapshot, snapshot);
+  const all = useSyncExternalStore(vaultStore.subscribe, items, items);
+  const mailboxes = useMemo(() => resetMailboxes(all), [all]);
   const approved =
     plan?.approvedCapabilities.includes("ai.password-reset") === true;
-  const emails = listResetEmails();
-  if (!approved || (emails.length === 0 && !emailId)) return null;
-  const selected = emails.some((email) => email.id === emailId) ? emailId : "";
+  if (!approved || (mailboxes.length === 0 && !emailId)) return null;
+  const selected = mailboxes.some((mailbox) => mailbox.id === emailId)
+    ? emailId
+    : "";
   return (
     <div className="field">
       <label htmlFor="reset-email">Reset email</label>
@@ -48,9 +46,9 @@ export function ResetEmailField({
         onChange={(event) => onChange(event.target.value || undefined)}
       >
         <option value="">None</option>
-        {emails.map((email) => (
-          <option key={email.id} value={email.id}>
-            {email.address}
+        {mailboxes.map((mailbox) => (
+          <option key={mailbox.id} value={mailbox.id}>
+            {optionLabel(mailbox)}
           </option>
         ))}
       </select>

@@ -1,5 +1,5 @@
 /**
- * A refused key, said in a sentence a person can act on (ADR 0190 §6).
+ * A refused key, said in a sentence a person can act on (ADR 0192 §6).
  *
  * The broker's reasons are stable machine words, value-blind by design. The
  * sheet turns the ones a person can cause into the step that fixes them and

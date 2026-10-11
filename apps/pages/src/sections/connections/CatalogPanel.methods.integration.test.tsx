@@ -40,7 +40,7 @@ it("uses compiled provider protocols across the full public catalog and keeps le
   for (const provider of mergeVercelCatalog(getBundledProviders())) {
     const plan = connectPlan(provider.id);
     if (!plan) {
-      // A model provider's tile also says which API it speaks (ADR 0190).
+      // A model provider's tile also says which API it speaks (ADR 0192).
       const protocol = isAiModelProvider(provider)
         ? ` · ${modelProtocolLabel(provider.id)}`
         : "";

@@ -91,7 +91,7 @@
     },
     {
       "id": "model-key",
-      "description": "An OpenSesame model key: `osk_` and exactly 43 base64url characters (`packages/app-core/src/lib/model-keys`, ADR 0190). A bearer shown to a person once. It runs ahead of the generic shapes so none of them can bite a piece out of a key body first, and it has no leading word boundary: a key glued to a label (`model_key_osk_…`) must not survive, and 43 characters after the prefix leave no room for a false hit. A key under a secret-named label, a secret URL parameter or a `Bearer`/`DPoP` scheme is already taken by that rule first; this one is for the key with nothing to name it.",
+      "description": "An OpenSesame model key: `osk_` and exactly 43 base64url characters (`packages/app-core/src/lib/model-keys`, ADR 0192). A bearer shown to a person once. It runs ahead of the generic shapes so none of them can bite a piece out of a key body first, and it has no leading word boundary: a key glued to a label (`model_key_osk_…`) must not survive, and 43 characters after the prefix leave no room for a false hit. A key under a secret-named label, a secret URL parameter or a `Bearer`/`DPoP` scheme is already taken by that rule first; this one is for the key with nothing to name it.",
       "pattern": "osk_[A-Za-z0-9_-]{43}",
       "flags": "",
       "replace": "[REDACTED]"

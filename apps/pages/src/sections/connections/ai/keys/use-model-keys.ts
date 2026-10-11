@@ -1,5 +1,5 @@
 /**
- * The keys of one saved model provider, live (ADR 0190 §6).
+ * The keys of one saved model provider, live (ADR 0192 §6).
  *
  * The broker keeps keys in memory and tells watchers when any change; this hook
  * reads them again on that signal and on a slow tick, because a key ends by the
