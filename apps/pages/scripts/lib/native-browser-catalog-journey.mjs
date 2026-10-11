@@ -1,4 +1,5 @@
 /** Every rendered catalog row gets a real browser walk, including explicit refusals. */
+import { TOUCH_FLOOR } from "./mobile-contract.mjs";
 import {
   NATIVE_CANONICAL_CATALOG_IDS,
   NATIVE_CANONICAL_PROVIDERS,
@@ -49,6 +50,40 @@ async function nativeArrival(page, row) {
   return (await sheet.count()) ? sheet : null;
 }
 
+/**
+ * The sheet slides in from the edge and its fields settle after: measure it
+ * once two reads, a frame apart, agree.
+ */
+async function nativeSheetLayout(page) {
+  const read = () =>
+    page.evaluate(() => {
+      const sheetBox = document
+        .querySelector('[role="dialog"]')
+        ?.getBoundingClientRect();
+      return {
+        width: innerWidth,
+        document: document.documentElement.scrollWidth,
+        sheetRight: Math.round(sheetBox?.right ?? 0),
+        keys: [
+          ...document.querySelectorAll(
+            '[role="dialog"] .icon-btn, [role="dialog"] input',
+          ),
+        ].map((node) => ({
+          name: `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ""}`,
+          height: Math.round(node.getBoundingClientRect().height * 100) / 100,
+        })),
+      };
+    });
+  let previous = JSON.stringify(await read());
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    await page.waitForTimeout(100);
+    const next = await read();
+    if (JSON.stringify(next) === previous) return next;
+    previous = JSON.stringify(next);
+  }
+  return read();
+}
+
 /** The Add sheet's own contract: what it asks for, what it never prefills, and that Close leaves it. */
 async function nativeSheetContract(page, row, sheet, { check, phone }) {
   const dialog = page.getByRole("dialog", {
@@ -91,42 +126,19 @@ async function nativeSheetContract(page, row, sheet, { check, phone }) {
     (await dialog.innerText()).includes("sealed on this device"),
     `${row.id}: the Add sheet says where the key is kept`,
   );
-  // The sheet slides in from the edge: measure it where it rests.
-  await page
-    .waitForFunction(
-      () =>
-        Math.round(
-          document.querySelector('[role="dialog"]')?.getBoundingClientRect()
-            .right ?? Number.POSITIVE_INFINITY,
-        ) <= innerWidth,
-      undefined,
-      { timeout: 3000 },
-    )
-    .catch(() => undefined);
-  const layout = await page.evaluate(() => {
-    const sheetBox = document
-      .querySelector('[role="dialog"]')
-      ?.getBoundingClientRect();
-    return {
-      width: innerWidth,
-      document: document.documentElement.scrollWidth,
-      sheetRight: Math.round(sheetBox?.right ?? 0),
-      keys: [
-        ...document.querySelectorAll(
-          '[role="dialog"] .icon-btn, [role="dialog"] input',
-        ),
-      ].map((node) => node.getBoundingClientRect().height),
-    };
-  });
+  const layout = await nativeSheetLayout(page);
   check(
     layout.document <= layout.width && layout.sheetRight <= layout.width,
     `${row.id}: the Add sheet has no horizontal overflow`,
   );
-  if (phone)
+  if (phone) {
+    // The mobile contract's own measure: a half pixel of rounding is not a miss.
+    const under = layout.keys.filter((key) => key.height + 0.5 < TOUCH_FLOOR);
     check(
-      layout.keys.every((height) => height >= 44),
-      `${row.id}: the Add sheet's keys and fields meet the 44px phone floor`,
+      under.length === 0,
+      `${row.id}: the Add sheet's keys and fields meet the 44px phone floor${under.length ? ` (under: ${under.map((key) => `${key.name} ${key.height}`).join(", ")})` : ""}`,
     );
+  }
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
   await sheet.waitFor({ state: "detached" });
   check(
