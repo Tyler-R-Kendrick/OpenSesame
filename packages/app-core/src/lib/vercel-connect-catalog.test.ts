@@ -127,7 +127,7 @@ describe("Vercel Connect browse catalog", () => {
 
   it("lists a plan with no bundled row of its own", () => {
     const ids = vercelConnectCatalog().map((row) => row.id);
-    expect(ids).toEqual(expect.arrayContaining(["discord", "groq"]));
+    expect(ids).toEqual(expect.arrayContaining(["discord", "brevo"]));
   });
 
   it("refuses card issuers on Connect and keeps their bundled road", () => {

@@ -104,6 +104,7 @@ const CATEGORIES = [
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "ai_model_provider",
   "networking",
   "wallet",
   "cloud_secret_storage",

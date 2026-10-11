@@ -1,3 +1,4 @@
+import { isAiModelProvider } from "@opensesame/app-core/lib/ai-model-provider.js";
 import { connectFormDraws } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Connection,
@@ -45,6 +46,7 @@ import {
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
+import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
 import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
 import {
   NativeConnectorPanels,
@@ -354,13 +356,22 @@ export function ConnectorSettingsPage({
         />
       )}
       {nativeExperience ? (
-        <NativeConnectorPanels
-          key={`${provider.id}/${connection?.connectionId ?? "new"}`}
-          provider={provider}
-          connection={connection}
-          onFlash={onFlash}
-          onChanged={onChanged}
-        />
+        <>
+          <NativeConnectorPanels
+            key={`${provider.id}/${connection?.connectionId ?? "new"}`}
+            provider={provider}
+            connection={connection}
+            onFlash={onFlash}
+            onChanged={onChanged}
+          />
+          {connection?.status === "active" && isAiModelProvider(provider) ? (
+            <ModelKeysPanel
+              providerId={provider.id}
+              providerName={provider.displayName}
+              connectionId={connection.connectionId}
+            />
+          ) : null}
+        </>
       ) : onConnect &&
         (!deviceSeal ||
           isSelfHostedConnector(connection) ||
