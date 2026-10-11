@@ -1,0 +1,81 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "enable": "Environments" },
+        {
+          "secrets": [
+            { "name": "Stripe API key", "secret": "sk_live_original" },
+            { "name": "Database URL", "secret": "postgres://db" }
+          ]
+        },
+        { "visit": "settings/vaults" },
+        { "scrollBottom": null },
+        { "count": "#vault-environments" },
+        { "measure": "#vault-environments" },
+        { "shot": "1280-settings" },
+        { "visit": "vault" },
+        { "count": "button[aria-label=\"Environments\"]" },
+        { "measure": "button[aria-label=\"Environments\"]" },
+        { "labels": "[aria-label^=\"Notifications\"]" },
+        { "shot": "1280-vault" },
+        { "pressOptional": "^Environments$" },
+        { "shot": "1280-sheet" },
+        { "press": "^production$", "only": "after" },
+        { "fill": { "label": "Add a key from the vault", "text": "stripe" }, "only": "after" },
+        { "press": "^Stripe API key$", "only": "after" },
+        { "switchOptional": "STRIPE_API_KEY required in production" },
+        { "measure": ".env__row" },
+        { "measure": ".env__row .toggle" },
+        { "shot": "1280-required" },
+        { "escape": null },
+        { "labels": "[aria-label^=\"Notifications\"]" },
+        { "pressOptional": "^Notifications" },
+        { "report": "[role=\"dialog\"]" },
+        { "shot": "1280-tray" },
+        { "escape": null },
+        { "pressOptional": "^Environments$" },
+        { "fill": { "label": "STRIPE_API_KEY in production", "text": "sk_live_prod_value" }, "only": "after" },
+        { "fill": { "label": "New environment", "text": "staging" }, "only": "after" },
+        { "press": "^Add environment$", "only": "after" },
+        { "press": "^production$", "only": "after" },
+        { "shot": "1280-values" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "enable": "Environments" },
+        {
+          "secrets": [
+            { "name": "Stripe API key", "secret": "sk_live_original" }
+          ]
+        },
+        { "visit": "vault" },
+        { "labels": "[aria-label^=\"Notifications\"]" },
+        { "shot": "390-vault" },
+        { "command": "/environments" },
+        { "shot": "390-sheet" },
+        { "press": "^production$", "only": "after" },
+        { "fill": { "label": "Add a key from the vault", "text": "stripe" }, "only": "after" },
+        { "press": "^Stripe API key$", "only": "after" },
+        { "switchOptional": "STRIPE_API_KEY required in production" },
+        { "measure": ".env__tab" },
+        { "measure": ".env__row .toggle" },
+        { "measure": ".env__input" },
+        { "shot": "390-required" },
+        { "escape": null },
+        { "labels": "[aria-label^=\"Notifications\"]" },
+        { "shot": "390-closed" }
+      ]
+    }
+  ],
+  "sheets": []
+}

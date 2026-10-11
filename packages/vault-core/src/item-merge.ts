@@ -24,12 +24,12 @@ import type { VaultItem } from "./model.js";
 import {
   ID_LIST_KEYS,
   ITEM_META_KEYS,
+  NAMED_RECORD_KEYS,
   asJson,
   fieldsById,
   json,
   listEntryKey,
   recordOf,
-  valueKey,
 } from "./stamps.js";
 import type { FieldTimes, FieldTimesDraft } from "./sync-model.js";
 
@@ -62,12 +62,18 @@ function pick(
   return timeOf(other, key) > timeOf(base, key) ? theirs : ours;
 }
 
-function mergeValues(base: Side, other: Side): JsonObject {
-  const ours = recordOf(base.item.values);
-  const theirs = recordOf(other.item.values);
+/** A record of named entries (`values`, `environments`), one entry at a time. */
+function mergeNamed(
+  base: Side,
+  other: Side,
+  field: string,
+  keyOf: (name: string) => string,
+): JsonObject {
+  const ours = recordOf(base.item[field]);
+  const theirs = recordOf(other.item[field]);
   const out: MutableJsonObject = {};
   for (const name of new Set([...Object.keys(ours), ...Object.keys(theirs)])) {
-    const value = pick(base, other, valueKey(name), ours[name], theirs[name]);
+    const value = pick(base, other, keyOf(name), ours[name], theirs[name]);
     if (value !== undefined) out[name] = value;
   }
   return out;
@@ -103,6 +109,26 @@ function laterTimes(a: Side, b: Side): FieldTimesDraft {
   return out;
 }
 
+/**
+ * What one key of the merged item holds: a named record entry by entry, a list
+ * of records by id, anything else from the copy that changed it later. Nothing
+ * means the key is left out.
+ */
+function mergeKey(base: Side, other: Side, key: string): JsonValue | undefined {
+  const nameKey = NAMED_RECORD_KEYS.get(key);
+  if (nameKey) {
+    const merged = mergeNamed(base, other, key, nameKey);
+    // The copy that changed last has no such record, and no entry of the
+    // other's outlived that: an item taken out of the schema stays out.
+    return !(key in base.item) && Object.keys(merged).length === 0
+      ? undefined
+      : merged;
+  }
+  return ID_LIST_KEYS.has(key)
+    ? mergeIdList(base, other, key)
+    : pick(base, other, key, base.item[key], other.item[key]);
+}
+
 /** One item from two copies of it. */
 export function mergeItem(left: VaultItem, right: VaultItem): VaultItem {
   const [winner, loser] =
@@ -123,12 +149,7 @@ export function mergeItem(left: VaultItem, right: VaultItem): VaultItem {
       out[key] = base.item[key];
       continue;
     }
-    const value =
-      key === "values"
-        ? mergeValues(base, other)
-        : ID_LIST_KEYS.has(key)
-          ? mergeIdList(base, other, key)
-          : pick(base, other, key, base.item[key], other.item[key]);
+    const value = mergeKey(base, other, key);
     if (value !== undefined) out[key] = value;
   }
   out.updatedAt =

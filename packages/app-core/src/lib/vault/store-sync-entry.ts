@@ -9,7 +9,7 @@ import {
   isJsonObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import type { UriMatch } from "@opensesame/vault-core";
+import type { ItemEnvironments, UriMatch } from "@opensesame/vault-core";
 import type { FieldValues } from "@opensesame/vault-item-types";
 
 export type StorePlainEntry = {
@@ -52,6 +52,8 @@ export type OsMeta = {
   fields?: StoreCustomField[];
   /** Starred; absent when not (format 2). */
   favorite?: boolean;
+  /** The item's environment cells, present when it is a key (ADR 0188). */
+  environments?: ItemEnvironments | JsonObject;
 };
 
 /** The trailer format this build writes. */

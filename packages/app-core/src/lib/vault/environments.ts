@@ -1,329 +1,51 @@
 /**
- * Named environments for one vault (`vault.environments`).
+ * Named environments for one vault (`vault.environments`, ADR 0188): which
+ * items are keys, what the generated `.env.schema` says, and where a value a
+ * required key needs is missing.
  *
- * The capability is optional and off until a plan approves it and the vault
- * is enabled. Marking an item required and switching the active environment
- * both refuse until then, and a refusal stores nothing. The schema text is
- * kept on the vault snapshot; this module never writes a file.
+ * Everything here is a pure function of the vault's items and its environment
+ * names. The data is sealed in the vault body (`vault-core/environments.ts`),
+ * so nothing is kept in this module and nothing reaches a log or a notice
+ * except keys and environment names, never a value.
  */
 
-import { dismissNotice, setStatusNotice } from "../notices.js";
+import {
+  type ItemEnvironments,
+  type VaultItem,
+  canBeKey,
+  cellOf,
+} from "@opensesame/vault-core";
 
 export const ENVIRONMENTS_CAPABILITY = "vault.environments";
 
-export const ENVIRONMENT_NOTICE_ID = `${ENVIRONMENTS_CAPABILITY}.missing`;
+/** The vault key that opens the Environments sheet; a notice opens it too. */
+export const ENVIRONMENTS_QUERY = "environments";
+export const ENVIRONMENTS_PATH = `/vault?${ENVIRONMENTS_QUERY}=1`;
 
-/** Same secret value in production and another environment (hash-equal). */
-export const ENVIRONMENT_REUSE_NOTICE_ID = `${ENVIRONMENTS_CAPABILITY}.reuse`;
-
-const PROD_ENVIRONMENT = /prod/i;
+/**
+ * The schema's own environment flag (`@currentEnv=$APP_ENV`): the item whose
+ * value says which environment a process is running in. Reserved, so no vault
+ * item's key can take it.
+ */
+export const ENVIRONMENT_FLAG = "APP_ENV";
 
 export type EnvironmentPlan = Readonly<{
   approvedCapabilities: readonly string[];
 }> | null;
 
-export type EnvironmentItem = Readonly<{ id: string; key: string }>;
-
-export type EnvironmentResult =
-  | Readonly<{ ok: true }>
-  | Readonly<{ ok: false; reason: "disabled" }>;
-
-type Bag = Record<string, Record<string, string>>;
-type Flags = Record<string, Record<string, boolean>>;
-
-export type EnvironmentSnapshot = Readonly<{
-  enabled: boolean;
-  active: string | null;
-  names: readonly string[];
-  values: Bag;
-  required: Flags;
-  schema: string | null;
-}>;
-
-const EMPTY: EnvironmentSnapshot = {
-  enabled: false,
-  active: null,
-  names: [],
-  values: {},
-  required: {},
-  schema: null,
-};
-
-const records = new Map<string, EnvironmentSnapshot>();
-const listeners = new Set<() => void>();
-
-function emit(): void {
-  for (const listener of listeners) listener();
-}
-
-export function subscribeVaultEnvironments(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-export function resetVaultEnvironments(): void {
-  records.clear();
-  emit();
-}
-
-export function environmentSnapshot(vaultId: string): EnvironmentSnapshot {
-  return records.get(vaultId) ?? EMPTY;
-}
-
-function approved(plan: EnvironmentPlan): boolean {
+export function environmentsApproved(plan: EnvironmentPlan): boolean {
   return plan?.approvedCapabilities.includes(ENVIRONMENTS_CAPABILITY) === true;
 }
 
-export function vaultEnvironmentsEnabled(
-  plan: EnvironmentPlan,
-  vaultId: string,
-): boolean {
-  return approved(plan) && environmentSnapshot(vaultId).enabled;
-}
-
-function commit(vaultId: string, next: EnvironmentSnapshot): void {
-  records.set(vaultId, next);
-  emit();
-}
-
-/**
- * Turn environments on for one vault. Refuses while the capability is off.
- * When the vault's items are passed, the `.env.schema` is generated too.
- */
-export function enableVaultEnvironments(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  items?: readonly EnvironmentItem[],
-): boolean {
-  if (!approved(plan)) return false;
-  const current = environmentSnapshot(vaultId);
-  if (!current.enabled) commit(vaultId, { ...current, enabled: true });
-  if (items) renderEnvSchema(plan, vaultId, items);
-  return true;
-}
-
-function gate(
-  plan: EnvironmentPlan,
-  vaultId: string,
-): EnvironmentSnapshot | null {
-  if (!vaultEnvironmentsEnabled(plan, vaultId)) return null;
-  return environmentSnapshot(vaultId);
-}
-
-const disabled = (): EnvironmentResult => ({ ok: false, reason: "disabled" });
-
-/** Select a named environment, creating it the first time it is chosen. */
-export function switchEnvironment(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  name: string,
-): EnvironmentResult {
-  const state = gate(plan, vaultId);
-  const environment = name.trim();
-  if (!state || environment.length === 0) return disabled();
-  const names = state.names.includes(environment)
-    ? state.names
-    : [...state.names, environment];
-  commit(vaultId, { ...state, names, active: environment });
-  return { ok: true };
-}
-
-export function activeEnvironment(
-  plan: EnvironmentPlan,
-  vaultId: string,
-): string | null {
-  return gate(plan, vaultId)?.active ?? null;
-}
-
-function writeCell(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  environment: string,
-  itemId: string,
-  key: "values" | "required",
-  value: string | boolean,
-): EnvironmentResult {
-  const state = gate(plan, vaultId);
-  if (!state || !state.names.includes(environment)) return disabled();
-  const column = state[key];
-  commit(vaultId, {
-    ...state,
-    [key]: {
-      ...column,
-      [environment]: { ...column[environment], [itemId]: value },
-    },
-  });
-  return { ok: true };
-}
-
-export function assignEnvironmentValue(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  environment: string,
-  itemId: string,
-  value: string,
-): EnvironmentResult {
-  return writeCell(plan, vaultId, environment, itemId, "values", value);
-}
-
-/** The value stored for one item in one environment, or null while off. */
-export function readEnvironmentValue(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  environment: string,
-  itemId: string,
-): string | null {
-  const state = gate(plan, vaultId);
-  if (!state) return null;
-  return state.values[environment]?.[itemId] ?? "";
-}
-
-export function markEnvironmentRequired(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  environment: string,
-  itemId: string,
-  required: boolean,
-): EnvironmentResult {
-  return writeCell(plan, vaultId, environment, itemId, "required", required);
-}
-
-export function environmentRequires(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  environment: string,
-  itemId: string,
-): boolean {
-  const state = gate(plan, vaultId);
-  if (!state) return false;
-  return state.required[environment]?.[itemId] === true;
-}
-
-/** `.env.schema` text for the active environment. Null while the feature is off. */
-export function renderEnvSchema(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  items: readonly EnvironmentItem[],
-): string | null {
-  const state = gate(plan, vaultId);
-  if (!state) return null;
-  const required = state.required[state.active ?? ""];
-  const schema = items
-    .map(
-      (item) =>
-        `# @type=string${required?.[item.id] ? "\n# @required" : ""}\n${item.key}=`,
-    )
-    .join("\n\n");
-  if (state.schema !== schema) commit(vaultId, { ...state, schema });
-  return schema;
-}
-
-function missingKeys(
-  state: EnvironmentSnapshot,
-  items: readonly EnvironmentItem[],
-): string[] {
-  const active = state.active;
-  if (active === null) return [];
-  return items
-    .filter((item) => {
-      const required = state.required[active]?.[item.id] === true;
-      const value = state.values[active]?.[item.id] ?? "";
-      return required && value.length === 0;
-    })
-    .map((item) => item.key);
-}
-
-/**
- * One notice when the active environment has a required item with no value.
- * A filled value or an unmarked item leaves the tray clear of this notice.
- */
-export function notifyMissingEnvironmentValues(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  items: readonly EnvironmentItem[],
-): void {
-  const state = gate(plan, vaultId);
-  const missing = state === null ? [] : missingKeys(state, items);
-  if (missing.length === 0) {
-    dismissNotice(ENVIRONMENT_NOTICE_ID);
-  } else {
-    setStatusNotice({
-      id: ENVIRONMENT_NOTICE_ID,
-      tone: "warn",
-      title: "Environment",
-      body: missing.join(", "),
-    });
-  }
-  notifyEnvironmentValueReuse(plan, vaultId, items);
-}
-
-function prodEnvironmentNames(names: readonly string[]): string[] {
-  return names.filter((name) => PROD_ENVIRONMENT.test(name));
-}
-
-/** Keys whose sealed values match across production and another environment. */
-function reusedProdKeys(
-  state: EnvironmentSnapshot,
-  items: readonly EnvironmentItem[],
-): string[] {
-  const prod = prodEnvironmentNames(state.names);
-  if (prod.length === 0) return [];
-  const nonProd = state.names.filter((name) => !prod.includes(name));
-  if (nonProd.length === 0) return [];
-  const keys: string[] = [];
-  for (const item of items) {
-    for (const prodName of prod) {
-      const prodValue = state.values[prodName]?.[item.id] ?? "";
-      if (prodValue.length === 0) continue;
-      const prodDigest = digestValue(prodValue);
-      for (const other of nonProd) {
-        const otherValue = state.values[other]?.[item.id] ?? "";
-        if (otherValue.length === 0) continue;
-        if (digestValue(otherValue) === prodDigest) {
-          keys.push(item.key);
-          break;
-        }
-      }
-    }
-  }
-  return keys;
-}
-
-/** FNV-1a fingerprint; values are compared blind, never echoed in notices. */
-function digestValue(value: string): string {
-  // FNV-1a 32-bit — sync, deterministic, good enough to detect reuse in UI.
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16);
-}
-
-/**
- * Warn when a production environment shares a secret value with another
- * environment. Only runs while `vault.environments` is enabled.
- */
-export function notifyEnvironmentValueReuse(
-  plan: EnvironmentPlan,
-  vaultId: string,
-  items: readonly EnvironmentItem[],
-): void {
-  const state = gate(plan, vaultId);
-  const reused = state === null ? [] : reusedProdKeys(state, items);
-  if (reused.length === 0) {
-    dismissNotice(ENVIRONMENT_REUSE_NOTICE_ID);
-    return;
-  }
-  setStatusNotice({
-    id: ENVIRONMENT_REUSE_NOTICE_ID,
-    tone: "warn",
-    title: "Environment",
-    body: reused.join(", "),
-  });
-}
+/** One key in the schema: an item, the variable name it derives, its cells. */
+export type SchemaKey = Readonly<{
+  id: string;
+  /** The variable name, `STRIPE_API_KEY`. */
+  key: string;
+  /** The item's own name, so a row can say what the key was made from. */
+  name: string;
+  cells: ItemEnvironments;
+}>;
 
 /** An env-spec key derived from a vault item's name. */
 export function environmentKey(name: string): string {
@@ -334,4 +56,137 @@ export function environmentKey(name: string): string {
     .replace(/^_+|_+$/g, "");
   if (cleaned === "") return "";
   return /^\d/.test(cleaned) ? `_${cleaned}` : cleaned;
+}
+
+/**
+ * The items that are keys, oldest first, each with its variable name. Two
+ * items that derive the same name are told apart by `_2`, `_3` in that order,
+ * so every device derives the same schema from the same vault.
+ */
+export function schemaKeys(items: readonly VaultItem[]): SchemaKey[] {
+  const used = new Set([ENVIRONMENT_FLAG]);
+  return items
+    .filter((item) => item.environments !== undefined && canBeKey(item))
+    .sort((a, b) =>
+      a.createdAt === b.createdAt
+        ? a.id.localeCompare(b.id)
+        : a.createdAt.localeCompare(b.createdAt),
+    )
+    .map((item) => {
+      const base =
+        environmentKey(item.name) ||
+        `ITEM_${item.id.slice(0, 6).toUpperCase()}`;
+      let key = base;
+      for (let n = 2; used.has(key); n += 1) key = `${base}_${n}`;
+      used.add(key);
+      return {
+        id: item.id,
+        key,
+        name: item.name,
+        cells: item.environments ?? {},
+      };
+    });
+}
+
+/** True when two keys' variable names were told apart, so the sheet can say so. */
+export function keyWasRenamed(key: SchemaKey): boolean {
+  const base = environmentKey(key.name);
+  return base !== "" && base !== key.key;
+}
+
+function requiredIn(key: SchemaKey, names: readonly string[]): string[] {
+  return names.filter((name) => cellOf(key.cells, name)?.required === true);
+}
+
+function requiredDecorator(key: SchemaKey, names: readonly string[]): string {
+  const required = requiredIn(key, names);
+  if (required.length === 0) return "";
+  if (required.length === names.length) return " @required";
+  return ` @required=forEnv(${required.join(", ")})`;
+}
+
+/**
+ * The vault's `.env.schema` (`@env-spec`, parsed by the repo's pinned
+ * `@env-spec/parser` in a test). Keys and rules only, never a value: it is the
+ * file that is committed. "Required in production and staging" is one line,
+ * `@required=forEnv(...)`, against the schema's own `APP_ENV` flag, so the
+ * per-environment matrix and the single file agree. Every key says
+ * `@sensitive` itself, because OpenSesame's own reader ignores a header's
+ * default. Empty when there is no environment to describe.
+ */
+export function renderEnvSchema(
+  names: readonly string[],
+  keys: readonly SchemaKey[],
+): string {
+  const first = names[0];
+  if (first === undefined) return "";
+  const blocks = [
+    [
+      "# Generated by OpenSesame from this vault's environments. Holds no values.",
+      `# @currentEnv=$${ENVIRONMENT_FLAG} @defaultRequired=false`,
+      "# ---",
+    ].join("\n"),
+    [
+      `# @type=enum(${names.join(", ")}) @required @public`,
+      `${ENVIRONMENT_FLAG}=${first}`,
+    ].join("\n"),
+    ...keys.map(
+      (key) => `# @sensitive${requiredDecorator(key, names)}\n${key.key}=`,
+    ),
+  ];
+  return `${blocks.join("\n\n")}\n`;
+}
+
+/** Required keys with no value, per environment; an environment with none is omitted. */
+export type MissingValues = readonly Readonly<{
+  environment: string;
+  keys: readonly string[];
+}>[];
+
+export function missingEnvironmentValues(
+  names: readonly string[],
+  keys: readonly SchemaKey[],
+): MissingValues {
+  return names.flatMap((environment) => {
+    const missing = keys
+      .filter((key) => {
+        const cell = cellOf(key.cells, environment);
+        return cell?.required === true && (cell.value ?? "") === "";
+      })
+      .map((key) => key.key);
+    return missing.length === 0 ? [] : [{ environment, keys: missing }];
+  });
+}
+
+/** Production by name: `production`, `prod`, `prod-eu`, `eu.prod`; not `preprod`. */
+const PRODUCTION = /(^|[-_.])prod(uction)?($|[-_.])/;
+
+export function isProductionEnvironment(name: string): boolean {
+  return PRODUCTION.test(name);
+}
+
+/**
+ * Keys that hold the same value in a production environment and in another
+ * one. A value reused across the line is a secret that now leaves production
+ * every time the other environment does. Compared in memory; the answer is key
+ * names only.
+ */
+export function reusedProductionKeys(
+  names: readonly string[],
+  keys: readonly SchemaKey[],
+): string[] {
+  const production = names.filter(isProductionEnvironment);
+  const others = names.filter((name) => !isProductionEnvironment(name));
+  if (production.length === 0 || others.length === 0) return [];
+  return keys
+    .filter((key) =>
+      production.some((prod) => {
+        const value = cellOf(key.cells, prod)?.value ?? "";
+        return (
+          value !== "" &&
+          others.some((other) => cellOf(key.cells, other)?.value === value)
+        );
+      }),
+    )
+    .map((key) => key.key);
 }

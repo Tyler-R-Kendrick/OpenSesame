@@ -21,6 +21,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import type { VaultEnvironments } from "./environments.js";
 import type { Folder, VaultBody, VaultItem, VaultTombstones } from "./model.js";
 import type { FieldTimesDraft } from "./sync-model.js";
 
@@ -48,6 +49,21 @@ export function valueKey(name: string): string {
 export function listEntryKey(list: string, id: string): string {
   return `${list}.${id}`;
 }
+/** An item's cell for one environment (ADR 0188), the way a typed value is a field. */
+export function cellKey(name: string): string {
+  return `environments.${name}`;
+}
+
+/**
+ * Item keys holding a record of named entries, each its own field: a typed
+ * item's `values` and a key's `environments`. A Map, never an object, so no
+ * key name can match an inherited property.
+ */
+export const NAMED_RECORD_KEYS: ReadonlyMap<string, (name: string) => string> =
+  new Map([
+    ["values", valueKey],
+    ["environments", cellKey],
+  ]);
 
 function later(a: string, b: string | null | undefined): string {
   return b && b > a ? b : a;
@@ -72,6 +88,8 @@ export function latestStamp(body: VaultBody): string {
   }
   for (const at of Object.values(body.itemTypesAt ?? {}))
     seen = later(seen, at);
+  for (const record of Object.values(body.environments ?? {}))
+    seen = later(seen, record.at);
   return later(seen, body.masterWrap?.at);
 }
 
@@ -117,11 +135,12 @@ export function changedFieldKeys(prev: VaultItem, next: VaultItem): string[] {
   for (const key of keys) {
     if (ITEM_META_KEYS.has(key) || json(before[key]) === json(after[key]))
       continue;
-    if (key === "values") {
+    const nameKey = NAMED_RECORD_KEYS.get(key);
+    if (nameKey) {
       const was = recordOf(before[key]);
       const now = recordOf(after[key]);
       for (const name of new Set([...Object.keys(was), ...Object.keys(now)])) {
-        if (json(was[name]) !== json(now[name])) changed.push(valueKey(name));
+        if (json(was[name]) !== json(now[name])) changed.push(nameKey(name));
       }
     } else if (ID_LIST_KEYS.has(key)) {
       const was = fieldsById(before[key]);
@@ -188,6 +207,31 @@ function restampTimes(
   return out ?? after;
 }
 
+/**
+ * An environment this edit added or removed is stamped after everything the
+ * body had seen, like any other change; one it did not touch keeps its time.
+ */
+function restampEnvironments(
+  before: VaultEnvironments | undefined,
+  after: VaultEnvironments,
+  seen: string,
+  at: string,
+): VaultEnvironments {
+  let out: Record<string, VaultEnvironments[string]> | undefined;
+  for (const [name, record] of Object.entries(after)) {
+    const was =
+      before && Object.hasOwn(before, name) ? before[name] : undefined;
+    if (
+      (was?.at === record.at && was.removed === record.removed) ||
+      record.at > seen
+    )
+      continue;
+    out ??= { ...after };
+    out[name] = { ...record, at };
+  }
+  return out ?? after;
+}
+
 /** What a write needs from the body as it was, captured before the write runs. */
 export type BodyBefore = {
   items: ReadonlyMap<string, VaultItem>;
@@ -195,6 +239,7 @@ export type BodyBefore = {
   tombstones: VaultBody["tombstones"];
   itemTypesAt: VaultBody["itemTypesAt"];
   masterWrap: VaultBody["masterWrap"];
+  environments: VaultBody["environments"];
   seen: string;
 };
 
@@ -205,6 +250,7 @@ export function captureBefore(body: VaultBody): BodyBefore {
     tombstones: body.tombstones,
     itemTypesAt: body.itemTypesAt,
     masterWrap: body.masterWrap,
+    environments: body.environments,
     seen: latestStamp(body),
   };
 }
@@ -250,6 +296,14 @@ export function restampEdits(
     after.itemTypesAt = restampTimes(
       before.itemTypesAt,
       after.itemTypesAt,
+      seen,
+      at,
+    );
+  }
+  if (after.environments) {
+    after.environments = restampEnvironments(
+      before.environments,
+      after.environments,
       seen,
       at,
     );

@@ -146,6 +146,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: breach and two-step checks (ADR 0080 §5) ------------
     "vault.health.security_check": "vault.security-checks",
 
+    // --- optional: environments (ADR 0188) ------------------------------
+    "vault.environments.manage": "vault.environments",
+
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
     // The daemon the plugin tiles reach is paired through the tailnet

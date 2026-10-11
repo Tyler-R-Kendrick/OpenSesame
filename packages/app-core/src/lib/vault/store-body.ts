@@ -42,6 +42,9 @@ function syncedFields(body: VaultBody): Partial<VaultBody> {
     ...(body.masterWrap !== undefined
       ? { masterWrap: body.masterWrap }
       : undefined),
+    ...(body.environments !== undefined
+      ? { environments: body.environments }
+      : undefined),
   };
 }
 

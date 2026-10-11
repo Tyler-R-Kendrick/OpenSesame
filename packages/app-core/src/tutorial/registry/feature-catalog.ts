@@ -110,7 +110,7 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "feature.environments",
     description:
-      "The Environments section of Settings › Capabilities: its switch adds named sets of values on vault items.",
+      "The Environments section of Settings › Capabilities: its switch adds an Environments key to the vault, where a key holds a sealed value for each named environment and a .env.schema is generated from them.",
     role: "surface",
     routes: ["/settings"],
     capabilityId: null,
