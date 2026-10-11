@@ -131,6 +131,7 @@ Possessing a handle never implies permission to resolve it
 | [Web-login rotation](web-login-rotation.md) | Rotating a website password without the user. |
 | [Rotation teaching and replay](rotation-teaching-and-replay.md) | Turning a failed rotation into a deterministic recipe. |
 | [Rotation recipe schema](rotation-recipe-schema.md) | The signed recipe format a teaching session produces. |
+| [Forgot-password ceremony](forgot-password-ceremony.md) | Resetting a forgotten password through a remote browser (proposed, ADR 0189). |
 
 ### Interaction
 

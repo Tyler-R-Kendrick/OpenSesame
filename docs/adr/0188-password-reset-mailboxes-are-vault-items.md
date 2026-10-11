@@ -104,7 +104,8 @@ one notice that names it and the reason in a word; reading it again clears it.
 
 ## What this does not do
 
-- **It does not reset a forgotten password.** The Host's web-login runner
+- **It does not reset a forgotten password.** The design for the ceremony that
+  would is [ADR 0189](0189-forgot-password-ceremony-remote-browser.md) (proposed). The Host's web-login runner
   replays a *change* of password for a person who is logged in
   (`run_change_password_hooked`); there is no forgot-password run kind, no step
   that waits for a message, and no verb that follows an emailed link. A real
