@@ -28,7 +28,7 @@ export type VaultState = {
   /** The items as sealed: an account holds no methods, its credentials sit beside it. */
   rawItems?: readonly VaultItem[];
   folders: Folder[];
-  /** The vault's environments by name, removals as markers (ADR 0188). */
+  /** The vault's environments by name, removals as markers (ADR 0189). */
   environments?: VaultEnvironments | undefined;
   prefs: VaultPrefs;
   /** Milliseconds until auto-lock, or null when no timer is armed. */

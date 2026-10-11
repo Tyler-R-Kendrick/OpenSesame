@@ -1,7 +1,7 @@
 import type { GuideGoalDescriptor } from "./goal-types.js";
 
 /**
- * Environments in the vault (ADR 0188): the key in the vault's own strip and
+ * Environments in the vault (ADR 0189): the key in the vault's own strip and
  * the sheet it opens. Offered only once the capability is approved, because
  * the key is not drawn before.
  */

@@ -17,6 +17,7 @@ import type {
   VaultHeader,
   VaultItem,
 } from "@opensesame/vault-core";
+import { STALE_BUILD, isChunkLoadFailure } from "../../../lib/chunk-load.js";
 import { isGuestSessionTomb } from "../../../lib/duress/store/decoy-scratch.js";
 import {
   type ParseResult,
@@ -128,6 +129,8 @@ export function canTakeBackupIdentity(vault: RestoreTarget): boolean {
 }
 
 export function messageFrom<Thrown>(caught: Thrown): string {
+  // A chunk a newer deploy replaced is not a problem with the file or its key.
+  if (isChunkLoadFailure(caught)) return STALE_BUILD;
   return caught instanceof Error && caught.message !== ""
     ? caught.message
     : "That file could not be read.";

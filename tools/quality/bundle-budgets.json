@@ -267,12 +267,12 @@
         "2026-10-11: javascript 6258->6259 for the cipher dial at rest on the front door (useIdleDial pulls CipherDial into the door's chunk) and the hero shimmer that keeps running after the decode settles. Measured 6259 KiB; raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged.",
         "2026-10-11: javascript 6457->6458 on the tree merged with main at d307626 (the cipher dial on the front door and the hero shimmer, +1 KiB on main's own ceiling, landed after the Trusted contacts ceilings were measured). A fresh build measures 6458 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum.",
         "2026-10-11: F11 security checks on main at 6458 KiB: lazy-pin shared vault/security-checks into cap-vault.security-checks, lean panel, no duplicate IdleDial; measured at or under the existing ceiling with no raise.",
-        "2026-10-11: javascript 6458->6472, javascriptGzip 1967->1972 for the optional vault.environments capability (ADR 0188): the Environments sheet, its tabs, key rows and schema view, and the sealed-environments logic, in one lazy chunk (cap-vault.environments, 12.6 KiB) that a device fetches only with the capability on, plus the descriptor, registry and tutorial text the catalog and Support chunks carry. A fresh /OpenSesame/ build of the tree merged with main at 0efe898 measures 6472/1972 KiB JavaScript raw/gzip; raise only to the measured minimum. Nothing reaches the boot path: the minimal-local and family-local hardened profiles exclude the module and measure 3151/983 KiB, under their unchanged ceilings."
+        "2026-10-11: javascript 6458->6469, javascriptGzip 1967->1970 for the optional vault.environments capability (ADR 0189): the Environments sheet, its tabs, key rows and schema view, and the sealed-environments logic, in one lazy chunk (cap-vault.environments, 12.6 KiB) that a device fetches only with the capability on, plus the descriptor, registry and tutorial text the catalog and Support chunks carry. A fresh /OpenSesame/ build of the tree merged with main at 1ff388f measures 6469/1970 KiB JavaScript raw/gzip; raise only to the measured minimum. Nothing reaches the boot path: the minimal-local and family-local hardened profiles exclude the module and measure 3151/983 KiB, under their unchanged ceilings."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6472,
-        "javascriptGzip": 1972,
+        "javascript": 6469,
+        "javascriptGzip": 1970,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",
@@ -295,7 +295,7 @@
           "CSS. JavaScript, gzip and profile budgets remain unchanged.",
           "2026-10-09: 170 -> 172 for the shared record workspace's phone pane controls, floating add button and Access record choices. The original base measures 167.9 KiB and the migrated build 169.7 KiB, before the concurrent provider configuration styles. Existing Vault styles are reused; Connections styling is unchanged by this migration.",
           "2026-10-10: 172 -> 175 for Settings > Trusted contacts (ADR 0187): the module's frame, circles, guarding and recovery stylesheets, plus its panels' shared rules, are lazy and load with the capability. The tree merged with main at 115a39a measures 175 KiB; the hardened profiles exclude the module and are unchanged.",
-          "2026-10-11: 175 -> 178 for the optional vault.environments capability (ADR 0188): the sheet's tabs, key rows and schema block are one lazy stylesheet (environments.css, 2.5 KiB) that loads with the capability. The tree merged with main at 0efe898 measures 178 KiB; the hardened profiles exclude the module and are unchanged."
+          "2026-10-11: 175 -> 178 for the optional vault.environments capability (ADR 0189): the sheet's tabs, key rows and schema block are one lazy stylesheet (environments.css, 2.5 KiB) that loads with the capability. The tree merged with main at 1ff388f measures 178 KiB; the hardened profiles exclude the module and are unchanged."
         ],
         "css": 178,
         "largestAsset": 12800

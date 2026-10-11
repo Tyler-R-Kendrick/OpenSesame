@@ -340,7 +340,7 @@ export function graftOnto(
   if (whole) {
     const next: VaultItem = { ...incoming, ...kept };
     // An entry written before environments cannot say what an item's cells
-    // are: it must not erase them (ADR 0188).
+    // are: it must not erase them (ADR 0189).
     if (!incoming.environments && current.environments) {
       next.environments = current.environments;
     }

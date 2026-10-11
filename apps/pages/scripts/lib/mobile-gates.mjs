@@ -27,11 +27,12 @@ export async function setupCeremony(page, stop, { audit, harness }) {
   await helpKey(page, stop("setup-ceremony"), harness);
 }
 
-/** The door offers its two roads and the guest road. */
+/** The door offers its three roads (ADR 0188) and the guest road. */
 export async function doorRoads(page, stop, harness) {
   for (const name of [
     "Set up your own",
     "Join a session",
+    "Import a file",
     "Skip sign-in and continue as guest",
   ]) {
     harness.check(

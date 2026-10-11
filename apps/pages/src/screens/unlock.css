@@ -944,6 +944,20 @@
   height: 1.75rem;
 }
 
+/* The file a vault is waiting to be given: its name, and the key that lets it go. */
+.unlock__import {
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.unlock__import-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
 /* "No identity service yet" — one sentence and the road into setup, where a
    block of amber with a URL field used to sit above every sign-in button. */
 .unlock__unset {

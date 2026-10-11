@@ -1,5 +1,5 @@
 /**
- * Environments through a real vault (ADR 0188): sealed with the body, still
+ * Environments through a real vault (ADR 0189): sealed with the body, still
  * there after a lock and an unlock, refused while the capability is off, and
  * reported in the tray by key and environment, never by value.
  */

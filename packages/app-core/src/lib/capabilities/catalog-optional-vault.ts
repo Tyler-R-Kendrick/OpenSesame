@@ -34,7 +34,7 @@ export const SECURITY_CHECKS_SUMMARY =
   "Compares the open vault's logins with known password breaches and with sites that offer an authenticator code you have not stored. With this on, Settings and Password health show how many passwords were found and which logins could add a second step. Press Check to run it. Only five characters of each password's hash leave this browser; the two-step site list is fetched whole and matched here.";
 
 /**
- * What Settings says `vault.environments` does (ADR 0188). Kept under the
+ * What Settings says `vault.environments` does (ADR 0189). Kept under the
  * catalog's 400-character summary limit.
  */
 export const ENVIRONMENTS_SUMMARY =
