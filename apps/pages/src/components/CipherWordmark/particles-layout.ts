@@ -1,6 +1,7 @@
 import { CIPHER } from "./cipher.js";
 import {
   DRAW_CALIBRATION,
+  FIELD_MIN_EM,
   FONT_FAMILY,
   type Layout,
   PARTICLE_SEED,
@@ -65,7 +66,7 @@ function cellGeometry(
   const { adv, asc } = measureFont(ctx);
   const gapEm = 0.28;
   const nl = letters.length;
-  const em = emPx > 0 ? emPx : 16;
+  const em = Math.max(FIELD_MIN_EM, emPx);
   const rowsCap = 16;
   const gs = (asc * em) / rowsCap;
   const cps = Math.max(7, Math.round((adv * em) / gs));
