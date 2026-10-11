@@ -31,6 +31,7 @@ export const SHARD_GATES = [
   "mobile",
   "native-connectors",
   "native-public-protocol",
+  "trusted-contacts",
 ];
 /** The gates that are jobs of their own. */
 export const JOB_GATES = [

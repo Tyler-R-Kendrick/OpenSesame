@@ -305,7 +305,7 @@ instance policy may still withdraw one), 8: `identity.site-broker`,
 `backup.cloud-secrets`, `identity.ceremonies`, `activity.log`,
 `support.guided-help`.
 
-Optional (`optional(...)`, default off), 29: `identity.local-iam`,
+Optional (`optional(...)`, default off), 30: `identity.local-iam`,
 `identity.siop`, `vault.passkey-records`, `vault.certificate-records`,
 `connectors.external`, `access.authority`, `identity.federation`,
 `identity.ambient-sso`, `enterprise.directory-provisioning`,
@@ -316,10 +316,12 @@ Optional (`optional(...)`, default off), 29: `identity.local-iam`,
 `telemetry.external`, `networking.tailnet`, `networking.tailnet-devices`,
 `vault.derived-records`, `sharing.live`, `vault.environments`,
 `storage.encrypted-search`, `vault.security-checks`, `sharing.household`
-(alternatives slot `transport` → `sharing.drops`).
+(alternatives slot `transport` → `sharing.drops`), `sharing.trusted-contacts`
+(the Settings › Trusted contacts category: Circles, Guarding and Recovery
+panels over the quorum desk, with its walkthrough; ADR 0187).
 
 Every always-on and optional capability has a module,
-`apps/pages/src/modules/<capability-id>/runtime.ts` (37 today).
+`apps/pages/src/modules/<capability-id>/runtime.ts` (38 today).
 
 The prompt's example IDs (`vault.passwords`, `backup.local-encrypted`,
 `vault.passkey-records`, `sharing.household`, `connectors.external`,

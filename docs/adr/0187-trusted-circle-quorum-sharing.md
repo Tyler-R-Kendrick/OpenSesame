@@ -1,0 +1,442 @@
+# ADR 0187 — Trusted contacts: a quorum approves, or holds a share of, what you cannot do yourself
+
+- **Status:** Accepted (protocol, native reader and ceremony screens built and verified; physical hardware not yet exercised)
+- **Date:** 2026-10-10
+- **Uses:** [ADR 0086](0086-wallet-native-interaction-layer.md) (an approval means what its digest says), [ADR 0087](0087-vault-item-type-plugins.md) (item types are manifests), [ADR 0090](0090-static-frontend-complete-without-backend.md) (no backend in front of the first screen), [ADR 0130](0130-operator-controlled-capability-composition.md) (optional capabilities), [ADR 0139](0139-one-definition-every-target.md) (one definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md) (nothing stored in the clear), [ADR 0158](0158-settings-rows-act-or-are-absent.md) (a row acts or is absent), [ADR 0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) (authorization is a proof)
+- **Related:** the duress recovery ceremonies (`packages/app-core/src/lib/duress/recovery/`), which solve a neighbouring problem with a shared-secret approval ledger
+
+## Context
+
+An owner can be unable to act: a lost device, an illness, a death. The usual
+answer is *emergency access* — one trusted contact, a waiting period, the
+owner's veto. It has one weakness this ADR exists to remove: **the one contact
+holds the whole authority**, so one friend or relative who turns malicious (or
+is phished, or is coerced) is enough.
+
+Three things get called "a quorum", and they are not the same:
+
+| | What the contacts contribute | What it enables | Limit |
+|---|---|---|---|
+| **Secret sharing** | shares of a recovery key | recovering a key | whoever recombines it holds the key afterwards |
+| **Quorum approval** | independent approvals of one request | an action by a party that enforces the policy | needs that enforcer to be honest and to be there |
+| **Threshold use** | partial computations | using a key without ever holding it | needs protocols ordinary security keys do not run |
+
+The static client has no server (ADR 0090). Whatever enforces a policy is a
+browser that holds the resource, or the contacts' own devices.
+
+## Decision
+
+OpenSesame gains an **optional** capability, `sharing.trusted-contacts`
+(default off, no egress), that implements the first two as separate mechanisms
+a policy composes, and deliberately not the third.
+
+### 1. A guardian is a person; keys are alternatives
+
+A *circle* names guardians. Each guardian has one or more security keys
+(WebAuthn credentials). Everything is counted by guardian: a backup key
+restores **availability** and casts no second vote, and a credential may
+belong to exactly one guardian (`policy.ts`). Guardians sit in groups with a
+member threshold each, and a group threshold sits over the groups — "3 of 5",
+or "2 of 3 family **and** 2 of 4 friends". A guardian holds one share and so
+sits in one group. A guardian chooses to be one: enrollment is signed by each
+of their keys (`enroll.ts`), and the owner verifies the signatures before the
+guardian is in the policy.
+
+The policy is signed by the owner's Ed25519 key. Guardians pin that key when
+they accept the invitation and check every request against the policy they
+**hold**, never against what the requester sends: timings are the policy's, the
+sentence is derived from the request's fields, and the recipient is whatever
+the digest says.
+
+Legal but risky policies are warned about, not refused: a single guardian, a
+unanimous group (one lost key blocks recovery), no delay, approval by touch
+alone, a quorum that fits inside one household.
+
+### 2. Standards, and what each one is used for
+
+| Standard | Used for | Verified by |
+|---|---|---|
+| **SLIP-0039** (Final) | the share format: GF(256) Shamir with a digest at f(254), RS1024 checksum, the 1024-word list, the PBKDF2 Feistel encryption of the secret, two-level groups | all **45** vectors of the standard (`spec/conformance/slip39/vectors.json`, MIT, SatoshiLabs), a drift test against the vendored wordlist, and round trips |
+| **RFC 9180 HPKE**, base mode, DHKEM(X25519, HKDF-SHA256), HKDF-SHA256, AES-128-GCM or ChaCha20-Poly1305 | sealing a released share to the recipient the request names | every intermediate value of Appendix **A.1 and A.2** — key pairs, shared secret, key schedule, nonces and ciphertexts through sequence 256, exporter values (`spec/conformance/hpke-rfc9180-vectors.json`, parsed from the RFC text by script) |
+| **WebAuthn** assertion verification | a guardian's approval is an assertion over the request | challenge, origin, `crossOrigin`, RP ID hash, user presence, user verification (policy), signature counter, ES256 (high-S and leading-zero DER included) and Ed25519 signatures |
+| **WebAuthn PRF extension** | wrapping a share under a key only the guardian's authenticator reproduces (PRF → HKDF → XChaCha20-Poly1305) | stability proved by a real round trip at hand-over, not by a capability flag |
+| **ADR 0086's digest discipline** | the request digest: length-prefixed fields, canonical JSON (sorted keys, integers only), a purpose string, the validity window inside the digest | determinism, framing and purpose-separation tests |
+| NIST SP 800-63B-4 | recovery contacts are a recognised recovery road; its notice and re-verification expectations are the UI's to meet | (informative) |
+| ISO/IEC 19592 | the secret-sharing terminology; SLIP-0039 is the mechanism | (informative) |
+| ERC-7093 (Draft) | the *separation* of guardian identity, policy evaluation and the operation it unlocks — followed as a design reference, not a wire format | (informative) |
+
+**Not used, on purpose:** FROST (RFC 9591, Informational), ROAST,
+Dynamic-FROST, ANARKey and post-quantum threshold signatures. Ordinary
+security keys cannot be FROST participants, and nothing here needs a
+distributed signature. They are the right tools for a later *repeated joint
+signing* feature; none is half-built here.
+
+### 3. A request is one thing, said once
+
+A request carries the circle, the policy digest and epoch, the operation, its
+scope, the recipient's X25519 key (a fresh one, made for the request), and
+three instants: when approvals close, when a share may first be released, and
+when the request lapses. Its digest is the value every approval is bound to.
+The WebAuthn challenge is a hash of the **phase** and the digest, so an
+approval assertion cannot be offered as a release, nor one request's approval
+for another's.
+
+Operations: `recover-collection` (release shares), and the action-only
+`grant-access`, `export-items`, `replace-owner-credential`. A `grant-access`
+request **carries the grant itself** — principal, resource, policy, duration —
+in the same shape the share ledger writes, and its sentence is built from it.
+
+### 4. Two clocks
+
+Gathering approvals and objecting to them are different jobs and have
+different settings. The **approval window** is short and coordinates a
+ceremony. The **release delay** is long and gives the owner time to notice and
+cancel. A guardian's device refuses to release a share before the delay, since
+a quorum with shares in hand could otherwise skip it; the ledger refuses a
+release that arrives early as well. An owner-signed cancellation stops a
+request in any ledger that hears of it, and a guardian's device that has heard
+of it refuses.
+
+### 5. Releasing a share
+
+Approval and release are separate steps by the same guardian. **Each
+guardian's own device checks the quorum before it releases**: it is shown the
+approvals, verifies each assertion itself, and refuses unless its own guardian
+approved and the approvals satisfy the policy. A recipient's ledger is the
+recipient's own, so a recipient who is the attacker will not enforce "a quorum
+first"; the guardians' devices do, and the ledger repeats the rules as defense
+in depth. A signature carries no time, so the approval window is kept by the
+device that signs (it refuses to approve late) and by the ledger that receives;
+the check at release replays the approvals as of the instant the request was
+raised. A release unwraps
+the guardian's share with their key (a PRF touch), seals it to the request's
+recipient with the request digest and guardian id in the AAD, and returns it.
+Only the recipient opens it, and a ciphertext cannot be lifted into another
+request. The signed policy carries a **commitment** to each guardian's share,
+so a forged or garbled release is caught per guardian, by name, instead of as
+an anonymous failure at the end. Recombination takes exactly the shares
+SLIP-0039 asks for. A signature cannot cover the share sealed after the touch,
+so anyone relaying a release can damage it; a release that does not open, or is
+not the committed share, is **dropped from the ledger** (the guardian can
+release again) and the next combinable set from the releases already in hand
+is tried, so one damaged packet cannot stall a recovery or burn a guardian's
+one slot. The shares are written with an **empty passphrase**, so any
+conforming tool recombines them without OpenSesame — the exit door.
+OpenSesame's own native binary is such a tool: `opensesame vault circle recover`
+recombines the shares (empty passphrase, at most exponent 6, exactly the
+threshold of groups and members), verifies the owner's signature on the bundle's
+policy and opens the bundle with no browser, and `opensesame vault circle
+inspect` prints the circle's public shape after the same signature check
+(`crates/quorum-recovery`, ADR 0139). Both are human-only: they are excluded from
+MCP, WebMCP and the PWA in the capability registry and refuse in an agent
+context. Like any offline recovery they cannot enforce the delay or a
+cancellation.
+
+### 6. Action-only circles and the share ledger
+
+A circle that governs no `recover-collection` holds no secret: no shares, no
+bundle, no commitments, and its guardians' keys need no PRF. A quorum-approved
+`grant-access` becomes a standing share through the existing share ledger, and
+only through a proof: `QuorumApproved<T>` (`proofs/quorum-approved.ts`) is the
+third `ShareWriteAuthority`, beside `ManageGrants` and `SystemShareWrite`,
+minted from the ledger's plain-data verdict (state `authorized`, operation
+`grant-access`, not lapsed). `grantFromQuorum` takes **no share of its own**:
+it writes the one in the approved request, once (`claimExecution`). A quorum
+can grant access to a **person**; agents and applications stay behind the
+owner's own approval. `savePendingShare` still demands `ManageGrants`, so a
+quorum cannot queue anything else. `share-write.mistakes.ts` pins the misuse
+that must not compile.
+
+### 7. Item types
+
+`trusted-circle` (the owner's record: rule, state, contacts, the signed policy,
+and the owner's signing key as the concealed secret) and `guardian-share`
+(what a guardian holds for someone else: the signed policy, their **wrapped**
+share as the concealed secret, and their receiving key) are **optional
+marketplace types** (`marketplace/item-types/optional/`, pinned in
+`.opensesame/marketplace.json`). They are not built in: built-in types are
+embedded in the Rust crate and belong to `vault.derived-records`, and these
+belong to this capability. `records.ts` maps the engine to and from their
+values; both project onto a `pass` entry whose line one is the concealed
+secret. No plaintext share and no SLIP-0039 mnemonic is ever in a record.
+
+### 8. The capability
+
+`sharing.trusted-contacts` is an optional capability in the Sharing section:
+default off, `keyAccess: item-plaintext, protector-wrap`, no egress. Its engine
+is `packages/app-core/src/lib/quorum/`, classified as owned by it; the
+bootstrap does not import it. Its module registers **Settings › Trusted
+contacts** with three panels, one per role a person can have in a circle:
+**Circles** (the owner: start, open, invite more, change, ask for approval,
+cancel, retire), **Guarding** (a contact: accept an invitation, take what an
+owner sent, answer a request, leave) and **Recovery** (a recipient: start from
+the recovery file, gather approvals and releases, open). Every ceremony is a
+sheet over a desk function (§10) that already has its own test; a screen
+collects input, calls a step and shows what comes back, and holds no protocol
+logic. Nothing leaves the page: a packet is copied by hand and handed over a
+road the people already use, and the recovery file is a file they save. The
+capability declares two browser permissions (`webauthn`, `clipboard-write`) and
+one user-mediated hand-off, and nothing else. A guest, decoy or locked vault
+draws no panel, because its records would not outlive the session. An operator
+can prohibit the capability or leave it out of a distribution, and the tab goes
+with it.
+
+A failure is never drawn in the page. The step that failed puts an error mark
+on its own control and raises one tray notice, and only the error's own sentence
+is shown: an unknown error becomes "That step did not finish.", so nothing about
+it reaches the screen. What is in flight survives a closed sheet or a reload:
+an invitation the owner has made, the packets still to hand out, an agreement
+a contact has made but not yet taken, and a recovery that has been opened but
+not yet saved all rest in the vault's sealed pending store until the step that
+makes them redundant has happened.
+
+### 9. Changing a circle is a new epoch
+
+Refreshing the shares, replacing a guardian, adding one and changing the rule
+are one operation, `reissueCircle` (`epoch.ts`): the owner signs a **new
+policy** one epoch later that names the digest of the one it replaces
+(`supersedes`, checked by `assertPolicySound`: epoch 1 replaces nothing, every
+later epoch names the one before), draws a **fresh recovery secret**, seals the
+payload again under it, and deals every guardian in the new roster a new share.
+Nothing is edited in place.
+
+- *Shares of different epochs never combine.* The secret is new, so a guardian
+  who was removed, or a share that leaked, opens nothing of the new bundle; a
+  share of each epoch does not even recombine (the SLIP-0039 digest fails).
+- *It does not take back what the old quorum could already read.* The old
+  bundle is a file: whoever kept it and enough old shares can still open it
+  (pinned by a test, so the limit stays stated). Replacing a guardian protects
+  the future; a secret that was exposed still needs rotating at its provider.
+- *A guardian never goes back* (`succession.ts`). Before a new policy replaces
+  the one a device holds it must verify under the key pinned at the invitation,
+  belong to the same circle and RP ID, and be **later**; the very next epoch
+  must name the digest held. A device that was away for several epochs can check
+  only the owner's signature on the one it is shown. An older or repeated policy
+  is `rollback`; a delivery is checked this way before any key is touched
+  (`acceptDelivery({ replaces })`), and a request for an old epoch is not one a
+  device holding the new policy will sign (`checkRequest`).
+- *Who stays and who goes.* `applyEpoch` answers a guardian: `retired` (not in
+  the new roster: drop the share, they get no delivery), `awaiting_share`
+  (take the new share, then delete the old one) or `adopted` (an action-only
+  circle has no share, so the new policy is simply held).
+- *What stays fixed*, because guardians' keys are registered against it: the
+  circle id, the RP ID, and the receiving key of anyone who stays. A person who
+  lost their device enrolls again as a new guardian and the old entry is retired.
+- A request in flight at the old epoch is abandoned: the new policy's digest is
+  in every request, so approvals do not carry across.
+
+### 10. Packets and the desk
+
+Nothing in a circle goes to a server; people hand each other documents. A
+**packet** (`packets.ts`) is one such document as one line of text,
+`osq1.<kind>.<base64url JSON>.<check>`, that survives a chat, a mail client's
+wrapping or being read aloud. The kind is stated and checked (a packet that
+says `invite` and holds an enrollment is refused), the check catches a cut-off
+paste, and the document is held to the strict schema the protocol already uses
+under a size cap applied before decoding. The check proves nothing about who
+wrote it: every document is verified by its own signature or digest, never by
+having arrived. A `welcome` packet carries a guardian's policy and sealed share
+together. The recovery **bundle** is a file, not a packet: it carries the
+protected payload.
+
+The **desk** (`desk/`) is the layer between the protocol and the screens: one
+ceremony step per function, run against ports (the page's keys, a sealed
+pending store, the durable records) so each step is testable with no browser and
+a screen is only a form over a function. Owner (invite, accept an enrollment,
+check the rule, create, record custody receipts, change, ask to share, cancel,
+retire), guardian (accept an invitation, take a welcome, read and approve a
+request, release, hear a cancellation, leave) and recipient (open the recovery
+file, raise a request, gather approvals and releases, open the result). A
+guardian's device decides from the policy it holds, never from what a packet says
+about itself. A circle that protects something protects a **CXF document**
+(the FIDO Credential Exchange Format the vault already exports and imports), so
+recovery ends in the existing Import sheet.
+
+### 11. Carrying a request as an Interaction
+
+A quorum request can be carried as an Interaction (`interaction.ts`, kind
+`authorization_request`). The Interaction names the request and mirrors where the
+ledger says it is; it never decides, and it reaches `approved` only on a ledger
+verdict of releasable, authorized or complete, re-checked against the circle's
+policy and the delay. Three digests are kept apart: `D_q`, the quorum digest the
+guardians' keys signed; `D_i`, `Interaction.requestDigest`, framed exactly as
+`canonicalRequestDigest` frames it (pinned by
+`spec/conformance/request-digest-vectors.json`, replayed here as a third reader)
+and committing to `D_q` through the envelope's one authorization detail; and
+`proof.boundDigest`, which is `D_i`, as `interactionMachine.approve` requires. The
+proof therefore does not say the keys signed `D_i`; it says the interaction that
+commits to what they signed was approved by a quorum. One guardian's accepted
+approval maps only to an unsealed `ApprovalProof` record, so only the settlement
+step, after the quorum and the delay, can seal one. The envelope carries the
+release rule but never a share, mnemonic, wrapped key or recipient secret.
+Carrying a request through the Identity API still needs a server subject adapter
+and a time-to-live longer than its one-hour ceiling, so the adapter builds a local
+envelope only.
+
+Building it found that os-domain's browser `canonicalize` assigned `out[key]`, so
+an own `__proto__` key fell out of the text (its node twin defines the property).
+A field a person is shown and nothing hashes is the failure an approval digest
+exists to prevent; the browser twin now defines the property too, with a test in
+os-domain and the shared `proto_key` vector held as an ordinary case. zod's
+`.strict()` also ignores an own `__proto__` key, so the envelope check compares
+the raw detail's key count with the parsed one.
+
+## What this does not do
+
+State these to the people who rely on it.
+
+- **A quorum is delegated authority.** Fewer than the threshold learn
+  nothing; the threshold has everything the policy gave it. Colluding guardians
+  are not defended against beyond the threshold and the delay.
+- **A released share is visible to the guardian's browser.** PRF returns its
+  output to the page, so a compromised guardian device **during a release** sees
+  that one share. Hardware protects it at rest.
+- **The delay is kept by honest devices and a ledger's clock.** An offline
+  recovery page cannot enforce a delay against a quorum that already holds
+  shares; the static shares carry no timing. A cancellation reaches only ledgers
+  and guardians that hear of it.
+- **Changing guardians does not erase old shares.** A new epoch (§9) deals new
+  shares and the old ones open nothing of the new bundle, but they still open
+  the old bundle if someone kept it. Rotating a wrapping key does not rotate
+  the secret; a secret already revealed needs rotating at its provider.
+- **A quorum approval is not a downstream session.** A service that issues its
+  own bearer session outlives it.
+- **No consensus.** Mutable policy (revocation, owner replacement) needs a
+  serializing authority; an old owner-signed policy proves only what was
+  authorized then.
+- **The recipient's key is a person's to check.** A request names the key the
+  shares are sealed to, and every guardian is shown its fingerprint. That it is
+  the owner's new device is something the guardian must confirm by another
+  road; nothing in the protocol can.
+- **Credentials are bound to an origin.** A guardian's keys are registered
+  under the circle's RP ID and origins. Losing that domain strands them.
+- **Not exercised against physical hardware yet.** The tests drive virtual
+  authenticators: a JavaScript one in the unit suites, and Chromium's own
+  (a CDP virtual authenticator with `hasPrf`) in real browsers, which runs the
+  browser's WebAuthn code but not a vendor's firmware, a platform enclave, or
+  Safari's or Firefox's implementation. A pass against a physical YubiKey and
+  against platform passkeys, in Chrome, Safari and Firefox, is the first
+  follow-up; `docs/validation/trusted-contacts-hardware.md` holds the protocol
+  and a results matrix that is empty on purpose.
+- **WebAuthn verification covers the steps listed in §2,** not every optional
+  step of the specification (no attestation, no `userHandle`, no extension
+  outputs beyond PRF).
+- **The `pass` entry of a record keeps the wrapped share on line one.** It is
+  ciphertext under the guardian's key, marked concealed, and never a mnemonic.
+- **Recovery refuses a share asking for more PBKDF2 work than exponent 6**
+  (10 000 x 2^6 = 640 000 iterations over the four rounds, 160 000 a round); the
+  kernel itself accepts the standard's 15.
+
+## Verification
+
+- `pnpm --filter @opensesame/app-core exec vitest run src/lib/quorum` — 179
+  tests: the SLIP-0039 and HPKE vectors; an end-to-end 3-of-5 with a backup key;
+  two-level recovery; action-only circles; a quorum grant against a real vault
+  tomb; the attacks (wrong request, wrong phase, replayed or forged assertion,
+  wrong origin or RP ID, no user verification, a counter that stands still,
+  early release, a lapsed window, a forged share, a request that lies, a
+  cancellation, a second use).
+- **Mutation check.** Each security check was disabled in turn and the suite
+  required to fail — 27 mutants: challenge, signature, origin, RP ID hash,
+  presence, verification, counter, assertion type, cross-origin, duplicate
+  guardian, the ledger's quorum, approval and delay checks, the guardian
+  device's delay, own-approval, quorum and cancellation checks, request timing,
+  derived sentence, phase-in-challenge, the recipient's and the guardian's share
+  commitments, dropping a damaged release, the owner-key pin, the policy
+  signature check when a ledger opens, once-only execution and persons-only
+  grants. Mutants that first survived led to the direct WebAuthn tests, the
+  device-side quorum tests and a test that a wrong delivery is refused before
+  the guardian is asked to touch a key. Mutating the loop that drops a damaged
+  release also showed it needed a bound; it has one.
+- **Rust parity.** `crates/vault-item-types/tests/conformance.rs` parses every
+  optional marketplace definition under community trust and round-trips its
+  native projection, so both planes accept `trusted-circle` and
+  `guardian-share` and agree on their `pass` entries.
+- **Native reader.** `cargo test -p opensesame-quorum-recovery` runs all 45
+  SLIP-0039 vectors and every Appendix A.1 and A.2 value of
+  `hpke-rfc9180-vectors.json` from the same files the TypeScript suite reads, and
+  opens the committed `spec/conformance/quorum-recovery-fixture.json` (a two-level
+  circle with test-only keys). `scripts/test/quorum-recovery-interop.sh` has
+  TypeScript write a fresh two-epoch circle, the native reader open it and write a
+  bundle, shares and releases of its own, and TypeScript open those. Changing a
+  derivation constant on the Rust side fails the fixture suite.
+- **A real browser's WebAuthn and PRF.** `pnpm --filter @opensesame/pages
+  verify:quorum-browser` runs five Chromium contexts, each with its own CDP
+  virtual authenticator that does PRF, the real desk in each page over
+  `navigator.credentials`, and nothing between the people but packet strings:
+  a 2-of-3 recovery to the recovered payload, and the refusals only a browser's
+  stack can make (a key with no PRF, a key that no longer proves the user, a
+  page on the wrong origin, a key that is not the enrolled one, a release before
+  the delay), each the browser's own `NotAllowedError`. CI runs it in the
+  `sign-in` shard.
+- **The screens.** `verify:keyboard` signs in from the front door with keys
+  alone, switches the capability on, reaches the tab by `g s` and Tab, finds the
+  five head keys in reading order and opens each sheet: the keyboard lands on the
+  close key, Tab and Shift+Tab never leave the sheet, Escape leaves a text field
+  and then closes the sheet, the key that opened it has the keyboard back, and
+  the step that replaces the new-circle form leaves the keyboard on a control
+  (1280 and 390). `verify:mobile` audits the tab, each sheet, the invitation step
+  and a refused paste in a coarse-pointer context at every phone size; it found
+  a file key alone on its row, which is now a labelled row. `verify:tutorials`
+  walks the four goals at both widths. The four capability profiles build, the
+  capability graph holds, and the bundle ceilings are the measured sizes.
+- **The screens, with five browsers.** `pnpm --filter @opensesame/pages
+  verify:trusted-contacts` runs an owner, three contacts and a recipient in
+  separate Chromium contexts, each with a virtual security key that does PRF and
+  one clock moved for every page together, and passes only text between them by
+  the clipboard. It walks a 2-of-3 recovery key by key through the real screens
+  to the recovered item (saved to a file and put in the vault); a reload after
+  the recovery is opened, which loses nothing; hostile pastes refused on their
+  field; a key that will not verify, or is lost, refused and then replaced; an
+  owner's cancellation reaching a contact; and a contact replaced as a new epoch,
+  with the old recovery file refused and the new one recovering. Every refusal is
+  asserted to be a mark on the control and a tray notice, never an alert or
+  text in the page. At 1280 and at 390 wide; its own CI shard.
+- **A core bug it found.** `rebindTombSeals`, which runs first on a vault's first
+  unlock, read the sealed index before it was in memory and sealed an empty one
+  over it, so every file written in a vault's first session fell out of the
+  listing after the first reload (and a key rotation would not have re-sealed
+  them). It hydrates the index and the files it names first now; a regression
+  test fails without it.
+- Existing share-ledger, receipts and proof tests pass unchanged; the type
+  checker refuses the new misuse cases.
+
+## Consequences
+
+- One more optional capability, one owner proof, two marketplace item types,
+  two conformance files. No change to the bootstrap, which does not import it.
+- The core share ledger now trails a quorum grant as a decision (receipt and,
+  for a connector, the Access audit line), as it does a person's.
+- The Pages bundle grows by the quorum engine and the three panels, in two lazy
+  chunks that only a vault with the capability on ever fetches; the budget notes
+  in `tools/quality/bundle-budgets.json` record the measured sizes.
+- The generic "New item" picker lists the two item types once a vault has them
+  installed (they are optional marketplace types, installed when the capability
+  is first used). A person can make an empty one there; it reads as unreadable
+  and is reported rather than thrown.
+- In a guest or decoy vault the Settings tab is listed and its panels draw
+  nothing, because a settings category has no per-vault visibility rule and the
+  panels must not run there. ADR 0158 would rather the tab were absent; that
+  needs the category contract to learn a predicate.
+- The pending store keeps a file whose name is an unsalted hash of its key. It
+  hides the kind and the circle id, not that a ceremony of some kind is in
+  flight.
+
+## Follow-ups
+
+1. A hardware pass (YubiKey, platform passkeys) across browsers, from
+   `docs/validation/trusted-contacts-hardware.md`.
+2. A fuzz target for the native share decoder and policy parser, and the
+   bundle and delivery key-derivation constants moved into one spec file read
+   by both readers (today they are duplicated and pinned by the fixture).
+3. A manifest flag that keeps the two item types out of the generic "New item"
+   picker (both parsers need to learn it).
+4. Carrying a request and its approvals over the Identity API's Interaction
+   route instead of by hand needs a longer lifetime than that route's hour.
+5. Saving the recovered items ends the recovery when the download starts, since
+   a browser cannot say whether the person completed the save dialog; an explicit
+   "I have it" step would make that exact.
+6. A visibility rule on a settings category, so the Trusted contacts tab (and
+   its walkthrough) is absent, not empty, in a guest or decoy vault.
+7. An approvals-only circle's packets are kept until the circle is changed or
+   retired, because nothing confirms their delivery.

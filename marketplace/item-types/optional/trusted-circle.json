@@ -1,0 +1,140 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "trusted-circle",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Trusted circle",
+    "plural": "Trusted circles",
+    "extension": ".circle",
+    "summary": "The people you trust to approve a request or to hold a share of a recovery key, how many of them must agree, and how long you have to object.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "circle",
+        "title": "Circle",
+        "fields": [
+          {
+            "id": "label",
+            "type": "string",
+            "label": "Name",
+            "required": true
+          },
+          {
+            "id": "collection",
+            "type": "string",
+            "label": "Protects"
+          },
+          {
+            "id": "status",
+            "type": "select",
+            "label": "State",
+            "options": ["inviting", "armed", "recovering", "retired"],
+            "default": "inviting"
+          },
+          {
+            "id": "rule",
+            "type": "string",
+            "label": "Rule",
+            "help": "For example 3 of 5, or 2 of 3 family and 2 of 4 friends."
+          },
+          {
+            "id": "guardians",
+            "type": "string",
+            "label": "Trusted contacts",
+            "multiple": true
+          },
+          {
+            "id": "approvalMinutes",
+            "type": "number",
+            "label": "Approval window (minutes)"
+          },
+          {
+            "id": "delayHours",
+            "type": "number",
+            "label": "Release delay (hours)"
+          },
+          {
+            "id": "epoch",
+            "type": "number",
+            "label": "Epoch"
+          }
+        ]
+      },
+      {
+        "id": "record",
+        "title": "Record",
+        "fields": [
+          {
+            "id": "circleId",
+            "type": "string",
+            "label": "Circle id"
+          },
+          {
+            "id": "policy",
+            "type": "multiline",
+            "label": "Signed policy"
+          },
+          {
+            "id": "ownerKey",
+            "type": "key-material",
+            "label": "Owner signing key"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "ownerKey",
+      "trailer": [
+        {
+          "key": "name",
+          "field": "label"
+        },
+        {
+          "key": "protects",
+          "field": "collection"
+        },
+        {
+          "key": "state",
+          "field": "status"
+        },
+        {
+          "key": "rule",
+          "field": "rule"
+        },
+        {
+          "key": "contact",
+          "field": "guardians"
+        },
+        {
+          "key": "approval_minutes",
+          "field": "approvalMinutes"
+        },
+        {
+          "key": "delay_hours",
+          "field": "delayHours"
+        },
+        {
+          "key": "epoch",
+          "field": "epoch"
+        },
+        {
+          "key": "circle_id",
+          "field": "circleId"
+        },
+        {
+          "key": "policy",
+          "field": "policy"
+        }
+      ]
+    },
+    "cxf": {
+      "credential": "custom-fields"
+    },
+    "subtitle": ["rule", "status"],
+    "search": ["label", "collection", "rule", "guardians"]
+  }
+}

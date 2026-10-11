@@ -113,6 +113,16 @@ owner names in Routes, and a hardened deployment governs those:
 The operator guide for the routes is
 [`live-sessions.md`](live-sessions.md#under-a-hardened-deployment).
 
+Trusted contacts (`sharing.trusted-contacts`, ADR 0187) makes no request at
+all, so `externalServices` and `allowedServiceOrigins` have nothing to govern:
+a circle's invitations, requests and approvals are packets a person copies and
+hands to another person, and the recovery file is a file they save. It
+declares two browser permissions, `webauthn` for the contacts' security keys
+and `clipboard-write` for the Copy key beside a packet, and one user-mediated
+hand-off. Prohibit it (`prohibited: [sharing.trusted-contacts]`) and the
+Settings › Trusted contacts tab is gone with it. The operator guide is
+[`trusted-contacts.md`](trusted-contacts.md#operator-controls).
+
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,

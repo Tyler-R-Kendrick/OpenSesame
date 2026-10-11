@@ -5,6 +5,8 @@ use super::{PassAttachCmd, PassCmd, PassTombCmd};
 use crate::{attach, pass_otp, pass_protect, store};
 use clap::Subcommand;
 
+mod circle;
+
 #[derive(Subcommand, Debug)]
 pub(crate) enum VaultArea {
     /// Open a Pages vault export or offline backup with its master password.
@@ -42,6 +44,11 @@ pub(crate) enum VaultArea {
         #[command(subcommand)]
         cmd: super::CryptoCmd,
     },
+    /// Trusted-contacts circle: recover from its shares without a browser, or inspect its bundle.
+    Circle {
+        #[command(subcommand)]
+        cmd: circle::CircleCmd,
+    },
 }
 
 pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::Result<()> {
@@ -63,6 +70,7 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
         VaultArea::Secret { cmd } => super::secret_cmd(server, cmd).await?,
         VaultArea::Sync { cmd } => crate::sync_commands::sync_cmd(server, cmd).await?,
         VaultArea::Crypto { cmd } => super::crypto_cmd(server, cmd).await?,
+        VaultArea::Circle { cmd } => circle::run(output, cmd)?,
     }
     Ok(())
 }

@@ -11,7 +11,17 @@ import {
   createLocalShareAs,
   revokeSharesForSession,
 } from "../local-share-grants.js";
+import { proveQuorumApproved } from "./quorum-approved.js";
 import { requireManageGrants, systemShareWrite } from "./share-write.js";
+
+const VERDICT = {
+  state: "authorized",
+  operation: "grant-access",
+  circleId: "c-1",
+  requestDigest: "sha256:0",
+  approvedBy: [],
+  validUntil: "2099-01-01T00:00:00.000Z",
+} as const;
 
 export async function shareWriteMistakes(
   input: Parameters<typeof createLocalShareAs>[1],
@@ -38,5 +48,17 @@ export async function shareWriteMistakes(
 
     // @ts-expect-error — a raw tomb id is not a named tomb.
     await revokeSharesForSession("tomb-a", "session", manageA);
+
+    // A quorum's approval is a verdict: a proof or a refusal.
+    const quorumA = proveQuorumApproved(a, VERDICT, Date.now());
+    if (quorumA.ok) {
+      await createLocalShareAs(a, input, quorumA.proof);
+
+      // @ts-expect-error — a quorum approving a grant in tomb A does not authorize tomb B.
+      await createLocalShareAs(b, input, quorumA.proof);
+    }
+
+    // @ts-expect-error — the verdict itself, refusal included, is not an authority.
+    await createLocalShareAs(a, input, quorumA);
   });
 }
