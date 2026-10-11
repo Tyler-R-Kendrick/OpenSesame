@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
   type: "json",
 };
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import {
   type HumanRevealRequest,
   assertHumanReveal,
   humanRevealRefusal,
 } from "./reveal-gate.js";
-import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 
 function restoreEnv(name: string, previous: string | undefined): void {
   if (previous === undefined) Reflect.deleteProperty(process.env, name);
