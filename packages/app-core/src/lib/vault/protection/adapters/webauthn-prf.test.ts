@@ -14,7 +14,10 @@ import {
   wrapVaultKeyWithPrf,
 } from "../../unlock-methods.js";
 import { protectorFromPrfMaterial } from "./webauthn-prf-ops.js";
-import { isPrfUnsupported } from "./webauthn-prf-output.js";
+import {
+  type PrfCeremonyErrorCode,
+  isPrfUnsupported,
+} from "./webauthn-prf-output.js";
 import { webauthnPrfCapabilities } from "./webauthn-prf.js";
 
 afterEach(() => {
@@ -54,15 +57,20 @@ describe("multi-cred passkey unlock records", () => {
 
 describe("an authenticator that cannot answer PRF", () => {
   it("is told apart from a cancelled or misrouted ceremony", () => {
-    for (const code of ["prf_missing_output", "prf_enabled_without_output"]) {
-      expect(isPrfUnsupported(new PrfCeremonyError(code as never, "x"))).toBe(
-        true,
-      );
+    const unsupported: PrfCeremonyErrorCode[] = [
+      "prf_missing_output",
+      "prf_enabled_without_output",
+    ];
+    const other: PrfCeremonyErrorCode[] = [
+      "canceled",
+      "wrong_credential",
+      "invalid_host",
+    ];
+    for (const code of unsupported) {
+      expect(isPrfUnsupported(new PrfCeremonyError(code, "x"))).toBe(true);
     }
-    for (const code of ["canceled", "wrong_credential", "invalid_host"]) {
-      expect(isPrfUnsupported(new PrfCeremonyError(code as never, "x"))).toBe(
-        false,
-      );
+    for (const code of other) {
+      expect(isPrfUnsupported(new PrfCeremonyError(code, "x"))).toBe(false);
     }
     expect(isPrfUnsupported(new Error("prf_missing_output"))).toBe(false);
     expect(isPrfUnsupported(undefined)).toBe(false);
