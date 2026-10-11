@@ -1,0 +1,1918 @@
+{
+  "schema_version": 1,
+  "description": "Model key exchange (ADR 0192): the decisions a conforming implementation makes. Each case issues one root key, then runs its steps in order. An exchange is RFC 8693 token exchange with an RFC 9396 `model_access` detail; a call is the last-hop check. `dpop_optional` is the policy, so no proof is needed; DPoP is covered by the TypeScript suite and by RFC 9449.",
+  "now_ms": 1791720000000,
+  "policy": {
+    "senderConstraint": "dpop_optional",
+    "rootMaxLifetimeSeconds": 28800,
+    "maxLifetimeSeconds": 3600,
+    "defaultLifetimeSeconds": 900,
+    "maxDelegationDepth": 2,
+    "outputTokenCeiling": 32768
+  },
+  "providers": [
+    {
+      "providerId": "openai",
+      "protocol": "openai_chat",
+      "baseUrl": "https://api.openai.com/v1",
+      "connectionId": "conn-openai"
+    }
+  ],
+  "cases": [
+    {
+      "name": "narrowing models, actions, budget and lifetime is issued",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            },
+            "lifetime_seconds": 600
+          },
+          "expect": {
+            "issued": {
+              "scope": "model.invoke",
+              "expires_in": 600,
+              "models": ["gpt-4o"],
+              "resource": "https://api.openai.com/v1"
+            }
+          },
+          "as": "k1"
+        }
+      ]
+    },
+    {
+      "name": "a lifetime longer than the parent's is shortened, never extended",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 120,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            },
+            "lifetime_seconds": 3600
+          },
+          "expect": {
+            "issued": {
+              "expires_in": 120
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "another provider's resource is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.anthropic.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_target",
+              "reason": "escalation.resource"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a model outside the parent's list is refused, never trimmed",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.models"
+            }
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o", "gpt-4"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.models"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a wildcard over an exact list is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["*"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.models"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an action the parent does not hold is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.list"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_scope",
+              "reason": "escalation.actions"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "more budget than the parent was given is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 101,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.budget"
+            }
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 4097
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.budget"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a budget must be stated",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"]
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "budget.required"
+            }
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 1
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "budget.required"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "authority is conserved: two children cannot hold more than the parent",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 60,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          },
+          "as": "k1"
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 60,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.budget_remaining"
+            }
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 40,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "a revoked child gives its unspent budget back",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 100,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          },
+          "as": "k1"
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 1,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_authorization_details",
+              "reason": "escalation.budget_remaining"
+            }
+          }
+        },
+        {
+          "op": "revoke",
+          "key": "k1"
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 1,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          }
+        }
+      ]
+    },
+    {
+      "name": "a chain cannot be longer than the root allows",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 1
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 9,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          },
+          "as": "k1"
+        },
+        {
+          "op": "exchange",
+          "from": "k1",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 8,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_grant",
+              "reason": "depth.exceeded"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "only the client the key was issued to may exchange it",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_grant",
+              "reason": "subject.foreign_client"
+            }
+          },
+          "client": "app-2"
+        }
+      ]
+    },
+    {
+      "name": "an unknown, revoked or expired subject key is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "unknown",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_grant",
+              "reason": "subject.unknown"
+            }
+          }
+        },
+        {
+          "op": "revoke",
+          "key": "root"
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_grant",
+              "reason": "subject.inactive"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "an expired subject key is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 120,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "advance",
+          "seconds": 121
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_grant",
+              "reason": "subject.inactive"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "request parameters this exchange does not define are refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_request",
+              "reason": "param.unknown"
+            }
+          },
+          "params": {
+            "client_id": "app-9"
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_request",
+              "reason": "param.actor_token"
+            }
+          },
+          "params": {
+            "actor_token": "x"
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_request",
+              "reason": "subject.type"
+            }
+          },
+          "params": {
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt"
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "unsupported_grant_type",
+              "reason": "grant_type"
+            }
+          },
+          "params": {
+            "grant_type": "client_credentials"
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_scope",
+              "reason": "scope.unknown"
+            }
+          },
+          "params": {
+            "scope": "admin"
+          }
+        },
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_target",
+              "reason": "resource.disagree"
+            }
+          },
+          "params": {
+            "resource": "https://api.anthropic.com/v1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call on a model the key permits is authorized, to the provider's own URL",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "allowed": {
+              "url": "https://api.openai.com/v1/chat/completions",
+              "method": "POST",
+              "model": "gpt-4o",
+              "providerId": "openai"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "list",
+          "method": "GET",
+          "path": "/models",
+          "body": null,
+          "expect": {
+            "allowed": {
+              "url": "https://api.openai.com/v1/models",
+              "method": "GET",
+              "model": null
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call outside the key's models is refused in any spelling",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "escalation.model"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "GPT-4O",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "escalation.model"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o/../x",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "escalation.model"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": ["gpt-4o"],
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_request",
+              "reason": "body.model"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call must state its output limit and stay within the key's",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 4096
+          },
+          "expect": {
+            "allowed": {
+              "outputTokens": 4096
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 4097
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "escalation.tokens"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "x"
+              }
+            ]
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "tokens.required"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": "100"
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_request",
+              "reason": "body.max_tokens"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call may not turn on a feature nobody priced",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "stream": true
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "body.stream"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "n": 5
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "body.n"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "web_search_options": {}
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "body.field"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "tools": [{ "type": "web_search_preview" }]
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "body.tool"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "weather",
+                  "parameters": { "type": "object", "properties": {} }
+                }
+              }
+            ]
+          },
+          "expect": {
+            "allowed": {
+              "model": "gpt-4o"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call may only reach the route its protocol names",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/files",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "call.route"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/../chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "call.route"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions?x=1",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "call.route"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "GET",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "call.route"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a key is for one resource, one client, and until it ends",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_token",
+              "reason": "aud.mismatch"
+            }
+          },
+          "resource": "https://api.anthropic.com/v1"
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_token",
+              "reason": "key.foreign_client"
+            }
+          },
+          "client": "app-2"
+        },
+        {
+          "op": "call",
+          "key": "unknown",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_token",
+              "reason": "key.inactive"
+            }
+          }
+        },
+        {
+          "op": "advance",
+          "seconds": 7201
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_token",
+              "reason": "key.inactive"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "revoking a key ends everything issued from it",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          },
+          "as": "k1"
+        },
+        {
+          "op": "call",
+          "key": "k1",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "allowed": {
+              "model": "gpt-4o"
+            }
+          }
+        },
+        {
+          "op": "revoke",
+          "key": "root"
+        },
+        {
+          "op": "call",
+          "key": "k1",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "invalid_token",
+              "reason": "key.inactive"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a derived key may only do what it was narrowed to",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "exchange",
+          "from": "root",
+          "details": {
+            "locations": ["https://api.openai.com/v1"],
+            "models": ["gpt-4o-mini"],
+            "actions": ["model.invoke"],
+            "budget": {
+              "requests": 10,
+              "input_tokens": 10000,
+              "output_tokens": 5000,
+              "max_output_tokens": 1024
+            }
+          },
+          "expect": {
+            "issued": {}
+          },
+          "as": "k1"
+        },
+        {
+          "op": "call",
+          "key": "k1",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o-mini",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "allowed": {
+              "model": "gpt-4o-mini"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "k1",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "escalation.model"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "k1",
+          "operation": "list",
+          "method": "GET",
+          "path": "/models",
+          "body": null,
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "escalation.action"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call spends the key's own budget, and is refused once it is gone",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 2,
+          "input_tokens": 100000,
+          "output_tokens": 50000,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "allowed": {}
+          },
+          "settle": {
+            "sent": true
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "allowed": {}
+          },
+          "settle": {
+            "sent": true
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "budget.exhausted"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "a call that does not fit the budget's worst case is refused",
+      "root": {
+        "clientId": "app-1",
+        "resource": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini"],
+        "actions": ["model.invoke", "model.list"],
+        "budget": {
+          "requests": 100,
+          "input_tokens": 100000,
+          "output_tokens": 50,
+          "max_output_tokens": 4096
+        },
+        "lifetimeSeconds": 7200,
+        "maximumDelegationDepth": 2
+      },
+      "steps": [
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "budget.exhausted"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 50
+          },
+          "expect": {
+            "allowed": {}
+          }
+        }
+      ]
+    }
+  ]
+}

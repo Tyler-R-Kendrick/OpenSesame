@@ -3213,6 +3213,27 @@
   ],
   "api_key": [
     {
+      "service": "302ai",
+      "key_url": "https://doc.302.ai",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.302.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.302.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [302.AI documentation](https://doc.302.ai), create an API key in its console and copy it.",
+      "docs_url": "https://doc.302.ai",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://doc.302.ai"],
+      "template_params": []
+    },
+    {
       "service": "agentmail",
       "key_url": "https://console.agentmail.to",
       "header": "Authorization",
@@ -3271,6 +3292,50 @@
           "placeholder": "ABCDEF1234"
         }
       ]
+    },
+    {
+      "service": "alibaba",
+      "key_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Alibaba documentation](https://www.alibabacloud.com/help/en/model-studio/models), create an API key in its console and copy it.",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://www.alibabacloud.com/help/en/model-studio/models"],
+      "template_params": []
+    },
+    {
+      "service": "alibaba-cn",
+      "key_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://dashscope.aliyuncs.com/compatible-mode/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Alibaba (China) documentation](https://www.alibabacloud.com/help/en/model-studio/models), create an API key in its console and copy it.",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://www.alibabacloud.com/help/en/model-studio/models"],
+      "template_params": []
     },
     {
       "service": "anthropic",
@@ -3478,6 +3543,27 @@
       "template_params": []
     },
     {
+      "service": "cerebras",
+      "key_url": "https://inference-docs.cerebras.ai/models/overview",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.cerebras.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.cerebras.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Cerebras documentation](https://inference-docs.cerebras.ai/models/overview), create an API key in its console and copy it.",
+      "docs_url": "https://inference-docs.cerebras.ai/models/overview",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://inference-docs.cerebras.ai/models/overview"],
+      "template_params": []
+    },
+    {
       "service": "circleci",
       "key_url": "https://app.circleci.com/settings/user/tokens",
       "header": "Circle-Token",
@@ -3663,6 +3749,27 @@
       "template_params": []
     },
     {
+      "service": "coreweave",
+      "key_url": "https://docs.wandb.ai/inference",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.inference.wandb.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.inference.wandb.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [CoreWeave documentation](https://docs.wandb.ai/inference), create an API key in its console and copy it.",
+      "docs_url": "https://docs.wandb.ai/inference",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://docs.wandb.ai/inference"],
+      "template_params": []
+    },
+    {
       "service": "crowdin",
       "key_url": "https://crowdin.com/settings#api-key",
       "header": "Authorization",
@@ -3726,7 +3833,12 @@
         "method": "GET",
         "url": "https://api.{site}/api/v1/validate",
         "account_field": null,
-        "success": [{ "field": "valid", "equals": true }]
+        "success": [
+          {
+            "field": "valid",
+            "equals": true
+          }
+        ]
       },
       "instructions": "In Datadog create an API key under Organization Settings → API Keys, and an application key under Personal Settings → Application Keys with only the read scopes needed (such as monitors_read). Select the Datadog site for your organization. Store both keys privately.",
       "docs_url": "https://docs.datadoghq.com/api/latest/authentication/",
@@ -3864,6 +3976,29 @@
       "notes": null,
       "sources": [
         "https://docs.digitalocean.com/reference/api/create-personal-access-token/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "digitalocean-ai",
+      "key_url": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://inference.do-ai.run/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://inference.do-ai.run/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [DigitalOcean AI documentation](https://docs.digitalocean.com/products/gradient-ai-platform/details/models/), create an API key in its console and copy it.",
+      "docs_url": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/"
       ],
       "template_params": []
     },
@@ -4077,6 +4212,29 @@
       "sources": [
         "https://docs.gitlab.com/user/profile/personal_access_tokens/",
         "https://docs.gitlab.com/api/users/"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "gmicloud",
+      "key_url": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.gmi-serving.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.gmi-serving.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [GMI Cloud documentation](https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference), create an API key in its console and copy it.",
+      "docs_url": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference"
       ],
       "template_params": []
     },
@@ -4425,6 +4583,27 @@
       "template_params": []
     },
     {
+      "service": "meta",
+      "key_url": "https://dev.meta.ai/docs",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.meta.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.meta.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Meta documentation](https://dev.meta.ai/docs), create an API key in its console and copy it.",
+      "docs_url": "https://dev.meta.ai/docs",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://dev.meta.ai/docs"],
+      "template_params": []
+    },
+    {
       "service": "mistral",
       "key_url": "https://console.mistral.ai/api-keys",
       "header": "Authorization",
@@ -4481,6 +4660,48 @@
       ]
     },
     {
+      "service": "moonshotai",
+      "key_url": "https://platform.moonshot.ai/docs/api/chat",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.moonshot.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.moonshot.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Moonshot AI documentation](https://platform.moonshot.ai/docs/api/chat), create an API key in its console and copy it.",
+      "docs_url": "https://platform.moonshot.ai/docs/api/chat",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://platform.moonshot.ai/docs/api/chat"],
+      "template_params": []
+    },
+    {
+      "service": "moonshotai-cn",
+      "key_url": "https://platform.moonshot.cn/docs/api/chat",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.moonshot.cn/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.moonshot.cn/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Moonshot AI (China) documentation](https://platform.moonshot.cn/docs/api/chat), create an API key in its console and copy it.",
+      "docs_url": "https://platform.moonshot.cn/docs/api/chat",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://platform.moonshot.cn/docs/api/chat"],
+      "template_params": []
+    },
+    {
       "service": "n8n",
       "key_url": "https://{instance}.app.n8n.cloud/settings/api",
       "header": "X-N8N-API-KEY",
@@ -4509,6 +4730,27 @@
           "placeholder": "acme"
         }
       ]
+    },
+    {
+      "service": "nebius",
+      "key_url": "https://docs.tokenfactory.nebius.com/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.tokenfactory.nebius.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.tokenfactory.nebius.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Nebius Token Factory documentation](https://docs.tokenfactory.nebius.com/), create an API key in its console and copy it.",
+      "docs_url": "https://docs.tokenfactory.nebius.com/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://docs.tokenfactory.nebius.com/"],
+      "template_params": []
     },
     {
       "service": "neon",
@@ -5043,6 +5285,27 @@
       ]
     },
     {
+      "service": "scaleway",
+      "key_url": "https://www.scaleway.com/en/docs/generative-apis/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.scaleway.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.scaleway.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Scaleway documentation](https://www.scaleway.com/en/docs/generative-apis/), create an API key in its console and copy it.",
+      "docs_url": "https://www.scaleway.com/en/docs/generative-apis/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://www.scaleway.com/en/docs/generative-apis/"],
+      "template_params": []
+    },
+    {
       "service": "segment",
       "key_url": "https://app.segment.com/goto-my-workspace/settings/access-management/tokens",
       "header": "Authorization",
@@ -5088,6 +5351,27 @@
       "sources": [
         "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access"
       ],
+      "template_params": []
+    },
+    {
+      "service": "siliconflow",
+      "key_url": "https://cloud.siliconflow.com/models",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.siliconflow.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.siliconflow.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [SiliconFlow documentation](https://cloud.siliconflow.com/models), create an API key in its console and copy it.",
+      "docs_url": "https://cloud.siliconflow.com/models",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://cloud.siliconflow.com/models"],
       "template_params": []
     },
     {
@@ -5294,6 +5578,27 @@
       ]
     },
     {
+      "service": "upstage",
+      "key_url": "https://developers.upstage.ai/docs/apis/chat",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.upstage.ai/v1/solar"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.upstage.ai/v1/solar/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Upstage documentation](https://developers.upstage.ai/docs/apis/chat), create an API key in its console and copy it.",
+      "docs_url": "https://developers.upstage.ai/docs/apis/chat",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://developers.upstage.ai/docs/apis/chat"],
+      "template_params": []
+    },
+    {
       "service": "vercel",
       "key_url": "https://vercel.com/account/settings/tokens",
       "header": "Authorization",
@@ -5361,6 +5666,69 @@
         "https://workos.com/docs/reference",
         "https://workos.com/docs/reference/organization/list"
       ],
+      "template_params": []
+    },
+    {
+      "service": "xai",
+      "key_url": "https://docs.x.ai/docs/models",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.x.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.x.ai/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [xAI documentation](https://docs.x.ai/docs/models), create an API key in its console and copy it.",
+      "docs_url": "https://docs.x.ai/docs/models",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://docs.x.ai/docs/models"],
+      "template_params": []
+    },
+    {
+      "service": "xiaomi",
+      "key_url": "https://platform.xiaomimimo.com/#/docs",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.xiaomimimo.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.xiaomimimo.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Xiaomi documentation](https://platform.xiaomimimo.com/#/docs), create an API key in its console and copy it.",
+      "docs_url": "https://platform.xiaomimimo.com/#/docs",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://platform.xiaomimimo.com/#/docs"],
+      "template_params": []
+    },
+    {
+      "service": "zhipuai",
+      "key_url": "https://docs.z.ai/guides/overview/pricing",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://open.bigmodel.cn/api/paas/v4"],
+      "verify": {
+        "method": "GET",
+        "url": "https://open.bigmodel.cn/api/paas/v4/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Zhipu AI documentation](https://docs.z.ai/guides/overview/pricing), create an API key in its console and copy it.",
+      "docs_url": "https://docs.z.ai/guides/overview/pricing",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
+      "sources": ["https://docs.z.ai/guides/overview/pricing"],
       "template_params": []
     }
   ]

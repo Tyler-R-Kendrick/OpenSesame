@@ -11,12 +11,12 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 169,
-    "violations": 567,
+    "files": 168,
+    "violations": 566,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 203,
+      "anti-slop/no-known-value-widening": 202,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 160,
@@ -268,9 +268,6 @@
     },
     "packages/app-core/src/lib/claims/link.ts": {
       "anti-slop/no-known-value-widening": 2
-    },
-    "packages/app-core/src/lib/connector-catalog.generated.ts": {
-      "anti-slop/no-known-value-widening": 1
     },
     "packages/app-core/src/lib/connector-settings.ts": {
       "anti-slop/no-known-value-widening": 1,

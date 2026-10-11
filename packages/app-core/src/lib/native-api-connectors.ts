@@ -256,6 +256,30 @@ export async function configureNativeApiConnector(
     () => transport.assertCurrent(),
   );
 }
+/**
+ * Prove a key against its provider and keep nothing (ADR 0192). It makes the
+ * request `configureNativeApiConnector` makes, through the same admission and
+ * transport, and answers only the provider's own label: no record is written,
+ * so a key that fails leaves no trace and a key that passes is still the
+ * person's to save.
+ */
+export async function testNativeApiCredential(
+  input: Pick<
+    NativeApiConfigureInput,
+    "providerId" | "parameters" | "credentials"
+  >,
+  transport: NativeProviderTransport = nativeProviderTransport(),
+) {
+  transport.assertCurrent();
+  const target = nativeApiTarget(input.providerId, input.parameters);
+  assertNativeApiBrowserTarget(target);
+  const credentials = nativeApiCredentials(target, input.credentials, {});
+  for (const value of Object.values(target.parameters))
+    safeProviderText(value, credentials);
+  const { result } = await providerVerification(target, credentials, transport);
+  transport.assertCurrent();
+  return { label: result.label };
+}
 export async function verifyNativeApiConnector(
   id: string,
   transport: NativeProviderTransport = nativeProviderTransport(),

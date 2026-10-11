@@ -7,6 +7,10 @@ import {
   scrubLocalSecrets,
 } from "./fence.js";
 
+/** Synthetic: `osk_` and 43 base64url characters, none of them a real key. */
+const MODEL_KEY = `osk_${"A".repeat(43)}`;
+const MODEL_KEY_PUNCTUATED = `osk_${"Ab_-".repeat(10)}Ab_`;
+
 describe("scrubLocalSecrets", () => {
   it("replaces every occurrence of a configured secret", () => {
     const env = { OPENSESAME_OPERATOR_TOKEN: "tok-abcdef123" }; // gitleaks:allow -- synthetic security test vector
@@ -52,6 +56,23 @@ describe("fenceForAgent", () => {
       AgentPayloadRefused,
     );
   });
+
+  it("refuses a model key wherever it sits in a structured payload", () => {
+    expect(() => fenceForAgent({ note: `key ${MODEL_KEY}` }, {})).toThrow(
+      AgentPayloadRefused,
+    );
+    expect(() => fenceForAgent({ rows: [[MODEL_KEY]] }, {})).toThrow(
+      AgentPayloadRefused,
+    );
+    expect(() => fenceForAgent(MODEL_KEY, {})).toThrow(AgentPayloadRefused);
+  });
+
+  it("passes a model key's short preview and a word that holds the prefix", () => {
+    expect(fenceForAgent({ preview: "osk_AbCdEfGh" }, {})).toBe(
+      '{"preview":"osk_AbCdEfGh"}',
+    );
+    expect(fenceForAgent("kiosk_mode=on", {})).toBe("kiosk_mode=on");
+  });
 });
 
 describe("looksLikeCredential", () => {
@@ -59,5 +80,26 @@ describe("looksLikeCredential", () => {
     expect(looksLikeCredential("SECRET://x")).toBe(true);
     expect(looksLikeCredential("ghp_abc")).toBe(true);
     expect(looksLikeCredential("nothing here")).toBe(false);
+  });
+
+  it.each([
+    ["bare", MODEL_KEY],
+    ["with every base64url character", MODEL_KEY_PUNCTUATED],
+    ["in a sentence", `your key is ${MODEL_KEY}; it is shown once`],
+    ["in a URL fragment", `https://app.example/keys#ref=${MODEL_KEY}`],
+    ["under a DPoP header", `Authorization: DPoP ${MODEL_KEY}`],
+    ["glued to a label", `model_key_${MODEL_KEY}`],
+  ])("flags a model key %s", (_where, value) => {
+    expect(looksLikeCredential(value)).toBe(true);
+  });
+
+  it.each([
+    ["one character short", `osk_${"A".repeat(42)}`],
+    ["a preview", "osk_AbCdEfGh"],
+    ["a space inside the run", `osk_${"A".repeat(20)} ${"A".repeat(23)}`],
+    ["the prefix in upper case", `OSK_${"A".repeat(43)}`],
+    ["a word that holds the prefix", "kiosk_mode=on tabs=3"],
+  ])("does not flag %s", (_what, value) => {
+    expect(looksLikeCredential(value)).toBe(false);
   });
 });

@@ -213,7 +213,8 @@ describe("moving between connector pages", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "go to /connections/openai" }),
     );
-    await screen.findByRole("heading", { name: "OpenAI" });
+    // A model provider's first connection is the Add sheet, not a page (ADR 0192).
+    await screen.findByRole("dialog", { name: "Connect a model provider" });
     expect(screen.getByLabelText("OpenAI API key")).toHaveProperty("value", "");
     expect(listNotices()).toEqual([]);
     fixture.replies.push({
@@ -224,7 +225,7 @@ describe("moving between connector pages", () => {
       "private-openai-key",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Verify and connect OpenAI" }),
+      screen.getByRole("button", { name: "Save connection" }),
     );
     await waitFor(() => expect(readDeviceRows()).toHaveLength(1));
     const row = readDeviceRows()[0];
