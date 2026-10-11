@@ -845,8 +845,9 @@ input[type="radio"] {
   padding: 0.7rem 0.85rem 0.5rem;
 }
 
-/* The rail's wordmark is the particle field at its 16px floor (DESIGN.md §
-   Mark). Font-size is the plate em, so the canvas sizes from this rule. */
+/* The rail's wordmark is the particle field at its 16px floor, with the mark
+   (DESIGN.md § Mark). Font-size is the plate em, so the canvas sizes from this
+   rule. */
 .wordmark.rail__wordmark {
   margin: 0;
   font-size: 1rem;
@@ -2090,6 +2091,10 @@ body {
   color: var(--ink);
   box-shadow: var(--shadow-lg);
   font-family: var(--mono);
+  /* The rail's prompt is `nowrap` and this menu hangs from it, so its rows
+     inherited that: the vault meta line ran past the menu's right edge
+     instead of wrapping (`overflow-wrap` does nothing under `nowrap`). */
+  white-space: normal;
 }
 
 .topbar .project-switcher__menu {
@@ -3480,6 +3485,8 @@ button.vault-row__body:hover:not(:disabled) {
   gap: 0.5rem;
   margin: 0 0 0.3rem;
   padding: 0 0.3rem;
+  /* One line, as before the menu wrapped its rows: the title and its cost. */
+  white-space: nowrap;
 }
 
 .project-switcher__head .project-switcher__label {

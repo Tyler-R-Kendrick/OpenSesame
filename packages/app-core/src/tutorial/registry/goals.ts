@@ -222,7 +222,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.health",
     title: "How do I tell whether OpenSesame is healthy?",
     answer:
-      "Vault health, under Vault, lists weak, reused and aging credentials.",
+      "Password health, in the vault's right-click menu, lists weak, reused and aging credentials.",
     routes: [],
     goal: "host.health.check",
     keywords: [
@@ -266,7 +266,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.vault.health.review",
     title: "Which of my passwords are weak or reused?",
     answer:
-      "Vault → Health scores every stored password for strength, reuse and age. It runs entirely on this device over the already-decrypted collection: no password, and no hash of one, is sent anywhere.",
+      "Right-click the vault and choose Password health. It scores every stored password for strength, reuse and age. It runs entirely on this device over the already-decrypted collection: no password, and no hash of one, is sent anywhere.",
     routes: [],
     goal: "vault.health.review",
     keywords: [
