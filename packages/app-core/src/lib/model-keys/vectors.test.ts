@@ -1,5 +1,5 @@
 /**
- * The model-key conformance vectors (ADR 0139, ADR 0188), replayed.
+ * The model-key conformance vectors (ADR 0139, ADR 0189), replayed.
  *
  * `spec/conformance/model-key-exchange-vectors.json` is the one statement of
  * what an exchange and a last-hop check decide. This file is the TypeScript

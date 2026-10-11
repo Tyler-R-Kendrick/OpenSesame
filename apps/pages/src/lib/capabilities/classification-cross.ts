@@ -153,17 +153,17 @@ export const CROSS_RULES = [
   optional(
     `${L}model-keys/`,
     "connectors.external",
-    "model keys: the broker, the RFC 8693 exchange, the last-hop check and their test fixtures (ADR 0188)",
+    "model keys: the broker, the RFC 8693 exchange, the last-hop check and their test fixtures (ADR 0189)",
   ),
   optional(
     `${L}ai-model-provider`,
     "connectors.external",
-    "which catalogue rows are model providers and how each is spoken to (ADR 0188)",
+    "which catalogue rows are model providers and how each is spoken to (ADR 0189)",
   ),
   optional(
     `${L}proofs/model-grant-approval`,
     "connectors.external",
-    "the proof that a person approved this exact model key grant (ADR 0178, ADR 0188)",
+    "the proof that a person approved this exact model key grant (ADR 0178, ADR 0189)",
   ),
   optional(
     `${L}connector-action-capability`,

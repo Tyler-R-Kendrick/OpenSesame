@@ -108,7 +108,7 @@ is the person's own, a `base_url` that must lie inside the row's own egress; a
 row outside the category may not carry the block. The browser plane issues
 narrowed `osk_` keys against such a connection and spends them through it, so
 an app or agent never holds the provider's credential
-([ADR 0188](../adr/0188-model-keys-and-token-exchange.md)).
+([ADR 0189](../adr/0189-model-keys-and-token-exchange.md)).
 
 `configuration` rows expose their declared fields in Pages and seal completed
 configuration on the Host. Provider execution still requires an

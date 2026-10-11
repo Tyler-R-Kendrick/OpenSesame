@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * How a hosted model row is spoken to (ADR 0188). The protocol is a closed
+ * How a hosted model row is spoken to (ADR 0189). The protocol is a closed
  * name; a row never carries a path or a header, so it cannot teach the broker
  * a new way to reach a host.
  */

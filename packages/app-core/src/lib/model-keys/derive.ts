@@ -1,6 +1,6 @@
 /**
  * Deriving a child key: the whole of "may this exchange hand out that much?"
- * (ADR 0188 §4).
+ * (ADR 0189 §4).
  *
  * The rule is one sentence: a key can only ever be narrowed. Each dimension is
  * checked on its own, against what the parent *holds now* and not only what it

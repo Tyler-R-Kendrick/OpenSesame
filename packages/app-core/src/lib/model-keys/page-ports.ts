@@ -1,5 +1,5 @@
 /**
- * The page's side of the broker's ports (ADR 0188 §6).
+ * The page's side of the broker's ports (ADR 0189 §6).
  *
  * The catalog says which providers are model providers, how each is spoken to
  * and where; the saved connections say whether a credential stands behind a

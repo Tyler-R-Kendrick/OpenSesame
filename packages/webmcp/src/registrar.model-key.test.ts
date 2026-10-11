@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WebMcpToolDescriptor } from "./detect.js";
 import { createWebMcpRegistrar } from "./registrar.js";
 
-describe("createWebMcpRegistrar and a model key (ADR 0188)", () => {
+describe("createWebMcpRegistrar and a model key (ADR 0189)", () => {
   it("refuses a result that carries a model key and never echoes it", async () => {
     const registered: WebMcpToolDescriptor[] = [];
     const api = {

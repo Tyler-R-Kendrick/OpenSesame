@@ -1,4 +1,4 @@
-//! How a hosted model API is spoken to (ADR 0188 §2): the closed set of
+//! How a hosted model API is spoken to (ADR 0189 §2): the closed set of
 //! protocols an `ai_model_provider` catalog row may name, and the load-time
 //! check that keeps a row's endpoint inside its own egress.
 //!
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{provider_error, validate_provider_url, AuthMethod, CatalogError, Category, Provider};
 
-/// The closed set of request shapes a hosted model API speaks (ADR 0188 §2).
+/// The closed set of request shapes a hosted model API speaks (ADR 0189 §2).
 /// A row names one of these; it never supplies a path or a header, so a
 /// catalog row cannot teach the broker a new way to reach a host.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]

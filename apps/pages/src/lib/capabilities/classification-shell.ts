@@ -335,7 +335,7 @@ export const SHELL_RULES = [
   core(
     "src/lib/ai-model-provider-ids.generated",
     "settings.core",
-    "the catalog's model-provider ids, which the bundled catalog labels above read (ADR 0188)",
+    "the catalog's model-provider ids, which the bundled catalog labels above read (ADR 0189)",
   ),
   shared(
     "src/lib/connect-callback",

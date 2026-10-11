@@ -1,4 +1,4 @@
-/** Model key exchange (ADR 0188): see `broker.ts` for the entry point. */
+/** Model key exchange (ADR 0189): see `broker.ts` for the entry point. */
 export { ModelKeyBroker, systemClockPorts } from "./broker.js";
 export type { IssuedRoot, RevokeTarget } from "./broker.js";
 export type {

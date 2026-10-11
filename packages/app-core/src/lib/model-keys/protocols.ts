@@ -1,5 +1,5 @@
 /**
- * What a model call is, read from the call itself (ADR 0188 §5).
+ * What a model call is, read from the call itself (ADR 0189 §5).
  *
  * A key can be narrowed to a model and to an amount of output only if the
  * broker can find the model and the amount in the request. For each protocol

@@ -1,5 +1,5 @@
 /**
- * A person hands an app or an agent a model key (ADR 0188 §3, §6).
+ * A person hands an app or an agent a model key (ADR 0189 §3, §6).
  *
  * This is the one ceremony that creates authority. It runs the vault's own
  * `manage_grants` check, so the duress ceilings and the operator rule apply

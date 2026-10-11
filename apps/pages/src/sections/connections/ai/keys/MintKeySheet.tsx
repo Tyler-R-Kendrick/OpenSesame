@@ -1,5 +1,5 @@
 /**
- * Create a key for an app or an agent (ADR 0188 §6): who it is for, which
+ * Create a key for an app or an agent (ADR 0189 §6): who it is for, which
  * models, how much, for how long. The person's unlocked vault approves exactly
  * what the sheet shows, the key is shown once, and closing the sheet forgets
  * it — only its digest stays in the broker.

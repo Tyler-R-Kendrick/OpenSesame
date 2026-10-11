@@ -4841,7 +4841,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ConfigurationFieldDef" }
         model_api:
-          description: How an ai_model_provider row is spoken to (ADR 0188). Absent on every other row; a row names a closed protocol and never a path or a header.
+          description: How an ai_model_provider row is spoken to (ADR 0189). Absent on every other row; a row names a closed protocol and never a path or a header.
           type: object
           additionalProperties: false
           required: [protocol]

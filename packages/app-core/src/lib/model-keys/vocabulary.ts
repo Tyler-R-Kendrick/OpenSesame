@@ -1,5 +1,5 @@
 /**
- * The names a model key exchange speaks in (ADR 0188).
+ * The names a model key exchange speaks in (ADR 0189).
  *
  * An OpenSesame model key stands for a connection's credential without being
  * it. An app or agent asks for one by RFC 8693 token exchange, names the

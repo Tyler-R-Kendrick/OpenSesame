@@ -38,7 +38,7 @@ async function catalogRows(page) {
 
 /**
  * A model provider's first connection from the Add catalog is a sheet over the
- * catalog, not a page (ADR 0188): the walk waits for whichever the route drew.
+ * catalog, not a page (ADR 0189): the walk waits for whichever the route drew.
  */
 async function nativeArrival(page, row) {
   const heading = page.getByRole("heading", { name: row.name, exact: true });

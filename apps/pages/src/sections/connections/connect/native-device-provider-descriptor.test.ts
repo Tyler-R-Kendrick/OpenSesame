@@ -12,7 +12,7 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   const visible = getBundledProviders()
     .filter(isConnectionCatalogProvider)
     .filter((provider) => !hasConnectPlan(provider.id));
-  // The 31 that were here, and the 48 model providers a browser cannot reach yet (ADR 0188).
+  // The 31 that were here, and the 48 model providers a browser cannot reach yet (ADR 0189).
   expect(visible).toHaveLength(79);
   const has = vi.fn<NativeDeviceAvailability["has"]>(() => false);
   for (const provider of visible) {

@@ -242,4 +242,4 @@ export const AUTHENTICATOR_HANDOFF: CapabilityExclusion = {
     "the hand-off is the browser landing page of an app link, pressed by a person to open their own authenticator; a terminal signs in with its own device code, and no agent surface may start a person's authenticator ceremony",
   adr: ADR_PAGES_CEREMONIES,
 };
-export const ADR_MODEL_KEYS = "0188-model-keys-and-token-exchange.md";
+export const ADR_MODEL_KEYS = "0189-model-keys-and-token-exchange.md";

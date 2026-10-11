@@ -1,5 +1,5 @@
 /**
- * RFC 9396 authorization details for model access (ADR 0188).
+ * RFC 9396 authorization details for model access (ADR 0189).
  *
  * `{"type":"model_access", ...}` is the one detail type this exchange knows;
  * any other is refused whole (RFC 9396 §5). Its members are a closed list, so

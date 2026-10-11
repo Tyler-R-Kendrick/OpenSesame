@@ -196,7 +196,7 @@ pub struct ProviderView {
     pub operations: Vec<String>,
     pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
     pub connection_configuration_fields: Vec<ConfigurationFieldDef>,
-    /// How a hosted model row is spoken to (ADR 0188); absent on every other row.
+    /// How a hosted model row is spoken to (ADR 0189); absent on every other row.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_api: Option<ModelApiSpec>,
 }

@@ -98,7 +98,7 @@ export function catalogPageSections(
 
 /**
  * Source order, except the model providers: eighty-odd tiles are found by
- * name, so they are listed by it (ADR 0188).
+ * name, so they are listed by it (ADR 0189).
  */
 function inCatalogOrder(
   category: Provider["category"],

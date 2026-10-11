@@ -196,7 +196,7 @@ export function ConnectionsSection() {
   }, [loadConnections, transport.held]);
 
   // A model provider's first connection is a sheet over the catalog, not a
-  // page of its own (ADR 0188).
+  // page of its own (ADR 0189).
   const ai = useAiSheet({
     providerId,
     connectionId,

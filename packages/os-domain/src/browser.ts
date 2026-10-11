@@ -41,7 +41,7 @@ export {
 } from "./crypto/digest-browser.js";
 export * from "./transport-security/index.js";
 // Resource selectors and the authority grant with its attenuation rules are
-// pure. Model keys (ADR 0188) narrow a grant in the browser with exactly the
+// pure. Model keys (ADR 0189) narrow a grant in the browser with exactly the
 // functions every other plane uses, so they ride on this entry too.
 export {
   type ResourceScope,

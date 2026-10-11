@@ -1,6 +1,6 @@
 /**
  * What the app knows about a hosted model provider from the one catalog
- * (ADR 0139, ADR 0188): which rows are model providers, and how each is spoken
+ * (ADR 0139, ADR 0189): which rows are model providers, and how each is spoken
  * to. The protocol is a closed name the catalog carries; nothing here reads a
  * path, a header or a host from anywhere else.
  */

@@ -1,5 +1,5 @@
 /**
- * State and actions for the Create-a-key sheet (ADR 0188 §6): who the key is
+ * State and actions for the Create-a-key sheet (ADR 0189 §6): who the key is
  * for, which models, how much, for how long, and the one call that mints it.
  * Reading what was typed is the app-core helpers' job (`parseClientName`,
  * `parseModelList`), so the sheet only holds the draft and what came of it.
