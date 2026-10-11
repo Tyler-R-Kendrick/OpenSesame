@@ -1,8 +1,10 @@
 import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import { INTEGRATIONS } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { describe, expect, it } from "vitest";
 import {
-  capabilitiesSettingsSections,
+  featuresSettingsSections,
+  integrationsSettingsSections,
   settingsPageSources,
   settingsPageTree,
 } from "./page-tree.js";
@@ -34,7 +36,13 @@ const childIds = (
 
 describe("settingsPageTree", () => {
   it("lists a directory's config.yaml first, ahead of its panels, once it is shown", () => {
-    for (const tab of ["general", "security", "vaults", "capabilities"]) {
+    for (const tab of [
+      "general",
+      "security",
+      "vaults",
+      "features",
+      "integrations",
+    ]) {
       const shown = settingsPageTree({ showHidden: true }).find(
         (node) => node.id === tab,
       );
@@ -52,13 +60,15 @@ describe("settingsPageTree", () => {
   it("lists each settings tab as a first-level child, never nested under another tab", () => {
     const tabs = settingsPageTree();
     // Connections is gone as a tab: every provider is configured on
-    // Capabilities, under the feature (or always-on group) that uses it.
+    // Integrations, under the feature (or built-in function) it extends, and
+    // every switch is on Features (ADR 0189).
     expect(tabs.map((node) => node.label)).toEqual([
       "General",
       "Keybindings",
       "Security",
       "Vaults",
-      "Capabilities",
+      "Features",
+      "Integrations",
       "Danger",
     ]);
     expect(tabs.map((node) => node.href)).toEqual([
@@ -66,7 +76,8 @@ describe("settingsPageTree", () => {
       "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
-      "/settings/capabilities",
+      "/settings/features",
+      "/settings/integrations",
       "/settings/danger",
     ]);
     for (const tab of tabs) {
@@ -76,26 +87,58 @@ describe("settingsPageTree", () => {
         expect(child.href.startsWith("/settings/vaults")).toBe(false);
       }
     }
-    const capabilities = tabs.find((node) => node.id === "capabilities");
-    expect(capabilities?.children.map((node) => node.label)).toEqual(
-      capabilitiesSettingsSections().map((section) => section.label),
+    const features = tabs.find((node) => node.id === "features");
+    expect(features?.children.map((node) => node.label)).toEqual(
+      featuresSettingsSections().map((section) => section.label),
+    );
+    const integrations = tabs.find((node) => node.id === "integrations");
+    expect(integrations?.children.map((node) => node.label)).toEqual(
+      integrationsSettingsSections().map((section) => section.label),
     );
   });
 
-  it("names the Capabilities sections: guests, then every section once", () => {
-    expect(capabilitiesSettingsSections().map((s) => s.label)).toEqual([
+  it("names the Features sections: guests, then every section once", () => {
+    expect(featuresSettingsSections().map((s) => s.label)).toEqual([
       "Guests",
       ...FEATURES.map((feature) => feature.title),
     ]);
-    expect(capabilitiesSettingsSections()[1]?.href).toBe(
-      "/settings/capabilities#feature-identity",
+    expect(featuresSettingsSections()[1]?.href).toBe(
+      "/settings/features#feature-identity",
     );
     // The operator's section is listed only where it draws, last when present.
     expect(
-      capabilitiesSettingsSections(true, true)
+      featuresSettingsSections(true, true)
         .map((s) => s.label)
         .at(-1),
     ).toBe("Instance policy");
+  });
+
+  it("names the Integrations sections: every one once, under its own anchor", () => {
+    expect(integrationsSettingsSections().map((s) => s.label)).toEqual(
+      INTEGRATIONS.map((integration) => integration.title),
+    );
+    expect(integrationsSettingsSections().map((s) => s.href)).toEqual(
+      INTEGRATIONS.map(
+        (integration) => `/settings/integrations#integration-${integration.id}`,
+      ),
+    );
+    // A section that draws nothing on this device is left out, as the page does.
+    expect(
+      integrationsSettingsSections(["encryption"]).map((s) => s.label),
+    ).not.toContain("Encryption");
+  });
+
+  it("keeps a section on the tab that draws it", () => {
+    const features = featuresSettingsSections().map((s) => s.id);
+    const integrations = integrationsSettingsSections().map((s) => s.id);
+    expect(
+      features.every(
+        (id) => id.startsWith("feature-") || id === "instance-policy",
+      ),
+    ).toBe(true);
+    expect(integrations.every((id) => id.startsWith("integration-"))).toBe(
+      true,
+    );
   });
 
   it("mirrors vaults on this device under the Vaults tab only, then its panels", () => {
@@ -113,8 +156,8 @@ describe("settingsPageTree", () => {
       "Item types",
       "Sealed store",
     ]);
-    const capabilities = tabs.find((node) => node.id === "capabilities");
-    expect(capabilities?.children.map((node) => node.label)).not.toContain(
+    const features = tabs.find((node) => node.id === "features");
+    expect(features?.children.map((node) => node.label)).not.toContain(
       "personal",
     );
   });
@@ -125,7 +168,8 @@ describe("settingsPageTree", () => {
       "keybindings",
       "security",
       "vaults",
-      "capabilities",
+      "features",
+      "integrations",
       "danger",
     ]);
   });

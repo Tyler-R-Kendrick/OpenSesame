@@ -1,5 +1,5 @@
 /**
- * The optional, runtime-installed plugins Settings › Capabilities can show
+ * The optional, runtime-installed plugins Settings › Features can show
  * (ADR 0150 §7) — the page's copy of `spec/plugins/catalog.json`, pinned to
  * it by a drift test (`catalog.test.ts`).
  *

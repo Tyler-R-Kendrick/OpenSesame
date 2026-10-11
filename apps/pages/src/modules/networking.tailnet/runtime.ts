@@ -4,7 +4,7 @@
  * (ADR 0144).
  *
  * The networking connector bindings (`networking` in the embedded catalogue)
- * are drawn by Settings › Capabilities under the Networking feature, and
+ * are drawn by Settings › Integrations under Networking, and
  * only while this capability is in the plan; the connector page each tile
  * opens belongs to `connectors.external`.
  *

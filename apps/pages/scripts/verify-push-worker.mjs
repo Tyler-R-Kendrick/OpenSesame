@@ -2,7 +2,7 @@
 //
 // Approving "Push notifications" is the person's consent to the push variant
 // of the service worker. This walks that consent the way a person gives it —
-// front door, guest, Settings › Capabilities, the capability's switch — on a
+// front door, guest, Settings › Features, the capability's switch — on a
 // device that already holds the core worker, and proves what the unit tests
 // cannot: that the browser ends up running `sw-push.js` over the same scope,
 // that nothing reloaded under the person on the way, that it is the only
@@ -315,7 +315,7 @@ try {
   // vault, so come back in as the guest the walk began as.
   await openGuestAgain(page);
   await waitOpen(page);
-  await openSettingsCategory(page, "Capabilities");
+  await openSettingsCategory(page, "Features");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });
   // The browser holds a push subscription made under the push worker.
   shim.held = true;

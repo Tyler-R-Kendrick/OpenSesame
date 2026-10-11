@@ -8,7 +8,7 @@ import type { Capability, CapabilityExclusion } from "./index.js";
  * routes that Settings reads under the plugin's catalog capability
  * (`agents.surrogate-credentials`, `vault.browser-autofill`).
  *
- * Settings › Capabilities reads and switches them on the daemon a person
+ * Settings › Features reads and switches them on the daemon a person
  * paired (`lib/plugins/client.ts`) through one operation per plugin, so each
  * is owned by that plugin's product capability; installing and removing
  * stay at a terminal, never over HTTP.
@@ -201,7 +201,7 @@ export const optionalPluginCapabilities: readonly Capability[] = [
     },
   },
   // One switch per plugin, as Settings draws it: each plugin's section in
-  // Settings › Capabilities carries its own switch and the CLI's
+  // Settings › Features carries its own switch and the CLI's
   // `plugins enable|disable <id>` is the same PUT (ADR 0150 §7).
   {
     id: "plugins.surrogate_proxy.switch",

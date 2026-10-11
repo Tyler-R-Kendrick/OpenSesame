@@ -6,6 +6,7 @@ import { settingsPageSources } from "./settings/page-tree.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
+import { retiredSettingsAddress } from "@opensesame/app-core/lib/settings-retired.js";
 import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
@@ -16,8 +17,9 @@ import {
   defaultPanels,
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
-import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
+import { FeaturesPanel } from "./settings/FeaturesPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
+import { IntegrationsPanel } from "./settings/IntegrationsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
@@ -44,17 +46,29 @@ const KeybindingsPanels = lazy(() =>
 export type { SettingsPanels } from "./SettingsSectionNav.js";
 
 /**
- * An old `#fragment` link lands on its category's path, a retired Security
- * fragment on its new home, and a live one scrolls into view.
+ * An old `#fragment` link lands on its category's path, a retired Capabilities
+ * or Connections address on Features or Integrations (with its section and
+ * file), a retired Security fragment on its new home, and a live one scrolls
+ * into view.
  */
-function useSettingsLocation(category: string, hash: string, pathname: string) {
+function useSettingsLocation(
+  category: string,
+  hash: string,
+  pathname: string,
+  search: string,
+) {
   const navigate = useNavigate();
   // One navigation per address: every `#fragment` lands on its category's path.
   useEffect(() => {
+    const retired = retiredSettingsAddress(pathname, search, hash);
+    if (retired !== null) {
+      navigate(retired, { replace: true });
+      return;
+    }
     const fromPath = pathname.match(/\/settings\/[^/]+/) !== null;
     const target = fromPath ? null : categoryFromHash(hash);
     if (target) navigate(settingsPath(target, hash), { replace: true });
-  }, [hash, navigate, pathname]);
+  }, [hash, navigate, pathname, search]);
 
   // Keybindings were a panel of General before they had a tab (ADR 0156).
   useEffect(() => {
@@ -107,7 +121,7 @@ export function SettingsSection({
       ? openPath
       : null;
 
-  useSettingsLocation(category, hash, pathname);
+  useSettingsLocation(category, hash, pathname, search);
 
   const form = file === null;
 
@@ -165,7 +179,8 @@ export function SettingsSection({
         {form && category !== "security"
           ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
           : null}
-        {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
+        {form && category === "features" ? <FeaturesPanel /> : null}
+        {form && category === "integrations" ? <IntegrationsPanel /> : null}
         {form && category === "danger" ? <SettingsDangerPanel /> : null}
       </div>
     </SettingsFileContext.Provider>

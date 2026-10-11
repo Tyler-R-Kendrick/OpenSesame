@@ -72,7 +72,8 @@ describe("AppShell on a core-only plan", () => {
       "/settings/keybindings",
       "/settings/security",
       "/settings/vaults",
-      "/settings/capabilities",
+      "/settings/features",
+      "/settings/integrations",
       "/settings/danger",
     ]);
     expect(rail?.querySelector('a[href="/settings/connections"]')).toBeNull();
@@ -150,16 +151,19 @@ describe("AppShell", () => {
     // directory.
     expect(jumps).toEqual(["gv", "gc", "ga", "gi", "gw"]);
   });
-  it("lists Vaults and Capabilities as sibling settings tabs, with no Connections tab", () => {
+  it("lists Vaults, Features and Integrations as sibling settings tabs, with no Connections or Capabilities tab", () => {
     const { container } = renderShell("/settings/security");
     const rail = container.querySelector(".railtree");
-    const vaults = rail?.querySelector('a[href="/settings/vaults"]');
-    const capabilities = rail?.querySelector(
-      'a[href="/settings/capabilities"]',
-    );
-    expect(vaults?.getAttribute("aria-level")).toBe("2");
-    expect(capabilities?.getAttribute("aria-level")).toBe("2");
+    for (const href of [
+      "/settings/vaults",
+      "/settings/features",
+      "/settings/integrations",
+    ]) {
+      const tab = rail?.querySelector(`a[href="${href}"]`);
+      expect(tab?.getAttribute("aria-level"), href).toBe("2");
+    }
     expect(rail?.querySelector('a[href="/settings/connections"]')).toBeNull();
+    expect(rail?.querySelector('a[href="/settings/capabilities"]')).toBeNull();
   });
   it.each([
     ["/vault?f=favorites", "Vault", "favorites"],

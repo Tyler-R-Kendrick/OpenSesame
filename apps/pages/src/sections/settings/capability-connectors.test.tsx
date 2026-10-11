@@ -25,11 +25,6 @@ import {
   installConnectorIntegration,
 } from "../connections/connect/native-connector-integration.test-support.js";
 import {
-  installPanelFixture,
-  openConnectorPages,
-  renderPanel,
-} from "./capabilities-panel.test-support.js";
-import {
   displayName,
   expectedPublic,
   expectedSecrets,
@@ -37,6 +32,12 @@ import {
   saveListed,
   selectedScopes,
 } from "./capability-connector-harness.js";
+import {
+  installPanelFixture,
+  openConnectorPages,
+  renderIntegrationsPanel,
+  renderPanel,
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 installPanelFixture();
@@ -202,7 +203,10 @@ describe("capability connectors the page lists", () => {
 
   it("turns a section on and off in place and keeps its connectors listed", async () => {
     openConnectorPages();
+    // The switch is on Features and the connectors are on Integrations: a
+    // connector is configured by reference, so the switch cannot take it away.
     renderPanel();
+    renderIntegrationsPanel();
     const ai = screen.getByRole("switch", { name: "AI" });
     expect(ai.getAttribute("aria-checked")).toBe("true");
     expect(screen.queryByTestId("capability-review")).toBeNull();
@@ -219,6 +223,7 @@ describe("capability connectors the page lists", () => {
         screen.getByRole("switch", { name: "AI" }).getAttribute("aria-checked"),
       ).toBe("false"),
     );
+    expect(screen.getByRole("list", { name: "AI providers" })).toBeTruthy();
     fireEvent.click(screen.getByRole("switch", { name: "AI" }));
     expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(2));

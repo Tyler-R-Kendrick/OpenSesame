@@ -1,15 +1,18 @@
-import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import {
+  FEATURES,
+  isSwitchable,
+} from "@opensesame/app-core/lib/capabilities/features.js";
+import { INTEGRATIONS } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { useMemo } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
-import { featureDraws } from "./provider-tile-items.js";
 import { useDuressPanelShown } from "./security/DuressPanel.js";
 import { useAccountFactorsOffered } from "./security/account-offered.js";
+import { useIntegrationsDrawn } from "./use-integrations-drawn.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
 /**
@@ -24,12 +27,16 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const account = useAccountFactorsOffered();
   const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
-  const roads = useConnectorRoads();
   const { plan } = useComposition();
   const identityApi = useIdentityConfigured();
   const emptyFeatures = FEATURES.filter(
-    (feature) => !featureDraws(feature, roads.tile, plan, { identityApi }),
+    (feature) => !isSwitchable(feature, plan, { identityApi }),
   ).map((feature) => feature.id);
+  const drawnIntegrations = useIntegrationsDrawn();
+  const emptyIntegrations = INTEGRATIONS.filter(
+    (integration) =>
+      !drawnIntegrations.some((drawn) => drawn.integration === integration),
+  ).map((integration) => integration.id);
   const contributed = useMemo(
     () =>
       panels.map(({ id, label, category, order }) => ({
@@ -48,5 +55,6 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     contributed,
     duress,
     emptyFeatures,
+    emptyIntegrations,
   };
 }

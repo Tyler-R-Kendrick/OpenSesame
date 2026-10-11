@@ -1,15 +1,15 @@
 /**
- * Which connector tiles a Capabilities section draws on this device, and so
+ * Which connector tiles an Integrations section draws on this device, and so
  * whether the section draws at all. The page, the rail and the phone's page
  * index all ask here, so none lists a section or a tile the page leaves out
  * (ADR 0158: a row acts, or it is not drawn).
  */
 
 import {
-  type Feature,
-  type SurfaceContext,
-  isSwitchable,
+  featureById,
+  featureState,
 } from "@opensesame/app-core/lib/capabilities/features.js";
+import type { Integration } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/catalog-provider.js";
 import type { TileRoad } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
@@ -89,18 +89,36 @@ export function providerTileItems(
 }
 
 /**
- * Does the section draw anything? A switch, or a tile. A subheader over
- * nothing is not drawn — the way a group with nothing in it is absent.
+ * Whether the model picks draw in `integration`: the section carries them, the
+ * module that supplies them is active (`panelPresent`), and the feature they
+ * configure is on — they probe the browser and the harnesses on mount, so they
+ * are that feature's own code, unlike a connector tile.
  */
-export function featureDraws(
-  feature: Feature,
-  tile: (provider: Provider) => TileRoad | null,
-  plan: EffectivePlan | null = null,
-  context?: SurfaceContext,
+export function modelPicksDrawn(
+  integration: Integration,
+  plan: EffectivePlan | null,
+  panelPresent: boolean,
 ): boolean {
   return (
-    isSwitchable(feature, plan, context) ||
-    feature.providerCategories.some(
+    integration.models === true &&
+    panelPresent &&
+    integration.extendsFeature !== undefined &&
+    featureState(featureById(integration.extendsFeature), plan).on
+  );
+}
+
+/**
+ * Does the section draw anything? A model pick, or a tile. A subheader over
+ * nothing is not drawn — the way a group with nothing in it is absent.
+ */
+export function integrationDraws(
+  integration: Integration,
+  tile: (provider: Provider) => TileRoad | null,
+  models = false,
+): boolean {
+  return (
+    models ||
+    integration.providerCategories.some(
       (category) => providerTileItems(category, tile).length > 0,
     )
   );

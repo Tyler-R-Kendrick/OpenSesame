@@ -1,7 +1,7 @@
 /**
- * Settings › Capabilities as files (ADR 0134). The category keeps the
+ * Settings › Features as files (ADR 0134). The category keeps the
  * capability documents beside its own `config.yaml`, all under
- * `settings/capabilities/`:
+ * `settings/features/` (they were `settings/capabilities/` before ADR 0189):
  *
  * | File | Stored as | Written by |
  * |---|---|---|
@@ -48,7 +48,7 @@ import type {
   VirtualFileProvider,
 } from "./virtual-files.js";
 
-export const CAPABILITIES_DIRECTORY = "settings/capabilities";
+export const CAPABILITIES_DIRECTORY = "settings/features";
 export const SELECTION_FILE = `${CAPABILITIES_DIRECTORY}/installation-selection.yaml`;
 export const POLICY_FILE = `${CAPABILITIES_DIRECTORY}/instance-policy.yaml`;
 export const EFFECTIVE_FILE = `${CAPABILITIES_DIRECTORY}/effective-plan.yaml`;

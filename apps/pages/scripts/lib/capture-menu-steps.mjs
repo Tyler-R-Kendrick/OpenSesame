@@ -133,11 +133,11 @@ async function facts(page, name) {
       capabilityViewKeys: document.querySelectorAll(
         '[aria-label="Capability view"] button',
       ).length,
-      // How many rail rows sit between Capabilities and its config.yaml:
+      // How many rail rows sit between Features and its config.yaml:
       // 0 is first under it.
-      rowsBeforeCapabilitiesConfig: (() => {
+      rowsBeforeFeaturesConfig: (() => {
         const at = rows.findIndex((row) =>
-          row.textContent?.trim().startsWith("Capabilities"),
+          row.textContent?.trim().startsWith("Features"),
         );
         const config = rows.findIndex(
           (row, index) =>

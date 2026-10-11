@@ -1,6 +1,7 @@
 import { searchPalette } from "../configuration/palette.js";
 import { lookupConfigResource } from "../configuration/registry.js";
 import { isSettingsCategory, settingsConfigRoute } from "../crumbs.js";
+import { retiredSettingsCategory } from "../settings-aliases.js";
 import {
   type AppCommand,
   CLAIM_COMMAND_PATH,
@@ -85,12 +86,16 @@ function refusePath(): AppCommand {
 
 function parseResourcePath(text: string): AppCommand | null {
   // A settings directory's own file, hidden in the rail but never closed.
+  // A retired name (`settings/capabilities/config.yaml`) opens its successor.
   const config = /^\/?settings\/([a-z-]+)\/config\.ya?ml$/.exec(text);
-  if (config?.[1] && isSettingsCategory(config[1])) {
+  const named = config?.[1];
+  const category =
+    named === undefined ? undefined : (retiredSettingsCategory(named) ?? named);
+  if (category !== undefined && isSettingsCategory(category)) {
     return {
       action: "open_path",
-      path: settingsConfigRoute(config[1]),
-      label: `settings/${config[1]}/config.yaml`,
+      path: settingsConfigRoute(category),
+      label: `settings/${category}/config.yaml`,
     };
   }
   const lookup = lookupConfigResource(text);

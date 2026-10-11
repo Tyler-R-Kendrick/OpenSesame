@@ -1,7 +1,7 @@
 /**
  * Targets and walkthroughs the runtime-installed plugin capabilities
  * contribute (ADR 0150 §7): each plugin's tile inside its Settings ›
- * Capabilities section, live only while that capability is in the plan.
+ * Features section, live only while that capability is in the plan.
  */
 
 import type { GuideGoalDescriptor } from "./goals.js";
@@ -29,8 +29,8 @@ export const SURROGATE_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "settings.surrogate-credentials"',
       'say "The surrogate proxy lets a tool hold a stand-in instead of a credential. It is a separate program installed at a terminal on the machine that runs the daemon, and it stays off until it is switched on."',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/capabilities"',
-      'wait route "/settings/capabilities" timeout=15000',
+      'navigate "/settings/features"',
+      'wait route "/settings/features" timeout=15000',
       'scroll "feature.surrogates"',
       'focus "feature.surrogates" "The Surrogate credentials section. Its switch adds the proxy to this installation." side=bottom',
       'focus "settings.surrogate-credentials" "Its panel pairs with the daemon using the code opensesame plugins pair prints; once paired, its mark says whether the proxy is installed and running, the key beside it switches it there, and the list under it is what it refused." side=top',
@@ -61,8 +61,8 @@ export const AUTOFILL_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "settings.browser-autofill"',
       'say "The autofill extension fills a login field from its own window, by reference. It is installed separately, at a terminal, and stays off until it is switched on."',
       'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/capabilities"',
-      'wait route "/settings/capabilities" timeout=15000',
+      'navigate "/settings/features"',
+      'wait route "/settings/features" timeout=15000',
       'scroll "feature.autofill"',
       'focus "feature.autofill" "The Browser autofill section. Its switch adds the extension to this installation." side=bottom',
       'focus "settings.browser-autofill" "Its panel pairs with the daemon the same way; once paired, its mark says whether the extension is installed and running, and the key beside it switches it there." side=top',

@@ -12,7 +12,7 @@ vault-key protection keep their specialized experiences.
 ## Deployment requirements
 
 Use a build that contains and approves `connectors.external`, then enable it in
-**Settings › Capabilities** and unlock the vault. Operator permission, compiled
+**Settings › Features** and unlock the vault. Operator permission, compiled
 code and device selection are separate gates; see
 [capability composition](capability-composition.md). The instance network policy
 must allow external services and any non-empty `allowedServiceOrigins` list must

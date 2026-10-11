@@ -11,15 +11,17 @@
  * beside the screen's `runtimeConfig` (`capture-tab-step.mjs`).
  *
  * `livePurpose` is the operator choosing a purpose card under Settings ›
- * Capabilities › Instance policy, which writes `capabilities.policy.local.v1`
+ * Features › Instance policy, which writes `capabilities.policy.local.v1`
  * and asks the composition store to re-plan, exactly as the card does.
  */
+
+import { openFeatures } from "./capture-capability-steps.mjs";
 
 export function livePolicySteps({ press, openSettings }) {
   return {
     /** Choose the purpose card `id` as the operator, then say what the plan holds. */
     async livePurpose(page, id) {
-      await openSettings(page, "Capabilities");
+      await openFeatures(openSettings, page);
       const card = page.getByTestId(`purpose-card-${id}`);
       if (!(await card.count()))
         throw new Error(`capture-evidence livePurpose("${id}"): no such card`);

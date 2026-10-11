@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { FEATURE_BINDING_CATEGORIES } from "../../sections/connections/shared.js";
 import { planWith } from "./__tests__/plan-with.js";
 import {
   CAPABILITY_CATALOG,
@@ -33,36 +32,26 @@ describe("FEATURES", () => {
     for (const id of coreCapabilityIds()) expect(featureOf(id)).toBeNull();
   });
 
-  it("gives every connector family exactly one section", () => {
-    const homes = FEATURES.flatMap((feature) => feature.providerCategories);
-    expect(new Set(homes).size).toBe(homes.length);
-    expect([...homes].sort()).toEqual([...FEATURE_BINDING_CATEGORIES].sort());
-  });
-
   it("names every section once", () => {
     const titles = FEATURES.map((feature) => feature.title);
     expect(new Set(titles).size).toBe(titles.length);
   });
 
-  it("puts the git providers under Backups and the models under AI", () => {
-    expect(featureById("backups").providerCategories).toEqual([
-      "backup_recovery",
-    ]);
-    expect(featureById("ai").models).toBe(true);
-  });
-
-  it("draws no switch where the function is always on (ADR 0142)", () => {
-    for (const id of [
-      "encryption",
-      "backups",
-      "password-managers",
-      "cloud-secret-storage",
-      "local-storage",
-    ] as const) {
-      expect(isSwitchable(featureById(id)), id).toBe(false);
+  it("is always something to switch: a section with nothing optional is an integration", () => {
+    for (const feature of FEATURES) {
+      expect(feature.capabilities.length, feature.id).toBeGreaterThan(0);
     }
     for (const id of ["backup.git-remote", "identity.site-broker"]) {
       expect(coreCapabilityIds(), id).toContain(id);
+      expect(featureOf(id), id).toBeNull();
+    }
+  });
+
+  it("names only always-on capabilities as what a section is backed by (ADR 0142)", () => {
+    for (const feature of FEATURES) {
+      for (const id of feature.backedBy ?? []) {
+        expect(coreCapabilityIds(), `${feature.id}: ${id}`).toContain(id);
+      }
     }
   });
 
@@ -209,7 +198,7 @@ describe("switchFeature", () => {
   it("drops a root that has since become always-on", () => {
     const next = switchFeature(
       { roots: ["identity.site-broker", "wallet.spending"], alternatives: {} },
-      featureById("backups"),
+      featureById("identity"),
       false,
       planWith([]),
       CAPABILITY_CATALOG,
