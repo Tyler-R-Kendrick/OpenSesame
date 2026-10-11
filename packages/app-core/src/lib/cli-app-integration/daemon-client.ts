@@ -108,10 +108,14 @@ export function cliAuthorizeCopy() {
   return ui;
 }
 
-export function presentCliAuthorizeRequest(row: PendingRequest): CliAuthorizeView {
+export function presentCliAuthorizeRequest(
+  row: PendingRequest,
+): CliAuthorizeView {
   const id = row.terminalSessionId.trim();
   const terminalLabel =
-    id.length <= 12 ? id || "Unknown terminal" : `${id.slice(0, 6)}…${id.slice(-4)}`;
+    id.length <= 12
+      ? id || "Unknown terminal"
+      : `${id.slice(0, 6)}…${id.slice(-4)}`;
   const commandLabel =
     verbLabels[row.verb as keyof typeof verbLabels] ?? row.verb;
   const reference = row.reference?.trim();

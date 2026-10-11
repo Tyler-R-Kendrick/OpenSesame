@@ -21,8 +21,7 @@ export const cliAppIntegrationPolicy = {
   },
   ui: {
     sheetTitle: "Authorize CLI",
-    sheetLead:
-      "OpenSesame CLI wants to access your vault from this terminal.",
+    sheetLead: "OpenSesame CLI wants to access your vault from this terminal.",
     terminalLabel: "Terminal session",
     commandLabel: "Command",
     targetLabel: "Item",
