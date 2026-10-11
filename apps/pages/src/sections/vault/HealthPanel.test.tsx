@@ -69,9 +69,11 @@ describe("HealthPanel", () => {
   it("shows the empty state when nothing is scored", () => {
     renderPanel();
     expect(screen.getByText("No passwords to review")).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: /New account/i }).getAttribute("href"),
-    ).toBe("/vault/new/account");
+    const add = screen.getByRole("link", { name: "New account" });
+    expect(add.getAttribute("href")).toBe("/vault/new/account");
+    // An action is an icon key: the verb is its label, never painted on it.
+    expect(add.classList.contains("icon-btn")).toBe(true);
+    expect(add.textContent).toBe("");
   });
 
   it("ignores trashed and password-less accounts", () => {
