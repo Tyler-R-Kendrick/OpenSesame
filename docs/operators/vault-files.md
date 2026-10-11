@@ -81,7 +81,7 @@ S3, MinIO and R2.
 
 In the Pages app a bucket is saved as the S3-compatible bucket connector, in the
 Custom setup ceremony's Storage tab (it appears once Connections is applied) or
-in Settings › Capabilities › Local storage; from the next load the vault is read
+in Settings › Integrations › Local storage; from the next load the vault is read
 from it. Remove the connector and the device goes back to its own storage. The
 page's origin needs a CORS rule on the bucket allowing `GET, PUT, DELETE` with headers `Authorization, If-Match,
 If-None-Match, x-amz-*, Content-Type`, exposing `ETag`. Everything in the bucket

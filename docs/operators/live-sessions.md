@@ -220,7 +220,7 @@ like any optional capability, and a carrier is external service egress:
 - **The operator can prohibit `sharing.live`.** Nothing of it loads; the join
   road and the Settings tab are absent. If the plan stops approving it while a
   session is running — the operator withdrew it, or the person switched Live
-  sessions off in Settings › Capabilities — the session ends at once, hosted
+  sessions off in Settings › Features — the session ends at once, hosted
   or joined: the peer connection, the carriers and ntfy's stream are closed.
   A lock, an unlock or a consent commit re-plans the page but still approves
   it, and drops nobody.

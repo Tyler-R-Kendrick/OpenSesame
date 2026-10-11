@@ -335,7 +335,7 @@ Legacy Playwright verifiers walk every section. A device that has approved
 nothing has no rail row for an optional capability's section (ADR 0130), so a
 journey that needs one switches it on the way a person does:
 `addCapabilities(page, titles)` in `apps/pages/scripts/lib/pages-journey.mjs`
-opens Settings › Capabilities, presses each capability's switch and waits for the
+opens Settings › Features, presses each capability's switch and waits for the
 review to commit; an always-on capability is skipped, since it has no switch.
 `rich-explicit` remains a profile (`apps/pages/capability-profiles/rich-explicit.json`)
 built by `build:profile`, and the build's default when no profile is named.
