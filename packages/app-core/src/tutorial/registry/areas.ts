@@ -71,7 +71,8 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.general.review",
       "settings.auto-lock.set",
       "settings.keybindings.review",
-      "settings.capabilities.review",
+      "settings.features.review",
+      "settings.integrations.review",
       "settings.vaults.review",
       "settings.danger.review",
       "vault.recovery.view",
@@ -123,7 +124,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "vaults.duress-code",
       "vaults.travel",
       "identity.account-factors",
-      "feature.encryption",
+      "integration.encryption",
     ],
   },
   {
@@ -132,10 +133,11 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "settings.backup",
       "settings.tailnet-sync",
-      "feature.local-storage",
+      "integration.networking",
+      "integration.local-storage",
       "feature.encrypted-search",
-      "feature.cloud-secret-storage",
-      "feature.password-managers",
+      "integration.cloud-secret-storage",
+      "integration.password-managers",
     ],
   },
   {
@@ -196,6 +198,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "identity.local.siop.authorize",
       "identity.tailnet.devices.manage",
       "feature.identity",
+      "integration.identity",
       "feature.directory",
     ],
   },
@@ -212,7 +215,10 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "feature.password-reset",
       "feature.sharing",
       "feature.payments",
+      "feature.ai",
+      "integration.payments",
       "feature.certificates",
+      "integration.certificates",
       "feature.telemetry",
     ],
   },
@@ -276,20 +282,26 @@ export function tutorialStartsFrom(
   );
 }
 
-/** The Settings › Capabilities sections a walkthrough points at, by feature id. */
+/**
+ * The sections of Settings › Features and Settings › Integrations a
+ * walkthrough points at, by their full target ids: `feature.<id>` for a
+ * switch's section, `integration.<id>` for a third party's.
+ */
 export function goalSections(guide: string): readonly string[] {
-  return [...guide.matchAll(/^focus\s+"feature\.([a-z-]+)"/gm)].flatMap(
-    (match) => (match[1] === undefined ? [] : [match[1]]),
-  );
+  return [
+    ...guide.matchAll(/^focus\s+"((?:feature|integration)\.[a-z-]+)"/gm),
+  ].flatMap((match) => (match[1] === undefined ? [] : [match[1]]));
 }
 
 export type LibraryOptions = {
   /**
-   * Whether a section of Settings › Capabilities is drawn in this build and
-   * plan. A tutorial that points at a section that is not there would point at
-   * nothing, so it is not offered; omitted, every section counts as drawn.
+   * Whether a section of Settings › Features or Settings › Integrations is
+   * drawn in this build and plan, asked by its full target id
+   * (`feature.<id>`, `integration.<id>`). A tutorial that points at a section
+   * that is not there would point at nothing, so it is not offered; omitted,
+   * every section counts as drawn.
    */
-  readonly sectionDrawn?: (feature: string) => boolean;
+  readonly sectionDrawn?: (target: string) => boolean;
   /** Whether a state predicate holds now; omitted, every requirement is met. */
   readonly holds?: (predicate: string) => boolean;
   /**

@@ -37,7 +37,7 @@ describe("vault.browser-autofill runtime", () => {
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const [panel] = t.entries("settings-panel");
     expect(panel?.id).toBe("plugin-browser-autofill");
-    expect(panel?.category).toBe("capabilities.feature-autofill");
+    expect(panel?.category).toBe("features.feature-autofill");
     // The page registers no item kind, command or tool: it fills nothing.
     expect(t.liveKinds()).toEqual([
       "settings-panel",

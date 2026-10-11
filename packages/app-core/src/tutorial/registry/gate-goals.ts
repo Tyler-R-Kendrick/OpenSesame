@@ -106,7 +106,7 @@ export const GATE_GOALS: readonly GuideGoalDescriptor[] = [
       'goal "gate.setup.choose"',
       'say "Setup is optional. Nothing has to be answered before you can use the app, and Skip all leaves everything as it is."',
       'focus "setup.configurations" "Minimal is the vault, activity and settings. Default adds the default extensions, and Full turns everything on. Custom lets you pick individual capabilities." side=bottom',
-      'success "Whatever you choose here can be changed later in Settings, then Capabilities."',
+      'success "Whatever you choose here can be changed later in Settings, then Features."',
       "end",
     ].join("\n"),
   },

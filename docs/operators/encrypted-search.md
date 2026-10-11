@@ -1,6 +1,6 @@
 # Encrypted search
 
-Settings › Capabilities › **Encrypted search** (`storage.encrypted-search`,
+Settings › Features › **Encrypted search** (`storage.encrypted-search`,
 [ADR 0175](../adr/0175-searchable-encryption-over-indexeddb.md)). Off by
 default.
 

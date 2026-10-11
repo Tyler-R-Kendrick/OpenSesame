@@ -7677,15 +7677,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
-        "adr": "0189-vault-environments-values-on-items-schema-generated.md"
+        "adr": "0190-vault-environments-values-on-items-schema-generated.md"
       },
       "mcp_client": {
         "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
-        "adr": "0189-vault-environments-values-on-items-schema-generated.md"
+        "adr": "0190-vault-environments-values-on-items-schema-generated.md"
       },
       "webmcp": {
         "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
-        "adr": "0189-vault-environments-values-on-items-schema-generated.md"
+        "adr": "0190-vault-environments-values-on-items-schema-generated.md"
       }
     }
   },

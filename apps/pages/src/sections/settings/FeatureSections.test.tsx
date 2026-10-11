@@ -27,27 +27,20 @@ import {
   panelVault,
   renderPanel,
   withReceipt,
-} from "./capabilities-panel.test-support.js";
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 
 installPanelFixture();
 
 /**
- * Sections that draw nothing while Connections is off, the default (ADR 0153).
- * Their tiles open connector pages, and those pages are routed only while
- * Connections is on, so a tile would lead nowhere (ADR 0158). Backups keeps
- * its tiles: each is the history switch, which acts without a page. External
- * telemetry, Certificate authority and Household sharing have no Pages code
- * behind them. The first two sections have no switch to draw and are absent.
- * Household sharing shares the Sharing section with live sessions, so that
- * section stays and the household switch does not.
+ * Sections that draw nothing on a default device. External telemetry,
+ * Certificate authority and Household sharing have no Pages code behind them
+ * (`NO_SURFACE`): the first two sections have no switch to draw and are
+ * absent, and Household sharing shares the Sharing section with live
+ * sessions, so that section stays and the household switch does not.
  */
 const NOTHING_TO_DO_HERE = new Set([
-  "encryption",
-  "password-managers",
-  "cloud-secret-storage",
-  "local-storage",
   "telemetry",
   "certificates",
   // Web Push and Notification routing are an Identity API's; with none named
@@ -59,7 +52,7 @@ describe("sections — one list, one style, a switch only where something is opt
   it("lets the first section's subheader stand for the list in a tutorial", () => {
     const { container } = renderPanel();
     const marked = container.querySelectorAll(
-      '[data-guide-targets~="settings.connectivity"]',
+      '[data-guide-targets~="settings.features-list"]',
     );
     expect(marked).toHaveLength(1);
     const first = [...container.querySelectorAll(".capsection")].find(
@@ -262,19 +255,25 @@ describe("sections — one list, one style, a switch only where something is opt
     for (const id of NO_SURFACE) expect(featureOf(id), id).not.toBeNull();
   });
 
-  it("draws a section's backup tiles whether or not anything is switched on", () => {
-    renderPanel();
-    const tiles = screen.getByRole("list", { name: "Backups providers" });
-    expect(tiles.textContent).toContain("GitHub");
-    expect(tiles.textContent).toContain("GitLab");
-    // password-store is a git history road: it is a Backups tile, and Local
-    // storage no longer draws it a second time.
-    expect(tiles.textContent).toContain("password-store");
-    expect(
-      screen.queryByRole("list", { name: "Local storage providers" }),
-    ).toBeNull();
-    for (const group of ["Identity providers", "Password managers"]) {
-      expect(screen.queryByRole("switch", { name: group })).toBeNull();
+  it("draws no connector tile: the services a feature connects to are Integrations", () => {
+    const { container } = renderPanel();
+    expect(container.querySelector(".conn-grid[id]")).toBeNull();
+    for (const group of [
+      "Backups providers",
+      "Identity providers",
+      "Password managers providers",
+      "AI providers",
+    ]) {
+      expect(screen.queryByRole("list", { name: group })).toBeNull();
+    }
+    for (const id of [
+      "encryption",
+      "backups",
+      "password-managers",
+      "cloud-secret-storage",
+      "local-storage",
+    ]) {
+      expect(document.getElementById(`feature-${id}`), id).toBeNull();
     }
   });
 });

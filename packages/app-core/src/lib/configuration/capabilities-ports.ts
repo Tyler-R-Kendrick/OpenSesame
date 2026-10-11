@@ -1,7 +1,7 @@
 /**
  * The composition seam.
  *
- * Every capability surface — the setup tab, Settings › Capabilities, the
+ * Every capability surface — the setup tab, Settings › Features, the
  * front-door requirements panel, the configuration editor — reaches the
  * store, the registrar, the inventory and the pure semantics through this
  * one module, and nothing else. Its hooks (`bindings/capabilities.ts`) read

@@ -1,5 +1,5 @@
 /**
- * Which items may be keys in a vault's `.env.schema` (ADR 0189). The format's
+ * Which items may be keys in a vault's `.env.schema` (ADR 0190). The format's
  * rule, so the store can refuse an edit that breaks it without reaching into
  * the optional capability that draws the schema.
  */

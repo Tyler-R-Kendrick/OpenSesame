@@ -1,4 +1,5 @@
 import { FEATURES } from "@opensesame/app-core/lib/capabilities/features.js";
+import { INTEGRATIONS } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import {
   type SettingsTab,
@@ -20,12 +21,12 @@ export type SettingsRailSnapshot = {
   /** General › Install draws (InstallPanel's own rule); unlisted when not. */
   install?: boolean;
   /**
-   * Capabilities › Guests draws (GuestSection's rule: the operator's switch,
+   * Features › Guests draws (GuestSection's rule: the operator's switch,
    * never shown to a guest); unlisted when not. Defaults to listed.
    */
   guests?: boolean;
   /**
-   * Capabilities › Instance policy draws (the operator's section,
+   * Features › Instance policy draws (the operator's section,
    * `useDeviceOperator`); unlisted when not. Defaults to unlisted.
    */
   instancePolicy?: boolean;
@@ -39,10 +40,15 @@ export type SettingsRailSnapshot = {
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
   /**
-   * Capabilities sections that draw nothing on this device (no switch, no
-   * connector with anything to do): unlisted, as the page leaves them out.
+   * Features sections that draw nothing on this device (no switch a person
+   * can use): unlisted, as the page leaves them out.
    */
   emptyFeatures?: readonly string[];
+  /**
+   * Integrations sections that draw nothing on this device (no connector
+   * with anything to do, no model pick): unlisted, as the page leaves them out.
+   */
+  emptyIntegrations?: readonly string[];
 };
 
 export type ContributedPanel = Readonly<{
@@ -62,26 +68,39 @@ function panel(category: string, id: string, label: string): PageTreeSource {
 }
 
 /**
- * Sections on Settings → Capabilities, in document order: Guests, every
- * feature section, then the operator's Instance policy. Providers are
- * configured in place. There is no Endpoints panel — Host/Identity/daemon
- * are not Pages backends (ADR 0090; Tyler 2026-10-08).
+ * Sections on Settings → Features, in document order: Guests, every feature
+ * section, then the operator's Instance policy. Providers are configured on
+ * Integrations. There is no Endpoints panel — Host/Identity/daemon are not
+ * Pages backends (ADR 0090; Tyler 2026-10-08).
  */
-export function capabilitiesSettingsSections(
+export function featuresSettingsSections(
   guests = true,
   instancePolicy = false,
   emptyFeatures: readonly string[] = [],
 ): PageTreeSource[] {
   return [
-    ...(guests ? [panel("capabilities", "feature-guests", "Guests")] : []),
+    ...(guests ? [panel("features", "feature-guests", "Guests")] : []),
     ...FEATURES.filter((feature) => !emptyFeatures.includes(feature.id)).map(
-      (feature) =>
-        panel("capabilities", `feature-${feature.id}`, feature.title),
+      (feature) => panel("features", `feature-${feature.id}`, feature.title),
     ),
     ...(instancePolicy
-      ? [panel("capabilities", "instance-policy", "Instance policy")]
+      ? [panel("features", "instance-policy", "Instance policy")]
       : []),
   ];
+}
+
+/**
+ * Sections on Settings → Integrations, in document order: every feature's
+ * third-party services that draw on this device (ADR 0189).
+ */
+export function integrationsSettingsSections(
+  emptyIntegrations: readonly string[] = [],
+): PageTreeSource[] {
+  return INTEGRATIONS.filter(
+    (integration) => !emptyIntegrations.includes(integration.id),
+  ).map((integration) =>
+    panel("integrations", `integration-${integration.id}`, integration.title),
+  );
 }
 
 /** A category's contributed panels, in the order `SettingsSection` draws them. */
@@ -95,82 +114,90 @@ function contributedTo(
     .map((entry) => panel(category, entry.id, entry.label));
 }
 
+type SectionBuilder = (
+  snapshot: SettingsRailSnapshot,
+  contributed: PageTreeSource[],
+) => PageTreeSource[];
+
+/** Each core tab's panels, in the order the page draws them. */
+const SECTION_BUILDERS = {
+  general: (snapshot, contributed) => [
+    ...(snapshot.install
+      ? [panel("general", "settings-install", "Install")]
+      : []),
+    panel("general", "settings-appearance", "Appearance"),
+    panel("general", "settings-locking", "Locking"),
+    ...contributed,
+  ],
+  keybindings: (_snapshot, contributed) => [
+    panel("keybindings", "settings-keymap", "Keymap"),
+    panel("keybindings", "settings-gestures", "Gestures"),
+    panel("keybindings", "settings-macros", "Macros"),
+    ...contributed,
+  ],
+  // SecurityPanels' order: a capability's panels take the slot after the
+  // unlock methods and the account's own factors.
+  security: (snapshot, contributed) => [
+    panel("security", "vault-key-protection", "Vault key protection"),
+    panel("security", "unlock-methods", "Unlock methods"),
+    panel("security", "second-step", "Second step"),
+    panel("security", "recovery", "Recovery"),
+    ...(snapshot.account
+      ? [panel("security", "account-factors", "Your account")]
+      : []),
+    ...(snapshot.duress
+      ? [
+          panel("security", "duress-profiles", "Duress"),
+          panel("security", "travel", "Travel"),
+        ]
+      : []),
+    ...contributed,
+  ],
+  vaults: (snapshot, contributed) => [
+    ...(snapshot.vaults ?? []).map((vault) => ({
+      id: vault.id,
+      label: vault.label,
+      href: settingsPath("vaults"),
+      keepEmpty: true,
+    })),
+    panel("vaults", "item-types", "Item types"),
+    ...contributed,
+  ],
+  features: (snapshot, contributed) => [
+    ...contributed,
+    ...featuresSettingsSections(
+      snapshot.guests ?? true,
+      snapshot.instancePolicy ?? false,
+      snapshot.emptyFeatures ?? [],
+    ),
+  ],
+  integrations: (snapshot, contributed) => [
+    ...contributed,
+    ...integrationsSettingsSections(snapshot.emptyIntegrations ?? []),
+  ],
+  danger: (_snapshot, contributed) => [
+    ...contributed,
+    panel("danger", "settings-delete-vault", "Delete this vault"),
+    panel("danger", "settings-trash", "Trash"),
+  ],
+} satisfies Record<string, SectionBuilder>;
+
+const BUILDER_BY_TAB: ReadonlyMap<string, SectionBuilder> = new Map(
+  Object.entries(SECTION_BUILDERS),
+);
+
 function sectionsFor(
   tab: SettingsTab,
   snapshot: SettingsRailSnapshot,
 ): PageTreeSource[] {
   const contributed = contributedTo(tab.id, snapshot);
-  switch (tab.id) {
-    case "general":
-      return [
-        ...(snapshot.install
-          ? [panel("general", "settings-install", "Install")]
-          : []),
-        panel("general", "settings-appearance", "Appearance"),
-        panel("general", "settings-locking", "Locking"),
-        ...contributed,
-      ];
-    case "keybindings":
-      return [
-        panel("keybindings", "settings-keymap", "Keymap"),
-        panel("keybindings", "settings-gestures", "Gestures"),
-        panel("keybindings", "settings-macros", "Macros"),
-        ...contributed,
-      ];
-    case "security":
-      // SecurityPanels' order: a capability's panels take the slot after
-      // the unlock methods and the account's own factors.
-      return [
-        panel("security", "vault-key-protection", "Vault key protection"),
-        panel("security", "unlock-methods", "Unlock methods"),
-        panel("security", "second-step", "Second step"),
-        panel("security", "recovery", "Recovery"),
-        ...(snapshot.account
-          ? [panel("security", "account-factors", "Your account")]
-          : []),
-        ...(snapshot.duress
-          ? [
-              panel("security", "duress-profiles", "Duress"),
-              panel("security", "travel", "Travel"),
-            ]
-          : []),
-        ...contributed,
-      ];
-    case "vaults":
-      return [
-        ...(snapshot.vaults ?? []).map((vault) => ({
-          id: vault.id,
-          label: vault.label,
-          href: settingsPath("vaults"),
-          keepEmpty: true,
-        })),
-        panel("vaults", "item-types", "Item types"),
-        ...contributed,
-      ];
-    case "capabilities":
-      return [
-        ...contributed,
-        ...capabilitiesSettingsSections(
-          snapshot.guests ?? true,
-          snapshot.instancePolicy ?? false,
-          snapshot.emptyFeatures ?? [],
-        ),
-      ];
-    case "danger":
-      return [
-        ...contributed,
-        panel("danger", "settings-delete-vault", "Delete this vault"),
-        panel("danger", "settings-trash", "Trash"),
-      ];
-    default:
-      // A contributed tab: the panels its module says it always draws.
-      return [
-        ...(tab.panels ?? []).map((entry) =>
-          panel(tab.id, entry.id, entry.label),
-        ),
-        ...contributed,
-      ];
-  }
+  const build = BUILDER_BY_TAB.get(tab.id);
+  if (build) return build(snapshot, contributed);
+  // A contributed tab: the panels its module says it always draws.
+  return [
+    ...(tab.panels ?? []).map((entry) => panel(tab.id, entry.id, entry.label)),
+    ...contributed,
+  ];
 }
 
 /**

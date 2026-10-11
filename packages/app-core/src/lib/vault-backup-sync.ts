@@ -288,7 +288,7 @@ export const vaultBackupSyncSeams = {
   resolveForgeCredentials: resolveForgeCredentialsDefault,
 };
 
-/** Push one forge remote with the token saved on Capabilities. */
+/** Push one forge remote with the token saved under Integrations › Backups. */
 export async function pushSavedForgeBackup(
   target: LocalBackupTarget,
 ): Promise<string | null> {

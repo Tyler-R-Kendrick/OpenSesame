@@ -1,6 +1,6 @@
 /**
  * Step — storage. Where the vault lives (ADR 0182): the S3-compatible bucket,
- * configured here as it is in Settings › Capabilities › Local storage — the
+ * configured here as it is in Settings › Integrations › Local storage — the
  * same catalog row, the same `ConnectForm`, the same device-local save with
  * the secret key sealed apart from the public fields. Nothing is chosen for
  * the person: with no bucket saved the vault stays in this browser.

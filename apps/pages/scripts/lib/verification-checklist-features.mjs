@@ -108,10 +108,10 @@ async function addResetEmail(section, address) {
   await section.getByText(address, { exact: true }).waitFor({ timeout: 8_000 });
 }
 
-/** Password reset under Capabilities: absent on minimal, 0/1/many on full. */
+/** Password reset under Features: absent on minimal, 0/1/many on full. */
 export async function capturePasswordReset(page, shot, record) {
   if (record.profile === MINIMAL) {
-    const caps = page.locator("[data-testid=capabilities-panel]");
+    const caps = page.locator("[data-testid=features-panel]");
     const zero = await shotOf(shot, "r1-reset-absent", caps);
     const section = page.locator("#feature-password-reset");
     const shown = await section.isVisible().catch(() => false);
@@ -144,7 +144,7 @@ export async function capturePasswordReset(page, shot, record) {
     record,
     "R3-settings",
     /Password reset/.test(placed),
-    "capabilities section",
+    "features section",
   );
   const input = section.getByLabel("Reset email");
   const inputSeen = await input

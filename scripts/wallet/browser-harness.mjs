@@ -345,7 +345,7 @@ async function main() {
       claims.claims["WAL-B03"] = {
         status: "fixture_verified",
         reason:
-          "Playwright on the static origin: with a CDP virtual authenticator attached, Wallet › Spending passes (approved through Settings › Capabilities) shows no pass; the product's lease module, run in the same browser, refuses a forged WebAuthn label (unverified_assurance), an unenrolled key (key_not_enrolled) and spent verifiedBytes replay (assertion_replay). Not phishing-resistant RP ceremony binding.",
+          "Playwright on the static origin: with a CDP virtual authenticator attached, Wallet › Spending passes (approved through Settings › Features) shows no pass; the product's lease module, run in the same browser, refuses a forged WebAuthn label (unverified_assurance), an unenrolled key (key_not_enrolled) and spent verifiedBytes replay (assertion_replay). Not phishing-resistant RP ceremony binding.",
         productionEnabled: false,
         evidenceRefs: [
           "pnpm wallet:test:browser",

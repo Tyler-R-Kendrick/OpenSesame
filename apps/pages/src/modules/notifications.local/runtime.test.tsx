@@ -55,9 +55,9 @@ describe("notifications.local runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const [panel] = t.entries("settings-panel");
-    expect(panel?.category).toBe("capabilities.feature-local-notifications");
+    expect(panel?.category).toBe("features.feature-local-notifications");
     expect(panel?.files?.list().map((file) => file.path)).toEqual([
-      "settings/capabilities/local-notifications.json",
+      "settings/features/local-notifications.json",
     ]);
     await handle.dispose();
   });

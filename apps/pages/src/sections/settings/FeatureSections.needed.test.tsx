@@ -12,7 +12,7 @@ import {
   installPanelFixture,
   renderPanel,
   withReceipt,
-} from "./capabilities-panel.test-support.js";
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 installPanelFixture();

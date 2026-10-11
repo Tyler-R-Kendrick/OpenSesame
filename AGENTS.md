@@ -495,7 +495,8 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
-| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0163): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Capabilities section in `registry/feature-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
+| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0163): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Features section in `registry/feature-goals.ts` and per Settings › Integrations section in `registry/integration-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
+| `packages/app-core/src/lib/capabilities/{features,integrations}.ts`, `apps/pages/src/sections/settings/{FeatureSections,IntegrationSections,FeaturesPanel,IntegrationsPanel}.tsx` | Settings › Features and Settings › Integrations (ADR 0189): `FEATURES` are the switches (each section a topic and the optional capabilities its one switch adds and removes; Guests and the operator's Instance policy beside them), `INTEGRATIONS` the third-party connections that extend or replace a feature (one per `FEATURE_BINDING_CATEGORIES` family, the AI model picks, the endpoints in `settings/integrations/config.yaml`). The capability documents live in `settings/features/`. `lib/settings-retired.ts` maps every retired `/settings/capabilities`, Connections and Backups address onto them |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/app-core/src/lib/vault/pending-import.ts`, `apps/pages/src/screens/unlock/ImportRoad.tsx`, `apps/pages/src/sections/vault/import/ImportKey.tsx` | A vault that begins from a file (ADR 0188): the front door's third road and sign-in's foot link hold the chosen `File` — unread, in memory, never written — while the vault is sealed the ordinary way (passkey or PIN); the Import key takes it once the vault is open and opens the sheet every import uses, so an OpenSesame backup is opened by its own unlock and a `.env` file previews and merges. The door imports no pipeline: the slot, the picker's accept list and the road are core, the pipeline and sheet stay `vault.interop-formats`'s. `lib/chunk-load.ts` tells a failed lazy chunk as a stale page, and a restore's post-write identity notice never fails it |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
@@ -514,7 +515,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/app-core/src/lib/secret-fs/`, `packages/app-core/src/node/{secret-files,vault-directory}.ts`, `spec/secret-files/` | Secrets as files (ADR 0182), written on Effect 4: the `SecretFiles` contract (read/write/remove/list, revision = SHA-256, path rule, four typed failures), its backends — the emulation, a confined atomic directory over Effect `FileSystem` (Node layer in `src/node`), and an S3-compatible bucket (`s3.ts` over the `s3-sigv4.ts` signer; a browser needs no server of ours) — the `resilient` wrapper (attempt timeout, jittered retries, circuit breaker, lost-answer confirmation), the layout (`vault.json` manifest + `secrets/<folder>/<name>.<kind>.json`, one sealed document per secret), and `vfs-files.ts`, which lays the VFS seams (`vfs-seams.ts`) over any of them. One conformance suite per layer runs against every backend. The CLI keeps its vault at `<state>/vault/` through `useVaultDirectory`. Names are visible on disk by design; values never are |
 | `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0170): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
-| `packages/vault-core/src/{environments,environment-keys}.ts`, `packages/app-core/src/lib/vault/{body-environments,environments*}.ts`, `apps/pages/src/modules/vault.environments/` | Vault environments (ADR 0189, optional `vault.environments`, off by default and absent from the minimal profile): an item is a key in the generated `.env.schema` exactly when it carries `environments` (a sealed value and a required flag per environment), the body carries the environment list (a removal is a marker), both merged cell by cell like a typed item's values; the store takes one of a closed set of typed edits (`body-environments.ts`, core); the schema is a view (`@required=forEnv(...)`, never a value); a required key with no value in any environment raises one tray notice owned by a background job, not a panel. The surface is the vault's own: an Environments key in the path strip, the Add menu and `/environments` in the command bar, opening a sheet at `/vault?environments=1` |
+| `packages/vault-core/src/{environments,environment-keys}.ts`, `packages/app-core/src/lib/vault/{body-environments,environments*}.ts`, `apps/pages/src/modules/vault.environments/` | Vault environments (ADR 0190, optional `vault.environments`, off by default and absent from the minimal profile): an item is a key in the generated `.env.schema` exactly when it carries `environments` (a sealed value and a required flag per environment), the body carries the environment list (a removal is a marker), both merged cell by cell like a typed item's values; the store takes one of a closed set of typed edits (`body-environments.ts`, core); the schema is a view (`@required=forEnv(...)`, never a value); a required key with no value in any environment raises one tray notice owned by a background job, not a panel. The surface is the vault's own: an Environments key in the path strip, the Add menu and `/environments` in the command bar, opening a sheet at `/vault?environments=1` |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item types: embeds the built-in corpus (`marketplace/item-types/builtin/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
@@ -762,7 +763,7 @@ Do not add new top-level directories or loose root files — find the group.
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
 - **Never remove or hide the guest/anonymous access flow** from the Pages
   sign-in and unlock screens — the one exception is the operator's own
-  "Allow guests" switch in Settings › Capabilities
+  "Allow guests" switch in Settings › Features
   (`packages/app-core/src/lib/guest-access.ts`, default on, fails toward on,
   turned off only by the device's operator, back on by anyone signed in but
   a guest; ADR 0135). Every placement reads it through
@@ -921,8 +922,8 @@ Do not add new top-level directories or loose root files — find the group.
   `config.yaml` and the capability documents are those files, and **opening one
   draws the designed page that writes it, never its text** — the same as every
   other page. Never draw YAML as a view, never add a Form/Visual/Source toggle
-  or a paste box, and when a key has no designed row, add the row (Capabilities
-  adds the designed row on the page that owns the key; Host/Identity/daemon
+  or a paste box, and when a key has no designed row, add the row (Features and
+  Integrations add the designed row on the page that owns the key; Host/Identity/daemon
   are not Pages backends and have no Endpoints panel). Only a file
   a provider keeps for authoring (an item type's JSON, `marketplaces.json`, a
   routing file) opens in the file viewer, painted in the same colours, from a
@@ -1035,14 +1036,15 @@ Do not add new top-level directories or loose root files — find the group.
   ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
 - **Every feature has a replayable tutorial, and every tutorial is walked in a
   real browser** ([ADR 0163](docs/adr/0163-tutorial-mode.md)). A new section of
-  Settings › Capabilities gets a `feature.<id>` target and a tour in
-  `feature-goals.ts`; a new goal gets a home in `registry/areas.ts` (the test
+  Settings › Features gets a `feature.<id>` target and a tour in
+  `feature-goals.ts`, and a new section of Settings › Integrations an
+  `integration.<id>` target and a tour in `integration-goals.ts`; a new goal gets a home in `registry/areas.ts` (the test
   fails without one) and a step is a `say`, a pointing directive with the
   `wait` after it, or the closing `success` — every step must be reachable by
   Next alone, and must point only at controls that are drawn where the tutorial
   is offered (an authored tour may name up to 40 instructions; a model's stays
   at 8). A tutorial that points at a section or a signed-in-only row says so
-  (`focus "feature.<id>"`, `requires`) and the library hides it where it
+  (`focus "feature.<id>"` or `focus "integration.<id>"`, `requires`) and the library hides it where it
   cannot work. A control a guide can point at, and every key the keymap binds,
   is taught by a tutorial or named in `coverage-ledger.ts` with a reason
   (`coverage.test.ts`; the ledger only falls). A gate (the front door, unlock,
@@ -1064,13 +1066,21 @@ Do not add new top-level directories or loose root files — find the group.
   reports as "deselected". Connections, Access and Identity are optional
   extensions, absent until their Settings switch is on, and the minimal
   vault creates only the base secret (ADR 0153). An operator's verified policy
-  may still withdraw an always-on capability that owns a module (ADR 0142). Settings › Capabilities is **one
-  list of sections** (`FEATURES` in
-  `packages/app-core/src/lib/capabilities/features.ts`), every one drawn as a
-  `conn-group` subheader plus its tiles; a section with optional capabilities
-  carries its switch on the subheader (no card row, no collapsible, no
-  second per-capability list), and every optional capability and connector
-  family has exactly one section.
+  may still withdraw an always-on capability that owns a module (ADR 0142). Settings splits what a
+  feature *is* from what it *connects to* ([ADR 0189](docs/adr/0189-settings-features-and-integrations.md)).
+  **Settings › Features** is the feature flags: **one list of sections**
+  (`FEATURES` in `packages/app-core/src/lib/capabilities/features.ts`), every
+  one a `conn-group` subheader with its switch on it (no card row, no
+  collapsible, no second per-capability list), reviewed and consented like any
+  switch; every optional capability has exactly one section. **Settings ›
+  Integrations** is the third-party connections that extend a feature or
+  replace what it does on its own (`INTEGRATIONS` in `…/integrations.ts`, one
+  section per feature-binding connector family): configured by reference,
+  never a feature flag (no reviewed plan, no consent receipt), drawn whether or not the feature is on, and every
+  connector family has exactly one section. The two lists share no field, so a
+  section is one or the other. A retired `/settings/capabilities` address is
+  redirected, with its anchor and file, by `retiredSettingsAddress`
+  (`packages/app-core/src/lib/settings-retired.ts`).
   Adding a feature is five things beside ADR 0065's registry entry: a
   descriptor in `packages/app-core/src/lib/capabilities/catalog-*.ts`, a module entry
   `apps/pages/src/modules/<capability-id>/runtime.ts` exporting

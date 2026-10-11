@@ -22,15 +22,19 @@ afterAll(() => revoke());
 
 describe("settings rest paths", () => {
   it("reads a category from the path, then the hash", () => {
-    // Connections and Backups became Settings › Capabilities (ADR 0135).
+    // Connections and Backups became the providers of Settings › Capabilities
+    // (ADR 0135), which split into Features and Integrations (ADR 0189).
     expect(settingsCategoryFromLocation("/settings/connections", "")).toBe(
-      "capabilities",
+      "integrations",
     );
     expect(settingsCategoryFromLocation("/settings/connectivity", "")).toBe(
-      "capabilities",
+      "integrations",
     );
     expect(settingsCategoryFromLocation("/settings/backups", "")).toBe(
-      "capabilities",
+      "integrations",
+    );
+    expect(settingsCategoryFromLocation("/settings/capabilities", "")).toBe(
+      "features",
     );
     expect(settingsCategoryFromLocation("/settings", "#security")).toBe(
       "security",
@@ -41,10 +45,12 @@ describe("settings rest paths", () => {
 
   it("maps legacy hashes onto rest paths", () => {
     expect(settingsCategoryFromHash("#github-backup")).toBeNull();
-    expect(settingsCategoryFromHash("#taskbus")).toBe("capabilities");
-    expect(settingsCategoryFromHash("#connectivity")).toBe("capabilities");
-    expect(settingsCategoryFromHash("#connections")).toBe("capabilities");
-    expect(settingsPath("capabilities")).toBe("/settings/capabilities");
+    expect(settingsCategoryFromHash("#taskbus")).toBe("integrations");
+    expect(settingsCategoryFromHash("#connectivity")).toBe("integrations");
+    expect(settingsCategoryFromHash("#connections")).toBe("integrations");
+    expect(settingsCategoryFromHash("#capabilities")).toBe("features");
+    expect(settingsPath("features")).toBe("/settings/features");
+    expect(settingsPath("integrations")).toBe("/settings/integrations");
     expect(settingsPath("general")).toBe("/settings");
   });
 });
@@ -149,17 +155,17 @@ describe("crumbsFor", () => {
   it("links settings rest paths", () => {
     expect(crumbsFor("/settings/connections")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Capabilities" },
+      { label: "Integrations" },
     ]);
     // A connector page's parent is the page that configures it.
     expect(crumbsFor("/settings/connections/github")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Capabilities", to: "/settings/capabilities" },
+      { label: "Integrations", to: "/settings/integrations" },
       { label: "github" },
     ]);
     expect(crumbsFor("/settings/connections/github/conn_1")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Capabilities", to: "/settings/capabilities" },
+      { label: "Integrations", to: "/settings/integrations" },
       { label: "github", to: "/settings/connections/github" },
       { label: "conn_1" },
     ]);
@@ -173,15 +179,21 @@ describe("a settings directory's config.yaml", () => {
       { label: "General", to: "/settings" },
       { label: "config.yaml" },
     ]);
-    expect(crumbsFor("/settings/capabilities", "?file=config.yaml")).toEqual([
+    expect(crumbsFor("/settings/features", "?file=config.yaml")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Capabilities", to: "/settings/capabilities" },
+      { label: "Features", to: "/settings/features" },
       { label: "config.yaml" },
     ]);
-    // An older Connections link reads as the directory it folded into.
+    // An older Capabilities link reads as the page its switches moved to, and
+    // an older Connections link as the one its providers did.
+    expect(crumbsFor("/settings/capabilities", "?file=config.yaml")).toEqual([
+      { label: "Settings", to: "/settings" },
+      { label: "Features", to: "/settings/features" },
+      { label: "config.yaml" },
+    ]);
     expect(crumbsFor("/settings/connections", "?file=config.yaml")).toEqual([
       { label: "Settings", to: "/settings" },
-      { label: "Capabilities", to: "/settings/capabilities" },
+      { label: "Integrations", to: "/settings/integrations" },
       { label: "config.yaml" },
     ]);
   });

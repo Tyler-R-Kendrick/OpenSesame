@@ -1,4 +1,4 @@
-# ADR 0189 — Vault environments: values live on the items, the `.env.schema` is generated from them
+# ADR 0190 — Vault environments: values live on the items, the `.env.schema` is generated from them
 
 - **Status:** Accepted
 - **Date:** 2026-10-11
@@ -21,7 +21,8 @@ notification; and none of it exists in the minimal installation.
 
 The module that shipped under that name passed its unit tests and did none of
 that for a person. Switching the capability on in a running Pages build
-(`pnpm dev:pwa`, guest vault, Settings › Capabilities › Environments) showed:
+(`pnpm dev:pwa`, guest vault, Settings › Features › Environments, which was
+Settings › Capabilities › Environments until ADR 0189 split that page) showed:
 
 1. **Nothing in the vault.** The only trace was a block at the bottom of
    Settings › Vaults, below the 23-row item-type list. The vault, where the

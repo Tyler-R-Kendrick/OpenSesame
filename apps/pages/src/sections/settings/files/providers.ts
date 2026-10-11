@@ -1,7 +1,7 @@
 /**
  * Which virtual files each Settings category has beyond its own document
  * (`settings/<category>/config.yaml`). Vaults carries the item types and
- * Capabilities its capability documents; a
+ * Features its capability documents; a
  * category a capability contributes brings its own provider with it
  * (Notifications, `notifications.routing`); the other categories are one
  * document each.
@@ -73,8 +73,8 @@ export function useItemTypeFiles(): VirtualFileProvider {
 
 /**
  * The files the panels a capability draws inside `category` bring — a
- * Capabilities section's plugin panel (`capabilities.feature-<id>`) lists
- * its file under Capabilities.
+ * Features section's plugin panel (`features.feature-<id>`) lists its file
+ * under Features.
  */
 function usePanelFiles(category: string): VirtualFileProvider[] {
   return useContributions("settings-panel")
@@ -166,7 +166,7 @@ export function useCategoryFiles(category: string): VirtualFileProvider | null {
   const own =
     category === "vaults"
       ? itemTypes
-      : category === "capabilities"
+      : category === "features"
         ? capabilities
         : category === "security" && security.list().length > 0
           ? security

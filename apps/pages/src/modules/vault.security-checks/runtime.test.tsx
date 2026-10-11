@@ -137,7 +137,7 @@ describe("vault.security-checks runtime", () => {
         .entries("settings-panel")
         .map((panel) => panel.category)
         .sort(),
-    ).toEqual(["capabilities.feature-security-checks", "vaults"]);
+    ).toEqual(["features.feature-security-checks", "vaults"]);
     await handle.dispose();
     expect(breachWatchSnapshot().phase).toBe("off");
   });

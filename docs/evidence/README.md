@@ -58,7 +58,9 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-11-lock-v5-dial-shimmer/`](2026-10-11-lock-v5-dial-shimmer/README.md) | Lock-v5: the shimmer runs on, the dial is on the front door, the key is in front |
 | [`2026-10-11-hero-field-on-phones/`](2026-10-11-hero-field-on-phones/README.md) | Every gate's hero is the particle field, a phone's included |
 | [`2026-10-11-first-run-import/`](2026-10-11-first-run-import/README.md) | A vault that begins from a file — before / after |
+| [`2026-10-11-features-and-integrations/`](2026-10-11-features-and-integrations/README.md) | Settings splits into Features and Integrations (ADR 0189) |
 | [`2026-10-11-dial-under-card/`](2026-10-11-dial-under-card/README.md) | The cipher dial carries on behind the gate's card |
+| [`2026-10-11-chrome-wordmark-field/`](2026-10-11-chrome-wordmark-field/README.md) | The rail, the drawer and the setup bar draw the particle field |
 | [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
 | [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
 | [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) |  |

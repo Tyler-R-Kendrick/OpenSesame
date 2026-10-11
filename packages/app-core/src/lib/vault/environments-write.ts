@@ -1,5 +1,5 @@
 /**
- * The one way a surface writes environments (ADR 0189): through the plan.
+ * The one way a surface writes environments (ADR 0190): through the plan.
  *
  * `vault.environments` is optional and off until a plan approves it. A write
  * asked for while it is off is refused and stores nothing, so the feature is

@@ -1,5 +1,5 @@
 /**
- * The shared fixture of the Settings › Capabilities panel tests: a personal
+ * The shared fixture of the Settings › Features and Integrations panel tests: a personal
  * installation that selected WebMCP (and a now-core id, ignored), a receipt
  * covering it, and a vault the test may change through `panelVault`.
  *
@@ -20,15 +20,21 @@ import { cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-import {
-  CapabilitiesPanel,
-  capabilitiesPanelSeams,
-} from "./CapabilitiesPanel.js";
+import { FeaturesPanel, capabilitiesPanelSeams } from "./FeaturesPanel.js";
+import { IntegrationsPanel } from "./IntegrationsPanel.js";
 
 export function renderPanel() {
   return render(
     <MemoryRouter>
-      <CapabilitiesPanel />
+      <FeaturesPanel />
+    </MemoryRouter>,
+  );
+}
+
+export function renderIntegrationsPanel() {
+  return render(
+    <MemoryRouter>
+      <IntegrationsPanel />
     </MemoryRouter>,
   );
 }

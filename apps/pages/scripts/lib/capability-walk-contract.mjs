@@ -5,7 +5,7 @@
 // The claim under test is an absence followed by a presence: a device that
 // has approved nothing has no rail row, no route and no section for an
 // optional capability, and the moment a person adds one through Settings ›
-// Capabilities it is there. An absence alone proves nothing — a section can
+// Features it is there. An absence alone proves nothing — a section can
 // vanish because it crashed — so each capability is checked both ways.
 // Always-on capabilities (ADR 0135, 0142) are the opposite claim: present
 // with nothing chosen, and never offered a switch.
@@ -95,11 +95,11 @@ export async function checkGatedSectionsAbsent(page, check) {
   );
 }
 
-/** Open Settings › Capabilities from wherever the walk is. */
-async function openCapabilities(page) {
+/** Open Settings › Features from wherever the walk is. */
+async function openFeatures(page) {
   await openSessionSection(page, "Settings");
   await page.waitForTimeout(900);
-  await page.getByRole("link", { name: "Capabilities", exact: true }).click();
+  await page.getByRole("link", { name: "Features", exact: true }).click();
   await page.waitForTimeout(900);
 }
 
@@ -111,7 +111,7 @@ async function openCapabilities(page) {
  * egress class.
  */
 export async function addCapability(page, check, snap, title, rail = null) {
-  await openCapabilities(page);
+  await openFeatures(page);
   await awaitCapabilitySections(page);
   const add = capabilityOffSwitch(page, title);
   if (ALWAYS_ON_TITLES.has(title)) {
@@ -133,7 +133,7 @@ export async function addCapability(page, check, snap, title, rail = null) {
   await snap(page, `add-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`);
   check(
     (await page.locator('[data-testid="capability-review"]').count()) === 0,
-    `${title} commits in place and stays on the capabilities page`,
+    `${title} commits in place and stays on the features page`,
   );
   check(
     (await capabilityOnSwitch(page, title).count()) === 1,

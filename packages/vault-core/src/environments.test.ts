@@ -1,5 +1,5 @@
 /**
- * Environments in a vault body (ADR 0189): what a name may be, how two
+ * Environments in a vault body (ADR 0190): what a name may be, how two
  * devices' lists and an item's cells merge, and how an edit is stamped so a
  * wrong clock cannot lose it.
  */

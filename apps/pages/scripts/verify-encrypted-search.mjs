@@ -11,7 +11,7 @@
 //   A. With the capability off, retiring a password writes the device-sealed
 //      database: `opensesame-password-history` exists, and the item's id is
 //      readable in it. This is the control the rest is measured against.
-//   B. Switching Settings › Capabilities › Encrypted search on moves that
+//   B. Switching Settings › Features › Encrypted search on moves that
 //      database across and deletes it: only `opensesame-at-rest` and
 //      `opensesame-edb-<32 hex>` remain.
 //   C. Retiring another password lands in the encrypted database, and a sweep
@@ -202,7 +202,7 @@ for (const width of WIDTHS) {
 
   // B
   setStep(`${label}-on`);
-  await go(page, "/settings/capabilities");
+  await go(page, "/settings/features");
   await awaitCapabilitySections(page);
   const add = capabilityOffSwitch(page, TITLE);
   await add.waitFor({ timeout: 15000 });

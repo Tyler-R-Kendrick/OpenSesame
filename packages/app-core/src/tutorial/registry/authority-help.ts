@@ -47,7 +47,7 @@ export const AUTHORITY_GOALS: readonly GuideGoalDescriptor[] =
       title: topic.title,
       routes: topic.goal.startsWith("agent.")
         ? ["/access"]
-        : ["/settings/capabilities", "/connections"],
+        : ["/settings/features", "/connections"],
       guide: [
         "guide/1",
         `goal "${topic.goal}"`,

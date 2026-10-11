@@ -31,8 +31,8 @@ export function CategoryLink({
   current: boolean;
 }) {
   const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
-  // Capabilities sits far enough along the strip that at 320px it opened
-  // partly off the right edge; the strip scrolls itself, never the page.
+  // Features and Integrations sit far enough along the strip that at 320px
+  // one opened partly off the right edge; the strip scrolls itself, never the page.
   const stripRef = useStripItem<HTMLAnchorElement>(current, guideRef);
   return (
     <Link

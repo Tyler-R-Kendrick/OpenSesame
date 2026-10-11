@@ -52,7 +52,7 @@ export type OsMeta = {
   fields?: StoreCustomField[];
   /** Starred; absent when not (format 2). */
   favorite?: boolean;
-  /** The item's environment cells, present when it is a key (ADR 0189). */
+  /** The item's environment cells, present when it is a key (ADR 0190). */
   environments?: ItemEnvironments | JsonObject;
 };
 

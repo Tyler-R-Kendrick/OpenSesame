@@ -6,7 +6,7 @@ import {
   resetPasswordResetMailForTest,
 } from "@opensesame/app-core/lib/password-reset-mail.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { sectionCategory } from "../../sections/settings/CapabilitySections.js";
+import { sectionCategory } from "../../sections/settings/FeatureSections.js";
 import { PASSWORD_RESET_PANEL_CATEGORY } from "./runtime.js";
 import { clearPasswordResetSeen, scanPasswordResetMail } from "./scan.js";
 

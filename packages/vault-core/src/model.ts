@@ -53,7 +53,7 @@ export type BaseItem = {
   fieldTimes?: Readonly<Record<string, string>>;
   /**
    * Present exactly when this item is a key in the vault's `.env.schema`: one
-   * cell per environment (ADR 0189). Concealed like any value, and merged one
+   * cell per environment (ADR 0190). Concealed like any value, and merged one
    * cell at a time.
    */
   environments?: ItemEnvironments;
@@ -229,7 +229,7 @@ export type VaultBody = {
   deviceIdentityKey?: JsonObject | undefined;
   /** The current master-password wrap, so a change reaches every device (ADR 0144). */
   masterWrap?: import("./sync-model.js").MasterWrap | undefined;
-  /** The vault's environments, by name; a removal is a marker (ADR 0189). */
+  /** The vault's environments, by name; a removal is a marker (ADR 0190). */
   environments?: VaultEnvironments | undefined;
 };
 
