@@ -90,8 +90,9 @@ describe("Breach and two-step checks in Settings", () => {
     });
     const { container } = renderPanel();
     const section = container.querySelector("#feature-security-checks");
+    expect(section?.textContent).toContain(SECURITY_CHECKS_SUMMARY);
     expect(section?.textContent).toContain(SECURITY_CHECKS_IDLE);
-    expect(screen.queryByText(SECURITY_CHECKS_SUMMARY)).toBeNull();
+    expect(screen.getAllByText(SECURITY_CHECKS_SUMMARY)).toHaveLength(1);
 
     fireEvent.click(
       screen.getByRole("button", {

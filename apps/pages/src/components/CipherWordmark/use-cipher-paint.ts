@@ -116,10 +116,11 @@ export function useCipherPaint(refs: PaintRefs, opts: PaintOpts) {
       rafRef,
       visibleRef,
       runsRef,
+      layoutRef,
       motionOff,
       paint,
     });
-  }, [motionOff, paint, rafRef, runsRef, visibleRef]);
+  }, [motionOff, paint, rafRef, runsRef, layoutRef, visibleRef]);
 
   return { startRun, settleRun, resize, paint, scheduleFrame };
 }

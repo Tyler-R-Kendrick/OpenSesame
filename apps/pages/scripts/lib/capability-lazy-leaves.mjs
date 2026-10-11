@@ -47,6 +47,11 @@ const LAZY_LEAVES = [
     "vault.security-checks",
     "cap-vault.security-checks",
   ],
+  [
+    "/src/modules/vault.security-checks/SecurityChecksPanel",
+    "vault.security-checks",
+    "cap-vault.security-checks-panel",
+  ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
   // Plugin pairing is reached by the tailnet sync and device-management

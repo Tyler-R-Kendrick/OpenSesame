@@ -56,3 +56,13 @@ test("pins optional vault.security-checks app-core leaf when Rollup classifies i
     "cap-vault.security-checks",
   );
 });
+
+test("pins the security-checks settings panel leaf on its capability", () => {
+  const file =
+    "/workspace/apps/pages/src/modules/vault.security-checks/SecurityChecksPanel.tsx";
+  const entry = {
+    classification: "optional",
+    capability: "vault.security-checks",
+  };
+  assert.equal(lazyLeafChunk(file, entry), "cap-vault.security-checks-panel");
+});

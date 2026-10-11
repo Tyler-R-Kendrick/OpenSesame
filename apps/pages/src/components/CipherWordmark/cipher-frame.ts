@@ -7,6 +7,7 @@ import {
   drawWordmark,
   readInkRgb,
   readSlit,
+  tierOf,
 } from "./particles.js";
 
 const PAD = 4;
@@ -44,7 +45,9 @@ export function paintCipherFrame(args: {
     pad: PAD,
     inkRgb: readInkRgb(root),
     calibration: DRAW_CALIBRATION,
-    frozenField: motionOff || settled,
+    // The field keeps its shimmer after the decode settles; only reduced
+    // motion holds it still.
+    frozenField: motionOff,
     showMark: includeMark,
     slit: readSlit(root),
     showCursor,
@@ -58,20 +61,27 @@ export function paintCipherFrame(args: {
   };
 }
 
+/** The particle tier shimmers for as long as it is on screen. */
+export function shimmers(layout: Layout | null): boolean {
+  return layout !== null && tierOf(layout.em) === "field";
+}
+
 export function scheduleCipherLoop(args: {
   rafRef: { current: number };
   visibleRef: { current: boolean };
   runsRef: { current: DecryptRun[] };
+  layoutRef: { current: Layout | null };
   motionOff: boolean;
   paint: (t: number) => void;
 }): void {
-  const { rafRef, visibleRef, runsRef, motionOff, paint } = args;
+  const { rafRef, visibleRef, runsRef, layoutRef, motionOff, paint } = args;
   cancelAnimationFrame(rafRef.current);
   const loop = () => {
     if (!visibleRef.current) return;
     const t = nowMs();
     paint(t);
-    if (!motionOff && !isSettled(runsRef.current, t)) {
+    const decoding = !isSettled(runsRef.current, t);
+    if (!motionOff && (decoding || shimmers(layoutRef.current))) {
       rafRef.current = requestAnimationFrame(loop);
     }
   };
