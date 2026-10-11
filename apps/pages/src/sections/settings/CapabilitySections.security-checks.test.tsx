@@ -2,7 +2,10 @@
 import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
-import { clearSecurityWatch } from "@opensesame/app-core/lib/vault/security-checks.js";
+import {
+  SECURITY_CHECKS_IDLE,
+  clearSecurityWatch,
+} from "@opensesame/app-core/lib/vault/security-checks.js";
 import { MAX_SUMMARY_LENGTH } from "@opensesame/capability-composition";
 import {
   type AccountItem,
@@ -88,7 +91,7 @@ describe("Breach and two-step checks in Settings", () => {
     const { container } = renderPanel();
     const section = container.querySelector("#feature-security-checks");
     expect(section?.textContent).toContain(SECURITY_CHECKS_SUMMARY);
-    expect(section?.textContent).toContain("Not checked yet");
+    expect(section?.textContent).toContain(SECURITY_CHECKS_IDLE);
     expect(screen.getAllByText(SECURITY_CHECKS_SUMMARY)).toHaveLength(1);
 
     fireEvent.click(
