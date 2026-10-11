@@ -5,13 +5,12 @@ export {
   FONT_FAMILY,
   PARTICLE_SEED,
   TAU,
-  TYPE_MAX_EM,
+  FIELD_MIN_EM,
   WORDMARK_WIDTH_EM,
   type DrawCalibration,
   type Layout,
   type Particle,
   type WordSlot,
-  type WordmarkTier,
   cursorBoostFor,
   inkAlpha,
   isDarkInk,
@@ -19,7 +18,6 @@ export {
   particleField,
   readInkRgb,
   readSlit,
-  tierOf,
 } from "./particles-model.js";
 export { layoutWordmark } from "./particles-layout.js";
 export { drawWordmark, type DrawWordmarkOpts } from "./particles-draw.js";

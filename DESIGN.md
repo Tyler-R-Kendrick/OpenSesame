@@ -134,20 +134,20 @@ it with the letter O: a zero is one word to change (`DISPLAY_WORD`), and the
 default stays the letter because a zero makes the eye and the screen reader
 disagree. The wordmark is the particle field (`particles-model.ts`):
 
-| Tier | Em | Drawn | Where |
-| --- | --- | --- | --- |
-| field | 16px and up | ink particles with the letter cut out; the field drifts while the name decrypts and keeps shimmering after it settles | every gate's hero: the front door fitted to its card (em = width / 7.78, at most 90), the unlock and sign-in hero above the card, a phone's included |
-| type | under 16px | the letters in ink, no plates | the rail (12px), the setup bar (13px) |
+| Em | Drawn | Where |
+| --- | --- | --- |
+| 16px and up — 16px is the floor | ink particles with the letter cut out; the field drifts while the name decrypts and keeps shimmering after it settles | every gate's hero (the front door fitted to its card, em = width / 7.78, at most 90; the unlock and sign-in hero above the card), a phone's included; the rail, the phone drawer and the setup bar at 16px |
 
 Every rendering carries the mark, the door ajar, beside the name: it is one
 logo, the one the unlock card shows, and `Wordmark` includes it unless a
-caller turns it off. The field tier's fit already counts the mark.
+caller turns it off. The field's fit already counts the mark.
 
-The solid-plate rendering (a hero under 48px used to fall to it) is rejected
-and gone: a phone's hero keeps the field. An 11px particle plate keeps 290 of
-its 1,400 cut-out pixels and reads as redacted blocks, so the chrome under
-16px still draws the letters. The element's font-size is the plate em, so a
-stylesheet sizes the wordmark the way it sizes text.
+The field is the only rendering. Two others were rejected and are gone: the
+letters in ink with no plates (the chrome under 16px drew them) and the solid
+plates (a hero under 48px fell to them). Under a 16px em a particle plate
+loses most of its cut-out and reads as redacted blocks, so a smaller em is laid
+out at 16. The element's font-size is the plate em, so a stylesheet sizes the
+wordmark the way it sizes text.
 
 The name decrypts on arrival: every cell starts as hex ciphertext — the
 glyphs a digest is written in — and a cursor walks the cells left to right,
@@ -155,7 +155,7 @@ the active plate brightening (never a stroked frame) while its glyph steps at
 35ms a frame for 6–12 frames, then locks on its letter and flashes once.
 2.31–4.62s in all, once per session: the gate a person arrives on owns the
 moment, and every wordmark mounted after it — the setup ceremony, the rail —
-stands still, already settled. The unlock screen's wordmark replays it on each
+arrives already settled: no decrypt, its field still shimmering. The unlock screen's wordmark replays it on each
 mount. The plates are decorative; assistive technology reads `open-sesame`
 once. Reduced motion shows the finished word at once, the field still.
 `verify:static` samples the real page (`scripts/lib/wordmark-contract.mjs`):
