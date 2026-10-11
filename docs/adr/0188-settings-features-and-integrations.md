@@ -38,7 +38,8 @@ The two halves are not one thing drawn twice. They differ in mechanism:
   IAM, a key service beside WebCrypto, a forge to back up to, an agent harness
   in place of the on-device model. It is configured by reference: the
   connector's page, its credential sealed in the vault, nothing sent until it
-  is connected. There is no plan, no receipt and no switch, and the old page
+  is connected. There is no plan, no receipt and no feature flag (a tile may
+carry its own enable switch, as a Backups history road does), and the old page
   already said so — "Nothing collapses: a section's providers are drawn whether
   or not its switch is on".
 
@@ -57,8 +58,9 @@ the list used.
 Vaults · Features · Integrations · Danger. `capabilities` is retired as a
 category.
 
-**2. Features are the switches.** The sections of `FEATURES` (19, all of them
-something to switch), plus the operator's *Guests* and *Instance policy*. The
+**2. Features are the switches.** The sections of `FEATURES` (19; two of them,
+Certificate authority and Telemetry, draw a switch only while a plan already
+approves them), plus the operator's *Guests* and *Instance policy*. The
 capability documents (`installation-selection.yaml`, `instance-policy.yaml`,
 `effective-plan.yaml`) live in `settings/features/` beside its `config.yaml`,
 which reports `approved` read-only. Section ids are unchanged (`feature-<id>`),
@@ -98,7 +100,8 @@ alone.
 `integration.<id>`; a tour that points at an integration section is offered
 only where that section draws. Tour ids for the five built-in functions move
 from `feature.*` to `integration.*`; the task-shaped tours (`settings.backup`,
-`settings.model-provider`) walk both pages in turn.
+`settings.model-provider`) walk Integrations, and name the feature's own switch
+on Features without leaving the page.
 
 ## What did not change
 
@@ -141,6 +144,6 @@ Each row is a way this could be wrong, and what the code answers.
 - A new optional capability is a `Feature` row. A new connector family that
   binds to a feature is a catalog row (`spec/connectors/catalog.json`), a
   `FEATURE_BINDING_CATEGORIES` entry and an `Integration` row — the test fails
-  if one of the three is missing.
+  if the last two disagree; the catalog row is what the first of them rests on.
 - A user-visible change: the evidence gallery for this decision is under
   `docs/evidence/2026-10-11-features-and-integrations/`.

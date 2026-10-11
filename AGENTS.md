@@ -917,8 +917,8 @@ Do not add new top-level directories or loose root files — find the group.
   `config.yaml` and the capability documents are those files, and **opening one
   draws the designed page that writes it, never its text** — the same as every
   other page. Never draw YAML as a view, never add a Form/Visual/Source toggle
-  or a paste box, and when a key has no designed row, add the row (Capabilities
-  adds the designed row on the page that owns the key; Host/Identity/daemon
+  or a paste box, and when a key has no designed row, add the row (Features and
+  Integrations add the designed row on the page that owns the key; Host/Identity/daemon
   are not Pages backends and have no Endpoints panel). Only a file
   a provider keeps for authoring (an item type's JSON, `marketplaces.json`, a
   routing file) opens in the file viewer, painted in the same colours, from a
@@ -1071,7 +1071,7 @@ Do not add new top-level directories or loose root files — find the group.
   Integrations** is the third-party connections that extend a feature or
   replace what it does on its own (`INTEGRATIONS` in `…/integrations.ts`, one
   section per feature-binding connector family): configured by reference,
-  never switched or reviewed, drawn whether or not the feature is on, and every
+  never a feature flag (no reviewed plan, no consent receipt), drawn whether or not the feature is on, and every
   connector family has exactly one section. The two lists share no field, so a
   section is one or the other. A retired `/settings/capabilities` address is
   redirected, with its anchor and file, by `retiredSettingsAddress`

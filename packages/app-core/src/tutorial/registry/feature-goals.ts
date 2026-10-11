@@ -6,7 +6,7 @@
  * walk every time and cannot depend on the feature being on: it navigates to
  * the page, points at the section heading, and says in a closing step what
  * appears once the switch is. The sections that already have a task-shaped
- * tour — Networking, Local notifications, AI, Browser autofill, Surrogate
+ * tour — Networking, Local notifications, Browser autofill, Surrogate
  * credentials — are not repeated here; `FEATURE_TUTORIALS` below says which
  * tutorial a feature opens. The third parties a feature connects to are
  * Settings › Integrations, and `integration-goals.ts` tours those.

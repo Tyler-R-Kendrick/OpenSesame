@@ -80,7 +80,8 @@ const section = (
 /**
  * In page order, by topic: who signs in, who may do what, what the vault
  * holds, then what this installation does with others and with models. A
- * feature is always something to switch: the site broker and git backup are
+ * feature is a flag to switch (though Certificate authority and Telemetry
+ * draw one only while a plan approves them, `NO_SURFACE`): the site broker and git backup are
  * always on (ADR 0142), so they are not here — their providers are
  * integrations. Identity, Connections, Access and item types are optional
  * extensions (ADR 0153): off until their switch is on.

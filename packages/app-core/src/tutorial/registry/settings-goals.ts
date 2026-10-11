@@ -80,7 +80,7 @@ export const SETTINGS_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/settings/integrations"',
       'wait route "/settings/integrations" timeout=15000',
       'focus "settings.integrations" "Integrations is the category for it: identity providers, key services, backups, password managers, secret stores, payment providers, models and tailnets, each connected by reference." side=bottom',
-      'focus "settings.integrations-list" "Every section is drawn like this one: a subheader with its providers under it. Nothing here is switched: a provider\'s page connects it and seals its credential in the vault." side=bottom',
+      'focus "settings.integrations-list" "Every section is drawn like this one: a subheader with its providers under it. None of it needs a reviewed plan: a provider\'s page connects it and seals its credential in the vault." side=bottom',
       'success "That is Integrations."',
       "end",
     ].join("\n"),

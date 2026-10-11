@@ -7,8 +7,9 @@
  * up to, a password manager that keeps working next to the vault, an agent
  * harness in place of the on-device model. It is configured by reference —
  * the connector's page, its credential sealed in the vault, nothing sent until
- * it is connected — so it has no switch, no reviewed plan and no consent
- * receipt, and nothing about it depends on whether a feature is on.
+ * it is connected — so it is no feature flag: no reviewed plan and no consent
+ * receipt, and nothing about it depends on whether a feature is on. (A tile
+ * may carry its own enable switch, as a Backups history road does.)
  *
  * These are exactly the Connections catalogue's feature-binding families
  * (`FEATURE_BINDING_CATEGORIES`): the families bound in Settings, not the
