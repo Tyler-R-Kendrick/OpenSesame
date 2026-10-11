@@ -187,7 +187,7 @@ export const identityManagementCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "route:/identity/authorize?cli=1",
+      pwa: "route:/identity/authorize",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,

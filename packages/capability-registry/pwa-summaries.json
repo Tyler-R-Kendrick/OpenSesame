@@ -484,7 +484,7 @@
     "title": "Approve or deny CLI app-integration for this terminal",
     "plane": "client_local",
     "surfaces": {
-      "pwa": "route:/identity/authorize?cli=1"
+      "pwa": "route:/identity/authorize"
     }
   },
   {
