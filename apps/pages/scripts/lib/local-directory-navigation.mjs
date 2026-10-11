@@ -1,16 +1,50 @@
 import { expect } from "@playwright/test";
 
-/** Read a row's position, then use the listing's real count-prefixed motion. */
+/**
+ * Read a row's position and use the listing's real count-prefixed motion,
+ * until the row holds the cursor. A tree still settling after a route change
+ * can move its rows or its cursor between the read and the keys, and Enter
+ * then opens whatever row the cursor is on. The cursor is the tree's
+ * `aria-activedescendant`, or, where a preview remounted the tree and it fell
+ * back to the route, the row's own `aria-selected`; a preview that replaced
+ * the tree on a phone counts as arriving.
+ */
+async function moveTo(page, tree, row) {
+  const id = await row.getAttribute("id");
+  const quick = { timeout: 200 };
+  const read = (locator, name) =>
+    locator.getAttribute(name, quick).catch(() => null);
+  const arrived = async () =>
+    !(await tree.isVisible()) ||
+    (await read(tree, "aria-activedescendant")) === id ||
+    (await read(row, "aria-selected")) === "true";
+  let typed = false;
+  await expect(async () => {
+    // A retry types again only while the row is still to reach: once a
+    // preview has replaced the tree, keys would land in the listing.
+    if (typed && (await arrived())) return;
+    const index = await row.evaluate(
+      (node) =>
+        [
+          ...node
+            .closest('[role="tree"]')
+            .querySelectorAll('[role="treeitem"]'),
+        ].indexOf(node),
+      undefined,
+      { timeout: 1000 },
+    );
+    await page.keyboard.type(`${index + 1}gg`);
+    typed = true;
+    if (!id) return;
+    await expect.poll(arrived, { timeout: 750 }).toBe(true);
+  }).toPass({ timeout: 10_000 });
+}
+
 async function chooseRow(page, tree, row, tabTo, activate = true) {
   await expect(row).toBeVisible();
   await tabTo(page, tree);
   await expect(tree).toBeFocused();
-  const index = await row.evaluate((node) =>
-    [
-      ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
-    ].indexOf(node),
-  );
-  await page.keyboard.type(`${index + 1}gg`);
+  await moveTo(page, tree, row);
   if (activate) await page.keyboard.press("Enter");
 }
 
@@ -38,12 +72,7 @@ export async function openIdentityView(page, tabTo, name) {
   await tabTo(page, tree);
   const identity = tree.getByRole("treeitem", { name: /^Identity/i });
   if ((await identity.getAttribute("aria-expanded")) !== "true") {
-    const index = await identity.evaluate((node) =>
-      [
-        ...node.closest('[role="tree"]').querySelectorAll('[role="treeitem"]'),
-      ].indexOf(node),
-    );
-    await page.keyboard.type(`${index + 1}gg`);
+    await moveTo(page, tree, identity);
     await page.keyboard.press("ArrowRight");
   }
   const category = tree.getByRole("treeitem", { name, exact: true });
