@@ -28,8 +28,9 @@ describe("minimal-local serves the ceremony routes", () => {
     const plan = profilePlan("minimal-local");
     expect(coreCapabilityIds()).toContain("identity.ceremonies");
     expect(approved(plan, "identity.ceremonies")).toBe(true);
+    const pwaDefaults = new Set(["access.authority", "identity.local-iam"]);
     for (const id of optionalCapabilityIds()) {
-      expect(approved(plan, id), id).toBe(false);
+      expect(approved(plan, id), id).toBe(pwaDefaults.has(id));
     }
     const module = runtimeModule("identity.ceremonies");
     expect(plan.approvedModules).toContain(module);

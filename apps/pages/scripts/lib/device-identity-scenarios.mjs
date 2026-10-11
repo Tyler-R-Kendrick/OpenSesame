@@ -19,6 +19,7 @@ import {
   unlockWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
+import { openGuestAgain } from "./push-worker-guest.mjs";
 
 const SIGN_OUT = "Also sign out of Identity when the vault locks";
 const PRINCIPAL = /\bprn_[A-Za-z0-9_-]{43}\b/;
@@ -133,6 +134,8 @@ export async function connect(page, label) {
 export async function chooseCapability(page, title) {
   await go(page, "/settings/capabilities");
   await awaitCapabilitySections(page);
+  const on = capabilityOnSwitch(page, title);
+  if ((await on.count()) === 1) return;
   const add = capabilityOffSwitch(page, title);
   await add.waitFor({ timeout: 15000 });
   await add.click();
@@ -141,6 +144,18 @@ export async function chooseCapability(page, title) {
     timeout: 15000,
   });
   await capabilityOnSwitch(page, title).waitFor({ timeout: 15000 });
+}
+
+/** Turn an optional capability off when a walk needs the absent state first. */
+export async function clearCapability(page, title) {
+  await go(page, "/settings/capabilities");
+  await awaitCapabilitySections(page);
+  const off = capabilityOffSwitch(page, title);
+  if ((await off.count()) === 1) return;
+  const on = capabilityOnSwitch(page, title);
+  await on.waitFor({ timeout: 15000 });
+  await on.click();
+  await capabilityOffSwitch(page, title).waitFor({ timeout: 15000 });
 }
 
 export async function walkAccess(page, label, { receipts }) {
@@ -298,6 +313,12 @@ export async function lateActivation(browser) {
   await doorGuest(page).click();
   await waitOpen(page);
   await chooseCapability(page, "Access authority");
+  await clearCapability(page, "Browser-local IAM");
+  // Reload from the app root: a reload on /settings/capabilities is a document
+  // request the static harness cannot answer (404).
+  await page.goto(`${env.ORIGIN}${env.BASE}`, { waitUntil: "networkidle" });
+  await openGuestAgain(page);
+  await waitOpen(page);
   await page.setViewportSize(WIDTHS[0].narrow);
   await connect(page, label);
   await page.setViewportSize(WIDTHS[0].size);
