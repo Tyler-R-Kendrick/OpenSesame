@@ -35,6 +35,106 @@ async function catalogRows(page) {
   );
 }
 
+/**
+ * A model provider's first connection from the Add catalog is a sheet over the
+ * catalog, not a page (ADR 0188): the walk waits for whichever the route drew.
+ */
+async function nativeArrival(page, row) {
+  const heading = page.getByRole("heading", { name: row.name, exact: true });
+  const sheet = page.getByRole("form", {
+    name: `Connect ${row.name}`,
+    exact: true,
+  });
+  await heading.or(sheet).first().waitFor();
+  return (await sheet.count()) ? sheet : null;
+}
+
+/** The Add sheet's own contract: what it asks for, what it never prefills, and that Close leaves it. */
+async function nativeSheetContract(page, row, sheet, { check, phone }) {
+  const dialog = page.getByRole("dialog", {
+    name: "Connect a model provider",
+    exact: true,
+  });
+  check(
+    (await dialog.count()) === 1,
+    `${row.id}: a model provider's first connection opens the Add sheet`,
+  );
+  check(
+    await sheet
+      .locator('input[type="password"]')
+      .evaluateAll(
+        (inputs) =>
+          inputs.length > 0 && inputs.every((input) => input.value === ""),
+      ),
+    `${row.id}: the Add sheet asks for a key and prefills none`,
+  );
+  const labels = await sheet
+    .locator("input")
+    .evaluateAll((inputs) =>
+      inputs
+        .filter((input) => !input.readOnly)
+        .map(
+          (input) =>
+            document.querySelector(`label[for="${CSS.escape(input.id)}"]`)
+              ?.textContent ?? "",
+        ),
+    );
+  check(
+    !labels.some((label) =>
+      /Token endpoint|Authorization endpoint|Server URL|Client secret/i.test(
+        label,
+      ),
+    ),
+    `${row.id}: the Add sheet has no arbitrary endpoint or client-secret control`,
+  );
+  check(
+    (await dialog.innerText()).includes("sealed on this device"),
+    `${row.id}: the Add sheet says where the key is kept`,
+  );
+  // The sheet slides in from the edge: measure it where it rests.
+  await page
+    .waitForFunction(
+      () =>
+        Math.round(
+          document.querySelector('[role="dialog"]')?.getBoundingClientRect()
+            .right ?? Number.POSITIVE_INFINITY,
+        ) <= innerWidth,
+      undefined,
+      { timeout: 3000 },
+    )
+    .catch(() => undefined);
+  const layout = await page.evaluate(() => {
+    const sheetBox = document
+      .querySelector('[role="dialog"]')
+      ?.getBoundingClientRect();
+    return {
+      width: innerWidth,
+      document: document.documentElement.scrollWidth,
+      sheetRight: Math.round(sheetBox?.right ?? 0),
+      keys: [
+        ...document.querySelectorAll(
+          '[role="dialog"] .icon-btn, [role="dialog"] input',
+        ),
+      ].map((node) => node.getBoundingClientRect().height),
+    };
+  });
+  check(
+    layout.document <= layout.width && layout.sheetRight <= layout.width,
+    `${row.id}: the Add sheet has no horizontal overflow`,
+  );
+  if (phone)
+    check(
+      layout.keys.every((height) => height >= 44),
+      `${row.id}: the Add sheet's keys and fields meet the 44px phone floor`,
+    );
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await sheet.waitFor({ state: "detached" });
+  check(
+    new URL(page.url()).pathname.endsWith("/connections"),
+    `${row.id}: closing the Add sheet returns to the catalog`,
+  );
+}
+
 async function nativePageContract(page, row, { check, phone }) {
   const main = await page.locator("main").innerText();
   if (row.id !== "vercel")
@@ -135,8 +235,13 @@ export async function nativeCatalogJourney(
       base,
       `${url.pathname.slice(base.length)}${url.search}${url.hash}`,
     );
-    await page.getByRole("heading", { name: row.name, exact: true }).waitFor();
+    const sheet = await nativeArrival(page, row);
     await nativePageContract(page, row, { check: harness.check, phone });
+    if (sheet)
+      await nativeSheetContract(page, row, sheet, {
+        check: harness.check,
+        phone,
+      });
   }
   const listed = new Set(rows.map((row) => row.id));
   for (const row of NATIVE_CANONICAL_PROVIDERS) {

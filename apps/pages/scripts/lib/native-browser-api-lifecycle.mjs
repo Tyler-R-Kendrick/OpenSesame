@@ -1,6 +1,7 @@
 /** Human read and local removal after encrypted reload, against the fixed HTTP authority. */
 import { expect } from "@playwright/test";
 import { nativeVisit } from "./native-browser-catalog-journey.mjs";
+import { NATIVE_AI_MODEL_PROVIDER_IDS } from "./native-browser-catalog-projection.mjs";
 import { unlockWithPin } from "./pages-journey.mjs";
 
 export async function nativeVerifiedCapture(page, path) {
@@ -51,6 +52,13 @@ export async function nativeApiForgetJourney(
   await page
     .getByRole("heading", { name: fixture.name, exact: true })
     .waitFor();
+  // A model provider with no connection opens the Add sheet on arrival
+  // (ADR 0188); removing the connection from its page leaves the page.
+  const addSheet = page.getByRole("form", {
+    name: `Connect ${fixture.name}`,
+    exact: true,
+  });
+  const modelProvider = NATIVE_AI_MODEL_PROVIDER_IDS.has(fixture.providerId);
   const before = authority.state.calls.length;
   await page
     .getByRole("button", { name: "Remove connector", exact: true })
@@ -64,6 +72,14 @@ export async function nativeApiForgetJourney(
   await expect(
     page.getByRole("button", { name: "Remove connector", exact: true }),
   ).toHaveCount(0);
+  if (modelProvider) {
+    // The saved list reloads after the page changes; give it the time it takes.
+    await page.waitForTimeout(750);
+    harness.check(
+      (await addSheet.count()) === 0,
+      `${fixture.providerId}: removing a model provider's connection does not reopen the Add sheet over its page`,
+    );
+  }
   harness.check(
     authority.state.calls.length === before,
     `${fixture.providerId}: local removal performs no provider-wide key revocation`,
@@ -71,9 +87,12 @@ export async function nativeApiForgetJourney(
   authority.state.expectedDocuments.add(page.url());
   await page.reload();
   await unlockWithPin(page);
-  await page
-    .getByRole("heading", { name: fixture.name, exact: true })
-    .waitFor();
+  // Arriving again at a provider with no connection is a first connection: a
+  // model provider draws its Add sheet, every other provider its page.
+  await (modelProvider
+    ? addSheet
+    : page.getByRole("heading", { name: fixture.name, exact: true })
+  ).waitFor();
   await expect(
     page.getByRole("button", { name: "Remove connector", exact: true }),
   ).toHaveCount(0);
@@ -81,7 +100,9 @@ export async function nativeApiForgetJourney(
     true,
     `${fixture.providerId}: removed connection stays absent after encrypted cold reload`,
   );
-  const passwords = page.locator('main input[type="password"]');
+  const passwords = page.locator(
+    'main input[type="password"], [role="dialog"] input[type="password"]',
+  );
   harness.check(
     await passwords.evaluateAll((inputs) =>
       inputs.every((input) => input.value === ""),
