@@ -62,7 +62,6 @@ export function UnlockStage({
       >
         <CipherWordmark
           ref={cipherHeroRef}
-          static
           includeMark
           className="unlock__hero-wordmark"
           size={hero.size}
