@@ -1,14 +1,10 @@
 import type { PendingRequest } from "@opensesame/app-core/lib/cli-app-integration/pending-request.js";
-import {
-  cliAuthorizeCopy as copy,
-  cliVerbLabels,
-} from "./cli-authorize-copy.js";
 import { listAvailableUnlockMethods } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { IconTerminal } from "../../components/Icons.js";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
-import { IconTerminal } from "../../components/Icons.js";
 import { useFailureNotice } from "../../components/use-failure-notice.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import {
@@ -17,21 +13,12 @@ import {
   denyCliIntegrationRequest,
 } from "./cli-authorize-actions.js";
 
-function labelVerb(verb: string): string {
-  if (verb === "read") return cliVerbLabels.read;
-  if (verb === "run") return cliVerbLabels.run;
-  if (verb === "env-resolve") return cliVerbLabels["env-resolve"];
-  if (verb === "pass-reveal") return cliVerbLabels["pass-reveal"];
-  return verb;
-}
+const title = "Authorize CLI";
 
-function present(row: PendingRequest) {
-  const id = row.terminalSessionId.trim();
-  const terminalLabel =
-    id.length <= 12 ? id || "—" : `${id.slice(0, 6)}…${id.slice(-4)}`;
-  const commandLabel = labelVerb(row.verb);
-  const reference = row.reference?.trim();
-  return { terminalLabel, commandLabel, targetLine: reference || null };
+function terminalLabel(sessionId: string): string {
+  const id = sessionId.trim();
+  if (!id) return "—";
+  return id.length <= 12 ? id : `${id.slice(0, 6)}…${id.slice(-4)}`;
 }
 
 export function CliAuthorizeSheet({
@@ -44,7 +31,6 @@ export function CliAuthorizeSheet({
   onSettled: () => void;
 }) {
   const store = useVaultStore();
-  const view = useMemo(() => present(request), [request]);
   const header = store.getSnapshot().header;
   const methods = header ? listAvailableUnlockMethods(header) : [];
   const canPasskey = methods.includes("passkey");
@@ -53,7 +39,7 @@ export function CliAuthorizeSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pinRef = useRef<HTMLInputElement>(null);
-  useFailureNotice("cli-authorize", copy.sheetTitle, error);
+  useFailureNotice("cli-authorize", title, error);
 
   async function settleAfter(action: () => Promise<void>) {
     if (busy) return;
@@ -70,27 +56,26 @@ export function CliAuthorizeSheet({
     }
   }
 
+  const ref = request.reference?.trim();
   const facts = [
-    { key: copy.terminalLabel, value: view.terminalLabel },
-    { key: copy.commandLabel, value: view.commandLabel },
-    ...(view.targetLine
-      ? [{ key: copy.targetLabel, value: view.targetLine }]
-      : []),
+    { key: "Terminal session", value: terminalLabel(request.terminalSessionId) },
+    { key: "Command", value: request.verb },
+    ...(ref ? [{ key: "Item", value: ref }] : []),
   ];
 
   return (
     <CeremonySheet
-      title={copy.sheetTitle}
+      title={title}
       mark={<IconTerminal size={20} />}
       onClose={onClose}
       initialFocus={canPin && !canPasskey ? pinRef : undefined}
     >
       <CeremonyShell
         ok={!error}
-        name={copy.sheetTitle}
+        name={title}
         facts={facts}
         primary={{
-          label: copy.allowKey,
+          label: "Authorize",
           choice: true,
           onClick: () =>
             void settleAfter(() =>
@@ -104,7 +89,7 @@ export function CliAuthorizeSheet({
           disabled: busy || !(canPasskey || (canPin && pin.length > 0)),
         }}
         secondary={{
-          label: copy.denyKey,
+          label: "Deny",
           choice: true,
           onClick: () =>
             void settleAfter(() => denyCliIntegrationRequest(request)),
@@ -112,15 +97,15 @@ export function CliAuthorizeSheet({
           disabled: busy,
         }}
       >
-        <p>{copy.sheetLead}</p>
+        <p>OpenSesame CLI wants vault access from this terminal.</p>
         {canPin && !canPasskey ? (
           <FieldShell
             inputRef={pinRef}
-            label={copy.confirmPin}
+            label="Confirm with PIN"
             type="password"
             inputMode="numeric"
             autoComplete="off"
-            placeholder={copy.pinPlaceholder}
+            placeholder="PIN"
             value={pin}
             disabled={busy}
             onValueChange={setPin}

@@ -1,10 +1,6 @@
 import type { PendingRequest } from "@opensesame/app-core/lib/cli-app-integration/pending-request.js";
 import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { WrongPasswordError } from "@opensesame/vault-core";
-import {
-  confirmPasskeyStepUpForCli,
-  confirmPinStepUpForCli,
-} from "./cli-step-up.js";
 import { respondCliIntegration } from "./cli-daemon-client.js";
 
 export async function approveCliIntegrationRequest(
@@ -12,8 +8,9 @@ export async function approveCliIntegrationRequest(
   request: PendingRequest,
   opts: { canPasskey: boolean; canPin: boolean; pin: string },
 ): Promise<void> {
-  if (opts.canPasskey) await confirmPasskeyStepUpForCli(store, undefined);
-  else if (opts.canPin) await confirmPinStepUpForCli(store, opts.pin);
+  const stepUp = await import("./cli-step-up.js");
+  if (opts.canPasskey) await stepUp.confirmPasskeyStepUpForCli(store, undefined);
+  else if (opts.canPin) await stepUp.confirmPinStepUpForCli(store, opts.pin);
   else throw new Error("Enroll a passkey or PIN in Settings › Security.");
   const ok = await respondCliIntegration(
     request.requestId,
