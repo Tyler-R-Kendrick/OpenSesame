@@ -1,6 +1,7 @@
 import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
 import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js";
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
@@ -8,6 +9,10 @@ import type { MenuGroup, MenuItem } from "./menu-model.js";
 import { copyText, navigationGroup, shellGroup } from "./page-menu.js";
 
 type Navigate = (to: string) => void;
+
+/** The `sharing.live` settings tab and the panel in it that hosts a session. */
+const LIVE_CATEGORY = "live";
+const LIVE_HOST_PANEL = "live-session";
 
 /** What the row under the pointer is, read from the attributes it renders. */
 function describe(row: HTMLElement) {
@@ -96,11 +101,17 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
 /** Ways to hand this vault to someone else, only the ones this install has. */
 function vaultShare(navigate: Navigate): MenuItem | null {
   const ways: MenuItem[] = [];
-  if (contributionsSnapshot("route").some((entry) => entry.path === "/live")) {
+  // Hosting is Settings › Live sessions › Live session. `/live` is the join
+  // screen — the other end of the link this opens — so it is never the target.
+  if (
+    contributionsSnapshot("settings-category").some(
+      (entry) => entry.id === LIVE_CATEGORY,
+    )
+  ) {
     ways.push({
       id: "share-session",
       label: "Session",
-      run: () => navigate("/live"),
+      run: () => navigate(settingsPath(LIVE_CATEGORY, LIVE_HOST_PANEL)),
     });
   }
   if (isCommandSection("/access")) {
