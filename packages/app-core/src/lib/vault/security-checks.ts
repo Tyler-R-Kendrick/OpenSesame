@@ -67,10 +67,6 @@ export type SecurityReport = {
 export const SECURITY_CHECKS_IDLE =
   "Breach and two-step checks on. Not checked.";
 
-/** Shown while a check is in flight. */
-export const SECURITY_CHECKS_CHECKING =
-  "Checking logins against breach and two-step lists.";
-
 function noun(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
@@ -135,14 +131,14 @@ function checkedWatch(report: SecurityReport): BreachWatch {
   };
 }
 
-function securityCheckInputsFingerprint(items: readonly VaultItem[]): string {
+let checkedLoginFingerprint: string | null = null;
+
+function loginFingerprint(items: readonly VaultItem[]): string {
   return logins(items)
     .map((item) => item.updatedAt)
     .sort()
-    .join("\n");
+    .join("|");
 }
-
-let checkedInputsFingerprint: string | null = null;
 
 export type SecurityWatchNote =
   | { phase: "off" }
@@ -155,17 +151,17 @@ export type SecurityWatchNote =
 export function noteSecurityWatch(note: SecurityWatchNote): void {
   switch (note.phase) {
     case "off":
-      checkedInputsFingerprint = null;
+      checkedLoginFingerprint = null;
       publishBreachWatch({ phase: "off" });
       return;
     case "idle":
-      checkedInputsFingerprint = null;
+      checkedLoginFingerprint = null;
       publishBreachWatch({ phase: "idle", label: SECURITY_CHECKS_IDLE });
       return;
     case "checking":
       publishBreachWatch({
         phase: "checking",
-        label: SECURITY_CHECKS_CHECKING,
+        label: "Checking logins for breaches and missing codes.",
       });
       return;
     case "error":
@@ -177,14 +173,15 @@ export function noteSecurityWatch(note: SecurityWatchNote): void {
   }
 }
 
-/** Drop a finished check when logins change or the vault switches. */
 export function reconcileSecurityWatchWithVault(
   items: readonly VaultItem[],
 ): void {
-  if (checkedInputsFingerprint === null) return;
-  if (securityCheckInputsFingerprint(items) === checkedInputsFingerprint)
-    return;
-  noteSecurityWatch({ phase: "idle" });
+  if (
+    checkedLoginFingerprint !== null &&
+    loginFingerprint(items) !== checkedLoginFingerprint
+  ) {
+    noteSecurityWatch({ phase: "idle" });
+  }
 }
 
 /** Capability off: Password health drops the breach block. */
@@ -352,7 +349,7 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
-  checkedInputsFingerprint = securityCheckInputsFingerprint(items);
+  checkedLoginFingerprint = loginFingerprint(items);
   return {
     checkedAt: now().toISOString(),
     checked: checked.length,
