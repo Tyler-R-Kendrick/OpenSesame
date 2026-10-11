@@ -26,6 +26,7 @@ export const CATEGORY_LABELS = {
   encryption: "Encryption (secrets in git)",
   password_managers: "Password managers",
   agent_harnesses: "Agent harnesses",
+  ai_model_provider: "AI model providers",
   networking: "Networking",
   wallet: "Wallet",
   custom: "Custom connectors",
@@ -47,6 +48,7 @@ export const FEATURE_BINDING_CATEGORIES = [
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "ai_model_provider",
   "networking",
   "wallet",
   "cloud_secret_storage",
@@ -62,12 +64,29 @@ export function isFeatureBindingCategory(category: ProviderCategory): boolean {
   return FEATURE_BINDING_SET.has(category);
 }
 
+/**
+ * Bound in Settings and also a catalog of their own: a person adds an AI model
+ * provider from "Add a connection" the same way as any other connector
+ * (ADR 0188), and the AI section of Capabilities still lists it as a binding.
+ */
+const CATALOG_LISTED_BINDINGS = new Set<ProviderCategory>([
+  "ai_model_provider",
+]);
+
+/** Does "Add a connection" draw this category as a group of its own? */
+export function isListedInCatalog(category: ProviderCategory): boolean {
+  return (
+    !isFeatureBindingCategory(category) || CATALOG_LISTED_BINDINGS.has(category)
+  );
+}
+
 export const CATEGORY_ORDER: ProviderCategory[] = [
   "identity",
   "backup_recovery",
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "ai_model_provider",
   "networking",
   "wallet",
   "custom",

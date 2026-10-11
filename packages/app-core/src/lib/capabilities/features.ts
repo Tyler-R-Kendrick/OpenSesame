@@ -176,7 +176,7 @@ export const FEATURES: readonly Feature[] = [
       "ai",
       "AI",
       ["support.local-ai", "support.remote-ai", "agents.webmcp"],
-      ["agent_harnesses"],
+      ["agent_harnesses", "ai_model_provider"],
     ),
     models: true,
   },

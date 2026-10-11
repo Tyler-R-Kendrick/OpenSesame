@@ -1,3 +1,4 @@
+import { modelProtocolLabel } from "@opensesame/app-core/lib/ai-model-provider.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
@@ -51,9 +52,18 @@ function browserProtocolLabel(
     : `${label} (browser unavailable)`;
 }
 
+/** A model provider's tile also says which API it speaks (ADR 0188). */
+function withModelProtocol(provider: Provider, label: string): string {
+  const protocol =
+    provider.category === "ai_model_provider"
+      ? modelProtocolLabel(provider.id)
+      : null;
+  return protocol ? `${label} · ${protocol}` : label;
+}
+
 export function catalogMethodLabel(provider: Provider): string {
   const plan = connectPlan(provider.id);
-  if (!plan) return authKindLabel(provider);
+  if (!plan) return withModelProtocol(provider, authKindLabel(provider));
   const labels = plan.methods.flatMap((method) => {
     if (method.kind === "mcp") return ["MCP"];
     if (method.kind === "oauth" && method.preset)
@@ -62,7 +72,10 @@ export function catalogMethodLabel(provider: Provider): string {
       return [browserProtocolLabel(provider.id, "api-key", "API key")];
     return [];
   });
-  return [...new Set(labels)].join(" · ") || "Configuration";
+  return withModelProtocol(
+    provider,
+    [...new Set(labels)].join(" · ") || "Configuration",
+  );
 }
 
 /** Enter in the prompt lands on the first tile, when the search left one. */

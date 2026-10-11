@@ -134,6 +134,7 @@ describe("connection broker contracts", () => {
       "encryption",
       "password_managers",
       "agent_harnesses",
+      "ai_model_provider",
       "networking",
       "wallet",
     ] as const) {

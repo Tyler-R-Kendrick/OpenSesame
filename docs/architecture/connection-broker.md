@@ -75,7 +75,7 @@ GET /api/v1/providers
 Provider = {
   "id": "github",
   "display_name": "GitHub",
-  "category": "identity" | "backup_recovery" | "encryption" | "password_managers" | "agent_harnesses" | "networking" | "wallet" | "cloud_secret_storage" | "local_storage" | "certificates" | "custom" | "developer" | "productivity" | "communication" | "storage" | "crm" | "testing",
+  "category": "identity" | "backup_recovery" | "encryption" | "password_managers" | "agent_harnesses" | "networking" | "wallet" | "cloud_secret_storage" | "local_storage" | "certificates" | "custom" | "developer" | "productivity" | "communication" | "storage" | "crm" | "testing" | "ai_model_provider",
   "docs_url": "https://docs.github.com/apps/oauth-apps",
   "provenance_url": "https://...",
   "catalog_revision": "...",
@@ -88,6 +88,8 @@ Provider = {
   "scopes": [ { "name": "repo", "description": "Full control of private repositories",
                 "sensitive": true, "default": false } ],
   "egress": { "scheme": "https", "authorities": ["api.github.com"], "path_prefixes": [] },
+  "model_api": { "protocol": "openai_chat" | "anthropic_messages" | "gemini_generate_content" | "rest_json",
+                 "base_url": "https://api.openai.com/v1" },  // only on ai_model_provider rows; absent base_url = the person's own endpoint
   "operations": ["repository.read", "pull_request.create"],
   "integration_configuration_fields": [ { "name", "secret", "required" } ],
   "connection_configuration_fields": [ { "name", "secret", "required" } ]
@@ -99,6 +101,14 @@ the operation must be in the provider row, the URL must satisfy its exact
 egress binding, and the Host injects the sealed credential after authorization.
 The request accepts only `url`, `method`, and an optional JSON `body`; callers
 cannot supply headers or credential placement.
+
+Hosted model providers are the `ai_model_provider` category. A row carries a
+`model_api` block naming its protocol (a closed list) and, unless the endpoint
+is the person's own, a `base_url` that must lie inside the row's own egress; a
+row outside the category may not carry the block. The browser plane issues
+narrowed `osk_` keys against such a connection and spends them through it, so
+an app or agent never holds the provider's credential
+([ADR 0188](../adr/0188-model-keys-and-token-exchange.md)).
 
 `configuration` rows expose their declared fields in Pages and seal completed
 configuration on the Host. Provider execution still requires an

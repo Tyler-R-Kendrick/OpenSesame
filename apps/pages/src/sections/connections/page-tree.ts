@@ -12,6 +12,7 @@ import {
   belongsToConnectedList,
   connectorPath,
   isFeatureBindingCategory,
+  isListedInCatalog,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import {
   type PageTreeLeaf,
@@ -75,23 +76,38 @@ export function catalogPageSections(
     });
   }
   for (const category of CATEGORY_ORDER) {
-    if (isFeatureBindingCategory(category)) continue;
+    if (!isListedInCatalog(category)) continue;
     if (!grouped.has(category)) continue;
     groups.push({
       id: category,
       label: CATEGORY_LABELS[category],
       href: `/connections#catalog-${category}`,
-      items: (grouped.get(category) ?? []).map((provider) =>
-        leaf(
-          provider.id,
-          provider.displayName,
-          connectorPath(provider.id),
-          "catalog",
-        ),
+      items: inCatalogOrder(category, grouped.get(category) ?? []).map(
+        (provider) =>
+          leaf(
+            provider.id,
+            provider.displayName,
+            connectorPath(provider.id),
+            "catalog",
+          ),
       ),
     });
   }
   return groups;
+}
+
+/**
+ * Source order, except the model providers: eighty-odd tiles are found by
+ * name, so they are listed by it (ADR 0188).
+ */
+function inCatalogOrder(
+  category: Provider["category"],
+  providers: readonly Provider[],
+): readonly Provider[] {
+  if (category !== "ai_model_provider") return providers;
+  return [...providers].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
+  );
 }
 
 /** Feature bindings live under Settings → Connections, not Add a connection. */

@@ -9,6 +9,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
+#[path = "attachment_upload.rs"]
+mod attachment_upload;
+#[path = "model_api.rs"]
+mod model_api;
+pub use model_api::{ModelApiSpec, ModelProtocol};
+
 const CATALOG_JSON: &str = include_str!("../../../spec/connectors/catalog.json");
 pub const CATALOG_SCHEMA_VERSION: u32 = 1;
 pub const MOCK_AUTHORIZE_URL: &str = "http://127.0.0.1:9090/authorize";
@@ -80,6 +86,9 @@ pub enum Category {
     Encryption,
     PasswordManagers,
     AgentHarnesses,
+    /// Hosted model APIs (ADR 0188): a key held in the vault, exchanged for a
+    /// narrower, short-lived key before an app or agent may use it.
+    AiModelProvider,
     Networking,
     Wallet,
     CloudSecretStorage,
@@ -103,6 +112,7 @@ impl Category {
             Self::Encryption => "encryption",
             Self::PasswordManagers => "password_managers",
             Self::AgentHarnesses => "agent_harnesses",
+            Self::AiModelProvider => "ai_model_provider",
             Self::Networking => "networking",
             Self::Wallet => "wallet",
             Self::CloudSecretStorage => "cloud_secret_storage",
@@ -321,6 +331,9 @@ pub struct Provider {
     pub integration_configuration_fields: Vec<ConfigurationFieldDef>,
     #[serde(default)]
     pub connection_configuration_fields: Vec<ConfigurationFieldDef>,
+    /// Present on, and only on, `ai_model_provider` rows (ADR 0188).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model_api: Option<ModelApiSpec>,
 }
 
 impl Provider {
@@ -488,82 +501,11 @@ fn validate_provider(provider: &Provider) -> Result<(), CatalogError> {
     validate_auth(provider)?;
     validate_scopes(provider)?;
     validate_egress(provider)?;
+    model_api::validate_model_api(provider)?;
     if provider.category != Category::Wallet || !provider.operations.is_empty() {
         validate_unique_values(&provider.operations, "operation", 128, 128)?;
     }
-    validate_attachment_upload(provider)?;
-    Ok(())
-}
-
-fn validate_attachment_upload(provider: &Provider) -> Result<(), CatalogError> {
-    let Some(shape) = &provider.attachment_upload else {
-        return Ok(());
-    };
-    validate_provider_url(provider, &shape.url, "attachment_upload.url")?;
-    // A descriptor can never widen egress: its URL must already be inside
-    // the row's egress binding.
-    provider
-        .egress
-        .binding()
-        .allows_url(&shape.url)
-        .map_err(|_| {
-            provider_error(
-                provider,
-                "attachment_upload.url must sit inside the provider egress".to_string(),
-            )
-        })?;
-    match &shape.path_placement {
-        PathPlacement::HeaderJson { header, template } => {
-            if header.is_empty()
-                || header.len() > 64
-                || !header
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '-')
-            {
-                return Err(provider_error(
-                    provider,
-                    "attachment_upload header must be an HTTP token".to_string(),
-                ));
-            }
-            if !template.contains("{path}") {
-                return Err(provider_error(
-                    provider,
-                    "attachment_upload template must contain {path}".to_string(),
-                ));
-            }
-            let rendered = template.replace("{path}", "probe");
-            if serde_json::from_str::<serde_json::Value>(&rendered).is_err() {
-                return Err(provider_error(
-                    provider,
-                    "attachment_upload template must render to JSON".to_string(),
-                ));
-            }
-        }
-        PathPlacement::UrlPath { prefix } => {
-            if !prefix.starts_with('/') {
-                return Err(provider_error(
-                    provider,
-                    "attachment_upload prefix must start with /".to_string(),
-                ));
-            }
-        }
-        PathPlacement::Query { param } => {
-            if param.is_empty() || !param.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
-                return Err(provider_error(
-                    provider,
-                    "attachment_upload query param must be alphanumeric".to_string(),
-                ));
-            }
-        }
-    }
-    for (name, _) in &shape.extra_headers {
-        if name.eq_ignore_ascii_case("authorization") || name.eq_ignore_ascii_case("cookie") {
-            return Err(provider_error(
-                provider,
-                "attachment_upload may not carry credential headers".to_string(),
-            ));
-        }
-    }
+    attachment_upload::validate_attachment_upload(provider)?;
     Ok(())
 }
 

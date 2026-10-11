@@ -51,29 +51,14 @@ import {
 } from "./github-app-manifest.js";
 import { claimGuestConnection } from "./guest-connections.js";
 import { isGuestSession } from "./guest-isolation.js";
+import type { ModelApi } from "./model-api.js";
+import type { ProviderCategory } from "./provider-category.js";
 import * as vercelConnect from "./vercel-connect-ops.js";
 
 export type { Integration } from "./connections-integrations.js";
 export { ConnectionsError };
 
-export type ProviderCategory =
-  | "identity"
-  | "backup_recovery"
-  | "encryption"
-  | "password_managers"
-  | "agent_harnesses"
-  | "networking"
-  | "wallet"
-  | "cloud_secret_storage"
-  | "local_storage"
-  | "developer"
-  | "productivity"
-  | "communication"
-  | "storage"
-  | "crm"
-  | "testing"
-  | "certificates"
-  | "custom";
+export type { ModelApi, ProviderCategory };
 export type AuthKind =
   | "oauth2_authorization_code"
   | "api_key"
@@ -118,6 +103,8 @@ export type Provider = {
   egress: Egress;
   operations: string[];
   configurationFields?: ConfigurationField[];
+  /** How a hosted model row is spoken to (ADR 0188); absent on every other row. */
+  modelApi?: ModelApi;
 };
 
 export type ConnectionStatus =
