@@ -1,5 +1,5 @@
 /**
- * Where a link to a retired Settings address lands now (ADR 0188).
+ * Where a link to a retired Settings address lands now (ADR 0189).
  *
  * Settings › Capabilities split into Features and Integrations, and the
  * Connections, Backups and Cloud secrets categories before it. Anyone can hold

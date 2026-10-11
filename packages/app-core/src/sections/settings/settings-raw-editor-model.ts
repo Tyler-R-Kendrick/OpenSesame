@@ -57,7 +57,7 @@ export function readDoc(category: string, state: SettingsState): SettingsDoc {
       keybindings: {},
     };
   }
-  // What the plan approved is Features' (ADR 0188); the endpoints the
+  // What the plan approved is Features' (ADR 0189); the endpoints the
   // providers are configured with are Integrations' (Connections folded in,
   // ADR 0135).
   if (category === "features") {

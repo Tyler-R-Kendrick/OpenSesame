@@ -50,7 +50,7 @@ describe("parseCommand", () => {
     );
   });
 
-  it("opens the successor of a retired settings directory's config.yaml (ADR 0188)", () => {
+  it("opens the successor of a retired settings directory's config.yaml (ADR 0189)", () => {
     expect(parseCommand("settings/capabilities/config.yaml")).toEqual({
       action: "open_path",
       path: "/settings/features?file=config.yaml",

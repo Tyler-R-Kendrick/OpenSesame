@@ -61,7 +61,7 @@ describe("settingsPageTree", () => {
     const tabs = settingsPageTree();
     // Connections is gone as a tab: every provider is configured on
     // Integrations, under the feature (or built-in function) it extends, and
-    // every switch is on Features (ADR 0188).
+    // every switch is on Features (ADR 0189).
     expect(tabs.map((node) => node.label)).toEqual([
       "General",
       "Keybindings",

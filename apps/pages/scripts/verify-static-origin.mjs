@@ -181,7 +181,7 @@ const browser = await launch();
     }
   }
   // A link to the retired Capabilities page lands on the page that holds what
-  // it named (ADR 0188): a switch's section stays on Features, a built-in
+  // it named (ADR 0189): a switch's section stays on Features, a built-in
   // function's moved to Integrations, each under its new anchor.
   for (const [from, to] of [
     ["settings/capabilities", `${BASE}settings/features`],

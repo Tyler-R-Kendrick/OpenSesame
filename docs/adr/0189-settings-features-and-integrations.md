@@ -1,4 +1,4 @@
-# ADR 0188 — Settings splits into Features and Integrations
+# ADR 0189 — Settings splits into Features and Integrations
 
 - Status: Accepted
 - Date: 2026-10-11

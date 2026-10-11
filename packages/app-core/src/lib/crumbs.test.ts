@@ -23,7 +23,7 @@ afterAll(() => revoke());
 describe("settings rest paths", () => {
   it("reads a category from the path, then the hash", () => {
     // Connections and Backups became the providers of Settings › Capabilities
-    // (ADR 0135), which split into Features and Integrations (ADR 0188).
+    // (ADR 0135), which split into Features and Integrations (ADR 0189).
     expect(settingsCategoryFromLocation("/settings/connections", "")).toBe(
       "integrations",
     );

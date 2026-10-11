@@ -133,7 +133,7 @@ const VAULTS = [
 /**
  * Settings › Features: what the plan approved — adding or retiring a
  * capability is a reviewed plan with a consent receipt, so the file only
- * reports it (ADR 0188).
+ * reports it (ADR 0189).
  */
 const FEATURE_FIELDS = [
   { key: "approved", kind: "list", readonly: true },

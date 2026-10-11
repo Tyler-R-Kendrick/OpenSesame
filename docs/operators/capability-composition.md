@@ -124,7 +124,7 @@ hand-off. Prohibit it (`prohibited: [sharing.trusted-contacts]`) and the
 Settings › Trusted contacts tab is gone with it. The operator guide is
 [`trusted-contacts.md`](trusted-contacts.md#operator-controls).
 
-Settings is split in two (ADR 0188). **Settings › Features** is the feature
+Settings is split in two (ADR 0189). **Settings › Features** is the feature
 flags: one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each a subheader and the
 switch on it. In order: Guests, Identity, Access, Connections, Directory,

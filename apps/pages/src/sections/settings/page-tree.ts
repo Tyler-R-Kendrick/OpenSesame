@@ -91,7 +91,7 @@ export function featuresSettingsSections(
 
 /**
  * Sections on Settings → Integrations, in document order: every feature's
- * third-party services that draw on this device (ADR 0188).
+ * third-party services that draw on this device (ADR 0189).
  */
 export function integrationsSettingsSections(
   emptyIntegrations: readonly string[] = [],

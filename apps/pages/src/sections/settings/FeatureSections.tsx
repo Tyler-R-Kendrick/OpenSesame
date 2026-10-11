@@ -8,7 +8,7 @@
  * anywhere on the page. A section with nothing to switch on this device is
  * not drawn (ADR 0158). The third-party services a feature connects to are
  * configured on Settings › Integrations, and nothing here waits on them
- * (ADR 0188).
+ * (ADR 0189).
  */
 
 import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";

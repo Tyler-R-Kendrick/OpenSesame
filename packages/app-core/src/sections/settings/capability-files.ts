@@ -1,7 +1,7 @@
 /**
  * Settings › Features as files (ADR 0134). The category keeps the
  * capability documents beside its own `config.yaml`, all under
- * `settings/features/` (they were `settings/capabilities/` before ADR 0188):
+ * `settings/features/` (they were `settings/capabilities/` before ADR 0189):
  *
  * | File | Stored as | Written by |
  * |---|---|---|

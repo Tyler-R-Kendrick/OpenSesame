@@ -140,7 +140,7 @@ describe("a page's own files", () => {
   });
 });
 
-// An old link lands where what it named lives now (ADR 0188).
+// An old link lands where what it named lives now (ADR 0189).
 describe("a link to the retired Capabilities page", () => {
   it("opens Features, at the section the link named", () => {
     renderAt("/settings/capabilities#feature-identity");

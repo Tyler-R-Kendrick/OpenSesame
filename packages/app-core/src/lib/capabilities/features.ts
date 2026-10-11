@@ -9,7 +9,7 @@
  * installation, each through a reviewed plan and a consent receipt (ADR 0130).
  *
  * What a feature connects to — a third party's service that extends or
- * replaces it — is an integration (`integrations.ts`, ADR 0188), configured
+ * replaces it — is an integration (`integrations.ts`, ADR 0189), configured
  * by reference on its own page. Every optional capability has exactly one
  * home here, and every connector family exactly one there: the two lists
  * share no field, so a section can never be both.

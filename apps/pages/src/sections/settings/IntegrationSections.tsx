@@ -2,7 +2,7 @@
  * Settings › Integrations — every section, drawn one way.
  *
  * An integration is a third party's service a feature connects to, to extend
- * it or to replace what it does on its own (ADR 0188). A section is a
+ * it or to replace what it does on its own (ADR 0189). A section is a
  * subheader and the connector tiles configured under it, the same group the
  * Connections catalogue draws (`conn-group`). Nothing here is a switch and
  * nothing is reviewed: a connector is configured by reference, its page sealing

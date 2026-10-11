@@ -5,7 +5,7 @@
  * services: an identity provider, a key service, a forge to back up to, a
  * password manager, a secret store, a payment provider, an agent harness, a
  * tailnet. A connector is configured by reference on its own page, so nothing
- * here is switched, reviewed or waits on a feature being on (ADR 0188). The
+ * here is switched, reviewed or waits on a feature being on (ADR 0189). The
  * switches are Settings › Features.
  */
 

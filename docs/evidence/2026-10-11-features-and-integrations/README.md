@@ -1,4 +1,4 @@
-# Settings splits into Features and Integrations (ADR 0188)
+# Settings splits into Features and Integrations (ADR 0189)
 
 Before/after from two real builds of `apps/pages`: the base (`origin/main`
 `fb491073`) and this branch, walked the same way by

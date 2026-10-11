@@ -105,7 +105,7 @@ it("names one config.yaml per directory, and routes to it", () => {
   expect(settingsConfigRoute("security")).toBe(
     "/settings/security?file=config.yaml",
   );
-  // Connections folded into Capabilities, which split in two (ADR 0188): the
+  // Connections folded into Capabilities, which split in two (ADR 0189): the
   // switches are Features' directory, and the endpoints Integrations', whose
   // file starts from the text the endpoints were kept in.
   expect(settingsFilePath("features")).toBe("settings/features/config.yaml");

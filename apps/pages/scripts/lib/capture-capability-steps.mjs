@@ -9,7 +9,7 @@ import { capabilityOffSwitch } from "./always-on.mjs";
 /**
  * Open the page that holds the switches: Settings › Features. A capture walks
  * the base build and this one the same way (AGENTS.md §5), and a base from
- * before the split (ADR 0188) names that page Capabilities, so it is asked for
+ * before the split (ADR 0189) names that page Capabilities, so it is asked for
  * by its old name when there is no Features page to land on.
  */
 export async function openFeatures(openSettings, page) {

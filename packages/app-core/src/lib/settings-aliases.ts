@@ -2,7 +2,7 @@
  * Legacy hashes and paths that are not themselves a settings category. The
  * Connections, Backups and Cloud secrets categories became the provider
  * sections of Settings › Capabilities, and that page then split in two
- * (ADR 0188): its switches are Settings › Features and its providers
+ * (ADR 0189): its switches are Settings › Features and its providers
  * Settings › Integrations. `retiredSettingsAddress` carries a link's
  * fragment and file with it.
  */

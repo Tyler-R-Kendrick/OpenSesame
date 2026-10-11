@@ -18,7 +18,7 @@ afterAll(() => revoke());
 
 /**
  * Settings › Features holds the switches and Settings › Integrations the third
- * parties a feature connects to (ADR 0188). Each section has a tutorial, a
+ * parties a feature connects to (ADR 0189). Each section has a tutorial, a
  * tour walks the one page its section is on, and a section is offered only
  * where its own page draws it.
  */

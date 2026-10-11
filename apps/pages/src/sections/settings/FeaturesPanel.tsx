@@ -13,7 +13,7 @@
  * files beside this directory's `config.yaml` (`capability-files.ts`), and
  * this page is how each of them is seen: opening any of them from the rail or
  * the address draws this page, never their text. The services a feature
- * connects to are on Settings › Integrations (ADR 0188).
+ * connects to are on Settings › Integrations (ADR 0189).
  */
 
 import { withdrawnAlwaysOn } from "@opensesame/app-core/lib/capabilities/features.js";

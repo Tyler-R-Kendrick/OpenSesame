@@ -21,7 +21,7 @@ export type Crumb = {
 /**
  * The categories the core Settings page always has, in tab order —
  * General → Keybindings → Security → Vaults → Features → Integrations →
- * Danger (ADR 0188). `capabilities` and `connections` are retired names that
+ * Danger (ADR 0189). `capabilities` and `connections` are retired names that
  * still read as one of them (`SETTINGS_HASH_ALIAS`); a module may still
  * contribute a category of its own.
  */

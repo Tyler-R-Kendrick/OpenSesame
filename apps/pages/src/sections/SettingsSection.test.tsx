@@ -248,7 +248,7 @@ describe("SettingsSection", () => {
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
   });
 
-  // The nav declares a tab for each; each draws its own page (ADR 0188).
+  // The nav declares a tab for each; each draws its own page (ADR 0189).
   it("draws the features panel and the integrations panel on their own categories", () => {
     renderSettings("#features");
     expect(screen.getByTestId("features-panel")).toBeTruthy();
