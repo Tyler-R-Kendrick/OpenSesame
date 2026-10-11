@@ -53,10 +53,12 @@ import {
   writePlaintextFile,
 } from "../vfs.js";
 import {
+  appendFolder,
   appendItems,
   applyManifestPlan,
   bodyBeforeWrite,
   deleteFolder,
+  newFolder,
   recordItemTypes,
   renameFolder,
   replaceItems,
@@ -64,6 +66,8 @@ import {
   stampedEdit,
   toggleFavorite,
 } from "./body-edits.js";
+import type { EnvironmentsEdit } from "./body-environments.js";
+import { applyEnvironmentsEdit } from "./body-environments.js";
 import { commitDiscard, revokeTrashedShares } from "./drop-revoke.js";
 import { headerCarriesGate } from "./header-gate.js";
 import {
@@ -437,6 +441,7 @@ export class VaultStore {
       items: resolveAccounts(this.#body.items),
       rawItems: this.#body.items,
       folders: this.#body.folders,
+      environments: this.#body.environments,
       prefs: this.#prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
       failedAttempts: attempts.fails,
@@ -1311,33 +1316,30 @@ export class VaultStore {
   async installItemTypeDefinition(text: string): Promise<InstallResult> {
     const result = installItemType(text);
     if (!result.ok) return result;
-    const added = [result.definition.metadata.id];
-    try {
-      await this.#mutate((body) => {
-        recordItemTypes(body, installedDefinitions(), { added });
-      });
-    } catch (error) {
-      // `#mutate` rolls the body back on a failed seal, but the registry is
-      // module state it cannot reach. Put it back by hand, or this device
-      // would offer a type the vault does not carry until the next unlock.
-      syncInstalledTypes(this.#body.itemTypes);
-      throw error;
-    }
+    await this.#recordTypes({ added: [result.definition.metadata.id] });
     return result;
   }
 
   /** Drop a definition. Items of that type keep their values. */
   async uninstallItemTypeDefinition(id: string): Promise<boolean> {
     if (!uninstallItemType(id)) return false;
+    await this.#recordTypes({ removed: [id] });
+    return true;
+  }
+
+  async #recordTypes(
+    change: Parameters<typeof recordItemTypes>[2],
+  ): Promise<void> {
     try {
       await this.#mutate((body) => {
-        recordItemTypes(body, installedDefinitions(), { removed: [id] });
+        recordItemTypes(body, installedDefinitions(), change);
       });
     } catch (error) {
+      // A failed seal rolls the body back, not the registry (module state):
+      // put it back, or this device offers a type the vault does not carry.
       syncInstalledTypes(this.#body.itemTypes);
       throw error;
     }
-    return true;
   }
 
   // —— items ————————————————————————————————————————————————
@@ -1399,6 +1401,10 @@ export class VaultStore {
     await this.#mutate((body) => toggleFavorite(body, id));
   }
 
+  async editEnvironments(edit: EnvironmentsEdit): Promise<void> {
+    await this.#mutate((body) => applyEnvironmentsEdit(body, edit));
+  }
+
   async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
     await this.#mutate((body) => replaceItems(body, items, folders));
   }
@@ -1440,14 +1446,8 @@ export class VaultStore {
   // —— folders ——————————————————————————————————————————————
 
   async addFolder(name: string): Promise<Folder> {
-    const folder: Folder = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    await this.#mutate((body) => {
-      body.folders = [...body.folders, folder];
-    });
+    const folder = newFolder(name);
+    await this.#mutate((body) => appendFolder(body, folder));
     return folder;
   }
 

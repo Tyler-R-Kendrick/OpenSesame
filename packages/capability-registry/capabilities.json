@@ -7845,6 +7845,33 @@
     }
   },
   {
+    "id": "vault.environments.manage",
+    "title": "Name environments and give a vault's keys a value and a required rule in each",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/environments-write.ts:writeEnvironments",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
+        "adr": "0194-vault-environments-values-on-items-schema-generated.md"
+      },
+      "mcp_client": {
+        "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
+        "adr": "0194-vault-environments-values-on-items-schema-generated.md"
+      },
+      "webmcp": {
+        "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
+        "adr": "0194-vault-environments-values-on-items-schema-generated.md"
+      }
+    }
+  },
+  {
     "id": "vault.import",
     "title": "Import another manager's export, or restore an encrypted backup, into the vault",
     "plane": "client_local",

@@ -7,6 +7,7 @@ import { typedSearchText, typedSubtitle } from "./item-types.js";
 import type { AccountItem } from "./account.js";
 import { credentialSearchText, credentialSubtitle } from "./credential-read.js";
 import type { CredentialItem } from "./credential.js";
+import type { ItemEnvironments, VaultEnvironments } from "./environments.js";
 import type { LoginUri, UriMatch } from "./login-uri.js";
 import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { AccountItem } from "./account.js";
@@ -50,6 +51,12 @@ export type BaseItem = {
   deletedAt: string | null;
   /** Field key → when it last changed, so a merge keeps both devices' edits (`stamps.ts`). */
   fieldTimes?: Readonly<Record<string, string>>;
+  /**
+   * Present exactly when this item is a key in the vault's `.env.schema`: one
+   * cell per environment (ADR 0194). Concealed like any value, and merged one
+   * cell at a time.
+   */
+  environments?: ItemEnvironments;
 };
 
 export type PasskeyCustody = "vault" | "external";
@@ -222,6 +229,8 @@ export type VaultBody = {
   deviceIdentityKey?: JsonObject | undefined;
   /** The current master-password wrap, so a change reaches every device (ADR 0144). */
   masterWrap?: import("./sync-model.js").MasterWrap | undefined;
+  /** The vault's environments, by name; a removal is a marker (ADR 0194). */
+  environments?: VaultEnvironments | undefined;
 };
 
 import { KIND_LABEL } from "./kind-labels.js";

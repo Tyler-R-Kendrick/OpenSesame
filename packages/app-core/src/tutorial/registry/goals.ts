@@ -15,6 +15,7 @@ import { contributionsSnapshot } from "../../lib/contributions.js";
 import { ACCESS_HELP } from "./access-goals.js";
 import { AUTHORITY_HELP } from "./authority-help.js";
 import { CONNECTIONS_HELP } from "./connections-goals.js";
+import { ENVIRONMENTS_GOAL } from "./environments-goal.js";
 import { FEATURE_GOALS } from "./feature-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 import { HEALTH_REVIEW_GOAL } from "./health-goal.js";
@@ -100,6 +101,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   HEALTH_REVIEW_GOAL,
+  ENVIRONMENTS_GOAL,
   {
     id: "settings.security.review",
     title: "Review the security settings",

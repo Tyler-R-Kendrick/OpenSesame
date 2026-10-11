@@ -1,6 +1,11 @@
 /** The vault store's snapshot: what every surface reads about the open session. */
 
-import type { Folder, VaultHeader, VaultItem } from "@opensesame/vault-core";
+import type {
+  Folder,
+  VaultEnvironments,
+  VaultHeader,
+  VaultItem,
+} from "@opensesame/vault-core";
 import type { VaultPrefs } from "./prefs.js";
 
 export type VaultStatus = "empty" | "locked" | "unlocked";
@@ -23,6 +28,8 @@ export type VaultState = {
   /** The items as sealed: an account holds no methods, its credentials sit beside it. */
   rawItems?: readonly VaultItem[];
   folders: Folder[];
+  /** The vault's environments by name, removals as markers (ADR 0194). */
+  environments?: VaultEnvironments | undefined;
   prefs: VaultPrefs;
   /** Milliseconds until auto-lock, or null when no timer is armed. */
   lockedOutUntil: number | null;

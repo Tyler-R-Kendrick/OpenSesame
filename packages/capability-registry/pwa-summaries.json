@@ -888,6 +888,14 @@
     }
   },
   {
+    "id": "vault.environments.manage",
+    "title": "Name environments and give a vault's keys a value and a required rule in each",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/environments-write.ts:writeEnvironments"
+    }
+  },
+  {
     "id": "vault.import",
     "title": "Import another manager's export, or restore an encrypted backup, into the vault",
     "plane": "client_local",

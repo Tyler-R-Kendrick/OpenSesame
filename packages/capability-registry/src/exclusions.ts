@@ -30,6 +30,8 @@ export const ADR_TAILNET_DEVICES = "0169-tailnet-device-management.md";
 export const ADR_TRUSTED_CONTACTS = "0187-trusted-circle-quorum-sharing.md";
 export const ADR_PASSWORD_RESET =
   "0190-password-reset-mailboxes-are-vault-items.md";
+export const ADR_ENVIRONMENTS =
+  "0194-vault-environments-values-on-items-schema-generated.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:

@@ -15,6 +15,8 @@ export * from "./derive.js";
 export * from "./crypto.js";
 export * from "./device-key.js";
 export * from "./drop-format.js";
+export * from "./environment-keys.js";
+export * from "./environments.js";
 export * from "./file-parts.js";
 export * from "./item-types.js";
 export * from "./login-uri.js";
