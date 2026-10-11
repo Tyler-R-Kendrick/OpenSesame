@@ -10,6 +10,7 @@ import {
   configureNativeApiConnector,
   executeNativeApiRequest,
   invokeNativeApiConnector,
+  testNativeApiCredential,
 } from "./native-api-connectors.js";
 import {
   installNativeApiTests,
@@ -233,5 +234,68 @@ describe("provider-verified sealed native API connections", () => {
       ),
     ).rejects.toThrow("compiled target");
     expect(provider.fetch).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("testing a key without saving it (ADR 0188)", () => {
+  const draft = () => {
+    const { providerId, parameters, credentials } = nativeApiDraft("openai");
+    return { providerId, parameters, credentials };
+  };
+
+  it("asks the provider's list route with the key and keeps nothing", async () => {
+    const provider = nativeAnswers({ body: { data: [] } });
+    const answer = await testNativeApiCredential(draft(), provider.transport);
+    expect(answer.label).toBeTruthy();
+    expect(provider.fetch).toHaveBeenCalledTimes(1);
+    expect(provider.fetch.mock.calls[0]?.[0].toString()).toBe(
+      "https://api.openai.com/v1/models",
+    );
+    expect(
+      new Headers(provider.fetch.mock.calls[0]?.[1]?.headers).get(
+        "authorization",
+      ),
+    ).toBe("Bearer private-native-key");
+    expect(readDeviceRows()).toHaveLength(0);
+    expect(JSON.stringify(answer)).not.toContain("private-native-key");
+  });
+
+  it("says a key the provider refuses is refused, and still keeps nothing", async () => {
+    const provider = nativeAnswers({
+      status: 401,
+      body: { error: { message: "private-native-key is not valid" } },
+    });
+    const refused = await testNativeApiCredential(
+      draft(),
+      provider.transport,
+    ).then(
+      () => null,
+      (error: Error) => error,
+    );
+    expect(refused).toBeInstanceOf(Error);
+    expect(refused?.message).not.toContain("private-native-key");
+    expect(readDeviceRows()).toHaveLength(0);
+  });
+
+  it("makes no request for a provider the catalog does not know", async () => {
+    const provider = nativeAnswers({ body: { data: [] } });
+    await expect(
+      testNativeApiCredential(
+        { ...draft(), providerId: "no-such-provider" },
+        provider.transport,
+      ),
+    ).rejects.toThrow();
+    expect(provider.fetch).not.toHaveBeenCalled();
+  });
+
+  it("stops when the capability that owns the transport has ended", async () => {
+    const provider = nativeAnswers({ body: { data: [] } });
+    provider.assertCurrent.mockImplementation(() => {
+      throw new Error("lease ended");
+    });
+    await expect(
+      testNativeApiCredential(draft(), provider.transport),
+    ).rejects.toThrow("lease ended");
+    expect(provider.fetch).not.toHaveBeenCalled();
   });
 });

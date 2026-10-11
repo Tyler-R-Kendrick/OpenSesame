@@ -39,6 +39,8 @@ import {
 import { NeedsAttention } from "./connections/NeedsAttention.js";
 import { ConnectorSettingsPage } from "./connections/SettingsPage.js";
 import { VaultReminderBanner } from "./connections/VaultReminderBanner.js";
+import { AiProviderSheet } from "./connections/ai/AiProviderSheet.js";
+import { useAiSheet } from "./connections/ai/use-ai-sheet.js";
 import { useConnectTransport } from "./connections/connect/useConnectTransport.js";
 import { useProviderCallbacks } from "./connections/connect/useProviderCallbacks.js";
 import { useScopedState } from "./connections/use-scoped-state.js";
@@ -51,7 +53,7 @@ import { useHashTarget } from "../lib/hash-target.js";
 import { useVault } from "../lib/vault/hooks.js";
 export function ConnectionsSection() {
   const { providerId, connectionId } = useParams();
-  const { hash, search } = useLocation();
+  const { hash, search, pathname } = useLocation();
   const online = useOnline();
   // Device connections and imported hosted connections share this list.
   // The embedded catalog stays browsable offline (ADR 0090).
@@ -193,11 +195,18 @@ export function ConnectionsSection() {
     void loadConnections();
   }, [loadConnections, transport.held]);
 
-  if (providerId) {
-    const provider = providers?.find((item) => item.id === providerId) ?? null;
-    const providerConnections = (connections ?? []).filter(
-      (item) => item.providerId === providerId && item.status !== "revoked",
-    );
+  // A model provider's first connection is a sheet over the catalog, not a
+  // page of its own (ADR 0188).
+  const ai = useAiSheet({
+    providerId,
+    connectionId,
+    pathname,
+    providers,
+    connections,
+    reload: loadConnections,
+  });
+  const { provider, providerConnections } = ai;
+  if (providerId && !ai.target) {
     const connection = connectionId
       ? (providerConnections.find(
           (item) => item.connectionId === connectionId,
@@ -331,6 +340,14 @@ export function ConnectionsSection() {
       />
 
       <CatalogPanel providers={providers} connections={connections ?? []} />
+      {ai.target ? (
+        <AiProviderSheet
+          target={ai.target}
+          onFlash={setFlash}
+          onClose={ai.close}
+          onConnected={ai.connected}
+        />
+      ) : null}
     </div>
   );
 }
