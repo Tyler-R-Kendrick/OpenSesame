@@ -77,7 +77,7 @@ describe("NoticeCorner", () => {
   });
 
   it("is absent while the tray is empty", () => {
-    const { container } = render(<NoticeCorner shellless={true} />);
+    const { container } = render(<NoticeCorner />);
     expect(container.firstChild).toBeNull();
   });
 
@@ -87,7 +87,7 @@ describe("NoticeCorner", () => {
       <button type="button" aria-label="Notifications" />
     );
     try {
-      const { container } = render(<NoticeCorner shellless={true} />);
+      const { container } = render(<NoticeCorner />);
       act(() => {
         setStatusNotice({
           id: "unlock:error",

@@ -384,11 +384,14 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
     <VaultApp />
   );
 
+  // The unlocked shell carries its own bell. Every other screen — locked,
+  // the federated return, a route on its own page — has none, and a failure
+  // is a notice in the tray, so it gets the corner one.
   const shellless = isAuthCallback || ungated !== null || status !== "unlocked";
 
   return (
     <AppSlotsContext.Provider value={resolved}>
-      {shellless ? <NoticeCorner shellless /> : null}
+      {shellless ? <NoticeCorner /> : null}
       {body}
       <ContextMenuLayer />
     </AppSlotsContext.Provider>

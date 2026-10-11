@@ -7,7 +7,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { clearNotices, listNotices } from "../notices.js";
 import { CLAIM_WORDS, type ClaimCeremony } from "./ceremony.js";
 import {
-  CLAIM_DROP_BAR_ID,
   CLAIM_NOTICE,
   claimEntry,
   claimStartFor,
@@ -90,18 +89,10 @@ describe("the claim notice", () => {
   it("keeps each outcome as its own tray row", () => {
     reportClaim("That code did not match.");
     reportClaim("This drop was already opened.", "Drop");
-    const notices = listNotices().filter(
-      (n) => n.id.startsWith(CLAIM_NOTICE) && n.id !== CLAIM_DROP_BAR_ID,
-    );
+    const notices = listNotices().filter((n) => n.id.startsWith(CLAIM_NOTICE));
     expect(notices).toHaveLength(2);
     expect(notices[1]).toMatchObject({
       tone: "err",
-      title: "Drop",
-      body: "This drop was already opened.",
-    });
-    expect(
-      listNotices().find((notice) => notice.id === CLAIM_DROP_BAR_ID),
-    ).toMatchObject({
       title: "Drop",
       body: "This drop was already opened.",
     });

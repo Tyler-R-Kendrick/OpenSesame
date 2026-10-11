@@ -1,11 +1,11 @@
-import { CLAIM_DROP_BAR_ID } from "@opensesame/app-core/lib/claims/route-model.js";
+import { reportClaim } from "@opensesame/app-core/lib/claims/route-model.js";
 import {
   clearNotices,
   dismissNotice,
-  setStatusNotice,
+  listNotices,
 } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { NoticeCorner } from "./NoticeCorner.js";
@@ -16,41 +16,26 @@ afterEach(() => {
 });
 
 describe("ClaimDropAnnouncement", () => {
-  it("shows one alert and replaces it instead of stacking", () => {
-    render(<NoticeCorner />);
+  it("shows one bar caption and replaces it instead of stacking", () => {
+    const { container } = render(<NoticeCorner />);
     act(() => {
-      setStatusNotice({
-        id: CLAIM_DROP_BAR_ID,
-        tone: "err",
-        title: "Claim",
-        body: "First.",
-      });
-      setStatusNotice({
-        id: CLAIM_DROP_BAR_ID,
-        tone: "err",
-        title: "Drop",
-        body: "Second.",
-      });
+      reportClaim("First.");
+      reportClaim("Second.");
     });
-    const alerts = screen.getAllByRole("alert");
-    expect(alerts).toHaveLength(1);
-    const alert = screen.getByRole("alert");
-    expect(alert.textContent).toContain("Second.");
-    expect(alert.textContent).not.toContain("First.");
+    const bar = container.querySelector(".notice-corner[data-c]");
+    expect(bar?.getAttribute("data-c")).toContain("Second.");
+    expect(bar?.getAttribute("data-c")).not.toContain("First.");
   });
 
-  it("clears when the bar notice is dismissed from the tray", () => {
-    render(<NoticeCorner />);
+  it("clears when the claim notice is dismissed from the tray", () => {
+    const { container } = render(<NoticeCorner />);
     act(() => {
-      setStatusNotice({
-        id: CLAIM_DROP_BAR_ID,
-        tone: "err",
-        title: "Claim",
-        body: "Refused.",
-      });
+      reportClaim("Refused.");
     });
-    expect(screen.getByRole("alert")).toBeTruthy();
-    act(() => dismissNotice(CLAIM_DROP_BAR_ID));
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(container.querySelector(".notice-corner[data-c]")).toBeTruthy();
+    const id = listNotices().find((n) => n.body === "Refused.")?.id;
+    expect(id).toBeTruthy();
+    act(() => dismissNotice(id ?? ""));
+    expect(container.querySelector(".notice-corner[data-c]")).toBeNull();
   });
 });
