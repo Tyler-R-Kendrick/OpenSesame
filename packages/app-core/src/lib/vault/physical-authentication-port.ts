@@ -6,6 +6,8 @@ export type PhysicalAuthenticationSnapshot = Readonly<{
 }>;
 export type PhysicalAuthenticationReader = Readonly<{
   check: () => void;
+  /** Actual retained state root DATA only; absent producers cannot certify catalogue coupling. */
+  readOriginalStateIdentity?: () => Promise<string>;
   revalidateRoot: () => Promise<void>;
   read: () => Promise<PhysicalAuthenticationSnapshot>;
   close: () => Promise<void>;
