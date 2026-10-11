@@ -135,31 +135,6 @@ function glyphFont(ctx: CanvasRenderingContext2D, layout: Layout): number {
   return layout.cellH / 2 + (layout.asc * layout.fpx) / 2;
 }
 
-/** 16–48px: a solid ink plate, the glyph cut out, stroked so it survives 1×. */
-function drawSolidPlates(opts: PlateOpts): void {
-  const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
-    opts;
-  const by = pad + glyphFont(ctx, layout);
-  ctx.lineWidth = Math.max(1, 0.07 * layout.fpx);
-  for (let si = 0; si < layout.slots.length; si += 1) {
-    const q = layout.slots[si];
-    if (q.space) continue;
-    const st = slotState(runs, si, timeMs);
-    const active = showCursor && st.cursor;
-    const plateA = active
-      ? calibration.smallCursorActive
-      : calibration.smallCursorRest;
-    ctx.fillStyle = inkAlpha(inkRgb, plateA);
-    ctx.fillRect(q.x, pad, q.w, layout.cellH);
-    ctx.fillStyle = `rgb(${inkRgb[0]},${inkRgb[1]},${inkRgb[2]})`;
-    ctx.strokeStyle = ctx.fillStyle;
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fillText(st.glyph, q.x + q.w / 2, by);
-    ctx.strokeText(st.glyph, q.x + q.w / 2, by);
-    ctx.globalCompositeOperation = "source-over";
-  }
-}
-
 /** Under 16px: no plates — the letters in ink on the same grid. */
 function drawTypeTier(opts: PlateOpts): void {
   const { ctx, layout, runs, timeMs, pad, inkRgb, calibration, showCursor } =
@@ -224,7 +199,6 @@ export function drawWordmark(opts: DrawWordmarkOpts): void {
     showCursor,
   };
   if (tier === "type") drawTypeTier(plateOpts);
-  else if (tier === "solid") drawSolidPlates(plateOpts);
   else {
     const bins = fillBins({
       layout,
