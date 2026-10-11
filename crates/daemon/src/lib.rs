@@ -39,6 +39,7 @@ use proxy_path::{has_dot_segment, is_local_session_path};
 mod invoke_through;
 mod keychain;
 mod listener;
+mod listener_startup;
 mod mint;
 mod peer_auth;
 mod plugin_routes;
@@ -55,7 +56,6 @@ mod token_source;
 mod toolbar;
 mod vault_drive;
 mod vault_drive_routes;
-use startup::{build_state, secured_router};
 
 use peer_auth::UdsConnectInfo;
 use ratelimit::{rate_limited, RateKey};
@@ -240,23 +240,13 @@ fn discover_response(mut report: discovery::DiscoveryReport) -> Response {
 /// Fails when the listen address or socket is refused by policy, cannot be
 /// bound, or the daemon's startup security checks do not pass.
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    let listen = args.listen.clone();
-    let sock = args
-        .sock
-        .clone()
-        .or_else(|| env::var("OPENSESAME_AGENT_SOCK").ok());
-
-    let (state, hsts) = build_state(&args)?;
-    let app = secured_router(state.clone(), hsts)?;
-
-    let uds_only = opensesame_host_core::daemon::uds_only_requested();
-    tracing::info!(
-        %listen,
-        sock = ?sock,
+    let listener_startup::Prepared {
+        listen,
+        sock,
+        state,
+        app,
         uds_only,
-        wit = opensesame_host_core::wit_contract::PACKAGE,
-        "daemon starting"
-    );
+    } = listener_startup::prepare(&args)?;
 
     #[cfg(unix)]
     if uds_only {
