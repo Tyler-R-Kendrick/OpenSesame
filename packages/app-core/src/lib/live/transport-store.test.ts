@@ -139,6 +139,30 @@ describe("writing it", () => {
     expect(heard).toHaveLength(2);
   });
 
+  it("a read asked for after a write sees it, however long the write takes", async () => {
+    // The Start press reads the routes a person has just added; the seal is
+    // still in flight, and a read that did not wait for it met the file as it
+    // was before: a session that started with no carrier.
+    control.delays = [80];
+    const writing = writeLiveTransport("personal", profile("100.64.0.9"));
+    const read = await readLiveTransport("personal");
+    await writing;
+    expect(read.addresses).toEqual(["100.64.0.9"]);
+  });
+
+  it("a read does not wait for itself when it is asked for from a listener", async () => {
+    const seen: string[][] = [];
+    const stop = onTransportChange(() => {
+      void readLiveTransport("personal").then((now) =>
+        seen.push([...now.addresses]),
+      );
+    });
+    await writeLiveTransport("personal", profile("100.64.0.4"));
+    stop();
+    await readLiveTransport("personal");
+    expect(seen).toEqual([["100.64.0.4"]]);
+  });
+
   it("a write that fails does not stop the next", async () => {
     await expect(
       writeLiveTransport("personal", {

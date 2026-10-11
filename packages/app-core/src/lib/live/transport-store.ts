@@ -78,11 +78,10 @@ export function parseTransportText(text: string): TransportRead {
 }
 
 /**
- * The profile in effect: what was sealed, or direct only where nothing was
- * ever written. Throws `TransportRefused` for one that is there and is not
- * usable, or a vault that cannot be read.
+ * The profile as sealed, read where it stands, not in the writes' turn: for
+ * the edit that already holds the turn (it reads, edits and seals as one).
  */
-export async function readLiveTransport(tomb: string): Promise<LiveTransport> {
+async function readSealed(tomb: string): Promise<LiveTransport> {
   let text: string;
   try {
     text = await readTransportText(tomb);
@@ -109,6 +108,20 @@ function inTurn<T>(tomb: string, task: () => Promise<T>): Promise<T> {
     ),
   );
   return run;
+}
+
+/**
+ * The profile in effect: what was sealed, or direct only where nothing was
+ * ever written. Throws `TransportRefused` for one that is there and is not
+ * usable, or a vault that cannot be read.
+ *
+ * It takes its turn behind every write and edit asked for before it. A write
+ * is a few awaits long in a real vault; a read that did not wait for it met
+ * the file as it was before, and a session started on that began without the
+ * carrier its owner had just added.
+ */
+export function readLiveTransport(tomb: string): Promise<LiveTransport> {
+  return inTurn(tomb, () => readSealed(tomb));
 }
 
 async function seal(tomb: string, transport: LiveTransport): Promise<void> {
@@ -144,7 +157,7 @@ export function editLiveTransport(
   edit: (current: LiveTransport) => TransportRead,
 ): Promise<TransportRead> {
   return inTurn(tomb, async () => {
-    const next = edit(await readLiveTransport(tomb));
+    const next = edit(await readSealed(tomb));
     if (next.ok) await seal(tomb, next.transport);
     return next;
   });
