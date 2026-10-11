@@ -2,25 +2,13 @@ import { describe, expect, it } from "vitest";
 import { FEATURE_BINDING_CATEGORIES } from "../../sections/connections/shared.js";
 import { coreCapabilityIds } from "./catalog.js";
 import { FEATURES, featureById } from "./features.js";
-import {
-  BUILT_IN_INTEGRATIONS,
-  INTEGRATIONS,
-  integrationById,
-  integrationOfCategory,
-} from "./integrations.js";
+import { BUILT_IN_INTEGRATIONS, INTEGRATIONS } from "./integrations.js";
 
 describe("INTEGRATIONS", () => {
   it("gives every connector family exactly one section", () => {
     const homes = INTEGRATIONS.flatMap((entry) => entry.providerCategories);
     expect(new Set(homes).size).toBe(homes.length);
     expect([...homes].sort()).toEqual([...FEATURE_BINDING_CATEGORIES].sort());
-  });
-
-  it("finds the section a family is configured under", () => {
-    for (const category of FEATURE_BINDING_CATEGORIES) {
-      expect(integrationOfCategory(category), category).not.toBeNull();
-    }
-    expect(integrationOfCategory("developer")).toBeNull();
   });
 
   it("names every section once", () => {
@@ -30,7 +18,7 @@ describe("INTEGRATIONS", () => {
     expect(new Set(titles).size).toBe(titles.length);
   });
 
-  it("holds no switch: a connector is configured by reference", () => {
+  it("is no feature flag: a connector is configured by reference", () => {
     for (const entry of INTEGRATIONS) {
       expect(entry, entry.id).not.toHaveProperty("capabilities");
     }
@@ -66,9 +54,9 @@ describe("INTEGRATIONS", () => {
   });
 
   it("puts the git providers under Backups and the models under AI", () => {
-    expect(integrationById("backups").providerCategories).toEqual([
-      "backup_recovery",
-    ]);
+    expect(
+      INTEGRATIONS.find((entry) => entry.id === "backups")?.providerCategories,
+    ).toEqual(["backup_recovery"]);
     expect(
       INTEGRATIONS.filter((entry) => entry.models).map((e) => e.id),
     ).toEqual(["ai"]);

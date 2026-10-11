@@ -94,7 +94,7 @@ export function catalogPageSections(
   return groups;
 }
 
-/** Feature bindings live under Settings → Connections, not Add a connection. */
+/** Feature bindings live under Settings → Integrations, not Add a connection. */
 export function featureBindingSections(
   providers: readonly Provider[],
 ): PageTreeSource[] {

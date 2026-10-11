@@ -1,5 +1,5 @@
 /**
- * Settings › Capabilities — the instance policy, the operator's section.
+ * Settings › Features — the instance policy, the operator's section.
  *
  * Shown only where the person *is* the operator: a personal-local policy, in
  * the personal tomb, not as a guest. A member of a managed instance never

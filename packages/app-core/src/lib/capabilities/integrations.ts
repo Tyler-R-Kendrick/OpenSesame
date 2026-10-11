@@ -95,22 +95,6 @@ export const INTEGRATIONS: readonly Integration[] = [
   }),
 ];
 
-export function integrationById(id: IntegrationId): Integration {
-  const entry = INTEGRATIONS.find((item) => item.id === id);
-  if (!entry) throw new Error(`unknown integration ${id}`);
-  return entry;
-}
-
-/** The integration a connector family is configured under. */
-export function integrationOfCategory(
-  category: ProviderCategory,
-): Integration | null {
-  return (
-    INTEGRATIONS.find((entry) => entry.providerCategories.includes(category)) ??
-    null
-  );
-}
-
 /**
  * Integrations whose function is built in: no feature section carries their
  * id, so an old `#feature-<id>` link to one lands on the Integrations page.
