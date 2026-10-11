@@ -90,7 +90,9 @@ describe("the claim notice", () => {
   it("keeps each outcome as its own tray row", () => {
     reportClaim("That code did not match.");
     reportClaim("This drop was already opened.", "Drop");
-    const notices = listNotices().filter((n) => n.id.startsWith(CLAIM_NOTICE));
+    const notices = listNotices().filter(
+      (n) => n.id.startsWith(CLAIM_NOTICE) && n.id !== CLAIM_DROP_BAR_ID,
+    );
     expect(notices).toHaveLength(2);
     expect(notices[1]).toMatchObject({
       tone: "err",
