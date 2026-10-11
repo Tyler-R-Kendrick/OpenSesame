@@ -62,11 +62,15 @@ reach them (the desktop host); the tile says nothing a person cannot act on.
 ### 2. Adding one is a sheet
 
 Choosing a provider tile opens one sheet (`AiProviderSheet`): a name, the key,
-**Test connection** — which sends the key to the host the catalog names for
-that provider and keeps nothing — and **Save connection**, which verifies the
-key first (`configureNativeApiConnector`: verify, then seal). There is no page
-to read and no method to choose. The key is sealed on the device under
-ADR 0149 and is sent to exactly one host.
+**Test connection** — which sends the key to the provider's verify host, the
+one its connect preset names, and keeps nothing — and **Save connection**, which
+verifies the key first (`configureNativeApiConnector`: verify, then seal).
+There is no page to read and no method to choose. The key is sealed on the
+device under ADR 0149. Test and Save send it to the provider's verify host and
+nowhere else (no redirect is followed); the sheet names that host, read from the
+request the connector runtime builds. It is not always the `model_api` host:
+Hugging Face verifies at `huggingface.co` and serves models at
+`router.huggingface.co`.
 
 ### 3. A model key stands for a connection without being it
 
@@ -91,7 +95,23 @@ attenuation law (INV-GA-01) that governs every other grant governs these:
   fresh, and the approval is bound to **that** digest. `issueRoot` takes the
   proof as a parameter; nothing else in the tree can write "approved", and a
   draft edited after the person looked at it is a different draft with no
-  approval (`proofs/model-grant-approval.mistakes.ts`).
+  approval (`proofs/model-grant-approval.mistakes.ts`). For the custodian
+  method the approval is the person's press of Create on the sheet. The sheet
+  reports a `MintConfirmation`, the digest of the draft as it displayed it at
+  the press and the press time, and `mintModelKey` builds the approval evidence
+  from it. It refuses a draft whose digest is not the confirmed one
+  (`approval.digest_mismatch`) and a press older than 30 seconds
+  (`approval.stale`), and issues nothing. This binds a key to what the sheet
+  showed and to an explicit, recent press. It is not proof against a script
+  running in the page, which holds the open vault and can construct a
+  confirmation itself; no check inside a same-origin page can be. A passkey
+  approval (a WebAuthn assertion over the digest) is the stronger method the
+  prover already accepts, and the sheet does not yet use it. An approval is
+  spent by the key it issues: `issueRoot` refuses a second use of the same
+  approval (`access_denied`, reason `approval.spent`), including concurrent
+  attempts and after a lock; spending is tracked on the named draft the proof
+  is about, because the proof object itself is shared. A press is spent too: the
+  same confirmation presented twice makes one key (`approval.spent`).
 - a **derived key** is made by exchange (§4) and can only be narrower.
 
 ### 4. The exchange is RFC 8693, strictly
@@ -141,7 +161,11 @@ never spent. Two children cannot together hold more than the parent had, a
 revoked child gives its unspent budget back, and a child that ends returns what
 it did not use. The number of live children, the depth of the chain
 (`maximumDelegationDepth`, at most 3 and by default 2), the number of keys
-(256) and the number of in-flight calls per key (8) are bounded.
+(256) and the number of in-flight calls per key (8) are bounded. Only children
+that are neither revoked nor expired count toward the limit of 32. Ended
+children's rows are freed on the next exchange or root issue, and their unspent
+allowance is returned to the parent exactly once. An exchange refused for lack
+of room (`ledger.full`) leaves its parent unchanged.
 
 **4.4 Sender constraint.** A key may be bound to a proof key (`dpop_jkt`), and
 then a call must carry an RFC 9449 proof: ES256 only, `typ: dpop+jwt`, an
@@ -196,9 +220,17 @@ body; the broker:
    bound), then the grant (action, model, output cap);
 3. refuses any request field not on its protocol's allowlist — an unlisted field
    (`n: 100`, a search tool, an audio output, `stream`) is a feature nobody
-   priced, and a budget that cannot see a cost cannot hold it;
+   priced, and a budget that cannot see a cost cannot hold it. A tool must be a
+   plain client-side function declaration: `tools`, `tool_choice` and
+   `toolConfig` are held to a closed shape per protocol (`body.tool`), so a
+   search, code-execution or computer tool the provider runs and bills for is
+   refused whatever it is called;
 4. requires the call to state its output limit and to stay inside the key's,
-   and reserves its **worst case** from the budget, all or nothing;
+   and reserves its **worst case** from the budget, all or nothing. A body the
+   authority would refuse before sending (an array over 100 items, an object
+   over 100 keys or a key over 4096 characters, a string over 65,536
+   characters, nesting past ten levels) is refused at inspection
+   (`body.limits`) and reserves nothing;
 5. returns the body it inspected — the object, not a second reading of the
    caller's bytes.
 
@@ -207,7 +239,10 @@ body; the broker:
 re-checks the host against that connection's egress, and settles the
 reservation exactly once whatever happens: what the provider reported is
 charged, a failure after the request may have left keeps the worst case
-charged, and a call stopped before anything left refunds. The key itself is
+charged, and a call stopped before anything left refunds. The authority says
+when a request can leave (`onDispatch`, called once immediately before the
+fetch): a failure before it refunds, a failure after it keeps the worst case
+charged, and an answer always counts as sent. The key itself is
 never sent upstream (`native-model-keys-runtime.test.ts` asserts the egress
 call carries the saved credential and no `osk_`).
 
@@ -233,8 +268,13 @@ connection page: a key to create one, a row per key (name, models, requests
 left, time left, status) and a bin key to revoke. Creating one is a sheet: the
 app or agent's name, the models (`gpt-4o, gpt-4o-mini`, or **Any model**), one
 of three budgets and one of two lifetimes; the vault's `manage_grants` check
-runs, the person's approval is bound to the digest of the draft, and the key is
-shown once with a copy key. Closing the sheet forgets it. 70 of the 84 model
+runs, the press that creates the key is bound to the digest of the draft the
+sheet showed, and the key is shown once with a copy key. Closing the sheet
+forgets it, and the sheet cannot be dismissed while a key is being made; a key
+that finishes after its sheet is gone is revoked at once; Done ignores any
+activation within 600 ms of the key appearing, so the press that made the key
+cannot also close over it. Budget and lifetime are native radio groups with
+visible labels. 70 of the 84 model
 rows can be given keys; the other fourteen are the five `rest_json` providers
 (no inspectable routes) and nine whose endpoint is the person's own.
 
@@ -253,7 +293,9 @@ broker is bound or the provider cannot be given keys.
   nothing that suggests otherwise.
 - **No durable audit trail.** Events (`root.issued`, `exchange.issued`,
   `exchange.refused`, `call.authorized`, `call.refused`, `call.settled`,
-  `key.revoked`) are value-blind and go to a sink; Pages keeps them in memory.
+  `key.revoked`) are value-blind and go to a sink; Pages keeps the most recent
+  200 in memory (`audit-ring.ts`), emptied on a lock and when the capability is
+  released.
   The Access audit's event names are frozen ([ADR 0015](0015-audit-vs-diagnostic-logging.md)) and adding to them is a
   separate change.
 - **`rest_json` and own-endpoint providers cannot be given keys.**
@@ -271,6 +313,10 @@ the suites around them cover, among others:
 | another provider's resource, or the same host spelled another way | refused (`escalation.resource`, `resource.*`) |
 | two children that together exceed the parent; a 33rd child; a chain deeper than the root allows | refused (`escalation.budget_remaining`, `children.limit`, `depth.exceeded`) |
 | a revoked child's unspent budget | returned to the parent exactly once |
+| a refused exchange (`ledger.full`) | the parent's budget is unchanged, however often it is retried |
+| one approval, or one press of Create, used twice | refused (`approval.spent`) |
+| `__proto__` or a repeated parameter in a query string | refused (`param.unknown`, `param.duplicate`) |
+| a broker replaced by another | the old one's keys end |
 | a key exchanged by a client it was not issued to | `invalid_grant` (`subject.foreign_client`) |
 | a revoked, expired or unknown key, at the exchange or at a call | the same answer for all three |
 | a revoke racing an exchange (the hash is held while the parent is revoked) | the child is not issued |
@@ -279,6 +325,8 @@ the suites around them cover, among others:
 | a call on `gpt-4` from a `gpt-4o` key, or a model spelled to slip past a prefix | refused (`escalation.model`) |
 | a call with no output limit, or one above the key's | refused (`tokens.required`, `escalation.tokens`) |
 | `n`, `stream`, tools the protocol does not allow, an unknown field | refused (`body.*`) |
+| a provider-run tool (`web_search`, `google_search`, `code_interpreter`, …), alone or beside a function tool | refused (`body.tool`) |
+| a request the authority would refuse locally (101 messages, a credential in the body) | refused at inspection (`body.limits`) or refunded, never charged |
 | a route outside the protocol's, dot segments, an encoded slash | refused (`call.route`) |
 | a budget spent, and a worst case that does not fit | refused (`budget.exhausted`); a call that never left refunds |
 | nine concurrent calls on a key | the ninth refused (`inflight.limit`) |

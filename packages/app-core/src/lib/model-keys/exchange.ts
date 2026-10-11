@@ -133,8 +133,7 @@ export async function exchangeKey(
     parent = subjectOf(core, digest, context.clientId, at);
     core.ledger.reclaim(at);
     if (
-      core.ledger.children(parent.id).filter((row) => row.revokedAt === null)
-        .length >= LIMITS.maxChildrenPerKey
+      core.ledger.liveChildren(parent.id, at).length >= LIMITS.maxChildrenPerKey
     )
       return refuse("access_denied", "children.limit");
     const derived = deriveChild(parent, request, details, {
@@ -144,8 +143,8 @@ export async function exchangeKey(
       requesterClientId: context.clientId,
       bindTo,
     });
-    for (const key of CONSUMABLES)
-      parent.remaining[key] -= derived.allocation[key];
+    // Room first, then the write: `add` can refuse, and a refused exchange takes nothing from its parent.
+    core.ledger.purge();
     core.ledger.add({
       id: derived.grant.id,
       digest: minted.digest,
@@ -161,6 +160,8 @@ export async function exchangeKey(
       revokedAt: null,
       returned: false,
     });
+    for (const key of CONSUMABLES)
+      parent.remaining[key] -= derived.allocation[key];
     emit(
       core,
       {

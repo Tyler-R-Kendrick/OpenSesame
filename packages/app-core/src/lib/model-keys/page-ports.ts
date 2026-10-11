@@ -9,6 +9,7 @@
 import { modelApiOf } from "../ai-model-provider.js";
 import { catalogProviders } from "../connector-catalog.js";
 import { notifyModelKeys } from "./active.js";
+import { recordModelKeyEvent } from "./audit-ring.js";
 import { systemClockPorts } from "./broker.js";
 import { canonicalResource } from "./resource.js";
 import type {
@@ -85,7 +86,7 @@ export function keyedModelProviders(): readonly ProviderTarget[] {
 export type PageModelKeyDeps = Readonly<{
   /** The saved connection's facts, or `null` when none by that id exists. */
   connection: (connectionId: string) => ConnectionFacts | null;
-  /** Where events go; the broker emits no token, so a sink may persist them. */
+  /** Where events go besides the page's own ring; the broker emits no token, so a sink may persist them. */
   audit?: (event: ModelKeyEvent) => void;
 }>;
 
@@ -95,6 +96,8 @@ export function pageModelKeyPorts(deps: PageModelKeyDeps): BrokerPorts {
     providerForResource: modelTargetForResource,
     connection: deps.connection,
     audit: (event) => {
+      // Kept first: the page's trail does not depend on a sink that may throw.
+      recordModelKeyEvent(event);
       try {
         deps.audit?.(event);
       } finally {

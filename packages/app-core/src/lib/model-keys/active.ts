@@ -19,13 +19,20 @@ function notify(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/** Bind `broker` as the page's. Returns the release; a stale release is a no-op. */
+/**
+ * Bind `broker` as the page's. A broker it replaces is reset on the spot: its
+ * keys were issued under an activation that is over, and whoever still holds
+ * it must not keep keys a lock should have ended. Returns the release, which
+ * resets its own broker even when it has been replaced since, and leaves the
+ * page's current one alone.
+ */
 export function bindModelKeyBroker(broker: ModelKeyBroker): () => void {
+  if (active !== null && active !== broker) active.reset();
   active = broker;
   notify();
   return () => {
-    if (active !== broker) return;
     broker.reset();
+    if (active !== broker) return;
     active = null;
     notify();
   };

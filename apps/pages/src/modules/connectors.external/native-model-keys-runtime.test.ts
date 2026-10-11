@@ -9,8 +9,15 @@ import {
   activeModelKeyBroker,
   modelKeysVersion,
 } from "@opensesame/app-core/lib/model-keys/active.js";
+import {
+  AUDIT_RING_CAPACITY,
+  modelKeyAuditEvents,
+} from "@opensesame/app-core/lib/model-keys/audit-ring.js";
 import { invokeWithModelKey } from "@opensesame/app-core/lib/model-keys/gateway.js";
-import { mintModelKey } from "@opensesame/app-core/lib/model-keys/mint.js";
+import {
+  confirmMint,
+  mintModelKey,
+} from "@opensesame/app-core/lib/model-keys/mint.js";
 import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
 import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -68,6 +75,11 @@ const choice = () => ({
   lifetimeSeconds: 600,
 });
 
+/** The person's press of Create for `choice()`, then the key it issues. */
+async function mint(tomb: string) {
+  return mintModelKey(tomb, choice(), await confirmMint(tomb, choice()));
+}
+
 const call = {
   operation: "invoke" as const,
   method: "POST",
@@ -93,7 +105,7 @@ it("a key spends the saved connection's credential and is never the one sent", a
   await saveModelFixture("openai");
   const { fetcher } = activate();
   const { tomb } = await localRequestFixture();
-  const key = await mintModelKey(tomb, choice());
+  const key = await mint(tomb);
 
   const result = await invokeWithModelKey(
     { token: key.token, clientId: "agent-1" },
@@ -124,7 +136,7 @@ it("a key for a model it was not narrowed to never reaches the provider", async 
   await saveModelFixture("openai");
   const { fetcher } = activate();
   const { tomb } = await localRequestFixture();
-  const key = await mintModelKey(tomb, choice());
+  const key = await mint(tomb);
   await expect(
     invokeWithModelKey(
       { token: key.token, clientId: "agent-1" },
@@ -149,7 +161,7 @@ it("only a verified API-key connection can back a key", async () => {
   const { tomb } = await localRequestFixture();
   expect(connectionFacts("openai")).toMatchObject({ verified: false });
   expect(connectionFacts("nothing-saved")).toBeNull();
-  await expect(mintModelKey(tomb, choice())).rejects.toMatchObject({
+  await expect(mint(tomb)).rejects.toMatchObject({
     reason: "draft.connection",
   });
 });
@@ -159,7 +171,7 @@ it("a lock ends every key, and a disabled capability takes the broker with it", 
   await saveModelFixture("openai");
   const { activation, fetcher } = activate();
   const { tomb } = await localRequestFixture();
-  const key = await mintModelKey(tomb, choice());
+  const key = await mint(tomb);
   const broker = activeModelKeyBroker();
   expect(broker?.list()).toHaveLength(1);
   const before = modelKeysVersion();
@@ -189,4 +201,81 @@ it("is bound by the provider runtime, so enabling External connectors is what ma
   expect(activeModelKeyBroker()).not.toBeNull();
   activation.dispose();
   expect(activeModelKeyBroker()).toBeNull();
+});
+
+it("keeps what the broker did in memory, with no key and no credential in it", async () => {
+  modelMemoryBackend(false);
+  await saveModelFixture("openai");
+  activate();
+  const { tomb } = await localRequestFixture();
+  const key = await mint(tomb);
+  const broker = activeModelKeyBroker();
+  await expect(
+    broker?.exchange(
+      {
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        subject_token: key.token,
+        subject_token_type: "urn:ietf:params:oauth:token-type:access_token",
+        actor_token: key.token,
+      },
+      { clientId: "agent-1", endpoint: "https://vault.example.test/token" },
+    ),
+  ).rejects.toMatchObject({ reason: "param.actor_token" });
+  await invokeWithModelKey(
+    { token: key.token, clientId: "agent-1" },
+    call,
+    fence(),
+  );
+
+  const events = modelKeyAuditEvents();
+  expect(events.map((event) => event.type)).toEqual([
+    "root.issued",
+    "exchange.refused",
+    "call.authorized",
+    "call.settled",
+  ]);
+  expect(events[1]).toMatchObject({
+    reason: "param.actor_token",
+    clientId: "agent-1",
+  });
+  const text = JSON.stringify(events);
+  for (const secret of [key.token, "osk_", MODEL_TEST_SECRET, "hi", "Bearer"])
+    expect(text).not.toContain(secret);
+});
+
+it("holds the last events only, so a busy page cannot grow it without bound", async () => {
+  modelMemoryBackend(false);
+  await saveModelFixture("openai");
+  activate();
+  const { tomb } = await localRequestFixture();
+  const key = await mint(tomb);
+  const broker = activeModelKeyBroker();
+  for (let i = 0; i < AUDIT_RING_CAPACITY + 25; i += 1)
+    await broker
+      ?.exchange(
+        { grant_type: "nope", subject_token: key.token },
+        { clientId: "agent-1", endpoint: "https://vault.example.test/token" },
+      )
+      .catch(() => undefined);
+  const events = modelKeyAuditEvents();
+  expect(events).toHaveLength(AUDIT_RING_CAPACITY);
+  // the issue event was the oldest, and has been dropped
+  expect(events.every((event) => event.type === "exchange.refused")).toBe(true);
+});
+
+it("forgets the trail with the keys: on a lock, and when the capability goes", async () => {
+  modelMemoryBackend(false);
+  await saveModelFixture("openai");
+  const { activation } = activate();
+  const { tomb } = await localRequestFixture();
+  await mint(tomb);
+  expect(modelKeyAuditEvents()).toHaveLength(1);
+
+  emitVaultLock();
+  expect(modelKeyAuditEvents()).toEqual([]);
+
+  await mint(tomb);
+  expect(modelKeyAuditEvents()).toHaveLength(1);
+  activation.dispose();
+  expect(modelKeyAuditEvents()).toEqual([]);
 });

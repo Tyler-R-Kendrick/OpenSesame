@@ -39,6 +39,8 @@ function authority(
     connections: () => [],
     execute: async (connectionId, definition, body) => {
       sent.push({ connectionId, definition, body });
+      // A real authority says the request is leaving, then the provider answers or fails.
+      definition.onDispatch?.();
       return reply();
     },
   };

@@ -31,7 +31,7 @@ export function modelProtocolLabel(providerId: string): string | null {
   return api ? MODEL_PROTOCOL_LABEL[api.protocol] : null;
 }
 
-/** The host a key for this provider is sent to, or `null` when the endpoint is the person's own. */
+/** The host this provider's models are served from, or `null` when the endpoint is the person's own. */
 export function modelApiHost(providerId: string): string | null {
   const base = modelApiOf(providerId)?.baseUrl;
   return base ? new URL(base).host : null;

@@ -287,4 +287,32 @@ describe("RFC 8693 request parameters", () => {
       paramsFromSearch("scope=model.invoke&scope=model.list"),
     ).toThrow();
   });
+
+  it("keeps a __proto__ parameter as the name it is, so it is refused and never dropped", async () => {
+    const found = paramsFromSearch("a=1&__proto__=x");
+    expect(Object.keys(found)).toEqual(["a", "__proto__"]);
+    expect(Object.getOwnPropertyDescriptor(found, "__proto__")?.value).toBe(
+      "x",
+    );
+    const query = new URLSearchParams(base);
+    query.append("__proto__", "x");
+    await refused(
+      paramsFromSearch(query.toString()),
+      "invalid_request",
+      "param.unknown",
+    );
+  });
+
+  it("refuses a __proto__ parameter given twice as a duplicate", async () => {
+    await expectRefused(
+      () => paramsFromSearch("__proto__=x&__proto__=y"),
+      "invalid_request",
+      "param.duplicate",
+    );
+    await expectRefused(
+      () => paramsFromSearch("constructor=x&constructor=y"),
+      "invalid_request",
+      "param.duplicate",
+    );
+  });
 });

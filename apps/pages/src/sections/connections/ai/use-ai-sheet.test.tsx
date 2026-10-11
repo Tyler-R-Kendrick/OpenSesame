@@ -1,10 +1,10 @@
 import type { Connection } from "@opensesame/app-core/lib/connections.js";
 /** @vitest-environment jsdom */
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import {
   connectorIntegration,
   installConnectorIntegration,
@@ -22,7 +22,7 @@ type Props = {
   connections: readonly Connection[] | null;
 };
 
-function mount(initial: Props) {
+function mount(initial: Props, onFlash = vi.fn()) {
   connectorIntegration();
   return renderHook(
     ({ providerId, connections }: Props) =>
@@ -33,6 +33,7 @@ function mount(initial: Props) {
         providers,
         connections,
         reload: async () => undefined,
+        onFlash,
       }),
     {
       initialProps: initial,
@@ -75,4 +76,32 @@ it("decides again on the next arrival, from the catalog or at another provider",
   expect(view.result.current.target?.provider.id).toBe("xai");
   view.rerender({ providerId: "openai", connections: [] });
   expect(view.result.current.target?.provider.id).toBe("openai");
+});
+
+const saved = {
+  tone: "ok",
+  text: "xAI access verified and saved on this device.",
+} as const;
+
+it("holds what connecting says until the list is showing, and raises it there once", () => {
+  const onFlash = vi.fn();
+  const view = mount({ providerId: "xai", connections: [] }, onFlash);
+  act(() => view.result.current.connected(saved));
+  // still on the provider's route: a flash raised now would be read back on
+  // its scope, which the landing is about to leave
+  expect(onFlash).not.toHaveBeenCalled();
+  view.rerender({ providerId: undefined, connections: [] });
+  expect(onFlash).toHaveBeenCalledTimes(1);
+  expect(onFlash).toHaveBeenCalledWith(saved);
+  view.rerender({ providerId: undefined, connections: [live] });
+  expect(onFlash).toHaveBeenCalledTimes(1);
+});
+
+it("drops it when the person goes to another provider instead of the list", () => {
+  const onFlash = vi.fn();
+  const view = mount({ providerId: "xai", connections: [] }, onFlash);
+  act(() => view.result.current.connected(saved));
+  view.rerender({ providerId: "openai", connections: [] });
+  view.rerender({ providerId: undefined, connections: [] });
+  expect(onFlash).not.toHaveBeenCalled();
 });

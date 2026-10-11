@@ -22,13 +22,16 @@ export function CeremonySheet({
   title: string;
   mark: ReactNode;
   onClose: () => void;
-  /** Where focus lands on open, when it should be a field rather than Close. */
+  /**
+   * Where focus lands on open, when it should be a field rather than Close.
+   * A ref with no element at that moment lands on Close.
+   */
   initialFocus?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  useModalFocus(true, sheetRef, initialFocus ?? closeRef, onClose);
+  useModalFocus(true, sheetRef, initialFocus ?? closeRef, onClose, closeRef);
   return (
     <div className="sheet-layer">
       <button

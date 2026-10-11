@@ -342,6 +342,7 @@ describe("model key exchange vectors", () => {
       "budget.exhausted",
       "call.route",
       "body.stream",
+      "body.tool",
     ])
       expect(reasons.has(reason), reason).toBe(true);
   });

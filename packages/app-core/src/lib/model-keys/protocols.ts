@@ -23,6 +23,8 @@ import {
   isTypeofObject,
 } from "@opensesame/os-domain";
 import { refuse } from "./errors.js";
+import { withinSendLimits } from "./request-limits.js";
+import { anthropicTools, geminiTools, openaiTools } from "./tools.js";
 import { LIMITS, type ModelAction } from "./vocabulary.js";
 
 export type CallProtocol =
@@ -125,7 +127,9 @@ function jsonBody(body: BoundaryValue): JsonObject {
   if (text === undefined) return refuse("invalid_request", "body.json");
   if (new TextEncoder().encode(text).length > LIMITS.maxBodyBytes)
     return refuse("invalid_request", "body.size");
-  return plain(JSON.parse(text), "body.shape");
+  const parsed = plain(JSON.parse(text), "body.shape");
+  withinSendLimits(parsed);
+  return parsed;
 }
 
 function allowOnly(body: JsonObject, fields: ReadonlySet<string>): void {
@@ -142,7 +146,7 @@ function tokenCount(value: BoundaryValue, reason: string): number {
 
 function messages(body: JsonObject, field: string): void {
   const list = body[field];
-  if (!Array.isArray(list) || list.length === 0 || list.length > 512)
+  if (!Array.isArray(list) || list.length === 0)
     refuse("invalid_request", "body.messages");
 }
 
@@ -160,6 +164,7 @@ function notStreamed(body: JsonObject): void {
 
 function openaiChat(body: JsonObject) {
   allowOnly(body, OPENAI_FIELDS);
+  openaiTools(body);
   notStreamed(body);
   if (body.n !== undefined && body.n !== 1)
     refuse("insufficient_scope", "body.n");
@@ -174,6 +179,7 @@ function openaiChat(body: JsonObject) {
 
 function anthropicMessages(body: JsonObject) {
   allowOnly(body, ANTHROPIC_FIELDS);
+  anthropicTools(body);
   notStreamed(body);
   messages(body, "messages");
   const outputTokens = tokenCount(body.max_tokens, "body.max_tokens");
@@ -195,6 +201,7 @@ function anthropicMessages(body: JsonObject) {
 
 function geminiGenerate(body: JsonObject, model: string) {
   allowOnly(body, GEMINI_FIELDS);
+  geminiTools(body);
   if (!Array.isArray(body.contents) || body.contents.length === 0)
     refuse("invalid_request", "body.contents");
   const config = plain(body.generationConfig, "body.generationConfig");

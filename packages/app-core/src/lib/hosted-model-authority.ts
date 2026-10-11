@@ -18,6 +18,8 @@ export type HostedModelOperation = {
   origin?: string;
   path: string;
   headers?: Record<string, string>;
+  /** Called once, just before a request can leave. A failure before it cost the provider nothing. */
+  onDispatch?: () => void;
 };
 export type HostedModelAuthority = HostedModelTransport & {
   read: (connectionId: string) => HostedModelConnection | null;

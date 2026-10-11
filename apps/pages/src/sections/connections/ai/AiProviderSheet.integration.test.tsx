@@ -4,7 +4,7 @@ import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.j
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   connectorIntegration,
   installConnectorIntegration,
@@ -16,18 +16,18 @@ installConnectorIntegration();
 
 const SECRET = "xai-private-key-0123456789";
 
-function mount(onConnected = vi.fn()) {
+function mount(onConnected = vi.fn(), providerId = "xai") {
   const fixture = connectorIntegration();
-  const provider = getBundledProviders().find((row) => row.id === "xai");
+  const provider = getBundledProviders().find((row) => row.id === providerId);
   const target = provider
     ? aiProviderSheetTarget({
         provider,
         connections: [],
         connectionId: undefined,
-        pathname: "/connections/xai",
+        pathname: `/connections/${providerId}`,
       })
     : null;
-  if (!target) throw new Error("the xAI sheet did not open");
+  if (!target) throw new Error(`the ${providerId} sheet did not open`);
   const onFlash = vi.fn();
   const onClose = vi.fn();
   render(
@@ -62,6 +62,14 @@ it("offers a name and a key, and the host the key goes to", () => {
   expect(
     screen.getByRole("button", { name: "Test connection" }),
   ).toHaveProperty("disabled", true);
+});
+
+it("names the host a key is verified at, not the one models are served from", () => {
+  // Hugging Face verifies a token at huggingface.co and serves from
+  // router.huggingface.co: Test and Save send the pasted key to the first.
+  mount(vi.fn(), "huggingface");
+  expect(screen.getByText("huggingface.co")).toBeTruthy();
+  expect(screen.queryByText("router.huggingface.co")).toBeNull();
 });
 
 it("tests a key against the provider and keeps nothing", async () => {
@@ -104,7 +112,12 @@ it("saves a key only after the provider has accepted it, under the name given", 
   expect(saved?.providerId).toBe("xai");
   expect(saved?.configuration.displayName).toBe("xAI for agents");
   expect(fixture.requests).toHaveLength(1);
-  expect(onFlash).toHaveBeenCalledWith(expect.objectContaining({ tone: "ok" }));
+  // what it says is the landing page's to show: not raised on the sheet's own
+  expect(onConnected).toHaveBeenCalledWith({
+    tone: "ok",
+    text: "xAI access verified and saved on this device.",
+  });
+  expect(onFlash).not.toHaveBeenCalled();
   noSecretAnywhere(fixture);
 });
 
@@ -167,4 +180,31 @@ it("leaves the field on the first Escape, closes on the second, and sends nothin
 it("puts the keyboard on the key, where a key is what the person came to paste", () => {
   mount();
   expect(document.activeElement).toBe(keyField());
+});
+
+describe("on a touch screen", () => {
+  const original = window.matchMedia;
+  beforeEach(() => {
+    // jsdom has no matchMedia; the sheet reads only `matches`.
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({
+        matches: query.includes("pointer: coarse"),
+      }),
+    });
+  });
+  afterEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: original,
+    });
+  });
+
+  it("leaves the keyboard down and lands on the Close key, never behind the scrim", () => {
+    mount();
+    const close = document.querySelector(".sheet__head .icon-btn");
+    expect(close).toBeTruthy();
+    expect(document.activeElement).toBe(close);
+    expect(document.activeElement).not.toBe(keyField());
+  });
 });

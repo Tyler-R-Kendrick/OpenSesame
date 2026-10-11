@@ -2,20 +2,23 @@
  * State and actions for the Create-a-key sheet (ADR 0189 §6): who the key is
  * for, which models, how much, for how long, and the one call that mints it.
  * Reading what was typed is the app-core helpers' job (`parseClientName`,
- * `parseModelList`), so the sheet only holds the draft and what came of it.
+ * `parseModelList`), so the sheet only holds the draft; what comes of making a
+ * key is `useMintFlight`'s.
  */
-import type { IssuedRoot } from "@opensesame/app-core/lib/model-keys/broker.js";
-import { describeMintFailure } from "@opensesame/app-core/lib/model-keys/mint-failure.js";
 import {
   BUDGET_PRESETS,
   KEY_LIFETIMES,
   parseClientName,
   parseModelList,
 } from "@opensesame/app-core/lib/model-keys/mint-form.js";
-import { mintModelKey } from "@opensesame/app-core/lib/model-keys/mint.js";
-import type { BoundaryValue } from "@opensesame/os-domain";
+import {
+  type MintChoice,
+  confirmMint,
+  mintModelKey,
+} from "@opensesame/app-core/lib/model-keys/mint.js";
 import { type FormEvent, useState } from "react";
 import { useVault } from "../../../../lib/vault/hooks.js";
+import { useMintFlight } from "./use-mint-flight.js";
 
 type Options = Readonly<{
   connectionId: string;
@@ -33,9 +36,7 @@ export function useMintKeyForm({ connectionId, resource, onClose }: Options) {
   const [models, setModels] = useState("");
   const [budgetId, setBudgetId] = useState<string>(FIRST_BUDGET);
   const [seconds, setSeconds] = useState<number>(FIRST_LIFETIME);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState("");
-  const [issued, setIssued] = useState<IssuedRoot | null>(null);
+  const { busy, failure, issued, start, close, done } = useMintFlight(onClose);
 
   const name = parseClientName(client);
   const list = parseModelList(models);
@@ -46,10 +47,10 @@ export function useMintKeyForm({ connectionId, resource, onClose }: Options) {
   const ready = draft !== null && !busy;
 
   const create = () => {
-    if (!draft || busy) return;
-    setBusy(true);
-    setFailure("");
-    mintModelKey(tomb, {
+    if (!draft) return;
+    // The press, and the draft as the sheet shows it at that moment, are what the person approves.
+    const pressedAt = Date.now();
+    const choice: MintChoice = {
       clientId: draft.name,
       connectionId,
       resource,
@@ -57,21 +58,15 @@ export function useMintKeyForm({ connectionId, resource, onClose }: Options) {
       models: draft.list,
       budget: draft.preset.budget,
       lifetimeSeconds: seconds,
-    })
-      .then(setIssued)
-      .catch((error: BoundaryValue) => setFailure(describeMintFailure(error)))
-      .finally(() => setBusy(false));
-  };
-
-  const close = () => {
-    // The key was never kept; dropping the state is forgetting it.
-    setIssued(null);
-    onClose();
+    };
+    start(async () =>
+      mintModelKey(tomb, choice, await confirmMint(tomb, choice, pressedAt)),
+    );
   };
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (issued) close();
+    if (issued) done();
     else create();
   };
 
@@ -94,6 +89,7 @@ export function useMintKeyForm({ connectionId, resource, onClose }: Options) {
     setSeconds,
     create,
     close,
+    done,
     submit,
   };
 }

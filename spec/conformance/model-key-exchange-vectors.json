@@ -1294,6 +1294,61 @@
               "reason": "body.field"
             }
           }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "tools": [{ "type": "web_search_preview" }]
+          },
+          "expect": {
+            "refused": {
+              "error": "insufficient_scope",
+              "reason": "body.tool"
+            }
+          }
+        },
+        {
+          "op": "call",
+          "key": "root",
+          "operation": "invoke",
+          "method": "POST",
+          "path": "/chat/completions",
+          "body": {
+            "model": "gpt-4o",
+            "messages": [
+              {
+                "role": "user",
+                "content": "hello"
+              }
+            ],
+            "max_tokens": 100,
+            "tools": [
+              {
+                "type": "function",
+                "function": {
+                  "name": "weather",
+                  "parameters": { "type": "object", "properties": {} }
+                }
+              }
+            ]
+          },
+          "expect": {
+            "allowed": {
+              "model": "gpt-4o"
+            }
+          }
         }
       ]
     },

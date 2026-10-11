@@ -49,6 +49,7 @@ export async function invokeWithModelKey(
   const authority = hostedModelAuthority();
   if (!authority) return refuse("access_denied", "authority.unavailable");
   const authorized = await broker.authorize(presented, call);
+  // Only the authority knows when a request can leave: it says so through `onDispatch`.
   let sent = false;
   let received: { answer: BoundaryValue } | null = null;
   try {
@@ -62,17 +63,20 @@ export async function invokeWithModelKey(
       origin: target.origin,
       path: target.pathname,
       headers: { ...PROTOCOL_HEADERS[authorized.protocol] },
+      onDispatch: () => {
+        sent = true;
+      },
     };
+    const answer = await authority.execute(
+      authorized.connectionId,
+      definition,
+      authorized.body === null ? null : overlapCast(authorized.body),
+      (body) => body,
+      fence,
+    );
+    // An answer means a request went out, whether or not the authority said so.
     sent = true;
-    received = {
-      answer: await authority.execute(
-        authorized.connectionId,
-        definition,
-        authorized.body === null ? null : overlapCast(authorized.body),
-        (body) => body,
-        fence,
-      ),
-    };
+    received = { answer };
   } finally {
     // Stopped before anything left means nothing was spent; after that the worst case stands.
     broker.settle(

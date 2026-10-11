@@ -60,6 +60,16 @@ export const systemClockPorts = {
   sha256: (text: string) => sha256Base64Url(text),
 } as const satisfies Pick<BrokerPorts, "now" | "random" | "sha256">;
 
+/**
+ * The drafts whose approval has been spent. A `ModelGrantApproved<G>` is the
+ * one frozen `{ kind }` object `defineProof` hands out each time, so the proof
+ * cannot itself say "used"; what it is about is the named draft `G`, and every
+ * approval names its draft afresh, so the name is the approval's identity.
+ * Module-wide on purpose: a lock resets a broker, not the approval a person
+ * already gave, and a second broker must not honour it again.
+ */
+const spentApprovals = new WeakSet<object>();
+
 export class ModelKeyBroker {
   private readonly core: BrokerCore;
 
@@ -70,7 +80,8 @@ export class ModelKeyBroker {
   /**
    * Issue a root key. The proof is the only way in: a person approved this
    * exact draft (`proveModelGrantApproved`), so a caller that holds no approval
-   * cannot call this at all.
+   * cannot call this at all. One approval issues one key: a second try with
+   * the same approval is refused, so a person's "yes" is never a standing offer.
    */
   async issueRoot<G>(
     draft: Named<G, ModelGrantDraft>,
@@ -78,9 +89,13 @@ export class ModelKeyBroker {
   ): Promise<IssuedRoot> {
     if (approval.kind !== "ModelGrantApproved")
       return refuse("access_denied", "approval.missing");
+    if (spentApprovals.has(draft))
+      return refuse("access_denied", "approval.spent");
     const { core } = this;
     const now = core.ledger.clock(core.ports.now());
     const checked = validateDraft(draft.value, core.ports, core.policy);
+    // Spent before the first await, so two calls racing on one approval cannot both pass the check above.
+    spentApprovals.add(draft);
     const minted = await mintKey(core);
     const at = core.ledger.clock(core.ports.now());
     const record = rootRecord(draft.value, checked, {

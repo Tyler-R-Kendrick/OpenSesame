@@ -1,67 +1,13 @@
 /** @vitest-environment jsdom */
-import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
-import { bindModelKeyBroker } from "@opensesame/app-core/lib/model-keys/active.js";
-import { harness } from "@opensesame/app-core/lib/model-keys/harness.test-support.js";
 import { KEY_PATTERN } from "@opensesame/app-core/lib/model-keys/vocabulary.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
-import {
-  cleanup,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../../../lib/vault/hooks.js";
+import { expect, it } from "vitest";
 import { ModelKeysPanel, modelKeyResource } from "./ModelKeysPanel.js";
+import { fillSheet, mintKeyTestBed } from "./mint-key.test-support.js";
 
-const original = { ...vaultHooksSeams };
-const vault = { tomb: "" };
-const releases: (() => void)[] = [];
-
-beforeEach(() => {
-  vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
-  vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
-  Object.assign(vaultHooksSeams, {
-    useVault: () => ({ ...vaultStore.getSnapshot(), tomb: vault.tomb }),
-    useCopySecret: () => async () => "copied" as const,
-  });
-});
-afterEach(() => {
-  Object.assign(vaultHooksSeams, original);
-  cleanup();
-  for (const release of releases.splice(0)) release();
-  lockAllTombs();
-  vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-});
-
-async function ready(providerId = "openai", connectionId = "conn-openai") {
-  vault.tomb = (await localRequestFixture()).tomb;
-  const h = harness({ senderConstraint: "dpop_optional" });
-  releases.push(bindModelKeyBroker(h.broker));
-  render(
-    <ModelKeysPanel
-      providerId={providerId}
-      providerName="OpenAI"
-      connectionId={connectionId}
-    />,
-  );
-  return h;
-}
-
-async function fillSheet(client: string, models: string) {
-  await userEvent.click(screen.getByRole("button", { name: "Create a key" }));
-  const sheet = screen.getByRole("dialog", { name: "Create a key" });
-  const create = () =>
-    within(sheet).getByRole("button", { name: "Create a key" });
-  expect(create()).toHaveProperty("disabled", true);
-  await userEvent.type(within(sheet).getByLabelText("App or agent"), client);
-  await userEvent.type(within(sheet).getByLabelText("Models"), models);
-  return { sheet, create };
-}
+const bed = mintKeyTestBed();
+const { ready } = bed;
 
 it("draws nothing where a key cannot exist", async () => {
   const { container } = render(
@@ -100,6 +46,7 @@ it("creates a key, shows it once, and lists it without it", async () => {
   const token = shown.textContent ?? "";
   expect(h.broker.list()).toHaveLength(1);
 
+  bed.afterTheGuard();
   await userEvent.click(within(sheet).getByRole("button", { name: "Done" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   const row = screen.getByTestId("model-key");
@@ -116,7 +63,9 @@ it("revokes a key and keeps the row as a record of it", async () => {
   const h = await ready();
   const { create } = await fillSheet("my-agent", "gpt-4o");
   await userEvent.click(create());
-  await userEvent.click(await screen.findByRole("button", { name: "Done" }));
+  const done = await screen.findByRole("button", { name: "Done" });
+  bed.afterTheGuard();
+  await userEvent.click(done);
 
   await userEvent.click(
     screen.getByRole("button", { name: "Revoke the key for my-agent" }),

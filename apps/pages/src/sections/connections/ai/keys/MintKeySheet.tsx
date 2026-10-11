@@ -34,7 +34,7 @@ function sheetFacts(providerName: string, preset: BudgetPreset | undefined) {
 
 function sheetPrimary(form: MintKeyForm) {
   return form.issued
-    ? { label: "Done", submit: true, onClick: form.close }
+    ? { label: "Done", submit: true, onClick: form.done }
     : {
         label: "Create a key",
         submit: true,
@@ -62,7 +62,10 @@ export function MintKeySheet({
       initialFocus={clientRef}
     >
       <form aria-label="Create a key" onSubmit={form.submit}>
+        {/* Create and Done are different keys, not one key relabelled: the press
+            that made the key is still on the old one, and must not land on Done. */}
         <CeremonyShell
+          key={issued ? "issued" : "compose"}
           ok={failure === ""}
           top={issued ? "Key created" : undefined}
           name={issued ? (form.name ?? "") : providerName}

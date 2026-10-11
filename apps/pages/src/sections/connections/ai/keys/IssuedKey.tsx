@@ -1,5 +1,5 @@
 import type { IssuedRoot } from "@opensesame/app-core/lib/model-keys/broker.js";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IconKey } from "../../../../components/IconKey.js";
 import { IconCopy } from "../../../../components/Icons.js";
 import { StatusMark } from "../../../../components/StatusMark.js";
@@ -14,6 +14,11 @@ type Props = Readonly<{
 export function IssuedKey({ issued, lifetime }: Props) {
   const copy = useCopySecret();
   const [said, setSaid] = useState("");
+  const copyRef = useRef<HTMLButtonElement>(null);
+  // The key that made this one is gone; focus goes to the thing to do with it.
+  useEffect(() => {
+    copyRef.current?.focus();
+  }, []);
   return (
     <>
       <div className="f">
@@ -34,6 +39,7 @@ export function IssuedKey({ issued, lifetime }: Props) {
           <span className="f__tail">
             <IconKey
               label="Copy the key"
+              keyRef={copyRef}
               small
               onClick={() =>
                 void copy(issued.token).then((result) =>

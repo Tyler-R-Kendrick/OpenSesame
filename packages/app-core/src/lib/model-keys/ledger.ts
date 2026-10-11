@@ -49,6 +49,11 @@ export class KeyLedger {
     return this.records().filter((row) => row.grant.parentGrantId === id);
   }
 
+  /** The children of `id` that are neither revoked nor expired at `now`. */
+  liveChildren(id: string, now: number): KeyRecord[] {
+    return this.children(id).filter((row) => this.isActiveSelf(row, now));
+  }
+
   /** Is this row, and every row above it, live at `now`? */
   isActive(record: KeyRecord, now: number): boolean {
     let current: KeyRecord | null = record;

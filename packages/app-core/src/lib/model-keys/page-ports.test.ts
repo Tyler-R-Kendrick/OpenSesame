@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { modelApiOf } from "../ai-model-provider.js";
 import { catalogProviders } from "../connector-catalog.js";
+import { clearModelKeyAuditEvents, modelKeyAuditEvents } from "./audit-ring.js";
 import {
   keyedModelProviders,
   modelTargetForResource,
@@ -97,6 +98,8 @@ describe("which providers a key can be for", () => {
   });
 });
 
+afterEach(clearModelKeyAuditEvents);
+
 describe("the page's ports", () => {
   it("passes the connection's facts through and forwards audit events", () => {
     const seen: string[] = [];
@@ -127,5 +130,28 @@ describe("the page's ports", () => {
     expect(() => ports.audit({ type: "key.revoked", at: 1 })).toThrow(
       "sink down",
     );
+  });
+});
+
+describe("the page's audit trail", () => {
+  it("keeps every event the broker emits, with no sink of the page's own", () => {
+    const ports = pageModelKeyPorts({ connection: () => null });
+    ports.audit({ type: "root.issued", at: 1, keyId: "mk_a" });
+    ports.audit({ type: "exchange.refused", at: 2, reason: "param.unknown" });
+    expect(modelKeyAuditEvents()).toEqual([
+      { type: "root.issued", at: 1, keyId: "mk_a" },
+      { type: "exchange.refused", at: 2, reason: "param.unknown" },
+    ]);
+  });
+
+  it("keeps the event even when the page's own sink throws", () => {
+    const ports = pageModelKeyPorts({
+      connection: () => null,
+      audit: () => {
+        throw new Error("sink down");
+      },
+    });
+    expect(() => ports.audit({ type: "key.revoked", at: 1 })).toThrow();
+    expect(modelKeyAuditEvents()).toHaveLength(1);
   });
 });

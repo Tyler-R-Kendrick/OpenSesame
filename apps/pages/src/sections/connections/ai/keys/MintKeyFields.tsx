@@ -2,7 +2,7 @@ import {
   BUDGET_PRESETS,
   KEY_LIFETIMES,
 } from "@opensesame/app-core/lib/model-keys/mint-form.js";
-import type { Ref } from "react";
+import { type Ref, useId } from "react";
 import { FieldShell } from "../../../../components/FieldShell.js";
 import { StatusMark } from "../../../../components/StatusMark.js";
 import type { MintKeyForm } from "./use-mint-key-form.js";
@@ -13,26 +13,35 @@ type ChoicesProps = Readonly<{
   label: string;
   options: readonly Choice[];
   value: string;
+  disabled: boolean;
   onPick: (id: string) => void;
 }>;
 
-function Choices({ label, options, value, onPick }: ChoicesProps) {
+/**
+ * One of a few named choices, as native radios: Tab enters the group at the
+ * chosen one, the arrow keys move between them, Tab leaves. The label is the
+ * group's visible name and its accessible one.
+ */
+function Choices({ label, options, value, disabled, onPick }: ChoicesProps) {
+  const group = useId();
   return (
-    <div className="mkey-choices" role="radiogroup" aria-label={label}>
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          className="mkey-choice"
-          // biome-ignore lint/a11y/useSemanticElements: a pressed choice, not a form radio
-          role="radio"
-          aria-checked={value === option.id}
-          onClick={() => onPick(option.id)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
+    <fieldset className="mkey-group" disabled={disabled}>
+      <legend className="f__label">{label}</legend>
+      <div className="mkey-choices">
+        {options.map((option) => (
+          <label key={option.id} className="mkey-choice">
+            <input
+              type="radio"
+              name={group}
+              value={option.id}
+              checked={value === option.id}
+              onChange={() => onPick(option.id)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -93,12 +102,14 @@ export function MintKeyFields({ form, clientRef }: Props) {
         label="Budget"
         options={BUDGET_PRESETS}
         value={form.budgetId}
+        disabled={form.busy}
         onPick={form.setBudgetId}
       />
       <Choices
         label="Key lasts"
         options={LIFETIME_CHOICES}
         value={String(form.seconds)}
+        disabled={form.busy}
         onPick={(id) => form.setSeconds(Number(id))}
       />
     </>

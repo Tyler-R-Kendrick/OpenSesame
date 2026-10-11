@@ -2,14 +2,10 @@
  * Add a model provider (ADR 0189): a name, a key, a test that saves nothing,
  * and a save that proves the key first. It is the whole of connecting one — no
  * page, no method to choose, no scope to read — over the catalog the tile came
- * from. The key is sealed on this device and is sent only to the host the
- * catalog names for the provider.
+ * from. The key is sealed on this device and is sent only to the host its
+ * verify request names (`key-hosts.ts`).
  */
-import {
-  modelApiHost,
-  modelProtocolLabel,
-} from "@opensesame/app-core/lib/ai-model-provider.js";
-import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
+import { modelProtocolLabel } from "@opensesame/app-core/lib/ai-model-provider.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useLayoutEffect, useRef } from "react";
 import { CeremonySheet } from "../../../components/CeremonySheet.js";
@@ -19,7 +15,9 @@ import { IconKey } from "../../../components/IconKey.js";
 import { IconConnection, IconPlay } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { NativeInputFields } from "../connect/NativeConnectorFields.js";
+import { nativeFieldValues } from "../connect/native-connector-ui-values.js";
 import type { AiSheetTarget } from "./ai-provider-sheet-target.js";
+import { verifyHost } from "./key-hosts.js";
 import { type KeyTest, useAiProviderForm } from "./use-ai-provider-form.js";
 
 function testMark(test: KeyTest) {
@@ -56,7 +54,7 @@ export function AiProviderSheet({
 }: {
   target: AiSheetTarget;
   onClose: () => void;
-  onConnected: (view: NativeConnectorView) => void;
+  onConnected: (flash: Flash) => void;
   onFlash: (flash: Flash) => void;
 }) {
   const { provider, method } = target;
@@ -71,7 +69,10 @@ export function AiProviderSheet({
       fieldsRef.current?.querySelector<HTMLElement>("input[type=password]") ??
       null;
   }, []);
-  const host = modelApiHost(provider.id);
+  const host = verifyHost(
+    provider.id,
+    nativeFieldValues(method.fields, form.values, false),
+  );
   const protocol = modelProtocolLabel(provider.id);
   const facts = [
     ...(host ? [{ key: "Sent to", value: host }] : []),

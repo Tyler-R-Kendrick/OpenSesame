@@ -204,6 +204,7 @@ export function ConnectionsSection() {
     providers,
     connections,
     reload: loadConnections,
+    onFlash: setFlash,
   });
   const { provider, providerConnections } = ai;
   if (providerId && !ai.target) {

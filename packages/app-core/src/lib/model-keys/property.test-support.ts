@@ -79,7 +79,14 @@ const exchangeOp = (rootModels: readonly string[]): fc.Arbitrary<ExchangeOp> =>
       { weight: 1, arbitrary: wildBudget },
       { weight: 1, arbitrary: fc.constant(null) },
     ),
-    lifetime: fc.option(fc.integer({ min: 1, max: 20_000 }), { nil: null }),
+    // Half the children are short-lived, so a run meets expiry, reclaim and purge, not only revoke.
+    lifetime: fc.option(
+      fc.oneof(
+        { weight: 1, arbitrary: fc.integer({ min: 1, max: 90 }) },
+        { weight: 1, arbitrary: fc.integer({ min: 1, max: 20_000 }) },
+      ),
+      { nil: null },
+    ),
   });
 
 const callOp = (rootModels: readonly string[]): fc.Arbitrary<CallOp> => {

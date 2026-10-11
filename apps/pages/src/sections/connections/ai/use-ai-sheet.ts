@@ -7,7 +7,8 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
-import { useState } from "react";
+import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { aiProviderSheetTarget } from "./ai-provider-sheet-target.js";
 
@@ -19,6 +20,8 @@ type Options = Readonly<{
   /** `null` until the list has loaded: no sheet is decided before then. */
   connections: readonly Connection[] | null;
   reload: () => Promise<void>;
+  /** Raises a flash on the page the section is showing when it is called. */
+  onFlash: (flash: Flash) => void;
 }>;
 
 export function useAiSheet({
@@ -28,6 +31,7 @@ export function useAiSheet({
   providers,
   connections,
   reload,
+  onFlash,
 }: Options) {
   const navigate = useNavigate();
   const provider = providers?.find((item) => item.id === providerId) ?? null;
@@ -48,6 +52,21 @@ export function useAiSheet({
     arrival?.providerId !== providerId
   )
     setArrival({ providerId, onPage: providerConnections.length > 0 });
+  // What connecting says belongs to the page it lands on. A flash is read back
+  // only on the scope that raised it, and this route's scope is the provider's,
+  // which the landing leaves: so it is held until the list is showing, raised
+  // there, and dropped if the person goes to another provider instead.
+  const [landing, setLanding] = useState<Readonly<{
+    providerId: string;
+    flash: Flash;
+  }> | null>(null);
+  useEffect(() => {
+    if (!landing) return;
+    if (!providerId) {
+      onFlash(landing.flash);
+      setLanding(null);
+    } else if (providerId !== landing.providerId) setLanding(null);
+  }, [landing, providerId, onFlash]);
   const target =
     providerId && connections !== null && arrival?.onPage !== true
       ? aiProviderSheetTarget({
@@ -62,7 +81,8 @@ export function useAiSheet({
     providerConnections,
     target,
     close: () => navigate("/connections"),
-    connected: () => {
+    connected: (flash: Flash) => {
+      if (providerId) setLanding({ providerId, flash });
       void reload();
       navigate("/connections");
     },

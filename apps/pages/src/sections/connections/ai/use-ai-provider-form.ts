@@ -35,7 +35,8 @@ export type KeyTest =
 
 type Options = {
   target: AiSheetTarget;
-  onConnected: (view: NativeConnectorView) => void;
+  /** A verified save leaves the sheet; what it says is the page it lands on's to show. */
+  onConnected: (flash: Flash) => void;
   onFlash: (flash: Flash) => void;
 };
 
@@ -121,8 +122,9 @@ export function useAiProviderForm({ target, onConnected, onFlash }: Options) {
       const view = await controller.configure(request);
       if (view.providerId !== provider.id)
         throw new Error("Provider returned a different connection.");
-      onFlash(savedFlash(view, descriptor.name));
-      if (nativeVerified(view)) onConnected(view);
+      const saved = savedFlash(view, descriptor.name);
+      if (nativeVerified(view)) onConnected(saved);
+      else onFlash(saved);
     } catch (error) {
       const text = failureText(error, request);
       setFailure(text);

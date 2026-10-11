@@ -2,6 +2,7 @@ import {
   bindModelKeyBroker,
   notifyModelKeys,
 } from "@opensesame/app-core/lib/model-keys/active.js";
+import { clearModelKeyAuditEvents } from "@opensesame/app-core/lib/model-keys/audit-ring.js";
 import { ModelKeyBroker } from "@opensesame/app-core/lib/model-keys/broker.js";
 import { pageModelKeyPorts } from "@opensesame/app-core/lib/model-keys/page-ports.js";
 import {
@@ -48,10 +49,13 @@ export function bindNativeModelKeys(activation: Activation): ModelKeyBroker {
     PAGE_POLICY,
   );
   activation.onDispose(bindModelKeyBroker(broker));
+  // The trail describes keys that no longer exist once the broker is released.
+  activation.onDispose(clearModelKeyAuditEvents);
   // A lock ends every key: the credential behind them is sealed again.
   activation.onDispose(
     onVaultLock(() => {
       broker.reset();
+      clearModelKeyAuditEvents();
       notifyModelKeys();
     }),
   );

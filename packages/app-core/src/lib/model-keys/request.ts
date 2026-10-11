@@ -137,7 +137,8 @@ export function parseExchangeRequest(input: BoundaryValue): ExchangeRequest {
 /** Parameters from a query or form string, refusing a name given twice (RFC 6749 §3.1). */
 export function paramsFromSearch(search: string) {
   const params = new URLSearchParams(search);
-  const out: Record<string, string> = {};
+  // No prototype: on a plain `{}` a `__proto__` entry is swallowed by the setter, so it would be neither refused nor counted twice.
+  const out: Record<string, string> = Object.create(null);
   for (const [key, value] of params) {
     if (Object.hasOwn(out, key))
       return refuse("invalid_request", "param.duplicate");
