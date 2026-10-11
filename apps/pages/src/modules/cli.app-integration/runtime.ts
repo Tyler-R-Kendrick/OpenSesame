@@ -6,7 +6,6 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
-import { CliAuthorizeHost } from "./CliAuthorizeHost.js";
 
 export const CAPABILITY = "cli.app-integration";
 
@@ -15,6 +14,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
+    const { CliAuthorizeHost } = await import("./CliAuthorizeHost.js");
     activation.register("shell-wrapper", {
       id: "cli-app-integration",
       Wrapper: CliAuthorizeHost,
