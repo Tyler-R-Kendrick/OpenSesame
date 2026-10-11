@@ -1,5 +1,6 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
+import { CLI_APP_INTEGRATION_RULES } from "./classification-cli-app.js";
 import { DEV_EVIDENCE_RULES } from "./classification-dev-evidence.js";
 import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
@@ -391,6 +392,7 @@ export const LIB_RULES = [
     "notifications.web-push",
     "push enrolment and payload rendering",
   ),
+  ...CLI_APP_INTEGRATION_RULES,
   ...each(L, LOCAL_AI_FILES, (p) =>
     optional(p, LOCAL_AI, "on-device model plane; MIXED — remote"),
   ),

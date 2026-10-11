@@ -6,6 +6,7 @@ license.workspace = true
 description = "OpenSesame host daemon — local session capabilities (ADR 0017)"
 
 [dependencies]
+opensesame-cli-app-integration = { path = "../../crates/cli-app-integration" }
 opensesame-connection-detect = { path = "../../crates/connection-detect" }
 opensesame-invoke-through = { path = "../../crates/invoke-through" }
 # Fill by reference (ADR 0150 §6.4) reads the human-plane sealed store. It is

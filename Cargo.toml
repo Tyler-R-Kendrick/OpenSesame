@@ -20,6 +20,7 @@ members = [
   "crates/grants",
   "crates/broker",
   "crates/claims",
+  "crates/cli-app-integration",
   "crates/human-vault",
   "crates/sealed-store",
   "crates/vault-item-types",

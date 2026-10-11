@@ -245,7 +245,7 @@ pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Re
             repair_imported_fields,
         )?,
         Command::Read { reference } => consume::read(&reference, desktop, reveal)?,
-        Command::Run { env, command } => consume::run_assignments(&env, &command)?,
+        Command::Run { env, command } => consume::run_assignments(&env, &command, desktop)?,
         Command::Env { cmd } => consume::env(cmd, desktop, reveal)?,
         Command::InternalExec { command } => consume::internal_exec(&command)?,
         Command::InternalBatch { count } => consume::internal_batch(count)?,

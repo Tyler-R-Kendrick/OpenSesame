@@ -211,8 +211,6 @@ mod tests {
 
     #[test]
     fn reissuing_recovery_needs_reveal_and_a_rotation() {
-        let _agent_guard =
-            opensesame_connector_host::password_agent::reveal_gate::AgentContextGuard::clear_markers();
         let bare = RotateArgs {
             reissue_recovery: true,
             reveal: false,

@@ -3726,6 +3726,7 @@ dependencies = [
  "opensesame-authn",
  "opensesame-bitwarden-server",
  "opensesame-ceremony",
+ "opensesame-cli-app-integration",
  "opensesame-connector-host",
  "opensesame-credential-helpers",
  "opensesame-daemon",
@@ -3755,6 +3756,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tempfile",
  "tokio",
@@ -3763,6 +3765,14 @@ dependencies = [
  "url",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-cli-app-integration"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -3867,6 +3877,7 @@ dependencies = [
  "bytes",
  "chrono",
  "http",
+ "opensesame-cli-app-integration",
  "opensesame-domain",
  "opensesame-invoke-through",
  "opensesame-sealed-store",
@@ -3927,6 +3938,7 @@ dependencies = [
  "clap",
  "ecdsa",
  "insta",
+ "opensesame-cli-app-integration",
  "opensesame-connection-detect",
  "opensesame-host-core",
  "opensesame-invoke-through",
@@ -5808,6 +5820,7 @@ checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",
