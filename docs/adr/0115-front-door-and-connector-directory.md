@@ -4,7 +4,9 @@
 - Date: 2026-09-12
 - Amended by: [ADR 0150](0150-live-sessions-browser-to-browser.md) §1 (the
   door is two roads, Set up your own and Join a session, with guest as the
-  corner Skip; the sign-in panel leaves the door)
+  corner Skip; the sign-in panel leaves the door), and
+  [ADR 0188](0188-a-vault-can-begin-from-a-file.md) (a third road, Import a
+  file)
 - Supplements: [ADR 0090](0090-static-frontend-complete-without-backend.md)
   (sign-in is the first screen, and nothing gates it),
   [ADR 0114](0114-tabbed-setup-ceremony.md) (a tab per concern),

@@ -17,9 +17,9 @@ async function count(page, role, name, exact = false) {
 }
 
 /**
- * A. The first screen: two roads — set up your own, join a session — and
- * the guest road as the corner Skip. No sign-in: a device with no vault has
- * nothing to sign in to (ADR 0150 §1).
+ * A. The first screen: three roads — set up your own, join a session, import
+ * a file — and the guest road as the corner Skip. No sign-in: a device with
+ * no vault has nothing to sign in to (ADR 0150 §1, ADR 0188).
  */
 export async function checkFrontDoor(page, check, text, base) {
   check(
@@ -34,6 +34,10 @@ export async function checkFrontDoor(page, check, text, base) {
     [
       "Join a session",
       "join road on the front door, even on the shared origin (ADR 0150)",
+    ],
+    [
+      "Import a file",
+      "import road on the front door: a vault can begin from a backup or a .env file (ADR 0188)",
     ],
     ["Skip sign-in and continue as guest", "Skip link present"],
   ]) {
@@ -150,7 +154,8 @@ export async function walkSetupCeremony(page, check, snap) {
     /^Sign in$/m.test(back) &&
       (await count(page, "button", "Deployment setup")) === 0 &&
       (await count(page, "button", "Set up your own")) === 0 &&
-      (await count(page, "button", "Join a session")) === 1,
-    "skip all retires the front door: plain sign-in keeps join (setup lives behind unlock)",
+      (await count(page, "button", "Join a session")) === 1 &&
+      (await count(page, "button", "Import a file")) === 1,
+    "skip all retires the front door: plain sign-in keeps join and import (setup lives behind unlock)",
   );
 }

@@ -119,14 +119,19 @@ try {
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-    // The front door lands on Set up; Tab reaches Join a session, and the
-    // corner Skip — the door's guest road — sits before both (ADR 0150 §1).
+    // The front door lands on Set up; Tab reaches Join a session and then
+    // Import a file (ADR 0188), and the corner Skip — the door's guest road —
+    // sits before all three (ADR 0150 §1).
     await expect(
       page.getByRole("button", { name: "Set up your own" }),
     ).toBeFocused();
     await page.keyboard.press("Tab");
     await expect(
       page.getByRole("button", { name: "Join a session" }),
+    ).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Import a file", exact: true }),
     ).toBeFocused();
     // The help key sits in the card's corner row, after the roads in Tab order
     // (ADR 0166): Tab reaches it, Enter opens the Support sheet, and Escape
@@ -147,9 +152,10 @@ try {
       page.getByRole("dialog", { name: "Support", exact: true }),
     ).toHaveCount(0);
     await expect(help).toBeFocused();
-    await page.keyboard.press("Shift+Tab");
-    await page.keyboard.press("Shift+Tab");
-    await page.keyboard.press("Shift+Tab");
+    // Back through the roads — Import, Join, Set up — to the corner Skip.
+    for (let road = 0; road < 4; road += 1) {
+      await page.keyboard.press("Shift+Tab");
+    }
     await expect(
       page.getByRole("button", { name: "Skip sign-in and continue as guest" }),
     ).toBeFocused();
