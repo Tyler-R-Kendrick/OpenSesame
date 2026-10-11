@@ -33,3 +33,31 @@ test("pins the optional Tailnet pairing leaf without changing ownership of other
     undefined,
   );
 });
+
+test("pins the relay client to its capability's chunk and nothing else under vault-relay", () => {
+  const entry = { classification: "optional", capability: "sharing.relay" };
+  assert.equal(
+    lazyLeafChunk(
+      "/workspace/packages/app-core/src/lib/vault-relay/client.ts",
+      entry,
+    ),
+    "cap-sharing.relay",
+  );
+  assert.equal(
+    lazyLeafChunk(
+      "/workspace/packages/app-core/src/lib/vault-relay/client.ts",
+      {
+        classification: "shared",
+        capability: null,
+      },
+    ),
+    undefined,
+  );
+  assert.equal(
+    lazyLeafChunk(
+      "/workspace/packages/app-core/src/lib/vault-relay/other.ts",
+      entry,
+    ),
+    undefined,
+  );
+});

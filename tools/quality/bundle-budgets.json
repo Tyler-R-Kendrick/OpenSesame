@@ -265,11 +265,12 @@
         "2026-10-10: javascript 6258->6457 and javascriptGzip 1915->1966 for Settings > Trusted contacts (ADR 0187): the quorum engine (SLIP-0039, HPKE, the ledger, the desk) and the owner, contact and recipient screens, with the CXF export and Import hand-offs. They load only from the module's two lazy chunks, which a device fetches only with the capability on: cap-sharing.trusted-contacts (77 KiB) and its shared chunk (101 KiB), plus a 2.5 KiB stylesheet. A fresh /OpenSesame/ build of the tree merged with main at 115a39a measures 6457/1966 KiB JavaScript raw/gzip; raise only to the measured minimum. Nothing reaches the boot path; the hardened profiles exclude the module and measure 3677/972 KiB, under their unchanged ceilings.",
         "2026-10-10: javascriptGzip 1966->1967 on the tree merged with main at b61bd55 (the armed state on an identity share revoke, #1042, landed after the Trusted contacts ceilings were measured). A fresh build measures 6457/1967 KiB JavaScript raw/gzip; raise only to the measured minimum.",
         "2026-10-11: javascript 6258->6259 for the cipher dial at rest on the front door (useIdleDial pulls CipherDial into the door's chunk) and the hero shimmer that keeps running after the decode settles. Measured 6259 KiB; raise only to the measured minimum. javascriptGzip and css are within their budgets and unchanged.",
-        "2026-10-11: javascript 6457->6458 on the tree merged with main at d307626 (the cipher dial on the front door and the hero shimmer, +1 KiB on main's own ceiling, landed after the Trusted contacts ceilings were measured). A fresh build measures 6458 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum."
+        "2026-10-11: javascript 6457->6458 on the tree merged with main at d307626 (the cipher dial on the front door and the hero shimmer, +1 KiB on main's own ceiling, landed after the Trusted contacts ceilings were measured). A fresh build measures 6458 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum.",
+        "2026-10-11: javascript 6458->6463 for Settings > Features and Settings > Integrations (ADR 0188): the second category's page and section modules, the integration list, the retired-address map, and the tutorial tours and targets for the ten integration sections (+4 KiB raw on a build of the same tree without the split, 6458). Nothing new reaches the boot path or a capability chunk. A fresh build measures 6463 KiB JavaScript with javascriptGzip and css within their ceilings; raise only to the measured minimum."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6458,
+        "javascript": 6463,
         "javascriptGzip": 1967,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",

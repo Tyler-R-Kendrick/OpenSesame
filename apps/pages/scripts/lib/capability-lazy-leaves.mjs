@@ -58,6 +58,17 @@ const LAZY_LEAVES = [
     "networking.tailnet",
     "tailnet-plugin-pairing",
   ],
+  // The relay's HTTP client (ADR 0181) is a small pure leaf reached only by
+  // the org-vault directory panels. At the 12 KB merge floor Rollup folds it
+  // into a neighbour whenever the Settings sections reshuffle the chunks
+  // around it, and the gate reads the fold as a static import of
+  // `sharing.relay` from the bootstrap (ADR 0130 §4). Pinned to the
+  // capability's own chunk, it loads with the module and stays off the entry.
+  [
+    "/packages/app-core/src/lib/vault-relay/client",
+    "sharing.relay",
+    "cap-sharing.relay",
+  ],
   // Document enrolment (`push-browser`, `push-enrolment`, `push-seams`) is
   // pure. `experimentalMinChunkSize` then folds that small chunk into `main`,
   // which the gate reads as a static import of `notifications.web-push`
