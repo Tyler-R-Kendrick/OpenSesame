@@ -43,6 +43,29 @@ export const transportSeams = {
   ): Promise<TransportRead> => editLiveTransport(tomb, apply),
 };
 
+/**
+ * Every edit asked for and not yet answered, in any copy of the profile on the
+ * screen. The Form and the Routes panel each hold their own; this is what lets
+ * one wait for the other's.
+ */
+const inFlight = new Set<Promise<unknown>>();
+
+/**
+ * The profile with every edit asked for so far in it, sealed and read back:
+ * what a session starts from. A copy on the screen is not that. The Routes
+ * panel draws an edit the moment it is made, and the Form's own copy follows
+ * only once the seal has landed and been read, so a press on Start in between
+ * saw the routes as they were and began a session that carried none of what
+ * had just been added. Throws `TransportRefused`, as a read does.
+ */
+export async function settledTransport(): Promise<LiveTransport> {
+  // An edit made while an earlier one is out waits behind it in its copy of
+  // the profile and is not yet in the store's queue: wait for those too, then
+  // take the store's turn for the read.
+  while (inFlight.size > 0) await Promise.allSettled([...inFlight]);
+  return transportSeams.read(transportSeams.tomb());
+}
+
 /** A change to the profile, made against the profile as it is by then. */
 export type Edit = (current: LiveTransport) => LiveTransport;
 
@@ -151,6 +174,9 @@ export function useLiveTransport(): TransportView {
       draw();
       const run = tail.current.then(() => commit(entry));
       tail.current = run;
+      inFlight.add(run);
+      const answered = () => void inFlight.delete(run);
+      void run.then(answered, answered);
       return run;
     },
     [draw, commit],

@@ -341,7 +341,7 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # the history-backup or password-history stores, or `ports.keyRange`.
 LIVE_OWNER=chromium LIVE_JOINERS=chromium,firefox,webkit \
   pnpm --filter @opensesame/pages verify:live-join
-# Same harness, live sessions (ADR 0150, ADR 0192) in real browser contexts over
+# Same harness, live sessions (ADR 0150, ADR 0193) in real browser contexts over
 # real WebRTC, every walk once per joiner browser: the owner in LIVE_OWNER, the
 # joiners in LIVE_JOINERS (chromium, firefox, webkit as the pinned Playwright
 # installs them: `pnpm exec playwright install --with-deps chromium firefox

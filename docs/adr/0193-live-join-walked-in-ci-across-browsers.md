@@ -1,4 +1,4 @@
-# ADR 0192 — The live join walk gates merges, across three browsers
+# ADR 0193 — The live join walk gates merges, across three browsers
 
 - **Status:** Accepted
 - **Date:** 2026-10-10
@@ -97,6 +97,16 @@ the three walks that must not connect and fails the run anywhere else.
   could read the profile, then seal its result after the file viewer had saved,
   putting back what "Saved" had just written; a loaded run of the walk lost
   the TURN REST secret that way.
+- A session starts from the routes as sealed after every edit asked for so
+  far (`startInput`, `settledTransport`), never from the Form's own copy of
+  them. The Routes panel draws an edit the moment it is made, and the Form's
+  copy follows only once the seal has landed and been read, so a Start pressed
+  in between began a session with no carrier and nothing on the page said so.
+  The Firefox-owner shard lost its NATS carrier that way on a slow runner
+  (the owner's page held only its "Live" mark, no carrier mark of any status),
+  and the same walk with the seal slowed by 1.5 s fails the same way in
+  Chromium. `readLiveTransport` now takes its turn behind the writes asked for
+  before it, as an edit does.
 - A settings file takes no typing and no save until its stored text has
   arrived (the editor is busy and read-only until then). WebKit's fill in CI
   typed into the empty editor and the text that arrived next ran into it.
