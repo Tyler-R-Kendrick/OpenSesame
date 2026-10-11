@@ -20,7 +20,6 @@ import {
   noteSecurityWatch,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
 import { createActivation } from "../activation.js";
-import { securityChecksPanel } from "./SecurityChecksPanel.js";
 
 /** Matches `sectionCategory("feature-security-checks")`. */
 const SECTION_CATEGORY = "features.feature-security-checks";
@@ -36,6 +35,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     noteSecurityWatch({ phase: "idle" });
     const range = { capability: CAPABILITY, purpose: PWNED_PURPOSE };
     const list = { capability: CAPABILITY, purpose: TWO_FACTOR_PURPOSE };
+    const { securityChecksPanel } = await import("./SecurityChecksPanel.js");
     const Panel = securityChecksPanel({
       range: (url, init) => ctx.egress.fetch(url, init, range),
       twoFactor: (url, init) => ctx.egress.fetch(url, init, list),

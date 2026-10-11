@@ -86,7 +86,11 @@ const LAZY_LEAVES = [
 export function lazyLeafChunk(id, entry) {
   const path = toPosix(id);
   for (const [dir, capability, name] of LAZY_LEAVES) {
-    if (path.includes(dir) && entry.capability === capability) return name;
+    if (!path.includes(dir)) continue;
+    const pinSharedVaultLeaf =
+      entry.classification === "shared" &&
+      dir.startsWith("/packages/app-core/src/lib/vault/");
+    if (entry.capability === capability || pinSharedVaultLeaf) return name;
   }
   return undefined;
 }
