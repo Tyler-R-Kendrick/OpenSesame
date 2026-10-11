@@ -7,7 +7,7 @@ import {
 import { openSessionSection } from "./session-section.mjs";
 
 /**
- * Choose capabilities from Settings › Capabilities, at whatever width this
+ * Choose capabilities from Settings › Features, at whatever width this
  * walk is running: a phone reaches sections through the drawer, a tablet
  * through the rail. Every control is tapped, because this is the touch gate.
  */
@@ -30,9 +30,9 @@ export async function chooseCapabilitiesHere(
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await openSettings();
     await page.waitForTimeout(500);
-    const tab = page.getByRole("link", { name: "Capabilities", exact: true });
+    const tab = page.getByRole("link", { name: "Features", exact: true });
     if ((await tab.count()) === 0) {
-      harness.check(false, "settings has no Capabilities tab");
+      harness.check(false, "settings has no Features tab");
       return;
     }
     await tab.tap();

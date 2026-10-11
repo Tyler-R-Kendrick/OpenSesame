@@ -186,7 +186,7 @@ export async function ownerEnters(page, { origin, base, secret }) {
 
 export async function openLive(page) {
   // The tab is the capability's: it exists once its module has activated.
-  // Until then the only "Live sessions" on the page is its Capabilities tile.
+  // Until then the only "Live sessions" on the page is its Features tile.
   const tab = page.getByRole("link", { name: "Live sessions", exact: true });
   await tab.first().waitFor({ timeout: 20_000 });
   await openSettingsCategory(page, "Live sessions");

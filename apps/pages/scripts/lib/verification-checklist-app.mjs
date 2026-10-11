@@ -202,15 +202,18 @@ async function showCategory(page, label, selector) {
 }
 
 export async function captureSettings(page, shot, record) {
-  await showCategory(page, "Capabilities", "[data-testid=capabilities-panel]");
-  const caps = await shot("settings-capabilities");
+  await showCategory(page, "Features", "[data-testid=features-panel]");
+  const features = await shot("settings-features");
+  mark(record, "settings-features", /Features/.test(features), "features");
+  await capturePasswordReset(page, shot, record);
+  await showCategory(page, "Integrations", "[data-testid=integrations-panel]");
+  const integrations = await shot("settings-integrations");
   mark(
     record,
-    "settings-capabilities",
-    /Capabilities/.test(caps),
-    "capabilities",
+    "settings-integrations",
+    /Integrations/.test(integrations),
+    "integrations",
   );
-  await capturePasswordReset(page, shot, record);
   await showCategory(page, "Security", "#vault-key-protection");
   await shot("settings-security");
   await captureSecurityRows(page, shot, record);

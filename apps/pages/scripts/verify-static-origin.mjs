@@ -158,7 +158,8 @@ const browser = await launch();
     "security",
     "data",
     "vaults",
-    "connectivity",
+    "features",
+    "integrations",
     "danger",
   ]) {
     setStep(`B-settings-${category}`);
@@ -174,6 +175,28 @@ const browser = await launch();
         `settings/${category} shows no alert`,
       );
     }
+  }
+  // A link to the retired Capabilities page lands on the page that holds what
+  // it named (ADR 0188): a switch's section stays on Features, a built-in
+  // function's moved to Integrations, each under its new anchor.
+  for (const [from, to] of [
+    ["settings/capabilities", `${BASE}settings/features`],
+    [
+      "settings/capabilities#feature-backups",
+      `${BASE}settings/integrations#integration-backups`,
+    ],
+  ]) {
+    setStep("B-settings-retired");
+    await page.evaluate((href) => {
+      history.pushState(null, "", href);
+      dispatchEvent(new PopStateEvent("popstate"));
+    }, `${BASE}${from}`);
+    await page.waitForTimeout(900);
+    const now = new URL(page.url());
+    check(
+      `${now.pathname}${now.hash}` === to,
+      `${from} lands on ${to} (at ${now.pathname}${now.hash})`,
+    );
   }
   await context.close();
 }

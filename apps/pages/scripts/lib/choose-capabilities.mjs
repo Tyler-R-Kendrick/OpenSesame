@@ -40,9 +40,9 @@ export async function chooseCapabilities(context, width, titles, base = BASE) {
   for (const title of titles) {
     // Always on (ADR 0135): in every plan, with no row to add it from.
     if (ALWAYS_ON_TITLES.has(title)) continue;
-    await page.goto(`${base}/settings/capabilities`);
+    await page.goto(`${base}/settings/features`);
     await unlockVault(page);
-    await expect(page.getByTestId("capabilities-panel")).toBeVisible();
+    await expect(page.getByTestId("features-panel")).toBeVisible();
     await awaitCapabilitySections(page);
     const add = capabilityOffSwitch(page, title);
     if ((await add.count()) > 0) {
