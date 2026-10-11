@@ -247,3 +247,38 @@ it("a bound plaintext accessor's reentrant close drains its reserved seal call w
     ]);
   }
 });
+function originalSealMethod(method: "getRandomValues" | "encrypt" | "decrypt") {
+  if (method === "getRandomValues") return crypto.getRandomValues;
+  if (method === "encrypt") return crypto.subtle.encrypt;
+  return crypto.subtle.decrypt;
+}
+it.each(["getRandomValues", "encrypt", "decrypt"] as const)(
+  "native callable binding refuses absent, primitive and forged-bind installed %s slots",
+  async (method) => {
+    const receiver = method === "getRandomValues" ? crypto : crypto.subtle;
+    const descriptor = Object.getOwnPropertyDescriptor(receiver, method);
+    const original = originalSealMethod(method);
+    const forgedWork = vi.fn();
+    const forgedBind = vi.fn(() => forgedWork);
+    for (const value of [undefined, null, { bind: forgedBind }]) {
+      try {
+        // Fault-double only this slot on the genuine installed Crypto receiver.
+        Object.defineProperty(receiver, method, {
+          configurable: true,
+          value,
+        });
+        expect(() => captureOriginalDeviceIdentitySealData(() => {})).toThrow(
+          TypeError,
+        );
+        expect(forgedBind).not.toHaveBeenCalled();
+        expect(forgedWork).not.toHaveBeenCalled();
+      } finally {
+        if (descriptor) Object.defineProperty(receiver, method, descriptor);
+        else Reflect.deleteProperty(receiver, method);
+      }
+      expect(originalSealMethod(method)).toBe(original);
+    }
+    const restored = captureOriginalDeviceIdentitySealData(() => {});
+    await restored.close();
+  },
+);

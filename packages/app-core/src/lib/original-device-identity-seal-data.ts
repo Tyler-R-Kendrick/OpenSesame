@@ -7,6 +7,7 @@ import {
   bytesToB64,
 } from "@opensesame/vault-core";
 const LIMIT = 1024 * 1024;
+const bindOriginal = Function.prototype.call.bind(Function.prototype.bind);
 function fixedSealMethods(
   installed: Crypto,
   subtle: SubtleCrypto,
@@ -14,11 +15,14 @@ function fixedSealMethods(
   encrypt: SubtleCrypto["encrypt"],
   decrypt: SubtleCrypto["decrypt"],
 ) {
-  return {
-    fixedRandom: random.bind(installed),
-    fixedEncrypt: encrypt.bind(subtle),
-    fixedDecrypt: decrypt.bind(subtle),
-  };
+  // The retained native bind verifies callability without reading a slot's bind property.
+  const fixedRandom: Crypto["getRandomValues"] = bindOriginal(
+    random,
+    installed,
+  );
+  const fixedEncrypt: SubtleCrypto["encrypt"] = bindOriginal(encrypt, subtle);
+  const fixedDecrypt: SubtleCrypto["decrypt"] = bindOriginal(decrypt, subtle);
+  return { fixedRandom, fixedEncrypt, fixedDecrypt };
 }
 class OriginalDeviceIdentitySealData {
   readonly #original: () => void;
@@ -57,10 +61,7 @@ class OriginalDeviceIdentitySealData {
       this.#installed.subtle !== this.#subtle ||
       this.#installed.getRandomValues !== this.#random ||
       this.#subtle.encrypt !== this.#encrypt ||
-      this.#subtle.decrypt !== this.#decrypt ||
-      typeof this.#random !== "function" ||
-      typeof this.#encrypt !== "function" ||
-      typeof this.#decrypt !== "function"
+      this.#subtle.decrypt !== this.#decrypt
     )
       throw new Error("Original identity seal transport retired.");
   };
