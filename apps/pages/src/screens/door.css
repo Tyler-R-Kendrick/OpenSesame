@@ -36,8 +36,8 @@
 }
 
 .door__wordmark {
-  /* The hero fits its column (`fit`): em = width / 7.78, at most 90. The
-     tier follows — a 320 phone gets solid plates, a desktop the field. */
+  /* The hero fits its column (`fit`): em = width / 7.78, at most 90. A phone
+     and a desktop both get the particle field. */
   letter-spacing: 0;
   color: var(--ink);
   max-width: 100%;
