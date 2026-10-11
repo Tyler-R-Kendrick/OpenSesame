@@ -36,7 +36,6 @@ import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { fieldSteps } from "./lib/capture-field-steps.mjs";
 import { openHarness } from "./lib/capture-harness.mjs";
 import { holdSteps } from "./lib/capture-hold-steps.mjs";
-import { importSteps } from "./lib/capture-import-steps.mjs";
 import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
@@ -197,7 +196,6 @@ const STEPS = {
   },
   ...extraSteps({ press }),
   ...holdSteps(),
-  ...importSteps(),
   ...tapStep({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
