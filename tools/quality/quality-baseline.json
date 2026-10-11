@@ -16,15 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-<<<<<<< HEAD
     "files": 417,
     "violations": 644,
     "oversizedLines": 213051
-=======
-    "files": 418,
-    "violations": 645,
-    "oversizedLines": 213542
->>>>>>> 69b2cb5c4 (chore: reset quality baseline from main and record daemon shrink)
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
