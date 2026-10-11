@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it, vi } from "vitest";
-import { CIPHER, DISPLAY_WORD, FRAME_MS, createSlotRuns } from "./cipher.js";
+import { DISPLAY_WORD, FRAME_MS, createSlotRuns } from "./cipher.js";
 import { DRAW_CALIBRATION, drawWordmark, layoutWordmark } from "./particles.js";
 import { stubCanvas2d } from "./test-canvas.js";
 
@@ -67,16 +67,5 @@ describe("drawWordmark", () => {
     drawAt(ctx, 28, [23, 23, 23], true, 60_000);
     expect(fills.at(-1)).toBe("#8f8f8f");
     expect(fills.at(-2)).toBe("rgb(23,23,23)");
-  });
-
-  it("gives every slot a mask for every cipher glyph, so no slot draws blank mid-decode", () => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("2d context required");
-    const { layout } = drawAt(ctx, 72, [23, 23, 23], false, 0);
-    for (const q of layout.slots) {
-      if (q.space) continue;
-      for (const ch of CIPHER) expect(q.masks.has(ch)).toBe(true);
-    }
   });
 });

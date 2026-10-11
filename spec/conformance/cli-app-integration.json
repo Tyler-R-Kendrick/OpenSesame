@@ -15,6 +15,25 @@
     "pending": "Waiting for you to allow CLI integration in OpenSesame…",
     "wrongSession": "CLI integration is approved for a different terminal session."
   },
+  "ui": {
+    "sheetTitle": "Authorize CLI",
+    "sheetLead": "OpenSesame CLI wants to access your vault from this terminal.",
+    "terminalLabel": "Terminal session",
+    "commandLabel": "Command",
+    "targetLabel": "Item",
+    "fieldLabel": "Field",
+    "allowKey": "Authorize",
+    "denyKey": "Deny",
+    "confirmPasskey": "Confirm with passkey",
+    "confirmPin": "Confirm with PIN",
+    "pinPlaceholder": "PIN"
+  },
+  "verbLabels": {
+    "read": "Read a secret",
+    "run": "Run a command",
+    "env-resolve": "Resolve environment variables",
+    "pass-reveal": "Reveal from the password store"
+  },
   "sessionCases": [
     {
       "id": "approve-grants-session",

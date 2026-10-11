@@ -157,18 +157,16 @@ async function sections(page, stop) {
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;
-  const policies = page
-    .getByRole("treeitem", { name: "Policies", exact: true })
-    .and(page.locator('[aria-level="2"]'));
-  if ((await policies.count()) === 0) {
+  const far = page.locator(".access-tab", { hasText: /^Policies/ }).first();
+  if ((await far.count()) === 0) {
     harness.check(
       false,
       `${stop("access-policies")}: the Policies tab is missing`,
     );
     return;
   }
-  await policies.scrollIntoViewIfNeeded();
-  await policies.tap();
+  await far.scrollIntoViewIfNeeded();
+  await far.tap();
   await page.waitForTimeout(500);
   await audit(page, stop("access-policies"));
 }
