@@ -472,22 +472,6 @@
     }
   },
   {
-    "id": "cli.app_integration.list",
-    "title": "List pending CLI app-integration requests",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "route:/identity"
-    }
-  },
-  {
-    "id": "cli.app_integration.respond",
-    "title": "Approve or deny CLI app-integration for this terminal",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "route:/identity/authorize"
-    }
-  },
-  {
     "id": "identity.local.siop.authorize",
     "title": "Approve or deny a SIOPv2 (Implementer's Draft) sign-in; not a conventional OpenID Connect provider",
     "plane": "client_local",
@@ -557,6 +541,22 @@
     "plane": "identity",
     "surfaces": {
       "pwa": "route:/invoke/:kind"
+    }
+  },
+  {
+    "id": "cli.app_integration.list",
+    "title": "List pending CLI app-integration requests",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "cli.app_integration.respond",
+    "title": "Approve or deny CLI app-integration for this terminal",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity/authorize"
     }
   },
   {
