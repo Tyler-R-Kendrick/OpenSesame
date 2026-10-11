@@ -193,7 +193,7 @@ mod imp {
 
 #[cfg(target_os = "windows")]
 mod imp {
-    use super::*;
+    use super::{Arc, KeychainBackend, KeychainStore, ProbeError};
     use windows_sys::Win32::Security::Credentials::{
         CredEnumerateW, CredFree, CREDENTIALW, CRED_ENUMERATE_ALL_CREDENTIALS,
     };
@@ -214,8 +214,8 @@ mod imp {
                 if CredEnumerateW(
                     std::ptr::null(),
                     CRED_ENUMERATE_ALL_CREDENTIALS,
-                    &mut count,
-                    &mut credentials,
+                    &raw mut count,
+                    &raw mut credentials,
                 ) == 0
                 {
                     return Err(ProbeError::Keychain(format!(
@@ -224,8 +224,10 @@ mod imp {
                     )));
                 }
                 let mut labels = Vec::new();
-                for index in 0..count as isize {
-                    let credential = *credentials.offset(index);
+                let mut cursor = credentials;
+                for _ in 0..count {
+                    let credential = *cursor;
+                    cursor = cursor.add(1);
                     if credential.is_null() {
                         continue;
                     }

@@ -38,6 +38,7 @@ mod proxy_path;
 use proxy_path::{has_dot_segment, is_local_session_path};
 mod invoke_through;
 mod keychain;
+mod listener;
 mod mint;
 mod peer_auth;
 mod plugin_routes;
@@ -293,12 +294,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
 
     tracing::info!(%listen, "daemon TCP listening");
-    let tcp_app = app.clone();
-    let tcp_handle = tokio::spawn(async move {
-        if let Err(e) = axum::serve(tcp, tcp_app).await {
-            tracing::error!(error = %e, "tcp serve failed");
-        }
-    });
+    let tcp_handle = listener::spawn_tcp(tcp, app.clone());
     // Accept before Windows loopback probes / Tailscale Serve target selection.
     tokio::task::yield_now().await;
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
