@@ -8,7 +8,7 @@
 // Google return leg. The run fails on any page error, any console error
 // other than the SPA-fallback 404, any request to a loopback address, any
 // missing asset, or any failed check below.
-//   A. first screen: the front door — the two roads, the compiled broker +
+//   A. first screen: the front door — the three roads, the compiled broker +
 //      guest, no setup wall (ADR 0115)
 //   B. guest → inside the app → every section, and every subtree within Access,
 //      by in-app navigation
