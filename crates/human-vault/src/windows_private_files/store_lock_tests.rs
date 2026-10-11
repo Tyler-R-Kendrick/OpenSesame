@@ -1,4 +1,4 @@
-//! Actual LockFileEx and filesystem controls, not a simulated lock or clock.
+//! Actual `LockFileEx` and filesystem controls, not a simulated lock or clock.
 use super::*;
 use crate::root_protection::windows_private_files::write_new;
 use std::fs;
@@ -43,7 +43,7 @@ fn actual_shared_kernel_holder_blocks_private_exclusive_and_vice_versa() {
                 0,
                 1,
                 0,
-                &mut overlapped,
+                &raw mut overlapped,
             )
         },
         0
@@ -67,7 +67,7 @@ fn actual_shared_kernel_holder_blocks_private_exclusive_and_vice_versa() {
                 0,
                 1,
                 0,
-                &mut overlapped,
+                &raw mut overlapped,
             )
         },
         0

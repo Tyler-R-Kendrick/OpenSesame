@@ -14,7 +14,10 @@ fn private_root(parent: &Path) -> std::path::PathBuf {
     let attributes = descriptor.attributes().unwrap();
     let path = handles::wide(&root).unwrap();
     // SAFETY: controlled terminated fixture path and private descriptor stay owned.
-    assert_ne!(unsafe { CreateDirectoryW(path.as_ptr(), &attributes) }, 0);
+    assert_ne!(
+        unsafe { CreateDirectoryW(path.as_ptr(), &raw const attributes) },
+        0
+    );
     root
 }
 

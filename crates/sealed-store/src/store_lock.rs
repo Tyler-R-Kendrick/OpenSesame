@@ -48,18 +48,29 @@ const RESERVED_TOP_LEVEL: [&str; 4] = [
 
 /// A held store lock; released when dropped (or when the process exits).
 pub(crate) struct StoreLock {
+    #[cfg(not(windows))]
     _file: File,
+    #[cfg(windows)]
+    file: File,
 }
 
 #[cfg(windows)]
 impl Drop for StoreLock {
     fn drop(&mut self) {
         // Close remains the OS fallback if explicit unlocking fails during Drop.
-        let _ = platform::release(&self._file);
+        let _ = platform::release(&self.file);
     }
 }
 
 impl StoreLock {
+    fn held(file: File) -> Self {
+        Self {
+            #[cfg(not(windows))]
+            _file: file,
+            #[cfg(windows)]
+            file,
+        }
+    }
     /// The rotation lock: refused while any writer or another rotation holds it.
     pub(crate) fn exclusive(root: &Path) -> Result<Self, StoreError> {
         let file = open_lock_file(root)?;
@@ -72,7 +83,7 @@ impl StoreLock {
                 )
             })
         })?;
-        Ok(Self { _file: file })
+        Ok(Self::held(file))
     }
 
     /// An ordinary write: refused while a rotation runs or left its staging.
@@ -83,7 +94,7 @@ impl StoreLock {
         // A rotation may have created its staging directory between the first
         // check and the lock; with the lock held, look again.
         refuse_staging(root)?;
-        Ok(Self { _file: file })
+        Ok(Self::held(file))
     }
 
     /// A key-file edit (add, remove or rewrap a protector): exclusive, so two

@@ -16,7 +16,7 @@ fn node_numeric_pair_is_full_actual_volume_serial_file_index_and_native_binding_
     // SAFETY: owned original live directory handle and correctly sized output remain owned.
     assert_ne!(
         unsafe {
-            GetFileInformationByHandle(root.root_handle().unwrap().as_raw_handle(), &mut info)
+            GetFileInformationByHandle(root.root_handle().unwrap().as_raw_handle(), &raw mut info)
         },
         0
     );

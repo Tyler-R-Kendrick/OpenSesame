@@ -73,7 +73,7 @@ pub(super) fn acquire(file: &File, exclusive: bool) -> Result<(), Option<StoreEr
     let mut overlapped = windows_sys::Win32::System::IO::OVERLAPPED::default();
     // SAFETY: File owns a valid synchronous handle; OVERLAPPED is initialized at
     // offset zero and remains live for this nonblocking call. All locks use byte [0,1).
-    if unsafe { LockFileEx(file.as_raw_handle(), flags, 0, 1, 0, &mut overlapped) } != 0 {
+    if unsafe { LockFileEx(file.as_raw_handle(), flags, 0, 1, 0, &raw mut overlapped) } != 0 {
         return Ok(());
     }
     let error = std::io::Error::last_os_error();
@@ -92,7 +92,7 @@ pub(super) fn release(file: &File) -> std::io::Result<()> {
     use windows_sys::Win32::Storage::FileSystem::UnlockFileEx;
     let mut overlapped = windows_sys::Win32::System::IO::OVERLAPPED::default();
     // SAFETY: the same held synchronous File and offset/length identify its lock.
-    if unsafe { UnlockFileEx(file.as_raw_handle(), 0, 1, 0, &mut overlapped) } == 0 {
+    if unsafe { UnlockFileEx(file.as_raw_handle(), 0, 1, 0, &raw mut overlapped) } == 0 {
         return Err(std::io::Error::last_os_error());
     }
     Ok(())

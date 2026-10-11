@@ -65,7 +65,7 @@ impl OriginalSession {
     fn writer(&self) -> io::Result<&NativeNodeDataWriter> {
         self.body.as_ref().ok_or_else(refused)
     }
-    fn try_lease(&mut self, logical: &str, mode: wire::LeaseMode) -> io::Result<wire::Reply> {
+    fn try_lease(&mut self, logical: &str, mode: &wire::LeaseMode) -> io::Result<wire::Reply> {
         if self.lease.is_some()
             || self.credential.is_some()
             || self.body.is_some()
@@ -116,7 +116,7 @@ impl OriginalSession {
         let reply = match request.op {
             operation @ (wire::Operation::CaptureBodyReader { .. }
             | wire::Operation::BodyReaderClose {}) => self.apply_readonly(operation)?,
-            wire::Operation::LeaseTry { logical, mode } => self.try_lease(&logical, mode)?,
+            wire::Operation::LeaseTry { logical, mode } => self.try_lease(&logical, &mode)?,
             wire::Operation::CredentialTry {} => self.try_credential()?,
             wire::Operation::BodyTry { tomb } => self.try_body(&tomb)?,
             wire::Operation::BodyOrBootstrapTry { tomb } => self.try_body_or_bootstrap(&tomb)?,
