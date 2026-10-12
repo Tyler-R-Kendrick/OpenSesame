@@ -18,6 +18,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Encrypted search](encrypted-search.md) | Keeping the browser's identifier databases encrypted with no readable name, id or field and still searchable (ADR 0175); using the library. |
 | [Vault files](vault-files.md) | Every secret as its own file on disk: the tree, what a file shows and holds, backing up and sharing, two writers, and the privately hosted store (ADR 0182). |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
+| [Proxied run quickstart](proxied-run-quickstart.md) | Running a command with a surrogate in place of a provider token: install the plugin, seal the token, declare the connection, what the child sees, what is refused, how a run ends and is revoked. |
 
 ## Identity
 

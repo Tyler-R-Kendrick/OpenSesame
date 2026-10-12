@@ -168,14 +168,21 @@ so a tampered settings file cannot aim `remove` at an arbitrary path.
 
 ## The surrogate-proxy run
 
-`opensesame dev run --agent -- <cmd>` with the plugin active:
+The commands in order, with their output, are in the
+[Proxied run quickstart](proxied-run-quickstart.md). `opensesame dev run
+--agent -- <cmd>` with the plugin active:
 
 1. It collects the env-spec entries delivered as `Placeholder`, the
    legacy-token projections, placed in one header, and the web logins
    (below), each with the scope its env-spec entry declared ([Scope](#scope-of-a-surrogate)).
 2. It spawns the plugin in its own process group and writes one JSON line to
    its stdin:
-   `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], logins:[{env_var, origin, action, field, secret, ca_pem?}], passthrough_hosts, watched, notices_path}`.
+   `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], logins:[{env_var, origin, action, field, secret, ca_pem?}], credentials:[{connection_ref, secret}], passthrough_hosts, watched, notices_path}`.
+   A provider that draws no token from a local tool (`vercel`) takes its token
+   from the sealed store: the CLI reads `connections/<org>/<name>` for
+   `conn://<org>/<name>` and sends it as that connection's `credentials` row,
+   in this line only. A connection with no entry is named on stderr and keeps
+   its placeholder.
 3. The plugin answers with one line: `{proxy_url, ca_pem_path, env, unserved}`.
    `env` carries the surrogates, the run CA's trust variables
    (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`,
