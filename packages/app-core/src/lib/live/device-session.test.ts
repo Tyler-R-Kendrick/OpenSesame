@@ -44,7 +44,12 @@ describe("a device in an open session", () => {
         shown = view.userCode;
       },
     });
+    // A failed assertion below must not leave this rejecting unobserved.
+    authorized.catch(() => undefined);
     const pending = await pendingRequest(owner);
+    // The owner's tab knows the request a moment before the device has
+    // received its code, so wait for the device to have shown it.
+    for (let round = 0; round < 60 && shown === ""; round += 1) await settle(5);
     // The owner compares the code on their screen with the device's.
     expect(pending.userCode).toBe(shown);
     expect(pending.want).toEqual(["c-github"]);
