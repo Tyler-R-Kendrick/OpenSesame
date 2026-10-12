@@ -1,8 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
 import type { PasswordAgent } from "@opensesame/app-core/lib/password-agent/index.js";
+import { describe, expect, it, vi } from "vitest";
 import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
+import { type ParityContext, runChild, runEnv } from "./parity-commands.js";
 import { createCredentialStore } from "./parity-credentials.js";
-import { runChild, runEnv, type ParityContext } from "./parity-commands.js";
 
 function baseCtx(
   overrides: Partial<ParityContext> & {
@@ -15,8 +15,16 @@ function baseCtx(
     scope: { desktop: true },
     reveal: true,
     store: createCredentialStore(),
-    raw: { invoke: async () => "", run: async () => 0, runEnvFile: async () => 0 },
-    port: { invoke: async () => "", run: async () => 0, runEnvFile: async () => 0 },
+    raw: {
+      invoke: async () => "",
+      run: async () => 0,
+      runEnvFile: async () => 0,
+    },
+    port: {
+      invoke: async () => "",
+      run: async () => 0,
+      runEnvFile: async () => 0,
+    },
     privateInput: async () => "",
     privateFile: async () => {},
     ...overrides,

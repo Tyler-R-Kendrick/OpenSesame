@@ -17,6 +17,7 @@ import type {
   PasswordAgentPort,
   Scope,
 } from "@opensesame/app-core/lib/password-agent/transport.js";
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import {
   emitHumanValue,
   emitStderrLine,
@@ -25,7 +26,6 @@ import {
 import type { readPrivateInput, writePrivateFile } from "./parity-node.js";
 import { exhausted, option, source, toggle } from "./parity-parse.js";
 import { runLease, runPrivateRequest } from "./parity-request.js";
-import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import { assertHumanReveal, emitRevealReceipt } from "./reveal-gate.js";
 export interface ParityContext {
   requestTransport?: Pick<RequestPorts, "addresses" | "send"> | undefined;
