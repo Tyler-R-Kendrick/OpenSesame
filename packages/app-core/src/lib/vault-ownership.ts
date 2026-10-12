@@ -20,7 +20,11 @@ import {
   withLocalDirectoryLock,
 } from "./local-directory.js";
 import { isGuestPersonEntry } from "./local-guest.js";
-import { assertAccessCapability } from "./local-rbac.js";
+import {
+  assertAccessCapability,
+  canAccess,
+  resolveCurrentAccessRole,
+} from "./local-rbac.js";
 
 /** A registered user: an enabled person who is not a guest placeholder. */
 function isRegisteredUser(entry: LocalIdentity): boolean {
@@ -72,6 +76,23 @@ export async function actingOwner(
     /* no local identity session: the vault custodian acts */
   }
   return owners.length === 1 ? owners[0] : undefined;
+}
+
+/**
+ * Who the acting person may hand the vault to. Empty unless they own it *and*
+ * this session may change memberships, so a surface that draws a key from this
+ * never draws one that could only be refused (a guest session beside a claimed
+ * owner reads as a guest, and `transferVaultOwnership` would turn it away).
+ */
+export async function transferRecipients(
+  tomb: string,
+  directory: LocalDirectory,
+): Promise<LocalIdentity[]> {
+  const owner = await actingOwner(tomb, directory);
+  if (!owner) return [];
+  const role = await resolveCurrentAccessRole(tomb);
+  if (!canAccess(role, "manage_memberships")) return [];
+  return ownershipRecipients(directory, owner.id);
 }
 
 /**

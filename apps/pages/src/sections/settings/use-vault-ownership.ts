@@ -3,10 +3,7 @@ import {
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
-import {
-  actingOwner,
-  ownershipRecipients,
-} from "@opensesame/app-core/lib/vault-ownership.js";
+import { transferRecipients } from "@opensesame/app-core/lib/vault-ownership.js";
 import { useEffect, useState } from "react";
 import { useVault } from "../../lib/vault/hooks.js";
 
@@ -27,12 +24,8 @@ export function useVaultOwnership(): readonly LocalIdentity[] {
       }
       void readLocalDirectory(tomb)
         .then(async (directory) => {
-          const owner = await actingOwner(tomb, directory);
-          if (alive) {
-            setRecipients(
-              owner ? ownershipRecipients(directory, owner.id) : [],
-            );
-          }
+          const people = await transferRecipients(tomb, directory);
+          if (alive) setRecipients(people);
         })
         .catch(() => {
           if (alive) setRecipients([]);

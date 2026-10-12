@@ -8,6 +8,7 @@ import {
 import { type LocalDirectory, readLocalDirectory } from "./local-directory.js";
 import {
   ownershipRecipients,
+  transferRecipients,
   transferVaultOwnership,
   vaultOwners,
 } from "./vault-ownership.js";
@@ -123,5 +124,20 @@ describe("vault ownership transfer", () => {
     }
     const dir = await readLocalDirectory(tomb);
     expect(vaultOwners(dir).map((e) => e.id)).toEqual([s.ada.id]);
+  });
+
+  it("offers the vault's other registered users to its owner", async () => {
+    const s = await build();
+    const dir = await readLocalDirectory(tomb);
+    expect((await transferRecipients(tomb, dir)).map((e) => e.name)).toEqual([
+      "Grace",
+    ]);
+    // With no local person signed in the custodian acts, and the sole owner
+    // stands in for them: after the transfer that is Grace, who may name Ada.
+    const after = await transferVaultOwnership(tomb, s.grace.id);
+    expect(vaultOwners(after).map((e) => e.id)).toEqual([s.grace.id]);
+    expect((await transferRecipients(tomb, after)).map((e) => e.id)).toContain(
+      s.ada.id,
+    );
   });
 });
