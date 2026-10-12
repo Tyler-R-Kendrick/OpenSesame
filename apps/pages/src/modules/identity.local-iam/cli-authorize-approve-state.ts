@@ -1,28 +1,34 @@
 import type { VaultHeader } from "@opensesame/vault-core";
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useFailureNotice } from "../../components/use-failure-notice.js";
+import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import {
-  runPasskeyApprove,
-  runPinApprove,
+  runCliAuthorizePasskeyProof,
+  runCliAuthorizePinProof,
 } from "./cli-authorize-proof-actions.js";
-import type { CliAuthorizeRow } from "./cli-authorize-session.js";
-import { cliAuthorizeProofMethods } from "./cli-authorize-unlock-methods.js";
 
-type ProofMode = "pin" | "passkey";
+function proofMethods(header: VaultHeader | null | undefined) {
+  const unlocks = header?.unlocks;
+  const canPasskey =
+    (unlocks?.passkeys?.length ?? 0) > 0 || Boolean(unlocks?.passkey);
+  return { canPasskey, canPin: Boolean(unlocks?.pin) };
+}
 
-export function useCliAuthorizeProofState(
+export function useCliAuthorizeApproveState(
   row: CliAuthorizeRow,
   busy: boolean,
   onBusyChange: (busy: boolean) => void,
+  onDone: () => void,
   onRespond: (
     decision: "approve" | "deny",
     humanProof?: string,
   ) => Promise<boolean>,
 ) {
-  const [proofMode, setProofMode] = useState<ProofMode>("passkey");
   const [canPasskey, setCanPasskey] = useState(false);
   const [canPin, setCanPin] = useState(false);
   const [header, setHeader] = useState<VaultHeader | null>(null);
+  const [pinOpen, setPinOpen] = useState(false);
   const [pin, setPin] = useState("");
   const [mark, setMark] = useState<string | null>(null);
   const [failure, setFailure] = useState<{
@@ -41,12 +47,12 @@ export function useCliAuthorizeProofState(
   useEffect(() => {
     void import("@opensesame/app-core/lib/vault/store.js").then(
       ({ vaultStore }) => {
-        const snapshotHeader = vaultStore.getSnapshot().header;
-        setHeader(snapshotHeader);
-        const methods = cliAuthorizeProofMethods(snapshotHeader);
-        setCanPasskey(methods.includes("passkey"));
-        setCanPin(methods.includes("pin"));
-        setProofMode(methods.includes("passkey") ? "passkey" : "pin");
+        const loadedHeader = vaultStore.getSnapshot().header;
+        setHeader(loadedHeader);
+        const methods = proofMethods(loadedHeader);
+        setCanPasskey(methods.canPasskey);
+        setCanPin(methods.canPin);
+        setPinOpen(!methods.canPasskey && methods.canPin);
       },
     );
   }, []);
@@ -59,38 +65,35 @@ export function useCliAuthorizeProofState(
     }));
   }
 
-  async function onApprove(humanProof: string) {
-    setMark(null);
-    const ok = await onRespond("approve", humanProof);
-    if (!ok) {
-      noteFailure("CLI authorization failed", "That did not work.");
-      setMark("That did not work.");
-    }
-  }
-
   const runInput = {
     row,
     busy,
     onBusyChange,
-    onApprove,
-    onError: noteFailure,
-    clearMark: () => setMark(null),
+    onRespond,
+    onDone,
+    noteFailure,
     setMark,
+    clearMark: () => setMark(null),
   };
 
   return {
-    proofMode,
-    pin,
-    mark,
     canPasskey,
     canPin,
-    header,
+    pinOpen,
+    pin,
+    mark,
+    setPinOpen,
     setPin,
-    setProofMode,
-    provePasskey: () => void runPasskeyApprove(runInput),
+    provePasskey: () =>
+      void runCliAuthorizePasskeyProof({
+        ...runInput,
+        onNeedPin: () => {
+          if (canPin) setPinOpen(true);
+        },
+      }),
     provePin: (event: FormEvent) => {
       if (!header) return;
-      void runPinApprove({ ...runInput, pin, header, event });
+      void runCliAuthorizePinProof({ ...runInput, pin, header, event });
     },
   };
 }

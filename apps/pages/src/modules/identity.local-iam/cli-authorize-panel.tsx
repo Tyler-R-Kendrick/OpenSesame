@@ -1,24 +1,101 @@
+import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconX } from "../../components/Icons.js";
-import {
-  type CliAuthorizeRow,
-  cliAuthorizeAuthHeaders,
-  daemonOrigin,
-  parseFirstPending,
-  postCliAuthorizeRespond,
-} from "./cli-authorize-session.js";
-import { cliAuthorizeUi } from "./cli-authorize-ui.js";
+type CliAuthorizeRow = readonly [
+  requestId: string,
+  terminalSessionId: string,
+  verb: string,
+  respondNonce: string,
+];
 
-const ui = cliAuthorizeUi;
-
-const CliAuthorizeProofStage = lazy(() =>
-  import("./cli-authorize-proof-stage.js").then((m) => ({
-    default: m.CliAuthorizeProofStage,
+const CliAuthorizeApprove = lazy(() =>
+  import("./cli-authorize-approve.js").then((m) => ({
+    default: m.CliAuthorizeApprove,
   })),
 );
+
+function daemonOrigin(): string | null {
+  const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
+  try {
+    return new URL(raw.includes("://") ? raw : `http://${raw}`).origin.replace(
+      /\/$/,
+      "",
+    );
+  } catch {
+    return null;
+  }
+}
+
+function pageOrigin(): string | null {
+  try {
+    return window.location.origin;
+  } catch {
+    return null;
+  }
+}
+
+function parseFirst(body: BoundaryValue): CliAuthorizeRow | null {
+  if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
+  const entry = body.pending[0];
+  if (!isJsonObject(entry)) return null;
+  const requestId = readString(entry.requestId);
+  const terminalSessionId = readString(entry.terminalSessionId);
+  const verb = readString(entry.verb);
+  const respondNonce = readString(entry.respondNonce);
+  if (!requestId || !terminalSessionId || !verb || !respondNonce) return null;
+  return [requestId, terminalSessionId, verb, respondNonce];
+}
+
+function authHeaders(): Record<string, string> | null {
+  const token = readCliAppIntegrationBearer();
+  const origin = pageOrigin();
+  if (!token || !origin) return null;
+  return {
+    authorization: `Bearer ${token}`,
+    Origin: origin,
+  };
+}
+
+function CliAuthorizePendingPanel(props: {
+  row: CliAuthorizeRow | null | undefined;
+  busy: boolean;
+  onApprove: () => void;
+  onDeny: () => void;
+}) {
+  const { row, busy, onApprove, onDeny } = props;
+  return (
+    <section className="panel" aria-label="Authorize CLI">
+      <div className="panel__head">
+        <h1>Authorize CLI</h1>
+      </div>
+      <div className="panel__body">
+        {row === undefined ? <output>Reading CLI request…</output> : null}
+        {row === null ? <p>No CLI request is waiting.</p> : null}
+        {row ? (
+          <p>
+            <code className="identity-ref">{row[2]}</code>
+          </p>
+        ) : null}
+        {row ? (
+          <FormCommit label="Authorize" disabled={busy} onClick={onApprove}>
+            <IconKey label="Deny" disabled={busy} onClick={onDeny}>
+              <IconX size={16} />
+            </IconKey>
+          </FormCommit>
+        ) : null}
+      </div>
+    </section>
+  );
+}
 
 export function CliAuthorizePanel() {
   const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
@@ -28,7 +105,7 @@ export function CliAuthorizePanel() {
   useEffect(() => {
     void (async () => {
       const origin = daemonOrigin();
-      const headers = cliAuthorizeAuthHeaders();
+      const headers = authHeaders();
       if (!origin || !headers) return setRow(null);
       const res = await localNetworkFetch(
         `${origin}/v1/cli/app-integration/pending`,
@@ -40,7 +117,7 @@ export function CliAuthorizePanel() {
         },
       );
       if (!res.ok) return setRow(null);
-      setRow(parseFirstPending(await res.json()));
+      setRow(parseFirst(await res.json()));
     })();
   }, []);
 
@@ -50,9 +127,31 @@ export function CliAuthorizePanel() {
   ): Promise<boolean> {
     if (!row || busy) return false;
     setBusy(true);
-    const ok = await postCliAuthorizeRespond(row, decision, humanProof);
+    const origin = daemonOrigin();
+    const headers = authHeaders();
+    if (!origin || !headers) {
+      setBusy(false);
+      return false;
+    }
+    const body: Record<string, string> = {
+      requestId: row[0],
+      terminalSessionId: row[1],
+      decision,
+      respondNonce: row[3],
+    };
+    if (decision === "approve" && humanProof) body.humanProof = humanProof;
+    const res = await localNetworkFetch(
+      `${origin}/v1/cli/app-integration/respond`,
+      {
+        method: "POST",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      },
+    );
     setBusy(false);
-    if (ok) {
+    if (res.ok) {
       setRow(null);
       setApproving(false);
       return true;
@@ -60,18 +159,14 @@ export function CliAuthorizePanel() {
     return false;
   }
 
-  function closeProof() {
-    setApproving(false);
-  }
-
   if (approving && row) {
     return (
       <Suspense fallback={<output>Loading…</output>}>
-        <CliAuthorizeProofStage
+        <CliAuthorizeApprove
           row={row}
           busy={busy}
           onBusyChange={setBusy}
-          onClose={closeProof}
+          onDone={() => setApproving(false)}
           onRespond={respond}
         />
       </Suspense>
@@ -79,37 +174,11 @@ export function CliAuthorizePanel() {
   }
 
   return (
-    <section className="panel" aria-label={ui.sheetTitle}>
-      <div className="panel__head">
-        <h1>{ui.sheetTitle}</h1>
-      </div>
-      <div className="panel__body">
-        {row === undefined ? <output>Reading CLI request…</output> : null}
-        {row === null ? <p>No CLI request is waiting.</p> : null}
-        {row ? (
-          <>
-            <p>{ui.sheetLead}</p>
-            <p>
-              <code className="identity-ref">{row[2]}</code>
-            </p>
-          </>
-        ) : null}
-        {row ? (
-          <FormCommit
-            label={ui.allowKey}
-            disabled={busy}
-            onClick={() => setApproving(true)}
-          >
-            <IconKey
-              label={ui.denyKey}
-              disabled={busy}
-              onClick={() => void respond("deny")}
-            >
-              <IconX size={16} />
-            </IconKey>
-          </FormCommit>
-        ) : null}
-      </div>
-    </section>
+    <CliAuthorizePendingPanel
+      row={row}
+      busy={busy}
+      onApprove={() => setApproving(true)}
+      onDeny={() => void respond("deny")}
+    />
   );
 }
