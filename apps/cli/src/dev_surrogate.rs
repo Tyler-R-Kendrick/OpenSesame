@@ -36,10 +36,10 @@ use serde::Serialize;
 use serde_json::Value;
 use zeroize::Zeroizing;
 
+use crate::dev_run::credentials::{self, CredentialWire};
 #[cfg(test)]
 pub(crate) use crate::dev_run::entries::provider_of;
 pub(crate) use crate::dev_run::entries::run_entries;
-use crate::dev_run::credentials::{self, CredentialWire};
 use crate::dev_run::login::{self, LoginSource, LoginWire};
 
 /// The catalog id of the plugin this module drives.
