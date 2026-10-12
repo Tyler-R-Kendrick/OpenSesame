@@ -600,6 +600,14 @@
     }
   },
   {
+    "id": "identity.local.vault.transfer",
+    "title": "Transfer the open vault's ownership to another registered user of that vault",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault-ownership.ts:transferVaultOwnership"
+    }
+  },
+  {
     "id": "identity.notification.local.manage",
     "title": "Choose how this device tells its person a request is waiting",
     "plane": "client_local",

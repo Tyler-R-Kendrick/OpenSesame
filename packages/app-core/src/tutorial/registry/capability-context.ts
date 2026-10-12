@@ -19,6 +19,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vaults.duress-code": ["/settings/security"],
     "vaults.travel": ["/settings/security"],
     "settings.security.review": ["/settings/security"],
+    "settings.danger.review": ["/settings/danger"],
     "host.health.check": [],
     "identity.account.add": ["/identity"],
     "identity.users.manage": ["/identity"],

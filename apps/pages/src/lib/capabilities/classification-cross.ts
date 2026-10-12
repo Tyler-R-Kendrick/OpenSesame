@@ -70,6 +70,9 @@ const LOCAL_RECORDS = [
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",
+  // The Danger zone's Transfer ownership reads and writes the local directory
+  // from core Settings (ADR 0195).
+  "vault-ownership",
 ];
 
 /** The Identity panels the Access and federation surfaces draw. */

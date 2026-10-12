@@ -200,6 +200,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.local.directory.manage": "identity.local-iam",
     "identity.local.organizations.read": "identity.local-iam",
     "identity.local.organizations.membership.manage": "identity.local-iam",
+    "identity.local.vault.transfer": "identity.local-iam",
     "cli.app_integration.list": "identity.local-iam",
     "cli.app_integration.respond": "identity.local-iam",
     "identity.local.siop.authorize": "identity.siop",
