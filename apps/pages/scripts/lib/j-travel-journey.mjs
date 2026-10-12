@@ -32,7 +32,7 @@ const safeSwitch = (page, name) =>
   page.getByRole("switch", { name: `Safe for travel: ${name}` });
 
 /** Seal a named vault with this vault's key, then return to personal. */
-// CI: click races dialog teardown; Promise.all + retry below (journeys-2).
+// CI: click races dialog teardown; Promise.all click + retry below (journeys-2).
 async function sealNamed(page, name) {
   await page.getByRole("button", { name: "Seal a new vault" }).click();
   const dialog = page.getByRole("dialog", { name: "Seal a new vault" });
