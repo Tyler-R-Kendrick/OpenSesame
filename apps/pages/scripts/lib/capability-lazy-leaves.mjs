@@ -81,6 +81,11 @@ const LAZY_LEAVES = [
     "identity.ceremonies",
     "cap-identity.claim-different-link",
   ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize",
+    "identity.local-iam",
+    "cli-authorize",
+  ],
 ];
 
 export function lazyLeafChunk(id, entry) {
