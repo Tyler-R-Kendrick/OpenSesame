@@ -184,9 +184,7 @@ export async function passkeyJourneys({
         .count()) === 1,
       "still on Seal this device",
     );
-    await page
-      .getByRole("button", { name: /Notifications.*pending/ })
-      .click();
+    await page.getByRole("button", { name: /Notifications.*pending/ }).click();
     const tray = page.getByRole("dialog", { name: "Notifications" });
     const trayShown = await tray.waitFor({ timeout: 15000 }).then(
       () => true,

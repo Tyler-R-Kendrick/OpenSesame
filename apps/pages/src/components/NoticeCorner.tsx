@@ -3,10 +3,7 @@ import {
   subscribeNotices,
 } from "@opensesame/app-core/lib/notices.js";
 import { useSyncExternalStore } from "react";
-import {
-  NotificationsBar,
-  StatusNoticeCard,
-} from "./NotificationsBar.js";
+import { NotificationsBar, StatusNoticeCard } from "./NotificationsBar.js";
 
 /**
  * Bell for shellless screens; latest claim/drop failure paints in `data-c`.
