@@ -69,6 +69,7 @@ pub(crate) async fn pending(State(st): State<App>) -> Response {
                 "requestId": row.request_id,
                 "terminalSessionId": row.terminal_session_id,
                 "verb": row.verb,
+                "reference": row.reference,
             })
         })
         .collect::<Vec<_>>();

@@ -33,6 +33,7 @@ pub struct PendingRequest {
     pub request_id: String,
     pub terminal_session_id: String,
     pub verb: String,
+    pub reference: Option<String>,
 }
 
 /// In-memory integration state held by the daemon.
@@ -104,9 +105,9 @@ impl CliAppIntegrationStore {
                 request_id: request_id.clone(),
                 terminal_session_id: terminal_session_id.to_string(),
                 verb: verb.to_string(),
+                reference: reference.map(str::to_string),
             },
         );
-        let _ = reference;
         ("pending".into(), Some(request_id))
     }
 

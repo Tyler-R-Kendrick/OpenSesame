@@ -544,6 +544,22 @@
     }
   },
   {
+    "id": "cli.app_integration.list",
+    "title": "List pending CLI app-integration requests",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity"
+    }
+  },
+  {
+    "id": "cli.app_integration.respond",
+    "title": "Approve or deny CLI app-integration for this terminal",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/identity/authorize"
+    }
+  },
+  {
     "id": "identity.local.organizations.read",
     "title": "Read the organizations a signed-in local person or agent belongs to, and their members",
     "plane": "client_local",

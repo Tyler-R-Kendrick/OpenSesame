@@ -147,7 +147,7 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
   ),
   ...optional(
     "identity.local-iam",
-    "src/screens/LocalAuthorize",
+    "src/modules/identity.local-iam/AuthorizeConsentScreen",
     "src/lib/local-access-",
     "src/lib/local-agent-",
     "src/lib/local-application",

@@ -4,13 +4,13 @@ import {
 } from "@opensesame/static-auth";
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router";
-import { FailureNotice } from "../components/FailureNotice.js";
-import { FormCommit } from "../components/FormCommit.js";
-import { IconKey } from "../components/IconKey.js";
-import { IconPasskey, IconX } from "../components/Icons.js";
-import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
-import { useVault } from "../lib/vault/hooks.js";
-import { useLocalConsent } from "./useLocalConsent.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
+import { FormCommit } from "../../components/FormCommit.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconPasskey, IconX } from "../../components/Icons.js";
+import { firstControl, keyboardIsIdle, landFocus } from "../../lib/focus.js";
+import { useVault } from "../../lib/vault/hooks.js";
+import { useLocalConsent } from "../../screens/useLocalConsent.js";
 
 export function LocalAuthorize() {
   const { search } = useLocation();

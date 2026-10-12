@@ -1,4 +1,4 @@
-import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { cliAppIntegrationPolicyDocument } from "@opensesame/app-core/lib/cli-app-integration/policy.js";
 import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
   type: "json",
 };
@@ -75,12 +75,12 @@ export async function humanRevealAppIntegrationRefusal(
   });
   if (decision === "approve") return undefined;
   if (decision === "unavailable") {
-    return cliAppIntegrationPolicy.messages.appUnavailable;
+    return cliAppIntegrationPolicyDocument.messages.appUnavailable;
   }
   if (decision === "deny") {
-    return cliAppIntegrationPolicy.messages.denied;
+    return cliAppIntegrationPolicyDocument.messages.denied;
   }
-  return cliAppIntegrationPolicy.messages.denied;
+  return cliAppIntegrationPolicyDocument.messages.denied;
 }
 
 export async function assertHumanReveal(

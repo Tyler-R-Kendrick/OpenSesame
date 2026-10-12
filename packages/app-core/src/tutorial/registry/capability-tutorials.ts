@@ -75,6 +75,8 @@ export const CAPABILITY_TUTORIALS = {
   "identity.local.agent.keys.manage": "identity.local.agent.keys.manage",
   "identity.local.application.authorize":
     "identity.local.application.authorize",
+  "cli.app_integration.list": "identity.local.application.authorize",
+  "cli.app_integration.respond": "identity.local.application.authorize",
   "identity.local.siop.authorize": "identity.local.siop.authorize",
   "authority.portal.templates.manage": "authority.portal.templates.manage",
   "authority.portal.templates.read": "authority.portal.templates.read",
