@@ -6059,6 +6059,33 @@
     }
   },
   {
+    "id": "identity.local.vault.transfer",
+    "title": "Transfer the open vault's ownership to another registered user of that vault",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault-ownership.ts:transferVaultOwnership",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Handing a vault to another person is the owner's decision in the tab; the directory commit is not an RPC or agent surface",
+        "adr": "0105-browser-local-organization-membership.md"
+      },
+      "mcp_client": {
+        "reason": "Agents are never owners or admins and cannot receive or give a vault's ownership",
+        "adr": "0105-browser-local-organization-membership.md"
+      },
+      "webmcp": {
+        "reason": "Navigation may open Settings; transferring ownership is irreversible without the recipient and is never a model tool",
+        "adr": "0105-browser-local-organization-membership.md"
+      }
+    }
+  },
+  {
     "id": "identity.notification.local.manage",
     "title": "Choose how this device tells its person a request is waiting",
     "plane": "client_local",

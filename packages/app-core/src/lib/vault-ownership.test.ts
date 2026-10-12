@@ -1,0 +1,127 @@
+import { mintVaultKey } from "@opensesame/vault-core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { changeLocalDirectory } from "./local-directory-admin.js";
+import {
+  GUEST_PERSON_ID,
+  GUEST_PERSON_NAME,
+} from "./local-directory-bootstrap.js";
+import { type LocalDirectory, readLocalDirectory } from "./local-directory.js";
+import {
+  ownershipRecipients,
+  transferVaultOwnership,
+  vaultOwners,
+} from "./vault-ownership.js";
+import { lockAllTombs, unlockTomb } from "./vfs.js";
+
+let tomb: string;
+beforeEach(async () => {
+  tomb = `vault-ownership-${crypto.randomUUID()}`;
+  const { vaultKey } = await mintVaultKey();
+  unlockTomb(tomb, vaultKey);
+  let queue = Promise.resolve();
+  vi.stubGlobal("navigator", {
+    locks: {
+      request: (_name: string, run: () => Promise<LocalDirectory>) => {
+        const result = queue.then(run);
+        queue = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      },
+    },
+  });
+});
+afterEach(() => {
+  lockAllTombs();
+  vi.unstubAllGlobals();
+});
+
+type Change = Parameters<typeof changeLocalDirectory>[2];
+
+async function build() {
+  let dir = await changeLocalDirectory(tomb, 0, {
+    action: "create",
+    kind: "organization",
+    name: "Home",
+  });
+  const apply = async (change: Change) => {
+    dir = await changeLocalDirectory(tomb, dir.revision, change);
+    return dir;
+  };
+  const named = (name: string) => {
+    const found = dir.entries.find((entry) => entry.name === name);
+    if (!found) throw new Error(`${name} missing`);
+    return found;
+  };
+  const org = named("Home");
+  await apply({ action: "create", kind: "person", name: "Ada" });
+  await apply({ action: "create", kind: "person", name: "Grace" });
+  await apply({ action: "create", kind: "person", name: "Off" });
+  await apply({ action: "create", kind: "agent", name: "bot" });
+  await apply({
+    action: "create",
+    kind: "person",
+    name: GUEST_PERSON_NAME,
+    id: GUEST_PERSON_ID,
+  });
+  const ada = named("Ada");
+  const grace = named("Grace");
+  const off = named("Off");
+  await apply({
+    action: "membership",
+    organizationId: org.id,
+    principalId: ada.id,
+    role: "owner",
+  });
+  await apply({
+    action: "membership",
+    organizationId: org.id,
+    principalId: grace.id,
+    role: "member",
+  });
+  await apply({
+    action: "update",
+    id: off.id,
+    name: "Off",
+    enabled: false,
+  });
+  return { org, ada, grace, off, bot: named("bot") };
+}
+
+describe("vault ownership transfer", () => {
+  it("offers only registered users: no guest, agent, disabled person or the owner", async () => {
+    const s = await build();
+    const dir = await readLocalDirectory(tomb);
+    expect(vaultOwners(dir).map((e) => e.id)).toEqual([s.ada.id]);
+    expect(ownershipRecipients(dir, s.ada.id).map((e) => e.name)).toEqual([
+      "Grace",
+    ]);
+  });
+
+  it("makes the recipient owner and leaves the previous owner an admin", async () => {
+    const s = await build();
+    const after = await transferVaultOwnership(tomb, s.grace.id);
+    const role = (id: string) =>
+      after.memberships.find(
+        (row) => row.organizationId === s.org.id && row.principalId === id,
+      )?.role;
+    expect(role(s.grace.id)).toBe("owner");
+    expect(role(s.ada.id)).toBe("admin");
+  });
+
+  it("refuses a guest, an agent, a disabled person, an unknown id and the owner", async () => {
+    const s = await build();
+    for (const id of [
+      GUEST_PERSON_ID,
+      s.bot.id,
+      s.off.id,
+      "local_00000000-0000-4000-8000-0000000000ff",
+      s.ada.id,
+    ]) {
+      await expect(transferVaultOwnership(tomb, id)).rejects.toThrow();
+    }
+    const dir = await readLocalDirectory(tomb);
+    expect(vaultOwners(dir).map((e) => e.id)).toEqual([s.ada.id]);
+  });
+});
