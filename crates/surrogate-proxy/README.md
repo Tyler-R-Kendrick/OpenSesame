@@ -82,6 +82,7 @@ certificate reaches the child only through its own trust variables
 | `plugin::serve::serve` | Start the run, reply, write event lines while serving until stdin EOF, a signal or the TTL, then `end_and_revoke` and remove the CA file |
 | `plugin::source::CliTokenSource` | invoke-through's `source_tool` per provider, scrubbed env, timeout, capped capture |
 | `plugin::source::StaticCredential` | A connection's token the parent read from the person's sealed store and sent in the run spec's `credentials` row; held in memory for the run, never written or printed |
+| `plugin::upstream_override` | Cargo feature `upstream-override` only: aims the broker's upstream at a loopback server (`OPENSESAME_SURROGATE_TEST_UPSTREAM`). Absent from a shipped build, down to the variable's name |
 | `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`: noise to `notices.jsonl` (capped, rotated once), evidence to `tripwires.jsonl` (capped, never rotated) |
 
 ## The run lease and the tripwire (ADR 0150 §6.2)
@@ -122,6 +123,7 @@ identity-encoded, and scrubbed by `ResponseScrub` before the child sees it.
 
 ```bash
 cargo +1.88.0 test -p opensesame-surrogate-proxy
+cargo +1.88.0 test -p opensesame-surrogate-proxy --features upstream-override --test upstream_override
 ```
 
 `tests/end_to_end.rs` is ADR 0150's acceptance run against a loopback TLS
@@ -136,7 +138,11 @@ file, argv, environment, notice, stdout or stderr of the plugin.
 `tests/connection_credential.rs` redeems two connections of one provider for
 their own credentials on real sockets, and `tests/plugin_credentials.rs` runs
 the built plugin with a `credentials` row and proves the token is in nothing it
-writes. `tests/plugin_process.rs` runs the built plugin binary as a person's machine
+writes. `tests/upstream_override.rs` (feature `upstream-override`) runs the
+built plugin against a loopback TLS upstream standing in for `api.vercel.com`
+and reads the real credential off that wire; `tests/shipped_build.rs` proves a
+build without the feature contains no trace of the override.
+`tests/plugin_process.rs` runs the built plugin binary as a person's machine
 does: the install gate (not installed, off, forced off, pin mismatch), the
 reply, the TTL, `SIGTERM`, stdin close, and a misdirected surrogate becoming
 a notice line that never carries it.

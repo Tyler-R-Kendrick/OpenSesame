@@ -72,9 +72,36 @@ impl ServeOptions {
     /// process's environment.
     #[must_use]
     pub fn production() -> Self {
+        #[cfg(feature = "upstream-override")]
+        let invoker =
+            Arc::new(test_upstream().unwrap_or_else(|| Invoker::with_rules(providers::rules())));
+        #[cfg(not(feature = "upstream-override"))]
+        let invoker = Arc::new(Invoker::with_rules(providers::rules()));
         Self {
-            invoker: Arc::new(Invoker::with_rules(providers::rules())),
+            invoker,
             env: std::env::vars().collect(),
+        }
+    }
+}
+
+/// The test build's upstream override (`upstream_override`), if the
+/// environment names one. A value that is set and unusable ends the process
+/// before any run starts: a test that asked for a loopback upstream must not
+/// quietly run against the real one.
+#[cfg(feature = "upstream-override")]
+fn test_upstream() -> Option<Invoker> {
+    use super::upstream_override::{parse, ENV};
+    let value = std::env::var(ENV).ok().filter(|v| !v.is_empty())?;
+    let invoker = parse(&value).and_then(|over| {
+        let invoker = over.invoker()?;
+        eprintln!("{}", over.banner());
+        Ok(invoker)
+    });
+    match invoker {
+        Ok(invoker) => Some(invoker),
+        Err(error) => {
+            eprintln!("opensesame-surrogate-proxy: {error}");
+            std::process::exit(i32::from(super::EXIT_START_FAILED));
         }
     }
 }
