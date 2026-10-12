@@ -96,6 +96,37 @@ mod tests {
         }
     }
 
+    /// The command line links no plugin, so what it reads from the sealed store
+    /// is the plugin catalog's list (`spec/plugins/catalog.json`); this table
+    /// is what the broker admits. They must be the same providers, or the CLI
+    /// reads a token for a provider nothing serves, or serves one it never
+    /// reads a token for (ADR 0139).
+    #[test]
+    fn the_providers_taking_a_stored_credential_are_the_catalogs() {
+        use std::collections::BTreeSet;
+
+        let row = opensesame_plugin_settings::catalog()
+            .into_iter()
+            .find(|plugin| plugin.id == "surrogate-proxy")
+            .expect("the catalog row");
+        let listed: BTreeSet<&str> = row
+            .stored_credential_providers
+            .iter()
+            .map(String::as_str)
+            .collect();
+        let brokered: BTreeSet<&str> = CONNECTION_RULES
+            .iter()
+            .map(|rule| rule.provider_id)
+            .collect();
+        assert_eq!(listed, brokered);
+        for provider in &brokered {
+            assert!(opensesame_plugin_settings::takes_stored_credential(
+                "surrogate-proxy",
+                provider
+            ));
+        }
+    }
+
     #[test]
     fn the_shared_table_is_not_widened_for_the_plugin() {
         for rule in CONNECTION_RULES {
