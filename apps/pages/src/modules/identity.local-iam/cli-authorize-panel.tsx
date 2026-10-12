@@ -71,45 +71,37 @@ export function CliAuthorizePanel() {
     );
   }
 
-  if (row === undefined) return <output>Loading…</output>;
-  if (row === null) {
-    return (
-      <section className="panel" aria-label={ui.sheetTitle}>
-        <div className="panel__head">
-          <h1>{ui.sheetTitle}</h1>
-        </div>
-        <div className="panel__body">
-          <p>No pending CLI authorization.</p>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section className="panel" aria-label={ui.sheetTitle}>
       <div className="panel__head">
         <h1>{ui.sheetTitle}</h1>
-        <IconKey label="Close" onClick={() => setRow(null)} disabled={busy}>
-          <IconX size={16} />
-        </IconKey>
       </div>
       <div className="panel__body">
-        <p>{ui.sheetLead}</p>
-        <p>{row[2]}</p>
-        <FormCommit
-          primary={{
-            label: ui.allowKey,
-            busy,
-            disabled: busy,
-            onClick: () => setApproving(true),
-          }}
-          secondary={{
-            label: ui.denyKey,
-            busy,
-            disabled: busy,
-            onClick: () => void respond("deny"),
-          }}
-        />
+        {row === undefined ? <output>Reading CLI request…</output> : null}
+        {row === null ? <p>No CLI request is waiting.</p> : null}
+        {row ? (
+          <>
+            <p>{ui.sheetLead}</p>
+            <p>
+              <code className="identity-ref">{row[2]}</code>
+            </p>
+          </>
+        ) : null}
+        {row ? (
+          <FormCommit
+            label={ui.allowKey}
+            disabled={busy}
+            onClick={() => setApproving(true)}
+          >
+            <IconKey
+              label={ui.denyKey}
+              disabled={busy}
+              onClick={() => void respond("deny")}
+            >
+              <IconX size={16} />
+            </IconKey>
+          </FormCommit>
+        ) : null}
       </div>
     </section>
   );
