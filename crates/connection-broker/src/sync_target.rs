@@ -5,6 +5,9 @@
 //! invokes provider egress (`env.set` / `secrets.sync`). Catalog `doppler` is a
 //! `SaaS` connector — not this path — and nothing shells out to the Doppler CLI.
 
+#[path = "sync_target_authority.rs"]
+mod authority;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -216,10 +219,8 @@ fn operation_allowed(provider_id: &str, operation: &str) -> Result<()> {
 }
 
 impl ConnectionBroker {
-    /// # Errors
-    ///
-    /// Returns an error when validation, ownership, encryption, or storage fails.
-    pub async fn create_sync_target(
+    /// Insert metadata only. Callers must persist explicit authority separately.
+    async fn insert_sync_target_unapproved(
         &self,
         organization_id: &OrganizationId,
         request: CreateSyncTarget,
@@ -334,6 +335,7 @@ impl ConnectionBroker {
         if !store::delete_sync_target(&self.pool, &organization_id.to_string(), id).await? {
             return Err(BrokerError::SyncTargetNotFound);
         }
+        self.remove_sync_target_authority(id).await?;
         Ok(())
     }
 
@@ -349,6 +351,8 @@ impl ConnectionBroker {
         secrets: Arc<dyn SyncSecretSource>,
     ) -> Result<SyncOutcome> {
         let row = self.sync_target_in_org(organization_id, id).await?;
+        self.require_sync_target_authority(organization_id, &row)
+            .await?;
         if SyncTargetStatus::parse(&row.status) == SyncTargetStatus::Syncing {
             return Err(BrokerError::Invalid(
                 "sync already in progress for this target".into(),
@@ -489,12 +493,16 @@ impl ConnectionBroker {
     ) -> Result<String> {
         let target = self.sync_target_in_org(organization_id, target_id).await?;
         let key = *self.sealing_key()?;
+        self.require_sync_target_authority(organization_id, &target)
+            .await?;
         let entries = secrets
             .load_config_secrets(
                 &organization_id.to_string(),
                 &target.project_id,
                 &target.config_id,
             )
+            .await?;
+        self.require_sync_target_authority(organization_id, &target)
             .await?;
         Ok(content_version_for(&key, &target.id, &entries))
     }
@@ -547,12 +555,17 @@ impl ConnectionBroker {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
 
+        self.require_sync_target_authority(organization_id, target)
+            .await?;
         let entries = secrets
             .load_config_secrets(
                 &organization_id.to_string(),
                 &target.project_id,
                 &target.config_id,
             )
+            .await?;
+        // Do not export a snapshot when authority was revoked during loading.
+        self.require_sync_target_authority(organization_id, target)
             .await?;
         let key_names: Vec<String> = entries.keys().cloned().collect();
         let content_version = content_version_for(&key, &target.id, &entries);

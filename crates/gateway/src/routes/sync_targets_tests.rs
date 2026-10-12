@@ -73,6 +73,16 @@ async fn sync_target_crud_and_bus_without_secret_leak() {
         .await
         .unwrap();
 
+    // Session role evidence alone must never provision Host authority.
+    let principal = crate::middleware::auth::parse_principal(P06).unwrap();
+    opensesame_connection_broker::config_access::provision_native_role(
+        st.db.pool(),
+        &org,
+        &principal,
+        OrganizationRole::Admin,
+    )
+    .await
+    .unwrap();
     let headers = auth_headers(&st);
     let app = router(st.clone());
 
