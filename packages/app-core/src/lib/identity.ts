@@ -40,7 +40,8 @@ import {
   classifyThrown,
 } from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
-import { captureRemoteIdentityCodeData } from "./vault/captured-remote-code-data.js";
+import type { OriginalCommandDrainRecorder } from "./vault/original-command-retirement-data.js";
+import { captureOriginalIdentitySessionCodeData } from "./vault/original-identity-session-code-data.js";
 export { HostSessionError, IdentityError };
 export type { IdentitySession, Principal };
 
@@ -596,35 +597,14 @@ export function restoreSession(next: IdentitySession): void {
 }
 
 /** Original bearer transport DATA only; the private Store must prove primary/all configured factors. */
-export function captureOriginalIdentityCodeData(original: () => void) {
-  const active = session;
-  const epoch = sessionEpoch;
-  const base = loadSettings().identityApi.replace(/\/+$/u, "");
-  if (!active || active.cookieOnly || !active.accessToken || !base)
-    throw new Error("Original remote identity code transport is unavailable.");
-  const selected = Object.freeze({ ...active });
-  const check = () => {
-    original();
-    if (
-      session !== active ||
-      sessionEpoch !== epoch ||
-      loadSettings().identityApi.replace(/\/+$/u, "") !== base ||
-      active.principalId !== selected.principalId ||
-      active.accessToken !== selected.accessToken ||
-      active.issuerOrigin !== selected.issuerOrigin ||
-      active.cookieOnly !== selected.cookieOnly ||
-      active.expiresAt !== selected.expiresAt ||
-      (selected.expiresAt &&
-        (!Number.isFinite(Date.parse(selected.expiresAt)) ||
-          Date.parse(selected.expiresAt) <= Date.now()))
-    )
-      throw new Error("The original identity code transport ended.");
-  };
-  check();
-  return captureRemoteIdentityCodeData(
-    base,
-    selected.accessToken,
-    selected.issuerOrigin,
-    check,
+export function captureOriginalIdentityCodeData(
+  original: () => void,
+  drainFailed?: OriginalCommandDrainRecorder,
+) {
+  return captureOriginalIdentitySessionCodeData(
+    original,
+    () => session,
+    () => sessionEpoch,
+    drainFailed,
   );
 }

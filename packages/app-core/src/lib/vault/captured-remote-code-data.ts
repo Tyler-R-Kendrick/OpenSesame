@@ -3,6 +3,12 @@ import type { CodeChannel } from "@opensesame/vault-core";
 import { z } from "zod";
 import { host } from "../../host.js";
 import { assertUnambiguousJson } from "../retired-credentials/json-preflight.js";
+import {
+  type OriginalCommandDrainRecorder,
+  captureOriginalCommandResourceData,
+  disposeOriginalCommandData,
+  refuseOriginalCommandOutcomes,
+} from "./original-command-retirement-data.js";
 import type { SentCode } from "./remote-code.js";
 
 const actualHost = host;
@@ -16,16 +22,53 @@ function acknowledgementSchema() {
 function unavailable(): never {
   throw new Error("Original remote code authentication is unavailable.");
 }
+async function captureAcceptedResponseReader(
+  response: Response,
+  drainFailed?: OriginalCommandDrainRecorder,
+) {
+  return captureOriginalCommandResourceData(drainFailed, async () => {
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let cancel: ReadableStreamDefaultReader<Uint8Array>["cancel"] | undefined;
+    let release:
+      | ReadableStreamDefaultReader<Uint8Array>["releaseLock"]
+      | undefined;
+    try {
+      reader = response.body?.getReader();
+      if (!reader) return undefined;
+      // Retain disposal before any later delivered read slot can refuse.
+      release = reader.releaseLock;
+      cancel = reader.cancel;
+      const read = reader.read;
+      return { reader, read, cancel, release };
+    } catch (cause) {
+      const delivered = reader;
+      const actualCancel = cancel;
+      const actualRelease = release;
+      await disposeOriginalCommandData({ cause }, drainFailed, [
+        async () => {
+          if (delivered && actualCancel) await actualCancel.call(delivered);
+        },
+        async () => {
+          if (delivered && actualRelease) actualRelease.call(delivered);
+        },
+      ]);
+      throw cause;
+    }
+  });
+}
 /** Drain this accepted response with its original stream methods and bounded bytes. */
-async function readAcceptedCodeResponse(response: Response, check: () => void) {
+async function readAcceptedCodeResponse(
+  response: Response,
+  check: () => void,
+  drainFailed?: OriginalCommandDrainRecorder,
+) {
   const chunks: Uint8Array[] = [];
   let total = 0;
-  const reader = response.body?.getReader();
-  if (reader) {
-    const read = reader.read;
-    const cancel = reader.cancel;
-    const release = reader.releaseLock;
+  const accepted = await captureAcceptedResponseReader(response, drainFailed);
+  if (accepted) {
+    const { reader, read, cancel, release } = accepted;
     let complete = false;
+    let failure: ErrorOptions | undefined;
     try {
       for (;;) {
         check();
@@ -45,12 +88,17 @@ async function readAcceptedCodeResponse(response: Response, check: () => void) {
         if (total > 16384) unavailable();
         chunks.push(chunk.value.slice());
       }
+    } catch (cause) {
+      failure = { cause };
     } finally {
-      try {
-        if (!complete) await cancel.call(reader);
-      } finally {
-        release.call(reader);
-      }
+      await disposeOriginalCommandData(failure, drainFailed, [
+        async () => {
+          if (!complete) await cancel.call(reader);
+        },
+        async () => {
+          release.call(reader);
+        },
+      ]);
     }
   }
   const bytes = new Uint8Array(total);
@@ -75,6 +123,8 @@ class OriginalRemoteCodeData {
   readonly #base: string;
   readonly #accessToken: string;
   readonly #original: () => void;
+  readonly #drainFailed: OriginalCommandDrainRecorder | undefined;
+  readonly #drainFailures: unknown[] = [];
   readonly #controller = new AbortController();
   readonly #pending = new Set<Promise<unknown>>();
   #closed = false;
@@ -90,12 +140,14 @@ class OriginalRemoteCodeData {
     base: string,
     accessToken: string,
     original: () => void,
+    drainFailed?: OriginalCommandDrainRecorder,
   ) {
     this.#owner = owner;
     this.#fetch = actualFetch;
     this.#base = base;
     this.#accessToken = accessToken;
     this.#original = original;
+    this.#drainFailed = drainFailed;
     Object.freeze(this);
   }
   check = (): void => {
@@ -107,6 +159,18 @@ class OriginalRemoteCodeData {
       this.#controller.signal.aborted
     )
       unavailable();
+  };
+  #recordDrain = <T>(cause: T) => {
+    if (!this.#drainFailures.includes(cause)) this.#drainFailures.push(cause);
+    this.#drainFailed?.(cause);
+  };
+  #abort = () => {
+    try {
+      this.#controller.abort();
+    } catch (cause) {
+      this.#recordDrain(cause);
+      throw cause;
+    }
   };
   #run<T>(work: () => Promise<T>): Promise<T> {
     this.check();
@@ -121,7 +185,8 @@ class OriginalRemoteCodeData {
   }
   async #request(path: "send" | "verify", body: string) {
     this.check();
-    const timer = setTimeout(() => this.#controller.abort(), 8000);
+    const timer = setTimeout(this.#abort, 8000);
+    let failure: ErrorOptions | undefined;
     try {
       const actualFetch = this.#fetch;
       const response = await actualFetch(`${this.#base}/v1/mfa/code/${path}`, {
@@ -136,9 +201,20 @@ class OriginalRemoteCodeData {
         body,
         signal: this.#controller.signal,
       });
-      return await readAcceptedCodeResponse(response, this.check);
+      return await readAcceptedCodeResponse(
+        response,
+        this.check,
+        this.#recordDrain,
+      );
+    } catch (cause) {
+      failure = { cause };
+      throw cause;
     } finally {
-      clearTimeout(timer);
+      await disposeOriginalCommandData(failure, this.#recordDrain, [
+        async () => {
+          clearTimeout(timer);
+        },
+      ]);
     }
   }
   send = (channel: CodeChannel, to: string) =>
@@ -218,10 +294,16 @@ class OriginalRemoteCodeData {
   close = (): Promise<void> => {
     this.#closed = true;
     this.#challenge = undefined;
-    this.#controller.abort();
-    this.#draining ??= (async () => {
+    this.#draining ??= Promise.resolve().then(async () => {
+      try {
+        this.#abort();
+      } catch (cause) {
+        if (!this.#drainFailures.includes(cause))
+          this.#drainFailures.push(cause);
+      }
       while (this.#pending.size) await Promise.allSettled([...this.#pending]);
-    })();
+      refuseOriginalCommandOutcomes(this.#drainFailures);
+    });
     return this.#draining;
   };
 }
@@ -231,6 +313,7 @@ export function captureRemoteIdentityCodeData(
   accessToken: string,
   issuerOrigin: string,
   original: () => void,
+  drainFailed?: OriginalCommandDrainRecorder,
 ) {
   const owner = actualHost();
   const actualFetch = globalThis.fetch;
@@ -254,5 +337,6 @@ export function captureRemoteIdentityCodeData(
     base,
     accessToken,
     original,
+    drainFailed,
   );
 }
