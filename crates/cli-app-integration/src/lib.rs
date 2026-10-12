@@ -1,6 +1,10 @@
 //! CLI ↔ OpenSesame app integration (1Password-style terminal sessions).
+mod terminal_session;
+
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+
+pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
 
 const SOURCE: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
 
@@ -78,17 +82,23 @@ impl CliAppIntegrationStore {
         terminal_session_id: &str,
         verb: &str,
         reference: Option<&str>,
+        reuse_approved_session: bool,
     ) -> (String, Option<String>) {
         self.expire_idle();
         if self.denied.contains(terminal_session_id) {
             return ("denied".into(), None);
         }
         if let Some(session) = self.approved.get(terminal_session_id) {
-            if self.idle_expired(session) {
-                self.approved.remove(terminal_session_id);
+            if reuse_approved_session {
+                if self.idle_expired(session) {
+                    self.approved.remove(terminal_session_id);
+                } else {
+                    let session = self.approved.get_mut(terminal_session_id).expect("session");
+                    session.last_activity_ms = self.now_ms;
+                    return ("approved".into(), None);
+                }
             } else {
-                let session = self.approved.get_mut(terminal_session_id).expect("session");
-                session.last_activity_ms = self.now_ms;
+                self.approved.remove(terminal_session_id);
                 return ("approved".into(), None);
             }
         }
@@ -186,12 +196,26 @@ mod tests {
     }
 
     #[test]
+    fn tcp_transport_consumes_approval_once() {
+        let mut store = CliAppIntegrationStore::new();
+        store.set_now_ms(1_000);
+        let id = "tcp-attempt-1";
+        let (_, req) = store.ensure(id, "read", None, false);
+        let request_id = req.expect("pending");
+        assert_eq!(store.approve(&request_id, id), "approved");
+        let (status, _) = store.ensure(id, "read", None, false);
+        assert_eq!(status, "approved");
+        let (status, _) = store.ensure(id, "read", None, false);
+        assert_eq!(status, "pending");
+    }
+
+    #[test]
     fn conformance_session_cases() {
         let raw: Fixture = serde_json::from_str(SOURCE).unwrap();
         for case in raw.session_cases {
             let mut store = CliAppIntegrationStore::new();
             store.set_now_ms(1_000_000);
-            let pending = store.ensure(&case.terminal_session_id, "read", None);
+            let pending = store.ensure(&case.terminal_session_id, "read", None, true);
             assert_eq!(pending.0, "pending", "case {}", case.id);
             let request_id = pending.1.expect("request id");
             if case.action == "approve" {
@@ -207,14 +231,14 @@ mod tests {
                 } else {
                     case.terminal_session_id.as_str()
                 };
-                let (status, _) = store.ensure(query_id, "read", None);
+                let (status, _) = store.ensure(query_id, "read", None, true);
                 assert_eq!(status, case.expect_ensure, "case {}", case.id);
             } else if case.action == "deny" {
                 assert_eq!(
                     store.deny(&request_id, &case.terminal_session_id),
                     "denied"
                 );
-                let (status, _) = store.ensure(&case.terminal_session_id, "read", None);
+                let (status, _) = store.ensure(&case.terminal_session_id, "read", None, true);
                 assert_eq!(status, "denied", "case {}", case.id);
             }
         }

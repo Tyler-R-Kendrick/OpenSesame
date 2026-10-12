@@ -1,5 +1,5 @@
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import { deriveTerminalSessionId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
+import { ephemeralTerminalCorrelationId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -81,8 +81,6 @@ export function createCliAppIntegrationPort(): CliAppIntegrationPort {
   };
 }
 
-export function terminalSessionIdForReveal(
-  env: NodeJS.ProcessEnv = process.env,
-): string {
-  return deriveTerminalSessionId(env);
+export function terminalSessionIdForReveal(): string {
+  return ephemeralTerminalCorrelationId();
 }

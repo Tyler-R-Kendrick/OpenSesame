@@ -2,7 +2,9 @@
 #[path = "cli_app_integration_http.rs"]
 mod cli_app_integration_http;
 
-use cli_app_integration_http::post_json_loopback;
+use cli_app_integration_http::{post_json_loopback, post_json_uds};
+use opensesame_credential_helpers::{default_sock_path, ENV_SOCK};
+use std::path::PathBuf;
 use opensesame_cli_app_integration::{app_unavailable_message, denied_message};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
@@ -43,18 +45,10 @@ fn daemon_base() -> Option<String> {
     Some(with_scheme.trim_end_matches('/').to_string())
 }
 
-fn terminal_session_id() -> String {
-    if let Ok(id) = std::env::var("OPENSESAME_CLI_TERMINAL_SESSION_ID") {
-        let trimmed = id.trim();
-        if !trimmed.is_empty() {
-            return trimmed.to_string();
-        }
-    }
-    use sha2::{Digest, Sha256};
-    let tty = std::env::var("OPENSESAME_CLI_TTY").unwrap_or_default();
-    let shell_pid = std::env::var("OPENSESAME_CLI_SHELL_PID").unwrap_or_default();
-    let digest = Sha256::digest(format!("{tty}\0{shell_pid}").as_bytes());
-    hex::encode(digest)[..32].to_string()
+fn tcp_correlation_id() -> String {
+    use rand::Rng;
+    let bytes: [u8; 16] = rand::thread_rng().gen();
+    hex::encode(bytes)
 }
 
 #[derive(Debug, Deserialize)]
@@ -78,14 +72,20 @@ pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> 
     let policy = policy();
     let path = policy.daemon_paths.ensure.clone();
     let deadline = Instant::now() + Duration::from_secs(policy.request_timeout_seconds);
+    let tcp_correlation = tcp_correlation_id();
     let payload = serde_json::json!({
-        "terminalSessionId": terminal_session_id(),
+        "terminalSessionId": tcp_correlation,
         "verb": verb,
         "reference": reference,
     });
     let json_body = payload.to_string();
+    let daemon_sock = std::env::var_os(ENV_SOCK)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(default_sock_path);
     while Instant::now() < deadline {
-        let response = post_json_loopback(&base, &path, &json_body);
+        let response = post_json_uds(daemon_sock.as_path(), &path, &json_body)
+            .or_else(|()| post_json_loopback(&base, &path, &json_body));
         match response {
             Ok((404, _)) | Ok((503, _)) => {
                 anyhow::bail!("{}", app_unavailable_message());

@@ -18,6 +18,11 @@ pub(crate) fn test_operator_token() -> &'static str {
     &TOKEN
 }
 
+pub(crate) fn test_router(host_api: &str) -> (axum::Router, App) {
+    let state = test_state(host_api);
+    (super::router(state.clone()), state)
+}
+
 pub(crate) fn test_state(host_api: &str) -> App {
     let http = reqwest::Client::builder()
         .timeout(std::time::Duration::from_millis(400))
