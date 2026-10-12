@@ -12,7 +12,7 @@
 ## Context
 
 ADR 0185 promised each provider a contract, a route, or an explanation. The
-explanation was a catch-all. Walking the live catalog: **106 of 240 tiles** said
+explanation was a catch-all. Walking the live catalog: **141 of 240 tiles** said
 "Desktop app required", and a provider page said "this browser cannot run that
 companion and has no supported browser driver for it". The same words covered
 very different facts:
