@@ -54,8 +54,12 @@ export type DeviceJoinInput = Readonly<{
 export type DeviceSession = Readonly<{
   client: DeviceClient;
   guest: LiveGuest;
-  /** Leave the session: the owner's tab drops this seat and its grant. */
-  leave: () => void;
+  /**
+   * Leave the session: the owner's tab drops this seat and its grant.
+   * Resolves once the goodbye is on the relay, which is when the carriers
+   * may be closed — and they are.
+   */
+  leave: () => Promise<void>;
 }>;
 
 /** Whether the link names a carrier that can carry a session. */
@@ -147,9 +151,10 @@ export async function joinAsDevice(
   return {
     client,
     guest,
-    leave: () => {
+    leave: async () => {
       client.close();
       guest.leave();
+      await guest.left();
       rendezvous.close();
     },
   };

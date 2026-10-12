@@ -3,19 +3,24 @@
  * kind and a route, read as strictly as the rest of the pairing, and the owner
  * seats only what it can serve.
  */
+import type { JsonObject } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import { DeviceBroker } from "./device-broker.js";
 import { LiveGuest } from "./guest.js";
 import { LiveHost } from "./host.js";
 import { settle } from "./live-clock.fixture.js";
 import { FakeNet, fakeSdp } from "./live-fakes.js";
-import { readJoinReply, readJoinRequest } from "./messages.js";
+import {
+  type JoinRequest,
+  readJoinReply,
+  readJoinRequest,
+} from "./messages.js";
 import { makeRequestCode } from "./pairing.js";
 import { newKeypair, newRequestId } from "./seal.js";
 
 const ID = "A".repeat(22);
 const reads = (handshake: string) => handshake === fakeSdp("fake-1");
-const request = (extra: Record<string, unknown>) =>
+const request = (extra: JsonObject) =>
   JSON.stringify({
     id: ID,
     name: "laptop",
@@ -63,7 +68,7 @@ describe("a request's kind and route", () => {
 });
 
 describe("a reply with no answer", () => {
-  const reply = (body: Record<string, unknown>) =>
+  const reply = (body: JsonObject) =>
     JSON.stringify({ id: ID, answer: fakeSdp("fake-1"), ...body });
 
   it("is the owner's word that the relay carries the seat", () => {
@@ -92,10 +97,10 @@ afterEach(() => {
   for (const host of hosts.splice(0)) host.end();
 });
 
-async function open(options: {
-  devices?: boolean;
-  canRelay?: boolean;
-}) {
+/** What a session in these walks offers: devices, and a relay to carry one. */
+type Offering = Readonly<{ devices?: boolean; canRelay?: boolean }>;
+
+async function open(options: Offering) {
   const net = new FakeNet();
   const host = await LiveHost.start({
     admission: "open",
@@ -122,7 +127,10 @@ async function open(options: {
   return { host, net };
 }
 
-async function asked(host: LiveHost, extra: Record<string, unknown>) {
+async function asked(
+  host: LiveHost,
+  seat: Pick<JoinRequest, "kind" | "route">,
+) {
   const joiner = await newKeypair();
   const code = await makeRequestCode(host.link, host.code, joiner, {
     id: newRequestId(),
@@ -130,7 +138,7 @@ async function asked(host: LiveHost, extra: Record<string, unknown>) {
     note: "",
     offer: "",
     greets: true,
-    ...extra,
+    ...seat,
   });
   return host.receive(code);
 }

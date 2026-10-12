@@ -8,49 +8,51 @@ import type { ConnectionPort } from "./connection-port.js";
 import {
   CALL_TIMEOUT_MS,
   RESULT_BYTES,
+  reportOf,
   runCall,
-  shape,
 } from "./device-call.js";
 import { ITEMS_MAX } from "./device-messages.js";
 import { FAKE_CLOCK } from "./live-clock.fixture.js";
 
 afterEach(() => vi.useRealTimers());
 
-describe("shaping a result", () => {
+describe("rebuilding a result", () => {
   it("keeps the fields it knows and nothing a driver kept for itself", () => {
-    const shaped = shape({
-      label: "Vault",
-      items: [
-        {
-          id: "k1",
-          label: "kv/app",
-          url: "https://v.test/kv/app",
-          secretValue: "hunter2",
-          inputSchema: "{}",
-        },
-      ],
-      extra: "no",
-    });
-    expect(shaped).toEqual({
+    // What a driver holds at run time can be more than its type says.
+    const driverLine = {
+      id: "k1",
+      label: "kv/app",
+      url: "https://v.test/kv/app",
+      secretValue: "hunter2",
+      inputSchema: "{}",
+    };
+    const report = reportOf({ label: "Vault", items: [driverLine] });
+    expect(report).toEqual({
       label: "Vault",
       items: [{ id: "k1", label: "kv/app", url: "https://v.test/kv/app" }],
       truncated: false,
     });
-    expect(JSON.stringify(shaped)).not.toContain("hunter2");
+    expect(JSON.stringify(report)).not.toContain("hunter2");
   });
 
   it("cleans what a terminal would draw wrong", () => {
-    const shaped = shape({
+    const report = reportOf({
       label: "Re‮pos\u0007",
       items: [{ id: "a\nb", label: "x​y\ud800z" }],
     });
-    expect(shaped?.label).toBe("Re pos");
-    expect(shaped?.items).toEqual([{ id: "a b", label: "x y z" }]);
+    expect(report.label).toBe("Re pos");
+    expect(report.items).toEqual([{ id: "a b", label: "x y z" }]);
   });
 
-  it("falls back to the id for a missing label and drops a line with no id", () => {
+  it("falls back to the id for an empty label and drops a line with no id", () => {
     expect(
-      shape({ label: "L", items: [{ id: "only" }, { label: "x" }, 7, null] }),
+      reportOf({
+        label: "L",
+        items: [
+          { id: "only", label: "" },
+          { id: "\u0000", label: "x" },
+        ],
+      }),
     ).toEqual({
       label: "L",
       items: [{ id: "only", label: "only" }],
@@ -66,11 +68,11 @@ describe("shaping a result", () => {
       "javascript:alert(1)",
       "https://x.test/‮",
     ];
-    const shaped = shape({
+    const report = reportOf({
       label: "L",
       items: urls.map((url, i) => ({ id: `i${i}`, label: "l", url })),
     });
-    expect(shaped?.items.map((item) => item.url)).toEqual([
+    expect(report.items.map((item) => item.url)).toEqual([
       "https://ok.test/a",
       undefined,
       undefined,
@@ -79,14 +81,18 @@ describe("shaping a result", () => {
     ]);
   });
 
+  it("names an unlabelled result", () => {
+    expect(reportOf({ label: "  ", items: [] }).label).toBe("Result");
+  });
+
   it("cuts a long list and says so", () => {
     const items = Array.from({ length: ITEMS_MAX + 20 }, (_, i) => ({
       id: `i${i}`,
       label: "l",
     }));
-    const shaped = shape({ label: "L", items });
-    expect(shaped?.items).toHaveLength(ITEMS_MAX);
-    expect(shaped?.truncated).toBe(true);
+    const report = reportOf({ label: "L", items });
+    expect(report.items).toHaveLength(ITEMS_MAX);
+    expect(report.truncated).toBe(true);
   });
 
   it("halves a list that would not fit a frame", () => {
@@ -96,19 +102,11 @@ describe("shaping a result", () => {
       label: "😀".repeat(200),
       url: `https://x.test/${"z".repeat(400)}${i}`,
     }));
-    const shaped = shape({ label: "L", items });
-    expect(shaped?.truncated).toBe(true);
+    const report = reportOf({ label: "L", items });
+    expect(report.truncated).toBe(true);
     expect(
-      new TextEncoder().encode(JSON.stringify(shaped)).length,
+      new TextEncoder().encode(JSON.stringify(report)).length,
     ).toBeLessThanOrEqual(RESULT_BYTES);
-  });
-
-  it("is not an answer if it is not the shape of one", () => {
-    expect(shape(null)).toBeNull();
-    expect(shape("text")).toBeNull();
-    expect(shape({ label: "L" })).toBeNull();
-    expect(shape({ label: "L", items: "no" })).toBeNull();
-    expect(shape({ items: [] })).toMatchObject({ label: "Result" });
   });
 });
 
@@ -119,7 +117,7 @@ const portOf = (invoke: ConnectionPort["invoke"]): ConnectionPort => ({
 const CALL = { connection: "c", operation: "provider.read", input: {} };
 
 describe("running a call", () => {
-  it("returns the shaped answer", async () => {
+  it("returns the rebuilt answer", async () => {
     const called = await runCall(
       portOf(async () => ({ label: "L", items: [{ id: "a", label: "b" }] })),
       CALL,
@@ -127,7 +125,7 @@ describe("running a call", () => {
     );
     expect(called).toEqual({
       ok: true,
-      shaped: {
+      report: {
         label: "L",
         items: [{ id: "a", label: "b" }],
         truncated: false,
@@ -146,9 +144,15 @@ describe("running a call", () => {
     expect(called).toEqual({ ok: false, error: "upstream_error" });
   });
 
-  it("says upstream_error to an answer that is not one", async () => {
+  it("says upstream_error to an answer that cannot be rebuilt", async () => {
+    const broken = {
+      label: "x",
+      get items(): never {
+        throw new Error("not a list");
+      },
+    };
     const called = await runCall(
-      portOf(async () => "not an object" as never),
+      portOf(async () => broken),
       CALL,
       new AbortController().signal,
     );

@@ -18,6 +18,10 @@ export const MAX_GUESTS = 8;
 /** How long a seat that has ended stays listed before it is forgotten. */
 export const SEAT_GRACE_MS = 60_000;
 export const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
+/** How many distinct wrong codes are remembered; each still counts as a miss. */
+export const MISSED_MAX = 256;
+/** How many forgotten requests are remembered, so a repost is not seated again. */
+export const CLOSED_MAX = 256;
 
 export type Admission = "invite" | "open";
 
@@ -72,7 +76,7 @@ export type HostOptions = Readonly<{
   catalog: () => Catalog;
   readField: ReadField;
   /** Present when the session may write a shared field back. Absent denies. */
-  writeField?: WriteField;
+  writeField?: WriteField | undefined;
   /** What the link carries for joiners: ICE servers, relay only, carriers. */
   routes?: LiveRoutes;
   /** Where a reply code goes besides the owner's screen (a carrier). */
@@ -87,7 +91,7 @@ export type HostOptions = Readonly<{
    * Present when devices may ask to use the owner's connections (ADR 0195):
    * where the connections are. Absent, a device's request is not seated.
    */
-  devices?: Readonly<{ port: () => ConnectionPort | null }>;
+  devices?: Readonly<{ port: () => ConnectionPort | null }> | undefined;
   now?: () => number;
 }>;
 
@@ -107,3 +111,10 @@ export type HostSeat = {
   /** The seat's expiry while it waits, or its removal once it has ended. */
   timer: ReturnType<typeof setTimeout> | null;
 };
+
+/** The states in which a seat still counts toward the session's eight. */
+export const OPEN: ReadonlySet<GuestState> = new Set<GuestState>([
+  "asking",
+  "replied",
+  "joined",
+]);

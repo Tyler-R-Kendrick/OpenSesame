@@ -225,7 +225,7 @@ function readItem(value: BoundaryValue): DeviceItem | null {
   const { id, label, url } = value;
   if (!plain(id, ITEM_ID_MAX) || !plain(label, ITEM_LABEL_MAX)) return null;
   if (url === undefined) return { id, label };
-  return bounded(url, URL_MAX) && url.startsWith("https://")
+  return plain(url, URL_MAX) && url.startsWith("https://") && !/\s/u.test(url)
     ? { id, label, url }
     : null;
 }

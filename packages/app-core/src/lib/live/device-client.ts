@@ -95,6 +95,8 @@ export type AuthorizeOptions = Readonly<{
   signal?: AbortSignal;
 }>;
 
+export type ClientOptions = Readonly<{ replyMs?: number }>;
+
 /** How long one ask waits for its answer before the client gives up on it. */
 export const REPLY_MS = 30_000;
 
@@ -112,7 +114,7 @@ export class DeviceClient {
   #next = 0;
   #closed = false;
 
-  constructor(pipe: DevicePipe, options: { replyMs?: number } = {}) {
+  constructor(pipe: DevicePipe, options: ClientOptions = {}) {
     this.#pipe = pipe;
     this.#replyMs = options.replyMs ?? REPLY_MS;
     pipe.onMessage((message) => this.#route(message));
@@ -189,17 +191,20 @@ export class DeviceClient {
     // The begin's own number carries the owner's volunteered answer.
     const pushed = new Pushed();
     let beginReq = "";
-    const code = await this.#ask(
-      (req) => {
-        beginReq = req;
-        this.#pushes.set(req, (message) => pushed.put(message));
-        return { t: "dev.begin", req, want };
-      },
-      (message) => (message.t === "dev.code" ? message : null),
-    ).catch((error: unknown) => {
+    let code: Extract<DeviceReply, { t: "dev.code" }>;
+    try {
+      code = await this.#ask(
+        (req) => {
+          beginReq = req;
+          this.#pushes.set(req, (message) => pushed.put(message));
+          return { t: "dev.begin", req, want };
+        },
+        (message) => (message.t === "dev.code" ? message : null),
+      );
+    } catch (error) {
       this.#pushes.delete(beginReq);
       throw error;
-    });
+    }
     options.onCode?.({ userCode: code.userCode, expiresIn: code.expiresIn });
     try {
       return await this.#await(code, pushed, options.signal);

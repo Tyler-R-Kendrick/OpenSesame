@@ -62,7 +62,7 @@ export type HostPeerOptions = Readonly<{
   greets: boolean;
   catalog: () => Catalog;
   readField: ReadField;
-  writeField?: WriteField;
+  writeField?: WriteField | undefined;
   expiresAt: number;
   now: () => number;
   onJoined: () => void;

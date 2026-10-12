@@ -233,6 +233,18 @@ function readOffer(
   return body.offer === undefined || body.offer === "" ? "" : null;
 }
 
+/** Who is asking and how they will arrive, with the offer that route needs. */
+function readSeat(
+  body: JsonObject,
+  reads: HandshakeReader,
+): Readonly<{ kind: SeatKind; route: SeatRoute; offer: string }> | null {
+  const kind = readKind(body.kind);
+  const route = readRoute(body.route);
+  if (kind === null || route === null) return null;
+  const offer = readOffer(body, route, reads);
+  return offer === null ? null : { kind, route, offer };
+}
+
 /** The request inside a request code, or null; `reads` judges its offer. */
 export function readJoinRequest(
   raw: string,
@@ -245,12 +257,9 @@ export function readJoinRequest(
   const name = readText(body.name, NAME_MAX);
   const note = readText(body.note, NOTE_MAX);
   const greets = readGreets(body.greets);
-  const kind = readKind(body.kind);
-  const route = readRoute(body.route);
   if (!name || note === null || greets === null) return null;
-  if (kind === null || route === null) return null;
-  const offer = readOffer(body, route, reads);
-  return offer === null ? null : { id, name, note, offer, greets, kind, route };
+  const seat = readSeat(body, reads);
+  return seat ? { id, name, note, greets, ...seat } : null;
 }
 
 /**
@@ -338,10 +347,8 @@ function readEdit(body: JsonObject): ChannelMessage | null {
     : null;
 }
 
-/** One data-channel message, or null. */
-export function readChannelMessage(raw: string): ChannelMessage | null {
-  const body = parse(raw, 1024 * 1024);
-  if (!body) return null;
+/** One of the vault vocabulary's messages, or null. */
+function readVaultMessage(body: JsonObject): ChannelMessage | null {
   const { t, req } = body;
   switch (t) {
     case "catalog": {
@@ -363,8 +370,16 @@ export function readChannelMessage(raw: string): ChannelMessage | null {
     case "edit":
       return readEdit(body);
     default:
-      return isString(t) && isDeviceMessage({ t })
-        ? readDeviceMessage(t, body)
-        : null;
+      return null;
   }
+}
+
+/** One data-channel message, or null. */
+export function readChannelMessage(raw: string): ChannelMessage | null {
+  const body = parse(raw, 1024 * 1024);
+  if (!body) return null;
+  const { t } = body;
+  return isString(t) && isDeviceMessage({ t })
+    ? readDeviceMessage(t, body)
+    : readVaultMessage(body);
 }

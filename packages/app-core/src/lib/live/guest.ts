@@ -69,6 +69,7 @@ export class LiveGuest {
   #keys: Keypair | null = null;
   readonly #reposts = new Reposter();
   #device: ((message: DeviceMessage) => void) | null = null;
+  #farewell: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: GuestOptions) {}
 
@@ -143,10 +144,10 @@ export class LiveGuest {
       note: cleanText(note),
       offer: peer?.handshake ?? "",
       greets: true,
-      // Said only when not the default, so an owner from before them still
-      // reads an ordinary request.
-      ...(kind === "device" ? { kind } : {}),
-      ...(route === "relay" ? { route } : {}),
+      // An owner from before these fields ignores them; one that knows them
+      // reads who is asking and how they will arrive.
+      kind: kind ?? "person",
+      route: route ?? "peer",
     });
     if (this.#status.at === "preparing") {
       this.#to({ at: "request", code: request });
@@ -365,6 +366,7 @@ export class LiveGuest {
     this.#channel = null;
     this.#peer = null;
     channel?.close();
+    this.#farewell = channel?.drained?.() ?? this.#farewell;
     peer?.close();
   }
 
@@ -382,6 +384,11 @@ export class LiveGuest {
     this.#drop();
     // The catalog goes with the status it rode on.
     this.#to(end);
+  }
+
+  /** After a leave: the goodbye is out, so the carriers may be closed. */
+  left(): Promise<void> {
+    return this.#farewell;
   }
 
   /** Leave, dropping everything held; the owner sees the channel close. */

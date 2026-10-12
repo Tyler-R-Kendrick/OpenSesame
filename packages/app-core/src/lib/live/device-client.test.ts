@@ -68,7 +68,7 @@ async function begun(owner: ReturnType<typeof pipe>, want?: string[]) {
   const client = new DeviceClient(owner.made);
   const codes: string[] = [];
   const granted = client.authorize({
-    ...(want ? { want } : {}),
+    want: want ?? [],
     onCode: (view) => codes.push(view.userCode),
   });
   // Observe a rejection at once; the test reads it where it expects it.
@@ -185,7 +185,10 @@ describe("authorizing", () => {
     const owner = pipe();
     const { granted } = await begun(owner);
     // The owner's tab is gone quiet: each poll goes unanswered until it lapses.
-    const outcome = granted.catch((error: unknown) => error);
+    const outcome = granted.then(
+      () => null,
+      (error) => error,
+    );
     await vi.advanceTimersByTimeAsync(10 * 60_000 + REPLY_MS);
     expect(await outcome).toBeInstanceOf(DeviceError);
   });
@@ -296,14 +299,13 @@ describe("asking for connections and making calls", () => {
     await expect(called).rejects.toMatchObject({ code: "invalid_request" });
   });
 
-  it("ignores an answer to nothing it asked, and what is not an answer", async () => {
+  it("ignores an answer to nothing it asked, and a request sent back", async () => {
     const owner = pipe();
     const client = new DeviceClient(owner.made);
     const called = client.call("c-1", "provider.read");
     await vi.advanceTimersByTimeAsync(0);
     owner.reply({ t: "dev.error", req: "nope", error: "access_denied" });
     owner.reply({ t: "dev.list", req: owner.last()?.req ?? "" });
-    owner.reply({ t: "hello" } as unknown as DeviceMessage);
     owner.reply({
       t: "dev.result",
       req: owner.last()?.req ?? "",

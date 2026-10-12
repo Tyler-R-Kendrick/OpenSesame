@@ -29,16 +29,21 @@ import {
 import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { DeviceRequests } from "./LiveHostDevices.js";
 import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
 
-function Log({ state }: { state: HostState }) {
+function Log({ host, state }: { host: LiveHost; state: HostState }) {
   const { items } = useVault();
   if (state.log.length === 0) return null;
   const names = new Map(state.guests.map((guest) => [guest.key, guest.name]));
+  // A line is about an item of the vault, or — a device's call — a connection.
+  const connections = host.devices?.offered() ?? [];
   const itemName = (id: string) =>
-    items.find((item) => item.id === id)?.name ?? id;
+    items.find((item) => item.id === id)?.name ??
+    connections.find((connection) => connection.id === id)?.label ??
+    id;
   return (
     <ul className="live-log" aria-label="Handed out">
       {[...state.log].reverse().map((entry) => (
@@ -139,7 +144,8 @@ export function LiveHostSession({
       {state.guests.map((guest) => (
         <GuestRow key={guest.key} host={host} guest={guest} />
       ))}
-      <Log state={state} />
+      <DeviceRequests host={host} state={state} />
+      <Log host={host} state={state} />
     </div>
   );
 }

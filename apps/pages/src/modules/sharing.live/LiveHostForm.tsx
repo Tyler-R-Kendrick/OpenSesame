@@ -2,19 +2,17 @@
  * Starting a live session (ADR 0150 §2): what it shares, how, for how long,
  * and who gets in. Nothing but the carriers the owner named leaves this
  * browser until someone is let in: the peer connection, its ICE servers and
- * address hints wait for admission.
+ * address hints wait for admission. Where the app has a connection to lend, the
+ * owner also says whether a device may ask to use them (ADR 0195).
  */
 
-import { liveHostStartDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
-import type { Admission } from "@opensesame/app-core/lib/live/host.js";
-import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
-import { useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlay } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import {
   ADMISSIONS,
+  DEVICES,
   DURATIONS,
   ItemChoice,
   POLICIES,
@@ -22,72 +20,75 @@ import {
   SCOPES,
   routesSummary,
 } from "./live-host-form-parts.js";
-import { startInput, useStartSession } from "./live-start.js";
-import { useLiveTransport } from "./live-transport-hooks.js";
+import { useHostForm } from "./live-host-form-state.js";
 
 export { routesSummary } from "./live-host-form-parts.js";
 
 export function LiveHostForm() {
-  const [title, setTitle] = useState("");
-  const [scope, setScope] = useState<"vault" | "items">("items");
-  const [chosen, setChosen] = useState<Set<string>>(() => new Set());
-  const [policy, setPolicy] = useState<SharePolicy>("use");
-  const [admission, setAdmission] = useState<Admission>("invite");
-  const [minutes, setMinutes] = useState(60);
-  const { starting, failed, start } = useStartSession();
-  const { transport, loaded, refused } = useLiveTransport();
-  const ready =
-    loaded &&
-    refused === null &&
-    !starting &&
-    title.trim().length > 0 &&
-    (scope === "vault" || chosen.size > 0);
-
+  const {
+    values,
+    set,
+    lend,
+    ready,
+    reason,
+    transport,
+    refused,
+    failed,
+    submit,
+  } = useHostForm();
   return (
     <form
       className="setup__stack"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!ready) return;
-        start(startInput({ title, scope, chosen, policy, admission, minutes }));
+        submit();
       }}
     >
       <FieldShell
         id="live-title"
         label="Session name"
-        value={title}
-        onValueChange={(next) => setTitle(next.slice(0, 64))}
+        value={values.title}
+        onValueChange={(next) => set.title(next.slice(0, 64))}
       />
       <Pick
         id="live-scope"
         name="Share"
-        value={scope}
-        options={SCOPES}
-        onChange={setScope}
+        value={values.scope}
+        options={lend ? SCOPES : SCOPES.filter((one) => one.value !== "none")}
+        onChange={set.scope}
       />
-      {scope === "items" ? (
-        <ItemChoice chosen={chosen} onChange={setChosen} />
+      {values.scope === "items" ? (
+        <ItemChoice chosen={values.chosen} onChange={set.chosen} />
       ) : null}
       <Pick
         id="live-policy"
         name="Values"
-        value={policy}
+        value={values.policy}
         options={POLICIES}
-        onChange={setPolicy}
+        onChange={set.policy}
       />
+      {lend ? (
+        <Pick
+          id="live-devices"
+          name="Devices"
+          value={values.devices}
+          options={DEVICES}
+          onChange={set.devices}
+        />
+      ) : null}
       <Pick
         id="live-admission"
         name="Who gets in"
-        value={admission}
+        value={values.admission}
         options={ADMISSIONS}
-        onChange={setAdmission}
+        onChange={set.admission}
       />
       <Pick
         id="live-minutes"
         name="For"
-        value={minutes}
+        value={values.minutes}
         options={DURATIONS}
-        onChange={setMinutes}
+        onChange={set.minutes}
       />
       {refused ? (
         <StatusMark tone="err" label={refused} />
@@ -98,18 +99,7 @@ export function LiveHostForm() {
       <FormCommit
         label="Start the live session"
         disabled={!ready}
-        disabledReason={
-          !ready
-            ? liveHostStartDisabledReason({
-                loaded,
-                refused,
-                starting,
-                title,
-                scope,
-                chosenCount: chosen.size,
-              })
-            : undefined
-        }
+        disabledReason={reason}
         icon={<IconPlay size={18} />}
       />
     </form>

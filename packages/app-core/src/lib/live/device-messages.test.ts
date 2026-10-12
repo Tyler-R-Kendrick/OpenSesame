@@ -3,6 +3,7 @@
  * session's channel (ADR 0195): anything that does not match exactly is
  * dropped, never read as the nearest thing it resembles.
  */
+import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import {
   CONNECTIONS_MAX,
@@ -15,8 +16,7 @@ import {
 } from "./device-messages.js";
 import { readChannelMessage } from "./messages.js";
 
-const wire = (body: Record<string, unknown>) =>
-  readChannelMessage(JSON.stringify(body));
+const wire = (body: JsonObject) => readChannelMessage(JSON.stringify(body));
 
 const CODE = "A".repeat(22);
 const CONNECTION = {
@@ -82,7 +82,7 @@ describe("a device's requests", () => {
       operation: "provider.repositories.read",
       input: { page: "2" },
     });
-    const call = (extra: Record<string, unknown>) =>
+    const call = (extra: JsonObject) =>
       wire({
         t: "dev.call",
         req: "r1",
@@ -163,7 +163,7 @@ describe("the owner's answers", () => {
   });
 
   it("bounds connections, their operations and what they are called", () => {
-    const conns = (connections: unknown) =>
+    const conns = (connections: JsonValue) =>
       wire({ t: "dev.conns", req: "r1", connections });
     expect(conns([CONNECTION])).toEqual({
       t: "dev.conns",
@@ -192,7 +192,7 @@ describe("the owner's answers", () => {
   });
 
   it("reads a result and bounds its lines", () => {
-    const result = (extra: Record<string, unknown>) =>
+    const result = (extra: JsonObject) =>
       wire({
         t: "dev.result",
         req: "r1",

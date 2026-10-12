@@ -16,7 +16,12 @@
  * one is never listed.
  */
 
-import type { DeviceConnection, DeviceItem } from "./device-messages.js";
+import {
+  type DeviceConnection,
+  type DeviceItem,
+  OPERATIONS_MAX,
+  isOperationId,
+} from "./device-messages.js";
 
 export type SessionConnection = DeviceConnection;
 
@@ -47,9 +52,12 @@ function changed(): void {
   for (const listener of [...listeners]) listener();
 }
 
-/** Bind the port for the life of one activation; returns how to release it. */
+/**
+ * Bind the port for the life of one activation; returns how to release it. A
+ * port it replaces is simply replaced, and its release then leaves the new
+ * one alone — the same shape as the model-key broker's binding.
+ */
 export function bindConnectionPort(port: ConnectionPort): () => void {
-  if (bound) throw new Error("The session connection port is already bound");
   bound = port;
   changed();
   return () => {
@@ -78,4 +86,44 @@ export function onConnectionPort(listener: () => void): () => void {
  */
 export function revealsSecret(operation: string): boolean {
   return /secret|credential|password|token|api_?key/i.test(operation);
+}
+
+const CONNECTION_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+const PROVIDER_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Zl}\p{Zp}]/gu;
+const LABEL_MAX = 120;
+
+/**
+ * A connection as the wire may carry it, or null if it cannot be named there.
+ * A label the owner typed can hold anything, and a device's reader refuses a
+ * message it cannot read whole — so what is sent is cleaned first, and an id
+ * the grammar cannot spell is a connection a device is not offered.
+ */
+export function wireConnection(
+  held: SessionConnection,
+): DeviceConnection | null {
+  if (!CONNECTION_ID.test(held.id)) return null;
+  const label = [
+    ...held.label.replace(UNSAFE, " ").replace(/\s+/gu, " ").trim(),
+  ]
+    .slice(0, LABEL_MAX)
+    .join("");
+  return {
+    id: held.id,
+    label: label === "" ? held.id : label,
+    provider: PROVIDER_ID.test(held.provider) ? held.provider : "other",
+    operations: held.operations
+      .filter((entry) => isOperationId(entry) && !revealsSecret(entry))
+      .slice(0, OPERATIONS_MAX),
+  };
+}
+
+/** What a port offers a device, as the wire may carry it. */
+export function offeredBy(
+  port: ConnectionPort | null,
+): readonly DeviceConnection[] {
+  return (port?.list() ?? []).flatMap((held) => {
+    const wire = wireConnection(held);
+    return wire ? [wire] : [];
+  });
 }

@@ -25,13 +25,15 @@ import { DeviceBroker } from "./device-broker.js";
 import { NO_DEVICES } from "./device-types.js";
 import { HostPeer, type LogEntry } from "./host-peer.js";
 import {
+  CLOSED_MAX,
   type Guest,
-  type GuestState,
   type HostOptions,
   type HostState,
   MAX_GUESTS,
   MAX_MISSES,
   MAX_SESSION_MS,
+  MISSED_MAX,
+  OPEN,
   type Received,
   SEAT_GRACE_MS,
   type HostSeat as Seat,
@@ -40,31 +42,14 @@ import type { LiveLink } from "./link.js";
 import type { JoinRequest } from "./messages.js";
 import { PAIRING_MS } from "./p2p.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
+import type { Carrier } from "./rendezvous.js";
 import { NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 import { seatName } from "./seat-channel.js";
 
-export {
-  MAX_GUESTS,
-  MAX_MISSES,
-  MAX_SESSION_MS,
-  SEAT_GRACE_MS,
-} from "./host-types.js";
-export type {
-  Admission,
-  Guest,
-  GuestState,
-  HostOptions,
-  HostState,
-  Received,
-} from "./host-types.js";
+// What a host is made of lives in `host-types.ts`; it is named here as well.
+export * from "./host-types.js";
 
-/** How many distinct wrong codes are remembered; each still counts as a miss. */
-const MISSED_MAX = 256;
-/** How many forgotten requests are remembered, so a repost is not seated again. */
-const CLOSED_MAX = 256;
-
-const OPEN = new Set<GuestState>(["asking", "replied", "joined"]);
 const seatState = (seat: Seat | undefined) => seat?.guest.state;
 
 /** One live session, hosted by this tab. */
@@ -261,21 +246,9 @@ export class LiveHost {
     return { kind: "guest", key };
   }
 
-  /** Let an asker in: only now is their offer answered. */
-  async admit(key: string): Promise<void> {
-    const seat = this.#seats.get(key);
-    if (!seat || seat.guest.state !== "asking" || this.#ended) return;
-    // `peer.open` waits on the browser: a second admit must not start beside it.
-    if (seat.admitting) return;
-    seat.admitting = true;
-    const relay = this.options.relay?.(seatName(key)) ?? null;
-    if (seat.route === "relay" && !relay) {
-      // The relay went away since the request was taken: nothing can carry it.
-      seat.admitting = false;
-      this.#drop(key, "gone");
-      return;
-    }
-    const peer = new HostPeer({
+  /** The seat's peer: what it will be shown, and how its life reports back. */
+  #peerFor(key: string, seat: Seat, relay: Carrier | null): HostPeer {
+    const peer: HostPeer = new HostPeer({
       relayed: relay !== null,
       route: seat.route,
       kind: seat.kind,
@@ -299,6 +272,36 @@ export class LiveHost {
       },
       onLog: (entry) => this.#record(entry),
     });
+    return peer;
+  }
+
+  /**
+   * The asker to admit and the relay that will carry it, or null when it
+   * cannot be admitted now. A second admit must not start beside one that is
+   * waiting on the browser (`peer.open`), and a relay-only asker whose relay
+   * went away since its request was taken has nothing to be carried by.
+   */
+  #admission(
+    key: string,
+  ): Readonly<{ seat: Seat; relay: Carrier | null }> | null {
+    const seat = this.#seats.get(key);
+    if (!seat || seat.guest.state !== "asking" || this.#ended) return null;
+    if (seat.admitting) return null;
+    const relay = this.options.relay?.(seatName(key)) ?? null;
+    if (seat.route === "relay" && !relay) {
+      this.#drop(key, "gone");
+      return null;
+    }
+    seat.admitting = true;
+    return { seat, relay };
+  }
+
+  /** Let an asker in: only now is their offer answered. */
+  async admit(key: string): Promise<void> {
+    const admission = this.#admission(key);
+    if (!admission) return;
+    const { seat, relay } = admission;
+    const peer = this.#peerFor(key, seat, relay);
     seat.peer = peer;
     try {
       const answer = await peer.open(seat.offer);

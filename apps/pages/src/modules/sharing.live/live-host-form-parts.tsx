@@ -12,9 +12,15 @@ import { useVault } from "../../lib/vault/hooks.js";
 
 type Choice<T extends string | number> = Readonly<{ value: T; label: string }>;
 
-export const SCOPES: readonly Choice<"vault" | "items">[] = [
+export const SCOPES: readonly Choice<"vault" | "items" | "none">[] = [
   { value: "vault", label: "The whole vault" },
   { value: "items", label: "Chosen items" },
+  { value: "none", label: "Nothing" },
+];
+/** Whether a device may ask to use the owner's connections (ADR 0195). */
+export const DEVICES: readonly Choice<"no" | "ask">[] = [
+  { value: "no", label: "Not allowed" },
+  { value: "ask", label: "May ask" },
 ];
 export const POLICIES: readonly Choice<SharePolicy>[] = [
   { value: "read", label: "Show values" },
@@ -26,6 +32,14 @@ export const ADMISSIONS: readonly Choice<Admission>[] = [
   { value: "open", label: "Anyone with the link" },
 ];
 export const DURATIONS: readonly Choice<number>[] = [
+  { value: 15, label: "15 minutes" },
+  { value: 60, label: "1 hour" },
+  { value: 240, label: "4 hours" },
+  { value: 480, label: "8 hours" },
+];
+
+/** How long an allowed device keeps its grant; the session's end comes first. */
+export const DEVICE_DURATIONS: readonly Choice<number>[] = [
   { value: 15, label: "15 minutes" },
   { value: 60, label: "1 hour" },
   { value: 240, label: "4 hours" },

@@ -19,12 +19,21 @@ import { settledTransport } from "./live-transport-hooks.js";
 /** What the Form holds at the press. */
 export type StartForm = Readonly<{
   title: string;
-  scope: "vault" | "items";
+  scope: "vault" | "items" | "none";
   chosen: ReadonlySet<string>;
   policy: SharePolicy;
   admission: Admission;
   minutes: number;
+  /** Devices may ask to use the owner's connections (ADR 0195). */
+  devices: boolean;
 }>;
+
+function shareScope(form: StartForm): HostInput["scope"] {
+  if (form.scope === "none") return { kind: "none" };
+  return form.scope === "vault"
+    ? { kind: "vault" }
+    : { kind: "items", ids: [...form.chosen] };
+}
 
 /**
  * The session's input: the press's fields as they stand now, and the routes
@@ -35,13 +44,11 @@ export type StartForm = Readonly<{
 export async function startInput(form: StartForm): Promise<HostInput> {
   const fields: Omit<HostInput, "routes"> = {
     title: form.title.trim(),
-    scope:
-      form.scope === "vault"
-        ? { kind: "vault" }
-        : { kind: "items", ids: [...form.chosen] },
+    scope: shareScope(form),
     policy: form.policy,
     admission: form.admission,
     minutes: form.minutes,
+    devices: form.devices,
     transport: liveUiSeams.transport,
     carriers: liveUiSeams.carriers,
   };

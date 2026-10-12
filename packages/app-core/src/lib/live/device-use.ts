@@ -10,8 +10,11 @@
  * no place on this road.
  */
 
-import type { ConnectionPort } from "./connection-port.js";
-import { revealsSecret } from "./connection-port.js";
+import {
+  type ConnectionPort,
+  offeredBy,
+  revealsSecret,
+} from "./connection-port.js";
 import { runCall } from "./device-call.js";
 import type { DeviceErrorCode, DeviceRequest } from "./device-messages.js";
 import {
@@ -56,10 +59,9 @@ function barred(
   grant: Grant,
   request: Call,
 ): DeviceErrorCode | null {
-  const held = context
-    .port()
-    ?.list()
-    .find((entry) => entry.id === request.connection);
+  const held = offeredBy(context.port()).find(
+    (entry) => entry.id === request.connection,
+  );
   if (!held || !grant.connections.has(request.connection))
     return "access_denied";
   if (revealsSecret(request.operation)) return "unsupported_operation";
@@ -110,7 +112,7 @@ export async function answerCall(
       connection,
       operation,
     });
-    seat.send({ t: "dev.result", req: request.req, ...called.shaped });
+    seat.send({ t: "dev.result", req: request.req, ...called.report });
     context.changed();
   } finally {
     grant.inFlight -= 1;

@@ -14,11 +14,12 @@
  * again. The broker keeps nothing in storage.
  */
 
-import type { ConnectionPort } from "./connection-port.js";
-import { revealsSecret } from "./connection-port.js";
+import type { ManageGrants } from "../proofs/share-write.js";
+import { type ConnectionPort, offeredBy } from "./connection-port.js";
 import type {
   DeviceAuthState,
   DeviceConnection,
+  DeviceErrorCode,
   DeviceReply,
   DeviceRequest,
 } from "./device-messages.js";
@@ -89,10 +90,7 @@ export class DeviceBroker {
 
   /** The connections a device could be granted now, as the port lists them. */
   offered(): readonly DeviceConnection[] {
-    return (this.#options.port()?.list() ?? []).map((held) => ({
-      ...held,
-      operations: held.operations.filter((entry) => !revealsSecret(entry)),
-    }));
+    return offeredBy(this.#options.port());
   }
 
   /** A seat's end: its replies go out through `send`. */
@@ -121,10 +119,14 @@ export class DeviceBroker {
         this.#list(seat, request.req);
         return;
       case "dev.call": {
-        const grant = this.#live(seat);
-        if (typeof grant === "string")
-          return seat.send({ t: "dev.error", req: request.req, error: grant });
-        await answerCall(this.#use, seat, grant, request);
+        const standing = this.#live(seat);
+        if (!standing.ok)
+          return seat.send({
+            t: "dev.error",
+            req: request.req,
+            error: standing.error,
+          });
+        await answerCall(this.#use, seat, standing.grant, request);
       }
     }
   }
@@ -241,7 +243,18 @@ export class DeviceBroker {
 
   // --- the owner's answer ----------------------------------------------
 
-  approve(id: string, approval: Approval): ApproveResult {
+  /**
+   * The owner's allowing. It takes the `manage_grants` proof for the vault the
+   * session reads (ADR 0178): letting a process use saved connections is
+   * handing out authority, so the vault's own check — its operator rule and its
+   * duress ceilings — has been passed by whoever calls this, and a caller
+   * that did not pass it cannot compile.
+   */
+  approve<Vault>(
+    id: string,
+    approval: Approval,
+    _authority: ManageGrants<Vault>,
+  ): ApproveResult {
     const pending = this.#find(id);
     if (!pending || this.#over) return "unknown";
     const now = this.#now();
@@ -249,7 +262,7 @@ export class DeviceBroker {
       return "lapsed";
     const port = this.#options.port();
     if (!port) return "unavailable";
-    const held = new Set(port.list().map((entry) => entry.id));
+    const held = new Set(offeredBy(port).map((entry) => entry.id));
     const chosen = [...new Set(approval.connections)].filter((entry) =>
       held.has(entry),
     );
@@ -342,21 +355,29 @@ export class DeviceBroker {
   // --- using a grant ------------------------------------------------------
 
   #list(seat: Seat, req: string): void {
-    const grant = this.#live(seat);
-    if (typeof grant === "string")
-      seat.send({ t: "dev.error", req, error: grant });
-    else seat.send({ t: "dev.conns", req, connections: this.#covered(grant) });
+    const standing = this.#live(seat);
+    if (!standing.ok) seat.send({ t: "dev.error", req, error: standing.error });
+    else
+      seat.send({
+        t: "dev.conns",
+        req,
+        connections: this.#covered(standing.grant),
+      });
   }
 
   /** The seat's grant if it stands, else why not. */
-  #live(seat: Seat): Grant | "access_denied" | "expired_token" {
+  #live(
+    seat: Seat,
+  ):
+    | Readonly<{ ok: true; grant: Grant }>
+    | Readonly<{ ok: false; error: DeviceErrorCode }> {
     const grant = seat.grant;
-    if (!grant) return "access_denied";
+    if (!grant) return { ok: false, error: "access_denied" };
     if (this.#now() >= grant.expiresAt) {
       this.#endGrant(grant);
-      return "expired_token";
+      return { ok: false, error: "expired_token" };
     }
-    return grant;
+    return { ok: true, grant };
   }
 
   // --- leaving ------------------------------------------------------------
