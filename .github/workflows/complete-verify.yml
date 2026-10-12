@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/complete-verify.yml'
+      - 'packages/app-core/src/lib/agent-canaries/**'
       - 'packages/app-core/src/lib/retired-credentials/**'
       - 'packages/app-core/src/lib/duress/**'
       - 'packages/app-core/src/lib/vault/**'
@@ -19,6 +20,7 @@ on:
       - 'apps/android/**'
       - 'apps/browser-extension/**'
       - 'apps/browser-extension-autofill/**'
+      - 'crates/authenticator-core/**'
       - 'crates/human-vault/**'
       - 'crates/sealed-store/**'
       - 'crates/storage/**'
