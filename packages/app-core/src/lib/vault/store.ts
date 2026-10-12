@@ -754,10 +754,6 @@ export class VaultStore {
     await unlockVaultWithPasskey(this.#passkeyUnlockHost(), signal);
   }
 
-  stepUpSeam() {
-    return { key: this.#vaultKey, onMiss: () => this.#recordFailedUnlock() };
-  }
-
   /** Recovery key, age identity or age passkey enrolled in the manifest. */
   async unlockWithProtector(input: ProtectorUnlockInput): Promise<void> {
     await unlockVaultWithProtector(this.#passkeyUnlockHost(), input);
