@@ -9,6 +9,20 @@ export interface CliAppIntegrationFakeDaemon {
 }
 
 /** Loopback stub for journey tests; not shipped in production code. */
+/** Journey env: loopback fake daemon, no seam/listen overrides. */
+export async function envWithFakeCliAppIntegrationDaemon(
+  base: NodeJS.ProcessEnv,
+): Promise<{ env: NodeJS.ProcessEnv; close: () => Promise<void> }> {
+  const fakeDaemon = await startCliAppIntegrationFakeDaemon();
+  const env: NodeJS.ProcessEnv = {
+    ...base,
+    OPENSESAME_DAEMON_API: fakeDaemon.baseUrl,
+  };
+  env.OPENSESAME_DAEMON_LISTEN = undefined;
+  Reflect.deleteProperty(env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
+  return { env, close: fakeDaemon.close };
+}
+
 export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFakeDaemon> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {

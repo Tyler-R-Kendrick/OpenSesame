@@ -3,7 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
-import { startCliAppIntegrationFakeDaemon } from "../cli-app-integration-fake-daemon.js";
+import { envWithFakeCliAppIntegrationDaemon } from "../cli-app-integration-fake-daemon.js";
 
 const InvocationSchema = z.object({
   args: z.array(z.string()),
@@ -96,18 +96,14 @@ export async function processFixture() {
   await chmod(join(bin, "op"), 0o700);
   await writeFile(log, "");
   await seed();
-  const fakeDaemon = await startCliAppIntegrationFakeDaemon();
-  const env: NodeJS.ProcessEnv = {
+  const { env, close } = await envWithFakeCliAppIntegrationDaemon({
     ...process.env,
     PATH: `${bin}:${process.env.PATH}`,
     OPENSESAME_STATE_DIR: join(directory, "state"),
     PARITY_DB: database,
     PARITY_LOG: log,
     OP_SERVICE_ACCOUNT_TOKEN: undefined,
-    OPENSESAME_DAEMON_API: fakeDaemon.baseUrl,
-  };
-  env.OPENSESAME_DAEMON_LISTEN = undefined;
-  Reflect.deleteProperty(env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
+  });
 
   return {
     directory,
@@ -115,6 +111,6 @@ export async function processFixture() {
     env,
     cli,
     calls,
-    closeFakeDaemon: fakeDaemon.close,
+    closeFakeDaemon: close,
   };
 }
