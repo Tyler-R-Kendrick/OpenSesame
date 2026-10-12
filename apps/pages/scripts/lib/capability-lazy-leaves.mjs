@@ -82,22 +82,12 @@ const LAZY_LEAVES = [
     "cap-identity.claim-different-link",
   ],
   [
-    "/src/modules/identity.local-iam/cli-authorize-approve",
-    "identity.local-iam",
-    "cli-authorize-mint",
-  ],
-  [
-    "/src/modules/identity.local-iam/cli-authorize-approve-state",
-    "identity.local-iam",
-    "cli-authorize-mint",
-  ],
-  [
-    "/src/modules/identity.local-iam/cli-authorize-proof-actions",
-    "identity.local-iam",
-    "cli-authorize-mint",
-  ],
-  [
     "/src/modules/identity.local-iam/cli-authorize-mint-proof",
+    "identity.local-iam",
+    "cli-authorize-mint",
+  ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize-proof-run",
     "identity.local-iam",
     "cli-authorize-mint",
   ],
