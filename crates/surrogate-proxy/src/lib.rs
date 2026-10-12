@@ -48,6 +48,7 @@ mod login_route;
 mod passthrough;
 pub mod plugin;
 mod ports;
+pub mod providers;
 mod respond;
 mod runs;
 mod target;
@@ -59,7 +60,8 @@ pub use config::{ProxyConfig, DEFAULT_CA_VALIDITY};
 pub use login::{LoginError, LoginGrant, LoginTrust};
 pub use passthrough::PassthroughClient;
 pub use ports::{
-    Clock, LoginRefusal, ProviderSources, ReceiptSink, RefusalSink, SystemClock, TokenSources,
+    Clock, ConnectionSources, LoginRefusal, ProviderSources, ReceiptSink, RefusalSink, SystemClock,
+    TokenSources,
 };
 pub use runs::{RunError, RunHandle, RunSpec, SurrogateGrant, SurrogateRuns};
 pub use tripwire::{LoginEvent, LoginOutcome, RunObserver, RunRevoker, Tripped};

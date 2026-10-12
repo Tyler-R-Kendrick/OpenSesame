@@ -1,6 +1,8 @@
 //! Credential sources inside the plugin process: invoke-through's
 //! `source_tool` per provider (`gh auth token` for github), run under the same
-//! discipline the daemon's runner applies (ADR 0048 D6/D7).
+//! discipline the daemon's runner applies (ADR 0048 D6/D7), and
+//! [`StaticCredential`], a connection's own token the parent read from the
+//! person's sealed store.
 //!
 //! - **Scrubbed environment:** `env_clear` plus a short whitelist a provider
 //!   CLI needs to find its own configuration and the OS keychain. Nothing
@@ -19,7 +21,7 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use opensesame_invoke_through::{source_tool, InvokeError, SourceToolSpec, TokenSource};
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use zeroize::Zeroizing;
 
 /// Same budget as the daemon's acquisition: a cold CLI start, not a prompt.
@@ -88,6 +90,31 @@ impl CliTokenSource {
 impl TokenSource for CliTokenSource {
     fn acquire(&self) -> Result<SecretString, InvokeError> {
         capture(self.spec, &self.env).map_err(InvokeError::TokenUnavailable)
+    }
+}
+
+/// A connection's token held for the life of one run, in the plugin's memory
+/// and nowhere else: zeroized when the run ends, never written, logged or
+/// echoed (its `Debug` is empty). Each call hands the broker a fresh copy,
+/// which the broker zeroizes after placing it in the one upstream header.
+pub struct StaticCredential(SecretString);
+
+impl StaticCredential {
+    #[must_use]
+    pub fn new(secret: SecretString) -> Self {
+        Self(secret)
+    }
+}
+
+impl std::fmt::Debug for StaticCredential {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StaticCredential").finish_non_exhaustive()
+    }
+}
+
+impl TokenSource for StaticCredential {
+    fn acquire(&self) -> Result<SecretString, InvokeError> {
+        Ok(SecretString::from(self.0.expose_secret().to_owned()))
     }
 }
 
@@ -230,6 +257,15 @@ mod tests {
             .acquire()
             .unwrap_err();
         assert!(format!("{error}").contains("cap"));
+    }
+
+    #[test]
+    fn a_static_credential_is_handed_out_whole_and_never_printed() {
+        let source = StaticCredential::new(SecretString::from("tok-dummy-1".to_owned()));
+        assert_eq!(source.acquire().unwrap().expose_secret(), "tok-dummy-1");
+        assert_eq!(source.acquire().unwrap().expose_secret(), "tok-dummy-1");
+        let rendered = format!("{source:?}");
+        assert!(!rendered.contains("tok-dummy-1"), "{rendered}");
     }
 
     #[test]

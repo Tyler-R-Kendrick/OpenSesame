@@ -72,7 +72,8 @@ certificate reaches the child only through its own trust variables
 | `RunObserver`, `Tripped`, `LoginEvent` | What the embedder hears: a tripwire that revoked a run, a login substituted or refused |
 | `RunHandle` | `proxy_url()` (secret), `ca_pem()`, `surrogates()`, `child_env(ca_file)`; `Debug` names neither secret |
 | `ProxyConfig` | Invoker, `TokenSources`, `RefusalSink`; optional `ReceiptSink`, `Clock`, `PassthroughClient`, CA validity, `RunObserver`, and the plugin's `PluginState` that arms login substitution |
-| `TokenSources`, `ProviderSources` | Pick the credential source for an admission (per provider by default) |
+| `TokenSources`, `ProviderSources`, `ConnectionSources` | Pick the credential source for an admission: per provider by default, per connection first when the connection carries its own credential |
+| `providers` | The plugin's own egress table: invoke-through's shared one (`github`) plus the connection-credential providers (`vercel`), restated from `spec/connectors/catalog.json` with a drift test. The shared table the daemon serves is not widened |
 | `RefusalSink`, `ReceiptSink`, `Clock`, `SystemClock` | The embedder's ports |
 | `env` | The trust, proxy and `NO_PROXY` variable names; `is_reserved`, `is_valid_name` |
 | `plugin::main_entry` | The plugin binary: gate, then one run over stdio |
@@ -80,6 +81,7 @@ certificate reaches the child only through its own trust variables
 | `plugin::wire` | The control protocol: one spec line in (logins' passwords ride only here), one reply line out |
 | `plugin::serve::serve` | Start the run, reply, write event lines while serving until stdin EOF, a signal or the TTL, then `end_and_revoke` and remove the CA file |
 | `plugin::source::CliTokenSource` | invoke-through's `source_tool` per provider, scrubbed env, timeout, capped capture |
+| `plugin::source::StaticCredential` | A connection's token the parent read from the person's sealed store and sent in the run spec's `credentials` row; held in memory for the run, never written or printed |
 | `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`: noise to `notices.jsonl` (capped, rotated once), evidence to `tripwires.jsonl` (capped, never rotated) |
 
 ## The run lease and the tripwire (ADR 0150 §6.2)
@@ -131,7 +133,10 @@ misdirected surrogate and proves the next, correct use is refused as revoked;
 `tests/plugin_login.rs` runs it against a loopback HTTPS login site and
 proves the password crossed the wire once, in its field, and appears in no
 file, argv, environment, notice, stdout or stderr of the plugin.
-`tests/plugin_process.rs` runs the built plugin binary as a person's machine
+`tests/connection_credential.rs` redeems two connections of one provider for
+their own credentials on real sockets, and `tests/plugin_credentials.rs` runs
+the built plugin with a `credentials` row and proves the token is in nothing it
+writes. `tests/plugin_process.rs` runs the built plugin binary as a person's machine
 does: the install gate (not installed, off, forced off, pin mismatch), the
 reply, the TTL, `SIGTERM`, stdin close, and a misdirected surrogate becoming
 a notice line that never carries it.

@@ -30,9 +30,12 @@ use zeroize::Zeroizing;
 use super::events;
 use super::gate::{Admitted, PLUGIN_ID};
 use super::notices::{create_private_dir, NoticeLog};
-use super::source::CliTokenSource;
+use super::source::{CliTokenSource, StaticCredential};
 use super::wire::{self, ErrorReply, RunReply, SpecError, MAX_SPEC_BYTES};
-use crate::{LoginError, ProviderSources, ProxyConfig, RunHandle, SurrogateRuns};
+use crate::{
+    providers, ConnectionSources, LoginError, ProviderSources, ProxyConfig, RunHandle,
+    SurrogateRuns,
+};
 
 /// Why a run ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,11 +68,12 @@ pub struct ServeOptions {
 }
 
 impl ServeOptions {
-    /// invoke-through's own egress rules and this process's environment.
+    /// The plugin's own egress rules ([`providers::rules`]) and this
+    /// process's environment.
     #[must_use]
     pub fn production() -> Self {
         Self {
-            invoker: Arc::new(Invoker::new()),
+            invoker: Arc::new(Invoker::with_rules(providers::rules())),
             env: std::env::vars().collect(),
         }
     }
@@ -157,6 +161,15 @@ where
         if let Some(source) = CliTokenSource::for_provider(&grant.provider_id, &options.env) {
             sources = sources.with(&grant.provider_id, Arc::new(source));
         }
+    }
+    // A connection that carries its credential is served from it; the rest
+    // fall through to their provider's local tool.
+    let mut sources = ConnectionSources::new(sources);
+    for credential in request.credentials {
+        sources = sources.with_connection(
+            &credential.connection_ref,
+            Arc::new(StaticCredential::new(credential.secret)),
+        );
     }
     let notices = Arc::new(
         NoticeLog::open(&request.notices_path)
