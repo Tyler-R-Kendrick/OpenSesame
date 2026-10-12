@@ -67,11 +67,22 @@ function barred(
   if (revealsSecret(request.operation)) return "unsupported_operation";
   if (!held.operations.includes(request.operation))
     return "unsupported_operation";
+  if (grant.inFlight >= MAX_IN_FLIGHT) return "temporarily_unavailable";
+  return null;
+}
+
+/**
+ * Every ask counts against the minute, refused or not, so a grant cannot be
+ * spent on filling the owner's log with its own refusals. Past the limit a
+ * device is told to wait and the log is left alone: what is kept there is the
+ * calls that were made, not a count of the calls that were turned away.
+ */
+function crowded(context: UseContext, grant: Grant): boolean {
   const now = context.now();
   grant.recent = grant.recent.filter((at) => now - at < 60_000);
-  if (grant.inFlight >= MAX_IN_FLIGHT) return "temporarily_unavailable";
-  if (grant.recent.length >= CALLS_PER_MINUTE) return "temporarily_unavailable";
-  return null;
+  if (grant.recent.length >= CALLS_PER_MINUTE) return true;
+  grant.recent.push(now);
+  return false;
 }
 
 /** Answer one `dev.call` for a seat whose grant stands. */
@@ -81,11 +92,16 @@ export async function answerCall(
   grant: Grant,
   request: Call,
 ): Promise<void> {
+  if (crowded(context, grant))
+    return seat.send({
+      t: "dev.error",
+      req: request.req,
+      error: "temporarily_unavailable",
+    });
   const port = context.port();
   const why = port ? barred(context, grant, request) : "access_denied";
   if (!port || why)
     return refuse(context, seat, request, why ?? "access_denied");
-  grant.recent.push(context.now());
   grant.inFlight += 1;
   try {
     const { connection, operation, input } = request;
@@ -98,11 +114,7 @@ export async function answerCall(
     // (revoked, lapsed, replaced) the device is told it is over.
     if (context.over()) return;
     if (grant.ended.signal.aborted)
-      return seat.send({
-        t: "dev.error",
-        req: request.req,
-        error: "access_denied",
-      });
+      return refuse(context, seat, request, "access_denied");
     if (!called.ok) return refuse(context, seat, request, called.error);
     grant.calls += 1;
     context.log({

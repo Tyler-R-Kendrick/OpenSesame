@@ -111,6 +111,7 @@ export class DeviceClient {
   readonly #asks = new Map<string, Waiter>();
   /** Answers the owner volunteers, keyed by the ask they belong to. */
   readonly #pushes = new Map<string, (message: DeviceReply) => void>();
+  readonly #waits = new Set<Pushed>();
   #next = 0;
   #closed = false;
 
@@ -127,7 +128,7 @@ export class DeviceClient {
     this.#asks.get(message.req)?.deliver(message);
   }
 
-  /** The session is over: every ask still out fails. */
+  /** The session is over: every ask still out fails, and every wait ends. */
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
@@ -136,6 +137,7 @@ export class DeviceClient {
     this.#pushes.clear();
     for (const waiter of waiting)
       waiter.fail(new DeviceError("channel_closed"));
+    for (const waiter of [...this.#waits]) waiter.wake();
   }
 
   #id(): string {
@@ -206,9 +208,11 @@ export class DeviceClient {
       throw error;
     }
     options.onCode?.({ userCode: code.userCode, expiresIn: code.expiresIn });
+    this.#waits.add(pushed);
     try {
       return await this.#await(code, pushed, options.signal);
     } finally {
+      this.#waits.delete(pushed);
       this.#pushes.delete(beginReq);
     }
   }
@@ -221,7 +225,9 @@ export class DeviceClient {
     const lapses = Date.now() + code.expiresIn * 1000;
     let wait = code.interval;
     for (;;) {
+      if (this.#closed) throw new DeviceError("channel_closed");
       const volunteered = await pushed.within(wait * 1000, signal);
+      if (this.#closed) throw new DeviceError("channel_closed");
       let answer = volunteered;
       if (!answer) {
         if (Date.now() >= lapses) throw new DeviceError("expired_token");
@@ -282,6 +288,11 @@ class Pushed {
 
   put(message: DeviceReply): void {
     this.#held = message;
+    this.#wake?.();
+  }
+
+  /** Stop waiting now, with nothing to show for it. */
+  wake(): void {
     this.#wake?.();
   }
 

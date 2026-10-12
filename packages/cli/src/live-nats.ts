@@ -36,9 +36,10 @@ export type NatsConnect = (
 ) => Promise<NatsConnection>;
 
 /**
- * How long a closed carrier keeps its connection before draining it. A seat
- * that is left says so in a frame it is still sealing when the rendezvous
- * closes the carrier; this is the time to get it onto the wire.
+ * How long a closed carrier keeps its connection before draining it. The
+ * guest waits for its goodbye to be posted before it lets the carriers go
+ * (`LiveGuest.left`), so this is only the margin for the relay to take the
+ * last frame off the socket; it is not what the goodbye depends on.
  */
 export const CLOSE_GRACE_MS = 150;
 

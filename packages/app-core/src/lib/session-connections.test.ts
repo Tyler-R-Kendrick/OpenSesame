@@ -5,6 +5,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import type { Connection } from "./connections.js";
+import { InvalidCall } from "./live/connection-port.js";
 import type { NativeConnectorView } from "./native-connector-view.js";
 import {
   type SessionConnectionSources,
@@ -266,7 +267,7 @@ describe("a call through the port", () => {
     ).rejects.toThrow();
     await expect(
       port.invoke(call("c-gh", "provider.read", { mount: "secret" })),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(InvalidCall);
     expect(held.invoked).toEqual([]);
   });
 

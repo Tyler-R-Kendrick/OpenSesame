@@ -345,6 +345,15 @@ describe("when the channel goes", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("stops waiting for the owner at once, instead of finishing its wait", async () => {
+    const owner = pipe();
+    const { granted } = await begun(owner);
+    owner.end();
+    // Nowhere near the five seconds the wait was set for.
+    await vi.advanceTimersByTimeAsync(10);
+    await expect(granted).rejects.toMatchObject({ code: "channel_closed" });
+  });
+
   it("fails an ask whose frame did not go out", async () => {
     const owner = pipe();
     owner.shut();

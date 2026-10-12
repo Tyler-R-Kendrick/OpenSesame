@@ -6,10 +6,8 @@
  * and a time, and a grant stands until it lapses or is revoked here.
  */
 
-import { allowDevice } from "@opensesame/app-core/lib/live/device-allow.js";
 import type { DeviceConnection } from "@opensesame/app-core/lib/live/device-messages.js";
 import type {
-  ApproveResult,
   DeviceGrant,
   PendingDevice,
 } from "@opensesame/app-core/lib/live/device-types.js";
@@ -17,28 +15,16 @@ import type {
   HostState,
   LiveHost,
 } from "@opensesame/app-core/lib/live/host.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useRef, useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconCheck, IconTerminal, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useLandOnChange } from "./live-focus.js";
-import {
-  type Standing,
-  formatRemaining,
-  standingMark,
-  useRemaining,
-} from "./live-hooks.js";
+import { formatRemaining, useRemaining } from "./live-hooks.js";
 import { DEVICE_DURATIONS, Pick } from "./live-host-form-parts.js";
-
-const REFUSED = {
-  approved: null,
-  unknown: standingMark("err", "The device has left"),
-  lapsed: standingMark("err", "The request lapsed"),
-  nothing_chosen: standingMark("warn", "Choose a connection"),
-  unavailable: standingMark("err", "Connections are not available"),
-} satisfies Record<ApproveResult, Standing | null>;
+import { useAllowDevice } from "./use-allow-device.js";
 
 function AllowSheet({
   host,
@@ -52,29 +38,11 @@ function AllowSheet({
   const offered = host.devices?.offered() ?? [];
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   const [minutes, setMinutes] = useState(60);
-  const [said, setSaid] = useState<Standing | null>(null);
-
-  /**
-   * Allowing hands out authority, so the vault's own `manage_grants` check
-   * runs first (its operator rule and duress ceilings), as it does for any
-   * grant; a refusal is a mark on the sheet, and nothing is allowed.
-   */
-  async function allow(): Promise<void> {
-    const approval = { connections: [...chosen], minutes };
-    try {
-      const result = await allowDevice(
-        host.devices,
-        vaultStore.activeTomb(),
-        pending.id,
-        approval,
-      );
-      const refusal = REFUSED[result];
-      if (refusal === null) onClose();
-      else setSaid(refusal);
-    } catch {
-      setSaid(standingMark("err", "Only an operator can allow a device"));
-    }
-  }
+  const { said, failure, allow, clear } = useAllowDevice(
+    host,
+    pending,
+    onClose,
+  );
 
   return (
     <CeremonySheet
@@ -89,7 +57,7 @@ function AllowSheet({
           label: `Allow ${pending.name}`,
           icon: <IconCheck size={18} />,
           disabled: chosen.size === 0,
-          onClick: () => void allow(),
+          onClick: () => void allow({ connections: [...chosen], minutes }),
         }}
       >
         <fieldset className="live-choose">
@@ -104,7 +72,7 @@ function AllowSheet({
                   if (event.target.checked) next.add(connection.id);
                   else next.delete(connection.id);
                   setChosen(next);
-                  setSaid(null);
+                  clear();
                 }}
               />
               <span>{connection.label}</span>
@@ -119,6 +87,12 @@ function AllowSheet({
           onChange={setMinutes}
         />
         {said ? <StatusMark tone={said.tone} label={said.label} /> : null}
+        <FailureNotice
+          id="live-device-allow"
+          title="A device was not allowed"
+          message={failure?.message}
+          occurrence={failure}
+        />
       </CeremonyShell>
     </CeremonySheet>
   );

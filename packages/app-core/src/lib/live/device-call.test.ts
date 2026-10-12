@@ -4,7 +4,7 @@
  * nothing of what the provider said.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ConnectionPort } from "./connection-port.js";
+import { type ConnectionPort, InvalidCall } from "./connection-port.js";
 import {
   CALL_TIMEOUT_MS,
   RESULT_BYTES,
@@ -142,6 +142,17 @@ describe("running a call", () => {
       new AbortController().signal,
     );
     expect(called).toEqual({ ok: false, error: "upstream_error" });
+  });
+
+  it("says invalid_request when the port says the ask itself was wrong", async () => {
+    const called = await runCall(
+      portOf(async () => {
+        throw new InvalidCall();
+      }),
+      CALL,
+      new AbortController().signal,
+    );
+    expect(called).toEqual({ ok: false, error: "invalid_request" });
   });
 
   it("says upstream_error to an answer that cannot be rebuilt", async () => {

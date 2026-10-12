@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
  */
 import { approveAs } from "./device-approval.test-support.js";
 import { DeviceError } from "./device-client.js";
+import { joinAsDevice } from "./device-session.js";
 import {
   VAULT_SECRET,
   bindPort,
@@ -19,6 +20,7 @@ import {
 } from "./device-session.test-support.js";
 import { settle } from "./live-clock.fixture.js";
 import { FakeBus, FakeNet } from "./live-fakes.js";
+import type { Carrier, CarrierFactory } from "./rendezvous.js";
 import { endHosting, startHosting } from "./session.js";
 
 useDeviceSession();
@@ -185,5 +187,44 @@ describe("a device in an open session", () => {
     await session.leave();
     await settle();
     expect(owner.state.devices.grants).toEqual([]);
+  });
+
+  it("posts its goodbye before it lets the carriers go", async () => {
+    bindPort();
+    const bus = new FakeBus();
+    const owner = await host(bus);
+    const events: string[] = [];
+    const seen = (carrier: Carrier, label: string): Carrier => ({
+      post: async (text) => {
+        events.push(`post ${label}`);
+        await carrier.post(text);
+      },
+      listen: (onText) => carrier.listen(onText),
+      close: () => {
+        events.push(`close ${label}`);
+        carrier.close();
+      },
+    });
+    const open = bus.factory();
+    const carriers: CarrierFactory = async (spec, topic, role) => {
+      const root = await open(spec, topic, role);
+      const below = root.channel;
+      if (!below) throw new Error("expected a carrier with seats");
+      return {
+        ...seen(root, "root"),
+        channel: (name: string) => seen(below(name), "seat"),
+      };
+    };
+    const session = await joinAsDevice({
+      link: owner.link,
+      code: owner.code,
+      name: "work laptop",
+      carriers,
+    });
+    await session.leave();
+    const goodbye = events.lastIndexOf("post seat");
+    const released = events.indexOf("close root");
+    expect(goodbye).toBeGreaterThanOrEqual(0);
+    expect(released).toBeGreaterThan(goodbye);
   });
 });

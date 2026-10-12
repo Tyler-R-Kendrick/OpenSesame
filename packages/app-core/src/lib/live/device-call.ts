@@ -15,10 +15,11 @@
  * need of it.
  */
 
-import type {
-  ConnectionPort,
-  SessionCall,
-  SessionResult,
+import {
+  type ConnectionPort,
+  InvalidCall,
+  type SessionCall,
+  type SessionResult,
 } from "./connection-port.js";
 import {
   type DeviceErrorCode,
@@ -119,10 +120,12 @@ export async function runCall(
     const result = await port.invoke({ ...call, signal });
     if (signal.aborted) return { ok: false, error: "temporarily_unavailable" };
     return { ok: true, report: reportOf(result) };
-  } catch {
+  } catch (error) {
+    if (signal.aborted) return { ok: false, error: "temporarily_unavailable" };
     return {
       ok: false,
-      error: signal.aborted ? "temporarily_unavailable" : "upstream_error",
+      error:
+        error instanceof InvalidCall ? "invalid_request" : "upstream_error",
     };
   } finally {
     clearTimeout(timer);

@@ -12,6 +12,7 @@ import {
 import type { DeviceReply } from "@opensesame/app-core/lib/live/device-messages.js";
 import { LiveHost } from "@opensesame/app-core/lib/live/host.js";
 import { FakeNet } from "@opensesame/app-core/lib/live/live-fakes.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
@@ -23,7 +24,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LiveHostSession } from "./LiveHostSession.js";
 import { liveUiSeams } from "./live-hooks.js";
@@ -211,19 +212,21 @@ describe("allowing a device", () => {
     ).toBeTruthy();
   });
 
-  it("allows nothing when the vault refuses the grant, and says who may", async () => {
+  it("allows nothing when the check cannot be answered, and says it failed rather than that it was refused", async () => {
     const { host, dialog } = await sheet();
-    // A locked vault cannot answer the check; it refuses, as an operator rule would.
+    // A locked vault cannot answer the check at all.
     lockAllTombs();
     fireEvent.click(dialog.getByLabelText("Linear"));
     fireEvent.click(dialog.getByRole("button", { name: "Allow work laptop" }));
     expect(
-      await dialog.findByRole("img", {
-        name: "Only an operator can allow a device",
-      }),
+      await dialog.findByRole("img", { name: "Could not allow the device" }),
     ).toBeTruthy();
     expect(host.state.devices.grants).toEqual([]);
     expect(host.state.devices.pending).toHaveLength(1);
+    // The failure is in the tray as well as on the sheet.
+    expect(
+      listNotices().some((notice) => notice.id === "live-device-allow"),
+    ).toBe(true);
   });
 
   it("revokes a grant, and the device is told it is over", async () => {
@@ -243,6 +246,30 @@ describe("allowing a device", () => {
 });
 
 describe("what the owner is shown of a session with devices", () => {
+  it("lists every call a device made, even identical ones in the same instant", async () => {
+    const host = await session();
+    const entry = {
+      at: 1_800_000_000_000,
+      guest: "s1",
+      what: "invoke" as const,
+      item: "c-github",
+      field: "provider.read",
+    };
+    const complaints = vi.spyOn(console, "error").mockImplementation(() => {});
+    const shown = render(
+      <LiveHostSession
+        host={host}
+        state={{ ...host.state, log: [entry, entry, entry] }}
+      />,
+    );
+    const lines = within(shown.container).getAllByRole("img", {
+      name: /invoke · GitHub \(work\) provider\.read/,
+    });
+    expect(lines).toHaveLength(3);
+    expect(complaints).not.toHaveBeenCalled();
+    complaints.mockRestore();
+  });
+
   it("marks a device in the list of guests", async () => {
     const host = await session();
     // A seated device: the host's own record of a seat of that kind.

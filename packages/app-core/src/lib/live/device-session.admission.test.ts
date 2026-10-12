@@ -28,6 +28,45 @@ describe("a device in an invite session", () => {
     await session.leave();
   });
 
+  it("reads the code however the person typed it", async () => {
+    bindPort();
+    const bus = new FakeBus();
+    const owner = await host(bus, { admission: "invite" });
+    if (owner.code === null) throw new Error("an invite session has a code");
+    const typed = owner.code.toLowerCase().replace("-", " ");
+    const joining = joinAsDevice({
+      link: owner.link,
+      code: typed,
+      name: "laptop",
+      carriers: bus.factory(),
+    });
+    for (let round = 0; round < 40; round += 1) {
+      const asking = owner.state.guests.find((g) => g.state === "asking");
+      if (asking) await owner.admit(asking.key);
+      await settle(5);
+    }
+    const session = await joining;
+    expect(owner.state.misses).toBe(0);
+    expect(owner.state.guests[0]?.state).toBe("joined");
+    await session.leave();
+  });
+
+  it("refuses a code that cannot be one before anything is contacted", async () => {
+    bindPort();
+    const bus = new FakeBus();
+    const owner = await host(bus, { admission: "invite" });
+    await expect(
+      joinAsDevice({
+        link: owner.link,
+        code: "hello",
+        name: "laptop",
+        carriers: bus.factory(),
+      }),
+    ).rejects.toMatchObject({ code: "bad_code" });
+    expect(bus.specs).toHaveLength(1);
+    expect(owner.state.misses).toBe(0);
+  });
+
   it("is not seated without the right code", async () => {
     bindPort();
     const bus = new FakeBus();

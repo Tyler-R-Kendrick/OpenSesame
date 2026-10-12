@@ -49,6 +49,7 @@ import { makeRequestCode, openReplyCode } from "./pairing.js";
 import { Reposter } from "./repost.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
 import { SeatChannel, seatName } from "./seat-channel.js";
+import { TimerSlot } from "./timer-slot.js";
 
 export { CONNECTING_TIMEOUT_MS, FALLBACK_MS } from "./guest-types.js";
 export type * from "./guest-types.js";
@@ -64,8 +65,8 @@ export class LiveGuest {
   #channel: LiveChannel | null = null;
   /** The owner offered a relay: the carriers stay open with the seat. */
   #relayed = false;
-  #fallback: ReturnType<typeof setTimeout> | null = null;
-  #connectTimer: ReturnType<typeof setTimeout> | null = null;
+  readonly #fallback = new TimerSlot();
+  readonly #connectTimer = new TimerSlot();
   #keys: Keypair | null = null;
   readonly #reposts = new Reposter();
   #device: ((message: DeviceMessage) => void) | null = null;
@@ -171,9 +172,15 @@ export class LiveGuest {
    * Done with the carriers: the session started without them, or is over.
    * A seat that may move to one of them keeps them, and they close with it.
    */
-  #release(): void {
+  #release(after: Promise<void> | null = null): void {
     this.#reposts.stop();
-    if (!this.#relayed) this.options.carriers?.close();
+    if (this.#relayed) return;
+    const { carriers } = this.options;
+    if (!carriers) return;
+    // A goodbye still on its way out is sent over these carriers: let them go
+    // once it has left, not before.
+    if (after) void after.then(() => carriers.close());
+    else carriers.close();
   }
 
   /** The owner's reply code; false (and nothing changes) if it is not one. */
@@ -214,7 +221,9 @@ export class LiveGuest {
     // The carriers stay open until the catalog comes: asking again uses them.
     this.#reposts.stop();
     this.#to({ at: "connecting" });
-    this.#armConnectTimeout();
+    this.#connectTimer.set(() => {
+      if (this.#status.at === "connecting") this.#giveUp();
+    }, CONNECTING_TIMEOUT_MS);
     if (!peer || (this.#relayed && session === "always")) {
       void this.#toRelay();
       return true;
@@ -225,7 +234,7 @@ export class LiveGuest {
       else this.#finish({ at: "unreachable" });
     });
     if (this.#relayed)
-      this.#fallback = setTimeout(() => void this.#toRelay(), FALLBACK_MS);
+      this.#fallback.set(() => void this.#toRelay(), FALLBACK_MS);
     try {
       await peer.accept(reply.answer);
       return true;
@@ -240,7 +249,7 @@ export class LiveGuest {
    * is dropped, and the owner hears this side's greeting and answers it.
    */
   async #toRelay(): Promise<void> {
-    this.#clearFallback();
+    this.#fallback.clear();
     const keys = this.#keys;
     if (this.#over() || this.#channel || !keys) return;
     const carrier = this.options.carriers?.seat?.(seatName(this.#id)) ?? null;
@@ -267,23 +276,6 @@ export class LiveGuest {
     );
   }
 
-  #armConnectTimeout(): void {
-    this.#clearConnectTimeout();
-    this.#connectTimer = setTimeout(() => {
-      if (this.#status.at === "connecting") this.#giveUp();
-    }, CONNECTING_TIMEOUT_MS);
-  }
-
-  #clearConnectTimeout(): void {
-    if (this.#connectTimer) clearTimeout(this.#connectTimer);
-    this.#connectTimer = null;
-  }
-
-  #clearFallback(): void {
-    if (this.#fallback) clearTimeout(this.#fallback);
-    this.#fallback = null;
-  }
-
   /** Over the transport or the relay: greet until the catalog arrives. */
   #connected(channel: LiveChannel): void {
     // Over already, or the seat is carried another way: not this channel.
@@ -291,7 +283,7 @@ export class LiveGuest {
       channel.close();
       return;
     }
-    this.#clearFallback();
+    this.#fallback.clear();
     this.#channel = channel;
     channel.onMessage((message) => this.#onMessage(message));
     channel.onClose(() => {
@@ -324,7 +316,7 @@ export class LiveGuest {
   #joined(catalog: Catalog): void {
     if (this.#status.at !== "connecting") return;
     this.#greeter.stop();
-    this.#clearConnectTimeout();
+    this.#connectTimer.clear();
     this.#release();
     this.#to({ at: "joined", catalog });
   }
@@ -356,18 +348,20 @@ export class LiveGuest {
   }
 
   /** Close this attempt's link and channel; the carriers are another matter. */
-  #drop(): void {
+  #drop(): Promise<void> | null {
     this.#greeter.stop();
-    this.#clearConnectTimeout();
-    this.#clearFallback();
+    this.#connectTimer.clear();
+    this.#fallback.clear();
     this.#requests.drop();
     const channel = this.#channel;
     const peer = this.#peer;
     this.#channel = null;
     this.#peer = null;
     channel?.close();
-    this.#farewell = channel?.drained?.() ?? this.#farewell;
+    const farewell = channel?.drained?.() ?? null;
+    if (farewell) this.#farewell = farewell;
     peer?.close();
+    return farewell;
   }
 
   /** No catalog in time: this attempt is over, and the owner sees it go. */
@@ -380,8 +374,8 @@ export class LiveGuest {
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
     this.#relayed = false;
-    this.#release();
-    this.#drop();
+    // The goodbye is posted first and the carriers let go after it.
+    this.#release(this.#drop());
     // The catalog goes with the status it rode on.
     this.#to(end);
   }

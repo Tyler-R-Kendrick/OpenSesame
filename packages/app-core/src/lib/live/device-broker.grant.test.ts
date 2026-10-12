@@ -205,6 +205,37 @@ describe("using a grant", () => {
   });
 });
 
+describe("a device that keeps asking for what it was not given", () => {
+  it("is turned away at the rate limit, and the log keeps only what was recorded before it", async () => {
+    const { device, log } = await granted(["c-github"]);
+    for (let i = 0; i < CALLS_PER_MINUTE; i += 1)
+      await device.seat.handle({
+        ...call(),
+        req: `x${i}`,
+        connection: "c-linear",
+      });
+    expect(log).toHaveLength(CALLS_PER_MINUTE);
+    expect(log.every((entry) => entry.what === "denied")).toBe(true);
+    await device.seat.handle({
+      ...call(),
+      req: "more",
+      connection: "c-linear",
+    });
+    expect(device.last()).toEqual({
+      t: "dev.error",
+      req: "more",
+      error: "temporarily_unavailable",
+    });
+    expect(log).toHaveLength(CALLS_PER_MINUTE);
+    // Even a call it is allowed to make waits its turn.
+    await device.seat.handle({ ...call(), req: "real" });
+    expect(device.last()).toMatchObject({
+      req: "real",
+      error: "temporarily_unavailable",
+    });
+  });
+});
+
 describe("ending", () => {
   it("answers a call in flight when the owner revokes, and a later one the same", async () => {
     const gate = deferred();

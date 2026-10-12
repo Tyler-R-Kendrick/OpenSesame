@@ -248,6 +248,11 @@ export class LiveHost {
 
   /** The seat's peer: what it will be shown, and how its life reports back. */
   #peerFor(key: string, seat: Seat, relay: Carrier | null): HostPeer {
+    // A device is built a peer that has no vault to read from: an empty
+    // catalog, nothing to reveal and nothing to write. The peer refuses a
+    // device the same things on its own account, but a future message that
+    // reads the vault finds nothing here to read, whatever it forgot to check.
+    const device = seat.kind === "device";
     const peer: HostPeer = new HostPeer({
       relayed: relay !== null,
       route: seat.route,
@@ -257,9 +262,11 @@ export class LiveHost {
       guest: key,
       transport: this.options.transport,
       greets: seat.greets,
-      catalog: this.options.catalog,
-      readField: this.options.readField,
-      writeField: this.options.writeField,
+      catalog: device
+        ? () => ({ ...this.options.catalog(), items: [] })
+        : this.options.catalog,
+      readField: device ? async () => null : this.options.readField,
+      writeField: device ? undefined : this.options.writeField,
       expiresAt: this.expiresAt,
       now: this.#now,
       onJoined: () => {

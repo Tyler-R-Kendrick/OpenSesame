@@ -44,10 +44,19 @@ function Log({ host, state }: { host: LiveHost; state: HostState }) {
     items.find((item) => item.id === id)?.name ??
     connections.find((connection) => connection.id === id)?.label ??
     id;
+  // Calls on one connection in one millisecond are lines that read alike: the
+  // nth of a kind is told apart by its place among them.
+  const kinds = new Map<string, number>();
+  const lines = state.log.map((entry) => {
+    const kind = `${entry.at}:${entry.guest}:${entry.what}:${entry.item}:${entry.field}`;
+    const nth = (kinds.get(kind) ?? 0) + 1;
+    kinds.set(kind, nth);
+    return { entry, key: `${kind}:${nth}` };
+  });
   return (
     <ul className="live-log" aria-label="Handed out">
-      {[...state.log].reverse().map((entry) => (
-        <li key={`${entry.at}:${entry.guest}:${entry.item}:${entry.field}`}>
+      {lines.reverse().map(({ entry, key }) => (
+        <li key={key}>
           <StatusMark
             tone={entry.what === "denied" ? "err" : "idle"}
             label={`${new Date(entry.at).toLocaleTimeString()} · ${names.get(entry.guest) ?? "?"} · ${entry.what} · ${itemName(entry.item)} ${entry.field}`}

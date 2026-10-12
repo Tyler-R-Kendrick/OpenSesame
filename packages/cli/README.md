@@ -118,8 +118,11 @@ opensesame-id session list --connection c-github
 opensesame-id session invoke c-github provider.repositories.read --json
 ```
 
-- `--connection ID` (repeatable) only suggests connections to the owner; it
-  never grants one. `invoke` suggests the connection it names. `--name LABEL`
+- `--connection ID` (repeatable) names connections you would like, in the
+  request; it never grants one, and the host's Allow sheet does not show it yet
+  (the host chooses from what it can lend). `invoke` names the connection it
+  uses the same way. The invite code may be typed any way the host showed it
+  (case, spaces and the dash are forgiven). `--name LABEL`
   is what the owner is asked about (default `opensesame-id on <hostname>`).
   `--timeout SECONDS` bounds the whole command (default 900).
 - The terminal prints the code to compare on **stderr**, with the progress

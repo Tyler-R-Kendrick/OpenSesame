@@ -74,6 +74,21 @@ describe("refusals made before anything is contacted", () => {
     expect(asked.specs).toEqual([]);
   });
 
+  it("an invite code that cannot be one", async () => {
+    world.bind();
+    const owner = await host(new FakeBus(), { admission: "invite" });
+    const asked = new FakeBus();
+    const ran = await start(
+      ["session", linkOf(owner), "list", "--code", "hello"],
+      asked,
+    );
+    expect(ran.code).toBe(1);
+    expect(ran.err).toContain("not an invite code");
+    expect(ran.err).not.toContain("hello");
+    expect(asked.specs).toEqual([]);
+    expect(owner.state.misses).toBe(0);
+  });
+
   it("a name the host could not show", async () => {
     world.bind();
     const owner = await host(new FakeBus());

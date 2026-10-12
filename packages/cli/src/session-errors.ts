@@ -83,6 +83,12 @@ function joinFailure(error: DeviceJoinError, context: Context): Explained {
         message:
           "This session names no NATS relay; a terminal can only join over one.",
       };
+    case "bad_code":
+      return {
+        code: "bad_code",
+        message:
+          "That is not an invite code; it is two groups of four letters or digits, like BCDF-GHJK.",
+      };
     case "no_carrier":
       return {
         code: "no_carrier",

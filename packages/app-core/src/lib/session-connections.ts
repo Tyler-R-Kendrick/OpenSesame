@@ -19,10 +19,11 @@ import type { Connection } from "./connections.js";
 import { isNativeDeviceConnection } from "./device-connector-view.js";
 import { listDeviceConnections } from "./device-connectors.js";
 import { invokeLinearConnector } from "./linear-operations.js";
-import type {
-  ConnectionPort,
-  SessionConnection,
-  SessionResult,
+import {
+  type ConnectionPort,
+  InvalidCall,
+  type SessionConnection,
+  type SessionResult,
 } from "./live/connection-port.js";
 import { nativeBrowserMethodPolicy } from "./native-browser-policy.js";
 import { nativeConnectorDriver } from "./native-connector-drivers.js";
@@ -204,13 +205,11 @@ export function sessionConnectionPort(
     list: () => entries().map(({ run: _run, ...held }) => held),
     invoke: async ({ connection, operation, input, signal }) => {
       const entry = entries().find((held) => held.id === connection);
-      // Nothing a listed operation takes needs input; anything extra is refused.
-      if (
-        !entry ||
-        !entry.operations.includes(operation) ||
-        Object.keys(input).length > 0
-      )
+      if (!entry || !entry.operations.includes(operation))
         throw new Error("Select a supported operation");
+      // Nothing a listed operation takes needs input; anything extra is the
+      // device's mistake, and it is told so.
+      if (Object.keys(input).length > 0) throw new InvalidCall();
       return untilAborted(entry.run(operation), signal);
     },
   };

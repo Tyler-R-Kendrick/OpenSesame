@@ -13,6 +13,7 @@
  * than waiting for a timeout.
  */
 
+import { normalizeInviteCode } from "../join/invite.js";
 import { DeviceClient, devicePipe } from "./device-client.js";
 import { LiveGuest } from "./guest.js";
 import type { LiveLink } from "./link.js";
@@ -24,6 +25,7 @@ import { guestCarriersFor, openCarriers } from "./session-carriers.js";
 /** Why a device could not get into the session. */
 export type DeviceJoinFailure =
   | "bad_link"
+  | "bad_code"
   | "no_relay"
   | "no_carrier"
   | "unreachable"
@@ -108,14 +110,25 @@ function inSession(
   });
 }
 
+/** The invite code as the owner spells it; a malformed one never leaves. */
+function spelled(link: LiveLink, code: string | null): string | null {
+  if (code === null || link.admission !== "invite") return code;
+  const owners = normalizeInviteCode(code);
+  if (owners === null) throw new DeviceJoinError("bad_code");
+  return owners;
+}
+
 /** Join as a device and wait until the owner has let it in. */
 export async function joinAsDevice(
   input: DeviceJoinInput,
 ): Promise<DeviceSession> {
-  const { link, code, name, signal } = input;
+  const { link, name, signal } = input;
   const routes = linkRoutes(link);
   if (routes === null) throw new DeviceJoinError("bad_link");
   if (!linkRelays(link)) throw new DeviceJoinError("no_relay");
+  // The code is the pairing's salt, and the owner counts every mismatch as a
+  // miss: it leaves in the owner's spelling, or not at all.
+  const code = spelled(link, input.code);
   let guest: LiveGuest | null = null;
   const rendezvous = openCarriers(
     routes.carriers,

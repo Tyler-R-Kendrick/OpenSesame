@@ -13,7 +13,7 @@ import {
   revealsSecret,
   wireConnection,
 } from "./connection-port.js";
-import { OPERATIONS_MAX } from "./device-messages.js";
+import { CONNECTIONS_MAX, OPERATIONS_MAX } from "./device-messages.js";
 
 const port = (): ConnectionPort => ({
   list: () => [],
@@ -68,6 +68,20 @@ describe("what a device is offered", () => {
       wireConnection({ id: "c", label: "x", provider: "p", operations })
         ?.operations,
     ).toHaveLength(OPERATIONS_MAX);
+  });
+
+  it("offers no more connections than one frame may name", () => {
+    const many: ConnectionPort = {
+      ...port(),
+      list: () =>
+        Array.from({ length: CONNECTIONS_MAX + 5 }, (_, i) => ({
+          id: `c-${i}`,
+          label: `Connection ${i}`,
+          provider: "github",
+          operations: ["provider.read"],
+        })),
+    };
+    expect(offeredBy(many)).toHaveLength(CONNECTIONS_MAX);
   });
 
   it("offers nothing without a port", () => {

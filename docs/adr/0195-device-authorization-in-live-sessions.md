@@ -39,9 +39,10 @@ must neither see that vault nor be handed authority by the link alone.
 
 ### 1. A seat is a person's or a device's, and arrives by a peer route or a relay
 
-A join request (the sealed `osl-request.` code) gains two optional fields,
-both said only when they are not the default so an owner from before them
-still reads an ordinary request:
+A join request (the sealed `osl-request.` code) gains two optional fields. A
+reader treats an absent one as the default, so a request without them is still
+an ordinary one; a browser joining as a person says both anyway, which an owner
+from before them ignores, as it ignores any key it does not read:
 
 - `kind`: `person` (default) or `device`. A **person** is shown the shared
   items of the owner's vault. A **device** is shown none: it is sent an empty
@@ -147,8 +148,13 @@ and says it was cut. A failure is a code from a closed list and never what the
 provider said, since that can hold a token or an account name.
 
 Limits per grant: four calls running at once, sixty a minute, twenty seconds
-each. Every call, answered or refused, is a line in the owner's on-screen log
-with the connection id and the operation name, and no value.
+each. Every ask counts against the minute, refused or not, so a grant cannot be
+spent on filling the owner's log with its own refusals; past the limit a device
+is told to wait and nothing more is logged. Every call, answered or refused
+within the limit, is a line in the owner's on-screen log with the connection id
+and the operation name, and no value. A device that sends something no
+operation takes (input, today) is told `invalid_request`, not that the provider
+failed.
 
 ### 5. The operator's surface
 
@@ -180,6 +186,15 @@ the browser (`device-session.ts`, `device-client.ts`).
 - **A terminal that can use WebRTC.** A device needs the owner's NATS relay
   (`session` not `off`); a Node peer connection would need a native dependency
   and, across networks, the same routes a browser needs.
+- **A proof bound to the session's vault.** `approve` takes a `manage_grants`
+  proof for whichever vault the caller named; Pages names the vault that is
+  open when Allow is pressed. A session ends when the vault locks, so these are
+  the same vault in practice, but the broker holds no `Named` vault of its own
+  to make the type say so. Binding the broker to one (and typing `approve` as
+  `ManageGrants<T>` for that `T`) is the follow-up.
+- **The device's `want` on the Allow sheet.** A device may name connections it
+  would like (`--connection`); the request carries them, and the sheet does not
+  yet show or pre-select them. The owner chooses from what the app can lend.
 - **Calling MCP tools, writes, and model keys.** The table is read-only on
   purpose. Presenting a model key (ADR 0192 §9) and calling an MCP tool each
   need an approval per operation, not per connection.

@@ -17,11 +17,14 @@
  */
 
 import {
+  CONNECTIONS_MAX,
+  CONNECTION_ID,
   type DeviceConnection,
   type DeviceItem,
   OPERATIONS_MAX,
+  PROVIDER_ID,
   isOperationId,
-} from "./device-messages.js";
+} from "./connection-wire.js";
 
 export type SessionConnection = DeviceConnection;
 
@@ -38,10 +41,21 @@ export type SessionResult = Readonly<{
   items: readonly DeviceItem[];
 }>;
 
+/**
+ * A call the port refuses because of what the device asked, not because a
+ * provider failed: the device is told its request was not one.
+ */
+export class InvalidCall extends Error {
+  constructor() {
+    super("invalid_call");
+    this.name = "InvalidCall";
+  }
+}
+
 export interface ConnectionPort {
   /** The connections a device could be granted, as they stand now. */
   list(): readonly SessionConnection[];
-  /** One value-blind operation on one connection. Rejects on any failure. */
+  /** One value-blind operation on one connection. Rejects on any failure; `InvalidCall` when the ask itself was wrong. */
   invoke(call: SessionCall): Promise<SessionResult>;
 }
 
@@ -88,8 +102,6 @@ export function revealsSecret(operation: string): boolean {
   return /secret|credential|password|token|api_?key/i.test(operation);
 }
 
-const CONNECTION_ID = /^[A-Za-z0-9._:-]{1,128}$/;
-const PROVIDER_ID = /^[A-Za-z0-9._:-]{1,64}$/;
 const UNSAFE = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Zl}\p{Zp}]/gu;
 const LABEL_MAX = 120;
 
@@ -118,12 +130,18 @@ export function wireConnection(
   };
 }
 
-/** What a port offers a device, as the wire may carry it. */
+/**
+ * What a port offers a device, as the wire may carry it: no more connections
+ * than one frame may name, so that whatever the owner is shown, allows and
+ * is then told about is something the device can read.
+ */
 export function offeredBy(
   port: ConnectionPort | null,
 ): readonly DeviceConnection[] {
-  return (port?.list() ?? []).flatMap((held) => {
-    const wire = wireConnection(held);
-    return wire ? [wire] : [];
-  });
+  return (port?.list() ?? [])
+    .flatMap((held) => {
+      const wire = wireConnection(held);
+      return wire ? [wire] : [];
+    })
+    .slice(0, CONNECTIONS_MAX);
 }

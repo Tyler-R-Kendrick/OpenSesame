@@ -23,19 +23,30 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import {
+  CONNECTIONS_MAX,
+  CONNECTION_ID,
+  type DeviceConnection,
+  type DeviceItem,
+  OPERATIONS_MAX,
+  PROVIDER_ID,
+  isOperationId,
+} from "./connection-wire.js";
+
+export {
+  CONNECTIONS_MAX,
+  type DeviceConnection,
+  type DeviceItem,
+  OPERATIONS_MAX,
+  isOperationId,
+};
 
 const REQ = /^[A-Za-z0-9_-]{1,32}$/;
-const CONNECTION_ID = /^[A-Za-z0-9._:-]{1,128}$/;
-const PROVIDER_ID = /^[A-Za-z0-9._:-]{1,64}$/;
-/** `provider.read`, `provider.repositories.read`: lower-case words and dots. */
-const OPERATION_ID = /^[a-z][a-z0-9_]{0,31}(\.[a-z0-9_]{1,32}){0,5}$/;
 const INPUT_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 const DEVICE_CODE = /^[A-Za-z0-9_-]{22}$/;
 const USER_CODE = /^[A-Z]{4}-[A-Z]{4}$/;
 
 export const WANT_MAX = 8;
-export const CONNECTIONS_MAX = 32;
-export const OPERATIONS_MAX = 16;
 export const INPUT_MAX = 8;
 export const INPUT_VALUE_MAX = 2048;
 export const ITEMS_MAX = 100;
@@ -43,22 +54,6 @@ const LABEL_MAX = 120;
 const ITEM_ID_MAX = 200;
 const ITEM_LABEL_MAX = 200;
 const URL_MAX = 512;
-
-/** One connection as a device may be told of it: never a credential. */
-export type DeviceConnection = Readonly<{
-  id: string;
-  label: string;
-  provider: string;
-  /** What a call may name on this connection, as the owner's tab allows. */
-  operations: readonly string[];
-}>;
-
-/** One line of what an operation reported. */
-export type DeviceItem = Readonly<{
-  id: string;
-  label: string;
-  url?: string;
-}>;
 
 /** RFC 8628 §3.5's answers to a poll, and `granted` for the success. */
 export type DeviceAuthState =
@@ -194,10 +189,6 @@ function readInput(
     out[key] = entry;
   }
   return out;
-}
-
-export function isOperationId(value: BoundaryValue): value is string {
-  return isString(value) && value.length <= 192 && OPERATION_ID.test(value);
 }
 
 function readConnection(value: BoundaryValue): DeviceConnection | null {
