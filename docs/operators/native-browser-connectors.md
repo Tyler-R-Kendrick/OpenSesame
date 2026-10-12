@@ -9,6 +9,20 @@ settings rather than appearing as duplicate browse tiles. Existing
 [Linear setup](connect-connectors.md#connect-linear), Git backup, GitHub, S3 and
 vault-key protection keep their specialized experiences.
 
+## When a provider has no browser connection
+
+Its page and tile say why, from one reason per provider ([ADR 0197](../adr/0197-browser-dispositions-and-honest-links.md)):
+a native client is the only way in (`companion`), the provider's servers refuse this
+origin (`refuses-browser`), the provider answers this origin but nothing in OpenSesame
+connects to it yet (`driver-pending`), the only call that exists is public and cannot
+prove a key (`no-key-check`), this vault already does it (`built-in`), or OpenSesame's
+own rules refuse it (`policy`). Each authored reason cites a dated probe or a page. The
+probes were taken from the audited origin in
+`spec/connectors/browser-dispositions.json`; **if you deploy at another origin, run
+`pnpm audit:browser-dispositions` there** — a provider that refuses one origin may
+admit another, and an operator who configures a provider's CORS (a self-hosted
+instance, for example) changes the answer for their own origin only.
+
 ## Deployment requirements
 
 Use a build that contains and approves `connectors.external`, then enable it in

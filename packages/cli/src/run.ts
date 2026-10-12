@@ -21,6 +21,7 @@ import {
   helpText,
   parseArgs,
 } from "./parse.js";
+import type { SessionDependencies } from "./session-commands.js";
 import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 import { type VaultItemDependencies, runVaultItems } from "./vault-items.js";
 import { type VaultSyncDependencies, runVaultSync } from "./vault-sync.js";
@@ -33,7 +34,8 @@ interface RunDependencies
   extends VaultDependencies,
     VaultItemDependencies,
     VaultSyncDependencies,
-    ParityDependencies {
+    ParityDependencies,
+    SessionDependencies {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   openBrowser?: (url: string) => void;
@@ -331,6 +333,12 @@ async function dispatch(
 
     case "vault-sync":
       return runVaultSync(command, deps);
+
+    case "session": {
+      // Loaded on demand: no other command pays for the relay client.
+      const { runSession } = await import("./session-commands.js");
+      return runSession(command, deps);
+    }
 
     default: {
       const _exhaustive: never = command;

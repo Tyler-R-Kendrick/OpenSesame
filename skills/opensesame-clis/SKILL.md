@@ -87,4 +87,13 @@ REF=$(./target/debug/opensesame connect token github/acme-gh)
 pnpm --filter @opensesame/cli start -- login --device --issuer http://127.0.0.1:8788
 pnpm --filter @opensesame/cli start -- host health --host http://127.0.0.1:8787
 pnpm --filter @opensesame/cli start -- host discover --host http://127.0.0.1:8787
+
+# Use the connections an operator saved in their PWA, through their open tab (ADR 0196).
+# The operator hosts a live session with "Devices: May ask" over a NATS relay; this is a bearer link,
+# so it comes from the environment. The terminal prints a code to compare; the operator allows it
+# in their tab, and every call is made there. No credential ever reaches the terminal.
+export OPENSESAME_LIVE_LINK='https://…#live=v1.…'
+export OPENSESAME_LIVE_CODE='BCDF-GHJK'     # invite sessions only
+pnpm --filter @opensesame/cli start -- session list
+pnpm --filter @opensesame/cli start -- session invoke <connection> provider.repositories.read --json
 ```

@@ -42,6 +42,13 @@ export interface LiveChannel {
   onMessage(handler: (message: ChannelMessage) => void): void;
   onClose(handler: () => void): void;
   close(): void;
+  /**
+   * Resolves once every frame sent before (and by) `close` has gone out. A
+   * channel carried over a connection that is closed at once after `close`
+   * would otherwise lose its goodbye (ADR 0196); one that needs no waiting
+   * need not say.
+   */
+  drained?(): Promise<void>;
 }
 
 /** How a link may reach the other browser: only what the owner named. */

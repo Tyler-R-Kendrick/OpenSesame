@@ -44,6 +44,10 @@ function outcome(received: Received): Standing | null {
       );
     case "full":
       return standingMark("warn", "The session is full");
+    case "no-devices":
+      return standingMark("warn", "This session does not let devices ask");
+    case "no-relay":
+      return standingMark("warn", "This session has no relay for a device");
     case "ended":
       return standingMark("idle", "The session has ended");
     case "locked":
@@ -168,6 +172,9 @@ export function GuestRow({ host, guest }: { host: LiveHost; guest: Guest }) {
       <div className="vault-row__body">
         <span className="vault-row__text">
           <span className="vault-row__name">{guest.name}</span>
+          {guest.kind === "device" ? (
+            <span className="vault-row__meta">A device</span>
+          ) : null}
           {guest.note ? (
             <span className="vault-row__meta">{guest.note}</span>
           ) : null}

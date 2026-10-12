@@ -1,3 +1,4 @@
+import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {
@@ -22,10 +23,19 @@ function daemonOrigin(): string | null {
   }
 }
 
+function pageOrigin(): string | null {
+  try {
+    return window.location.origin;
+  } catch {
+    return null;
+  }
+}
+
 type Row = readonly [
   requestId: string,
   terminalSessionId: string,
   verb: string,
+  respondNonce: string,
 ];
 
 function parseFirst(body: BoundaryValue): Row | null {
@@ -35,8 +45,19 @@ function parseFirst(body: BoundaryValue): Row | null {
   const requestId = readString(entry.requestId);
   const terminalSessionId = readString(entry.terminalSessionId);
   const verb = readString(entry.verb);
-  if (!requestId || !terminalSessionId || !verb) return null;
-  return [requestId, terminalSessionId, verb];
+  const respondNonce = readString(entry.respondNonce);
+  if (!requestId || !terminalSessionId || !verb || !respondNonce) return null;
+  return [requestId, terminalSessionId, verb, respondNonce];
+}
+
+function authHeaders(): Record<string, string> | null {
+  const token = readCliAppIntegrationBearer();
+  const origin = pageOrigin();
+  if (!token || !origin) return null;
+  return {
+    authorization: `Bearer ${token}`,
+    Origin: origin,
+  };
 }
 
 export function CliAuthorizePanel() {
@@ -45,13 +66,15 @@ export function CliAuthorizePanel() {
   useEffect(() => {
     void (async () => {
       const origin = daemonOrigin();
-      if (!origin) return setRow(null);
+      const headers = authHeaders();
+      if (!origin || !headers) return setRow(null);
       const res = await localNetworkFetch(
         `${origin}/v1/cli/app-integration/pending`,
         {
           method: "GET",
           credentials: "omit",
           cache: "no-store",
+          headers,
         },
       );
       if (!res.ok) return setRow(null);
@@ -62,19 +85,25 @@ export function CliAuthorizePanel() {
     if (!row || busy) return;
     setBusy(true);
     const origin = daemonOrigin();
-    if (!origin) return setBusy(false);
+    const headers = authHeaders();
+    if (!origin || !headers) return setBusy(false);
+    const body: Record<string, string> = {
+      requestId: row[0],
+      terminalSessionId: row[1],
+      decision,
+      respondNonce: row[3],
+    };
+    if (decision === "approve") {
+      body.humanProof = "pending-ui-human-proof-placeholder";
+    }
     const res = await localNetworkFetch(
       `${origin}/v1/cli/app-integration/respond`,
       {
         method: "POST",
         credentials: "omit",
         cache: "no-store",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          requestId: row[0],
-          terminalSessionId: row[1],
-          decision,
-        }),
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify(body),
       },
     );
     setBusy(false);

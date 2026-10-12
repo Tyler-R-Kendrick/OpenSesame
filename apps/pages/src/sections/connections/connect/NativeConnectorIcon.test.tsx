@@ -110,6 +110,12 @@ it("offers the real vault import destination for a companion without a false Con
   expect(
     screen.queryByRole("button", { name: /Verify and connect/ }),
   ).toBeNull();
-  expect(screen.getByText(/Imported items are a local snapshot/)).toBeTruthy();
+  expect(screen.getByText(/into this vault as a local snapshot/)).toBeTruthy();
+  // The links say what they are: KeePass's own help, not a stand-in for it.
+  expect(
+    screen
+      .getByRole("link", { name: "KeePass documentation" })
+      .getAttribute("href"),
+  ).toBe("https://keepass.info/help/base/index.html");
   expect(screen.queryByLabelText("Icon")).toBeNull();
 });

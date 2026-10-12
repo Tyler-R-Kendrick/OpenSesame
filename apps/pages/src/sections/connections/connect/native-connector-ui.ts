@@ -1,3 +1,7 @@
+import type {
+  BrowserUnavailableKind,
+  DispositionRoute,
+} from "@opensesame/app-core/lib/browser-disposition.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type { ConfigChoice } from "@opensesame/app-core/lib/self-hosted-config.js";
@@ -33,6 +37,8 @@ export type NativeMethodDescriptor = {
   label: string;
   available: boolean;
   unavailableReason?: string;
+  /** Why it is unavailable, as a closed reason a tile can name (never prose). */
+  unavailableKind?: BrowserUnavailableKind;
   instructions?: string;
   fields: readonly NativeField[];
   scopeGroups: readonly NativeScopeGroup[];
@@ -59,9 +65,11 @@ export type NativeConnectorDescriptor = {
   methods: readonly NativeMethodDescriptor[];
   actions: readonly NativeActionDescriptor[];
   disconnectExplanation?: string;
+  /** Other places a person is sent, each named for what it is (never "<Name> documentation" for a page that is not). */
+  externalLinks?: readonly { label: string; url: string }[];
   configurationLinks?: readonly {
     label: string;
-    to: "/vault?f=all" | "/setup/connectors";
+    to: DispositionRoute | "/setup/connectors";
   }[];
 };
 

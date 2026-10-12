@@ -62,6 +62,7 @@
     "audit:cve-lite": "bash ./scripts/audit/cve-lite-gate.sh",
     "audit:ast-grep": "bash ./scripts/audit/ast-grep-security-gate.sh",
     "audit:clippy": "bash ./scripts/audit/clippy-gate.sh",
+    "audit:browser-dispositions": "node scripts/audit/browser-disposition-probes.mjs",
     "audit:osv": "bash ./scripts/audit/osv-scanner-gate.sh",
     "audit:cargo-audit": "bash ./scripts/audit/cargo-audit-gate.sh",
     "audit:gitleaks": "bash ./scripts/audit/gitleaks-gate.sh",

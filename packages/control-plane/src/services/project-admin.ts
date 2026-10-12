@@ -18,7 +18,8 @@
 import type { Named } from "@gdp-ts/core";
 import type { Project, ProjectMembership } from "@opensesame/os-domain";
 import type { AppContext } from "../context.js";
-import type { ActorId, ProjectId } from "../lib/ids.js";
+import type { ActorId, OrganizationId, ProjectId } from "../lib/ids.js";
+import type { OrgOwner } from "../proofs/org-owner.js";
 import type {
   ProjectAdmin,
   ProjectMember,
@@ -156,5 +157,65 @@ export function reconcileMembership<A, P>(
   return reconcileProjectAuthorityMembership(ctx, project.value, {
     actorPrincipalId: actor.value,
     ...(correlationId !== undefined ? { correlationId } : undefined),
+  });
+}
+
+/**
+ * Hands the project to another principal: they become its owner, the previous
+ * owner stays on as an admin, and `ownerPrincipalId` follows. Only an owner can
+ * do this, and the new owner must already be a member (no unaccepted transfer).
+ */
+export async function transferProjectToPrincipal<A, P>(
+  ctx: Pick<AppContext, "stores" | "clock">,
+  project: Proj<P>,
+  _proof: ProjectOwner<A, P>,
+  existing: Project,
+  from: Named<A, ActorId>,
+  toPrincipalId: string,
+): Promise<void> {
+  sameProject(project.value, existing.id);
+  const now = ctx.clock();
+  const target = await ctx.stores.projectMemberships.find(
+    project.value,
+    toPrincipalId,
+  );
+  const previous = await ctx.stores.projectMemberships.find(
+    project.value,
+    from.value,
+  );
+  if (!target || !previous) {
+    throw new Error("transfer needs both parties to be members");
+  }
+  await ctx.stores.projectMemberships.upsert({
+    ...target,
+    role: "owner",
+    updatedAt: now,
+  });
+  await ctx.stores.projectMemberships.upsert({
+    ...previous,
+    role: "admin",
+    updatedAt: now,
+  });
+  await ctx.stores.projects.set(project.value, {
+    ...existing,
+    ownerPrincipalId: toPrincipalId,
+    updatedAt: now,
+  });
+}
+
+/** Moves the project under an organization the actor owns. */
+export async function transferProjectToOrganization<A, P, O>(
+  ctx: Pick<AppContext, "stores" | "clock">,
+  project: Proj<P>,
+  _proof: ProjectOwner<A, P>,
+  _org: OrgOwner<A, O>,
+  existing: Project,
+  organization: Named<O, OrganizationId>,
+): Promise<void> {
+  sameProject(project.value, existing.id);
+  await ctx.stores.projects.set(project.value, {
+    ...existing,
+    organizationId: organization.value,
+    updatedAt: ctx.clock(),
   });
 }

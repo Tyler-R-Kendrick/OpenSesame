@@ -180,6 +180,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: live sessions (ADR 0150) -----------------------------
     "shared_sessions.live_host": "sharing.live",
     "shared_sessions.live_join": "sharing.live",
+    "shared_sessions.device_authorize": "sharing.live",
+    "shared_sessions.device_connections": "sharing.live",
+    "shared_sessions.device_invoke": "sharing.live",
 
     // --- optional: trusted contacts (ADR 0187) ---------------------------
     // A circle of people who approve or hold shares; every operation is a
@@ -197,6 +200,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.local.directory.manage": "identity.local-iam",
     "identity.local.organizations.read": "identity.local-iam",
     "identity.local.organizations.membership.manage": "identity.local-iam",
+    "identity.local.vault.transfer": "identity.local-iam",
     "cli.app_integration.list": "identity.local-iam",
     "cli.app_integration.respond": "identity.local-iam",
     "identity.local.siop.authorize": "identity.siop",

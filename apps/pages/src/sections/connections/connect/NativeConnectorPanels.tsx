@@ -5,6 +5,7 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { isNativeAwsProvider } from "@opensesame/app-core/lib/native-aws-input.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
@@ -15,6 +16,10 @@ import { useLocation } from "react-router";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
+import {
+  nativeAwsActions,
+  nativeAwsDescriptor,
+} from "./native-aws-descriptor.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
@@ -54,6 +59,11 @@ export function nativeSettingsDescriptor(
     );
   if (provider.id === "s3")
     return nativeS3Descriptor(
+      provider,
+      hasNativeConnectorDriver("api-key", provider.id),
+    );
+  if (isNativeAwsProvider(provider.id))
+    return nativeAwsDescriptor(
       provider,
       hasNativeConnectorDriver("api-key", provider.id),
     );
@@ -163,6 +173,9 @@ function actions(
                     resultOrigins: [],
                   },
                 ]
+              : []),
+            ...(isNativeAwsProvider(descriptor.providerId)
+              ? nativeAwsActions(descriptor.providerId)
               : []),
             ...discordActions(view),
           ].map((action) => ({

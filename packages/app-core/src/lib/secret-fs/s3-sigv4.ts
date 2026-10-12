@@ -1,13 +1,15 @@
 /**
- * AWS Signature Version 4 for S3 (ADR 0182), the one signer the S3 store
- * needs. It is pure — a method, a URL, headers and a body hash in, the
- * request to send out — so it runs unchanged in a browser, a worker and Node,
- * and is checked against the worked examples Amazon publishes.
+ * AWS Signature Version 4 (ADR 0182). It is pure — a method, a URL, headers
+ * and a body hash in, the request to send out — so it runs unchanged in a
+ * browser, a worker and Node, and is checked against the worked examples
+ * Amazon publishes: the S3 ones, and the SigV4 test suite for any other
+ * service.
  *
  * S3 differs from the other services in two ways that matter here: the path
  * is encoded once, never twice, and the body's hash travels as
- * `x-amz-content-sha256`. The secret key is held `Redacted`, so nothing made
- * from these objects can print it.
+ * `x-amz-content-sha256`. `signS3` is that one; `signAws` is the rest. The
+ * secret key is held `Redacted`, so nothing made from these objects can print
+ * it.
  */
 import { hmac } from "@noble/hashes/hmac";
 import { sha256 } from "@noble/hashes/sha2";
@@ -21,7 +23,7 @@ export type S3Credentials = Readonly<{
 }>;
 
 export type S3Signing = Readonly<{
-  method: "GET" | "PUT" | "DELETE" | "HEAD";
+  method: "GET" | "PUT" | "DELETE" | "HEAD" | "POST";
   /** The request address; its path is signed as given, decoded and encoded once. */
   url: URL;
   /** Headers to send and to sign, beyond host, date and the body hash. */
@@ -67,15 +69,36 @@ function signingKey(
   secret: string,
   day: string,
   region: string,
+  service: string,
 ): Uint8Array<ArrayBufferLike> {
   const step = (key: Uint8Array, data: string) => hmac(sha256, key, text(data));
   return step(
-    step(step(step(text(`AWS4${secret}`), day), region), "s3"),
+    step(step(step(text(`AWS4${secret}`), day), region), service),
     "aws4_request",
   );
 }
 
+/** What differs between S3 and every other service. */
+export type AwsSigning = S3Signing &
+  Readonly<{
+    /** The service's signing name: `secretsmanager`, `ssm`, `sts`, `s3`. */
+    service: string;
+    /** S3 sends the body's hash as a header; no other service wants it. */
+    payloadHashHeader: boolean;
+    /** S3 encodes the path once in the canonical request; every other service twice. */
+    pathEncoding: "once" | "twice";
+  }>;
+
 export function signS3(input: S3Signing): SignedS3 {
+  return signAws({
+    ...input,
+    service: "s3",
+    payloadHashHeader: true,
+    pathEncoding: "once",
+  });
+}
+
+export function signAws(input: AwsSigning): SignedS3 {
   const stamp = (input.now ?? new Date())
     .toISOString()
     .replace(/[:-]|\.\d{3}/g, "");
@@ -85,7 +108,8 @@ export function signS3(input: S3Signing): SignedS3 {
   const headers = new Headers(input.headers);
   headers.set("host", input.url.host);
   headers.set("x-amz-date", stamp);
-  headers.set("x-amz-content-sha256", input.payloadHash);
+  if (input.payloadHashHeader)
+    headers.set("x-amz-content-sha256", input.payloadHash);
   if (credentials.sessionToken !== undefined) {
     headers.set(
       "x-amz-security-token",
@@ -98,16 +122,20 @@ export function signS3(input: S3Signing): SignedS3 {
     .sort(([a], [b]) => (a < b ? -1 : 1));
   const signedNames = named.map(([name]) => name).join(";");
   const path = canonicalPath(input.url.pathname);
+  const signedPath =
+    input.pathEncoding === "twice"
+      ? path.split("/").map(encode).join("/")
+      : path;
   const canonical = [
     input.method,
-    path,
+    signedPath,
     canonicalQuery(input.url),
     `${named.map(([name, value]) => `${name}:${value}`).join("\n")}\n`,
     signedNames,
     input.payloadHash,
   ].join("\n");
 
-  const scope = `${day}/${input.region}/s3/aws4_request`;
+  const scope = `${day}/${input.region}/${input.service}/aws4_request`;
   const toSign = [
     "AWS4-HMAC-SHA256",
     stamp,
@@ -118,6 +146,7 @@ export function signS3(input: S3Signing): SignedS3 {
     Redacted.value(credentials.secretAccessKey),
     day,
     input.region,
+    input.service,
   );
   const signature = bytesToHex(hmac(sha256, key, text(toSign)));
   headers.set(

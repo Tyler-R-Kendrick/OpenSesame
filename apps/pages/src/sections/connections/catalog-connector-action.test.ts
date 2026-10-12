@@ -20,11 +20,16 @@ function provider(id: string) {
 
 it("does not offer browser authorization for legacy App or native git configuration routes", () => {
   connectorIntegration();
+  // None of them is "a desktop app away": git has its own Backups road, and
+  // the forges' OAuth needs a client secret a browser cannot hold.
   for (const id of ["git", "bitbucket", "origin"])
     expect(catalogConnectorAction(provider(id), null)).toMatchObject({
-      kind: "native",
-      glyph: "computer",
+      kind: "unavailable",
+      glyph: "blocked",
     });
+  expect(catalogConnectorAction(provider("bitbucket"), null)).toMatchObject({
+    reason: "needs-client-secret",
+  });
   expect(catalogConnectorAction(provider("s3"), null)).toMatchObject({
     kind: "connect",
     glyph: "plus",
@@ -50,8 +55,8 @@ it("keeps a saved local git URL from claiming browser installation or authorizat
   expect(connection.status).toBe("active");
   expect(connection.accountLabel).toContain("github.com");
   expect(catalogConnectorAction(provider("git"), connection)).toMatchObject({
-    kind: "native",
-    glyph: "computer",
+    kind: "unavailable",
+    glyph: "blocked",
   });
 });
 
@@ -65,8 +70,9 @@ it("keeps Google cleanup compiled while refusing a new popup on an isolated brow
       descriptor?.methods.find((method) => method.id === "oauth")?.available,
     ).toBe(false);
     expect(catalogConnectorAction(provider("google"), null)).toMatchObject({
-      kind: "native",
-      glyph: "computer",
+      kind: "unavailable",
+      glyph: "blocked",
+      reason: "no-contract",
     });
   } finally {
     vi.unstubAllGlobals();

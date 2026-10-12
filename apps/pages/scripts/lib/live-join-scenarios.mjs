@@ -25,6 +25,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
 let check;
@@ -232,6 +233,7 @@ export async function carried(browser, owner, kind) {
     else await joiner.page.close();
   } finally {
     PASSTHROUGH.splice(0);
+    await ownerReleases(owner, server);
     await server.stop();
   }
 }
@@ -270,6 +272,7 @@ export async function declined(browser, owner) {
     await endSession(panel);
     await joiner.context.close();
   } finally {
+    await ownerReleases(owner, server);
     await server.stop();
   }
 }

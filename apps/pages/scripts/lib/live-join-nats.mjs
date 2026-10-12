@@ -32,6 +32,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 
 const ROOT = path.resolve(
@@ -228,6 +229,7 @@ export async function natsSession(browser, owner, binary, mode) {
     await endSession(panel);
     await joiner.context.close();
   } finally {
+    await ownerReleases(owner, server);
     await server.stop();
   }
 }

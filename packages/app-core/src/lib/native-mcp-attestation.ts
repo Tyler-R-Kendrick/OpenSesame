@@ -47,9 +47,12 @@ export function nativeMcpRevocationInstructions(
       entry.credentials?.phase ?? "",
     ) &&
       Number(entry.credentials?.deadline) > Date.now());
+  const where = plan.docsUrl
+    ? `Open ${plan.name}'s official documentation and authorization settings`
+    : `Open the MCP server address this connection used (no documentation link is known for ${plan.name}) and find its authorization settings in your ${plan.name} account`;
   return {
     url: plan.docsUrl ?? metadata.url,
-    message: `Open ${plan.name}'s official documentation and authorization settings. Revoke application access for this connection${registration ? " and remove its OpenSesame public client registration" : ""}. Confirm only after completing that provider action. This human confirmation clears local authorization; it does not verify provider revocation or a working connection.`,
+    message: `${where}. Revoke application access for this connection${registration ? " and remove its OpenSesame public client registration" : ""}. Confirm only after completing that provider action. This human confirmation clears local authorization; it does not verify provider revocation or a working connection.`,
     canConfirm: !busy,
   };
 }
