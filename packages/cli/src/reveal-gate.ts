@@ -64,7 +64,6 @@ export async function humanRevealAppIntegrationRefusal(
 ): Promise<string | undefined> {
   const staticRefusal = humanRevealRefusal(request);
   if (staticRefusal) return staticRefusal;
-  const env = request.env ?? process.env;
   const port = request.appIntegration ?? createCliAppIntegrationPort();
   const terminalSessionId =
     request.terminalSessionId ?? terminalSessionIdForReveal();
