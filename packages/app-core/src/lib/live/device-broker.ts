@@ -26,6 +26,7 @@ import type {
 import {
   type Approval,
   type ApproveResult,
+  BEGIN_GAP_MS,
   DEVICE_CODE_TTL_MS,
   type DeviceLog,
   type DevicesState,
@@ -141,9 +142,15 @@ export class DeviceBroker {
       seat.send({ t: "dev.error", req, error: "temporarily_unavailable" });
       return;
     }
-    // One question at a time from a seat: a new one replaces the old.
-    this.#settle(seat.pending);
     const now = this.#now();
+    // One question at a time from a seat: a new one replaces the old, but not
+    // in a flood — each one is a code and a notice on the owner's screen.
+    const last = seat.pending;
+    if (last && now - last.askedAt < BEGIN_GAP_MS) {
+      seat.send({ t: "dev.error", req, error: "temporarily_unavailable" });
+      return;
+    }
+    this.#settle(last);
     const pending: Pending = {
       id: newRequestId(),
       seat,

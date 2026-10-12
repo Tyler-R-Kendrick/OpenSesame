@@ -58,7 +58,7 @@ describe("session list", () => {
     expect(ran.code).toBe(0);
     // The code the person at the terminal compares is the one the owner sees.
     expect(ran.err).toContain(
-      `Approve it in the host's Live session panel (Devices). Check that the code matches: ${pending.userCode}`,
+      `Allow it in the host's Live session panel. Check that the code matches: ${pending.userCode}`,
     );
     expect(ran.err).toContain("Asking the host to let this device in");
     expect(ran.out).toMatch(

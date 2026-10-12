@@ -17,7 +17,11 @@ import {
   setup,
   useBrokerClock,
 } from "./device-broker.test-support.js";
-import { CALLS_PER_MINUTE, MAX_IN_FLIGHT } from "./device-types.js";
+import {
+  BEGIN_GAP_MS,
+  CALLS_PER_MINUTE,
+  MAX_IN_FLIGHT,
+} from "./device-types.js";
 import { deferred } from "./live-clock.fixture.js";
 import { readChannelMessage } from "./messages.js";
 
@@ -252,6 +256,7 @@ describe("ending", () => {
 
   it("replaces a seat's grant when the owner allows a new request", async () => {
     const { broker, device } = await granted(["c-github"]);
+    await vi.advanceTimersByTimeAsync(BEGIN_GAP_MS);
     await device.seat.handle({ t: "dev.begin", req: "b2", want: [] });
     const [pending] = broker.state.pending;
     await approveAs(broker, pending?.id ?? "", {

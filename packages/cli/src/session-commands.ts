@@ -121,7 +121,7 @@ function readLink(command: SessionCommand): LiveLink {
 /** Say what to compare, once the host has made its code. */
 function announce(view: DeviceCodeView): void {
   tell(
-    `Approve it in the host's Live session panel (Devices). Check that the code matches: ${view.userCode}`,
+    `Allow it in the host's Live session panel. Check that the code matches: ${view.userCode}`,
   );
   const minutes = Math.max(1, Math.round(view.expiresIn / 60));
   tell(`Waiting for the host; the request lapses in ${minutes} min.`);

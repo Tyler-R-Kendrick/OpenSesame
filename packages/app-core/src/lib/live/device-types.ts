@@ -15,6 +15,8 @@ export const SLOW_DOWN_STEP = 5;
 export const MAX_POLL_SECONDS = 60;
 /** Requests waiting at once, across the session. */
 export const MAX_PENDING = 8;
+/** A seat may start a new request no sooner than this after its last. */
+export const BEGIN_GAP_MS = 2000;
 /** Calls running at once, and calls a minute, for one grant. */
 export const MAX_IN_FLIGHT = 4;
 export const CALLS_PER_MINUTE = 60;

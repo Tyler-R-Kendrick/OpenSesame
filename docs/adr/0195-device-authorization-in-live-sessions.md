@@ -79,7 +79,8 @@ answer is also **pushed** to the device the moment it is made, with polling
 kept as the fallback for a lost frame; the default wait is five seconds, a
 poll that comes sooner is told `slow_down` and five more seconds, up to
 sixty; a request lapses after ten minutes or with the session; a seat holds
-one request at a time and the session at most eight.
+one request at a time, may start a new one no sooner than two seconds after
+its last, and the session holds at most eight.
 
 The **user code** is eight letters from the alphabet ADR 0044 codes use, in
 two groups of four, unique among the session's open requests. It is not typed

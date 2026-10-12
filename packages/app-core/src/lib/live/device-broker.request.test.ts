@@ -13,6 +13,7 @@ import {
   useBrokerClock,
 } from "./device-broker.test-support.js";
 import {
+  BEGIN_GAP_MS,
   DEVICE_CODE_TTL_MS,
   MAX_PENDING,
   POLL_SECONDS,
@@ -86,10 +87,28 @@ describe("asking for authority", () => {
     expect(broker.state.pending).toHaveLength(MAX_PENDING);
   });
 
+  it("does not let a seat ask again in a flood", async () => {
+    const { broker } = setup();
+    const device = seatOf(broker);
+    const first = await begin(broker, device);
+    for (const req of ["b2", "b3"])
+      await device.seat.handle({ t: "dev.begin", req, want: [] });
+    expect(device.last()).toEqual({
+      t: "dev.error",
+      req: "b3",
+      error: "temporarily_unavailable",
+    });
+    // The first request stands, untouched.
+    expect(broker.state.pending.map((one) => one.userCode)).toEqual([
+      first.code.userCode,
+    ]);
+  });
+
   it("lets a seat hold one question: a new one replaces the old", async () => {
     const { broker } = setup();
     const device = seatOf(broker);
     const first = await begin(broker, device);
+    await vi.advanceTimersByTimeAsync(BEGIN_GAP_MS);
     await device.seat.handle({ t: "dev.begin", req: "b2", want: [] });
     const [pending] = broker.state.pending;
     expect(broker.state.pending).toHaveLength(1);
