@@ -79,6 +79,11 @@ export const VAULT_LIB_RULES = [
     "bounded retired-credential records and authentication boundaries",
   ),
   core(
+    "src/lib/agent-canaries/",
+    UNLOCK,
+    "bounded controlled-canary records and original sealed-data operations",
+  ),
+  core(
     "src/lib/password-agent/",
     ITEMS,
     "provider-independent credential workflow algorithms and native CLI ports; the local vault reuses discovery and template handling",
