@@ -3,12 +3,11 @@
  */
 
 import { b64urlToBytes } from "@opensesame/vault-core";
-import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
+import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 
 export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
-export const CLI_APP_PAIRING_EXCHANGE_PATH =
-  "/v1/cli/app-integration/pairing";
+export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
 
 const SESSION_KEY = "opensesame-cli-app-integration-bearer";
 
