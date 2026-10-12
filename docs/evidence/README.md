@@ -69,7 +69,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-11-ai-model-providers/`](2026-10-11-ai-model-providers/README.md) | AI model providers: their own section, a one-sheet add, and keys for apps |
 | [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
 | [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
-| [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) |  |
+| [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) | C3 / F10 — live host item picker uses listedItems |
 | [`2026-10-10-persona-r3-c2-claim-different-link/`](2026-10-10-persona-r3-c2-claim-different-link/README.md) | C2 / F5 — claim route different link |
 | [`2026-10-10-persona-r3-b1-share-revoke-armed/`](2026-10-10-persona-r3-b1-share-revoke-armed/README.md) | B1 / F7 — share revoke armed state |
 | [`2026-10-10-persona-r3-a-sent-drops/`](2026-10-10-persona-r3-a-sent-drops/README.md) | A1 / F6 — sent drops lockout and receipts |
