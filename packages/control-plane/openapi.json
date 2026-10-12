@@ -1206,22 +1206,38 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": ["confirm"],
-                "properties": {
-                  "principalId": {
-                    "type": "string",
-                    "minLength": 1
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["principalId", "confirm"],
+                    "properties": {
+                      "principalId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "confirm": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
                   },
-                  "organizationId": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "confirm": {
-                    "type": "string",
-                    "minLength": 1
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["organizationId", "confirm"],
+                    "properties": {
+                      "organizationId": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "confirm": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
                   }
-                }
+                ]
               }
             }
           }

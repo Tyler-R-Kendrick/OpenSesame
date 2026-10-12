@@ -183,17 +183,76 @@ describe("POST /v1/projects/:id/transfer", () => {
     );
   });
 
-  it("moves a project under an organization the caller owns, and refuses one they don't", async () => {
+  it("moves a project under an organization the caller owns, and only that", async () => {
+    const { app, ctx } = setup();
+    const s = await seeded(app);
+    const now = ctx.clock();
+    const seedOrg = async (id: string, role: "owner" | "member") => {
+      await ctx.stores.organizations.set(id, {
+        id,
+        slug: id,
+        displayName: id,
+        state: "active",
+        createdBy: s.owner.id,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await ctx.stores.organizationMemberships.upsert({
+        organizationId: id,
+        principalId: s.owner.id,
+        role,
+        createdAt: now,
+        updatedAt: now,
+      });
+    };
+    await seedOrg("org_owned", "owner");
+    await seedOrg("org_joined", "member");
+
+    const missing = await transfer(app, s.project, s.owner, {
+      organizationId: "org_missing",
+      confirm: "team-vault",
+    });
+    expect(missing.status).toBe(404);
+
+    const joined = await transfer(app, s.project, s.owner, {
+      organizationId: "org_joined",
+      confirm: "team-vault",
+    });
+    expect(joined.status).toBe(403);
+    expect(overlapCast(await joined.json()).error).toBe("owner_required");
+
+    const moved = await transfer(app, s.project, s.owner, {
+      organizationId: "org_owned",
+      confirm: "team-vault",
+    });
+    expect(moved.status).toBe(200);
+    const body = overlapCast(await moved.json());
+    expect(body.organizationId).toBe("org_owned");
+    expect(body.role).toBe("owner");
+    expect(body.ownerPrincipalId).toBe(s.owner.id);
+
+    const again = await transfer(app, s.project, s.owner, {
+      organizationId: "org_owned",
+      confirm: "team-vault",
+    });
+    expect(again.status).toBe(409);
+    expect(overlapCast(await again.json()).error).toBe(
+      "already_in_organization",
+    );
+  });
+
+  it("refuses both targets at once", async () => {
     const { app } = setup();
     const s = await seeded(app);
-    const stray = await app.request(`/v1/projects/${s.project}/transfer`, {
+    const res = await app.request(`/v1/projects/${s.project}/transfer`, {
       method: "POST",
       headers: s.owner.headers,
       body: JSON.stringify({
-        organizationId: "org_missing",
+        principalId: s.peer.id,
+        organizationId: "org_owned",
         confirm: "team-vault",
       }),
     });
-    expect(stray.status).toBe(404);
+    expect(res.status).toBe(400);
   });
 });
