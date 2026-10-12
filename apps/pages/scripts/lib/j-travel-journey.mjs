@@ -37,8 +37,17 @@ async function sealNamed(page, name) {
   const dialog = page.getByRole("dialog", { name: "Seal a new vault" });
   await dialog.waitFor({ timeout: 15000 });
   await dialog.locator("#vaults-new-name").fill(name);
-  await dialog.getByRole("button", { name: "Seal vault" }).click();
-  await dialog.waitFor({ state: "hidden", timeout: 20000 });
+  const seal = dialog.getByRole("button", { name: "Seal vault" });
+  await seal.waitFor({ state: "visible", timeout: 15000 });
+  await Promise.all([
+    dialog.waitFor({ state: "hidden", timeout: 20000 }),
+    seal.click({ timeout: 15000 }),
+  ]).catch(async () => {
+    if (await dialog.isVisible().catch(() => false)) {
+      await seal.click({ timeout: 15000 });
+      await dialog.waitFor({ state: "hidden", timeout: 20000 });
+    }
+  });
   // Sealing shares the open key and lands in the new vault. Personal has to
   // be the open one: an open vault always travels, so it cannot be the one
   // this walk sends home.
