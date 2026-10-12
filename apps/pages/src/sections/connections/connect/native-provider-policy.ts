@@ -18,6 +18,7 @@ export function nativePolicyMethod(
   return {
     ...method,
     available: false,
+    unavailableKind: "refuses-browser",
     unavailableReason:
       policy.reason ?? "This provider route is unavailable in this browser.",
   };

@@ -55,8 +55,8 @@ it("keeps unavailable GitHub access in the native experience without exposing se
   const provider = githubProvider();
   expect(nativeSettingsDescriptor(provider)?.methods[0]?.available).toBe(false);
   expect(catalogConnectorAction(provider, null)).toMatchObject({
-    kind: "native",
-    glyph: "computer",
+    kind: "unavailable",
+    glyph: "blocked",
   });
   render(
     <MemoryRouter>

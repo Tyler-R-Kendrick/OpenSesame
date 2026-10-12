@@ -126,7 +126,9 @@ describe("a key or a configuration seals on this device", () => {
         }),
       ).toBeNull();
       expect(
-        screen.getByText(/Better Auth has no supported browser driver/),
+        screen.getByText(
+          /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
+        ),
       ).toBeTruthy();
     },
   );

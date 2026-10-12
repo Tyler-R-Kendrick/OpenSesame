@@ -1493,7 +1493,7 @@
       "id": "plivo",
       "display_name": "Plivo",
       "category": "communication",
-      "docs_url": "https://www.plivo.com/docs/sms/api/overview/",
+      "docs_url": "https://www.plivo.com/docs/messaging/api/overview",
       "provenance_url": "https://www.plivo.com/docs/sms/api/overview/",
       "auth": {
         "kind": "configuration"
@@ -1829,7 +1829,7 @@
       "id": "1password",
       "display_name": "1Password",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/1password.html",
+      "docs_url": "https://www.1password.dev/cli",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1863,7 +1863,7 @@
       "id": "age",
       "display_name": "age",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/age.html",
+      "docs_url": "https://github.com/FiloSottile/age",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1893,7 +1893,7 @@
       "id": "aws",
       "display_name": "AWS Secrets Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-sm.html",
+      "docs_url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1937,7 +1937,7 @@
       "id": "aws-kms",
       "display_name": "AWS KMS",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-kms.html",
+      "docs_url": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1982,7 +1982,7 @@
       "id": "aws-ps",
       "display_name": "AWS Parameter Store",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-ps.html",
+      "docs_url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2027,7 +2027,7 @@
       "id": "azure-kms",
       "display_name": "Azure Key Vault Keys",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-kms.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2072,7 +2072,7 @@
       "id": "azure-sm",
       "display_name": "Azure Key Vault Secrets",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-sm.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/key-vault/secrets/about-secrets",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2117,7 +2117,7 @@
       "id": "azure-ac",
       "display_name": "Azure App Configuration",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-ac.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/azure-app-configuration/overview",
       "provenance_url": "https://fnox.jdx.dev/providers/overview",
       "auth": {
         "kind": "configuration"
@@ -2162,7 +2162,7 @@
       "id": "gcp",
       "display_name": "Google Cloud Secret Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/gcp-sm.html",
+      "docs_url": "https://docs.cloud.google.com/secret-manager/docs/overview",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2196,7 +2196,7 @@
       "id": "gcp-kms",
       "display_name": "Google Cloud KMS",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/gcp-kms.html",
+      "docs_url": "https://docs.cloud.google.com/kms/docs/key-management-service",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2240,7 +2240,7 @@
       "id": "fido2",
       "display_name": "FIDO2",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/fido2.html",
+      "docs_url": "https://fidoalliance.org/specifications/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2274,7 +2274,7 @@
       "id": "bitwarden",
       "display_name": "Bitwarden",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/bitwarden.html",
+      "docs_url": "https://bitwarden.com/help/bitwarden-apis/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2349,7 +2349,7 @@
       "id": "foks",
       "display_name": "FOKS",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/foks.html",
+      "docs_url": "https://foks.pub/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2379,7 +2379,7 @@
       "id": "bitwarden-sm",
       "display_name": "Bitwarden Secrets Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/bitwarden-sm.html",
+      "docs_url": "https://bitwarden.com/help/secrets-manager-overview/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2418,7 +2418,7 @@
       "id": "infisical",
       "display_name": "Infisical",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/infisical.html",
+      "docs_url": "https://infisical.com/docs/documentation/getting-started/introduction",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2457,7 +2457,7 @@
       "id": "keepass",
       "display_name": "KeePass",
       "category": "local_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/keepass.html",
+      "docs_url": "https://keepass.info/help/base/index.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2520,7 +2520,7 @@
       "id": "password-store",
       "display_name": "password-store",
       "category": "local_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/password-store.html",
+      "docs_url": "https://www.passwordstore.org/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2583,7 +2583,7 @@
       "id": "passwordstate",
       "display_name": "Passwordstate",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/cli/provider/add",
+      "docs_url": "https://www.clickstudios.com.au/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2641,7 +2641,7 @@
       "id": "proton-pass",
       "display_name": "Proton Pass",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/proton-pass.html",
+      "docs_url": "https://proton.me/support/pass",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2670,7 +2670,7 @@
       "id": "vault",
       "display_name": "HashiCorp Vault",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/vault.html",
+      "docs_url": "https://developer.hashicorp.com/vault/docs",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2709,7 +2709,7 @@
       "id": "openbao",
       "display_name": "OpenBao",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/openbao.html",
+      "docs_url": "https://openbao.org/docs/",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
       "auth": {
         "kind": "configuration"
@@ -2748,7 +2748,7 @@
       "id": "vaultwarden",
       "display_name": "Vaultwarden",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/vaultwarden.html",
+      "docs_url": "https://github.com/dani-garcia/vaultwarden/wiki",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
       "auth": {
         "kind": "configuration"
@@ -2957,7 +2957,7 @@
       "id": "yubikey",
       "display_name": "YubiKey",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/yubikey.html",
+      "docs_url": "https://docs.yubico.com/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -4893,7 +4893,7 @@
       "id": "opencode-zen",
       "display_name": "OpenCode Zen",
       "category": "ai_model_provider",
-      "docs_url": "https://opencode.ai/docs/zen",
+      "docs_url": "https://opencode.ai/zen",
       "provenance_url": "https://opencode.ai/docs/zen",
       "auth": {
         "kind": "api_key",
@@ -5193,6 +5193,6 @@
       }
     }
   ],
-  "revision": "2026-10-11.1",
+  "revision": "2026-10-12.1",
   "schema_version": 1
 }

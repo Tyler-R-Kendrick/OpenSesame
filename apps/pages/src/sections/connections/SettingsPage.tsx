@@ -5,6 +5,7 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { canConfigureAutomatically } from "@opensesame/app-core/lib/connector-guidance.js";
+import { docLink } from "@opensesame/app-core/lib/doc-link.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import {
   readLocalGithubApp,
@@ -115,6 +116,14 @@ export function ConnectorSettingsPage({
   const nativeDescriptor = provider ? nativeSettingsDescriptor(provider) : null;
   const nativeExperience =
     nativeDescriptor !== null && !isConnectConnection(connection);
+  const headerDocs = provider
+    ? docLink(
+        provider.displayName,
+        nativeExperience
+          ? (nativeDescriptor.docsUrl ?? provider.docsUrl)
+          : provider.docsUrl,
+      )
+    : null;
   useEffect(() => {
     // A completed local App registration must not leave a failure glyph up.
     if (!nativeExperience && localGithubApp !== null && flash?.tone === "err")
@@ -211,18 +220,17 @@ export function ConnectorSettingsPage({
                 : `${authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`)}
           </p>
         </div>
-        <a
-          className="btn btn--sm btn--ghost"
-          href={
-            nativeExperience
-              ? (nativeDescriptor.docsUrl ?? provider.docsUrl)
-              : provider.docsUrl
-          }
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          Docs <IconExternal size={14} />
-        </a>
+        {headerDocs ? (
+          <a
+            className="btn btn--sm btn--ghost"
+            href={headerDocs.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={headerDocs.label}
+          >
+            {headerDocs.short} <IconExternal size={14} />
+          </a>
+        ) : null}
       </header>
 
       {flash ? (

@@ -8,6 +8,25 @@ import {
   nativeDeviceProviderDescriptor,
 } from "./native-device-provider-descriptor.js";
 
+/**
+ * Every provider says why, in a closed reason, and never in the old catch-all.
+ * (An instance's own roads are unavailable only until their driver registers.)
+ */
+function expectHonestReason(
+  method: { unavailableKind?: string; unavailableReason?: string } | undefined,
+  id: string,
+  instance: boolean,
+) {
+  if (!instance) {
+    expect(method?.unavailableKind, id).toBeDefined();
+    expect(method?.unavailableReason?.length, id).toBeGreaterThan(40);
+  }
+  expect(method?.unavailableReason).not.toContain(
+    "no supported browser driver",
+  );
+  expect(method?.unavailableReason).not.toContain("cannot run that companion");
+}
+
 it("covers every visible bundled provider without a plan or replacing a specialized road", () => {
   const visible = getBundledProviders()
     .filter(isConnectionCatalogProvider)
@@ -30,7 +49,7 @@ it("covers every visible bundled provider without a plan or replacing a speciali
     );
     expect(method?.available).toBe(false);
     expect(method?.fields).toEqual([]);
-    expect(method?.unavailableReason).toContain(descriptor?.name);
+    expectHonestReason(method, provider.id, instance);
     expect(descriptor?.actions).toEqual([]);
   }
   expect(has.mock.calls.map((call) => call)).toEqual([
@@ -68,38 +87,96 @@ it.each(["vault", "openbao"])(
   },
 );
 
-it("leaves companion configuration and imports distinct from provider access", () => {
-  const companions = getBundledProviders()
+it("offers the vault import only where an import exists, and says it is a snapshot", () => {
+  const withImport = getBundledProviders()
     .filter(isConnectionCatalogProvider)
-    .map((provider) =>
-      nativeDeviceProviderDescriptor(provider.id, { has: () => false }),
-    )
-    .filter((descriptor) => descriptor?.configurationLinks?.length);
-  expect(companions).toHaveLength(9);
-  for (const descriptor of companions) {
-    expect(descriptor?.configurationLinks?.[0]?.to).toBe("/vault?f=all");
+    .map((provider) => ({
+      id: provider.id,
+      descriptor: nativeDeviceProviderDescriptor(provider.id, {
+        has: () => false,
+      }),
+    }))
+    .filter(({ descriptor }) =>
+      descriptor?.configurationLinks?.some(
+        (link) => link.to === "/vault?f=all",
+      ),
+    );
+  expect(withImport.map(({ id }) => id).sort()).toEqual([
+    "1password",
+    "bitwarden",
+    "keepass",
+    "proton-pass",
+    "vaultwarden",
+  ]);
+  for (const { descriptor } of withImport) {
     expect(descriptor?.methods[0]?.available).toBe(false);
     expect(descriptor?.methods[0]?.unavailableReason).toContain(
       "local snapshot",
     );
-    expect(descriptor?.methods[0]?.unavailableReason).toContain(
-      "browser cannot run",
-    );
   }
+});
+
+it("says Bitwarden's real constraint, with Bitwarden's own pages, not fnox's", () => {
+  const descriptor = nativeDeviceProviderDescriptor("bitwarden", {
+    has: () => false,
+  });
+  const method = descriptor?.methods[0];
+  expect(method?.unavailableKind).toBe("companion");
+  expect(method?.label).toBe("Companion configuration");
+  expect(method?.unavailableReason).toContain("bw serve");
+  expect(method?.unavailableReason).toContain("Origin header");
+  expect(method?.unavailableReason).not.toContain(
+    "no supported browser driver",
+  );
+  expect(descriptor?.docsUrl).toBe(
+    "https://bitwarden.com/help/bitwarden-apis/",
+  );
+  // The APIs page is already the documentation link: it is not listed twice.
+  expect(descriptor?.externalLinks?.map((link) => link.url)).toEqual([
+    "https://bitwarden.com/help/cli/",
+  ]);
+  for (const url of [
+    descriptor?.docsUrl,
+    ...(descriptor?.externalLinks ?? []).map((link) => link.url),
+  ])
+    expect(new URL(url ?? "").hostname).toBe("bitwarden.com");
+});
+
+it("does not call a provider whose API a browser can reach a companion", () => {
+  const has = vi.fn(() => true);
+  for (const id of ["aws", "aws-ps", "aws-sts", "azure-ac", "gcp", "gcp-iam"]) {
+    const method = nativeDeviceProviderDescriptor(id, { has })?.methods[0];
+    expect(method?.available).toBe(false);
+    expect(method?.unavailableKind, id).toBe("driver-pending");
+    expect(method?.label, id).not.toBe("Companion configuration");
+    expect(method?.unavailableReason, id).toContain("answers browser");
+  }
+  expect(has).not.toHaveBeenCalled();
 });
 
 it("does not infer an unimplemented cloud or wallet driver from registry availability", () => {
   const has = vi.fn(() => true);
   const cloud = nativeDeviceProviderDescriptor("aws-secrets-manager", { has });
   expect(cloud?.methods[0]?.available).toBe(false);
-  expect(cloud?.methods[0]?.unavailableReason).toContain("region");
+  expect(cloud?.methods[0]?.unavailableKind).toBe("driver-pending");
   const wallet = nativeDeviceProviderDescriptor("apple-wallet", { has });
   expect(wallet?.methods[0]?.available).toBe(false);
+  expect(wallet?.methods[0]?.unavailableKind).toBe("policy");
   expect(wallet?.methods[0]?.unavailableReason).toContain(
     "wallet connection policy",
   );
-  expect(wallet?.methods[0]?.unavailableReason).toContain("pass type id");
   expect(has).not.toHaveBeenCalled();
+});
+
+it("tells a built-in function where it lives instead of calling it unavailable", () => {
+  const descriptor = nativeDeviceProviderDescriptor("webcrypto", {
+    has: () => false,
+  });
+  expect(descriptor?.methods[0]?.unavailableKind).toBe("built-in");
+  expect(descriptor?.methods[0]?.label).toBe("Built in");
+  expect(descriptor?.configurationLinks).toEqual([
+    { label: "Open Settings › Security", to: "/settings/security" },
+  ]);
 });
 
 it("returns no descriptor for unknown IDs, plans, or preserved specialized git roads", () => {

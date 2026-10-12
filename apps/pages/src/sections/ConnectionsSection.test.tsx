@@ -325,12 +325,12 @@ describe("ConnectionsSection connector page", () => {
     await screen.findByRole("heading", { name: "Better Auth" });
     expect(
       screen.getByText(
-        /Better Auth has no supported browser driver for its catalog operations/,
+        /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
       ),
     ).toBeTruthy();
     expect(
       screen.getByRole("img", {
-        name: "Better Auth has no supported browser connection method.",
+        name: "Better Auth: No browser connection",
       }),
     ).toBeTruthy();
     expect(screen.queryByLabelText(/Base URL/)).toBeNull();

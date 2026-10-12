@@ -29,7 +29,7 @@ function Destination() {
   );
 }
 
-it("offers a browser Connect action and a static desktop capability without a false setup route", () => {
+it("offers a browser Connect action and a static, named reason without a false setup route", () => {
   connectorIntegration();
   const { container } = render(
     <MemoryRouter>
@@ -46,9 +46,14 @@ it("offers a browser Connect action and a static desktop capability without a fa
   ).toBe("/connections/algolia");
   const desktop = container.querySelector("#catalog-datadog");
   expect(desktop?.querySelector("a, button")).toBeNull();
+  // Datadog's servers refuse a browser preflight from this origin (the audited
+  // policy): that is not "a desktop app away", and the tile says what it is.
   expect(
-    screen.getByRole("img", { name: "Desktop app required" }),
+    screen.getByRole("img", { name: "Provider blocks browsers" }),
   ).toBeTruthy();
+  expect(
+    screen.queryByRole("img", { name: "Desktop app required" }),
+  ).toBeNull();
 });
 
 it("offers installed actions only after actual provider verification and opens the configuration route", async () => {

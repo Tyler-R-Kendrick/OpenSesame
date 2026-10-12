@@ -360,7 +360,7 @@ describe("connector card actions", () => {
           nativeRequired: true,
         }),
       ),
-    ).toEqual({ kind: "unavailable", glyph: "blocked" });
+    ).toEqual({ kind: "unavailable", glyph: "blocked", reason: "policy" });
   });
   it("represents outside-browser capability without inventing an installer", () => {
     expect(

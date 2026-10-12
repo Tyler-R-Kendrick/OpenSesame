@@ -1,4 +1,5 @@
 /** One provider contract drives its form; no Vercel credentials are collected. */
+import type { BrowserUnavailableKind } from "@opensesame/app-core/lib/browser-disposition.js";
 import type {
   ConnectMethod,
   ConnectPlan,
@@ -45,6 +46,16 @@ function scopes(preset: OauthPreset): NativeScopeGroup[] {
   ];
 }
 
+function unavailableOAuthKind(
+  preset: OauthPreset | null,
+  reason: string | undefined,
+): BrowserUnavailableKind {
+  if (reason) return "no-contract";
+  return preset && preset.tokenAuth !== "none"
+    ? "needs-client-secret"
+    : "no-public-contract";
+}
+
 function unavailableOAuthReason(preset: OauthPreset | null): string {
   if (!preset)
     return "This provider does not publish a browser OAuth application contract. Use another supported connection method.";
@@ -65,6 +76,7 @@ function oauthDescriptor(
     label: "Bring Your Own OAuth App",
     available: availability.available && preset !== null,
     unavailableReason: availability.reason ?? unavailableOAuthReason(preset),
+    unavailableKind: unavailableOAuthKind(preset, availability.reason),
     instructions:
       "Register a public browser application with this provider. Use the callback shown below and authorize only the permissions you need.",
     fields: preset
@@ -116,6 +128,7 @@ function apiDescriptor(
     unavailableReason:
       availability.reason ??
       "This provider does not publish a browser-verifiable API-key route in the connector contract.",
+    unavailableKind: availability.reason ? "no-contract" : "no-key-check",
     instructions:
       preset?.instructions ??
       "Use a provider-supported browser authentication method when available.",
@@ -141,6 +154,7 @@ function mcpDescriptor(
     unavailableReason:
       availability.reason ??
       "The provider has not advertised a public browser authorization contract for its MCP server.",
+    unavailableKind: "no-public-contract",
     instructions:
       "Connect to this provider's published MCP server. OpenSesame verifies its advertised tools before reporting a connection.",
     fields:
@@ -224,6 +238,7 @@ export function nativeProviderDescriptor(
       id: "oauth",
       label: "Provider authorization",
       available: false,
+      unavailableKind: "no-public-contract",
       unavailableReason: `${plan.name} publishes a hosted managed connection but no public browser authentication contract. This self-hosted app cannot provision the provider's hosted application.`,
       fields: [],
       scopeGroups: [],
@@ -240,6 +255,7 @@ export function nativeProviderDescriptor(
       ? methods.map((method) => ({
           ...method,
           available: false,
+          unavailableKind: "policy" as const,
           unavailableReason:
             "This payment connection is unavailable under the product's connection policy.",
         }))

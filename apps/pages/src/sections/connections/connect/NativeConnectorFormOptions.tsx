@@ -68,8 +68,11 @@ export function NativeMethodPicker({
         </fieldset>
       ) : null}
       {unavailable.length ? (
-        <details className="cx-application">
-          <summary>Other sign-in methods</summary>
+        // With nothing to connect, the reasons are the page: open by default.
+        <details className="cx-application" open={choices.length === 0}>
+          <summary>
+            {choices.length ? "Other sign-in methods" : "Why not"}
+          </summary>
           {unavailable.map((choice) => (
             <p className="hint" key={choice.id}>
               {choice.label}:{" "}
