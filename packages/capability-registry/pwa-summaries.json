@@ -112,6 +112,30 @@
     }
   },
   {
+    "id": "shared_sessions.device_authorize",
+    "title": "Allow or turn down a device that asks to use this app's connections",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/live/device-broker.ts:DeviceBroker"
+    }
+  },
+  {
+    "id": "shared_sessions.device_connections",
+    "title": "List the connections a live session's owner allowed this device",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/live/device-client.ts:DeviceClient"
+    }
+  },
+  {
+    "id": "shared_sessions.device_invoke",
+    "title": "Use an allowed connection through the owner's open tab",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/live/device-client.ts:DeviceClient"
+    }
+  },
+  {
     "id": "delegations.claim",
     "title": "Claim a delegation offer",
     "plane": "host",

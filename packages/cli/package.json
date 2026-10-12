@@ -21,6 +21,7 @@
     "start": "node --import tsx src/bin.ts"
   },
   "dependencies": {
+    "@nats-io/nats-core": "3.4.0",
     "@opensesame/log-scrub": "workspace:*",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
@@ -35,8 +36,10 @@
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
+    "@types/ws": "8.18.1",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "ws": "8.21.3"
   }
 }

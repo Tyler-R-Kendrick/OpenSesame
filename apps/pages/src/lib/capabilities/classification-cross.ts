@@ -153,6 +153,21 @@ export const CROSS_RULES = [
     "connectors.external",
     "native provider authorization and connection runtime",
   ),
+  // The seam between two optional capabilities: the connections an app holds
+  // offer themselves to a live session through it, and neither owns the words.
+  shared(
+    `${L}live/connection-port`,
+    "the port a live session reaches the app's connections through, and its binding (ADR 0196)",
+  ),
+  shared(
+    `${L}live/connection-wire`,
+    "how a connection is spelled to a device: ids, operation names, bounds (ADR 0196)",
+  ),
+  optional(
+    `${L}session-connections`,
+    "connectors.external",
+    "the closed read-only operations a device may ask of the connections a live session lends (ADR 0196)",
+  ),
   optional(
     `${L}model-keys/`,
     "connectors.external",

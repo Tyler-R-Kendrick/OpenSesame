@@ -22,6 +22,7 @@ import { bindNativeModelRuntime } from "./native-model-runtime.js";
 import { bindNativeOAuthRuntime } from "./native-oauth-runtime.js";
 import { bindNativeTwitchValidation } from "./native-twitch-validation.js";
 import { bindNativeVaultRuntime } from "./native-vault-runtime.js";
+import { bindSessionConnections } from "./session-connections-runtime.js";
 
 type ProviderRequest = { url: string | URL; init: RequestInit };
 type AuthorizationView = NonNullable<
@@ -176,6 +177,7 @@ export function bindProviderRuntime(
   bindNativeApiRuntime(activation);
   bindNativeModelRuntime(activation);
   bindNativeModelKeys(activation);
+  bindSessionConnections(activation);
   bindNativeOAuthRuntime(activation);
   bindNativeTwitchValidation(activation);
   bindNativeVaultRuntime(activation);

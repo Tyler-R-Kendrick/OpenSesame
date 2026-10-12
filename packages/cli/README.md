@@ -17,7 +17,9 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
   [`@opensesame/api-client`](../api-client) (the `host` verbs),
   [`@opensesame/vault-core`](../vault-core) (`openVaultFile`),
   [`@opensesame/app-core`](../app-core) (the Node host, installed before a
-  vault is opened) and, for the `mcp` verb, [`@opensesame/mcp-host`](../mcp-host)
+  vault is opened; the device side of a live session, for `session`),
+  [`@nats-io/nats-core`](https://github.com/nats-io/nats.js) (the relay
+  connection `session` joins over) and, for the `mcp` verb, [`@opensesame/mcp-host`](../mcp-host)
   and [`@opensesame/mcp-client`](../mcp-client), each loaded only when asked for.
 - The session file is refused if anyone but its owner can read or write it
   (a POSIX mode check; it is skipped on Windows).
@@ -39,6 +41,7 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 | `vault list`, `vault new <account\|secret\|note\|card> --name <n>`, `vault set\|edit <item>` | List the local vault (id, kind, name); create an item (`login` is accepted as `account`); change `--name`, `--username` or `--secret`. An account's password is typed here as a stored (`manual`) method; typing one over a method keeps where its pepper goes |
 | `vault copy <item> [--field secret\|rest\|username]` | Copy through the one password facade (ADR 0174): the whole password, or what comes before a pepper slot; `--field rest` copies what follows it. A pepper is never asked for or stored. A password an earlier version sealed under a pepper (`legacy_password`) is converted in the vault app |
 | `vault import <file>`, `vault export [--out <file>]`, `vault share <item>`, `vault sync [--pair <code>]` | Merge or write a sealed export of the local vault; share a secret once (link and code); sync with a tailnet drive (ADR 0144) |
+| `session [<link>] list`, `session [<link>] invoke <connection> <operation> [--input key=value]...` | Join a host's live session as a **device** (ADR 0196), get the host's approval, then list the connections it granted or use one through the host's tab; see [Live sessions](#live-sessions-as-a-device) |
 | `mcp host\|client` | Serve the host- or client-facing MCP tools on stdio (`OPENSESAME_MCP_TRANSPORT=http` for the host server's loopback HTTP); see [`mcp-host`](../mcp-host) and [`mcp-client`](../mcp-client) |
 
 Global flags: `--json`, `--issuer <url>`, `--api <url>`, `--client-id <id>`.
@@ -51,6 +54,8 @@ and `GlobalFlagsSchema`.
 | `OPENSESAME_IDENTITY_API` | the issuer |
 | `OPENSESAME_HOST_API` | `http://127.0.0.1:8787` |
 | `OPENSESAME_CLAIM_TOKEN` | none; used by `claim poll` |
+| `OPENSESAME_LIVE_LINK` | none; the live-session link `session` joins when none is given |
+| `OPENSESAME_LIVE_CODE` | none; the invite code `session` sends when `--code` is not given |
 | `OPENSESAME_STATE_DIR` | then `XDG_RUNTIME_DIR`, then `~/.config/opensesame`; holds `identity-session.json` |
 
 ## 1Password workflows
@@ -96,6 +101,42 @@ account fails closed. `service-account connect --stdin`, `status`, `recover` and
 account. macOS stores the token in Keychain, Windows uses DPAPI, and Linux uses
 an encrypted file with the existing owner-only at-rest key. `doctor` checks
 installation and settings without opening the token store or accessing vaults.
+
+## Live sessions as a device
+
+A person hosting a live session (ADR 0150) can let a terminal use some of their
+connections without ever handing it a credential (ADR 0196). The terminal joins
+over the session's NATS relay — it has no WebRTC — runs the RFC 8628 device
+authorization grant against the owner's tab, and, once the owner has compared
+a code on their own screen and picked connections, lists or uses them. The
+owner's tab makes every call and answers with labels and links only.
+
+```bash
+export OPENSESAME_LIVE_LINK='https://…#live=v1.…'   # a bearer: keep it out of history
+export OPENSESAME_LIVE_CODE='BCDF-GHJK'             # only in an invite session
+opensesame-id session list --connection c-github
+opensesame-id session invoke c-github provider.repositories.read --json
+```
+
+- `--connection ID` (repeatable) names connections you would like, in the
+  request; it never grants one, and the host's Allow sheet does not show it yet
+  (the host chooses from what it can lend). `invoke` names the connection it
+  uses the same way. The invite code may be typed any way the host showed it
+  (case, spaces and the dash are forgiven). `--name LABEL`
+  is what the owner is asked about (default `opensesame-id on <hostname>`).
+  `--timeout SECONDS` bounds the whole command (default 900).
+- The terminal prints the code to compare on **stderr**, with the progress
+  lines; **stdout** carries only the result, or with `--json` exactly one
+  document (`{ok: true, …}`, or `{ok: false, error, message}` on failure, with
+  the same message on stderr). Nothing printed names the link, the invite code
+  or the device code.
+- Every failure is a plain sentence and exit status `1`: the owner declined,
+  the request lapsed, no one answered in time, the relay is unreachable, the
+  session ended. A link that names no NATS relay is refused before anything is
+  contacted. Ctrl-C leaves the session.
+- The command always leaves the session before it returns, and waits briefly
+  for its goodbye to reach the relay so the owner's tab drops the seat and the
+  grant at once.
 
 ## Develop
 

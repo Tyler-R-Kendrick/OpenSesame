@@ -138,6 +138,14 @@ export class SeatChannel implements LiveChannel {
     this.#closers.push(handler);
   }
 
+  /** Every frame sent so far, the goodbye included, is out (or has failed). */
+  drained(): Promise<void> {
+    return this.#sending.then(
+      () => undefined,
+      () => undefined,
+    );
+  }
+
   /** Tell the other end, then stop. */
   close(): void {
     if (this.#closed) return;

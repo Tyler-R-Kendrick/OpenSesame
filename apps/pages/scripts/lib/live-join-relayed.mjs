@@ -40,6 +40,7 @@ import {
   setRoutes,
   startSession,
 } from "./live-join-walk.mjs";
+import { ownerReleases } from "./live-sockets.mjs";
 import { reachableBy } from "./live-tls-front.mjs";
 import { startLiveTurn } from "./live-turn.mjs";
 
@@ -176,6 +177,7 @@ async function through(browser, owner, label, hooks) {
     await joiner.context.close();
     await setRoutes(owner.page, {});
   } finally {
+    await ownerReleases(owner, relay);
     await relay.stop();
   }
 }

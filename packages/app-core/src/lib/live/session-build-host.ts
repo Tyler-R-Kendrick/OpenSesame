@@ -4,6 +4,7 @@
 
 import type { VaultItem } from "@opensesame/vault-core";
 import { vaultStore } from "../vault/store.js";
+import { connectionPort } from "./connection-port.js";
 import { vaultWrite } from "./field-write.js";
 import { LiveHost, MAX_SESSION_MS } from "./host.js";
 import type { SharePolicy } from "./messages.js";
@@ -23,6 +24,8 @@ export type HostBuildInput = Readonly<{
   transport: TransportFactory;
   /** The owner's routes profile; direct only when absent. */
   routes?: LiveTransport;
+  /** Let devices ask to use the owner's connections (ADR 0196). */
+  devices?: boolean;
 }>;
 
 export type RelaySource = { carriers: Rendezvous | null };
@@ -46,6 +49,8 @@ export async function buildLiveHost(
     routes,
     secret,
     relay: (name) => source.carriers?.seat(name) ?? null,
+    canRelay: () => source.carriers?.relays ?? false,
+    devices: input.devices ? { port: connectionPort } : undefined,
     post,
     expiresAt,
     catalog: () =>

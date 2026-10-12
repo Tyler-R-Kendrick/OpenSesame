@@ -1,3 +1,4 @@
+import { ADR_DEVICE_SESSIONS } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 const ADR_SHARED_SESSIONS = "0079-shared-sessions-and-scoped-grants.md";
@@ -14,6 +15,20 @@ const LIVE_SESSION_HUMAN: CapabilityExclusion = {
   reason:
     "a live session connects one person's browser to another's and shows the owner's items; starting one, admitting someone and joining are the people's own decisions, taken on screen",
   adr: ADR_LIVE_SESSIONS,
+};
+
+/** Allowing a device to use connections is the owner's decision, on their screen. */
+const DEVICE_GRANT_HUMAN: CapabilityExclusion = {
+  reason:
+    "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+  adr: ADR_DEVICE_SESSIONS,
+};
+
+/** A device's asks are made by the process that holds the seat. */
+const DEVICE_SEAT_HOLDER: CapabilityExclusion = {
+  reason:
+    "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+  adr: ADR_DEVICE_SESSIONS,
 };
 
 const SESSION_SURFACE_DEFERRED: CapabilityExclusion = {
@@ -202,6 +217,62 @@ export const sharedSessionCapabilities: readonly Capability[] = [
       mcp_host: LIVE_SESSION_HUMAN,
       mcp_client: LIVE_SESSION_HUMAN,
       webmcp: LIVE_SESSION_HUMAN,
+    },
+  },
+  {
+    id: "shared_sessions.device_authorize",
+    title:
+      "Allow or turn down a device that asks to use this app's connections",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/live/device-broker.ts:DeviceBroker",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: DEVICE_GRANT_HUMAN,
+      mcp_host: DEVICE_GRANT_HUMAN,
+      mcp_client: DEVICE_GRANT_HUMAN,
+      webmcp: DEVICE_GRANT_HUMAN,
+    },
+  },
+  {
+    id: "shared_sessions.device_connections",
+    title: "List the connections a live session's owner allowed this device",
+    plane: "client_local",
+    kind: "read",
+    surfaces: {
+      cli: "opensesame-id session list",
+      pwa: "lib/live/device-client.ts:DeviceClient",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: DEVICE_SEAT_HOLDER,
+      mcp_client: DEVICE_SEAT_HOLDER,
+      webmcp: DEVICE_SEAT_HOLDER,
+    },
+  },
+  {
+    id: "shared_sessions.device_invoke",
+    title: "Use an allowed connection through the owner's open tab",
+    plane: "client_local",
+    kind: "act",
+    surfaces: {
+      cli: "opensesame-id session invoke",
+      pwa: "lib/live/device-client.ts:DeviceClient",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: DEVICE_SEAT_HOLDER,
+      mcp_client: DEVICE_SEAT_HOLDER,
+      webmcp: DEVICE_SEAT_HOLDER,
     },
   },
   {

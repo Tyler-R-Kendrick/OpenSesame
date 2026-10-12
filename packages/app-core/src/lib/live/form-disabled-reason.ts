@@ -36,8 +36,10 @@ export function liveHostStartDisabledReason(input: {
   refused: string | null;
   starting: boolean;
   title: string;
-  scope: "vault" | "items";
+  scope: "vault" | "items" | "none";
   chosenCount: number;
+  /** Whether devices may ask to use connections (ADR 0196). */
+  devices?: boolean;
 }): string | undefined {
   if (input.starting) return undefined;
   if (!input.loaded) return "Loading routes for this vault";
@@ -45,6 +47,9 @@ export function liveHostStartDisabledReason(input: {
   if (!input.title.trim()) return "Name the session";
   if (input.scope === "items" && input.chosenCount === 0) {
     return "Choose at least one item";
+  }
+  if (input.scope === "none" && !input.devices) {
+    return "Share an item, or let devices ask";
   }
   return undefined;
 }

@@ -57,9 +57,15 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "sharing.live",
     "Live sessions",
-    "Share the whole vault or chosen items live with people who join from a link — browser to browser, paired by codes the two people pass each other, while this tab stays open — and join somebody else's session from the front door. No server is needed; routes the owner names (a tailnet address, STUN or TURN, a code carrier) are optional, and nothing of a session is stored on either side.",
+    "Share the whole vault or chosen items live with people who join from a link — browser to browser, while this tab stays open — and join somebody else's session from the front door. The owner may also let a terminal use saved connections: read-only, and it never holds a credential. No server is needed; routes the owner names are optional, and nothing of a session is stored.",
     {
-      operationIds: ["shared_sessions.live_host", "shared_sessions.live_join"],
+      operationIds: [
+        "shared_sessions.live_host",
+        "shared_sessions.live_join",
+        "shared_sessions.device_authorize",
+        "shared_sessions.device_connections",
+        "shared_sessions.device_invoke",
+      ],
       egress: [
         {
           class: "peer-or-local-network",

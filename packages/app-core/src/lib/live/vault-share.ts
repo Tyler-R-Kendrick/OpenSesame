@@ -44,7 +44,9 @@ const ID = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export type ShareScope =
   | Readonly<{ kind: "vault" }>
-  | Readonly<{ kind: "items"; ids: readonly string[] }>;
+  | Readonly<{ kind: "items"; ids: readonly string[] }>
+  /** Nothing of the vault: a session that only lets devices ask (ADR 0196). */
+  | Readonly<{ kind: "none" }>;
 
 /** A field as the owner holds it: its label, concealment and full text. */
 type Held = Readonly<{
@@ -111,6 +113,7 @@ function heldFields(item: VaultItem): Held[] {
 }
 
 function inScope(scope: ShareScope, item: VaultItem): boolean {
+  if (scope.kind === "none") return false;
   return scope.kind === "vault" || scope.ids.includes(item.id);
 }
 

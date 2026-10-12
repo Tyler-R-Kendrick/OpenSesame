@@ -200,6 +200,69 @@ tailnet or LAN address. Chrome calls this Local Network Access, and the
 prompt reads "Look for and connect to any device on your local network".
 Allowing it is the browser's consent, on top of the join screen's.
 
+## Devices: letting a terminal use your connections
+
+A session can also let a **device** — `opensesame-id` in a terminal, on your
+machine or a teammate's — use some of the connections saved in this app
+([ADR 0196](../adr/0196-device-authorization-in-live-sessions.md)). The
+terminal never holds a credential: your tab makes each call and sends back
+labelled lines.
+
+What it needs:
+
+- **A NATS relay that may carry the session.** A terminal has no WebRTC, so it
+  joins over the NATS server named in Routes, with *Session over this server*
+  left at **If direct fails** or **Always** (not **Codes only**; see
+  [above](#nats-a-credential-per-session-and-the-session-itself)). A link
+  that names no such relay is refused by the terminal before it contacts
+  anything.
+- **A connection to lend.** The **Devices** choice on the Form appears only
+  when External connectors is on and at least one connection is usable
+  (verified, authorized, and allowed in this browser). Choose **May ask**. If
+  the session is only for devices, set **Share** to **Nothing**: a device is
+  never shown your vault whatever you share, but a session that shares nothing
+  says so.
+
+From the terminal:
+
+```bash
+# The link is a bearer: keep it out of your shell history.
+export OPENSESAME_LIVE_LINK='https://…#live=v1.…'
+export OPENSESAME_LIVE_CODE='BCDF-GHJK'          # invite sessions only
+
+opensesame-id session list
+opensesame-id session invoke <connection> provider.repositories.read
+```
+
+The terminal prints a **code** (`BCDF-GHJK`) and waits. In your tab, under the
+session's guests, the device is listed with the same code. Compare them, then
+**Allow**: choose the connections and how long (up to 8 hours, never past the
+session). **Turn down** refuses it. A grant is listed with **Revoke**, which
+ends it at once, even for a call in flight.
+
+What a device can do is a short list of read-only operations, the same for any
+device and any session:
+
+| Connection | Operations |
+|---|---|
+| any saved API key or sign-in | `provider.read` — the account the credential belongs to, verified |
+| GitHub, Codeberg | `provider.repositories.read` |
+| S3 | `provider.objects.read` |
+| Discord (with the guilds permission) | `provider.guilds.read` |
+| an MCP server | `mcp.tools.list` (it can list tools; it cannot call them) |
+| Linear | `issues.list`, `projects.list`, `teams.list` |
+
+It cannot read a secret from Vault, call an MCP tool, or write anything.
+Your on-screen log shows every call by connection and operation name, and
+never a value.
+
+A grant belongs to the seat it was made for. A device that disconnects, or
+whose time runs out, asks again; leaving the session, locking the vault and
+the end key all end every grant. Anyone with the link can ask to be a device,
+and in an open session is seated as they ask; they get nothing until you
+compare their code and allow it. If a code on your screen does not match any
+terminal you started, turn it down.
+
 ## What the joiner sees
 
 When a link names routes, the join screen lists every host the joiner's
