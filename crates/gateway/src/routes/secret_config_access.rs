@@ -74,7 +74,7 @@ pub(in crate::routes) async fn project(
     }
 }
 
-pub(super) async fn config(
+pub(in crate::routes) async fn config(
     st: &AppState,
     who: &Caller,
     organization: &OrganizationId,
