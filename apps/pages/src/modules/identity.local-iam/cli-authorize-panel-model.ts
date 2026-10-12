@@ -92,13 +92,6 @@ export function useCliAuthorizePanel() {
     })();
   }, []);
 
-  useEffect(() => {
-    if (!row) return;
-    void loadProofRun().then((run) => {
-      if (!run) setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
-    });
-  }, [row]);
-
   async function finish(decision: "approve" | "deny", humanProof?: string) {
     if (!row || busy) return;
     setBusy(true);

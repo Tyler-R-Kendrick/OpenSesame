@@ -1,7 +1,7 @@
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 
 export const CLI_AUTHORIZE_PROOF_OFFLINE =
-  "Authorize needs a network connection to load on this device.";
+  "Authorize needs a connection to load on this device.";
 
 export type CliAuthorizeRow = readonly [
   requestId: string,
