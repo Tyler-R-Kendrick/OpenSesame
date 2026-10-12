@@ -6,12 +6,7 @@
 
 import type { VaultHeader } from "@opensesame/vault-core";
 import { WrongPasswordError } from "@opensesame/vault-core";
-export type CliAuthorizeRow = readonly [
-  requestId: string,
-  terminalSessionId: string,
-  verb: string,
-  respondNonce: string,
-];
+import type { CliAuthorizeRow } from "./cli-authorize-net.js";
 
 const PREFIX = "oschip1:";
 

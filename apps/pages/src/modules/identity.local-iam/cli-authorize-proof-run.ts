@@ -1,9 +1,18 @@
 import type { VaultHeader } from "@opensesame/vault-core";
 import { WrongPasswordError } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
-import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
+import {
+  CLI_AUTHORIZE_PROOF_OFFLINE,
+  type CliAuthorizeRow,
+} from "./cli-authorize-net.js";
 
-const PROOF_OFFLINE = "Authorize needs a connection to load on this device.";
+async function loadMintProof() {
+  try {
+    return await import("./cli-authorize-mint-proof.js");
+  } catch {
+    return null;
+  }
+}
 
 export async function runCliAuthorizePasskeyApprove(input: {
   row: CliAuthorizeRow;
@@ -17,12 +26,10 @@ export async function runCliAuthorizePasskeyApprove(input: {
   if (input.busy) return;
   input.setBusy(true);
   input.setMark(null);
-  let mint: typeof import("./cli-authorize-mint-proof.js");
-  try {
-    mint = await import("./cli-authorize-mint-proof.js");
-  } catch {
+  const mint = await loadMintProof();
+  if (!mint) {
     input.setBusy(false);
-    input.setMark(PROOF_OFFLINE);
+    input.setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
     return;
   }
   try {
@@ -69,12 +76,10 @@ export async function runCliAuthorizePinApprove(input: {
   if (!vaultHeader) return;
   input.setBusy(true);
   input.setMark(null);
-  let mint: typeof import("./cli-authorize-mint-proof.js");
-  try {
-    mint = await import("./cli-authorize-mint-proof.js");
-  } catch {
+  const mint = await loadMintProof();
+  if (!mint) {
     input.setBusy(false);
-    input.setMark(PROOF_OFFLINE);
+    input.setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
     return;
   }
   try {
