@@ -9,8 +9,9 @@
 //! variables). After that it writes event lines — a tripwire that revoked
 //! the run, a login's outcome — which [`crate::dev_run::supervise`] acts on. The
 //! run ends when this process closes the plugin's stdin: when the child
-//! exits, when a tripwire stops it, and — because the kernel closes the pipe
-//! for a process that dies — when this process is killed by a signal too.
+//! exits, when a tripwire stops it, when `SIGTERM` or `SIGHUP` stops it, and —
+//! because the kernel closes the pipe for a process that dies — when this
+//! process is killed by a signal it cannot handle too.
 //!
 //! - **Not installed, or not switched on:** nothing changes. The placeholders
 //!   are delivered as before, a web login delivers nothing, and one line on
