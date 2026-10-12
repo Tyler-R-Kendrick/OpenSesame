@@ -6,12 +6,14 @@
 // 32-byte value derived from the eval salt of the in-flight ceremony. Seal
 // with passkey lands inside the app; lock; Unlock with passkey opens it again.
 //
-// PRF off: no stub, so the ceremony fails closed with prf_missing_output. The
-// failure must not read as a no-op: the corner shows the notice's card with
-// the PRF-missing message — no sheet, so the caret keeps its field — while
-// the seal screen stays put. Walked on both ctap2 and ctap2_1 — neither
-// virtual protocol emits PRF results.
+// PRF off: no stub, so the platform ceremony ends prf_missing_output — and
+// the seal steps past it instead of failing: the Security key road is
+// selected and the tray says why in a plain line (info, not an error). No
+// error card, no sheet (the caret keeps its field), the seal screen stays
+// put. Walked on both ctap2 and ctap2_1 — neither virtual protocol emits
+// PRF results.
 import { passTheDoor } from "./front-door.mjs";
+import { expect } from "./patient-expect.mjs";
 
 async function addVirtualAuthenticator(context, page, protocol) {
   const cdp = await context.newCDPSession(page);
@@ -141,30 +143,36 @@ export async function passkeyJourneys({
     await context.close();
   }
 
-  // ---- 5: PRF off — the failure is on screen, the seal screen stays
+  // ---- 5: PRF off — the seal steps past to the Security key road
   for (const protocol of ["ctap2", "ctap2_1"]) {
     setStep(`5-passkey-no-prf-${protocol}`);
     const { page, context } = await newPage(browser);
     await addVirtualAuthenticator(context, page, protocol);
     await reachSealScreen(page, ORIGIN, BASE);
+    check(
+      (await page
+        .getByRole("tab", { name: "This device" })
+        .getAttribute("aria-selected")) === "true",
+      "the device road leads the passkey seal",
+    );
     await page
       .getByLabel("I understand this vault cannot be recovered.", {
         exact: true,
       })
       .check();
     await page.getByRole("button", { name: "Seal with passkey" }).click();
-    const card = page.locator(".notice-corner .notice-card--err");
-    const shown = await card.waitFor({ timeout: 15000 }).then(
-      () => true,
-      () => false,
-    );
-    check(shown, "the failure's card is on screen, not only a pip on the bell");
-    const body = await snap(page, `5-passkey-no-prf-${protocol}`);
+    const steppedPast = await expect(
+      page.getByRole("tab", { name: "Security key" }),
+    )
+      .toHaveAttribute("aria-selected", "true")
+      .then(
+        () => true,
+        () => false,
+      );
+    check(steppedPast, "the seal stepped past to the Security key road");
     check(
-      /did not return a WebAuthn PRF result/.test(
-        shown ? ((await card.textContent()) ?? "") : "",
-      ),
-      "the card carries the PRF-missing message",
+      (await page.locator(".notice-corner .notice-card--err").count()) === 0,
+      "no error card — stepping past is not a failure",
     );
     check(
       (await page.getByRole("dialog", { name: "Notifications" }).count()) === 0,
@@ -174,8 +182,21 @@ export async function passkeyJourneys({
       (await page
         .getByRole("heading", { name: "Seal this device" })
         .count()) === 1,
-      "still on Seal this device — the failure was not silent",
+      "still on Seal this device",
     );
+    await page
+      .getByRole("button", { name: /Notifications.*pending/ })
+      .click();
+    const tray = page.getByRole("dialog", { name: "Notifications" });
+    const trayShown = await tray.waitFor({ timeout: 15000 }).then(
+      () => true,
+      () => false,
+    );
+    check(
+      trayShown && /cannot seal a vault/.test((await tray.textContent()) ?? ""),
+      "the tray says why in a plain line",
+    );
+    await snap(page, `5-passkey-no-prf-${protocol}`);
     await context.close();
   }
 }
