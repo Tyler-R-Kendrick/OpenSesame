@@ -88,14 +88,18 @@ async function nativeApiAvailability(page, harness, fixture, submit) {
       );
       return "alternative public browser sign-in route";
     }
+    // The lone status names the specific reason (`Datadog: Provider blocks
+    // browsers`); the generic sentence stands only where no reason is known.
+    const escaped = fixture.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     harness.check(
       (await page
         .getByRole("img", {
-          name: `${fixture.name} has no supported browser connection method.`,
-          exact: true,
+          name: new RegExp(
+            `^${escaped}(: .+| has no supported browser connection method\\.)$`,
+          ),
         })
         .count()) > 0,
-      `${fixture.providerId}: unavailable browser route indicates desktop capability`,
+      `${fixture.providerId}: unavailable browser route says why it has no browser road`,
     );
     harness.check(
       (await page.locator('main input[type="password"]').count()) === 0,

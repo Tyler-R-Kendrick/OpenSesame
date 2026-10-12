@@ -12,7 +12,7 @@ import {
   nativeAwsClassification,
   nativeAwsFingerprint,
   nativeAwsInput,
-  nativeAwsProviderOf,
+  nativeAwsServiceOf,
 } from "./native-aws-input.js";
 import {
   readNativeAwsNames,
@@ -47,7 +47,8 @@ type Saved = ReturnType<typeof requireNativeAws>;
 
 function targetOf(saved: Saved): NativeAwsTarget {
   return {
-    providerId: nativeAwsProviderOf(saved.configuration.providerId),
+    providerId: saved.configuration.providerId,
+    service: nativeAwsServiceOf(saved.configuration.providerId),
     parameters: saved.configuration.parameters,
     credentials: saved.privateState.credentials,
   };
@@ -70,7 +71,7 @@ async function savedNames(
     if (
       saved.configuration.fingerprint !==
       (await nativeAwsFingerprint(
-        nativeAwsProviderOf(saved.configuration.providerId),
+        nativeAwsServiceOf(saved.configuration.providerId),
         saved.configuration.parameters,
       ))
     )
@@ -137,7 +138,7 @@ export async function configureNativeAws(
       nativeOAuthGuard(saved),
     );
   const fingerprint = await nativeAwsFingerprint(
-    target.providerId,
+    target.service,
     target.parameters,
   );
   await proveKey(target, saved, fingerprint, transport);
@@ -253,7 +254,7 @@ export async function invokeNativeAws(
     return readValueOnRequest(id, input.name ?? "", transport);
   const { saved, items } = await savedNames(id, transport, true);
   const service =
-    NATIVE_AWS_SERVICES[nativeAwsProviderOf(saved.configuration.providerId)];
+    NATIVE_AWS_SERVICES[nativeAwsServiceOf(saved.configuration.providerId)];
   return {
     label:
       operation === "provider.read"

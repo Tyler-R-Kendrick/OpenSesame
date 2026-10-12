@@ -16,7 +16,10 @@
 import { z } from "zod";
 import { BROWSER_DISPOSITIONS_JSON } from "./browser-dispositions.generated.js";
 import type { Provider } from "./connections.js";
-import { catalogProvenanceUrl } from "./connector-catalog.js";
+import {
+  canonicalProviderId,
+  catalogProvenanceUrl,
+} from "./connector-catalog.js";
 import { isFnoxLink } from "./doc-link.js";
 
 /** Why a browser has no road to a provider, as a closed set. */
@@ -178,8 +181,10 @@ export function authoredDispositionIds(): readonly string[] {
 }
 
 function authored(providerId: string): AuthoredDisposition | undefined {
+  // The app keeps the alias it was asked for; the row is the catalog's.
+  const id = canonicalProviderId(providerId) ?? providerId;
   return browserDispositionSpec().dispositions.find(
-    (row) => row.provider_id === providerId,
+    (row) => row.provider_id === id,
   );
 }
 

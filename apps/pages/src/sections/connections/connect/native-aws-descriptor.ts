@@ -1,4 +1,5 @@
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { nativeAwsServiceId } from "@opensesame/app-core/lib/native-aws-input.js";
 import type {
   NativeActionDescriptor,
   NativeConnectorDescriptor,
@@ -76,7 +77,8 @@ export function nativeAwsDescriptor(
 export function nativeAwsActions(
   providerId: string,
 ): readonly NativeActionDescriptor[] {
-  const noun = providerId === "aws" ? "secret" : "parameter";
+  const secrets = nativeAwsServiceId(providerId) === "aws";
+  const noun = secrets ? "secret" : "parameter";
   return [
     {
       id: "provider.names.read",
@@ -96,8 +98,7 @@ export function nativeAwsActions(
           kind: "text",
           secret: false,
           required: true,
-          placeholder:
-            providerId === "aws" ? "prod/database" : "/prod/database/url",
+          placeholder: secrets ? "prod/database" : "/prod/database/url",
         },
       ],
       resultOrigins: [],

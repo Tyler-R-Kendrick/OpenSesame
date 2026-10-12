@@ -5,6 +5,7 @@ import { installNativeApiTests } from "./native-api.test-support.js";
 import {
   configureNativeAws,
   invokeNativeAws,
+  isNativeAwsProvider,
   nativeAwsCleanup,
   verifyNativeAws,
 } from "./native-aws.js";
@@ -83,6 +84,24 @@ it("signs a real Secrets Manager list before sealing proof, to the endpoint AWS 
   );
   expect(JSON.stringify(saved)).not.toContain("private-session-token");
 });
+
+it.each([
+  ["aws-secrets-manager", "secretsmanager.us-east-1.amazonaws.com"],
+  ["aws-parameter-store", "ssm.us-east-1.amazonaws.com"],
+])(
+  "connects under the alias the app was asked for (%s) and keeps that id for the connection",
+  async (alias, host) => {
+    const fixture = answers({
+      body: alias === "aws-secrets-manager" ? secrets : parameters,
+    });
+    const saved = await configureNativeAws(draft(alias), fixture.transport);
+    expect(String(fixture.fetch.mock.calls[0]?.[0])).toBe(`https://${host}/`);
+    expect(
+      loadNativeConnectorRecord(saved.connectionId)?.configuration.providerId,
+    ).toBe(alias);
+    expect(isNativeAwsProvider(alias)).toBe(true);
+  },
+);
 
 it("verifies Parameter Store with its own service name and target", async () => {
   const fixture = answers({ body: parameters });

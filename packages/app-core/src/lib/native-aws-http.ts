@@ -84,11 +84,11 @@ export async function nativeAwsCall(
   payload: Record<string, string | number | boolean>,
 ): Promise<BoundaryValue> {
   transport.assertCurrent();
-  const service = NATIVE_AWS_SERVICES[target.providerId];
+  const service = NATIVE_AWS_SERVICES[target.service];
   const body = JSON.stringify(payload);
   const signed = signAws({
     method: "POST",
-    url: nativeAwsEndpoint(target.providerId, target.parameters.region ?? ""),
+    url: nativeAwsEndpoint(target.service, target.parameters.region ?? ""),
     headers: new Headers({
       "content-type": "application/x-amz-json-1.1",
       "x-amz-target": `${service.targetPrefix}.${action}`,

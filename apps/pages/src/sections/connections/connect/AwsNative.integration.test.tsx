@@ -19,10 +19,14 @@ import {
 declareConnectionsTutorial();
 installConnectorIntegration();
 
+/**
+ * The provider as the Connections page builds it: the id is the one in the
+ * address, which is an alias (`aws-secrets-manager`) as often as the catalog id.
+ */
 function aws(id: string) {
   const found = catalogProvider(id);
   if (!found) throw new Error(`AWS catalog row required: ${id}`);
-  return found;
+  return { ...found, id };
 }
 const json = (body: BoundaryValue, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -42,6 +46,12 @@ it("offers AWS Secrets Manager as a browser connection, not a companion", () => 
     kind: "connect",
     method: "api-key",
   });
+  // The address a person arrives through is an alias, and offers the same road.
+  for (const alias of ["aws-secrets-manager", "aws-parameter-store"])
+    expect(catalogConnectorAction(aws(alias), null)).toMatchObject({
+      kind: "connect",
+      method: "api-key",
+    });
   // AWS STS has no driver yet, and says so.
   expect(catalogConnectorAction(aws("aws-sts"), null)).toMatchObject({
     kind: "unavailable",
@@ -65,7 +75,7 @@ it("verifies a signed Secrets Manager list, then lists names and reads one value
   render(
     <MemoryRouter>
       <NativeConnectorPanels
-        provider={aws("aws")}
+        provider={aws("aws-secrets-manager")}
         connection={null}
         onFlash={onFlash}
         onChanged={vi.fn()}
@@ -133,7 +143,8 @@ it("verifies a signed Secrets Manager list, then lists names and reads one value
   );
   const connection = deviceConnection(row.connectionId);
   expect(
-    connection && catalogConnectorAction(aws("aws"), connection),
+    connection &&
+      catalogConnectorAction(aws("aws-secrets-manager"), connection),
   ).toMatchObject({
     kind: "configure",
   });
@@ -153,7 +164,7 @@ it("says a refused key is refused, saves nothing, and never echoes what AWS wrot
   render(
     <MemoryRouter>
       <NativeConnectorPanels
-        provider={aws("aws-ps")}
+        provider={aws("aws-parameter-store")}
         connection={null}
         onFlash={onFlash}
         onChanged={vi.fn()}

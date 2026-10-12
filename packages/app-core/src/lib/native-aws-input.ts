@@ -6,6 +6,7 @@
  * this table does not name (ADR 0185 §8).
  */
 import { canonicalize } from "@opensesame/os-domain";
+import { canonicalProviderId } from "./connector-catalog.js";
 import type { NativeApiConfigureInput } from "./native-api-connectors.js";
 import {
   safeNativeConnectorIcon,
@@ -31,10 +32,31 @@ export const NATIVE_AWS_SERVICES = {
   },
 } as const;
 
-export type NativeAwsProviderId = keyof typeof NATIVE_AWS_SERVICES;
+export type NativeAwsServiceId = keyof typeof NATIVE_AWS_SERVICES;
 
-export function isNativeAwsProvider(id: string): id is NativeAwsProviderId {
-  return Object.hasOwn(NATIVE_AWS_SERVICES, id);
+const SERVICE_IDS: readonly NativeAwsServiceId[] = ["aws", "aws-ps"];
+
+/**
+ * The AWS service a provider id names. The app keeps the id it was asked for,
+ * and an alias such as `aws-secrets-manager` is the id stored connections use,
+ * so this resolves the catalog's own alias table rather than a second list.
+ */
+export function nativeAwsServiceId(
+  providerId: string,
+): NativeAwsServiceId | null {
+  const canonical = canonicalProviderId(providerId);
+  return SERVICE_IDS.find((id) => id === canonical) ?? null;
+}
+
+export function isNativeAwsProvider(providerId: string): boolean {
+  return nativeAwsServiceId(providerId) !== null;
+}
+
+/** The AWS service a saved connection names; anything else is not this driver's. */
+export function nativeAwsServiceOf(providerId: string): NativeAwsServiceId {
+  const service = nativeAwsServiceId(providerId);
+  if (!service) throw new Error("This is not an AWS connection");
+  return service;
 }
 
 export const nativeAwsClassification = {
@@ -43,7 +65,9 @@ export const nativeAwsClassification = {
 };
 
 export type NativeAwsTarget = {
-  providerId: NativeAwsProviderId;
+  /** The id the connection is stored under: the alias the app was asked for. */
+  providerId: string;
+  service: NativeAwsServiceId;
   parameters: Record<string, string>;
   credentials: Record<string, string>;
 };
@@ -53,22 +77,22 @@ const REGION = /^[a-z]{2}(?:-[a-z]+)+-\d{1,2}$/;
 
 /** The endpoint AWS publishes for this service in this region. */
 export function nativeAwsEndpoint(
-  providerId: NativeAwsProviderId,
+  service: NativeAwsServiceId,
   region: string,
 ): URL {
   if (!REGION.test(region)) throw new Error("Enter a valid AWS region");
   return new URL(
-    `https://${NATIVE_AWS_SERVICES[providerId].service}.${region}.amazonaws.com/`,
+    `https://${NATIVE_AWS_SERVICES[service].service}.${region}.amazonaws.com/`,
   );
 }
 
 /** Nothing but a region and a key: no endpoint, no scope, no target, no extra field. */
 function assertOnlyAwsFields(
   input: NativeApiConfigureInput,
-): NativeAwsProviderId {
-  const providerId = input.providerId;
+): NativeAwsServiceId {
+  const service = nativeAwsServiceId(input.providerId);
   if (
-    !isNativeAwsProvider(providerId) ||
+    !service ||
     Object.keys(input.requestedScopes ?? {}).length ||
     Object.keys(input.targetIds ?? {}).length
   )
@@ -82,12 +106,12 @@ function assertOnlyAwsFields(
     )
   )
     throw new Error("Unsupported AWS configuration field");
-  return providerId;
+  return service;
 }
 
 function publicParameters(
   input: NativeApiConfigureInput,
-  providerId: NativeAwsProviderId,
+  service: NativeAwsServiceId,
 ): Record<string, string> {
   const parameters = Object.fromEntries(
     nativeAwsClassification.publicParameters.map((key) => [
@@ -95,7 +119,7 @@ function publicParameters(
       (input.parameters[key] ?? "").trim(),
     ]),
   );
-  nativeAwsEndpoint(providerId, parameters.region ?? "");
+  nativeAwsEndpoint(service, parameters.region ?? "");
   if (!/^[A-Z0-9]{16,128}$/.test(parameters.access_key_id ?? ""))
     throw new Error("Enter a valid AWS access key ID");
   return parameters;
@@ -128,32 +152,25 @@ export function nativeAwsInput(
   input: NativeApiConfigureInput,
   saved: NativeConnectorRecord | null,
 ): NativeAwsTarget {
-  const providerId = assertOnlyAwsFields(input);
-  const parameters = publicParameters(input, providerId);
+  const service = assertOnlyAwsFields(input);
+  const parameters = publicParameters(input, service);
   const credentials = signingCredentials(input, saved);
   safeProviderText(input.displayName, credentials);
   safeNativeConnectorIcon(input.icon ?? "", credentials);
   for (const value of Object.values(parameters))
     safeProviderText(value, credentials);
-  return { providerId, parameters, credentials };
+  return { providerId: input.providerId, service, parameters, credentials };
 }
 
 /** Binds a saved connection to its service, region and key; a changed one is a new connection. */
 export async function nativeAwsFingerprint(
-  providerId: NativeAwsProviderId,
+  service: NativeAwsServiceId,
   parameters: Record<string, string>,
 ) {
   const bytes = new TextEncoder().encode(
-    canonicalize({ contract: `aws:sigv4:${providerId}:v1`, parameters }),
+    canonicalize({ contract: `aws:sigv4:${service}:v1`, parameters }),
   );
   return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
-}
-
-/** The AWS service a saved connection names; anything else is not this driver's. */
-export function nativeAwsProviderOf(providerId: string): NativeAwsProviderId {
-  if (!isNativeAwsProvider(providerId))
-    throw new Error("This is not an AWS connection");
-  return providerId;
 }

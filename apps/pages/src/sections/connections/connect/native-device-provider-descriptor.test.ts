@@ -2,6 +2,7 @@ import { hasConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { isNativeAwsProvider } from "@opensesame/app-core/lib/native-aws-input.js";
 import { expect, it, vi } from "vitest";
 import {
   type NativeDeviceAvailability,
@@ -37,7 +38,8 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   for (const provider of visible) {
     const descriptor = nativeDeviceProviderDescriptor(provider.id, { has });
     if (
-      ["git", "aws-kms", "gcp-kms", "s3", "aws", "aws-ps"].includes(provider.id)
+      ["git", "aws-kms", "gcp-kms", "s3"].includes(provider.id) ||
+      isNativeAwsProvider(provider.id)
     ) {
       expect(descriptor).toBeNull();
       continue;
@@ -206,6 +208,12 @@ it("keeps no disposition for a provider that has a road, so a shipped driver ret
 });
 
 it("sends the AWS secret stores to their own road, not to a disposition", () => {
-  for (const id of ["aws", "aws-ps"])
+  // The app routes by the alias a person arrived through as well.
+  for (const id of [
+    "aws",
+    "aws-ps",
+    "aws-secrets-manager",
+    "aws-parameter-store",
+  ])
     expect(nativeDeviceProviderDescriptor(id, { has: () => true })).toBeNull();
 });

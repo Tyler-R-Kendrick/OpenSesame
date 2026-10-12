@@ -29,14 +29,14 @@ export async function readNativeAwsNames(
   target: NativeAwsTarget,
   transport: NativeProviderTransport,
 ): Promise<{ id: string; label: string }[]> {
-  const secrets = target.providerId === "aws";
+  const secrets = target.service === "aws";
   const body = await nativeAwsCall(
     target,
     transport,
     secrets ? "ListSecrets" : "DescribeParameters",
     { MaxResults: secrets ? 20 : 10 },
   );
-  const allowed = NATIVE_AWS_SERVICES[target.providerId].allowedName;
+  const allowed = NATIVE_AWS_SERVICES[target.service].allowedName;
   const rows = entries(body, secrets ? "SecretList" : "Parameters");
   if (rows.length > 100) throw new NativeApiError("response");
   return rows.map((row) => {
@@ -53,9 +53,9 @@ export async function readNativeAwsValue(
   transport: NativeProviderTransport,
   name: string,
 ): Promise<string> {
-  if (!NATIVE_AWS_SERVICES[target.providerId].allowedName.test(name))
+  if (!NATIVE_AWS_SERVICES[target.service].allowedName.test(name))
     throw new Error("Enter a valid name");
-  const secrets = target.providerId === "aws";
+  const secrets = target.service === "aws";
   const body = await nativeAwsCall(
     target,
     transport,

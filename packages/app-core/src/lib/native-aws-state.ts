@@ -5,7 +5,7 @@ import {
   NATIVE_AWS_SERVICES,
   isNativeAwsProvider,
   nativeAwsClassification,
-  nativeAwsProviderOf,
+  nativeAwsServiceOf,
 } from "./native-aws-input.js";
 import type { NativeProviderCleanup } from "./native-connector-lifecycle.js";
 import {
@@ -64,14 +64,14 @@ export function verifiedNativeAws(
   credentials: Record<string, string>,
   previousVerifiedAt = 0,
 ): NativeConnectorRecord {
-  const providerId = nativeAwsProviderOf(configuration.providerId);
+  const service = nativeAwsServiceOf(configuration.providerId);
   const verifiedAt = Math.max(Date.now(), previousVerifiedAt + 1);
   const region = configuration.parameters.region ?? "";
   const privateState = emptyNativePrivate();
   privateState.credentials = credentials;
   privateState.grants.app = {
     kind: "api-key",
-    providerId,
+    providerId: configuration.providerId,
     actor: "app",
     fingerprint: configuration.fingerprint,
     targetId: region,
@@ -93,7 +93,7 @@ export function verifiedNativeAws(
       verifiedAt,
       identity: {
         id: region,
-        label: `${NATIVE_AWS_SERVICES[providerId].name} in ${region}`,
+        label: `${NATIVE_AWS_SERVICES[service].name} in ${region}`,
         kind: "region",
         assurance: "credential-valid",
       },
