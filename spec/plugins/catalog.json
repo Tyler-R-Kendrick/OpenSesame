@@ -4,7 +4,12 @@
     "default build or a default bundle: each is installed by a person, pinned by",
     "sha256, recorded in the plugin settings file, and off until switched on.",
     "Consumed by crates/plugin-settings (native), packages/capability-registry and",
-    "packages/app-core (the Settings capability); a drift test in each."
+    "packages/app-core (the Settings capability); a drift test in each.",
+    "stored_credential_providers (optional): the providers a plugin brokers with a",
+    "connection's own credential, which the CLI reads from the sealed store, rather",
+    "than one a local tool yields (github has `gh auth token`). Consumed by",
+    "crates/plugin-settings, which the CLI reads; the plugin's own egress table has a",
+    "drift test against it. A provider in neither place has nothing to serve it."
   ],
   "schema_version": 1,
   "settings_file": "plugins.json",
@@ -17,6 +22,7 @@
       "capability": "agents.surrogate-credentials",
       "adr": "0150",
       "default_enabled": false,
+      "stored_credential_providers": ["vercel"],
       "summary": "Per-run proxy that lets an unmodified tool hold an osr_ surrogate instead of a credential."
     },
     {

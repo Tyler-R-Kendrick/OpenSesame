@@ -114,3 +114,53 @@ impl TokenSources for ProviderSources {
         self.by_provider.get(&admission.provider_id).cloned()
     }
 }
+
+/// A connection's own credential first, then the per-provider table.
+///
+/// A connection that carries its credential (the sealed-store token a deploy
+/// tool's `conn://` reference names) is served from it whatever its provider
+/// would otherwise draw from; every other connection falls through to the
+/// provider's source, if it has one.
+#[derive(Default, Clone)]
+pub struct ConnectionSources {
+    by_connection: HashMap<String, Arc<dyn TokenSource>>,
+    providers: ProviderSources,
+}
+
+impl std::fmt::Debug for ConnectionSources {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut connections: Vec<&String> = self.by_connection.keys().collect();
+        connections.sort();
+        f.debug_struct("ConnectionSources")
+            .field("connections", &connections)
+            .field("providers", &self.providers)
+            .finish()
+    }
+}
+
+impl ConnectionSources {
+    /// The fallback for connections with no credential of their own.
+    #[must_use]
+    pub fn new(providers: ProviderSources) -> Self {
+        Self {
+            by_connection: HashMap::new(),
+            providers,
+        }
+    }
+
+    /// Serve `connection_ref`'s admitted requests from `source`.
+    #[must_use]
+    pub fn with_connection(mut self, connection_ref: &str, source: Arc<dyn TokenSource>) -> Self {
+        self.by_connection.insert(connection_ref.to_owned(), source);
+        self
+    }
+}
+
+impl TokenSources for ConnectionSources {
+    fn source_for(&self, admission: &Admission) -> Option<Arc<dyn TokenSource>> {
+        self.by_connection
+            .get(&admission.connection_ref)
+            .cloned()
+            .or_else(|| self.providers.source_for(admission))
+    }
+}

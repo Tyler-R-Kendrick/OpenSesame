@@ -7,7 +7,9 @@
 //! plugin redeems at the last hop (ADR 0150 §6.1, [`crate::dev_surrogate`]),
 //! web logins (`opensesameLogin(…)`) become surrogates the plugin substitutes
 //! into their one declared form field (§6.3, [`crate::dev_run::login`]), and a
-//! misdirected surrogate stops the run (§6.2, [`crate::dev_run::supervise`]).
+//! misdirected surrogate stops the run (§6.2, [`crate::dev_run::supervise`]),
+//! and so does a `SIGTERM` or `SIGHUP` to this process
+//! ([`crate::dev_run::signal`]): the child never outlives the run that bounds it.
 //! When it is not, the run is exactly what it was before the plugin existed,
 //! plus one line saying the plugin exists; a web login delivers nothing.
 //!
@@ -26,10 +28,14 @@ use serde_json::json;
 use crate::dev_surrogate;
 use login::SealedStoreLogins;
 
+#[path = "dev_credentials.rs"]
+pub(crate) mod credentials;
 #[path = "dev_entries.rs"]
 pub(crate) mod entries;
 #[path = "dev_login.rs"]
 pub(crate) mod login;
+#[path = "dev_signal.rs"]
+pub(crate) mod signal;
 #[path = "dev_supervise.rs"]
 pub(crate) mod supervise;
 
@@ -109,9 +115,11 @@ pub(crate) fn dev_cmd(cmd: DevCmd, agent: bool, schema: &Path) -> anyhow::Result
                 .stdin(Stdio::inherit())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit());
-            let end = child
-                .spawn()
-                .and_then(|mut child| supervise::supervise(&mut child, session.as_ref()));
+            // The handlers for SIGTERM and SIGHUP go in now, with the plugin up
+            // and no child yet: until here nothing but the plugin exists, and
+            // it ends when this process dies. They come out again when the
+            // child is gone, before the plugin is waited for.
+            let end = supervise::run(&mut child, session.as_ref());
             drop(session);
             let end = end?;
             end.report();

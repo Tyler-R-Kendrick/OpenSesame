@@ -35,6 +35,21 @@ fn every_catalog_plugin_is_off_by_default_and_names_a_capability() {
 }
 
 #[test]
+fn the_catalog_says_which_providers_take_a_stored_credential() {
+    assert!(takes_stored_credential("surrogate-proxy", "vercel"));
+    // github's credential comes from a local tool and aws has no rule at all;
+    // a provider's name is matched exactly.
+    for provider in ["github", "aws", "Vercel", "vercel-staging", ""] {
+        assert!(
+            !takes_stored_credential("surrogate-proxy", provider),
+            "{provider:?}"
+        );
+    }
+    assert!(!takes_stored_credential("browser-autofill", "vercel"));
+    assert!(!takes_stored_credential("no-such-plugin", "vercel"));
+}
+
+#[test]
 fn nothing_installed_means_nothing_active() {
     let dir = tempfile::tempdir().unwrap();
     let settings = PluginSettings::load(&dir.path().join("plugins.json")).unwrap();

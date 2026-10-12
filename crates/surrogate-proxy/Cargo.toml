@@ -17,6 +17,16 @@ path = "src/lib.rs"
 name = "opensesame-surrogate-proxy"
 path = "src/bin/opensesame-surrogate-proxy.rs"
 
+[features]
+default = []
+# Aim the broker's upstream at a loopback server named by
+# `OPENSESAME_SURROGATE_TEST_UPSTREAM` (`src/plugin/upstream_override.rs`).
+# Test builds only: a shipped build has neither the code nor the variable's
+# name in its bytes (`tests/shipped_build.rs`), as `plugin-settings`'
+# `path-override` is for the settings path. `scripts/test/proxied-run-test.sh`
+# builds it for the acceptance run.
+upstream-override = []
+
 # ## Dependency notes
 #
 # Everything here was already in Cargo.lock. The daemon's budget (ADR 0048 §5)
@@ -78,3 +88,12 @@ opensesame-transport-security = { path = "../transport-security", features = ["t
 # shipped build refuses to take from the environment.
 opensesame-plugin-settings = { path = "../plugin-settings", features = ["path-override"] }
 tempfile = { workspace = true }
+
+# The process-level proof that the override redeems a connection's credential
+# at a wire the test can read. It needs the feature, so a plain `cargo test`
+# builds and skips it; the acceptance script and `--features upstream-override`
+# run it.
+[[test]]
+name = "upstream_override"
+path = "tests/upstream_override.rs"
+required-features = ["upstream-override"]

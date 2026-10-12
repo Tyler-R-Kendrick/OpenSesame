@@ -22,6 +22,10 @@ impl FakeStore {
 }
 
 impl LoginSource for FakeStore {
+    fn holds(&self, store_path: &str) -> bool {
+        self.entries.contains_key(store_path)
+    }
+
     fn read(&self, store_path: &str) -> anyhow::Result<StoredLogin> {
         self.reads.borrow_mut().push(store_path.to_owned());
         let (secret, trailer) = self
@@ -142,4 +146,50 @@ fn debug_names_the_form_and_never_the_password() {
     let shown = format!("{wire:?}");
     assert!(shown.contains("APP_PASSWORD"), "{shown}");
     assert!(!shown.contains("hunter2"), "{shown}");
+}
+
+/// What a person reads is what the log scrubber lets through (ADR 0157): a
+/// message that begins `APP_PASSWORD: …` has the word after the colon replaced,
+/// and with it the part that says what to change. So a refusal leads with the
+/// variable and puts its colon after a word that is not a credential.
+fn assert_survives_the_scrubber(message: &str) {
+    assert!(message.starts_with("APP_PASSWORD "), "{message}");
+    assert_eq!(opensesame_redaction::redact_text(message), message);
+}
+
+fn refusal(store: &FakeStore, origin: &str) -> String {
+    resolve(&[("APP_PASSWORD", &web_login(origin))], store)
+        .unwrap_err()
+        .to_string()
+}
+
+#[test]
+fn a_cleartext_origin_is_refused_by_name_and_survives_the_scrubber() {
+    let store = FakeStore::with("Web/app", "url: https://app.example\n");
+    let error = refusal(&store, "http://app.example");
+    assert!(error.contains("origin= is not an https origin"), "{error}");
+    assert_survives_the_scrubber(&error);
+}
+
+#[test]
+fn an_entry_that_names_no_url_says_what_to_add_after_the_scrubber() {
+    let store = FakeStore::with("Web/app", "login: alice\n");
+    let error = refusal(&store, "https://app.example");
+    assert!(error.contains("Web/app"), "{error}");
+    assert!(error.contains("names no 'url: https://…' line"), "{error}");
+    assert!(error.contains("add one"), "{error}");
+    assert_survives_the_scrubber(&error);
+}
+
+#[test]
+fn a_rerouted_origin_keeps_its_refusal_after_the_scrubber() {
+    let store = FakeStore::with("Web/app", "url: https://app.example/login\n");
+    let error = refusal(&store, "https://attacker.example");
+    assert!(error.contains("origin=https://attacker.example"), "{error}");
+    assert!(
+        error.contains("refusing to send its password there"),
+        "{error}"
+    );
+    assert!(!error.contains(SECRET), "{error}");
+    assert_survives_the_scrubber(&error);
 }

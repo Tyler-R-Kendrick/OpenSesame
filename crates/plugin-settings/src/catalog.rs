@@ -33,6 +33,11 @@ pub struct CatalogPlugin {
     /// Daemon routes that answer only while the plugin is on.
     #[serde(default)]
     pub daemon_routes: Vec<String>,
+    /// Providers the plugin brokers with a connection's own credential, the
+    /// one the person sealed under `connections/…`, rather than one a local
+    /// tool yields.
+    #[serde(default)]
+    pub stored_credential_providers: Vec<String>,
     pub summary: String,
 }
 
@@ -59,6 +64,21 @@ fn parsed() -> CatalogFile {
 #[must_use]
 pub fn catalog() -> Vec<CatalogPlugin> {
     parsed().plugins
+}
+
+/// Whether the plugin `plugin_id` brokers `provider_id` with the credential a
+/// person sealed for that connection. `false` for an unknown plugin and for a
+/// provider the plugin serves from a local tool or not at all: the catalog is
+/// the one place that says, so the command line, which links no plugin, and
+/// the plugin itself cannot disagree (ADR 0139).
+#[must_use]
+pub fn takes_stored_credential(plugin_id: &str, provider_id: &str) -> bool {
+    find(plugin_id).is_some_and(|plugin| {
+        plugin
+            .stored_credential_providers
+            .iter()
+            .any(|served| served == provider_id)
+    })
 }
 
 /// The settings file's name inside the config directory.
