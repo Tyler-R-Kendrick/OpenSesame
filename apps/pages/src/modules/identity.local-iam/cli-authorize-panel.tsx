@@ -1,4 +1,4 @@
-import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/pairing.js";
+import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {

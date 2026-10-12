@@ -3,14 +3,12 @@
  */
 
 import { b64urlToBytes } from "@opensesame/vault-core";
-import { sessionStore } from "../../ports.js";
 import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
+import { writeCliAppIntegrationBearer } from "./bearer-session.js";
 
 export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
 export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
-
-const SESSION_KEY = "opensesame-cli-app-integration-bearer";
 
 export type CliAppPairingCode = Readonly<{
   url: string;
@@ -56,23 +54,10 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
   return { code, origin, url, label };
 }
 
-export function readCliAppIntegrationBearer(): string | null {
-  try {
-    const raw = sessionStore().getItem(SESSION_KEY);
-    return raw && SECRET.test(raw) ? raw : null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeCliAppIntegrationBearer(token: string): void {
-  if (!SECRET.test(token)) return;
-  try {
-    sessionStore().setItem(SESSION_KEY, token);
-  } catch {
-    // session store unavailable
-  }
-}
+export {
+  readCliAppIntegrationBearer,
+  writeCliAppIntegrationBearer,
+} from "./bearer-session.js";
 
 export async function exchangeCliAppPairingCode(
   parsed: CliAppPairingCode,
