@@ -72,6 +72,16 @@ test("pins the claim different-link control on identity.ceremonies", () => {
   assert.equal(lazyLeafChunk(file, entry), "cap-identity.claim-different-link");
 });
 
+test("pins CLI authorize UI on identity.local-iam", () => {
+  const file =
+    "/workspace/apps/pages/src/modules/identity.local-iam/cli-authorize-panel.tsx";
+  const entry = {
+    classification: "optional",
+    capability: "identity.local-iam",
+  };
+  assert.equal(lazyLeafChunk(file, entry), "cli-authorize");
+});
+
 test("pins optional vault.security-checks app-core leaf when Rollup classifies it shared", () => {
   const file = "/workspace/packages/app-core/src/lib/vault/security-checks.ts";
   const entry = {

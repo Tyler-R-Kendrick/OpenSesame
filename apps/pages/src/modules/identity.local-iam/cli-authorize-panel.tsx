@@ -1,72 +1,34 @@
-import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
+import { cliAppIntegrationAuthorizeUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
-import { loadSettings } from "@opensesame/app-core/lib/settings.js";
-import {
-  type BoundaryValue,
-  isJsonObject,
-  readString,
-} from "@opensesame/os-domain";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconX } from "../../components/Icons.js";
+import { postCliAuthorizeRespond } from "./cli-authorize-respond.js";
+import {
+  type CliAuthorizeRow,
+  cliAuthorizeAuthHeaders,
+  daemonOrigin,
+  parseFirstPending,
+} from "./cli-authorize-session.js";
 
-function daemonOrigin(): string | null {
-  const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
-  try {
-    return new URL(raw.includes("://") ? raw : `http://${raw}`).origin.replace(
-      /\/$/,
-      "",
-    );
-  } catch {
-    return null;
-  }
-}
+const ui = cliAppIntegrationAuthorizeUi;
 
-function pageOrigin(): string | null {
-  try {
-    return window.location.origin;
-  } catch {
-    return null;
-  }
-}
-
-type Row = readonly [
-  requestId: string,
-  terminalSessionId: string,
-  verb: string,
-  respondNonce: string,
-];
-
-function parseFirst(body: BoundaryValue): Row | null {
-  if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
-  const entry = body.pending[0];
-  if (!isJsonObject(entry)) return null;
-  const requestId = readString(entry.requestId);
-  const terminalSessionId = readString(entry.terminalSessionId);
-  const verb = readString(entry.verb);
-  const respondNonce = readString(entry.respondNonce);
-  if (!requestId || !terminalSessionId || !verb || !respondNonce) return null;
-  return [requestId, terminalSessionId, verb, respondNonce];
-}
-
-function authHeaders(): Record<string, string> | null {
-  const token = readCliAppIntegrationBearer();
-  const origin = pageOrigin();
-  if (!token || !origin) return null;
-  return {
-    authorization: `Bearer ${token}`,
-    Origin: origin,
-  };
-}
+const CliAuthorizeApproveFlow = lazy(() =>
+  import("./cli-authorize-approve-flow.js").then((m) => ({
+    default: m.CliAuthorizeApproveFlow,
+  })),
+);
 
 export function CliAuthorizePanel() {
-  const [row, setRow] = useState<Row | null | undefined>(undefined);
+  const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [approving, setApproving] = useState(false);
+
   useEffect(() => {
     void (async () => {
       const origin = daemonOrigin();
-      const headers = authHeaders();
+      const headers = cliAuthorizeAuthHeaders();
       if (!origin || !headers) return setRow(null);
       const res = await localNetworkFetch(
         `${origin}/v1/cli/app-integration/pending`,
@@ -78,60 +40,70 @@ export function CliAuthorizePanel() {
         },
       );
       if (!res.ok) return setRow(null);
-      setRow(parseFirst(await res.json()));
+      setRow(parseFirstPending(await res.json()));
     })();
   }, []);
-  async function decide(decision: "approve" | "deny") {
-    if (!row || busy) return;
+
+  async function respond(
+    decision: "approve" | "deny",
+    humanProof?: string,
+  ): Promise<boolean> {
+    if (!row || busy) return false;
     setBusy(true);
-    const origin = daemonOrigin();
-    const headers = authHeaders();
-    if (!origin || !headers) return setBusy(false);
-    const body: Record<string, string> = {
-      requestId: row[0],
-      terminalSessionId: row[1],
-      decision,
-      respondNonce: row[3],
-    };
-    if (decision === "approve") {
-      body.humanProof = "pending-ui-human-proof-placeholder";
-    }
-    const res = await localNetworkFetch(
-      `${origin}/v1/cli/app-integration/respond`,
-      {
-        method: "POST",
-        credentials: "omit",
-        cache: "no-store",
-        headers: { ...headers, "content-type": "application/json" },
-        body: JSON.stringify(body),
-      },
-    );
+    const ok = await postCliAuthorizeRespond(row, decision, humanProof);
     setBusy(false);
-    if (res.ok) setRow(null);
+    if (ok) {
+      setRow(null);
+      setApproving(false);
+      return true;
+    }
+    return false;
   }
+
+  function finishApprove() {
+    setApproving(false);
+  }
+
+  if (approving && row) {
+    return (
+      <Suspense fallback={<output>Loading…</output>}>
+        <CliAuthorizeApproveFlow
+          row={row}
+          busy={busy}
+          onBusyChange={setBusy}
+          onDone={finishApprove}
+          onRespond={respond}
+        />
+      </Suspense>
+    );
+  }
+
   return (
-    <section className="panel" aria-label="Authorize CLI">
+    <section className="panel" aria-label={ui.sheetTitle}>
       <div className="panel__head">
-        <h1>Authorize CLI</h1>
+        <h1>{ui.sheetTitle}</h1>
       </div>
       <div className="panel__body">
         {row === undefined ? <output>Reading CLI request…</output> : null}
         {row === null ? <p>No CLI request is waiting.</p> : null}
         {row ? (
-          <p>
-            <code className="identity-ref">{row[2]}</code>
-          </p>
+          <>
+            <p>{ui.sheetLead}</p>
+            <p>
+              <code className="identity-ref">{row[2]}</code>
+            </p>
+          </>
         ) : null}
         {row ? (
           <FormCommit
-            label="Authorize"
+            label={ui.allowKey}
             disabled={busy}
-            onClick={() => void decide("approve")}
+            onClick={() => setApproving(true)}
           >
             <IconKey
-              label="Deny"
+              label={ui.denyKey}
               disabled={busy}
-              onClick={() => void decide("deny")}
+              onClick={() => void respond("deny")}
             >
               <IconX size={16} />
             </IconKey>

@@ -81,6 +81,13 @@ const LAZY_LEAVES = [
     "identity.ceremonies",
     "cap-identity.claim-different-link",
   ],
+  // CLI authorize (`/identity/authorize?cli=1`): PIN/passkey proof and the
+  // daemon panel load only on that route, never with the capability chunk.
+  [
+    "/src/modules/identity.local-iam/cli-authorize",
+    "identity.local-iam",
+    "cli-authorize",
+  ],
 ];
 
 export function lazyLeafChunk(id, entry) {
