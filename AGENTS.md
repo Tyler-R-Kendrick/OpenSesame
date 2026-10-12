@@ -134,7 +134,7 @@ pnpm test:proxied-run    # scripts/test/proxied-run-test.sh — `opensesame dev 
                           #   real binary, the surrogate-proxy plugin's TEST build installed through `plugins install`
                           #   with its pin, a token sealed by `pass insert connections/<org>/<name>`, the real
                           #   @env-spec/parser, a child that reaches a loopback stand-in for api.vercel.com only through
-                          #   the run's proxy; pins the refusals and the revocation. Needs node_modules for the parser
+                          #   the run's proxy; pins the refusals, the revocation and how a run ends when `opensesame` is signalled. Needs node_modules for the parser
                           #   or OPENSESAME_E2E_ENVSPEC_DIR; fails, never skips (docs/operators/proxied-run-quickstart.md)
 pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
                           #   SignalR client Bitwarden's apps pin, against the bitwarden-compat surface

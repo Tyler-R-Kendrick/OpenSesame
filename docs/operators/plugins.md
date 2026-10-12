@@ -203,10 +203,11 @@ The commands in order, with their output, are in the
 5. While the child runs, the plugin writes one JSON line per event:
    `{"event":"tripwire",…}` or `{"event":"login",…}` (next two sections).
 6. The run ends when the child exits and the CLI closes the plugin's stdin.
-   It also ends when the CLI is killed, because the kernel closes the pipe;
-   when the plugin gets `SIGTERM` or `SIGINT`; or at the run's TTL. At the end
-   every surrogate and login is revoked, the listener stops and the CA file is
-   deleted.
+   It also ends when the CLI gets `SIGTERM` or `SIGHUP` (it revokes the run,
+   stops the child, then closes the pipe); when the CLI is killed in a way it
+   cannot catch, because the kernel closes the pipe; when the plugin gets
+   `SIGTERM` or `SIGINT`; or at the run's TTL. At the end every surrogate and
+   login is revoked, the listener stops and the CA file is deleted.
 
 ### Scope of a surrogate
 

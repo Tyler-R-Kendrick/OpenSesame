@@ -134,14 +134,24 @@ A notice never carries a surrogate or the token.
 |---|---|
 | The child exits | `opensesame` closes the plugin's stdin. The plugin revokes the surrogate, stops the listener, deletes the run's CA file and exits. Exit status is the child's |
 | A tripwire (`surrogate.misdirected`) | The same, at once: the child is killed first, `opensesame` prints the line below and exits `77` |
-| Ctrl-C | It goes to `opensesame` and the child together. Both exit and the proxy refuses connections at once |
-| `kill <opensesame pid>` | The kernel closes the pipe and the run ends: the proxy refuses connections at once. The **child is not stopped**; it keeps a string that no longer works. Stop it too |
+| Ctrl-C | The terminal sends `SIGINT` to `opensesame` and the child together. Both exit and the proxy refuses connections at once. A `kill -INT <opensesame pid>` is not that: it reaches `opensesame` alone, the run ends, and the **child is not stopped**. Use `SIGTERM` |
+| `kill <opensesame pid>` (`SIGTERM`: a supervisor, a CI cancel, `timeout`) or `SIGHUP` (a closed terminal) | The run is revoked first. Then the child is sent the same signal (and its process group, if it leads one of its own) and has 5 seconds to leave, after which it is killed. `opensesame` waits for the child and the plugin, prints the line below and exits `143` (`129` for `SIGHUP`), whatever the child returned. A signal that arrives before the child has started starts none. A plain `dev run` with no plugin stops its child the same way |
+| `kill -9 <opensesame pid>` (`SIGKILL`, or an out-of-memory kill) | A killed process runs no handler, so nothing tells the child. The kernel closes the pipe and the run ends: the proxy refuses connections at once. The **child is not stopped**: it is re-parented, sees no signal and keeps a string that no longer works. Stop it too |
 | `opensesame plugins disable surrogate-proxy` | The next run delivers placeholders. A live run is not touched |
 | 12 hours | The run's TTL |
 
 ```text
 opensesame: surrogate.misdirected: a surrogate from this run was sent to a host that is not its provider's; the run's surrogates are revoked (1) and the child is stopped
 ```
+
+```text
+opensesame: SIGTERM: the run is ended and its surrogates are revoked (1); the child is stopped
+```
+
+Only the child is signalled, and its own process group if it leads one. A
+process the child started in `opensesame`'s group and did not stop is not
+`opensesame`'s to reach: a child that runs helpers should end them when it gets
+the signal.
 
 Revoking a surrogate does not change the token. To retire the token itself,
 rotate it at the provider and `pass rm`, then `pass insert`, the entry.
