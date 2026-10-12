@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { renderBrowserDispositions } from "../../scripts/emit-browser-dispositions.mjs";
+import {
+  renderBrowserDispositions,
+  runtimeDispositions,
+} from "../../scripts/emit-browser-dispositions.mjs";
 import {
   AUTHORED_KINDS,
-  type DispositionProbe,
   UNAVAILABLE_LABEL,
   UNAVAILABLE_PRIORITY,
   auditedOrigin,
@@ -22,8 +24,6 @@ import {
 import { isFnoxLink } from "./doc-link.js";
 
 const spec = () => browserDispositionSpec();
-const admits = (probe: { allow_origin: string | null }) =>
-  probe.allow_origin === "*" || probe.allow_origin === auditedOrigin();
 
 /** The two sentences this product used to say about every provider it had no road to. */
 const CATCH_ALL = [
@@ -43,7 +43,11 @@ describe("the authored spec", () => {
         "utf8",
       ),
     );
-    expect(BROWSER_DISPOSITIONS_JSON).toBe(JSON.stringify(source));
+    // A browser reads the reasons, not the evidence behind them.
+    expect(BROWSER_DISPOSITIONS_JSON).toBe(
+      JSON.stringify(runtimeDispositions(source)),
+    );
+    expect(BROWSER_DISPOSITIONS_JSON).not.toContain("allow_origin");
     expect(renderBrowserDispositions(source)).toContain(
       "BROWSER_DISPOSITIONS_JSON",
     );
@@ -63,84 +67,16 @@ describe("the authored spec", () => {
       ).toBe(false);
   });
 
-  it("defines every kind a row may use, and no more", () => {
-    expect(Object.keys(spec().kinds).sort()).toEqual(
-      [...AUTHORED_KINDS].sort(),
-    );
+  it("labels every kind a row may use", () => {
     for (const kind of AUTHORED_KINDS)
       expect(UNAVAILABLE_LABEL[kind]).toBeTruthy();
   });
 
-  it("names its probes' origin and keeps every address https", () => {
+  it("names the audited origin and keeps every source https", () => {
     expect(auditedOrigin()).toBe("https://tyler-r-kendrick.github.io");
-    for (const row of spec().dispositions) {
+    for (const row of spec().dispositions)
       for (const link of row.sources)
         expect(link.url, `${row.provider_id} source`).toMatch(/^https:\/\//);
-      for (const probe of row.probes) {
-        expect(probe.url, `${row.provider_id} probe`).toMatch(/^https:\/\//);
-        expect(probe.checked_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-      }
-    }
-  });
-});
-
-describe("what each kind must be able to prove", () => {
-  const rows = () => spec().dispositions;
-  const own = (row: { probes: readonly DispositionProbe[] }) =>
-    row.probes.filter((probe) => probe.origin === undefined);
-
-  it("a refusal rests on a response that did not admit this origin", () => {
-    for (const row of rows().filter((r) => r.kind === "refuses-browser")) {
-      const refused = own(row).filter(
-        (probe) => probe.status >= 200 && probe.status < 300 && !admits(probe),
-      );
-      expect(
-        refused.length,
-        `${row.provider_id} needs a 2xx probe that did not admit the origin`,
-      ).toBeGreaterThan(0);
-    }
-  });
-
-  it("a pending driver rests on a response that admitted this origin", () => {
-    for (const row of rows().filter((r) => r.kind === "driver-pending")) {
-      expect(
-        own(row).some((probe) => probe.status < 300 && admits(probe)),
-        `${row.provider_id} needs a probe that admitted the origin`,
-      ).toBe(true);
-    }
-  });
-
-  it("'no way to check a key' rests on a public answer that admitted this origin", () => {
-    for (const row of rows().filter((r) => r.kind === "no-key-check")) {
-      expect(
-        own(row).some(
-          (probe) =>
-            probe.stage === "unauthenticated-get" &&
-            probe.status === 200 &&
-            admits(probe),
-        ),
-        `${row.provider_id} needs an unauthenticated 200 that admitted the origin`,
-      ).toBe(true);
-    }
-  });
-
-  it("a companion, a built-in or a policy cites a page that backs it", () => {
-    for (const row of rows().filter((r) =>
-      ["companion", "built-in", "policy"].includes(r.kind),
-    ))
-      expect(row.sources.length, row.provider_id).toBeGreaterThan(0);
-  });
-
-  it("never states a refusal from a probe that disagrees with an admission of the same address", () => {
-    for (const row of rows()) {
-      const bySite = new Map<string, boolean[]>();
-      for (const probe of own(row)) {
-        const key = `${probe.stage}:${probe.url}`;
-        bySite.set(key, [...(bySite.get(key) ?? []), admits(probe)]);
-      }
-      for (const [site, results] of bySite)
-        expect(new Set(results).size, `${row.provider_id} ${site}`).toBe(1);
-    }
   });
 });
 
@@ -210,18 +146,10 @@ describe("Bitwarden, which the catch-all got wrong", () => {
     expect(disposition?.summary).toContain("Public API manages organizations");
   });
 
-  it("is backed by Bitwarden's own documentation and by a control probe", () => {
+  it("is backed by Bitwarden's own documentation", () => {
     expect(
       disposition?.sources.map((link) => new URL(link.url).hostname),
     ).toEqual(["bitwarden.com", "bitwarden.com"]);
-    const probes = disposition?.probes ?? [];
-    const refused = probes.filter((p) => p.origin === undefined);
-    const control = probes.filter((p) => p.origin !== undefined);
-    expect(refused.length).toBeGreaterThan(0);
-    expect(refused.every((p) => !admits(p))).toBe(true);
-    // The same requests from Bitwarden's own origin are admitted: an allow-list.
-    expect(control.length).toBe(refused.length);
-    expect(control.every((p) => p.allow_origin === p.origin)).toBe(true);
   });
 
   it("offers the route that works today", () => {

@@ -92,23 +92,6 @@ export const AUTHORED_KINDS = [
   "policy",
 ] as const satisfies readonly BrowserUnavailableKind[];
 
-const probeSchema = z
-  .object({
-    stage: z.enum(["preflight", "unauthenticated-get"]),
-    url: z.string().url(),
-    method: z.enum(["GET", "POST"]),
-    request_header_names: z.array(z.string()),
-    status: z.number().int(),
-    allow_origin: z.string().nullable(),
-    allow_methods: z.string().nullable(),
-    allow_headers: z.string().nullable(),
-    checked_at: z.string(),
-    /** Set when a probe came from a different origin, as a control. */
-    origin: z.string().url().optional(),
-    note: z.string().optional(),
-  })
-  .strict();
-
 const linkSchema = z
   .object({ label: z.string().min(1), url: z.string().url() })
   .strict();
@@ -127,7 +110,6 @@ const dispositionSchema = z
     kind: z.enum(AUTHORED_KINDS),
     summary: z.string().min(1),
     sources: z.array(linkSchema),
-    probes: z.array(probeSchema),
     alternative: z
       .object({ label: z.string().min(1), to: z.enum(DISPOSITION_ROUTES) })
       .strict()
@@ -140,13 +122,10 @@ const sourceSchema = z
     schema_version: z.literal(1),
     audited_origin: z.string().url(),
     checked_date: z.string(),
-    qualification: z.string().min(1),
-    kinds: z.record(z.string(), z.string()),
     dispositions: z.array(dispositionSchema),
   })
   .strict();
 
-export type DispositionProbe = z.infer<typeof probeSchema>;
 export type DispositionLink = z.infer<typeof linkSchema>;
 export type AuthoredDisposition = z.infer<typeof dispositionSchema>;
 
@@ -156,7 +135,6 @@ export type BrowserDisposition = {
   summary: string;
   /** Pages that back the statement (documentation, never a stand-in for it). */
   sources: readonly DispositionLink[];
-  probes: readonly DispositionProbe[];
   alternative: { label: string; to: DispositionRoute } | null;
   /** True when a row was authored with evidence; false when the statement is derived. */
   authored: boolean;
@@ -224,7 +202,6 @@ export function browserDisposition(provider: Provider): BrowserDisposition {
       kind: row.kind,
       summary: row.summary,
       sources: row.sources,
-      probes: row.probes,
       alternative: row.alternative ?? null,
       authored: true,
     };
@@ -232,7 +209,6 @@ export function browserDisposition(provider: Provider): BrowserDisposition {
     kind: provider.category === "wallet" ? "policy" : "no-contract",
     summary: derivedSummary(provider),
     sources: [],
-    probes: [],
     alternative: null,
     authored: false,
   };
