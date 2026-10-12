@@ -3,6 +3,7 @@
  */
 
 import { defined } from "@opensesame/contracts";
+import { OriginalAcceptedWorkFailures } from "../../vault/original-accepted-work-failures-data.js";
 import {
   MAX_SLOTS,
   type SlotPlaintext,
@@ -33,6 +34,7 @@ export type StageTriggerInDraftInput = Readonly<{
   credentialIdB64?: string | undefined;
   expectedOrigin?: string | undefined;
   prfEnvelopeRef?: string | undefined;
+  prfSaltB64?: string | undefined;
   /** prf_and_code: the enrolling passkey's PRF output (both layers need it). */
   prfOutput?: Uint8Array | null | undefined;
 }>;
@@ -127,6 +129,7 @@ export async function stageTriggerInDraft(
       credentialIdB64: input.credentialIdB64,
       expectedOrigin: input.expectedOrigin,
       prfEnvelopeRef: input.prfEnvelopeRef,
+      prfSaltB64: input.prfSaltB64,
     },
     rehearsalCode: input.code,
     rehearsalPrfOutput: input.prfOutput
@@ -143,17 +146,35 @@ export async function runIsolatedRehearsal(
   if (!draft.pending || !draft.rehearsalCode || !draft.profileId) {
     throw new Error("recovery_required: nothing staged for rehearsal");
   }
-  const opened = await openTriggerSlot({
-    enrolled: draft.pending,
-    code: draft.rehearsalCode,
-    expect: expectFrom(draft.stateSnapshot),
-    prfOutput: draft.rehearsalPrfOutput,
-  });
-  if (!opened) {
-    throw new Error("recovery_required: isolated rehearsal failed");
+  let opened: SlotPlaintext | null = null;
+  const failures = new OriginalAcceptedWorkFailures(
+    "Isolated rehearsal and cleanup failed.",
+  );
+  try {
+    opened = await openTriggerSlot({
+      enrolled: draft.pending,
+      code: draft.rehearsalCode,
+      expect: expectFrom(draft.stateSnapshot),
+      prfOutput: draft.rehearsalPrfOutput,
+    });
+    if (!opened)
+      throw new Error("recovery_required: isolated rehearsal failed");
+  } catch (cause) {
+    failures.record(cause);
   }
-  opened.compartmentKey.fill(0);
-  if (opened.actionCapability) opened.actionCapability.fill(0);
+  for (const bytes of [
+    opened?.compartmentKey,
+    opened?.actionCapability,
+    opened?.payload,
+    draft.rehearsalPrfOutput,
+  ]) {
+    try {
+      bytes?.fill(0);
+    } catch (cause) {
+      failures.record(cause);
+    }
+  }
+  failures.throwIfAny();
   return { ...draft, rehearsalPassed: true };
 }
 
@@ -193,6 +214,7 @@ export async function enrollTrigger(input: {
   credentialIdB64?: string | undefined;
   expectedOrigin?: string | undefined;
   prfEnvelopeRef?: string | undefined;
+  prfSaltB64?: string | undefined;
   prfOutput?: Uint8Array | null | undefined;
   autoRehearse?: boolean;
 }): Promise<EnrollmentState> {
@@ -246,6 +268,7 @@ export async function enrollTrigger(input: {
           credentialIdB64: input.credentialIdB64,
           expectedOrigin: input.expectedOrigin,
           prfEnvelopeRef: input.prfEnvelopeRef,
+          prfSaltB64: input.prfSaltB64,
         },
       ],
       armed: true,
@@ -265,6 +288,7 @@ export async function enrollTrigger(input: {
     credentialIdB64: input.credentialIdB64,
     expectedOrigin: input.expectedOrigin,
     prfEnvelopeRef: input.prfEnvelopeRef,
+    prfSaltB64: input.prfSaltB64,
     prfOutput: input.prfOutput,
   } satisfies StageTriggerInDraftInput);
   draft = await runIsolatedRehearsal(draft);

@@ -20,6 +20,8 @@ export type EnrolledTrigger = Readonly<{
   prfEnvelopeRef?: string | undefined;
   credentialIdB64?: string | undefined;
   expectedOrigin?: string | undefined;
+  /** Original WebAuthn PRF evaluation input, distinct from envelope KDF salt. */
+  prfSaltB64?: string | undefined;
 }>;
 
 export type EnrollmentCapabilities = Readonly<{
