@@ -41,7 +41,7 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 | `vault list`, `vault new <account\|secret\|note\|card> --name <n>`, `vault set\|edit <item>` | List the local vault (id, kind, name); create an item (`login` is accepted as `account`); change `--name`, `--username` or `--secret`. An account's password is typed here as a stored (`manual`) method; typing one over a method keeps where its pepper goes |
 | `vault copy <item> [--field secret\|rest\|username]` | Copy through the one password facade (ADR 0174): the whole password, or what comes before a pepper slot; `--field rest` copies what follows it. A pepper is never asked for or stored. A password an earlier version sealed under a pepper (`legacy_password`) is converted in the vault app |
 | `vault import <file>`, `vault export [--out <file>]`, `vault share <item>`, `vault sync [--pair <code>]` | Merge or write a sealed export of the local vault; share a secret once (link and code); sync with a tailnet drive (ADR 0144) |
-| `session [<link>] list`, `session [<link>] invoke <connection> <operation> [--input key=value]...` | Join a host's live session as a **device** (ADR 0195), get the host's approval, then list the connections it granted or use one through the host's tab; see [Live sessions](#live-sessions-as-a-device) |
+| `session [<link>] list`, `session [<link>] invoke <connection> <operation> [--input key=value]...` | Join a host's live session as a **device** (ADR 0196), get the host's approval, then list the connections it granted or use one through the host's tab; see [Live sessions](#live-sessions-as-a-device) |
 | `mcp host\|client` | Serve the host- or client-facing MCP tools on stdio (`OPENSESAME_MCP_TRANSPORT=http` for the host server's loopback HTTP); see [`mcp-host`](../mcp-host) and [`mcp-client`](../mcp-client) |
 
 Global flags: `--json`, `--issuer <url>`, `--api <url>`, `--client-id <id>`.
@@ -105,7 +105,7 @@ installation and settings without opening the token store or accessing vaults.
 ## Live sessions as a device
 
 A person hosting a live session (ADR 0150) can let a terminal use some of their
-connections without ever handing it a credential (ADR 0195). The terminal joins
+connections without ever handing it a credential (ADR 0196). The terminal joins
 over the session's NATS relay — it has no WebRTC — runs the RFC 8628 device
 authorization grant against the owner's tab, and, once the owner has compared
 a code on their own screen and picked connections, lists or uses them. The

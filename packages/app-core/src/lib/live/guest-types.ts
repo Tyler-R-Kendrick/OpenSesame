@@ -1,5 +1,5 @@
 /**
- * The shapes of the joiner's side of a live session (ADR 0150, ADR 0195).
+ * The shapes of the joiner's side of a live session (ADR 0150, ADR 0196).
  * Split from `guest.ts` for the module-size budget (ADR 0093); `guest.ts`
  * re-exports every name unchanged.
  */
@@ -53,7 +53,7 @@ export type GuestOptions = Readonly<{
    */
   transport: PeerTransport | null;
   carriers?: GuestCarriers | null;
-  /** Who is asking: a person (the default) or a device (ADR 0195). */
+  /** Who is asking: a person (the default) or a device (ADR 0196). */
   kind?: SeatKind;
   /**
    * `relay`: no offer is made and the seat is carried over the owner's NATS

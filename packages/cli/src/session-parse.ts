@@ -1,5 +1,5 @@
 /**
- * The grammar of `opensesame-id session` (ADR 0195): a terminal joins a live
+ * The grammar of `opensesame-id session` (ADR 0196): a terminal joins a live
  * session as a device, asks the owner for authority, and lists or uses the
  * connections the owner picked.
  *

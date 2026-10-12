@@ -88,7 +88,7 @@ pnpm --filter @opensesame/cli start -- login --device --issuer http://127.0.0.1:
 pnpm --filter @opensesame/cli start -- host health --host http://127.0.0.1:8787
 pnpm --filter @opensesame/cli start -- host discover --host http://127.0.0.1:8787
 
-# Use the connections an operator saved in their PWA, through their open tab (ADR 0195).
+# Use the connections an operator saved in their PWA, through their open tab (ADR 0196).
 # The operator hosts a live session with "Devices: May ask" over a NATS relay; this is a bearer link,
 # so it comes from the environment. The terminal prints a code to compare; the operator allows it
 # in their tab, and every call is made there. No credential ever reaches the terminal.

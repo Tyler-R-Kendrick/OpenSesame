@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionConnection } from "./connection-port.js";
 /**
- * What a grant lets a device do — and nothing else (ADR 0195): the checks every
+ * What a grant lets a device do — and nothing else (ADR 0196): the checks every
  * call passes, the limits, the ways a grant ends, and the promise that
  * everything the broker sends is something the device's reader accepts.
  */

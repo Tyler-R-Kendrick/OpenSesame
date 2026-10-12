@@ -1,5 +1,5 @@
 /**
- * `opensesame-id session <link> list|invoke` (ADR 0195): a terminal joins a
+ * `opensesame-id session <link> list|invoke` (ADR 0196): a terminal joins a
  * live session as a device over the owner's NATS relay, runs the device
  * authorization grant (RFC 8628) against the owner's tab, and — once the
  * owner has compared the code on their own screen and picked connections —

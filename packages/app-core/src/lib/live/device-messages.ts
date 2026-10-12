@@ -1,6 +1,6 @@
 /**
  * What a device asks of an owner's live session, and what the owner answers
- * (ADR 0195): the device authorization grant (RFC 8628) and the brokered use
+ * (ADR 0196): the device authorization grant (RFC 8628) and the brokered use
  * of the connections the owner chose, carried on the seat's sealed channel.
  *
  * A *device* is a terminal or an agent — a client that has no vault to show

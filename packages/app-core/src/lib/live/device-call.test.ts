@@ -1,5 +1,5 @@
 /**
- * What a device is handed of a call's result (ADR 0195): rebuilt field by
+ * What a device is handed of a call's result (ADR 0196): rebuilt field by
  * field, cleaned for a terminal, cut to a frame — and a failure that says
  * nothing of what the provider said.
  */

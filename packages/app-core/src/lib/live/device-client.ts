@@ -1,5 +1,5 @@
 /**
- * A device's side of a live session (ADR 0195): ask the owner's tab for
+ * A device's side of a live session (ADR 0196): ask the owner's tab for
  * authority, wait for the owner's answer, then name a connection and an
  * operation — over whatever channel the seat has, in a browser or in a
  * terminal.

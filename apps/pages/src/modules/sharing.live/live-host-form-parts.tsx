@@ -17,7 +17,7 @@ export const SCOPES: readonly Choice<"vault" | "items" | "none">[] = [
   { value: "items", label: "Chosen items" },
   { value: "none", label: "Nothing" },
 ];
-/** Whether a device may ask to use the owner's connections (ADR 0195). */
+/** Whether a device may ask to use the owner's connections (ADR 0196). */
 export const DEVICES: readonly Choice<"no" | "ask">[] = [
   { value: "no", label: "Not allowed" },
   { value: "ask", label: "May ask" },

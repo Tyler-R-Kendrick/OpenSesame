@@ -1,6 +1,6 @@
 /**
  * What a device may be offered of the app's connections, and what it gets back
- * (ADR 0195): a closed table of read-only operations, nothing a driver kept
+ * (ADR 0196): a closed table of read-only operations, nothing a driver kept
  * for itself, and a store read afresh on every call.
  */
 import { describe, expect, it, vi } from "vitest";

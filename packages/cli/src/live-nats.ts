@@ -1,5 +1,5 @@
 /**
- * A NATS server's WebSocket listener as a carrier for a terminal (ADR 0195):
+ * A NATS server's WebSocket listener as a carrier for a terminal (ADR 0196):
  * the Node counterpart of the browser's carrier in
  * `apps/pages/src/modules/sharing.live/carriers/nats.ts`, minus the service
  * the owner's tab registers. A terminal has no WebRTC, so this is the road a

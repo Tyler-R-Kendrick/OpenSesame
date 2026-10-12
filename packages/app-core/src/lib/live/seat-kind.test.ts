@@ -1,5 +1,5 @@
 /**
- * Who is asking, and how they will arrive (ADR 0195): a request names a seat
+ * Who is asking, and how they will arrive (ADR 0196): a request names a seat
  * kind and a route, read as strictly as the rest of the pairing, and the owner
  * seats only what it can serve.
  */

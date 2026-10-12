@@ -169,7 +169,7 @@ export function parseArgs(argv: string[]): ParsedCommand {
   }
 
   if (cmd === "vault") return parseVault(args, flags);
-  // session [<link>] list | invoke <connection> <operation>  (ADR 0195)
+  // session [<link>] list | invoke <connection> <operation>  (ADR 0196)
   if (cmd === "session") return parseSession(args, flags);
 
   throw new Error(`Unknown command: ${cmd}`);
@@ -361,7 +361,7 @@ Commands:
   vault share <item>           Share a secret once; prints the link and code
   vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
                                vault here, set it up from the drive first
-  session [<link>] list        Join a live session as a device (ADR 0195), wait
+  session [<link>] list        Join a live session as a device (ADR 0196), wait
                                for the host's approval, list what it granted
   session [<link>] invoke <connection> <operation> [--input key=value]...
                                Use one granted connection through the host's tab

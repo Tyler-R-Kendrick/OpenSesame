@@ -45,7 +45,7 @@ export interface LiveChannel {
   /**
    * Resolves once every frame sent before (and by) `close` has gone out. A
    * channel carried over a connection that is closed at once after `close`
-   * would otherwise lose its goodbye (ADR 0195); one that needs no waiting
+   * would otherwise lose its goodbye (ADR 0196); one that needs no waiting
    * need not say.
    */
   drained?(): Promise<void>;

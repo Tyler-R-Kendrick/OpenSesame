@@ -1,5 +1,5 @@
 /**
- * One call a device makes through the owner's tab (ADR 0195): run it against
+ * One call a device makes through the owner's tab (ADR 0196): run it against
  * the connection port, and hand back only what the wire may carry.
  *
  * The port's answer is rebuilt field by field. Whatever else an operation's

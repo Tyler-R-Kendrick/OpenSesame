@@ -74,7 +74,7 @@ export type HostPeerOptions = Readonly<{
   route?: SeatRoute;
   /** The guest's name, as the owner was shown it. */
   name?: string;
-  /** Where a device asks to use the owner's connections (ADR 0195). */
+  /** Where a device asks to use the owner's connections (ADR 0196). */
   devices?: DeviceBroker | null;
   /**
    * The seat is also offered over a NATS carrier (ADR 0167): a peer route
@@ -227,7 +227,7 @@ export class HostPeer {
    */
   #sendCatalog(): boolean {
     // A device is shown no item of the owner's vault: it is here for the
-    // connections, and the catalog it greets for is empty (ADR 0195).
+    // connections, and the catalog it greets for is empty (ADR 0196).
     const catalog =
       this.options.kind === "device"
         ? { ...this.options.catalog(), policy: "use" as const, items: [] }

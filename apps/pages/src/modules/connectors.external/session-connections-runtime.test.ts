@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 /**
  * External connectors lends the app's connections to a live session while it
- * is active, and takes the lending back when it is not (ADR 0195).
+ * is active, and takes the lending back when it is not (ADR 0196).
  */
 import { connectionPort } from "@opensesame/app-core/lib/live/connection-port.js";
 import { afterEach, describe, expect, it } from "vitest";

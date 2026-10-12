@@ -24,7 +24,7 @@ export type HostBuildInput = Readonly<{
   transport: TransportFactory;
   /** The owner's routes profile; direct only when absent. */
   routes?: LiveTransport;
-  /** Let devices ask to use the owner's connections (ADR 0195). */
+  /** Let devices ask to use the owner's connections (ADR 0196). */
   devices?: boolean;
 }>;
 

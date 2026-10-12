@@ -1,5 +1,5 @@
 /**
- * What the owner's screen is told of device authorization (ADR 0195): the
+ * What the owner's screen is told of device authorization (ADR 0196): the
  * requests waiting, and the grants standing — ids, names, codes and times.
  * Never a device code, which only the device holds.
  */

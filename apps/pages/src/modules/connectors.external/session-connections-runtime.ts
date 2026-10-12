@@ -1,5 +1,5 @@
 /**
- * Connections a live session's owner may let a device use (ADR 0195). Only
+ * Connections a live session's owner may let a device use (ADR 0196). Only
  * External connectors reads native authority, so only this file tells a
  * session which saved connections exist and how to call them; the session
  * itself (`sharing.live`) sees a port that offers nothing while this

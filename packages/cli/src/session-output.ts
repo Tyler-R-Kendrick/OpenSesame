@@ -1,5 +1,5 @@
 /**
- * What `opensesame-id session` prints (ADR 0195). Results go to stdout, so a
+ * What `opensesame-id session` prints (ADR 0196). Results go to stdout, so a
  * pipe gets nothing else; everything a person is told along the way goes to
  * stderr. With `--json`, stdout is exactly one document.
  *

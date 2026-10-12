@@ -33,7 +33,7 @@ export function clearLiveHostAskingNotices(): void {
 }
 
 /**
- * Bell/tray when a device asks to use the owner's connections (ADR 0195),
+ * Bell/tray when a device asks to use the owner's connections (ADR 0196),
  * and gone again once the owner has answered it or it lapsed. The body names
  * the device and its code, so the owner can compare it at a glance.
  */

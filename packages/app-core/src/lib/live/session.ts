@@ -145,7 +145,7 @@ export type HostInput = Readonly<{
   routes?: LiveTransport;
   /** The shell's carrier clients, for a profile that names carriers. */
   carriers?: CarrierFactory;
-  /** Let devices ask to use the owner's connections (ADR 0195). */
+  /** Let devices ask to use the owner's connections (ADR 0196). */
   devices?: boolean;
 }>;
 

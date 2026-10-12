@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * Starting a session that lets devices ask (ADR 0195): the choice is drawn
+ * Starting a session that lets devices ask (ADR 0196): the choice is drawn
  * only where there is a connection to lend, a session may share nothing of
  * the vault and exist only for devices, and a session that shares nothing and
  * lets nothing ask is not one that can start.

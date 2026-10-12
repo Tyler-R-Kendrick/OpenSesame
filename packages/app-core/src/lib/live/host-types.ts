@@ -36,7 +36,7 @@ export type Guest = Readonly<{
   askedAt: number;
   /** The reply code to hand back, once the owner has let them in. */
   reply: string | null;
-  /** A person sees shared items; a device may ask to use connections (ADR 0195). */
+  /** A person sees shared items; a device may ask to use connections (ADR 0196). */
   kind: SeatKind;
 }>;
 
@@ -88,7 +88,7 @@ export type HostOptions = Readonly<{
   /** Whether a relay (a NATS carrier) could carry a seat now. */
   canRelay?: () => boolean;
   /**
-   * Present when devices may ask to use the owner's connections (ADR 0195):
+   * Present when devices may ask to use the owner's connections (ADR 0196):
    * where the connections are. Absent, a device's request is not seated.
    */
   devices?: Readonly<{ port: () => ConnectionPort | null }> | undefined;

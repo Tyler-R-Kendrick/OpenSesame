@@ -1,5 +1,5 @@
 /**
- * A device's side of the authorization flow (ADR 0195), against a pipe the
+ * A device's side of the authorization flow (ADR 0196), against a pipe the
  * test plays the owner's tab on: RFC 8628's waiting, the owner's answer
  * arriving by push or by poll, and every way an ask can come to nothing.
  */

@@ -1,6 +1,6 @@
 /**
  * Devices in an invite session, and in a session that does not offer them
- * (ADR 0195): who is seated, and what a device is told before anything is
+ * (ADR 0196): who is seated, and what a device is told before anything is
  * contacted.
  */
 import { describe, expect, it, vi } from "vitest";

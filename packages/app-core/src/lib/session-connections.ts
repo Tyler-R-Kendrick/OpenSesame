@@ -1,5 +1,5 @@
 /**
- * The connections this app offers a device in a live session (ADR 0195).
+ * The connections this app offers a device in a live session (ADR 0196).
  *
  * The owner of a session may let a device use some of the connections saved on
  * this device. What a device may *do* with one is decided here, in a closed

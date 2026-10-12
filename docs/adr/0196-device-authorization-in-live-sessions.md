@@ -1,4 +1,4 @@
-# ADR 0195 — Device authorization in live sessions: a terminal uses the connections an open tab holds
+# ADR 0196 — Device authorization in live sessions: a terminal uses the connections an open tab holds
 
 - Status: Accepted
 - Date: 2026-10-12

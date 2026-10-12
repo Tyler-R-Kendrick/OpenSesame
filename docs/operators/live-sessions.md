@@ -204,7 +204,7 @@ Allowing it is the browser's consent, on top of the join screen's.
 
 A session can also let a **device** — `opensesame-id` in a terminal, on your
 machine or a teammate's — use some of the connections saved in this app
-([ADR 0195](../adr/0195-device-authorization-in-live-sessions.md)). The
+([ADR 0196](../adr/0196-device-authorization-in-live-sessions.md)). The
 terminal never holds a credential: your tab makes each call and sends back
 labelled lines.
 

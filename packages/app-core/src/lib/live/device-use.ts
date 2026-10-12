@@ -1,5 +1,5 @@
 /**
- * A device using the grant it holds (ADR 0195): the checks every call passes
+ * A device using the grant it holds (ADR 0196): the checks every call passes
  * before the owner's tab makes it, and the answer the device is given.
  *
  * Order matters, and nothing here tells a device more than it was given. A

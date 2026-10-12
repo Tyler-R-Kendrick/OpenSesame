@@ -1,6 +1,6 @@
 /**
  * What the Form to start a live session holds, and whether it may start
- * (ADR 0150 §2, ADR 0195): the fields as the person has set them, whether
+ * (ADR 0150 §2, ADR 0196): the fields as the person has set them, whether
  * there is anything to lend a device, and the one press.
  */
 

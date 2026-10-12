@@ -1,5 +1,5 @@
 /**
- * What went wrong in `opensesame-id session`, said plainly (ADR 0195).
+ * What went wrong in `opensesame-id session`, said plainly (ADR 0196).
  *
  * Every message is written here, from a closed set of codes: nothing a
  * library or the network says is repeated, so a link, an invite code or a

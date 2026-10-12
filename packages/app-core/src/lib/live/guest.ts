@@ -19,7 +19,7 @@
  * ask again with a fresh request.
  *
  * Everything it receives lives in memory, dropped when the channel closes.
- * A device (ADR 0195) joins the same way, and over a relay alone when it has
+ * A device (ADR 0196) joins the same way, and over a relay alone when it has
  * no WebRTC: it makes no offer, and asks the owner's tab for connections.
  */
 
@@ -300,7 +300,7 @@ export class LiveGuest {
     else if (isDeviceMessage(message)) this.#device?.(message);
   }
 
-  /** Hear the owner's answers to a device's asks (ADR 0195). */
+  /** Hear the owner's answers to a device's asks (ADR 0196). */
   onDevice(handler: (message: DeviceMessage) => void): void {
     this.#device = handler;
   }

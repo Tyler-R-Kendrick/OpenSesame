@@ -6,7 +6,7 @@
   carries, §5 what crosses the peer channel, §6 carriers pass codes only),
   [ADR 0186](0186-live-session-transport-port-and-catalog-greeting.md) (§3
   what a request carries, §5 the catalog answers the joiner's greeting),
-  [ADR 0195](0195-device-authorization-in-live-sessions.md) (§2 a session may
+  [ADR 0196](0196-device-authorization-in-live-sessions.md) (§2 a session may
   share nothing of the vault, §3 a request names its kind and route, §5 a
   device vocabulary crosses the channel)
 - Amends: [ADR 0090](0090-static-frontend-complete-without-backend.md) and

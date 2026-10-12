@@ -24,7 +24,7 @@ export type StartForm = Readonly<{
   policy: SharePolicy;
   admission: Admission;
   minutes: number;
-  /** Devices may ask to use the owner's connections (ADR 0195). */
+  /** Devices may ask to use the owner's connections (ADR 0196). */
   devices: boolean;
 }>;
 

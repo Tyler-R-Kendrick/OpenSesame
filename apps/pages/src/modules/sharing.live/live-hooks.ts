@@ -182,7 +182,7 @@ export function formatRemaining(ms: number): string {
 }
 
 /**
- * The connections this app could let a device use (ADR 0195): read again when
+ * The connections this app could let a device use (ADR 0196): read again when
  * the capability that owns them comes or goes. Empty while it is off, and then
  * nothing about devices is drawn.
  */

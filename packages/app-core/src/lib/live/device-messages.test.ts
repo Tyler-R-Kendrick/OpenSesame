@@ -1,6 +1,6 @@
 /**
  * The device vocabulary is read as strictly as everything else on a live
- * session's channel (ADR 0195): anything that does not match exactly is
+ * session's channel (ADR 0196): anything that does not match exactly is
  * dropped, never read as the nearest thing it resembles.
  */
 import type { JsonObject, JsonValue } from "@opensesame/os-domain";

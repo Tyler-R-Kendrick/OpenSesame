@@ -1762,19 +1762,19 @@
     "excluded": {
       "cli": {
         "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "mcp_host": {
         "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "mcp_client": {
         "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "webmcp": {
         "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       }
     }
   },
@@ -1793,15 +1793,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "mcp_client": {
         "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "webmcp": {
         "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       }
     }
   },
@@ -1820,15 +1820,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "mcp_client": {
         "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       },
       "webmcp": {
         "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
-        "adr": "0195-device-authorization-in-live-sessions.md"
+        "adr": "0196-device-authorization-in-live-sessions.md"
       }
     }
   },

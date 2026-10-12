@@ -1,5 +1,5 @@
 /**
- * The connections this tab can use on a device's behalf (ADR 0195).
+ * The connections this tab can use on a device's behalf (ADR 0196).
  *
  * A live session's owner may let a *device* (a terminal, an agent) use some of
  * the connections configured in this app. The session does not know how any

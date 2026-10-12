@@ -1,5 +1,5 @@
 /**
- * The two records a broker keeps for a seat (ADR 0195): a request waiting on
+ * The two records a broker keeps for a seat (ADR 0196): a request waiting on
  * the owner, and the grant the owner's allowing makes of it. Built here, the
  * timers left to the broker that owns their lifetimes.
  */

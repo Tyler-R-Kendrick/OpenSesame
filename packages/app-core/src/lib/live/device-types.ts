@@ -1,5 +1,5 @@
 /**
- * The shapes of device authorization in a live session (ADR 0195): what the
+ * The shapes of device authorization in a live session (ADR 0196): what the
  * owner's screen is told, what a seat's end of the broker looks like, and the
  * records the broker keeps while a session runs. Split from the broker for
  * the module-size budget (ADR 0093).

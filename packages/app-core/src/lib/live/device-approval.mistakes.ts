@@ -1,5 +1,5 @@
 /**
- * Mistakes the type checker must keep refusing (ADR 0178, ADR 0195): letting a
+ * Mistakes the type checker must keep refusing (ADR 0178, ADR 0196): letting a
  * device use the owner's connections without the `manage_grants` proof.
  * `tsc` fails the build if one starts to compile. Nothing here runs.
  */

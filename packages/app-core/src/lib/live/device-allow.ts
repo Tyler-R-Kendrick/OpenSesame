@@ -1,5 +1,5 @@
 /**
- * The owner allowing a device (ADR 0195, ADR 0178): the vault's own
+ * The owner allowing a device (ADR 0196, ADR 0178): the vault's own
  * `manage_grants` check, then the broker's approval under the proof it passed.
  *
  * Letting a process use saved connections is handing out authority, the same

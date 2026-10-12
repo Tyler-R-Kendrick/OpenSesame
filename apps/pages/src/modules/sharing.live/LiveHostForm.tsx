@@ -3,7 +3,7 @@
  * and who gets in. Nothing but the carriers the owner named leaves this
  * browser until someone is let in: the peer connection, its ICE servers and
  * address hints wait for admission. Where the app has a connection to lend, the
- * owner also says whether a device may ask to use them (ADR 0195).
+ * owner also says whether a device may ask to use them (ADR 0196).
  */
 
 import { FieldShell } from "../../components/FieldShell.js";

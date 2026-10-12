@@ -1,5 +1,5 @@
 /**
- * What a connection looks like on the wire to a device (ADR 0195): the
+ * What a connection looks like on the wire to a device (ADR 0196): the
  * grammar of its ids and operation names, the bounds on a frame's lists, and
  * the two shapes a device is told of. Kept apart from the messages that carry
  * them because two capabilities spell these the same way — the connections an

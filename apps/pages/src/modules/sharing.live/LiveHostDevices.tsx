@@ -1,5 +1,5 @@
 /**
- * Devices, from the owner's side of a hosted live session (ADR 0195): a
+ * Devices, from the owner's side of a hosted live session (ADR 0196): a
  * terminal or an agent that was let in and asks to use the connections saved
  * in this app. Each request shows the code the device is showing, so the
  * owner can tell it from any other; allowing it is a choice of connections

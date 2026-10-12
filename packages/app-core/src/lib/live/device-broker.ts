@@ -1,5 +1,5 @@
 /**
- * The owner's side of device authorization in a live session (ADR 0195).
+ * The owner's side of device authorization in a live session (ADR 0196).
  *
  * A device that holds the link and has been let in asks for authority
  * (RFC 8628, the device authorization grant): it is handed a **device code**

@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 import type { ConnectionPort, SessionConnection } from "./connection-port.js";
 /**
- * Shared fixtures for the device broker's tests (ADR 0195): a fake port of
+ * Shared fixtures for the device broker's tests (ADR 0196): a fake port of
  * connections, a broker over it, and a seat whose replies are collected.
  */
 import { approveAs } from "./device-approval.test-support.js";

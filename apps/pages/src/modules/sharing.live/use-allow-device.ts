@@ -1,5 +1,5 @@
 /**
- * Allowing a device from the owner's sheet (ADR 0195): the vault's own
+ * Allowing a device from the owner's sheet (ADR 0196): the vault's own
  * `manage_grants` check, then the broker's approval. A refusal is a mark on
  * the sheet and a notice in the tray, and nothing is allowed.
  */

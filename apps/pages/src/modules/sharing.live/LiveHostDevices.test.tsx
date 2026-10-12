@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * The owner's side of device authorization, on screen (ADR 0195): a request
+ * The owner's side of device authorization, on screen (ADR 0196): a request
  * shows the code the device is showing, allowing it is a choice of
  * connections and a time, and a grant can be taken back.
  */

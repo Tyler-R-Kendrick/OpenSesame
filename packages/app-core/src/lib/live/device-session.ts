@@ -1,5 +1,5 @@
 /**
- * Joining a live session as a device (ADR 0195): what a terminal does, stated
+ * Joining a live session as a device (ADR 0196): what a terminal does, stated
  * without any shell.
  *
  * A device has no WebRTC and no vault. It reads the link, opens the carriers

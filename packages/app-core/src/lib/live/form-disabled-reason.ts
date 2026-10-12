@@ -38,7 +38,7 @@ export function liveHostStartDisabledReason(input: {
   title: string;
   scope: "vault" | "items" | "none";
   chosenCount: number;
-  /** Whether devices may ask to use connections (ADR 0195). */
+  /** Whether devices may ask to use connections (ADR 0196). */
   devices?: boolean;
 }): string | undefined {
   if (input.starting) return undefined;

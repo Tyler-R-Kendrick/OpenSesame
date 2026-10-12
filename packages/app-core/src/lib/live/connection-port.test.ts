@@ -1,6 +1,6 @@
 /**
  * The seam between a live session and the connections an app holds
- * (ADR 0195): what is offered to a device is always something the wire can
+ * (ADR 0196): what is offered to a device is always something the wire can
  * carry, and a binding belongs to the activation that made it.
  */
 import { describe, expect, it, vi } from "vitest";

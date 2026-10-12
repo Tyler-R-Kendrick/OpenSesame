@@ -31,7 +31,7 @@ export const ADR_TRUSTED_CONTACTS = "0187-trusted-circle-quorum-sharing.md";
 export const ADR_PASSWORD_RESET =
   "0190-password-reset-mailboxes-are-vault-items.md";
 export const ADR_DEVICE_SESSIONS =
-  "0195-device-authorization-in-live-sessions.md";
+  "0196-device-authorization-in-live-sessions.md";
 export const ADR_ENVIRONMENTS =
   "0194-vault-environments-values-on-items-schema-generated.md";
 

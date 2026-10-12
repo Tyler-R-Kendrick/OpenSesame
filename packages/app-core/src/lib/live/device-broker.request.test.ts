@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /**
- * Device authorization from the owner's side (ADR 0195): the request and its
+ * Device authorization from the owner's side (ADR 0196): the request and its
  * codes, RFC 8628's polling rules, and the owner's answer.
  */
 import { approveAs } from "./device-approval.test-support.js";

@@ -45,7 +45,7 @@ export const VALUE_MAX = 16 * 1024;
 /**
  * Who is asking. A **person** is shown the shared items of the owner's vault;
  * a **device** (a terminal, an agent) is shown none, and may instead ask to
- * use the owner's connections (ADR 0195). A request from before that has no
+ * use the owner's connections (ADR 0196). A request from before that has no
  * such field and is a person's.
  */
 export type SeatKind = "person" | "device";
@@ -135,7 +135,7 @@ export type ChannelMessage =
       field: string;
       value: string;
     }>
-  /** A device's asks and the owner's answers (ADR 0195). */
+  /** A device's asks and the owner's answers (ADR 0196). */
   | DeviceMessage;
 
 /** Code points, not UTF-16 units: an emoji is one character. */

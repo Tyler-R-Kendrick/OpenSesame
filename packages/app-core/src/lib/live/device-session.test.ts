@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 /**
  * A device joins a hosted session over the owner's NATS relay, asks for
- * authority, and uses the connections the owner picked (ADR 0195) — the
+ * authority, and uses the connections the owner picked (ADR 0196) — the
  * whole road, through the real pairing, the real sealed seat channel and the
  * real broker, with only the network faked.
  */
