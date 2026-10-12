@@ -5,6 +5,7 @@ import {
   sealOriginFile,
   sealedFileBound,
 } from "./at-rest/origin-files.js";
+import { bindRead } from "./kv-original-reader-data.js";
 import { haltedWriteError, storageWritesHalted } from "./storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "./storage-ownership.js";
 /**
@@ -193,6 +194,9 @@ export const kvSeams = {
   kvSetDurable: kvSetDurableDefault,
   kvHydrate: (keys: string[]) => kvHydrateDefault(keys),
 };
+
+/** Capture only the lexical private memory backing, never an arbitrary installed seam. */
+export const captureOriginalMemoryKvReadData = bindRead(kvSeams, kvGetDefault);
 
 export function kvGet(key: string): string | null {
   return kvSeams.kvGet(key);

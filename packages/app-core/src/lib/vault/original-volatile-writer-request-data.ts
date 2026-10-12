@@ -33,13 +33,30 @@ function originalMemoryWriterResult<T>(
   return accepted.value;
 }
 
+function retainOriginalMemoryWriterOutcome<T>(
+  result: PromiseSettledResult<T> | undefined,
+  failures: OriginalMemoryWriterFailure[],
+): { value: T } | undefined {
+  if (result?.status === "fulfilled") return { value: result.value };
+  if (
+    result?.status === "rejected" &&
+    !failures.some(({ cause }) => Object.is(cause, result.reason))
+  )
+    failures.push({ cause: result.reason });
+  return undefined;
+}
+
 export async function runOriginalVolatileWriterRequestData<T>(
   locks: LockManagerLike | undefined,
   request: LockManagerLike["request"] | undefined,
   name: string,
   original: () => void,
   work: (check: () => void) => Promise<T>,
+  options: Readonly<LockOptions> = { mode: "exclusive" },
 ): Promise<T> {
+  const ownedOptions = { ...options };
+  if (ownedOptions.mode !== "exclusive")
+    throw new Error("Original writer requires an exclusive lease.");
   let live = true;
   let entered = false;
   let completed = false;
@@ -68,7 +85,7 @@ export async function runOriginalVolatileWriterRequestData<T>(
   try {
     check();
     if (locks && request)
-      await request.call(locks, name, { mode: "exclusive" }, (grant) => {
+      await request.call(locks, name, ownedOptions, (grant) => {
         check();
         checkRetiredOperationGrant(grant, name);
         return accept();
@@ -84,15 +101,7 @@ export async function runOriginalVolatileWriterRequestData<T>(
     live = false;
     if (pending) {
       const [result] = await Promise.allSettled([pending]);
-      if (result?.status === "fulfilled") accepted = { value: result.value };
-      else if (
-        result?.status === "rejected" &&
-        !failures.some(
-          ({ cause }) =>
-            cause === result.reason || Object.is(cause, result.reason),
-        )
-      )
-        failures.push({ cause: result.reason });
+      accepted = retainOriginalMemoryWriterOutcome(result, failures);
     }
   }
   return originalMemoryWriterResult(failures, original, accepted);
