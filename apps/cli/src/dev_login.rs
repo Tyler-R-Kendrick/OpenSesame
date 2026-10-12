@@ -139,20 +139,25 @@ pub(crate) fn resolve(
     declared
         .iter()
         .map(|(env_var, login)| {
-            let declared_origin = origin_of(&login.origin)
-                .ok_or_else(|| anyhow::anyhow!("{env_var}: origin= is not an https origin"))?;
+            // The variable leads and no colon follows it: a message that begins
+            // `APP_PASSWORD: …` has the shape of a log line whose key is a
+            // credential, and the scrubber (ADR 0157) would replace the word
+            // after the colon, which is the part that says what to change.
+            let declared_origin = origin_of(&login.origin).ok_or_else(|| {
+                anyhow::anyhow!("{env_var} cannot be delivered: origin= is not an https origin")
+            })?;
             let stored = source.read(&login.store_path)?;
             let Some(bound) = stored.url.as_deref().and_then(origin_of) else {
                 anyhow::bail!(
-                    "{env_var}: the sealed entry {} names no 'url: https://…' line; add one so the \
-                     login's destination is the store's, not the schema's",
+                    "{env_var} cannot be delivered: the sealed entry {} names no 'url: https://…' \
+                     line; add one so the login's destination is the store's, not the schema's",
                     login.store_path
                 );
             };
             if bound != declared_origin {
                 anyhow::bail!(
-                    "{env_var}: origin={} is not the origin of the sealed entry's url; refusing to \
-                     send its password there",
+                    "{env_var} cannot be delivered: origin={} is not the origin of the sealed \
+                     entry's url; refusing to send its password there",
                     login.origin
                 );
             }
