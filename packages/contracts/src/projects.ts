@@ -67,6 +67,23 @@ export type ChangeProjectMemberRoleRequest = z.infer<
   typeof ChangeProjectMemberRoleRequestSchema
 >;
 
+/**
+ * Transfer a project to another principal (who must already be a member) or
+ * to an organization the caller owns. `confirm` repeats the project's slug, the
+ * way GitHub asks for the repository name before it moves one.
+ */
+export const TransferProjectRequestSchema = z.union([
+  z
+    .object({ principalId: z.string().min(1), confirm: z.string().min(1) })
+    .strict(),
+  z
+    .object({ organizationId: z.string().min(1), confirm: z.string().min(1) })
+    .strict(),
+]);
+export type TransferProjectRequest = z.infer<
+  typeof TransferProjectRequestSchema
+>;
+
 export const ActiveProjectResponseSchema = z.object({
   project: ProjectResponseSchema,
   /** True when the active project fell back to the personal default. */

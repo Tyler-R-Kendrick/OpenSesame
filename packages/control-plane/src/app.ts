@@ -53,6 +53,7 @@ import { principalRoutes } from "./routes/principals.js";
 import { projectRoutes } from "./routes/projects.js";
 import { scimMappingAdminRoutes } from "./routes/scim-mapping-admin.js";
 import "./routes/projects-members.js";
+import "./routes/projects-transfer.js";
 import { enrollmentRoutes } from "./routes/enrollment.js";
 import { createSamlRoutes } from "./routes/saml.js";
 import { createScimRoutes } from "./routes/scim.js";
