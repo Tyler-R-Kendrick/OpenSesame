@@ -13,6 +13,9 @@
 // or { "bearerFile": "<path>" }. With "wait" the child writes <out dir>/ready
 // and holds until <out dir>/go exists; with "lingerMs" it stays alive that
 // long after its last request, as an agent waiting on its next step would.
+// It writes its pid to <out dir>/pid. With "signals" it handles SIGTERM,
+// SIGHUP and SIGINT by writing <out dir>/got-<NAME>: "record" then exits 0,
+// "ignore" carries on, as a child that will not be asked twice does.
 
 import {
   appendFileSync,
@@ -33,6 +36,16 @@ writeFileSync(`${out}/env.txt`, `${lines.sort().join("\n")}\n`);
 writeFileSync(`${out}/argv.json`, JSON.stringify(process.argv.slice(2)));
 
 const plan = JSON.parse(readFileSync(`${out}/plan.json`, "utf8"));
+writeFileSync(`${out}/pid`, String(process.pid));
+
+if (plan.signals) {
+  for (const name of ["SIGTERM", "SIGHUP", "SIGINT"]) {
+    process.on(name, () => {
+      writeFileSync(`${out}/got-${name}`, "");
+      if (plan.signals === "record") process.exit(0);
+    });
+  }
+}
 
 function bearer(authorization) {
   if (authorization === "surrogate") return `Bearer ${token}`;

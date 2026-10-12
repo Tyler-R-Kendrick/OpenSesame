@@ -76,3 +76,21 @@ pub fn processes_running(exe: &Path) -> Vec<String> {
     }
     found
 }
+
+/// Whether process `pid` is running. A zombie is not: it has exited and only
+/// waits to be reaped, which a parent that was itself killed leaves to init.
+pub fn alive(pid: u32) -> bool {
+    match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+        // The state letter follows the last ')' (the command name may hold any).
+        Ok(stat) => stat
+            .rsplit_once(')')
+            .and_then(|(_, rest)| rest.trim_start().chars().next())
+            .is_some_and(|state| !matches!(state, 'Z' | 'X')),
+        // /proc is there and this pid is not in it.
+        Err(_) if can_read_processes() => false,
+        // No /proc: signal 0 asks only whether the pid exists.
+        Err(_) => libc::pid_t::try_from(pid)
+            // SAFETY: signal 0 delivers nothing; it only checks the pid.
+            .is_ok_and(|pid| unsafe { libc::kill(pid, 0) } == 0),
+    }
+}

@@ -109,6 +109,19 @@ impl Sandbox {
         if let Some(parser) = &self.parser {
             command.env("OPENSESAME_ENV_PARSE", parser);
         }
+        // A person's terminal starts `opensesame` with the default action for
+        // every signal. A test launched from a background job or under `nohup`
+        // would hand it ignored ones, which an exec keeps: put them back.
+        // SAFETY: only `signal`, which is async-signal-safe, runs between the
+        // fork and the exec.
+        unsafe {
+            std::os::unix::process::CommandExt::pre_exec(&mut command, || {
+                for signal in [libc::SIGINT, libc::SIGQUIT, libc::SIGHUP, libc::SIGTERM] {
+                    libc::signal(signal, libc::SIG_DFL);
+                }
+                Ok(())
+            });
+        }
         command
     }
 
@@ -144,8 +157,14 @@ impl Sandbox {
     /// Install the plugin through the real path, pinned by the sha256 of the
     /// file, then switch it on. Returns where it was installed.
     pub fn install_plugin(&self) -> PathBuf {
-        let pin = sha256_file(&self.plugin).unwrap();
-        let from = self.plugin.display().to_string();
+        self.install_plugin_from(&self.plugin)
+    }
+
+    /// [`Sandbox::install_plugin`] for any executable, such as a stand-in
+    /// plugin that answers slowly.
+    pub fn install_plugin_from(&self, plugin: &Path) -> PathBuf {
+        let pin = sha256_file(plugin).unwrap();
+        let from = plugin.display().to_string();
         let installed = self.cli_ok(&[
             "plugins",
             "install",

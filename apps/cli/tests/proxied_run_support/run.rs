@@ -7,6 +7,7 @@
 //! makes the requests of its plan through the run's proxy.
 
 use std::collections::BTreeMap;
+use std::fs::File;
 use std::path::PathBuf;
 use std::process::{Child, ExitStatus, Output, Stdio};
 use std::time::{Duration, Instant};
@@ -48,6 +49,13 @@ pub struct RunOptions<'a> {
     /// Keep the child alive this long after its last request.
     pub linger_ms: u64,
     pub passphrase: &'a str,
+    /// What the child does with `SIGTERM`, `SIGHUP` and `SIGINT`: `None` leaves
+    /// the default (it dies), `"record"` writes `got-<NAME>` and exits 0,
+    /// `"ignore"` writes `got-<NAME>` and carries on.
+    pub signals: Option<&'static str>,
+    /// Start `opensesame` as the leader of its own process group, so a test
+    /// can send a group what a terminal sends its foreground group.
+    pub own_group: bool,
 }
 
 impl<'a> RunOptions<'a> {
@@ -58,6 +66,8 @@ impl<'a> RunOptions<'a> {
             wait: false,
             linger_ms: 0,
             passphrase: STORE_PASSPHRASE,
+            signals: None,
+            own_group: false,
         }
     }
 }
@@ -67,6 +77,12 @@ pub struct Running<'a> {
     child: Child,
     pub out: PathBuf,
 }
+
+/// Where a run's own output goes: files, not pipes. A child that outlives
+/// `opensesame` holds a pipe's write end open, and reading to its end would
+/// then wait on the very process a test is showing was left behind.
+const STDOUT_LOG: &str = "stdout.log";
+const STDERR_LOG: &str = "stderr.log";
 
 pub struct Finished {
     pub output: Output,
@@ -85,6 +101,7 @@ impl Sandbox {
         let plan = json!({
             "wait": options.wait,
             "lingerMs": options.linger_ms,
+            "signals": options.signals,
             "requests": options.requests,
         });
         std::fs::write(out.join("plan.json"), plan.to_string()).unwrap();
@@ -96,8 +113,11 @@ impl Sandbox {
             .arg(&script)
             .arg(&out)
             .env("OPENSESAME_STORE_PASSWORD", options.passphrase)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stdout(Stdio::from(File::create(out.join(STDOUT_LOG)).unwrap()))
+            .stderr(Stdio::from(File::create(out.join(STDERR_LOG)).unwrap()));
+        if options.own_group {
+            std::os::unix::process::CommandExt::process_group(&mut command, 0);
+        }
         if let Some(upstream) = options.upstream {
             let ca = self.path("upstream-ca.pem");
             std::fs::write(&ca, upstream.ca.ca_pem()).unwrap();
@@ -131,16 +151,75 @@ impl Running<'_> {
     }
 
     fn ended_before_ready(&mut self, status: ExitStatus) -> ! {
-        let mut stderr = String::new();
-        if let Some(mut pipe) = self.child.stderr.take() {
-            std::io::Read::read_to_string(&mut pipe, &mut stderr).unwrap();
-        }
+        let stderr = std::fs::read_to_string(self.out.join(STDERR_LOG)).unwrap_or_default();
         panic!("the run ended ({status}) before its child was ready: {stderr}");
+    }
+
+    /// The pid of `opensesame` itself.
+    pub fn pid(&self) -> u32 {
+        self.child.id()
+    }
+
+    /// The pid the agent child recorded for itself, once it has started.
+    pub fn child_pid(&self) -> Option<u32> {
+        std::fs::read_to_string(self.out.join("pid"))
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+    }
+
+    /// Send `opensesame` a signal, as `kill -<signal> <pid>` does.
+    pub fn signal(&self, signal: i32) {
+        let pid = libc::pid_t::try_from(self.child.id()).unwrap();
+        // SAFETY: a plain system call on the pid of a child not yet waited on.
+        assert_eq!(unsafe { libc::kill(pid, signal) }, 0, "kill -{signal}");
+    }
+
+    /// Send `signal` to the whole process group `opensesame` leads: what a
+    /// terminal sends its foreground group on Ctrl-C. Needs `own_group`.
+    pub fn signal_group(&self, signal: i32) {
+        let pid = libc::pid_t::try_from(self.child.id()).unwrap();
+        // SAFETY: as `signal`; a negative pid names the group.
+        assert_eq!(
+            unsafe { libc::kill(-pid, signal) },
+            0,
+            "kill -{signal} group"
+        );
+    }
+
+    /// Wait for `opensesame` to exit, for at most `bound`. `None` when it is
+    /// still running then.
+    pub fn exits_within(&mut self, bound: Duration) -> Option<ExitStatus> {
+        let deadline = Instant::now() + bound;
+        loop {
+            if let Some(status) = self.child.try_wait().unwrap() {
+                return Some(status);
+            }
+            if Instant::now() >= deadline {
+                return None;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    /// What the run printed so far.
+    pub fn stderr(&self) -> String {
+        std::fs::read_to_string(self.out.join(STDERR_LOG)).unwrap_or_default()
+    }
+
+    /// Kill `opensesame` outright if it is still running, and say so.
+    pub fn kill(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
     }
 
     /// What the child recorded of its environment.
     pub fn env(&self) -> BTreeMap<String, String> {
         child_env(&self.out)
+    }
+
+    /// `127.0.0.1:port` of the run's proxy, from the child's `HTTPS_PROXY`.
+    pub fn proxy_addr(&self) -> Option<String> {
+        proxy_addr_of(&self.env())
     }
 
     /// Let a held child go on to its requests.
@@ -151,10 +230,15 @@ impl Running<'_> {
     pub fn finish(self) -> Finished {
         let Self {
             sandbox,
-            child,
+            mut child,
             out,
         } = self;
-        let output = child.wait_with_output().unwrap();
+        let status = child.wait().unwrap();
+        let output = Output {
+            status,
+            stdout: std::fs::read(out.join(STDOUT_LOG)).unwrap_or_default(),
+            stderr: std::fs::read(out.join(STDERR_LOG)).unwrap_or_default(),
+        };
         sandbox.keep(&format!("dev run ({})", display(&out)), &output);
         Finished { output, out }
     }
@@ -182,6 +266,11 @@ impl Finished {
         String::from_utf8_lossy(&self.output.stderr).into_owned()
     }
 
+    /// The status `opensesame` ended with, signal and all.
+    pub fn status(&self) -> ExitStatus {
+        self.output.status
+    }
+
     /// Whether the child ran at all.
     pub fn child_ran(&self) -> bool {
         self.out.join("env.txt").exists()
@@ -207,8 +296,12 @@ impl Finished {
 
     /// `127.0.0.1:port` of the run's proxy, from the child's `HTTPS_PROXY`.
     pub fn proxy_addr(&self) -> Option<String> {
-        let proxy = self.env().get("HTTPS_PROXY")?.clone();
-        let (_, addr) = proxy.rsplit_once('@')?;
-        Some(addr.trim_end_matches('/').to_owned())
+        proxy_addr_of(&self.env())
     }
+}
+
+fn proxy_addr_of(env: &BTreeMap<String, String>) -> Option<String> {
+    let proxy = env.get("HTTPS_PROXY")?;
+    let (_, addr) = proxy.rsplit_once('@')?;
+    Some(addr.trim_end_matches('/').to_owned())
 }
