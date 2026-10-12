@@ -4,6 +4,7 @@ import { useState } from "react";
 import { IconKey } from "../components/IconKey.js";
 import { IconRefresh, IconTrash, IconX } from "../components/Icons.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
+import { TransferVaultSection } from "./settings/TransferVaultSection.js";
 import { PURGE_CONFIRM } from "./vault/vault-menu.js";
 
 /** The open vault's name, as the vault list names it — never a raw tomb id. */
@@ -160,6 +161,8 @@ export function SettingsDangerPanel() {
 
   return (
     <>
+      <TransferVaultSection />
+
       <DeleteVaultSection
         confirmDestroy={confirmDestroy}
         count={count}
