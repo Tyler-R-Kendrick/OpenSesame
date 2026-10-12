@@ -123,6 +123,29 @@ fn an_entry_the_store_will_not_open_for_fails_the_run_naming_the_entry() {
 
 #[test]
 #[ignore = "needs the plugin's test build: scripts/test/proxied-run-test.sh"]
+fn paths_without_methods_fails_the_schema_and_says_what_to_add() {
+    let sandbox = ready();
+    let upstream = upstream::spawn(HOST);
+    sandbox.write_schema(
+        "VERCEL_TOKEN=opensesameConnection(conn://acme/vercel, projection=legacy-token, \
+         paths=\"/v2/user\")",
+    );
+    let finished = sandbox.run(&RunOptions::new(Some(&upstream), Vec::new()));
+    // The message the person reads has been through the log scrubber: the
+    // variable and the fix both have to survive it.
+    assert_refused(&sandbox, &finished, "VERCEL_TOKEN cannot be delivered");
+    assert!(
+        finished
+            .stderr()
+            .contains("paths= needs methods= beside it"),
+        "{}",
+        finished.stderr()
+    );
+    assert!(upstream.hits().is_empty());
+}
+
+#[test]
+#[ignore = "needs the plugin's test build: scripts/test/proxied-run-test.sh"]
 fn an_entry_with_no_declared_path_fails_the_run_and_issues_nothing() {
     let sandbox = ready();
     let upstream = upstream::spawn(HOST);
