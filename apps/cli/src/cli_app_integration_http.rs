@@ -46,40 +46,27 @@ pub fn post_json_loopback(
     let mut raw = Vec::new();
     stream.read_to_end(&mut raw).map_err(|_| ())?;
     let text = String::from_utf8(raw).map_err(|_| ())?;
-    let mut lines = text.split("\r\n");
-    let status_line = lines.next().ok_or(())?;
+    let split_at = text.find("\r\n\r\n").ok_or(())?;
+    let head = &text[..split_at];
+    let mut body = text[split_at + 4..].to_string();
+    let status_line = head.lines().next().ok_or(())?;
     let status = status_line
         .split_whitespace()
         .nth(1)
         .and_then(|code| code.parse::<u16>().ok())
         .ok_or(())?;
-    let mut body = String::new();
-    let mut in_body = false;
-    let mut content_length: Option<usize> = None;
-    for line in lines {
-        if !in_body {
-            if line.is_empty() {
-                in_body = true;
-                continue;
-            }
-            if let Some((key, value)) = line.split_once(':') {
-                if key.eq_ignore_ascii_case("content-length") {
-                    content_length = value.trim().parse().ok();
-                }
-            }
-            continue;
-        }
-        if body.is_empty() {
-            body = line.to_string();
-        } else {
-            body.push_str("\r\n");
-            body.push_str(line);
-        }
-        if let Some(len) = content_length {
-            if body.len() >= len {
-                body.truncate(len);
-                break;
-            }
+    let content_length = head
+        .lines()
+        .skip(1)
+        .find_map(|line| {
+            let (key, value) = line.split_once(':')?;
+            key.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().ok())
+        })
+        .flatten();
+    if let Some(len) = content_length {
+        if body.len() > len {
+            body.truncate(len);
         }
     }
     Ok((status, body))

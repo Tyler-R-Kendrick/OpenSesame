@@ -81,6 +81,8 @@ export async function nativeProcessFixture() {
     NODE_OPTIONS: process.env.NODE_OPTIONS,
     OPENSESAME_DAEMON_API: fakeDaemon.baseUrl,
   };
+  env.OPENSESAME_DAEMON_LISTEN = undefined;
+  Reflect.deleteProperty(env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
 
   env.OP_SERVICE_ACCOUNT_TOKEN = undefined;
   env.PARITY_FAIL_READ = undefined;

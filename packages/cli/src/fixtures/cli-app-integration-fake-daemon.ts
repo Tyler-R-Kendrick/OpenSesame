@@ -13,8 +13,12 @@ export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFak
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       if (req.method === "POST" && req.url === ensurePath) {
-        res.writeHead(200, { "content-type": "application/json" });
-        res.end(JSON.stringify({ status: "approved" }));
+        const payload = JSON.stringify({ status: "approved" });
+        res.writeHead(200, {
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(payload),
+        });
+        res.end(payload);
         return;
       }
       res.writeHead(404);

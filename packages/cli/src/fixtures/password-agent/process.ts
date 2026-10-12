@@ -106,6 +106,8 @@ export async function processFixture() {
     OP_SERVICE_ACCOUNT_TOKEN: undefined,
     OPENSESAME_DAEMON_API: fakeDaemon.baseUrl,
   };
+  env.OPENSESAME_DAEMON_LISTEN = undefined;
+  Reflect.deleteProperty(env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
 
   return {
     directory,
