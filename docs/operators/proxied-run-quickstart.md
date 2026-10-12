@@ -135,7 +135,9 @@ A notice never carries a surrogate or the token.
 | The child exits | `opensesame` closes the plugin's stdin. The plugin revokes the surrogate, stops the listener, deletes the run's CA file and exits. Exit status is the child's |
 | A tripwire (`surrogate.misdirected`) | The same, at once: the child is killed first, `opensesame` prints the line below and exits `77` |
 | Ctrl-C | The terminal sends `SIGINT` to `opensesame` and the child together. Both exit and the proxy refuses connections at once. A `kill -INT <opensesame pid>` is not that: it reaches `opensesame` alone, the run ends, and the **child is not stopped**. Use `SIGTERM` |
-| `kill <opensesame pid>` (`SIGTERM`: a supervisor, a CI cancel, `timeout`) or `SIGHUP` (a closed terminal) | The run is revoked first. Then the child is sent the same signal (and its process group, if it leads one of its own) and has 5 seconds to leave, after which it is killed. `opensesame` waits for the child and the plugin, prints the line below and exits `143` (`129` for `SIGHUP`), whatever the child returned. A signal that arrives before the child has started starts none. A plain `dev run` with no plugin stops its child the same way |
+| `kill <opensesame pid>` (`SIGTERM`: a supervisor, a CI cancel, `timeout`) or `SIGHUP` (a closed terminal) | The run is revoked first: `opensesame` closes the plugin's stdin and waits up to 5 seconds for it to exit, then kills it. Then the child is sent the same signal (and its process group, if it leads one of its own) and has 5 seconds to leave, after which it is killed. `opensesame` waits for the child, prints the line below and exits `143` (`129` for `SIGHUP`), whatever the child returned. Each wait is a few milliseconds when its process cooperates. **The worst case is about 10 seconds**: 5 for a plugin that does not leave and 5 for a child that ignores the signal (10.04 s measured with both, `proxied_run_signal_edges.rs`). A signal that arrives before the child has started starts none. A plain `dev run` with no plugin has only the child's 5 seconds, and stops its child the same way |
+| `SIGHUP` or `SIGTERM` already ignored when `opensesame` starts (`nohup` ignores the hangup) | Left ignored. The run does not end on it, and the child inherits the ignore. The other signal still ends the run as in the row above |
+| `SIGTERM` or `SIGHUP` after the child has gone, while `opensesame` waits for the plugin to leave | Not the run's any more: its handlers are given back when the child is gone, so the signal ends `opensesame` at once, killed by that signal, as it would any process. The plugin ends because its stdin closes |
 | `kill -9 <opensesame pid>` (`SIGKILL`, or an out-of-memory kill) | A killed process runs no handler, so nothing tells the child. The kernel closes the pipe and the run ends: the proxy refuses connections at once. The **child is not stopped**: it is re-parented, sees no signal and keeps a string that no longer works. Stop it too |
 | `opensesame plugins disable surrogate-proxy` | The next run delivers placeholders. A live run is not touched |
 | 12 hours | The run's TTL |
@@ -152,6 +154,10 @@ Only the child is signalled, and its own process group if it leads one. A
 process the child started in `opensesame`'s group and did not stop is not
 `opensesame`'s to reach: a child that runs helpers should end them when it gets
 the signal.
+
+A supervisor that stops waiting sooner than the worst case sends `SIGKILL`
+first, which is the `kill -9` row and leaves the child. `docker stop` waits 10
+seconds by default, the same as the worst case, so give it `--time 15`.
 
 Revoking a surrogate does not change the token. To retire the token itself,
 rotate it at the provider and `pass rm`, then `pass insert`, the entry.
