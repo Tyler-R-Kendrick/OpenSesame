@@ -16,8 +16,8 @@ import {
 } from "./parity-node.js";
 import { type ParityCommand, option, toggle } from "./parity-parse.js";
 
-import { dispatchParity } from "./parity-commands.js";
 import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
+import { dispatchParity } from "./parity-commands.js";
 
 export interface ParityDependencies {
   requestTransport?: Pick<RequestPorts, "addresses" | "send">;
