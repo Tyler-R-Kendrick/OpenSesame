@@ -32,6 +32,10 @@ pub(crate) const REQUEST_HEADER_ALLOWLIST: &[&str] = &["accept", "content-type",
 fn provider_request_headers(provider_id: &str) -> &'static [&'static str] {
     match provider_id {
         "github" => &["x-github-api-version"],
+        // Vercel's file upload names the file by its digest and size in
+        // request headers (`POST /v2/files`), and every deploy client sends
+        // them. They describe the body; none is a credential or a session.
+        "vercel" => &["x-vercel-digest", "x-now-digest", "x-now-size"],
         _ => &[],
     }
 }
