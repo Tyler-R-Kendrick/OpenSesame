@@ -1,7 +1,9 @@
 import { CliAuthorizeProofForm } from "./cli-authorize-proof-form.js";
-import { CliAuthorizeProofUnavailable } from "./cli-authorize-proof-unavailable.js";
 import type { CliAuthorizeRow } from "./cli-authorize-session.js";
+import { cliAuthorizeUi } from "./cli-authorize-ui.js";
 import { useCliAuthorizeProofState } from "./use-cli-authorize-proof-state.js";
+
+const ui = cliAuthorizeUi;
 
 type Props = Readonly<{
   row: CliAuthorizeRow;
@@ -19,7 +21,16 @@ export function CliAuthorizeProofStage(props: Props) {
   const proof = useCliAuthorizeProofState(row, busy, onBusyChange, onRespond);
 
   if (!proof.canPasskey && !proof.canPin) {
-    return <CliAuthorizeProofUnavailable />;
+    return (
+      <section className="panel" aria-label={ui.sheetTitle}>
+        <div className="panel__head">
+          <h1>{ui.sheetTitle}</h1>
+        </div>
+        <div className="panel__body">
+          <p>Unlock with a PIN or passkey on this device first.</p>
+        </div>
+      </section>
+    );
   }
 
   return (
