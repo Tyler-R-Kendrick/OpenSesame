@@ -241,8 +241,10 @@ fn a_signal_right_after_the_child_starts_still_stops_it() {
     command.arg("30");
     let started = Instant::now();
     let end = run_until(&mut command, None, &interrupt, STOP_GRACE).unwrap();
+    // `sleep 30` waited for would take 30 s; the bound is far under that and
+    // far over what a machine running other builds can take to signal a child.
     assert!(
-        started.elapsed() < Duration::from_secs(3),
+        started.elapsed() < Duration::from_secs(20),
         "the child was signalled, not waited for"
     );
     assert_eq!(end.exit_code(), Some(129));
