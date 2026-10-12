@@ -145,6 +145,16 @@ fn an_empty_entry_is_refused_by_name() {
     let error = resolve(&[vercel()], &store).unwrap_err().to_string();
     assert!(error.contains(ENTRY), "{error}");
     assert!(error.contains("empty"), "{error}");
+    assert_survives_the_scrubber(&error);
+}
+
+/// What a person reads is what the log scrubber lets through (ADR 0157): a
+/// message in the shape `VERCEL_TOKEN: …` has its tail replaced, entry name
+/// included.
+fn assert_survives_the_scrubber(message: &str) {
+    let printed = opensesame_redaction::redact_text(message);
+    assert!(printed.contains(ENTRY), "{printed}");
+    assert!(printed.contains("VERCEL_TOKEN"), "{printed}");
 }
 
 #[test]
@@ -154,6 +164,7 @@ fn an_unreadable_entry_names_the_entry_and_never_the_token() {
     let error = resolve(&[vercel()], &store).unwrap_err().to_string();
     assert!(error.contains(ENTRY), "{error}");
     assert!(!error.contains(TOKEN), "{error}");
+    assert_survives_the_scrubber(&error);
 }
 
 #[test]

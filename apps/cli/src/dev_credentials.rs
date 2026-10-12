@@ -92,7 +92,8 @@ fn stored_entries(requested: &[Value]) -> Vec<(&str, &str, String)> {
             let connection_ref = entry["connection_ref"].as_str()?;
             wants_stored(entry["provider_id"].as_str()?).then_some(())?;
             let path = store_path_of(connection_ref)?;
-            seen.insert(connection_ref).then_some((env_var, connection_ref, path))
+            seen.insert(connection_ref)
+                .then_some((env_var, connection_ref, path))
         })
         .collect()
 }
@@ -114,11 +115,15 @@ pub(crate) fn resolve(
         .into_iter()
         .filter(|(_, _, path)| source.holds(path))
         .map(|(env_var, connection_ref, path)| {
-            let stored = source
-                .read(&path)
-                .map_err(|error| anyhow::anyhow!("{env_var}: {path} cannot be read: {error}"))?;
+            // The entry leads and the variable trails in parentheses: a message
+            // that begins `VERCEL_TOKEN: …` has the shape of a log line whose
+            // key is a credential, and the scrubber (ADR 0157) would replace
+            // everything after the colon, the entry's name with it.
+            let stored = source.read(&path).map_err(|error| {
+                anyhow::anyhow!("the sealed entry {path} (for {env_var}) cannot be read: {error}")
+            })?;
             if stored.secret.trim().is_empty() {
-                anyhow::bail!("{env_var}: the sealed entry {path} is empty");
+                anyhow::bail!("the sealed entry {path} (for {env_var}) is empty");
             }
             Ok(CredentialWire {
                 connection_ref: connection_ref.to_owned(),
