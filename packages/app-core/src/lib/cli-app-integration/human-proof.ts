@@ -3,11 +3,8 @@
  * Binds the pending row's ids to a fresh unlock check without sending secrets.
  */
 
-import { sha256 } from "@noble/hashes/sha256";
-import { bytesToHex } from "@noble/hashes/utils";
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { PasskeyProbe } from "../vault/passkey-unlock-session.js";
-import { unwrapPin } from "../vault/primary-unwrap.js";
 
 export const CLI_APP_HUMAN_PROOF_PREFIX = "oschip1:";
 
@@ -17,11 +14,28 @@ export type CliAppHumanProofBinding = Readonly<{
   terminalSessionId: string;
 }>;
 
-function proofMac(
+function bytesToHex(bytes: Uint8Array): string {
+  let hex = "";
+  for (const byte of bytes) {
+    hex += byte.toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
+async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return new Uint8Array(digest);
+}
+
+async function proofMac(
   binding: CliAppHumanProofBinding,
   kind: "pin" | "passkey",
   material: Uint8Array,
-): string {
+): Promise<string> {
   const seed = new TextEncoder().encode(
     [
       binding.requestId,
@@ -31,7 +45,8 @@ function proofMac(
       bytesToHex(material),
     ].join("\0"),
   );
-  return bytesToHex(sha256(seed));
+  const mac = await sha256(seed);
+  return bytesToHex(mac);
 }
 
 export function formatCliAppHumanProof(
@@ -53,18 +68,19 @@ export async function mintCliAppHumanProofFromPin(
   binding: CliAppHumanProofBinding,
   recordFailedUnlock: () => void,
 ): Promise<string> {
+  const { unwrapPin } = await import("../vault/primary-unwrap.js");
   const raw = await unwrapPin(header, pin, recordFailedUnlock);
-  const fingerprint = sha256(raw);
+  const fingerprint = await sha256(raw);
   raw.fill(0);
-  const mac = proofMac(binding, "pin", fingerprint);
+  const mac = await proofMac(binding, "pin", fingerprint);
   return formatCliAppHumanProof("pin", mac);
 }
 
-export function mintCliAppHumanProofFromPasskey(
+export async function mintCliAppHumanProofFromPasskey(
   probe: PasskeyProbe,
   binding: CliAppHumanProofBinding,
-): string {
-  const fingerprint = sha256(new Uint8Array(probe.prfOutput));
-  const mac = proofMac(binding, "passkey", fingerprint);
+): Promise<string> {
+  const fingerprint = await sha256(new Uint8Array(probe.prfOutput));
+  const mac = await proofMac(binding, "passkey", fingerprint);
   return formatCliAppHumanProof("passkey", mac);
 }

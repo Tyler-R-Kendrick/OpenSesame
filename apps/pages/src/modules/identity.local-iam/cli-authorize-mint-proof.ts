@@ -19,7 +19,7 @@ export async function mintCliAuthorizePasskeyProof(
       import("@opensesame/app-core/lib/cli-app-integration/human-proof.js"),
     ]);
   const probe = await vaultStore.probePasskeyCeremony();
-  return mintCliAppHumanProofFromPasskey(probe, bindingFromRow(row));
+  return await mintCliAppHumanProofFromPasskey(probe, bindingFromRow(row));
 }
 
 export async function mintCliAuthorizePinProof(
