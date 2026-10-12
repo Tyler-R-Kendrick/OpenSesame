@@ -1,5 +1,9 @@
 //! Blocking CLI ↔ app integration client (daemon loopback).
-use opensesame_cli_app_integration::{app_unavailable_message, denied_message, seam_decision};
+#[path = "cli_app_integration_http.rs"]
+mod cli_app_integration_http;
+
+use cli_app_integration_http::post_json_loopback;
+use opensesame_cli_app_integration::{app_unavailable_message, denied_message};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 
@@ -70,46 +74,32 @@ pub fn require_pass_reveal(reveal: bool) -> anyhow::Result<()> {
 /// # Errors
 /// When the app is unavailable or integration is denied.
 pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> {
-    if let Some(seam) = seam_decision() {
-        return match seam {
-            "approve" => Ok(()),
-            "deny" => anyhow::bail!("{}", denied_message()),
-            _ => anyhow::bail!("{}", app_unavailable_message()),
-        };
-    }
     let base = daemon_base().ok_or_else(|| anyhow::anyhow!("{}", app_unavailable_message()))?;
     let policy = policy();
-    let client = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()?;
-    let url = format!("{base}{}", policy.daemon_paths.ensure);
+    let path = policy.daemon_paths.ensure.clone();
     let deadline = Instant::now() + Duration::from_secs(policy.request_timeout_seconds);
-    let body = serde_json::json!({
+    let payload = serde_json::json!({
         "terminalSessionId": terminal_session_id(),
         "verb": verb,
         "reference": reference,
     });
+    let json_body = payload.to_string();
     while Instant::now() < deadline {
-        let response = client.post(&url).json(&body).send();
+        let response = post_json_loopback(&base, &path, &json_body);
         match response {
-            Ok(resp)
-                if resp.status() == reqwest::StatusCode::NOT_FOUND
-                    || resp.status() == reqwest::StatusCode::SERVICE_UNAVAILABLE =>
-            {
+            Ok((404, _)) | Ok((503, _)) => {
                 anyhow::bail!("{}", app_unavailable_message());
             }
-            Ok(resp) if !resp.status().is_success() => {
-                anyhow::bail!("{}", denied_message());
-            }
-            Ok(resp) => {
-                let parsed = resp.json::<EnsureBody>()?;
+            Ok((status, body)) if (200..300).contains(&status) => {
+                let parsed = serde_json::from_str::<EnsureBody>(&body)?;
                 match parsed.status.as_str() {
                     "approved" => return Ok(()),
                     "denied" | "wrongSession" => anyhow::bail!("{}", denied_message()),
                     _ => {}
                 }
             }
-            Err(_) => anyhow::bail!("{}", app_unavailable_message()),
+            Ok((_, _)) => anyhow::bail!("{}", denied_message()),
+            Err(()) => anyhow::bail!("{}", app_unavailable_message()),
         }
         std::thread::sleep(Duration::from_millis(policy.poll_interval_ms));
     }

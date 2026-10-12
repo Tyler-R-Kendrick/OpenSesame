@@ -156,18 +156,11 @@ pub fn denied_message() -> &'static str {
     &policy().messages.denied
 }
 
-/// Test seam: `approve`, `deny`, or `unavailable`.
-pub fn seam_decision() -> Option<&'static str> {
-    match std::env::var("OPENSESAME_CLI_APP_INTEGRATION_SEAM")
-        .ok()
-        .as_deref()
-    {
-        Some("approve") => Some("approve"),
-        Some("deny") => Some("deny"),
-        Some("unavailable") => Some("unavailable"),
-        _ => None,
-    }
-}
+#[cfg(any(test, feature = "test-seams"))]
+mod seams_test_only;
+
+#[cfg(any(test, feature = "test-seams"))]
+pub use seams_test_only::seam_decision;
 
 #[cfg(test)]
 mod tests {
