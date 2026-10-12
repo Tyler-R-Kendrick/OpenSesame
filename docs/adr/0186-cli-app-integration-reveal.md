@@ -30,9 +30,11 @@ same shell, and unlike 1Password’s CLI ↔ app integration model.
    `--desktop` rules for direct plaintext; app integration is required afterward
    for `read`, `env-resolve`, `pass-reveal`, and desktop `run` / `env run`.
 5. **Refuse closed** — if the daemon is down or the person denies, the CLI exits
-   with the spec messages (app unavailable, denied, expired, wrong session). Tests
-   use `OPENSESAME_CLI_APP_INTEGRATION_SEAM=approve|deny|unavailable` without
-   weakening production gates.
+   with the spec messages (app unavailable, denied, expired, wrong session).
+   Production binaries never read a seam environment variable; journey tests
+   inject `HumanRevealRequest.appIntegration` or point `OPENSESAME_DAEMON_API` at
+   a loopback fake daemon. The Rust `test-seams` feature (tests only) may still
+   read the legacy seam name for harnesses that opt in.
 
 ## Consequences
 

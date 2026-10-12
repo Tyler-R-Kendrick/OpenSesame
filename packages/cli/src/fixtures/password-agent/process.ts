@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
+import { startCliAppIntegrationFakeDaemon } from "../cli-app-integration-fake-daemon.js";
 
 const InvocationSchema = z.object({
   args: z.array(z.string()),
@@ -95,6 +96,7 @@ export async function processFixture() {
   await chmod(join(bin, "op"), 0o700);
   await writeFile(log, "");
   await seed();
+  const fakeDaemon = await startCliAppIntegrationFakeDaemon();
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     PATH: `${bin}:${process.env.PATH}`,
@@ -102,8 +104,15 @@ export async function processFixture() {
     PARITY_DB: database,
     PARITY_LOG: log,
     OP_SERVICE_ACCOUNT_TOKEN: undefined,
-    OPENSESAME_CLI_APP_INTEGRATION_SEAM: "approve",
+    OPENSESAME_DAEMON_API: fakeDaemon.baseUrl,
   };
 
-  return { directory, database, env, cli, calls };
+  return {
+    directory,
+    database,
+    env,
+    cli,
+    calls,
+    closeFakeDaemon: fakeDaemon.close,
+  };
 }

@@ -17,12 +17,6 @@ export interface CliAppIntegrationPort {
   }): Promise<CliAppIntegrationDecision>;
 }
 
-function seamDecision(): CliAppIntegrationDecision | undefined {
-  const raw = process.env.OPENSESAME_CLI_APP_INTEGRATION_SEAM;
-  if (raw === "approve" || raw === "deny" || raw === "unavailable") return raw;
-  return undefined;
-}
-
 function daemonBase(): string | undefined {
   const raw =
     process.env.OPENSESAME_DAEMON_API ??
@@ -71,8 +65,6 @@ async function pollEnsure(
 export function createCliAppIntegrationPort(): CliAppIntegrationPort {
   return {
     async ensureReveal(input) {
-      const seam = seamDecision();
-      if (seam) return seam;
       const base = daemonBase();
       if (!base) return "unavailable";
       try {

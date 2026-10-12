@@ -7,6 +7,8 @@ use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+mod cli_app_integration_mock;
+
 const PASSPHRASE: &str = "correct horse battery staple";
 
 fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output {
@@ -19,7 +21,10 @@ fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output 
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
+        .env(
+            "OPENSESAME_DAEMON_API",
+            cli_app_integration_mock::shared_daemon_base().as_str(),
+        );
     let mut child = command.spawn().expect("failed to run the opensesame binary");
     child
         .stdin
@@ -92,7 +97,10 @@ fn person_command(store: &Path, password: &str, args: &[&str]) -> Command {
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
         .env("GIT_COMMITTER_EMAIL", "test@example.com")
-        .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
+        .env(
+            "OPENSESAME_DAEMON_API",
+            cli_app_integration_mock::shared_daemon_base().as_str(),
+        );
     command
 }
 
