@@ -260,3 +260,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0194](0194-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |
 | [0195](0195-vault-ownership-is-transferred-from-the-danger-zone.md) | A vault's owner can hand it to another registered user from the Danger zone | Accepted |
 | [0196](0196-device-authorization-in-live-sessions.md) | Device authorization in live sessions: a terminal uses the connections an open tab holds | Accepted |
+| [0197](0197-browser-dispositions-and-honest-links.md) | A provider with no browser road says why, with evidence, and links what it names | Accepted |

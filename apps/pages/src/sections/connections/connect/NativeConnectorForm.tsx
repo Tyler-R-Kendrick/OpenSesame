@@ -1,3 +1,8 @@
+import {
+  UNAVAILABLE_LABEL,
+  leadingUnavailableKind,
+} from "@opensesame/app-core/lib/browser-disposition.js";
+import { docLink } from "@opensesame/app-core/lib/doc-link.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useState } from "react";
@@ -158,11 +163,15 @@ function NativeConfigurationLinks({
   const docsUrl = descriptor.docsUrl
     ? nativePublicUrl(descriptor.docsUrl)
     : null;
+  const docs = docLink(descriptor.name, docsUrl);
   return (
     <>
-      {docsUrl ? (
-        <OutLink href={docsUrl}>{descriptor.name} documentation</OutLink>
-      ) : null}
+      {docs ? <OutLink href={docs.url}>{docs.label}</OutLink> : null}
+      {descriptor.externalLinks?.map((link) => (
+        <OutLink key={link.url} href={link.url}>
+          {link.label}
+        </OutLink>
+      ))}
       {descriptor.configurationLinks?.map((link) => (
         <Link key={link.to} to={link.to}>
           {link.label}
@@ -197,6 +206,25 @@ function NativeFormStatus({
         />
       ) : null}
     </>
+  );
+}
+
+/** Nothing here can connect: say why in the reason's own words, not a generic one. */
+function NoMethodStatus({
+  descriptor,
+}: { descriptor: NativeConnectorDescriptor }) {
+  const kinds = descriptor.methods.map((method) => method.unavailableKind);
+  const kind = leadingUnavailableKind(kinds);
+  return kinds.some((entry) => entry !== undefined) ? (
+    <StatusMark
+      tone={kind === "built-in" ? "ok" : "warn"}
+      label={`${descriptor.name}: ${UNAVAILABLE_LABEL[kind]}`}
+    />
+  ) : (
+    <StatusMark
+      tone="warn"
+      label={`${descriptor.name} has no supported browser connection method.`}
+    />
   );
 }
 
@@ -279,10 +307,7 @@ export function NativeConnectorForm(props: Props) {
           />
         </FormCommit>
       ) : (
-        <StatusMark
-          tone="warn"
-          label={`${descriptor.name} has no supported browser connection method.`}
-        />
+        <NoMethodStatus descriptor={descriptor} />
       )}
       <NativeCancelSignIn
         busy={model.busy}

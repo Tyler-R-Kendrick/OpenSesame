@@ -1,4 +1,5 @@
 import { modelProtocolLabel } from "@opensesame/app-core/lib/ai-model-provider.js";
+import { UNAVAILABLE_LABEL } from "@opensesame/app-core/lib/browser-disposition.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
@@ -247,8 +248,11 @@ function TileBody({
       </InstalledConnectorActions>
     );
   if (action.kind === "native" || action.kind === "unavailable") {
-    const label =
-      action.kind === "native" ? "Desktop app required" : "Unavailable";
+    const label = action.reason
+      ? UNAVAILABLE_LABEL[action.reason]
+      : action.kind === "native"
+        ? "Desktop app required"
+        : "Unavailable";
     const face = (
       <>
         {children}

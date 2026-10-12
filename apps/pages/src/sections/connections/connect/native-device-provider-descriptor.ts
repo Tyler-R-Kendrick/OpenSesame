@@ -1,8 +1,13 @@
+import {
+  type BrowserUnavailableKind,
+  browserDisposition,
+} from "@opensesame/app-core/lib/browser-disposition.js";
 import { hasConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 /** Device catalog configuration is distinct from a running browser connection. */
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
+import { isNativeAwsProvider } from "@opensesame/app-core/lib/native-aws-input.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import type {
   NativeConnectorDescriptor,
@@ -16,6 +21,7 @@ export type NativeDeviceAvailability = {
 function existingSpecializedRoad(providerId: string): boolean {
   return (
     isGitBackupProvider(providerId) ||
+    isNativeAwsProvider(providerId) ||
     ["github", "aws-kms", "gcp-kms", "s3"].includes(providerId)
   );
 }
@@ -119,30 +125,31 @@ function instanceSignIn(
   };
 }
 
-function requiresCompanion(provider: Provider): boolean {
-  return (
-    provider.category === "password_managers" ||
-    provider.category === "local_storage"
-  );
-}
+/** What the method is called, by why it is unavailable: "companion" only where one would help. */
+const METHOD_LABEL = {
+  "built-in": "Built in",
+  companion: "Companion configuration",
+  "refuses-browser": "Direct browser access",
+  "driver-pending": "Direct browser access",
+  "no-key-check": "API key",
+  "no-contract": "Browser connection",
+  policy: "Not offered",
+  "needs-client-secret": "OAuth",
+  "no-public-contract": "Authorization",
+} as const satisfies Record<BrowserUnavailableKind, string>;
 
-function resourceDescription(provider: Provider): string {
-  const resources = (provider.configurationFields ?? [])
-    .filter((field) => field.required && !field.secret)
-    .map((field) => field.label.toLowerCase());
-  return resources.length
-    ? ` Its configuration identifies ${resources.join(", ")}.`
-    : "";
-}
-
-function unavailableReason(provider: Provider): string {
-  if (provider.id === "tailscale")
-    return `${provider.displayName} device enrollment requires tailscaled and the OpenSesame native daemon. This browser cannot run those OS processes. Configure and pair the daemon using the provider setup guide; a saved auth key alone would not enroll a device.`;
-  if (requiresCompanion(provider))
-    return `The ${provider.displayName} catalog integration uses native application, OS or CLI access; this browser cannot run that companion and has no supported browser driver for it.${resourceDescription(provider)} Use the provider setup guide for companion configuration, or Vault → Import items for a supported export file. Imported items are a local snapshot, not a running ${provider.displayName} connection.`;
-  if (provider.category === "wallet")
-    return `${provider.displayName} provisioning is unavailable under this product's wallet connection policy. This browser has no wallet driver and does not collect signing or issuer credentials.${resourceDescription(provider)}`;
-  return `${provider.displayName} has no supported browser driver for its catalog operations.${resourceDescription(provider)} Follow the provider setup guide for its native configuration. Saving configuration alone would not verify provider access, so this app does not offer a Connect action for this route.`;
+function unavailableMethod(provider: Provider) {
+  const disposition = browserDisposition(provider);
+  const method = {
+    id: "native-local",
+    label: METHOD_LABEL[disposition.kind],
+    available: false,
+    unavailableKind: disposition.kind,
+    unavailableReason: disposition.summary,
+    fields: [],
+    scopeGroups: [],
+  } satisfies NativeMethodDescriptor;
+  return { method, disposition };
 }
 
 /** Resolve the canonical catalog row without adding a second provider inventory. */
@@ -155,33 +162,30 @@ export function nativeDeviceProviderDescriptor(
   const provider = catalogProvider(providerId);
   if (!provider) return null;
   // Aliases retain their route identity; driver lookup still uses the compiled id.
-  const method: NativeMethodDescriptor = ["vault", "openbao"].includes(
-    provider.id,
-  )
-    ? instanceMethod(provider, availability)
-    : {
-        id: "native-local",
-        label: "Companion configuration",
-        available: false,
-        unavailableReason: unavailableReason(provider),
-        fields: [],
-        scopeGroups: [],
-      };
+  const instance = ["vault", "openbao"].includes(provider.id);
+  if (instance) {
+    const token = instanceMethod(provider, availability);
+    return {
+      providerId,
+      name: provider.displayName,
+      docsUrl: provider.docsUrl,
+      methods: [instanceSignIn(provider, availability), token],
+      actions: [],
+    };
+  }
+  const { method, disposition } = unavailableMethod(provider);
   return {
     providerId,
     name: provider.displayName,
     docsUrl: provider.docsUrl,
-    methods: ["vault", "openbao"].includes(provider.id)
-      ? [instanceSignIn(provider, availability), method]
-      : [method],
+    methods: [method],
     actions: [],
-    configurationLinks: requiresCompanion(provider)
-      ? [
-          {
-            label: "Open Vault to import a supported export",
-            to: "/vault?f=all",
-          },
-        ]
+    // A source that is the documentation link is not a second link to it.
+    externalLinks: disposition.sources.filter(
+      (source) => source.url !== provider.docsUrl,
+    ),
+    configurationLinks: disposition.alternative
+      ? [disposition.alternative]
       : [],
   };
 }
