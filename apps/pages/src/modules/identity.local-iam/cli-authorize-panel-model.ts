@@ -1,16 +1,16 @@
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
-import type { VaultHeader } from "@opensesame/vault-core";
 import {
   type BoundaryValue,
   isJsonObject,
   readString,
 } from "@opensesame/os-domain";
+import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import { postCliRespond } from "./cli-authorize-net.js";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
+import { postCliRespond } from "./cli-authorize-net.js";
 import {
   runCliAuthorizePasskeyApprove,
   runCliAuthorizePinApprove,
