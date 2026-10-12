@@ -21,12 +21,25 @@ describe("cli app integration session store", () => {
         if (caseRow.idlePastSeconds) {
           now += caseRow.idlePastSeconds * 1000;
         }
+        if ("hardPastSeconds" in caseRow && caseRow.hardPastSeconds) {
+          now += caseRow.hardPastSeconds * 1000;
+        }
         const queryId =
           caseRow.queryAs === "other"
             ? (caseRow.otherTerminalSessionId ?? "missing")
             : terminalSessionId;
         const check = store.ensure(queryId, verb);
         expect(check.status).toBe(caseRow.expectEnsure);
+        return;
+      }
+      if (caseRow.action === "pendingExpire") {
+        const pending = store.ensure(terminalSessionId, verb);
+        expect(pending.status).toBe("pending");
+        if (caseRow.pendingPastSeconds) {
+          now += caseRow.pendingPastSeconds * 1000;
+        }
+        expect(store.listPending()).toHaveLength(0);
+        expect(store.ensure(terminalSessionId, verb).status).toBe("pending");
         return;
       }
       if (caseRow.action === "deny") {

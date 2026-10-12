@@ -12,6 +12,8 @@ const SOURCE: &str = include_str!("../../../spec/conformance/cli-app-integration
 #[serde(rename_all = "camelCase")]
 struct Policy {
     idle_timeout_seconds: u64,
+    hard_limit_seconds: u64,
+    request_timeout_seconds: u64,
     messages: Messages,
 }
 
@@ -20,6 +22,8 @@ struct Policy {
 struct Messages {
     app_unavailable: String,
     denied: String,
+    expired: String,
+    request_timeout: String,
 }
 
 fn policy() -> &'static Policy {
@@ -29,6 +33,7 @@ fn policy() -> &'static Policy {
 
 #[derive(Clone, Debug)]
 struct ApprovedSession {
+    approved_at_ms: u64,
     last_activity_ms: u64,
 }
 
@@ -38,6 +43,7 @@ pub struct PendingRequest {
     pub terminal_session_id: String,
     pub verb: String,
     pub reference: Option<String>,
+    pub created_at_ms: u64,
 }
 
 /// In-memory integration state held by the daemon.
@@ -69,11 +75,25 @@ impl CliAppIntegrationStore {
         self.now_ms.saturating_sub(session.last_activity_ms) > idle_ms
     }
 
+    fn hard_expired(&self, session: &ApprovedSession) -> bool {
+        let hard_ms = policy().hard_limit_seconds * 1000;
+        self.now_ms.saturating_sub(session.approved_at_ms) > hard_ms
+    }
+
     fn expire_idle(&mut self) {
         let now_ms = self.now_ms;
         let idle_ms = policy().idle_timeout_seconds * 1000;
+        let hard_ms = policy().hard_limit_seconds * 1000;
         self.approved.retain(|_, session| {
             now_ms.saturating_sub(session.last_activity_ms) <= idle_ms
+                && now_ms.saturating_sub(session.approved_at_ms) <= hard_ms
+        });
+    }
+
+    fn expire_pending(&mut self) {
+        let ttl_ms = policy().request_timeout_seconds * 1000;
+        self.pending.retain(|_, row| {
+            self.now_ms.saturating_sub(row.created_at_ms) <= ttl_ms
         });
     }
 
@@ -84,24 +104,31 @@ impl CliAppIntegrationStore {
         reference: Option<&str>,
         reuse_approved_session: bool,
     ) -> (String, Option<String>) {
-        self.expire_idle();
+        self.expire_pending();
         if self.denied.contains(terminal_session_id) {
             return ("denied".into(), None);
         }
         if let Some(session) = self.approved.get(terminal_session_id) {
+            if self.hard_expired(session) {
+                self.approved.remove(terminal_session_id);
+                return ("expired".into(), None);
+            }
             if reuse_approved_session {
                 if self.idle_expired(session) {
                     self.approved.remove(terminal_session_id);
                 } else {
                     let session = self.approved.get_mut(terminal_session_id).expect("session");
                     session.last_activity_ms = self.now_ms;
+                    self.expire_idle();
                     return ("approved".into(), None);
                 }
             } else {
                 self.approved.remove(terminal_session_id);
+                self.expire_idle();
                 return ("approved".into(), None);
             }
         }
+        self.expire_idle();
         for row in self.pending.values() {
             if row.terminal_session_id == terminal_session_id {
                 return ("pending".into(), Some(row.request_id.clone()));
@@ -116,6 +143,7 @@ impl CliAppIntegrationStore {
                 terminal_session_id: terminal_session_id.to_string(),
                 verb: verb.to_string(),
                 reference: reference.map(str::to_string),
+                created_at_ms: self.now_ms,
             },
         );
         ("pending".into(), Some(request_id))
@@ -134,6 +162,7 @@ impl CliAppIntegrationStore {
         self.approved.insert(
             terminal_session_id.to_string(),
             ApprovedSession {
+                approved_at_ms: self.now_ms,
                 last_activity_ms: self.now_ms,
             },
         );
@@ -153,7 +182,8 @@ impl CliAppIntegrationStore {
         "denied".into()
     }
 
-    pub fn list_pending(&self) -> Vec<PendingRequest> {
+    pub fn list_pending(&mut self) -> Vec<PendingRequest> {
+        self.expire_pending();
         self.pending.values().cloned().collect()
     }
 }
@@ -164,6 +194,14 @@ pub fn app_unavailable_message() -> &'static str {
 
 pub fn denied_message() -> &'static str {
     &policy().messages.denied
+}
+
+pub fn expired_message() -> &'static str {
+    &policy().messages.expired
+}
+
+pub fn request_timeout_message() -> &'static str {
+    &policy().messages.request_timeout
 }
 
 #[cfg(any(test, feature = "test-seams"))]
@@ -185,8 +223,10 @@ mod tests {
         other_terminal_session_id: Option<String>,
         action: String,
         idle_past_seconds: Option<u64>,
+        hard_past_seconds: Option<u64>,
+        pending_past_seconds: Option<u64>,
         query_as: Option<String>,
-        expect_ensure: String,
+        expect_ensure: Option<String>,
     }
 
     #[derive(Debug, Deserialize)]
@@ -226,13 +266,29 @@ mod tests {
                 if let Some(seconds) = case.idle_past_seconds {
                     store.set_now_ms(1_000_000 + seconds * 1000);
                 }
+                if let Some(seconds) = case.hard_past_seconds {
+                    store.set_now_ms(1_000_000 + seconds * 1000);
+                }
                 let query_id = if case.query_as.as_deref() == Some("other") {
                     case.other_terminal_session_id.as_deref().unwrap_or("missing")
                 } else {
                     case.terminal_session_id.as_str()
                 };
                 let (status, _) = store.ensure(query_id, "read", None, true);
-                assert_eq!(status, case.expect_ensure, "case {}", case.id);
+                assert_eq!(
+                    status,
+                    case.expect_ensure.as_deref().expect("expectEnsure"),
+                    "case {}",
+                    case.id
+                );
+            } else if case.action == "pendingExpire" {
+                if let Some(seconds) = case.pending_past_seconds {
+                    store.set_now_ms(1_000_000 + seconds * 1000);
+                }
+                assert!(store.list_pending().is_empty(), "case {}", case.id);
+                let (status, _) =
+                    store.ensure(&case.terminal_session_id, "read", None, true);
+                assert_eq!(status, "pending", "case {}", case.id);
             } else if case.action == "deny" {
                 assert_eq!(
                     store.deny(&request_id, &case.terminal_session_id),

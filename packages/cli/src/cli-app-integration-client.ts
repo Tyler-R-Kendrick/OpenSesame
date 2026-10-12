@@ -7,7 +7,12 @@ import {
 } from "@opensesame/os-domain";
 import type { HumanRevealVerb } from "./reveal-gate.js";
 
-export type CliAppIntegrationDecision = "approve" | "deny" | "unavailable";
+export type CliAppIntegrationDecision =
+  | "approve"
+  | "deny"
+  | "unavailable"
+  | "expired"
+  | "timedOut";
 
 export interface CliAppIntegrationPort {
   ensureReveal(input: {
@@ -53,13 +58,14 @@ async function pollEnsure(
     if (!isJsonObject(body)) return "deny";
     const status = readString(body.status);
     if (status === "approved") return "approve";
+    if (status === "expired") return "expired";
     if (status === "denied") return "deny";
     if (status === "wrongSession") return "deny";
     await new Promise((resolve) => {
       setTimeout(resolve, cliAppIntegrationPolicy.pollIntervalMs);
     });
   }
-  return "deny";
+  return "timedOut";
 }
 
 export function createCliAppIntegrationPort(): CliAppIntegrationPort {

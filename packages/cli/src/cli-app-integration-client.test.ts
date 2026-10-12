@@ -1,5 +1,6 @@
 import { cliAppIntegrationPolicyDocument } from "@opensesame/app-core/lib/cli-app-integration/policy.js";
 import { afterEach, describe, expect, it } from "vitest";
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import { createCliAppIntegrationPort } from "./cli-app-integration-client.js";
 import { humanRevealAppIntegrationRefusal } from "./reveal-gate.js";
 
@@ -47,5 +48,24 @@ describe("cli app integration client (production)", () => {
     expect(refusal).toBe(
       cliAppIntegrationPolicyDocument.messages.appUnavailable,
     );
+  });
+
+  it("maps poll timeout to the requestTimeout message, not denied", async () => {
+    const timedOutPort: CliAppIntegrationPort = {
+      ensureReveal: async () => "timedOut",
+    };
+    const refusal = await humanRevealAppIntegrationRefusal({
+      verb: "read",
+      reveal: true,
+      desktop: true,
+      reference: "op://v/i/f",
+      stdinIsTty: true,
+      stdoutIsTty: true,
+      appIntegration: timedOutPort,
+    });
+    expect(refusal).toBe(
+      cliAppIntegrationPolicyDocument.messages.requestTimeout,
+    );
+    expect(refusal).not.toBe(cliAppIntegrationPolicyDocument.messages.denied);
   });
 });

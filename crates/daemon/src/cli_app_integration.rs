@@ -85,10 +85,11 @@ pub(crate) async fn ensure(
 }
 
 pub(crate) async fn pending(State(st): State<App>) -> Response {
-    let store = match st.cli_app_integration.lock() {
+    let mut store = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
+    store.set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
     let rows = store
         .list_pending()
         .into_iter()

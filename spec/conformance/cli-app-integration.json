@@ -1,6 +1,7 @@
 {
   "version": 1,
   "idleTimeoutSeconds": 600,
+  "hardLimitSeconds": 43200,
   "requestTimeoutSeconds": 120,
   "pollIntervalMs": 500,
   "daemonPaths": {
@@ -12,6 +13,7 @@
     "appUnavailable": "OpenSesame is not running. Unlock OpenSesame and allow CLI integration to reveal secrets from this terminal.",
     "denied": "CLI integration was denied in OpenSesame.",
     "expired": "CLI integration for this terminal expired due to inactivity. Allow it again in OpenSesame.",
+    "requestTimeout": "No one answered in OpenSesame. Run the command again.",
     "pending": "Waiting for you to allow CLI integration in OpenSesame…",
     "wrongSession": "CLI integration is approved for a different terminal session."
   },
@@ -61,6 +63,19 @@
       "action": "approve",
       "queryAs": "other",
       "expectEnsure": "pending"
+    },
+    {
+      "id": "hard-limit-expires-active-session",
+      "terminalSessionId": "term-hard",
+      "action": "approve",
+      "hardPastSeconds": 43201,
+      "expectEnsure": "expired"
+    },
+    {
+      "id": "pending-request-ttl",
+      "terminalSessionId": "term-pending",
+      "action": "pendingExpire",
+      "pendingPastSeconds": 121
     }
   ]
 }
