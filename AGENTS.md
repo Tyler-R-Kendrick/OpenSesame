@@ -65,6 +65,14 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
   applicable), headless use looks like:
   `grok -p "…" --always-approve --output-format json`.
+  A depleted runtime key shadows device OIDC: it shows **403** from
+  `https://api.x.ai/v1/models` or **Not signed in** from the CLI even when
+  `~/.grok/auth.json` is present. `scripts/dev/grok-preflight.sh` prints the
+  key length (never the value), whether `~/.grok/auth.json` exists, and the
+  models HTTP status; run grok via `scripts/dev/grok-headless.sh`
+  (`env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY`) so device login is used.
+  Do not set `auth.preferred_method = "api_key"` in the project
+  `.grok/config.toml` when using device login alongside that runtime key.
 - **Kimi Code CLI** is installed on `PATH` as `kimi`
   (`KIMI_INSTALL_DIR=/usr/local` in the Dockerfile; binary at
   `/usr/local/bin/kimi`). Cloud agents use it for fix work with model alias
@@ -79,7 +87,9 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
 
 After checkout, `install` runs `.cursor/install.sh` (`corepack` + `pnpm install`
 + `cargo +1.88.0 fetch`). Prefer the shared cargo target dir documented in §9
-when compiling Rust in Cloud Agents.
+when compiling Rust in Cloud Agents. Login and non-login bash for `vscode`
+source `/etc/profile.d/cargo.sh`, which prepends `/usr/local/cargo/bin` and
+defaults `CARGO_TARGET_DIR` to `$HOME/.cache/packages/cargo-target`.
 
 ## 3. Command crib sheet
 
