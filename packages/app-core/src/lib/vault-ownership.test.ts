@@ -140,4 +140,44 @@ describe("vault ownership transfer", () => {
       s.ada.id,
     );
   });
+
+  it("lets the guest-named owner of an accountless vault hand it to a registered user", async () => {
+    let dir = await changeLocalDirectory(tomb, 0, {
+      action: "create",
+      kind: "organization",
+      name: "Home",
+    });
+    const org = dir.entries.find((e) => e.name === "Home");
+    if (!org) throw new Error("org missing");
+    dir = await changeLocalDirectory(tomb, dir.revision, {
+      action: "create",
+      kind: "person",
+      name: GUEST_PERSON_NAME,
+      id: GUEST_PERSON_ID,
+    });
+    dir = await changeLocalDirectory(tomb, dir.revision, {
+      action: "membership",
+      organizationId: org.id,
+      principalId: GUEST_PERSON_ID,
+      role: "owner",
+    });
+    dir = await changeLocalDirectory(tomb, dir.revision, {
+      action: "create",
+      kind: "person",
+      name: "Grace",
+    });
+    const grace = dir.entries.find((e) => e.name === "Grace");
+    if (!grace) throw new Error("grace missing");
+
+    expect((await transferRecipients(tomb, dir)).map((e) => e.name)).toEqual([
+      "Grace",
+    ]);
+    const after = await transferVaultOwnership(tomb, grace.id);
+    const role = (id: string) =>
+      after.memberships.find(
+        (row) => row.organizationId === org.id && row.principalId === id,
+      )?.role;
+    expect(role(grace.id)).toBe("owner");
+    expect(role(GUEST_PERSON_ID)).not.toBe("owner");
+  });
 });

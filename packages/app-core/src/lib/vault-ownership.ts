@@ -31,7 +31,11 @@ function isRegisteredUser(entry: LocalIdentity): boolean {
   return entry.kind === "person" && entry.enabled && !isGuestPersonEntry(entry);
 }
 
-/** Registered users holding the owner role in at least one organization. */
+/**
+ * Enabled people holding the owner role in at least one organization. A vault
+ * sealed without an account is owned by a guest-named placeholder, so this
+ * does not require the owner to be a registered user: only a *recipient* must.
+ */
 export function vaultOwners(directory: LocalDirectory): LocalIdentity[] {
   const owners = new Set(
     directory.memberships
@@ -39,7 +43,7 @@ export function vaultOwners(directory: LocalDirectory): LocalIdentity[] {
       .map((row) => row.principalId),
   );
   return directory.entries.filter(
-    (entry) => isRegisteredUser(entry) && owners.has(entry.id),
+    (entry) => entry.kind === "person" && entry.enabled && owners.has(entry.id),
   );
 }
 
@@ -97,7 +101,7 @@ export async function transferRecipients(
 
 /**
  * Make `toId` the owner of every organization the acting owner owns, then
- * leave the previous owner an admin there. The recipient is promoted first, so
+ * leave the previous owner an admin there (a guest-named one a member). The recipient is promoted first, so
  * the directory never has no owner between the two writes.
  */
 export async function transferVaultOwnership(
@@ -134,12 +138,22 @@ export async function transferVaultOwnership(
         role: "owner",
       });
     }
+    // Promoting a registered user already demotes a guest-named operator, and
+    // a guest may not be an admin: demote only what is still an owner.
+    const demoted = isGuestPersonEntry(from) ? "member" : "admin";
     for (const row of owned) {
+      const stillOwner = current.memberships.some(
+        (m) =>
+          m.organizationId === row.organizationId &&
+          m.principalId === from.id &&
+          m.role === "owner",
+      );
+      if (!stillOwner) continue;
       current = await commitLocalDirectoryUnderLock(tomb, current.revision, {
         action: "membership",
         organizationId: row.organizationId,
         principalId: from.id,
-        role: "admin",
+        role: demoted,
       });
     }
     return current;
