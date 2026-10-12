@@ -11,6 +11,7 @@
 #![allow(dead_code)] // each test uses a different subset
 
 pub mod common;
+pub mod live;
 pub mod run;
 pub mod sweep;
 pub mod upstream;

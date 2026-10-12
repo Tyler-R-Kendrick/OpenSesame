@@ -56,6 +56,9 @@ pub struct RunOptions<'a> {
     /// Start `opensesame` as the leader of its own process group, so a test
     /// can send a group what a terminal sends its foreground group.
     pub own_group: bool,
+    /// Signals `opensesame` is started with ignored, as `nohup` starts a
+    /// command with `SIGHUP` ignored (an exec keeps an ignored signal ignored).
+    pub ignore: Vec<i32>,
 }
 
 impl<'a> RunOptions<'a> {
@@ -68,6 +71,7 @@ impl<'a> RunOptions<'a> {
             passphrase: STORE_PASSPHRASE,
             signals: None,
             own_group: false,
+            ignore: Vec::new(),
         }
     }
 }
@@ -117,6 +121,21 @@ impl Sandbox {
             .stderr(Stdio::from(File::create(out.join(STDERR_LOG)).unwrap()));
         if options.own_group {
             std::os::unix::process::CommandExt::process_group(&mut command, 0);
+        }
+        if !options.ignore.is_empty() {
+            let ignored = options.ignore.clone();
+            // SAFETY: only `signal`, which is async-signal-safe, runs between
+            // the fork and the exec. It runs after the reset to the default
+            // that `Sandbox::command` registered, so it is what `opensesame`
+            // starts with.
+            unsafe {
+                std::os::unix::process::CommandExt::pre_exec(&mut command, move || {
+                    for signal in &ignored {
+                        libc::signal(*signal, libc::SIG_IGN);
+                    }
+                    Ok(())
+                });
+            }
         }
         if let Some(upstream) = options.upstream {
             let ca = self.path("upstream-ca.pem");

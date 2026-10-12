@@ -4,8 +4,9 @@
 # child that reaches the provider only through the run's proxy.
 #
 # What it drives is apps/cli/tests/proxied_run_e2e.rs,
-# proxied_run_refusals.rs and proxied_run_signals.rs (how a run ends when
-# `opensesame` is signalled): the real `opensesame` binary; the plugin's TEST build
+# proxied_run_refusals.rs, proxied_run_signals.rs and proxied_run_signal_edges.rs
+# (how a run ends when `opensesame` is signalled, and the cases at its edges):
+# the real `opensesame` binary; the plugin's TEST build
 # (cargo feature `upstream-override`: a loopback upstream and a banner),
 # installed through `opensesame plugins install` with its sha256 pin; the real
 # @env-spec/parser; and a recording TLS server standing in for api.vercel.com.
@@ -75,7 +76,7 @@ else
 fi
 
 # 3. The tests. `--include-ignored` because a plain `cargo test` has neither piece.
-echo "proxied-run: running apps/cli/tests/proxied_run_{e2e,refusals,signals}.rs"
+echo "proxied-run: running apps/cli/tests/proxied_run_{e2e,refusals,signals,signal_edges}.rs"
 cargo +1.88.0 test -p opensesame-cli --test proxied_run_e2e --test proxied_run_refusals \
-  --test proxied_run_signals -- --include-ignored "$@"
+  --test proxied_run_signals --test proxied_run_signal_edges -- --include-ignored "$@"
 echo "proxied-run: OK"
