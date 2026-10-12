@@ -1,14 +1,14 @@
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 
-/** Stable id for the interactive terminal session (1Password-style app integration). */
-export function deriveTerminalSessionId(
-  env: NodeJS.ProcessEnv = process.env,
-): string {
-  const explicit = env.OPENSESAME_CLI_TERMINAL_SESSION_ID;
-  if (explicit?.trim()) return explicit.trim();
-  const tty = env.OPENSESAME_CLI_TTY ?? "";
-  const shellPid = env.OPENSESAME_CLI_SHELL_PID ?? "";
-  const payload = `${tty}\0${shellPid}`;
-  return bytesToHex(sha256(new TextEncoder().encode(payload))).slice(0, 32);
+/** Per-attempt correlation id for TCP daemon calls (approval is single-use). */
+export function ephemeralTerminalCorrelationId(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(sha256(bytes)).slice(0, 32);
+}
+
+/** @deprecated Use {@link ephemeralTerminalCorrelationId}; daemon derives UDS sessions. */
+export function deriveTerminalSessionId(): string {
+  return ephemeralTerminalCorrelationId();
 }

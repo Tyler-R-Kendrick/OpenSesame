@@ -2,7 +2,65 @@
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
+use std::path::Path;
 use std::time::Duration;
+
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+fn parse_http_response(raw: Vec<u8>) -> Result<(u16, String), ()> {
+    let text = String::from_utf8(raw).map_err(|_| ())?;
+    let split_at = text.find("\r\n\r\n").ok_or(())?;
+    let head = &text[..split_at];
+    let mut body = text[split_at + 4..].to_string();
+    let status_line = head.lines().next().ok_or(())?;
+    let status = status_line
+        .split_whitespace()
+        .nth(1)
+        .and_then(|code| code.parse::<u16>().ok())
+        .ok_or(())?;
+    let content_length = head
+        .lines()
+        .skip(1)
+        .find_map(|line| {
+            let (key, value) = line.split_once(':')?;
+            key.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().ok())
+        })
+        .flatten();
+    if let Some(len) = content_length {
+        if body.len() > len {
+            body.truncate(len);
+        }
+    }
+    Ok((status, body))
+}
+
+/// POST JSON over the daemon Unix socket when available (kernel-attested peer).
+#[cfg(unix)]
+pub fn post_json_uds(sock: &Path, path: &str, json_body: &str) -> Result<(u16, String), ()> {
+    let path = if path.starts_with('/') {
+        path
+    } else {
+        return Err(());
+    };
+    let mut stream = UnixStream::connect(sock).map_err(|_| ())?;
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .map_err(|_| ())?;
+    stream
+        .set_write_timeout(Some(Duration::from_secs(5)))
+        .map_err(|_| ())?;
+    let request = format!(
+        "POST {path} HTTP/1.1\r\nhost: localhost\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+        json_body.len(),
+        json_body
+    );
+    stream.write_all(request.as_bytes()).map_err(|_| ())?;
+    let mut raw = Vec::new();
+    stream.read_to_end(&mut raw).map_err(|_| ())?;
+    parse_http_response(raw)
+}
 
 /// POST JSON to `http://127.0.0.1:port/path` and return status code plus body.
 pub fn post_json_loopback(
@@ -45,29 +103,5 @@ pub fn post_json_loopback(
     stream.write_all(request.as_bytes()).map_err(|_| ())?;
     let mut raw = Vec::new();
     stream.read_to_end(&mut raw).map_err(|_| ())?;
-    let text = String::from_utf8(raw).map_err(|_| ())?;
-    let split_at = text.find("\r\n\r\n").ok_or(())?;
-    let head = &text[..split_at];
-    let mut body = text[split_at + 4..].to_string();
-    let status_line = head.lines().next().ok_or(())?;
-    let status = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|code| code.parse::<u16>().ok())
-        .ok_or(())?;
-    let content_length = head
-        .lines()
-        .skip(1)
-        .find_map(|line| {
-            let (key, value) = line.split_once(':')?;
-            key.eq_ignore_ascii_case("content-length")
-                .then(|| value.trim().parse::<usize>().ok())
-        })
-        .flatten();
-    if let Some(len) = content_length {
-        if body.len() > len {
-            body.truncate(len);
-        }
-    }
-    Ok((status, body))
+    parse_http_response(raw)
 }
