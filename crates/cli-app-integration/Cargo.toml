@@ -9,6 +9,11 @@ description = "CLI ↔ OpenSesame app integration session store (1Password-style
 name = "opensesame_cli_app_integration"
 path = "src/lib.rs"
 
+[features]
+test-seams = []
+
 [dependencies]
+hex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = { workspace = true }
