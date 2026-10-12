@@ -1,8 +1,18 @@
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import { deriveTerminalSessionId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
+import { ephemeralTerminalCorrelationId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 import type { HumanRevealVerb } from "./reveal-gate.js";
 
-export type CliAppIntegrationDecision = "approve" | "deny" | "unavailable";
+export type CliAppIntegrationDecision =
+  | "approve"
+  | "deny"
+  | "unavailable"
+  | "expired"
+  | "timedOut";
 
 export interface CliAppIntegrationPort {
   ensureReveal(input: {
@@ -10,12 +20,6 @@ export interface CliAppIntegrationPort {
     terminalSessionId: string;
     reference?: string | undefined;
   }): Promise<CliAppIntegrationDecision>;
-}
-
-function seamDecision(): CliAppIntegrationDecision | undefined {
-  const raw = process.env.OPENSESAME_CLI_APP_INTEGRATION_SEAM;
-  if (raw === "approve" || raw === "deny" || raw === "unavailable") return raw;
-  return undefined;
 }
 
 function daemonBase(): string | undefined {
@@ -50,22 +54,23 @@ async function pollEnsure(
     if (response.status === 404 || response.status === 503)
       return "unavailable";
     if (!response.ok) return "deny";
-    const body = (await response.json()) as { status?: string };
-    if (body.status === "approved") return "approve";
-    if (body.status === "denied") return "deny";
-    if (body.status === "wrongSession") return "deny";
+    const body: BoundaryValue = await response.json();
+    if (!isJsonObject(body)) return "deny";
+    const status = readString(body.status);
+    if (status === "approved") return "approve";
+    if (status === "expired") return "expired";
+    if (status === "denied") return "deny";
+    if (status === "wrongSession") return "deny";
     await new Promise((resolve) => {
       setTimeout(resolve, cliAppIntegrationPolicy.pollIntervalMs);
     });
   }
-  return "deny";
+  return "timedOut";
 }
 
 export function createCliAppIntegrationPort(): CliAppIntegrationPort {
   return {
     async ensureReveal(input) {
-      const seam = seamDecision();
-      if (seam) return seam;
       const base = daemonBase();
       if (!base) return "unavailable";
       try {
@@ -82,8 +87,6 @@ export function createCliAppIntegrationPort(): CliAppIntegrationPort {
   };
 }
 
-export function terminalSessionIdForReveal(
-  env: NodeJS.ProcessEnv = process.env,
-): string {
-  return deriveTerminalSessionId(env);
+export function terminalSessionIdForReveal(): string {
+  return ephemeralTerminalCorrelationId();
 }

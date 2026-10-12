@@ -26,12 +26,20 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "identity.local.organizations.membership.manage",
         "identity.local.organizations.read",
         "identity.local.passkeys.manage",
+        "identity.local.vault.transfer",
+        "cli.app_integration.list",
+        "cli.app_integration.respond",
       ],
       egress: [
         {
           class: "user-mediated-navigation",
           purpose: "the redirect back to a registered local application",
           automatic: false,
+        },
+        {
+          class: "peer-or-local-network",
+          purpose: "loopback daemon CLI",
+          automatic: true,
         },
       ],
       browserPermissions: ["webauthn"],

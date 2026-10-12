@@ -1,3 +1,7 @@
+import {
+  UNAVAILABLE_LABEL,
+  leadingUnavailableKind,
+} from "@opensesame/app-core/lib/browser-disposition.js";
 import { screen, within } from "@testing-library/react";
 /** Real capability-owned drivers for the catalog form contract; no provider requests on render. */
 import { expect, vi } from "vitest";
@@ -53,11 +57,20 @@ export function expectNativePanel(
       else expect(choice).toBeNull();
     }
   } else {
+    // With nothing to connect, the lone status names the specific reason when
+    // one is known, and says the generic sentence only when none is.
+    const kinds = descriptor.methods.map((method) => method.unavailableKind);
     expect(
       within(panel).getByRole("img", {
-        name: `${descriptor.name} has no supported browser connection method.`,
+        name: kinds.some((kind) => kind !== undefined)
+          ? `${descriptor.name}: ${UNAVAILABLE_LABEL[leadingUnavailableKind(kinds)]}`
+          : `${descriptor.name} has no supported browser connection method.`,
       }),
     ).toBeTruthy();
+    // ... and the reasons are open: they are all the page has to say.
+    expect(panel.querySelector("details[open] > summary")?.textContent).toBe(
+      "Why not",
+    );
     expect(panel.querySelector('input[type="password"]')).toBeNull();
     expect(
       within(panel).queryByRole("button", { name: /^Verify and connect/ }),

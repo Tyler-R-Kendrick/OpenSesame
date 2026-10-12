@@ -77,6 +77,18 @@ export function canonicalProviderId(idOrAlias: string): string | undefined {
 }
 
 /**
+ * Where a row came from, which is not always the provider itself (fnox, for
+ * the rows it listed). `undefined` for an id the catalog does not list.
+ */
+export function catalogProvenanceUrl(idOrAlias: string): string | undefined {
+  const id = canonicalProviderId(idOrAlias);
+  const json = CATALOG_ROW_JSON.find((row) => JSON.parse(row).id === id);
+  return json
+    ? ProviderSchema.parse(JSON.parse(json)).provenance_url
+    : undefined;
+}
+
+/**
  * A fresh copy of the row an id or alias names. Callers may adjust their copy
  * (a device's `configured` flag, labelled fields) without touching the
  * catalog.

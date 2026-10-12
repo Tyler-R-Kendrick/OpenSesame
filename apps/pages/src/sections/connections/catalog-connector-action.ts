@@ -1,3 +1,4 @@
+import { leadingUnavailableKind } from "@opensesame/app-core/lib/browser-disposition.js";
 import type {
   Connection,
   Provider,
@@ -42,6 +43,13 @@ export function catalogConnectorAction(
     },
   ];
   const now = Date.now();
+  const unavailableKind = descriptor
+    ? leadingUnavailableKind(
+        descriptor.methods
+          .filter((method) => !method.available)
+          .map((method) => method.unavailableKind),
+      )
+    : undefined;
   return connectorCardAction(provider, {
     routes,
     connection,
@@ -49,9 +57,11 @@ export function catalogConnectorAction(
       ? readNativeConnector(connection.connectionId)
       : null,
     specializedVerified: specializedProof(connection, now),
+    // Only a provider reached through a native client is "a desktop app away".
     nativeRequired:
-      provider.category !== "wallet" &&
-      !routes.some((route) => route.available),
+      !routes.some((route) => route.available) &&
+      unavailableKind === "companion",
+    unavailableKind,
     now,
   });
 }

@@ -48,6 +48,7 @@ import { carrierFactory, carriersUnavailable } from "./carriers/index.js";
 import { liveUiSeams } from "./live-hooks.js";
 import {
   clearLiveHostAskingNotices,
+  noteDeviceAsking,
   noteGuestAsking,
 } from "./live-host-tray.js";
 import { transportSeams } from "./live-transport-hooks.js";
@@ -70,7 +71,10 @@ export const capabilityRuntime: CapabilityRuntime = {
     liveUiSeams.carriers = carriers;
     const priorHostState = liveSeams.onHostState;
     const priorHostingEnded = liveSeams.onHostingEnded;
-    liveSeams.onHostState = noteGuestAsking;
+    liveSeams.onHostState = (state) => {
+      noteGuestAsking(state);
+      noteDeviceAsking(state);
+    };
     liveSeams.onHostingEnded = clearLiveHostAskingNotices;
     activation.onDispose(() => {
       if (liveUiSeams.carriers === carriers)

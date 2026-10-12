@@ -54,6 +54,8 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
+| [`2026-10-12-honest-dispositions/`](2026-10-12-honest-dispositions/README.md) | Connections — honest reasons, real docs links, AWS in the browser |
 | [`2026-10-11-vault-environments/`](2026-10-11-vault-environments/README.md) | Vault environments — before / after |
 | [`2026-10-11-toast-notices/`](2026-10-11-toast-notices/README.md) | Toasts for notices — before and after |
 | [`2026-10-11-password-reset-mailboxes/`](2026-10-11-password-reset-mailboxes/README.md) | Password reset: mailboxes as vault items |
@@ -78,6 +80,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-10-frontdoor-contract/`](2026-10-10-frontdoor-contract/README.md) | Front-door visual contract after the merged brand update |
 | [`2026-10-10-design-tooling/`](2026-10-10-design-tooling/README.md) | Design tooling: Storybook on the app's own CSS |
 | [`2026-10-10-connector-self-review/`](2026-10-10-connector-self-review/README.md) | Connector self-review |
+| [`2026-10-10-cli-authorize-ui/`](2026-10-10-cli-authorize-ui/README.md) | CLI Authorize UI (D4) |
 | [`2026-10-10-brand-plates/`](2026-10-10-brand-plates/README.md) | The brand on plates: one mark, one wordmark, three size tiers |
 | [`2026-10-09-provider-authentication/`](2026-10-09-provider-authentication/README.md) | Provider authentication and connector actions |
 | [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |

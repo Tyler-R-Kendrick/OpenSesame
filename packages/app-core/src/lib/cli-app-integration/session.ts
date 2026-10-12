@@ -1,4 +1,5 @@
-import { cliAppIntegrationPolicy } from "./policy.js";
+import type { PendingRequest } from "./pending-request.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 
 export type EnsureStatus =
   | "approved"
@@ -13,14 +14,6 @@ export interface ApprovedSession {
   lastActivityMs: number;
 }
 
-export interface PendingRequest {
-  requestId: string;
-  terminalSessionId: string;
-  verb: string;
-  reference?: string | undefined;
-  createdAtMs: number;
-}
-
 export interface EnsureResult {
   status: EnsureStatus;
   requestId?: string | undefined;
@@ -33,6 +26,16 @@ function nowMs(clock: () => number): number {
 function idleExpired(session: ApprovedSession, clock: () => number): boolean {
   const idleMs = cliAppIntegrationPolicy.idleTimeoutSeconds * 1000;
   return nowMs(clock) - session.lastActivityMs > idleMs;
+}
+
+function hardExpired(session: ApprovedSession, clock: () => number): boolean {
+  const hardMs = cliAppIntegrationPolicy.hardLimitSeconds * 1000;
+  return nowMs(clock) - session.approvedAtMs > hardMs;
+}
+
+function pendingExpired(createdAtMs: number, clock: () => number): boolean {
+  const ttlMs = cliAppIntegrationPolicy.requestTimeoutSeconds * 1000;
+  return nowMs(clock) - createdAtMs > ttlMs;
 }
 
 /** In-memory CLI app-integration state (daemon and unit tests). */
@@ -59,19 +62,25 @@ export class CliAppIntegrationStore {
     verb: string,
     reference?: string | undefined,
   ): EnsureResult {
-    this.expireIdle();
+    this.expirePending();
     if (this.denied.has(terminalSessionId)) {
       return { status: "denied" };
     }
     const session = this.approved.get(terminalSessionId);
     if (session) {
+      if (hardExpired(session, this.clock)) {
+        this.approved.delete(terminalSessionId);
+        return { status: "expired" };
+      }
       if (idleExpired(session, this.clock)) {
         this.approved.delete(terminalSessionId);
       } else {
         session.lastActivityMs = nowMs(this.clock);
+        this.expireIdleExcept(terminalSessionId);
         return { status: "approved" };
       }
     }
+    this.expireIdle();
     const existing = [...this.pending.values()].find(
       (row) => row.terminalSessionId === terminalSessionId,
     );
@@ -91,6 +100,7 @@ export class CliAppIntegrationStore {
 
   listPending(): readonly PendingRequest[] {
     this.expireIdle();
+    this.expirePending();
     return [...this.pending.values()];
   }
 
@@ -136,7 +146,32 @@ export class CliAppIntegrationStore {
 
   private expireIdle(): void {
     for (const [id, session] of this.approved) {
-      if (idleExpired(session, this.clock)) this.approved.delete(id);
+      if (
+        idleExpired(session, this.clock) ||
+        hardExpired(session, this.clock)
+      ) {
+        this.approved.delete(id);
+      }
+    }
+  }
+
+  private expireIdleExcept(keepTerminalSessionId: string): void {
+    for (const [id, session] of this.approved) {
+      if (id === keepTerminalSessionId) continue;
+      if (
+        idleExpired(session, this.clock) ||
+        hardExpired(session, this.clock)
+      ) {
+        this.approved.delete(id);
+      }
+    }
+  }
+
+  private expirePending(): void {
+    for (const [id, row] of this.pending) {
+      if (pendingExpired(row.createdAtMs, this.clock)) {
+        this.pending.delete(id);
+      }
     }
   }
 }

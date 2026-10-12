@@ -90,7 +90,9 @@ describe("a connector page on a device with no Host", () => {
     ).toBeNull();
     expect(screen.queryByLabelText(/Base URL/)).toBeNull();
     expect(
-      screen.getByText(/Better Auth has no supported browser driver/),
+      screen.getByText(
+        /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
+      ),
     ).toBeTruthy();
     expect(listNotices()).toEqual([]);
   });

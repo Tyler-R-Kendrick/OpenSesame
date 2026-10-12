@@ -4,4 +4,5 @@ import policy from "../../../../../spec/conformance/cli-app-integration.json" wi
 
 export type CliAppIntegrationPolicy = typeof policy;
 
-export const cliAppIntegrationPolicy: CliAppIntegrationPolicy = policy;
+/** Full conformance document (tests and CLI parity); production code uses `policy-runtime.ts`. */
+export const cliAppIntegrationPolicyDocument: CliAppIntegrationPolicy = policy;

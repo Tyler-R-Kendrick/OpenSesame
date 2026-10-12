@@ -70,6 +70,9 @@ const LOCAL_RECORDS = [
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",
+  // The Danger zone's Transfer ownership reads and writes the local directory
+  // from core Settings (ADR 0195).
+  "vault-ownership",
 ];
 
 /** The Identity panels the Access and federation surfaces draw. */
@@ -150,6 +153,21 @@ export const CROSS_RULES = [
     "connectors.external",
     "native provider authorization and connection runtime",
   ),
+  // The seam between two optional capabilities: the connections an app holds
+  // offer themselves to a live session through it, and neither owns the words.
+  shared(
+    `${L}live/connection-port`,
+    "the port a live session reaches the app's connections through, and its binding (ADR 0196)",
+  ),
+  shared(
+    `${L}live/connection-wire`,
+    "how a connection is spelled to a device: ids, operation names, bounds (ADR 0196)",
+  ),
+  optional(
+    `${L}session-connections`,
+    "connectors.external",
+    "the closed read-only operations a device may ask of the connections a live session lends (ADR 0196)",
+  ),
   optional(
     `${L}model-keys/`,
     "connectors.external",
@@ -169,6 +187,21 @@ export const CROSS_RULES = [
     `${L}connector-action-capability`,
     "connectors.external",
     "connector catalogue actions derived from actual browser routes and verified connections",
+  ),
+  optional(
+    `${L}browser-disposition`,
+    "connectors.external",
+    "why a provider has no browser road, with its dated evidence, and the reasons a tile names (ADR 0197)",
+  ),
+  optional(
+    `${L}browser-dispositions`,
+    "connectors.external",
+    "the authored dispositions, embedded as packed JSON with the spec's drift test (ADR 0197)",
+  ),
+  optional(
+    `${L}doc-link`,
+    "connectors.external",
+    "what a provider link honestly is: documentation, a website, or fnox's page (ADR 0197)",
   ),
   shared(
     `${L}generated-json`,

@@ -72,9 +72,12 @@ export const CAPABILITY_TUTORIALS = {
   "identity.local.organizations.read": "identity.local.organizations.member",
   "identity.local.organizations.membership.manage":
     "identity.local.organizations.member",
+  "identity.local.vault.transfer": "settings.danger.review",
   "identity.local.agent.keys.manage": "identity.local.agent.keys.manage",
   "identity.local.application.authorize":
     "identity.local.application.authorize",
+  "cli.app_integration.list": "identity.local.application.authorize",
+  "cli.app_integration.respond": "identity.local.application.authorize",
   "identity.local.siop.authorize": "identity.local.siop.authorize",
   "authority.portal.templates.manage": "authority.portal.templates.manage",
   "authority.portal.templates.read": "authority.portal.templates.read",
@@ -128,6 +131,9 @@ export const CAPABILITY_TUTORIALS = {
   "shared_sessions.join_request": "feature.sharing",
   "shared_sessions.live_join": "feature.sharing",
   "shared_sessions.live_host": "feature.sharing",
+  "shared_sessions.device_authorize": "feature.sharing",
+  "shared_sessions.device_connections": "feature.sharing",
+  "shared_sessions.device_invoke": "feature.sharing",
   "browser.grant.renew": "feature.sharing",
   "quorum.circle.manage": "settings.trusted-contacts.circle",
   "quorum.share.ask": "settings.trusted-contacts.circle",

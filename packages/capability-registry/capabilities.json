@@ -1748,6 +1748,91 @@
     }
   },
   {
+    "id": "shared_sessions.device_authorize",
+    "title": "Allow or turn down a device that asks to use this app's connections",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/live/device-broker.ts:DeviceBroker",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_host": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_client": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "webmcp": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.device_connections",
+    "title": "List the connections a live session's owner allowed this device",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id session list",
+      "pwa": "lib/live/device-client.ts:DeviceClient",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_client": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "webmcp": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.device_invoke",
+    "title": "Use an allowed connection through the owner's open tab",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id session invoke",
+      "pwa": "lib/live/device-client.ts:DeviceClient",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_client": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "webmcp": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      }
+    }
+  },
+  {
     "id": "shared_sessions.decide_join_request",
     "title": "Admit or refuse a join request",
     "plane": "host",
@@ -5951,6 +6036,60 @@
     }
   },
   {
+    "id": "cli.app_integration.list",
+    "title": "List pending CLI app-integration requests",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "CLI app-integration approval is bound to the human's browser session on loopback",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "mcp_client": {
+        "reason": "Agents cannot observe or approve terminal CLI integration on the person's device",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "webmcp": {
+        "reason": "Navigation may open Identity; CLI integration approval requires the human",
+        "adr": "0186-cli-app-integration-reveal.md"
+      }
+    }
+  },
+  {
+    "id": "cli.app_integration.respond",
+    "title": "Approve or deny CLI app-integration for this terminal",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity/authorize",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "CLI app-integration consent requires the human and a verified passkey or PIN",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "mcp_client": {
+        "reason": "Agents cannot approve their own terminal's vault reveal integration",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "webmcp": {
+        "reason": "Agents may navigate; they cannot authorize CLI plaintext reveal for a terminal",
+        "adr": "0186-cli-app-integration-reveal.md"
+      }
+    }
+  },
+  {
     "id": "identity.local.organizations.read",
     "title": "Read the organizations a signed-in local person or agent belongs to, and their members",
     "plane": "client_local",
@@ -6000,6 +6139,33 @@
       },
       "webmcp": {
         "reason": "Navigation may open Identity; a membership change is the signed-in person's decision",
+        "adr": "0105-browser-local-organization-membership.md"
+      }
+    }
+  },
+  {
+    "id": "identity.local.vault.transfer",
+    "title": "Transfer the open vault's ownership to another registered user of that vault",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault-ownership.ts:transferVaultOwnership",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Handing a vault to another person is the owner's decision in the tab; the directory commit is not an RPC or agent surface",
+        "adr": "0105-browser-local-organization-membership.md"
+      },
+      "mcp_client": {
+        "reason": "Agents are never owners or admins and cannot receive or give a vault's ownership",
+        "adr": "0105-browser-local-organization-membership.md"
+      },
+      "webmcp": {
+        "reason": "Navigation may open Settings; transferring ownership is irreversible without the recipient and is never a model tool",
         "adr": "0105-browser-local-organization-membership.md"
       }
     }

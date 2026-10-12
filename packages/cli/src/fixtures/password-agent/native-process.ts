@@ -3,6 +3,7 @@ import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { z } from "zod";
+import { envWithFakeCliAppIntegrationDaemon } from "../cli-app-integration-fake-daemon.js";
 type ProcessResult = { code: number; stdout: string; stderr: string };
 export async function nativeProcessFixture() {
   const ROOT = resolve(import.meta.dirname, "../../../../..");
@@ -65,7 +66,7 @@ export async function nativeProcessFixture() {
   await chmod(join(bin, "secret-tool"), 0o700);
   await writeFile(log, "");
   await seed(database);
-  const env: NodeJS.ProcessEnv = {
+  const { env, close } = await envWithFakeCliAppIntegrationDaemon({
     ...process.env,
     PATH: `${bin}:${process.env.PATH}`,
     OPENSESAME_STATE_DIR: join(directory, "state"),
@@ -77,13 +78,19 @@ export async function nativeProcessFixture() {
     PARITY_FAIL_READ: process.env.PARITY_FAIL_READ,
     PARITY_STUCK_VERSION: process.env.PARITY_STUCK_VERSION,
     NODE_OPTIONS: process.env.NODE_OPTIONS,
-    OPENSESAME_CLI_APP_INTEGRATION_SEAM: "approve",
-  };
+  });
 
   env.OP_SERVICE_ACCOUNT_TOKEN = undefined;
   env.PARITY_FAIL_READ = undefined;
   env.PARITY_STUCK_VERSION = undefined;
-  return { directory, database, env, cli, calls };
+  return {
+    directory,
+    database,
+    env,
+    cli,
+    calls,
+    closeFakeDaemon: close,
+  };
 }
 
 async function seed(database: string) {

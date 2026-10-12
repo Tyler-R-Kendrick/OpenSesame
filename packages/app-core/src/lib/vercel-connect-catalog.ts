@@ -65,7 +65,8 @@ function toProvider(plan: ConnectPlan): Provider {
     id: plan.id,
     displayName: plan.name,
     category: plan.category,
-    docsUrl: plan.docsUrl ?? `https://vercel.com/connect/${plan.id}`,
+    // A registry page on Vercel's site is not this provider's documentation.
+    docsUrl: plan.docsUrl,
     authKind:
       method?.kind === "api-key" ? "api_key" : "oauth2_authorization_code",
     supportsRefresh: preset?.refreshTokens ?? method?.kind !== "api-key",

@@ -11,6 +11,8 @@ use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
+mod cli_app_integration_mock;
+
 const PASSPHRASE: &str = "correct horse battery staple";
 
 fn bin() -> &'static str {
@@ -29,7 +31,10 @@ fn command(store: &Path, args: &[&str]) -> Command {
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
         .env("GIT_COMMITTER_EMAIL", "test@example.com")
-        .env("OPENSESAME_CLI_APP_INTEGRATION_SEAM", "approve");
+        .env(
+            "OPENSESAME_DAEMON_API",
+            cli_app_integration_mock::shared_daemon_base().as_str(),
+        );
     command
 }
 

@@ -112,7 +112,7 @@ export const SETTINGS_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Danger holds what cannot be undone. A deletion here asks twice: the first press arms the key, and nothing is deleted until the second."',
       'navigate "/settings/danger"',
       'wait route "/settings/danger" timeout=15000',
-      'focus "settings.danger" "Danger is the last category. It deletes this vault from this browser, and it holds the trash: restore an item, delete it for good, or empty the trash. Export first if you are not certain." side=bottom',
+      'focus "settings.danger" "Danger is the last category. When another registered user could own this vault, it can hand it over; it also deletes this vault from this browser, and it holds the trash: restore an item, delete it for good, or empty the trash. Export first if you are not certain." side=bottom',
       'success "That is Danger."',
       "end",
     ].join("\n"),

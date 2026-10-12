@@ -36,8 +36,8 @@ it("keeps S3 in its native authentication owner when its browser driver is unava
     available: false,
   });
   expect(catalogConnectorAction(provider, null)).toMatchObject({
-    kind: "native",
-    glyph: "computer",
+    kind: "unavailable",
+    glyph: "blocked",
   });
   render(
     <MemoryRouter>

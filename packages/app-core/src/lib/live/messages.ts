@@ -23,6 +23,11 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import {
+  type DeviceMessage,
+  isDeviceMessage,
+  readDeviceMessage,
+} from "./device-messages.js";
 
 export const NAME_MAX = 64;
 export const NOTE_MAX = 280;
@@ -37,25 +42,45 @@ export const MAX_FIELDS = 32;
 const LABEL_MAX = 120;
 export const VALUE_MAX = 16 * 1024;
 
+/**
+ * Who is asking. A **person** is shown the shared items of the owner's vault;
+ * a **device** (a terminal, an agent) is shown none, and may instead ask to
+ * use the owner's connections (ADR 0196). A request from before that has no
+ * such field and is a person's.
+ */
+export type SeatKind = "person" | "device";
+
+/**
+ * How the joiner will reach the owner once let in: over a **peer** route its
+ * transport made an offer for, or over the owner's **relay** alone (a NATS
+ * server, ADR 0167) with no offer at all — a terminal has no WebRTC. A
+ * request from before that is a peer's.
+ */
+export type SeatRoute = "peer" | "relay";
+
 /** A joiner's request, as sealed in its request code. */
 export type JoinRequest = Readonly<{
   id: string;
   name: string;
   note: string;
-  /** The offer the joiner's transport made, opaque here. */
+  /** The offer the joiner's transport made, opaque here; empty on a relay route. */
   offer: string;
   /**
    * The joiner greets until it holds the catalog, and the owner answers each
    * greeting (ADR 0186). A request from before that has no such field.
    */
   greets: boolean;
+  /** Absent means a person. */
+  kind?: SeatKind;
+  /** Absent means a peer route. */
+  route?: SeatRoute;
 }>;
 
 /** The owner's reply, as sealed in its reply code. */
 export type JoinReply = Readonly<{
   /** The request it answers. */
   id: string;
-  /** The answer the owner's transport made, opaque here. */
+  /** The answer the owner's transport made, opaque here; empty on a relay route. */
   answer: string;
   /**
    * The owner also listens for this seat on a NATS carrier the link names:
@@ -109,7 +134,9 @@ export type ChannelMessage =
       item: string;
       field: string;
       value: string;
-    }>;
+    }>
+  /** A device's asks and the owner's answers (ADR 0196). */
+  | DeviceMessage;
 
 /** Code points, not UTF-16 units: an emoji is one character. */
 export function characters(text: string): number {
@@ -181,6 +208,43 @@ function readText(value: BoundaryValue, max: number): string | null {
   return characters(cleaned) <= max ? cleaned : null;
 }
 
+/** Absent is a person; a value nobody has met is refused, not read as one. */
+function readKind(value: BoundaryValue): SeatKind | null {
+  if (value === undefined) return "person";
+  return value === "person" || value === "device" ? value : null;
+}
+
+/** Absent is a peer route; a value nobody has met is refused. */
+function readRoute(value: BoundaryValue): SeatRoute | null {
+  if (value === undefined) return "peer";
+  return value === "peer" || value === "relay" ? value : null;
+}
+
+/**
+ * The offer a request carries: on a peer route the transport judges it; on a
+ * relay route there is none, and a request that carries one is not one.
+ */
+function readOffer(
+  body: JsonObject,
+  route: SeatRoute,
+  reads: HandshakeReader,
+): string | null {
+  if (route === "peer") return readHandshake(body, "offer", reads);
+  return body.offer === undefined || body.offer === "" ? "" : null;
+}
+
+/** Who is asking and how they will arrive, with the offer that route needs. */
+function readSeat(
+  body: JsonObject,
+  reads: HandshakeReader,
+): Readonly<{ kind: SeatKind; route: SeatRoute; offer: string }> | null {
+  const kind = readKind(body.kind);
+  const route = readRoute(body.route);
+  if (kind === null || route === null) return null;
+  const offer = readOffer(body, route, reads);
+  return offer === null ? null : { kind, route, offer };
+}
+
 /** The request inside a request code, or null; `reads` judges its offer. */
 export function readJoinRequest(
   raw: string,
@@ -194,11 +258,15 @@ export function readJoinRequest(
   const note = readText(body.note, NOTE_MAX);
   const greets = readGreets(body.greets);
   if (!name || note === null || greets === null) return null;
-  const offer = readHandshake(body, "offer", reads);
-  return offer ? { id, name, note, offer, greets } : null;
+  const seat = readSeat(body, reads);
+  return seat ? { id, name, note, greets, ...seat } : null;
 }
 
-/** The reply inside a reply code, or null; `reads` judges its answer. */
+/**
+ * The reply inside a reply code, or null; `reads` judges its answer. A reply
+ * with no answer is the owner's word that the seat is carried over the relay
+ * alone, so it must say so.
+ */
 export function readJoinReply(
   raw: string,
   reads: HandshakeReader,
@@ -207,10 +275,12 @@ export function readJoinReply(
   if (!body) return null;
   const { id } = body;
   if (!isString(id) || !REQUEST_ID.test(id)) return null;
+  if (body.relay !== undefined && body.relay !== "nats") return null;
+  if (body.answer === "")
+    return body.relay === "nats" ? { id, answer: "", relay: "nats" } : null;
   const answer = readHandshake(body, "answer", reads);
   if (!answer) return null;
-  if (body.relay === undefined) return { id, answer };
-  return body.relay === "nats" ? { id, answer, relay: "nats" } : null;
+  return body.relay === "nats" ? { id, answer, relay: "nats" } : { id, answer };
 }
 
 function readField(value: BoundaryValue): SharedField | null {
@@ -277,10 +347,8 @@ function readEdit(body: JsonObject): ChannelMessage | null {
     : null;
 }
 
-/** One data-channel message, or null. */
-export function readChannelMessage(raw: string): ChannelMessage | null {
-  const body = parse(raw, 1024 * 1024);
-  if (!body) return null;
+/** One of the vault vocabulary's messages, or null. */
+function readVaultMessage(body: JsonObject): ChannelMessage | null {
   const { t, req } = body;
   switch (t) {
     case "catalog": {
@@ -304,4 +372,14 @@ export function readChannelMessage(raw: string): ChannelMessage | null {
     default:
       return null;
   }
+}
+
+/** One data-channel message, or null. */
+export function readChannelMessage(raw: string): ChannelMessage | null {
+  const body = parse(raw, 1024 * 1024);
+  if (!body) return null;
+  const { t } = body;
+  return isString(t) && isDeviceMessage({ t })
+    ? readDeviceMessage(t, body)
+    : readVaultMessage(body);
 }

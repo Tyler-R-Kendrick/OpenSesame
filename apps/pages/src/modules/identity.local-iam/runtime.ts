@@ -30,7 +30,6 @@ import {
 } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
 import { NAV_IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
-import { LocalAuthorize } from "../../screens/LocalAuthorize.js";
 import { IdentitySection } from "../../sections/IdentitySection.js";
 import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
 import { createActivation } from "../activation.js";
@@ -38,6 +37,7 @@ import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 import { IdentityRailTree } from "./IdentityRailTree.js";
+import { LocalAuthorizeRoute } from "./lazy-routes.js";
 
 export const CAPABILITY = "identity.local-iam";
 
@@ -116,7 +116,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.register("route", {
       id: "identity-authorize",
       path: "/identity/authorize",
-      element: LocalAuthorize,
+      element: LocalAuthorizeRoute,
       framed: true,
       order: 41,
     });

@@ -1,4 +1,4 @@
-import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { cliAppIntegrationPolicyDocument } from "@opensesame/app-core/lib/cli-app-integration/policy.js";
 import gate from "../../../spec/conformance/cli-reveal-gate.json" with {
   type: "json",
 };
@@ -64,10 +64,9 @@ export async function humanRevealAppIntegrationRefusal(
 ): Promise<string | undefined> {
   const staticRefusal = humanRevealRefusal(request);
   if (staticRefusal) return staticRefusal;
-  const env = request.env ?? process.env;
   const port = request.appIntegration ?? createCliAppIntegrationPort();
   const terminalSessionId =
-    request.terminalSessionId ?? terminalSessionIdForReveal(env);
+    request.terminalSessionId ?? terminalSessionIdForReveal();
   const decision = await port.ensureReveal({
     verb: request.verb,
     terminalSessionId,
@@ -75,12 +74,18 @@ export async function humanRevealAppIntegrationRefusal(
   });
   if (decision === "approve") return undefined;
   if (decision === "unavailable") {
-    return cliAppIntegrationPolicy.messages.appUnavailable;
+    return cliAppIntegrationPolicyDocument.messages.appUnavailable;
   }
   if (decision === "deny") {
-    return cliAppIntegrationPolicy.messages.denied;
+    return cliAppIntegrationPolicyDocument.messages.denied;
   }
-  return cliAppIntegrationPolicy.messages.denied;
+  if (decision === "expired") {
+    return cliAppIntegrationPolicyDocument.messages.expired;
+  }
+  if (decision === "timedOut") {
+    return cliAppIntegrationPolicyDocument.messages.requestTimeout;
+  }
+  return cliAppIntegrationPolicyDocument.messages.denied;
 }
 
 export async function assertHumanReveal(
@@ -110,7 +115,7 @@ export function emitRevealReceipt(
     lane: "reveal",
     principal: "human",
     terminalSessionId:
-      request.terminalSessionId ?? terminalSessionIdForReveal(request.env),
+      request.terminalSessionId ?? terminalSessionIdForReveal(),
     at: new Date().toISOString(),
   };
   const line = JSON.stringify(

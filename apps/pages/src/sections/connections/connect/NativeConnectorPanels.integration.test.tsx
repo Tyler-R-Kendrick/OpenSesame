@@ -202,10 +202,11 @@ it("refuses blocked Datadog configuration before entering credentials, HTTP or s
     </MemoryRouter>,
   );
   expect(screen.queryByRole("radio", { name: "API Key" })).toBeNull();
-  await userEvent.click(
-    screen.getByText("Other sign-in methods", { selector: "summary" }),
-  );
+  // Nothing else can be done here, so the reason is open without a click.
   expect(screen.getByText(/Datadog rejected browser access/)).toBeTruthy();
+  expect(
+    screen.getByRole("img", { name: "Datadog: Provider blocks browsers" }),
+  ).toBeTruthy();
   expect(screen.queryByLabelText("Datadog API key")).toBeNull();
   expect(
     screen.queryByRole("button", { name: "Verify and connect Datadog" }),

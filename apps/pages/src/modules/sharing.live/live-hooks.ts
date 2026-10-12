@@ -5,6 +5,12 @@
  * own address (ADR 0150, ADR 0186).
  */
 
+import {
+  connectionPort,
+  offeredBy,
+  onConnectionPort,
+} from "@opensesame/app-core/lib/live/connection-port.js";
+import type { DeviceConnection } from "@opensesame/app-core/lib/live/device-messages.js";
 import type {
   GuestStatus,
   LiveGuest,
@@ -173,4 +179,18 @@ export function formatRemaining(ms: number): string {
   if (hours > 0) return `${hours} h ${minutes % 60} min left`;
   if (minutes > 0) return `${minutes} min left`;
   return `${Math.ceil(ms / 1000)} s left`;
+}
+
+/**
+ * The connections this app could let a device use (ADR 0196): read again when
+ * the capability that owns them comes or goes. Empty while it is off, and then
+ * nothing about devices is drawn.
+ */
+export function useOfferedConnections(): readonly DeviceConnection[] {
+  const [offered, setOffered] = useState(() => offeredBy(connectionPort()));
+  useEffect(
+    () => onConnectionPort(() => setOffered(offeredBy(connectionPort()))),
+    [],
+  );
+  return offered;
 }

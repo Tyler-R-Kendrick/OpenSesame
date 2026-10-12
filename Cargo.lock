@@ -3772,8 +3772,14 @@ dependencies = [
 name = "opensesame-cli-app-integration"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
+ "hex",
+ "rand_core 0.6.4",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.19",
+ "url",
 ]
 
 [[package]]
@@ -3938,6 +3944,7 @@ dependencies = [
  "chrono",
  "clap",
  "ecdsa",
+ "hex",
  "insta",
  "opensesame-cli-app-integration",
  "opensesame-connection-detect",

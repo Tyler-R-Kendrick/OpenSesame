@@ -88,7 +88,7 @@ export type Provider = {
   id: string;
   displayName: string;
   category: ProviderCategory;
-  docsUrl: string;
+  docsUrl: string | null;
   authKind: AuthKind;
   supportsRefresh: boolean;
   /** Deployment has a client id and secret for this provider. */
