@@ -1,0 +1,328 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/bitwarden"
+        },
+        {
+          "report": ".conn-settings h1, .conn-settings h2"
+        },
+        {
+          "count": [
+            "details.cx-application",
+            "details.cx-application[open]",
+            "a.conn-doc-link",
+            "a.btn--ghost:has-text('Docs')"
+          ]
+        },
+        {
+          "report": "a.conn-doc-link"
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-bitwarden"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/bitwarden"
+        },
+        {
+          "report": ".conn-settings h1, .conn-settings h2"
+        },
+        {
+          "count": [
+            "details.cx-application",
+            "details.cx-application[open]",
+            "a.conn-doc-link",
+            "a.btn--ghost:has-text('Docs')"
+          ]
+        },
+        {
+          "report": "a.conn-doc-link"
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "390-bitwarden"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/aws-secrets-manager"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-aws"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/webcrypto"
+        },
+        {
+          "report": ".conn-settings h1, .conn-settings h2"
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "report": "a.conn-doc-link"
+        },
+        {
+          "shot": "1280-webcrypto"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections#catalog-more"
+        },
+        {
+          "count": [
+            ".conn-tile__link[title=\"Desktop app required\"]",
+            ".conn-tile__link[title=\"Unavailable\"]",
+            ".conn-tile__link[title=\"Provider blocks browsers\"]",
+            ".conn-tile__link[title=\"Needs a client secret\"]",
+            ".conn-tile__link[title=\"No public browser contract\"]",
+            ".conn-tile__link[title=\"No way to check a key\"]",
+            ".conn-tile__link[title=\"No browser connection\"]",
+            ".conn-tile__link[title=\"Not built yet\"]",
+            ".conn-tile__link[title=\"Not offered\"]",
+            ".conn-tile"
+          ]
+        },
+        {
+          "shot": "1280-tiles"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections#catalog-more"
+        },
+        {
+          "count": [
+            ".conn-tile__link[title=\"Desktop app required\"]",
+            ".conn-tile__link[title=\"Unavailable\"]",
+            ".conn-tile__link[title=\"Provider blocks browsers\"]",
+            ".conn-tile__link[title=\"Needs a client secret\"]",
+            ".conn-tile__link[title=\"No public browser contract\"]",
+            ".conn-tile__link[title=\"No way to check a key\"]",
+            ".conn-tile__link[title=\"No browser connection\"]",
+            ".conn-tile__link[title=\"Not built yet\"]",
+            ".conn-tile__link[title=\"Not offered\"]",
+            ".conn-tile"
+          ]
+        },
+        {
+          "shot": "390-tiles"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/aws-secrets-manager"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "390-aws"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-bitwarden",
+      "width": 1280,
+      "title": "Connections \u203a Bitwarden \u2014 1280 \u00d7 900",
+      "caption": "The page said \"native application, OS or CLI access; this browser cannot run that companion and has no supported browser driver\", behind a collapsed \"Other sign-in methods\", and sent \"Bitwarden documentation\" to fnox's page about fnox's Bitwarden backend. Now it says what Bitwarden's two APIs are (the Vault Management API is the CLI's `bw serve`, which refuses any request with an Origin header; the Public API manages organizations and sends no CORS headers to this site), open by default, links Bitwarden's own pages, and names the import that works today.",
+      "before": "BEFORE_BITWARDEN_1280",
+      "after": "AFTER_BITWARDEN_1280"
+    },
+    {
+      "shot": "390-bitwarden",
+      "width": 390,
+      "title": "Connections \u203a Bitwarden \u2014 390 \u00d7 844",
+      "caption": "Same page on a phone: the reason is readable without opening anything, and every link is its own line.",
+      "before": "BEFORE_BITWARDEN_390",
+      "after": "AFTER_BITWARDEN_390"
+    },
+    {
+      "shot": "1280-aws",
+      "width": 1280,
+      "title": "Connections \u203a AWS Secrets Manager \u2014 1280 \u00d7 900",
+      "caption": "AWS Secrets Manager's API answers browser requests from this site (preflight 200 and the real response both carry allow-origin *; the error body is readable), so \"cannot run that companion\" was false. It now connects: region and the person's own IAM key, signed in the browser with SigV4 and sent only to the endpoint AWS publishes for the region. Nothing about the endpoint is typed.",
+      "before": "BEFORE_AWS",
+      "after": "AFTER_AWS"
+    },
+    {
+      "shot": "390-aws",
+      "width": 390,
+      "title": "Connections \u203a AWS Secrets Manager \u2014 390 \u00d7 844",
+      "caption": "The same form on a phone.",
+      "before": "BEFORE_AWS_390",
+      "after": "AFTER_AWS_390"
+    },
+    {
+      "shot": "1280-webcrypto",
+      "width": 1280,
+      "title": "Connections \u203a WebCrypto (this device) \u2014 1280 \u00d7 900",
+      "caption": "The vault already seals every item with WebCrypto keys. The page used to call that unavailable; it now says it is built in and links Settings \u203a Security.",
+      "before": "BEFORE_WEBCRYPTO",
+      "after": "AFTER_WEBCRYPTO"
+    },
+    {
+      "shot": "1280-tiles",
+      "width": 1280,
+      "title": "Connections \u203a Add a connection \u2014 tile reasons, 1280 \u00d7 900",
+      "caption": "106 of 240 tiles said \"Desktop app required\". Each tile now names its own reason. The counts are read from the browser (`.conn-tile__link[title=\u2026]`).",
+      "before": "BEFORE_TILES",
+      "after": "AFTER_TILES"
+    },
+    {
+      "shot": "390-tiles",
+      "width": 390,
+      "title": "Connections \u203a Add a connection \u2014 tile reasons, 390 \u00d7 844",
+      "caption": "Same catalog on a phone.",
+      "before": "BEFORE_TILES_390",
+      "after": "AFTER_TILES_390"
+    }
+  ]
+}

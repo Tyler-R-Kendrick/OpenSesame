@@ -301,66 +301,6 @@
       ]
     },
     {
-      "provider_id": "aws",
-      "kind": "driver-pending",
-      "summary": "AWS Secrets Manager's API answers browser requests from this site (CORS allows any origin and the signing headers). Calls need an IAM access key and AWS Signature Version 4 signing, which OpenSesame has not built for this service yet.",
-      "sources": [
-        {
-          "label": "AWS Secrets Manager",
-          "url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html"
-        }
-      ],
-      "probes": [
-        {
-          "stage": "preflight",
-          "url": "https://secretsmanager.us-east-1.amazonaws.com/",
-          "method": "POST",
-          "request_header_names": [
-            "content-type",
-            "x-amz-target",
-            "x-amz-date",
-            "authorization",
-            "x-amz-content-sha256"
-          ],
-          "status": 200,
-          "allow_origin": "*",
-          "allow_methods": "POST",
-          "allow_headers": "content-type,x-amz-target,x-amz-date,authorization,x-amz-content-sha256",
-          "checked_at": "2026-10-12T13:24:45+00:00"
-        }
-      ]
-    },
-    {
-      "provider_id": "aws-ps",
-      "kind": "driver-pending",
-      "summary": "AWS Parameter Store, part of AWS Systems Manager, answers browser requests from this site (CORS allows any origin and the signing headers). Calls need an IAM access key and AWS Signature Version 4 signing, which OpenSesame has not built for this service yet.",
-      "sources": [
-        {
-          "label": "AWS Systems Manager Parameter Store",
-          "url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html"
-        }
-      ],
-      "probes": [
-        {
-          "stage": "preflight",
-          "url": "https://ssm.us-east-1.amazonaws.com/",
-          "method": "POST",
-          "request_header_names": [
-            "content-type",
-            "x-amz-target",
-            "x-amz-date",
-            "authorization",
-            "x-amz-content-sha256"
-          ],
-          "status": 200,
-          "allow_origin": "*",
-          "allow_methods": "POST",
-          "allow_headers": "*,Authorization,Date,X-Amz-Date,X-Amz-Security-Token,X-Amz-Target,content-type,x-amz-content-sha256,x-amz-user-agent,x-amzn-platform-id,x-amzn-trace-id",
-          "checked_at": "2026-10-12T13:24:45+00:00"
-        }
-      ]
-    },
-    {
       "provider_id": "aws-sts",
       "kind": "driver-pending",
       "summary": "AWS STS answers browser requests from this site (CORS allows any origin and the signing headers). Leasing credentials needs an IAM access key and AWS Signature Version 4 signing, which OpenSesame has not built for this service yet.",

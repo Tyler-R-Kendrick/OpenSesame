@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
+| [`2026-10-12-honest-dispositions/`](2026-10-12-honest-dispositions/README.md) |  |
 | [`2026-10-11-vault-environments/`](2026-10-11-vault-environments/README.md) | Vault environments — before / after |
 | [`2026-10-11-toast-notices/`](2026-10-11-toast-notices/README.md) | Toasts for notices — before and after |
 | [`2026-10-11-password-reset-mailboxes/`](2026-10-11-password-reset-mailboxes/README.md) | Password reset: mailboxes as vault items |

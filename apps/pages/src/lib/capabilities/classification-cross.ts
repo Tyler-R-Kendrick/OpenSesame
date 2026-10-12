@@ -188,6 +188,21 @@ export const CROSS_RULES = [
     "connectors.external",
     "connector catalogue actions derived from actual browser routes and verified connections",
   ),
+  optional(
+    `${L}browser-disposition`,
+    "connectors.external",
+    "why a provider has no browser road, with its dated evidence, and the reasons a tile names (ADR 0197)",
+  ),
+  optional(
+    `${L}browser-dispositions`,
+    "connectors.external",
+    "the authored dispositions, embedded as packed JSON with the spec's drift test (ADR 0197)",
+  ),
+  optional(
+    `${L}doc-link`,
+    "connectors.external",
+    "what a provider link honestly is: documentation, a website, or fnox's page (ADR 0197)",
+  ),
   shared(
     `${L}generated-json`,
     "public JSON fragment codec shared by the connector catalogue and browser admission metadata",

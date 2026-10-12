@@ -36,7 +36,9 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   const has = vi.fn<NativeDeviceAvailability["has"]>(() => false);
   for (const provider of visible) {
     const descriptor = nativeDeviceProviderDescriptor(provider.id, { has });
-    if (["git", "aws-kms", "gcp-kms", "s3"].includes(provider.id)) {
+    if (
+      ["git", "aws-kms", "gcp-kms", "s3", "aws", "aws-ps"].includes(provider.id)
+    ) {
       expect(descriptor).toBeNull();
       continue;
     }
@@ -144,7 +146,7 @@ it("says Bitwarden's real constraint, with Bitwarden's own pages, not fnox's", (
 
 it("does not call a provider whose API a browser can reach a companion", () => {
   const has = vi.fn(() => true);
-  for (const id of ["aws", "aws-ps", "aws-sts", "azure-ac", "gcp", "gcp-iam"]) {
+  for (const id of ["aws-sts", "azure-ac", "gcp", "gcp-iam"]) {
     const method = nativeDeviceProviderDescriptor(id, { has })?.methods[0];
     expect(method?.available).toBe(false);
     expect(method?.unavailableKind, id).toBe("driver-pending");
@@ -156,7 +158,7 @@ it("does not call a provider whose API a browser can reach a companion", () => {
 
 it("does not infer an unimplemented cloud or wallet driver from registry availability", () => {
   const has = vi.fn(() => true);
-  const cloud = nativeDeviceProviderDescriptor("aws-secrets-manager", { has });
+  const cloud = nativeDeviceProviderDescriptor("aws-sts", { has });
   expect(cloud?.methods[0]?.available).toBe(false);
   expect(cloud?.methods[0]?.unavailableKind).toBe("driver-pending");
   const wallet = nativeDeviceProviderDescriptor("apple-wallet", { has });
@@ -189,5 +191,21 @@ it("returns no descriptor for unknown IDs, plans, or preserved specialized git r
     "gcp-kms",
     "s3",
   ])
+    expect(nativeDeviceProviderDescriptor(id, { has: () => true })).toBeNull();
+});
+
+it("keeps no disposition for a provider that has a road, so a shipped driver retires its row", async () => {
+  const { authoredDispositionIds } = await import(
+    "@opensesame/app-core/lib/browser-disposition.js"
+  );
+  for (const id of authoredDispositionIds())
+    expect(
+      nativeDeviceProviderDescriptor(id, { has: () => false }),
+      `${id} has a road elsewhere; remove its row from browser-dispositions.json`,
+    ).not.toBeNull();
+});
+
+it("sends the AWS secret stores to their own road, not to a disposition", () => {
+  for (const id of ["aws", "aws-ps"])
     expect(nativeDeviceProviderDescriptor(id, { has: () => true })).toBeNull();
 });
