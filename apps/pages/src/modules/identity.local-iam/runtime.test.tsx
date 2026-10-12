@@ -1,11 +1,9 @@
-import { configureHost } from "@opensesame/app-core/host.js";
 import { deviceIdentityFetch } from "@opensesame/app-core/lib/device-identity-host.js";
 import { identityServes } from "@opensesame/app-core/lib/identity-plane.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
-import { createTestHost } from "@opensesame/app-core/test-host.js";
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   enabledIdentityViews,
   resetIdentityViewsForTests,
@@ -33,10 +31,6 @@ const KINDS = [
 ];
 
 describe("identity.local-iam runtime", () => {
-  beforeEach(() => {
-    configureHost(createTestHost());
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
     resetIdentityViewsForTests();
