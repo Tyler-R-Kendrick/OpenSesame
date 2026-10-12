@@ -1,4 +1,3 @@
-import { cliAppIntegrationAuthorizeUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
 import type { FormEvent } from "react";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
@@ -6,8 +5,9 @@ import { IconKey } from "../../components/IconKey.js";
 import { IconPasskey, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import type { CliAuthorizeRow } from "./cli-authorize-session.js";
+import { cliAuthorizeUi } from "./cli-authorize-ui.js";
 
-const ui = cliAppIntegrationAuthorizeUi;
+const ui = cliAuthorizeUi;
 
 export type CliAuthorizeProofMode = "pin" | "passkey";
 

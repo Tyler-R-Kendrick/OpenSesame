@@ -1,10 +1,6 @@
 import type { VaultHeader } from "@opensesame/vault-core";
 import { WrongPasswordError } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
-import {
-  mintCliAuthorizePasskeyProof,
-  mintCliAuthorizePinProof,
-} from "./cli-authorize-mint-proof.js";
 import type { CliAuthorizeRow } from "./cli-authorize-session.js";
 
 type NoteFailure = (title: string, message: string) => void;
@@ -47,6 +43,9 @@ export async function runCliAuthorizePasskeyProof(input: {
   input.onBusyChange(true);
   input.clearMark();
   try {
+    const { mintCliAuthorizePasskeyProof } = await import(
+      "./cli-authorize-mint-proof.js"
+    );
     const proof = await mintCliAuthorizePasskeyProof(input.row);
     input.onBusyChange(false);
     await approveWithProof(
@@ -89,6 +88,9 @@ export async function runCliAuthorizePinProof(input: {
   input.onBusyChange(true);
   input.clearMark();
   try {
+    const { mintCliAuthorizePinProof } = await import(
+      "./cli-authorize-mint-proof.js"
+    );
     const proof = await mintCliAuthorizePinProof(
       input.row,
       input.pin,

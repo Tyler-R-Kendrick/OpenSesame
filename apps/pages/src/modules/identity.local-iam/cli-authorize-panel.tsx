@@ -1,24 +1,18 @@
-import { cliAppIntegrationAuthorizeUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconX } from "../../components/Icons.js";
-import { postCliAuthorizeRespond } from "./cli-authorize-respond.js";
 import {
   type CliAuthorizeRow,
   cliAuthorizeAuthHeaders,
   daemonOrigin,
   parseFirstPending,
+  postCliAuthorizeRespond,
 } from "./cli-authorize-session.js";
+import { cliAuthorizeUi } from "./cli-authorize-ui.js";
 
-const ui = cliAppIntegrationAuthorizeUi;
-
-const CliAuthorizeApproveFlow = lazy(() =>
-  import("./cli-authorize-approve-flow.js").then((m) => ({
-    default: m.CliAuthorizeApproveFlow,
-  })),
-);
+const ui = cliAuthorizeUi;
 
 export function CliAuthorizePanel() {
   const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
@@ -66,15 +60,13 @@ export function CliAuthorizePanel() {
 
   if (approving && row) {
     return (
-      <Suspense fallback={<output>Loading…</output>}>
-        <CliAuthorizeApproveFlow
-          row={row}
-          busy={busy}
-          onBusyChange={setBusy}
-          onDone={finishApprove}
-          onRespond={respond}
-        />
-      </Suspense>
+      <CliAuthorizeApproveFlow
+        row={row}
+        busy={busy}
+        onBusyChange={setBusy}
+        onDone={finishApprove}
+        onRespond={respond}
+      />
     );
   }
 

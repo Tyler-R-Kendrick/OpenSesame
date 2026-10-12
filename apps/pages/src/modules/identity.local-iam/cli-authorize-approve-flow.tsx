@@ -1,9 +1,9 @@
-import { cliAppIntegrationAuthorizeUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
 import { CliAuthorizeProofSheet } from "./cli-authorize-proof-sheet.js";
 import type { CliAuthorizeRow } from "./cli-authorize-session.js";
+import { cliAuthorizeUi } from "./cli-authorize-ui.js";
 import { useCliAuthorizeProof } from "./use-cli-authorize-proof.js";
 
-const ui = cliAppIntegrationAuthorizeUi;
+const ui = cliAuthorizeUi;
 
 type Props = Readonly<{
   row: CliAuthorizeRow;
