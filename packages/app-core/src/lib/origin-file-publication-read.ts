@@ -1,4 +1,5 @@
 /** Bounded original fixed-entry origin reads and cleanup of an owned empty placeholder. */
+const bindOriginal = Function.prototype.call.bind(Function.prototype.bind);
 import { isSealedAtRest } from "./at-rest/cipher.js";
 import { openOriginFile, sealedFileBound } from "./at-rest/origin-files.js";
 import {
@@ -39,7 +40,7 @@ export async function readOriginRecord(
   check();
   let handle: FileSystemFileHandle;
   try {
-    handle = await directory.get.call(root, name);
+    handle = await directory.get(name);
     entry = captureOriginalOriginFileData(handle);
     check();
   } catch (error) {
@@ -48,8 +49,9 @@ export async function readOriginRecord(
       return { handle: null, value: null, entry: null };
     throw error;
   }
-  const file = await entry.get.call(handle);
+  const file = await entry.get();
   const textMethod = file.text;
+  const fixedText: typeof textMethod = bindOriginal(textMethod, file);
   const size = file.size;
   const current = () => {
     check();
@@ -59,7 +61,7 @@ export async function readOriginRecord(
   current();
   if (size > sealedFileBound(maxBytes))
     throw new Error("Storage record exceeds read limit.");
-  const text = await textMethod.call(file);
+  const text = await fixedText();
   current();
   if (new TextEncoder().encode(text).length > sealedFileBound(maxBytes))
     throw new Error("Storage record exceeds read limit.");
@@ -87,7 +89,7 @@ export async function removeOwnEmptyPlaceholder(
   let current: FileSystemFileHandle;
   let entry: OriginalOriginFileData;
   try {
-    current = await directory.get.call(root, name);
+    current = await directory.get(name);
     entry = captureOriginalOriginFileData(current);
     check();
     entry.check();
@@ -96,16 +98,16 @@ export async function removeOwnEmptyPlaceholder(
     if (error instanceof DOMException && error.name === "NotFoundError") return;
     throw error;
   }
-  const same = await owned.same.call(created, current);
+  const same = await owned.same(current);
   check();
   entry.check();
   if (!same) return;
-  const file = await entry.get.call(current);
+  const file = await entry.get();
   const size = file.size;
   check();
   entry.check();
   if (size !== 0) return;
-  await directory.remove.call(root, name);
+  await directory.remove(name);
   check();
   entry.check();
 }
