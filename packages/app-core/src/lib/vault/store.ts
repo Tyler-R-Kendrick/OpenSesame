@@ -18,6 +18,7 @@ import {
   uninstallItemType,
 } from "@opensesame/vault-core";
 import {
+  activitySeams,
   noteVaultBodyPersisted,
   noteVaultUnlocked,
   recordActivityEvent,
@@ -135,6 +136,8 @@ import { loadVaultBody } from "./store-body.js";
 import {
   type ApplyChange,
   type VaultBodyPort,
+  bodyPortOf,
+  installDeviceKeyCarrier,
   levelDeviceKey,
   makeBodyPort,
   registerBodyPort,
@@ -1579,5 +1582,16 @@ export class VaultStore {
   }
 }
 
-export { vaultStore } from "./vault-store-default.js";
+export const vaultStore = new VaultStore();
+
+// The device identity host mints through this store's body (ADR 0160 §5).
+installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
+
+// A guest's tomb is sealed and isolated like any other, so a guest's
+// actions are logged in it (PRODUCT.md: guests are first-class).
+activitySeams.activeTomb = () => {
+  const snap = vaultStore.getSnapshot();
+  return snap.status === "unlocked" && snap.tomb ? snap.tomb : null;
+};
+
 export { WrongPasswordError, VaultCorruptError };
