@@ -12,6 +12,14 @@
 //! child together, which is exactly what ends both; keeping it that way keeps
 //! Ctrl-C exactly as it was.
 //!
+//! The run takes only what it was given. A signal that was ignored when the
+//! run began (`nohup` starts a command with `SIGHUP` ignored) stays ignored:
+//! the launcher asked for this process to outlive a hangup, and a run that
+//! ended on one would undo that. And the handlers are the run's alone: they
+//! are given back, with what they replaced, as soon as the child is gone, so a
+//! signal that comes while this process waits for the plugin to leave ends it
+//! as it would have before the run began.
+//!
 //! The handler only records the first signal in an atomic, which is
 //! async-signal-safe. The supervise loop polls it.
 
@@ -31,31 +39,87 @@ mod unix {
         let _ = PENDING.compare_exchange(0, signal, Ordering::SeqCst, Ordering::SeqCst);
     }
 
+    /// The handlers of a run, and what each replaced. Dropping puts it back.
+    pub(crate) struct Handlers {
+        saved: Vec<(i32, libc::sigaction)>,
+    }
+
+    /// Set the action of `signal` to `new`, or only read it for `None`, and
+    /// return the action that was in place.
+    pub(super) fn swap(signal: i32, new: Option<&libc::sigaction>) -> io::Result<libc::sigaction> {
+        // SAFETY: `old` is a zeroed `sigaction` the call fills in, and `new`,
+        // when there is one, is a fully initialised one.
+        unsafe {
+            let mut old: libc::sigaction = std::mem::zeroed();
+            let new = new.map_or(std::ptr::null(), std::ptr::from_ref);
+            if libc::sigaction(signal, new, &raw mut old) == 0 {
+                Ok(old)
+            } else {
+                Err(io::Error::last_os_error())
+            }
+        }
+    }
+
+    /// Whether `action` is `SIG_IGN`.
+    pub(super) fn is_ignored(action: &libc::sigaction) -> bool {
+        action.sa_flags & libc::SA_SIGINFO == 0 && action.sa_sigaction == libc::SIG_IGN
+    }
+
     /// Catch [`ENDING`], so that [`pending`] reports them instead of this
-    /// process dying with the child still running.
+    /// process dying with the child still running. A signal that is ignored
+    /// now stays ignored and is never reported.
     ///
     /// # Errors
     ///
     /// When the operating system refuses a handler: the run then does not
-    /// start, because it could not promise to stop its child.
-    pub(crate) fn install() -> io::Result<()> {
+    /// start, because it could not promise to stop its child. What was
+    /// installed before the refusal is given back.
+    pub(crate) fn install() -> io::Result<Handlers> {
+        PENDING.store(0, Ordering::SeqCst);
+        let mut handlers = Handlers { saved: Vec::new() };
         for signal in ENDING {
+            if is_ignored(&swap(signal, None)?) {
+                continue;
+            }
             // SAFETY: `action` is a zeroed `sigaction` with its mask emptied
             // and a handler that only stores to a lock-free atomic, which is
             // async-signal-safe. `SA_RESTART` keeps other threads' blocking
             // calls from failing with `EINTR`.
-            let refused = unsafe {
+            let action = unsafe {
                 let mut action: libc::sigaction = std::mem::zeroed();
                 action.sa_sigaction = note as extern "C" fn(libc::c_int) as libc::sighandler_t;
                 action.sa_flags = libc::SA_RESTART;
                 libc::sigemptyset(&raw mut action.sa_mask);
-                libc::sigaction(signal, &raw const action, std::ptr::null_mut()) != 0
+                action
             };
-            if refused {
-                return Err(io::Error::last_os_error());
+            let replaced = swap(signal, Some(&action))?;
+            handlers.saved.push((signal, replaced));
+        }
+        Ok(handlers)
+    }
+
+    impl Handlers {
+        /// The child is gone and nothing reads the flag any more: put back
+        /// what the handlers replaced. A signal they recorded that the run did
+        /// not answer (`stopped` is false) is raised again, so that what is in
+        /// place now decides what it does rather than nothing.
+        pub(crate) fn release(self, stopped: bool) {
+            let unanswered = if stopped { None } else { pending() };
+            drop(self);
+            if let Some(signal) = unanswered {
+                // SAFETY: `raise` signals the calling thread and nothing else.
+                unsafe { libc::raise(signal) };
             }
         }
-        Ok(())
+    }
+
+    impl Drop for Handlers {
+        fn drop(&mut self) {
+            for (signal, replaced) in self.saved.drain(..) {
+                // Nothing to do about a refusal while giving back.
+                let _ = swap(signal, Some(&replaced));
+            }
+        }
     }
 
     /// The first run-ending signal received since [`install`], if any.
@@ -112,8 +176,17 @@ mod other {
 
     pub(crate) const KILL: i32 = 9;
 
-    pub(crate) fn install() -> std::io::Result<()> {
-        Ok(())
+    /// Nothing to give back: there are no handlers.
+    #[derive(Debug)]
+    pub(crate) struct Handlers;
+
+    impl Handlers {
+        #[allow(clippy::unused_self)]
+        pub(crate) fn release(self, _stopped: bool) {}
+    }
+
+    pub(crate) fn install() -> std::io::Result<Handlers> {
+        Ok(Handlers)
     }
 
     pub(crate) fn pending() -> Option<i32> {

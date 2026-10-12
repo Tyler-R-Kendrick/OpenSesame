@@ -117,7 +117,8 @@ pub(crate) fn dev_cmd(cmd: DevCmd, agent: bool, schema: &Path) -> anyhow::Result
                 .stderr(Stdio::inherit());
             // The handlers for SIGTERM and SIGHUP go in now, with the plugin up
             // and no child yet: until here nothing but the plugin exists, and
-            // it ends when this process dies.
+            // it ends when this process dies. They come out again when the
+            // child is gone, before the plugin is waited for.
             let end = supervise::run(&mut child, session.as_ref());
             drop(session);
             let end = end?;

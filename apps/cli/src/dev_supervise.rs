@@ -18,7 +18,10 @@
 //! sent the signal and has [`STOP_GRACE`] to leave before it is killed, and
 //! the plugin is waited for. The exit status is the conventional `128 + n`
 //! once the child is gone, whatever the child itself returned. That holds with
-//! or without the plugin: a plain `dev run` child is stopped too.
+//! or without the plugin: a plain `dev run` child is stopped too. The signal
+//! handlers are the run's alone: they go back as soon as the child is gone, so
+//! a signal that comes while the plugin is waited for ends this process as it
+//! always did.
 
 use std::io::Write as _;
 use std::process::{Child, Command, ExitStatus};
@@ -130,8 +133,19 @@ pub(crate) fn run(
     command: &mut Command,
     session: Option<&SurrogateSession>,
 ) -> std::io::Result<RunEnd> {
-    signal::install()?;
-    run_until(command, session, &signal::pending, STOP_GRACE)
+    let handlers = signal::install()?;
+    let end = run_until(command, session, &signal::pending, STOP_GRACE);
+    // The child is gone and nothing reads the flag any more, yet the caller
+    // drops the session next and that waits for the plugin to leave, up to
+    // 5 s: give the signals back first, so one that comes now ends this
+    // process as it would have before the run began. A stop this process made
+    // itself, on a signal or a tripwire, has already answered whatever came in;
+    // any other end has not, and what arrived is raised again.
+    handlers.release(matches!(
+        end,
+        Ok(RunEnd::Signalled { .. } | RunEnd::Tripped { .. })
+    ));
+    end
 }
 
 /// [`run`] with the source of the stopping signal and the grace given.
