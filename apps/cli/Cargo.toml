@@ -80,6 +80,12 @@ insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+# The proxied-run end-to-end test (`tests/proxied_run_e2e.rs`) stands a
+# recording TLS server in for the provider's API, with disposable PKI.
+bytes = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
+opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
 
 [features]
 default = []

@@ -78,6 +78,7 @@
     "test:fuzz:batch": "FUZZ_SECONDS=${FUZZ_SECONDS:-300} bash ./scripts/fuzz/jazzer-gate.sh",
     "test:task-access": "bash ./scripts/test/task-security-battle-test.sh",
     "test:nats-dogfood": "bash ./scripts/test/nats-dogfood-test.sh",
+    "test:proxied-run": "bash ./scripts/test/proxied-run-test.sh",
     "test:bitwarden-oracle": "bash ./scripts/test/bitwarden-oracle-test.sh",
     "test:2password-parity": "node --test scripts/test/2password-parity-runner.test.mjs && node scripts/test/2password-parity.mjs",
     "test:tailnet-sync:real": "bash scripts/test/tailnet-sync-real-tailnet.sh",

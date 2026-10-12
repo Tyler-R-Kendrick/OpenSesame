@@ -130,6 +130,12 @@ pnpm --filter @opensesame/pages storybook   # the design system's catalog on :60
                           #   (docs/design/tooling.md); build-storybook, typecheck:storybook
 pnpm test:nats-dogfood   # scripts/test/nats-dogfood-test.sh (spins up real nats-server)
 pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao/gateway)
+pnpm test:proxied-run    # scripts/test/proxied-run-test.sh — `opensesame dev run --agent` end to end (ADR 0150): the
+                          #   real binary, the surrogate-proxy plugin's TEST build installed through `plugins install`
+                          #   with its pin, a token sealed by `pass insert connections/<org>/<name>`, the real
+                          #   @env-spec/parser, a child that reaches a loopback stand-in for api.vercel.com only through
+                          #   the run's proxy; pins the refusals and the revocation. Needs node_modules for the parser
+                          #   or OPENSESAME_E2E_ENVSPEC_DIR; fails, never skips (docs/operators/proxied-run-quickstart.md)
 pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
                           #   SignalR client Bitwarden's apps pin, against the bitwarden-compat surface
                           #   (ADR 0141, ADR 0148); fails, never skips
