@@ -15,7 +15,9 @@ describe("persona findings validation (Oct 2026) — code anchors", () => {
       join(ROOT, "packages/app-core/src/lib/vault/drop.ts"),
       "utf8",
     );
-    expect(drop).toMatch(/A one-time share of text already stored on an item\. No vault record\./);
+    expect(drop).toMatch(
+      /A one-time share of text already stored on an item\. No vault record\./,
+    );
   });
 
   it("local drop claims cap wrong codes at five attempts", () => {
@@ -23,7 +25,11 @@ describe("persona findings validation (Oct 2026) — code anchors", () => {
       join(ROOT, "packages/app-core/src/lib/vault/local-drop-claims.ts"),
       "utf8",
     );
-    expect(claims).toMatch(/MAX_ATTEMPTS = 5/);
+    const store = readFileSync(
+      join(ROOT, "packages/app-core/src/lib/vault/local-drop-claim-store.ts"),
+      "utf8",
+    );
+    expect(store).toMatch(/MAX_DROP_CLAIM_ATTEMPTS = 5/);
     expect(claims).toMatch(/too_many_attempts/);
   });
 
