@@ -1,10 +1,46 @@
 //! CLI ↔ OpenSesame app integration (1Password-style terminal sessions).
+mod pairing;
 mod terminal_session;
 
+use rand_core::{OsRng, RngCore as _};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
+pub use pairing::{
+    format_pairing_code, is_pairable_origin, CliAppIntegrationPairings, Issued, PairingError,
+    CODE_TTL_SECS, PAIRING_CODE_PREFIX,
+};
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
+
+/// Daemon-held integration state and browser pairings.
+pub struct CliAppIntegrationHost {
+    pub store: CliAppIntegrationStore,
+    pub pairings: CliAppIntegrationPairings,
+}
+
+impl CliAppIntegrationHost {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            store: CliAppIntegrationStore::new(),
+            pairings: CliAppIntegrationPairings::default(),
+        }
+    }
+}
+
+pub type SharedCliAppIntegration = Arc<Mutex<CliAppIntegrationHost>>;
+
+#[must_use]
+pub fn fresh_host() -> SharedCliAppIntegration {
+    Arc::new(Mutex::new(CliAppIntegrationHost::new()))
+}
+
+fn respond_nonce() -> String {
+    let mut raw = [0u8; 16];
+    OsRng.fill_bytes(&mut raw);
+    hex::encode(raw)
+}
 
 const SOURCE: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
 
@@ -44,6 +80,7 @@ pub struct PendingRequest {
     pub verb: String,
     pub reference: Option<String>,
     pub created_at_ms: u64,
+    pub respond_nonce: String,
 }
 
 /// In-memory integration state held by the daemon.
@@ -144,17 +181,30 @@ impl CliAppIntegrationStore {
                 verb: verb.to_string(),
                 reference: reference.map(str::to_string),
                 created_at_ms: self.now_ms,
+                respond_nonce: respond_nonce(),
             },
         );
         ("pending".into(), Some(request_id))
     }
 
-    pub fn approve(&mut self, request_id: &str, terminal_session_id: &str) -> String {
+    pub fn approve(
+        &mut self,
+        request_id: &str,
+        terminal_session_id: &str,
+        respond_nonce: &str,
+        human_proof: &str,
+    ) -> String {
         self.expire_idle();
         let Some(row) = self.pending.get(request_id) else {
             return "wrongSession".into();
         };
         if row.terminal_session_id != terminal_session_id {
+            return "wrongSession".into();
+        }
+        if row.respond_nonce != respond_nonce {
+            return "wrongSession".into();
+        }
+        if human_proof.trim().len() < 16 {
             return "wrongSession".into();
         }
         self.pending.remove(request_id);
@@ -169,11 +219,19 @@ impl CliAppIntegrationStore {
         "approved".into()
     }
 
-    pub fn deny(&mut self, request_id: &str, terminal_session_id: &str) -> String {
+    pub fn deny(
+        &mut self,
+        request_id: &str,
+        terminal_session_id: &str,
+        respond_nonce: &str,
+    ) -> String {
         let Some(row) = self.pending.get(request_id) else {
             return "wrongSession".into();
         };
         if row.terminal_session_id != terminal_session_id {
+            return "wrongSession".into();
+        }
+        if row.respond_nonce != respond_nonce {
             return "wrongSession".into();
         }
         self.pending.remove(request_id);
@@ -242,7 +300,15 @@ mod tests {
         let id = "tcp-attempt-1";
         let (_, req) = store.ensure(id, "read", None, false);
         let request_id = req.expect("pending");
-        assert_eq!(store.approve(&request_id, id), "approved");
+        let nonce = store
+            .pending
+            .get(&request_id)
+            .map(|r| r.respond_nonce.clone())
+            .unwrap_or_default();
+        assert_eq!(
+            store.approve(&request_id, id, &nonce, "human-proof-from-test-harness"),
+            "approved"
+        );
         let (status, _) = store.ensure(id, "read", None, false);
         assert_eq!(status, "approved");
         let (status, _) = store.ensure(id, "read", None, false);
@@ -259,8 +325,18 @@ mod tests {
             assert_eq!(pending.0, "pending", "case {}", case.id);
             let request_id = pending.1.expect("request id");
             if case.action == "approve" {
+                let nonce = store
+                    .pending
+                    .get(&request_id)
+                    .map(|r| r.respond_nonce.clone())
+                    .expect("nonce");
                 assert_eq!(
-                    store.approve(&request_id, &case.terminal_session_id),
+                    store.approve(
+                        &request_id,
+                        &case.terminal_session_id,
+                        &nonce,
+                        "human-proof-from-test-harness",
+                    ),
                     "approved"
                 );
                 if let Some(seconds) = case.idle_past_seconds {
@@ -290,8 +366,13 @@ mod tests {
                     store.ensure(&case.terminal_session_id, "read", None, true);
                 assert_eq!(status, "pending", "case {}", case.id);
             } else if case.action == "deny" {
+                let nonce = store
+                    .pending
+                    .get(&request_id)
+                    .map(|r| r.respond_nonce.clone())
+                    .unwrap_or_default();
                 assert_eq!(
-                    store.deny(&request_id, &case.terminal_session_id),
+                    store.deny(&request_id, &case.terminal_session_id, &nonce),
                     "denied"
                 );
                 let (status, _) = store.ensure(&case.terminal_session_id, "read", None, true);

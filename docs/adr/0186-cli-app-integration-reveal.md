@@ -26,8 +26,12 @@ same shell, and unlike 1Password’s CLI ↔ app integration model.
    single-use (no cross-command reuse). Client env overrides are forbidden.
 3. **Daemon holds state** — `POST /v1/cli/app-integration/ensure` blocks until
    approved, denied, or timeout; `GET …/pending` and `POST …/respond` let the
-   OpenSesame app (Pages) approve with PIN or passkey. Loopback only; no operator
-   token on these routes.
+   OpenSesame app (Pages) approve with PIN or passkey. Loopback only. Browser
+   routes require a pairing bearer (`POST …/pairing`, prefix
+   `opensesame-cli-app:v1:`); the operator mints codes at
+   `POST /v1/operator/cli-app-integration/pair`. Each pending row carries a
+   one-time `respondNonce`; approve also requires `humanProof` from the unlock
+   ceremony.
 4. **Two-layer gate** — `cli-reveal-gate.json` keeps TTY, `--reveal`, and
    `--desktop` rules for direct plaintext; app integration is required afterward
    for `read`, `env-resolve`, `pass-reveal`, and desktop `run` / `env run`.

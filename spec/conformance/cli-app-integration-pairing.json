@@ -1,0 +1,14 @@
+{
+  "$comment": "CLI app-integration browser pairing (ADR 0186 round 4). Same shape as plugin pairing but prefix opensesame-cli-app:v1: and exchange path /v1/cli/app-integration/pairing.",
+  "version": 1,
+  "prefix": "opensesame-cli-app:v1:",
+  "exchangePath": "/v1/cli/app-integration/pairing",
+  "codeTtlSecs": 300,
+  "localExample": {
+    "code": "UGx1Z2luLXBhaXJpbmctY29kZS1ub3QtcmVhbC0wMSE",
+    "label": "Desk",
+    "origin": "http://localhost:5180",
+    "url": "http://127.0.0.1:18790",
+    "text": "opensesame-cli-app:v1:eyJjb2RlIjoiVUd4MVoybHVMWEJoYVhKcGJtY3RZMjlrWlMxdWIzUXRjbVZoYkMwd01TRSIsImxhYmVsIjoiRGVzayIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6NTE4MCIsInVybCI6Imh0dHA6Ly8xMjcuMC4wLjE6MTg3OTAifQ"
+  }
+}
