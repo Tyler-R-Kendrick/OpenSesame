@@ -19,6 +19,7 @@ opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
 opensesame-cli-app-integration = { path = "../../crates/cli-app-integration" }
+opensesame-invoke-through = { path = "../../crates/invoke-through" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
@@ -68,10 +69,11 @@ directories = "6.0.0"
 qr2term = "0.3.3"
 regex = "1.11.1"
 tempfile = "3.20.0"
+# `dev run` catches SIGTERM and SIGHUP (src/dev_signal.rs) and signals its child;
+# the journey tests also sit a person at a real terminal via openpty.
+libc = { workspace = true }
 
 [dev-dependencies]
-# Journey tests sit a person at a real terminal via openpty.
-libc = { workspace = true }
 # The dev-run tests point the CLI at their own settings file, which a shipped
 # build refuses to take from the environment.
 opensesame-plugin-settings = { path = "../../crates/plugin-settings", features = ["path-override"] }
@@ -79,6 +81,12 @@ insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+# The proxied-run end-to-end test (`tests/proxied_run_e2e.rs`) stands a
+# recording TLS server in for the provider's API, with disposable PKI.
+bytes = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
+opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
 
 [features]
 default = []

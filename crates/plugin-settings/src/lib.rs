@@ -37,7 +37,7 @@ mod pairing_code;
 mod paths;
 mod settings;
 
-pub use catalog::{catalog, CatalogPlugin, PluginKind};
+pub use catalog::{catalog, takes_stored_credential, CatalogPlugin, PluginKind};
 pub use pairing::{
     Issued, PairedView, PairingError, PendingView, PluginPairings, CODE_TTL_SECS, MAX_PAIRED,
     MAX_PENDING, PAIRINGS_FILE,
