@@ -4,7 +4,7 @@ import type { FormEvent } from "react";
 import {
   mintCliAuthorizePasskeyProof,
   mintCliAuthorizePinProof,
-} from "./cli-authorize-human-proof-pages.js";
+} from "./cli-authorize-mint-proof.js";
 import type { CliAuthorizeRow } from "./cli-authorize-session.js";
 
 type NoteFailure = (title: string, message: string) => void;
