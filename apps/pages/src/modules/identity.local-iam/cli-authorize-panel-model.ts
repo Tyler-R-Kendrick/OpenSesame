@@ -9,12 +9,11 @@ import {
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
 import {
-  runCliAuthorizePasskeyApprove,
-  runCliAuthorizePinApprove,
-} from "./cli-authorize-proof-run.js";
+  CLI_AUTHORIZE_PROOF_OFFLINE,
+  type CliAuthorizeRow,
+} from "./cli-authorize-net.js";
 
 function daemonOrigin(): string | null {
   const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
@@ -58,6 +57,14 @@ function authHeaders(): Record<string, string> | null {
   };
 }
 
+async function loadProofRun() {
+  try {
+    return await import("./cli-authorize-proof-run.js");
+  } catch {
+    return null;
+  }
+}
+
 export function useCliAuthorizePanel() {
   const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -84,6 +91,13 @@ export function useCliAuthorizePanel() {
       setRow(parseFirst(await res.json()));
     })();
   }, []);
+
+  useEffect(() => {
+    if (!row) return;
+    void loadProofRun().then((run) => {
+      if (!run) setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
+    });
+  }, [row]);
 
   async function finish(decision: "approve" | "deny", humanProof?: string) {
     if (!row || busy) return;
@@ -118,17 +132,32 @@ export function useCliAuthorizePanel() {
     mark,
     setPin,
     onPasskey: () => {
-      if (row) void runCliAuthorizePasskeyApprove({ ...proofInput, row });
+      if (!row) return;
+      void (async () => {
+        const run = await loadProofRun();
+        if (!run) {
+          setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
+          return;
+        }
+        await run.runCliAuthorizePasskeyApprove({ ...proofInput, row });
+      })();
     },
     onPin: (event: FormEvent) => {
-      if (row)
-        void runCliAuthorizePinApprove({
+      if (!row) return;
+      void (async () => {
+        const run = await loadProofRun();
+        if (!run) {
+          setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
+          return;
+        }
+        await run.runCliAuthorizePinApprove({
           ...proofInput,
           row,
           pin,
           header,
           event,
         });
+      })();
     },
     onDeny: () => void finish("deny"),
   };
