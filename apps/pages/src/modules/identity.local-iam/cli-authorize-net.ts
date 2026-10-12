@@ -1,14 +1,5 @@
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
-
-export const CLI_AUTHORIZE_PROOF_OFFLINE =
-  "Authorize needs a connection to load on this device.";
-
-export type CliAuthorizeRow = readonly [
-  requestId: string,
-  terminalSessionId: string,
-  verb: string,
-  respondNonce: string,
-];
+import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 
 export async function postCliRespond(
   origin: string,

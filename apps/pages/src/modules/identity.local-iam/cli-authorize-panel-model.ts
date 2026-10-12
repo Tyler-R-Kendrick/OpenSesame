@@ -9,11 +9,12 @@ import {
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
 import {
-  CLI_AUTHORIZE_PROOF_OFFLINE,
-  type CliAuthorizeRow,
-} from "./cli-authorize-net.js";
+  runCliAuthorizePasskeyApprove,
+  runCliAuthorizePinApprove,
+} from "./cli-authorize-proof-run.js";
 
 function daemonOrigin(): string | null {
   const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
@@ -55,14 +56,6 @@ function authHeaders(): Record<string, string> | null {
     authorization: `Bearer ${token}`,
     Origin: origin,
   };
-}
-
-async function loadProofRun() {
-  try {
-    return await import("./cli-authorize-proof-run.js");
-  } catch {
-    return null;
-  }
 }
 
 export function useCliAuthorizePanel() {
@@ -125,32 +118,17 @@ export function useCliAuthorizePanel() {
     mark,
     setPin,
     onPasskey: () => {
-      if (!row) return;
-      void (async () => {
-        const run = await loadProofRun();
-        if (!run) {
-          setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
-          return;
-        }
-        await run.runCliAuthorizePasskeyApprove({ ...proofInput, row });
-      })();
+      if (row) void runCliAuthorizePasskeyApprove({ ...proofInput, row });
     },
     onPin: (event: FormEvent) => {
-      if (!row) return;
-      void (async () => {
-        const run = await loadProofRun();
-        if (!run) {
-          setMark(CLI_AUTHORIZE_PROOF_OFFLINE);
-          return;
-        }
-        await run.runCliAuthorizePinApprove({
+      if (row)
+        void runCliAuthorizePinApprove({
           ...proofInput,
           row,
           pin,
           header,
           event,
         });
-      })();
     },
     onDeny: () => void finish("deny"),
   };
