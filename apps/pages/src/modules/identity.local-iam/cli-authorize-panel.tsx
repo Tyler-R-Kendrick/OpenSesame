@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconX } from "../../components/Icons.js";
+import { CliAuthorizeApproveFlow } from "./cli-authorize-approve-flow.js";
 import {
   type CliAuthorizeRow,
   cliAuthorizeAuthHeaders,
