@@ -1,0 +1,75 @@
+name: Sync target authorization
+
+on:
+  pull_request:
+    paths:
+      - 'crates/connection-broker/**'
+      - 'crates/gateway/**'
+      - '.github/workflows/sync-target-security.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  push:
+    branches:
+      - 'security/fix-sync-target-host-ceiling'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-target-security-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authorization:
+    name: Sync authorization regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - name: Broker revocation, fan-out, fingerprint and retry tests
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/sync-target-security
+          cargo test --locked -p opensesame-connection-broker --test sync_target_authority -- --nocapture 2>&1 | tee artifacts/sync-target-security/broker.log
+          grep -Eq 'test result: ok\. [1-9][0-9]* passed;' artifacts/sync-target-security/broker.log
+      - name: Gateway route and materialization tests
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/sync-target-security
+          cargo test --locked -p opensesame-gateway routes::sync_targets -- --nocapture 2>&1 | tee artifacts/sync-target-security/gateway.log
+          grep -Eq 'test result: ok\. [1-9][0-9]* passed;' artifacts/sync-target-security/gateway.log
+          grep -Fq 'background_outbox_retries_and_regrant_cannot_resurrect_revoked_authority ... ok' artifacts/sync-target-security/gateway.log
+      - name: Connection broker compatibility tests
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          cargo test --locked -p opensesame-connection-broker 2>&1 | tee artifacts/sync-target-security/broker-suite.log
+      - name: Canonical secret-config authorization tests
+        if: success() || failure()
+        run: |
+          set -euo pipefail
+          cargo test --locked -p opensesame-gateway routes::secret_config -- --nocapture 2>&1 | tee artifacts/sync-target-security/secret-config.log
+          grep -Eq 'test result: ok\. [1-9][0-9]* passed;' artifacts/sync-target-security/secret-config.log
+      - name: Preserve test output
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: sync-target-security-results
+          path: artifacts/sync-target-security/
+          if-no-files-found: warn
