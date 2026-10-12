@@ -1,4 +1,5 @@
-import { cliAppIntegrationPolicy } from "./policy.js";
+import type { PendingRequest } from "./pending-request.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 
 export type EnsureStatus =
   | "approved"
@@ -11,14 +12,6 @@ export interface ApprovedSession {
   terminalSessionId: string;
   approvedAtMs: number;
   lastActivityMs: number;
-}
-
-export interface PendingRequest {
-  requestId: string;
-  terminalSessionId: string;
-  verb: string;
-  reference?: string | undefined;
-  createdAtMs: number;
 }
 
 export interface EnsureResult {

@@ -1,3 +1,4 @@
+import { cliAppIntegrationCapabilities } from "./cli-app-integration.js";
 import { AUTHENTICATOR_HANDOFF, AUTH_CEREMONY } from "./exclusions.js";
 import type { Capability } from "./index.js";
 import { localOrganizationCapabilities } from "./local-organizations.js";
@@ -331,9 +332,7 @@ export const identityManagementCapabilities: readonly Capability[] = [
       },
     },
   },
-  // A claim link (ADR 0045, ADR 0140): the person holding it reviews what is
-  // claimed and consents with the code its creator read out. The bearer and
-  // the code are a human's; no agent surface may carry either.
+  // A claim link (ADR 0045, ADR 0140): review, consent, bearer and code stay human-only.
   {
     id: "identity.claim.accept",
     title: "Review and accept an ownership claim",
@@ -395,6 +394,7 @@ export const identityManagementCapabilities: readonly Capability[] = [
       webmcp: AUTHENTICATOR_HANDOFF,
     },
   },
+  ...cliAppIntegrationCapabilities,
   ...localOrganizationCapabilities,
   ...orgSignInCapabilities,
 ];

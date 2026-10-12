@@ -1,5 +1,10 @@
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { deriveTerminalSessionId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  readString,
+} from "@opensesame/os-domain";
 import type { HumanRevealVerb } from "./reveal-gate.js";
 
 export type CliAppIntegrationDecision = "approve" | "deny" | "unavailable";
@@ -50,10 +55,12 @@ async function pollEnsure(
     if (response.status === 404 || response.status === 503)
       return "unavailable";
     if (!response.ok) return "deny";
-    const body = (await response.json()) as { status?: string };
-    if (body.status === "approved") return "approve";
-    if (body.status === "denied") return "deny";
-    if (body.status === "wrongSession") return "deny";
+    const body: BoundaryValue = await response.json();
+    if (!isJsonObject(body)) return "deny";
+    const status = readString(body.status);
+    if (status === "approved") return "approve";
+    if (status === "denied") return "deny";
+    if (status === "wrongSession") return "deny";
     await new Promise((resolve) => {
       setTimeout(resolve, cliAppIntegrationPolicy.pollIntervalMs);
     });

@@ -3,6 +3,6 @@ export {
   type ApprovedSession,
   type EnsureResult,
   type EnsureStatus,
-  type PendingRequest,
 } from "./session.js";
-export { cliAppIntegrationPolicy } from "./policy.js";
+export type { PendingRequest } from "./pending-request.js";
+export { cliAppIntegrationPolicy } from "./policy-runtime.js";
