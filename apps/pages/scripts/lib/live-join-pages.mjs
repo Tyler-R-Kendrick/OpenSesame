@@ -18,6 +18,7 @@ import {
   peerStates,
   probeChannels,
 } from "./live-join-walk.mjs";
+import { released } from "./live-sockets.mjs";
 
 /**
  * The page helpers for one run. `named()` says which pair is walking now, so
@@ -45,12 +46,16 @@ export function livePages({ harness, origin, dist, out, passthrough, named }) {
       passthrough,
     });
     const sockets = [];
+    const held = [];
     await allowFor(engine, made.context, made.page, at);
     await made.context.addInitScript(WATCH_RTC);
     await made.context.addInitScript(COPY_WATCH);
     for (const [script, arg] of init)
       await made.context.addInitScript(script, arg);
-    made.page.on("websocket", (socket) => sockets.push(socket.url()));
+    made.page.on("websocket", (socket) => {
+      sockets.push(socket.url());
+      held.push(socket);
+    });
     // A crashed page answers nothing, and the wait that was on it reads as a
     // control that never appeared: say it crashed, where, and in what engine.
     made.page.on("crash", (page) =>
@@ -75,7 +80,15 @@ export function livePages({ harness, origin, dist, out, passthrough, named }) {
         `${request.url().slice(0, 200)} ${request.failure()?.errorText ?? ""}`,
       ),
     );
-    return { ...made, sockets, origin: at, dist: from, engine };
+    return {
+      ...made,
+      sockets,
+      /** Resolves once this page has let go of its sockets to `host`. */
+      released: (host, ms) => released(held, host, ms),
+      origin: at,
+      dist: from,
+      engine,
+    };
   }
 
   /** A screenshot, named for the pair walking. */
