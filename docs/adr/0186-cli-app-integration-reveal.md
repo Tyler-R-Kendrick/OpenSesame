@@ -19,9 +19,11 @@ same shell, and unlike 1Password’s CLI ↔ app integration model.
 1. **One conformance spec** — `spec/conformance/cli-app-integration.json` defines
    idle timeout (600 s, 1Password-style), daemon routes, UX copy, and session
    vectors for approve, deny, expiry, and per-terminal scoping.
-2. **Terminal session id** — derived from `OPENSESAME_CLI_TERMINAL_SESSION_ID` when
-   set, otherwise a hash of `OPENSESAME_CLI_TTY` and `OPENSESAME_CLI_SHELL_PID`
-   (shell parent), matching the “this terminal tab” mental model.
+2. **Terminal session id** — the daemon derives it from the kernel-attested peer
+   pid over the Unix socket (Linux `/proc/<pid>/stat` session + tty; macOS
+   `ps`). The JSON body’s `terminalSessionId` is ignored on UDS. Over TCP
+   loopback the client sends only a per-attempt correlation id; approvals are
+   single-use (no cross-command reuse). Client env overrides are forbidden.
 3. **Daemon holds state** — `POST /v1/cli/app-integration/ensure` blocks until
    approved, denied, or timeout; `GET …/pending` and `POST …/respond` let the
    OpenSesame app (Pages) approve with PIN or passkey. Loopback only; no operator
@@ -30,15 +32,24 @@ same shell, and unlike 1Password’s CLI ↔ app integration model.
    `--desktop` rules for direct plaintext; app integration is required afterward
    for `read`, `env-resolve`, `pass-reveal`, and desktop `run` / `env run`.
 5. **Refuse closed** — if the daemon is down or the person denies, the CLI exits
-   with the spec messages (app unavailable, denied, expired, wrong session). Tests
-   use `OPENSESAME_CLI_APP_INTEGRATION_SEAM=approve|deny|unavailable` without
-   weakening production gates.
+   with the spec messages (app unavailable, denied, expired, wrong session).
+   Production binaries never read a seam environment variable; journey tests
+   inject `HumanRevealRequest.appIntegration` or point `OPENSESAME_DAEMON_API` at
+   a loopback fake daemon. The Rust `test-seams` feature (tests only) may still
+   read the legacy seam name for harnesses that opt in.
 
 ## Consequences
 
 - Pages must surface pending CLI integration requests and call `respond` (follow-up
   UI work; daemon API is stable for that wiring).
-- Service-account `run` without `--desktop` does not poll app integration (token
-  auth remains the service-account path).
+- **Reachability (round 4):** same-machine CLI ↔ PWA approval is direct (local
+  pairing, no relay). Remote PWA: join with a session invite code, then OAuth
+  device flow approved in the PWA (GitHub CLI model). PIN or passkey still
+  required, scoped per terminal session.
+- **Hard limit:** `hardLimitSeconds` in the spec is **43200** (12 h).
+- **`run` / `env run`:** every desktop and non-desktop injection path requires
+  app approval after D4-6 (no unapproved injection lane).
+- Service-account paths remain token-gated where the reveal gate already
+  excludes them.
 - Agent-context env markers are removed from `cli-reveal-gate.json`; do not reintroduce
   them as a parallel gate.

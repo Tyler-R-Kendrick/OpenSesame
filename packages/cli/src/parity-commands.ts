@@ -17,6 +17,7 @@ import type {
   PasswordAgentPort,
   Scope,
 } from "@opensesame/app-core/lib/password-agent/transport.js";
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import {
   emitHumanValue,
   emitStderrLine,
@@ -28,6 +29,7 @@ import { runLease, runPrivateRequest } from "./parity-request.js";
 import { assertHumanReveal, emitRevealReceipt } from "./reveal-gate.js";
 export interface ParityContext {
   requestTransport?: Pick<RequestPorts, "addresses" | "send"> | undefined;
+  appIntegration?: CliAppIntegrationPort | undefined;
   args: string[];
   child: string[];
   scope: Scope;
@@ -143,7 +145,7 @@ export async function runPassword(ctx: ParityContext): Promise<number> {
 }
 
 export async function runChild(ctx: ParityContext): Promise<number> {
-  const { args, agent, child, scope } = ctx;
+  const { args, agent, child } = ctx;
 
   const assignments = [];
   while (args.includes("--env"))
@@ -158,14 +160,13 @@ export async function runChild(ctx: ParityContext): Promise<number> {
   exhausted(args);
   if (!assignments.length)
     throw new Error("run requires --env NAME=op://reference.");
-  if (scope.desktop) {
-    await assertHumanReveal({
-      verb: "run",
-      reveal: true,
-      desktop: true,
-    });
-    emitRevealReceipt({ verb: "run" });
-  }
+  await assertHumanReveal({
+    verb: "run",
+    reveal: true,
+    desktop: true,
+    appIntegration: ctx.appIntegration,
+  });
+  emitRevealReceipt({ verb: "run" });
   return agent.run(assignments, child);
 }
 
@@ -183,6 +184,13 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
   }
   if (verb === "run") {
     exhausted(args);
+    await assertHumanReveal({
+      verb: "run",
+      reveal: true,
+      desktop: true,
+      appIntegration: ctx.appIntegration,
+    });
+    emitRevealReceipt({ verb: "run" });
     return agent.runFile(file, child, await readFile(file, "utf8"));
   }
   if (verb !== "resolve")

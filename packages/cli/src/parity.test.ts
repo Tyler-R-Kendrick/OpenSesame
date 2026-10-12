@@ -1,15 +1,27 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { startCliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
+import type { CliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
 import { parseArgs } from "./parse.js";
 import { runCli } from "./run.js";
+
+let parityFakeDaemon: CliAppIntegrationFakeDaemon | undefined;
+
+beforeAll(async () => {
+  parityFakeDaemon = await startCliAppIntegrationFakeDaemon();
+  process.env.OPENSESAME_DAEMON_API = parityFakeDaemon.baseUrl;
+});
+
+afterAll(async () => {
+  await parityFakeDaemon?.close();
+  parityFakeDaemon = undefined;
+});
 
 async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
   const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
   const stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
-  const seam = process.env.OPENSESAME_CLI_APP_INTEGRATION_SEAM;
-  process.env.OPENSESAME_CLI_APP_INTEGRATION_SEAM = "approve";
   Object.defineProperty(process.stdin, "isTTY", {
     value: true,
     configurable: true,
@@ -21,14 +33,6 @@ async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
   try {
     return await body();
   } finally {
-    if (seam === undefined) {
-      Reflect.deleteProperty(
-        process.env,
-        "OPENSESAME_CLI_APP_INTEGRATION_SEAM",
-      );
-    } else {
-      process.env.OPENSESAME_CLI_APP_INTEGRATION_SEAM = seam;
-    }
     if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
     if (stdoutTty) Object.defineProperty(process.stdout, "isTTY", stdoutTty);
   }
