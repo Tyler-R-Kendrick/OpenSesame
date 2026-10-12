@@ -258,3 +258,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0192](0192-model-keys-and-token-exchange.md) | Model providers are a category, and a key for one is issued by exchange, never shared | Accepted |
 | [0193](0193-live-join-walked-in-ci-across-browsers.md) | The live join walk gates merges, across three browsers | Accepted |
 | [0194](0194-vault-environments-values-on-items-schema-generated.md) | Vault environments: values live on the items, the `.env.schema` is generated from them | Accepted |
+| [0195](0195-vault-ownership-is-transferred-from-the-danger-zone.md) | A vault's owner can hand it to another registered user from the Danger zone | Accepted |
