@@ -79,6 +79,12 @@ export async function humanRevealAppIntegrationRefusal(
   if (decision === "deny") {
     return cliAppIntegrationPolicyDocument.messages.denied;
   }
+  if (decision === "expired") {
+    return cliAppIntegrationPolicyDocument.messages.expired;
+  }
+  if (decision === "timedOut") {
+    return cliAppIntegrationPolicyDocument.messages.requestTimeout;
+  }
   return cliAppIntegrationPolicyDocument.messages.denied;
 }
 

@@ -2,6 +2,7 @@
 export const cliAppIntegrationPolicy = {
   version: 1,
   idleTimeoutSeconds: 600,
+  hardLimitSeconds: 43200,
   requestTimeoutSeconds: 120,
   pollIntervalMs: 500,
   daemonPaths: {

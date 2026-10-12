@@ -3,9 +3,11 @@
 mod cli_app_integration_http;
 
 use cli_app_integration_http::{post_json_loopback, post_json_uds};
+use opensesame_cli_app_integration::{
+    app_unavailable_message, denied_message, expired_message, request_timeout_message,
+};
 use opensesame_credential_helpers::{default_sock_path, ENV_SOCK};
 use std::path::PathBuf;
-use opensesame_cli_app_integration::{app_unavailable_message, denied_message};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 
@@ -17,6 +19,13 @@ struct PolicyDoc {
     request_timeout_seconds: u64,
     poll_interval_ms: u64,
     daemon_paths: DaemonPaths,
+    messages: PolicyMessages,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PolicyMessages {
+    request_timeout: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -94,6 +103,7 @@ pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> 
                 let parsed = serde_json::from_str::<EnsureBody>(&body)?;
                 match parsed.status.as_str() {
                     "approved" => return Ok(()),
+                    "expired" => anyhow::bail!("{}", expired_message()),
                     "denied" | "wrongSession" => anyhow::bail!("{}", denied_message()),
                     _ => {}
                 }
@@ -103,5 +113,5 @@ pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> 
         }
         std::thread::sleep(Duration::from_millis(policy.poll_interval_ms));
     }
-    anyhow::bail!("{}", denied_message())
+    anyhow::bail!("{}", request_timeout_message())
 }
