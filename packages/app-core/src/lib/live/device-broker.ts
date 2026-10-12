@@ -23,11 +23,11 @@ import type {
   DeviceReply,
   DeviceRequest,
 } from "./device-messages.js";
+import { grantFor, pendingFor } from "./device-records.js";
 import {
   type Approval,
   type ApproveResult,
   BEGIN_GAP_MS,
-  DEVICE_CODE_TTL_MS,
   type DeviceLog,
   type DevicesState,
   GRANT_MINUTES_MAX,
@@ -43,7 +43,7 @@ import {
 } from "./device-types.js";
 import { type UseContext, answerCall } from "./device-use.js";
 import { devicesState } from "./device-view.js";
-import { newCode, newRequestId } from "./seal.js";
+import { newCode } from "./seal.js";
 
 export type BrokerOptions = Readonly<{
   /** The port as it stands now; null while nothing can be used. */
@@ -151,20 +151,12 @@ export class DeviceBroker {
       return;
     }
     this.#settle(last);
-    const pending: Pending = {
-      id: newRequestId(),
+    const pending = pendingFor(
       seat,
-      req,
-      deviceCode: newRequestId(),
-      userCode: this.#freshCode(),
-      want,
-      askedAt: now,
-      expiresAt: Math.min(now + DEVICE_CODE_TTL_MS, this.#options.expiresAt),
-      interval: POLL_SECONDS,
-      nextPollAt: now + POLL_SECONDS * 1000,
-      outcome: "waiting",
-      timer: null,
-    };
+      { req, want, userCode: this.#freshCode() },
+      now,
+      this.#options.expiresAt,
+    );
     pending.timer = setTimeout(
       () => this.#lapse(pending),
       Math.max(0, pending.expiresAt - now),
@@ -280,18 +272,7 @@ export class DeviceBroker {
     );
     const { seat } = pending;
     this.#endGrant(seat.grant);
-    const grant: Grant = {
-      id: newRequestId(),
-      seat,
-      connections: new Set(chosen),
-      grantedAt: now,
-      expiresAt: Math.min(now + minutes * 60_000, this.#options.expiresAt),
-      ended: new AbortController(),
-      calls: 0,
-      inFlight: 0,
-      recent: [],
-      timer: null,
-    };
+    const grant = grantFor(seat, chosen, minutes, now, this.#options.expiresAt);
     grant.timer = setTimeout(
       () => this.#endGrant(grant),
       Math.max(0, grant.expiresAt - now),
