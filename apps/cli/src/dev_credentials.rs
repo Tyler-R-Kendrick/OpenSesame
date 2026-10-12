@@ -18,19 +18,28 @@
 //! it only to the host its provider's egress rule names, at the scope the
 //! entry declared.
 //!
-//! Only a provider the plugin draws no credential for from a local tool (it
-//! has `gh auth token` for github) is read from the store, and only once the
-//! plugin is on and will take it. The token leaves this process inside the
-//! plugin's run spec, over its stdin pipe: never argv, never a file, never the
-//! child's environment, never a log line. A store that holds no entry for a
-//! connection asks for no password at all, and the entry keeps its placeholder.
+//! Only a provider the plugin brokers with a connection's own credential is
+//! read from the store (vercel today), and only once the plugin is on and will
+//! take it. One it draws a credential for from a local tool (it has `gh auth
+//! token` for github) is never read, and neither is one it has no egress rule
+//! for: a token stored for that would be sent to the plugin for nothing, and a
+//! hint to store one would promise what storing cannot do. Which providers the
+//! plugin brokers this way is the plugin catalog's to say
+//! (`spec/plugins/catalog.json`, read through `opensesame-plugin-settings`),
+//! because this binary links no plugin. The token leaves this process inside
+//! the plugin's run spec, over its stdin pipe: never argv, never a file, never
+//! the child's environment, never a log line. A store that holds no entry for
+//! a connection asks for no password at all, and the entry keeps its
+//! placeholder.
 
 use opensesame_invoke_through::source_tool;
+use opensesame_plugin_settings::takes_stored_credential;
 use serde::Serialize;
 use serde_json::Value;
 use zeroize::Zeroizing;
 
 use crate::dev_run::login::LoginSource;
+use crate::dev_surrogate::PLUGIN_ID;
 
 /// The sealed-store folder connection credentials live in.
 pub(crate) const FOLDER: &str = "connections";
@@ -75,10 +84,26 @@ pub(crate) fn store_path_of(connection_ref: &str) -> Option<String> {
         .then(|| format!("{FOLDER}/{}", segments.join("/")))
 }
 
-/// Whether a connection of `provider_id` takes its token from the store: the
-/// plugin has no local tool to draw one from.
-fn wants_stored(provider_id: &str) -> bool {
-    source_tool(provider_id).is_none()
+/// Where the plugin gets the credential for a connection of one provider.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Credential {
+    /// A local tool yields it (`gh auth token`): nothing is read from the store.
+    LocalTool,
+    /// The connection's own, sealed under `connections/`.
+    Stored,
+    /// The plugin has no egress rule for the provider. Nothing can serve it, so
+    /// nothing is read and nothing is stored for it.
+    Unserved,
+}
+
+fn credential_of(provider_id: &str) -> Credential {
+    if source_tool(provider_id).is_some() {
+        Credential::LocalTool
+    } else if takes_stored_credential(PLUGIN_ID, provider_id) {
+        Credential::Stored
+    } else {
+        Credential::Unserved
+    }
 }
 
 /// `(env_var, connection_ref, store_path)` for each requested entry whose
@@ -90,7 +115,8 @@ fn stored_entries(requested: &[Value]) -> Vec<(&str, &str, String)> {
         .filter_map(|entry| {
             let env_var = entry["env_var"].as_str()?;
             let connection_ref = entry["connection_ref"].as_str()?;
-            wants_stored(entry["provider_id"].as_str()?).then_some(())?;
+            let provider_id = entry["provider_id"].as_str()?;
+            (credential_of(provider_id) == Credential::Stored).then_some(())?;
             let path = store_path_of(connection_ref)?;
             seen.insert(connection_ref)
                 .then_some((env_var, connection_ref, path))
@@ -133,10 +159,25 @@ pub(crate) fn resolve(
         .collect()
 }
 
+/// `(env_var, provider_id)` for each requested entry the plugin has no rule
+/// for. It keeps its placeholder whatever the store holds.
+fn unserved_entries(requested: &[Value]) -> impl Iterator<Item = (&str, &str)> {
+    requested.iter().filter_map(|entry| {
+        let env_var = entry["env_var"].as_str()?;
+        let provider_id = entry["provider_id"].as_str()?;
+        (credential_of(provider_id) == Credential::Unserved).then_some((env_var, provider_id))
+    })
+}
+
 /// One line for each requested connection that needs a stored token and has
-/// none, saying where to put it. Reads nothing.
+/// none, saying where to put it, and one for each that nothing can serve,
+/// saying so. Reads nothing.
+///
+/// Each line leads with the variable and puts no colon after it: a message
+/// that begins `VERCEL_TOKEN: …` has the shape the log scrubber (ADR 0157)
+/// replaces.
 pub(crate) fn missing(requested: &[Value], source: &dyn LoginSource) -> Vec<String> {
-    stored_entries(requested)
+    let stored = stored_entries(requested)
         .into_iter()
         .filter(|(_, _, path)| !source.holds(path))
         .map(|(env_var, _, path)| {
@@ -144,8 +185,14 @@ pub(crate) fn missing(requested: &[Value], source: &dyn LoginSource) -> Vec<Stri
                 "{env_var} has no token to redeem: store one with \
                  'opensesame pass insert {path}' (this provider draws none from a local tool)"
             )
-        })
-        .collect()
+        });
+    let unserved = unserved_entries(requested).map(|(env_var, provider_id)| {
+        format!(
+            "{env_var} will keep its placeholder: the surrogate-proxy plugin brokers no \
+             '{provider_id}' connection, so a stored token would not be used"
+        )
+    });
+    stored.chain(unserved).collect()
 }
 
 #[cfg(test)]

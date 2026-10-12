@@ -133,6 +133,83 @@ fn a_connection_with_no_entry_keeps_its_placeholder_and_reads_nothing() {
     );
 }
 
+fn aws() -> Value {
+    entry("AWS_TOKEN", "aws", "conn://acme/aws")
+}
+
+#[test]
+fn a_provider_the_plugin_has_no_rule_for_is_never_read_even_when_an_entry_exists() {
+    let store = Store::holding("connections/acme/aws", TOKEN);
+    assert!(resolve(&[aws()], &store).unwrap().is_empty());
+    assert!(store.reads.borrow().is_empty());
+}
+
+#[test]
+fn a_provider_nothing_can_serve_is_told_so_and_not_asked_for_a_token() {
+    for store in [
+        Store::default(),
+        Store::holding("connections/acme/aws", TOKEN),
+    ] {
+        let lines = missing(&[aws()], &store);
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(
+            lines[0].starts_with("AWS_TOKEN will keep its placeholder"),
+            "{lines:?}"
+        );
+        assert!(
+            lines[0].contains("brokers no 'aws' connection"),
+            "{lines:?}"
+        );
+        assert!(!lines[0].contains("pass insert"), "{lines:?}");
+        assert_eq!(opensesame_redaction::redact_text(&lines[0]), lines[0]);
+        assert!(store.reads.borrow().is_empty());
+    }
+}
+
+#[test]
+fn a_run_of_three_providers_reads_one_and_names_what_the_others_do() {
+    // The store holds a token for every one of them; only vercel's is read.
+    let mut store = Store::holding(ENTRY, TOKEN);
+    store
+        .entries
+        .insert("connections/acme/aws".into(), TOKEN.into());
+    store
+        .entries
+        .insert("connections/acme/github".into(), TOKEN.into());
+    let github = entry("GITHUB_TOKEN", "github", "conn://acme/github");
+    let requested = [vercel(), aws(), github];
+    assert_eq!(resolve(&requested, &store).unwrap().len(), 1);
+    assert_eq!(*store.reads.borrow(), [ENTRY]);
+    // Vercel holds its entry and github draws its token from a local tool, so
+    // the only thing to say is that nothing serves aws.
+    let lines = missing(&requested, &store);
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].starts_with("AWS_TOKEN "), "{lines:?}");
+}
+
+#[test]
+fn every_provider_the_plugin_catalog_lists_is_read_from_the_store() {
+    let row = opensesame_plugin_settings::catalog()
+        .into_iter()
+        .find(|plugin| plugin.id == "surrogate-proxy")
+        .expect("the catalog row");
+    assert!(!row.stored_credential_providers.is_empty());
+    for provider in &row.stored_credential_providers {
+        let path = format!("connections/acme/{provider}");
+        let store = Store::holding(&path, TOKEN);
+        let listed = entry("SOME_TOKEN", provider, &format!("conn://acme/{provider}"));
+        assert_eq!(resolve(&[listed], &store).unwrap().len(), 1, "{provider}");
+        assert_eq!(*store.reads.borrow(), [path], "{provider}");
+    }
+}
+
+#[test]
+fn the_hint_to_store_a_token_survives_the_scrubber() {
+    let lines = missing(&[vercel()], &Store::default());
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert_eq!(opensesame_redaction::redact_text(&lines[0]), lines[0]);
+}
+
 #[test]
 fn a_held_entry_is_not_reported_missing() {
     let store = Store::holding(ENTRY, TOKEN);

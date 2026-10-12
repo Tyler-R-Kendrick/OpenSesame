@@ -69,6 +69,42 @@ fn with_no_sealed_entry_the_run_keeps_its_placeholder_and_says_where_to_store_on
 
 #[test]
 #[ignore = "needs the plugin's test build: scripts/test/proxied-run-test.sh"]
+fn a_connection_the_plugin_has_no_rule_for_is_never_read_and_the_run_says_why() {
+    let sandbox = Sandbox::new();
+    sandbox.install_plugin();
+    sandbox.init_store();
+    // The store holds a token for it. Nothing can serve aws, so nothing may
+    // read that entry: a passphrase that opens nothing must not fail the run,
+    // and the person is not told to store a token that would not be used.
+    sandbox.seal("connections/acme/aws", &sandbox.token);
+    sandbox.write_schema(
+        "AWS_TOKEN=opensesameConnection(conn://acme/aws, projection=legacy-token, \
+         paths=\"/v1/sts\", methods=\"GET\")",
+    );
+    let mut options = RunOptions::new(None, Vec::new());
+    options.passphrase = "not-the-passphrase";
+    let finished = sandbox.run(&options);
+    let stderr = finished.stderr();
+    // The message the person reads has been through no scrubber that changes
+    // it: the variable, the provider and the reason all arrive.
+    assert!(
+        stderr.contains(
+            "AWS_TOKEN will keep its placeholder: the surrogate-proxy plugin brokers no \
+             'aws' connection, so a stored token would not be used"
+        ),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("pass insert"), "{stderr}");
+    assert_eq!(finished.code(), Some(0), "{stderr}");
+    assert!(finished.child_ran());
+    let env = finished.env();
+    assert!(env["AWS_TOKEN"].starts_with("ostest_"), "{env:?}");
+    assert!(!env.contains_key("HTTPS_PROXY"), "no proxy was set");
+    assert_eq!(sandbox.leaks(&sandbox.token), Vec::<String>::new());
+}
+
+#[test]
+#[ignore = "needs the plugin's test build: scripts/test/proxied-run-test.sh"]
 fn with_the_plugin_off_the_token_is_never_read_and_the_run_says_the_plugin_exists() {
     let sandbox = ready();
     sandbox.cli_ok(&["plugins", "disable", "surrogate-proxy"]);

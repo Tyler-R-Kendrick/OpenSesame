@@ -156,7 +156,7 @@ rotate it at the provider and `pass rm`, then `pass insert`, the entry.
 | The plugin changed since it was pinned | The run fails: `the surrogate-proxy plugin no longer matches its install pin; reinstall it or run 'opensesame plugins disable surrogate-proxy'`. There is no fallback to placeholders |
 | No `paths=` | The plugin refuses: `VERCEL_TOKEN has no bounded scope. Declare what the child may reach on its env-spec entry, for example paths="/repos/acme,/user" and methods="GET"`. Nothing is issued |
 | `paths=` without `methods=` | The schema fails: `VERCEL_TOKEN cannot be delivered: paths= needs methods= beside it: …` |
-| A connection that is not `vercel` or `github` | Keeps its placeholder and no proxy is set: the plugin has no egress rule for it. With no sealed entry it still prints the `has no token to redeem` line, which does not mean that storing one would help |
+| A connection that is not `vercel` or `github` | Keeps its placeholder and no proxy is set: the plugin has no egress rule for it. The run says so, `opensesame: AWS_TOKEN will keep its placeholder: the surrogate-proxy plugin brokers no 'aws' connection, so a stored token would not be used`, whether or not the store holds an entry, and the store is never opened for it |
 
 GitHub works the same way with no `pass insert`: the plugin takes its token
 from `gh auth token`.
