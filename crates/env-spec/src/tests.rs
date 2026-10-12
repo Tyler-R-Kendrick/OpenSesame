@@ -234,7 +234,10 @@ fn a_paths_declaration_without_methods_fails_the_resolve_instead_of_granting_wri
     let error = resolve_scoped(r#",{"key":"paths","value":"/user"}"#)
         .expect_err("paths= alone must not default to write methods");
     let text = error.to_string();
-    assert!(text.starts_with("GITHUB_TOKEN: "), "{text}");
+    assert!(
+        text.starts_with("GITHUB_TOKEN cannot be delivered: "),
+        "{text}"
+    );
     assert!(text.contains("methods="), "{text}");
 }
 
@@ -256,7 +259,10 @@ fn a_paths_declaration_that_does_not_bound_the_surrogate_fails_the_resolve() {
         let error = resolve_scoped(&format!(r#",{{"key":"paths","value":"{bad}"}}"#))
             .expect_err(&format!("{bad:?} must be refused"));
         let text = error.to_string();
-        assert!(text.starts_with("GITHUB_TOKEN: "), "{text}");
+        assert!(
+            text.starts_with("GITHUB_TOKEN cannot be delivered: "),
+            "{text}"
+        );
         assert!(text.contains("paths="), "{text}");
     }
 }
