@@ -3,6 +3,7 @@
  */
 
 import { b64urlToBytes } from "@opensesame/vault-core";
+import { sessionStore } from "../../ports.js";
 import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 
@@ -57,7 +58,7 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
 
 export function readCliAppIntegrationBearer(): string | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = sessionStore().getItem(SESSION_KEY);
     return raw && SECRET.test(raw) ? raw : null;
   } catch {
     return null;
@@ -67,9 +68,9 @@ export function readCliAppIntegrationBearer(): string | null {
 export function writeCliAppIntegrationBearer(token: string): void {
   if (!SECRET.test(token)) return;
   try {
-    sessionStorage.setItem(SESSION_KEY, token);
+    sessionStore().setItem(SESSION_KEY, token);
   } catch {
-    // sessionStorage unavailable
+    // session store unavailable
   }
 }
 
