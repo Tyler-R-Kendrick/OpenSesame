@@ -104,7 +104,7 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
                 "terminalSessionId": derived,
                 "decision": "approve",
                 "respondNonce": nonce,
-                "humanProof": "human-proof-from-test-harness",
+                "humanProof": "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
             })
             .to_string(),
         ))
@@ -187,7 +187,7 @@ async fn tcp_ensure_never_reuses_approval() {
                 "terminalSessionId": correlation,
                 "decision": "approve",
                 "respondNonce": nonce,
-                "humanProof": "human-proof-from-test-harness",
+                "humanProof": "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
             })
             .to_string(),
         ))
