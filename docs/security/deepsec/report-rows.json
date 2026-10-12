@@ -1,0 +1,105 @@
+{
+  "stats": {
+    "other": {
+      "analyzed": 0,
+      "pending": 0,
+      "error": 0,
+      "skipped": 117,
+      "candidates": 182,
+      "findings": 0,
+      "filesWithCandidates": 117,
+      "filesClearedAtInvestigate": 0,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    },
+    "core": {
+      "analyzed": 1,
+      "pending": 0,
+      "error": 0,
+      "skipped": 1356,
+      "candidates": 2365,
+      "findings": 1,
+      "filesWithCandidates": 1357,
+      "filesClearedAtInvestigate": 0,
+      "bySeverity": {
+        "LOW": 1
+      },
+      "byVerdict": {
+        "true-positive": 1
+      },
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 1,
+        "skip": 0
+      }
+    },
+    "pwa": {
+      "analyzed": 0,
+      "pending": 0,
+      "error": 0,
+      "skipped": 403,
+      "candidates": 529,
+      "findings": 0,
+      "filesWithCandidates": 403,
+      "filesClearedAtInvestigate": 0,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    },
+    "cli": {
+      "analyzed": 0,
+      "pending": 0,
+      "error": 0,
+      "skipped": 13,
+      "candidates": 51,
+      "findings": 0,
+      "filesWithCandidates": 13,
+      "filesClearedAtInvestigate": 0,
+      "bySeverity": {},
+      "byVerdict": {},
+      "byTriage": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "skip": 0
+      }
+    }
+  },
+  "triageTotals": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 1,
+    "skip": 0
+  },
+  "rows": [
+    {
+      "area": "core",
+      "id": "finding_4300c6fb5550b0a2",
+      "severity": "LOW",
+      "filePath": "packages/app-core/src/lib/vault/store.ts",
+      "lines": "788,801,840,854,858,874,714,806",
+      "title": "In-flight second-step confirmation survives challenge cancellation/expiry and activates the session anyway",
+      "slug": "other-race-condition",
+      "verdict": "true-positive",
+      "reasoning": "Verified against packages/app-core/src/lib/vault/store.ts. confirmTotp (L788-804), confirmRemoteCode (L840-855) and rede",
+      "triage": "P2"
+    }
+  ],
+  "investigateWave2": {
+    "marker": 2,
+    "filesComplete": 4,
+    "filesTracked": 1890
+  }
+}
