@@ -456,7 +456,7 @@ fn router(state: App) -> Router {
             "/v1/mint",
             post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
         )
-        .merge(cli_app_integration::routes())
+        .merge(cli_app_integration::routes(&state))
         .route("/v1/toolbar/status", get(toolbar::toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
