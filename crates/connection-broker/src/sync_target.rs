@@ -5,6 +5,9 @@
 //! invokes provider egress (`env.set` / `secrets.sync`). Catalog `doppler` is a
 //! `SaaS` connector — not this path — and nothing shells out to the Doppler CLI.
 
+#[path = "sync_target_authority.rs"]
+mod authority;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -216,10 +219,8 @@ fn operation_allowed(provider_id: &str, operation: &str) -> Result<()> {
 }
 
 impl ConnectionBroker {
-    /// # Errors
-    ///
-    /// Returns an error when validation, ownership, encryption, or storage fails.
-    pub async fn create_sync_target(
+    /// Insert metadata only. Callers must persist explicit authority separately.
+    async fn insert_sync_target_unapproved(
         &self,
         organization_id: &OrganizationId,
         request: CreateSyncTarget,
@@ -334,6 +335,7 @@ impl ConnectionBroker {
         if !store::delete_sync_target(&self.pool, &organization_id.to_string(), id).await? {
             return Err(BrokerError::SyncTargetNotFound);
         }
+        self.remove_sync_target_authority(id).await?;
         Ok(())
     }
 
@@ -349,6 +351,8 @@ impl ConnectionBroker {
         secrets: Arc<dyn SyncSecretSource>,
     ) -> Result<SyncOutcome> {
         let row = self.sync_target_in_org(organization_id, id).await?;
+        self.require_sync_target_authority(organization_id, &row)
+            .await?;
         if SyncTargetStatus::parse(&row.status) == SyncTargetStatus::Syncing {
             return Err(BrokerError::Invalid(
                 "sync already in progress for this target".into(),
@@ -489,6 +493,8 @@ impl ConnectionBroker {
     ) -> Result<String> {
         let target = self.sync_target_in_org(organization_id, target_id).await?;
         let key = *self.sealing_key()?;
+        self.require_sync_target_authority(organization_id, &target)
+            .await?;
         let entries = secrets
             .load_config_secrets(
                 &organization_id.to_string(),
@@ -496,7 +502,9 @@ impl ConnectionBroker {
                 &target.config_id,
             )
             .await?;
-        Ok(content_version_for(&key, &target.id, &entries))
+        self.require_sync_target_authority(organization_id, &target)
+            .await?;
+        Ok(authority::content_version_for(&key, &target.id, &entries))
     }
 
     async fn sync_target_in_org(
@@ -547,6 +555,8 @@ impl ConnectionBroker {
             return Err(BrokerError::NeedsReauth("access token missing".into()));
         }
 
+        self.require_sync_target_authority(organization_id, target)
+            .await?;
         let entries = secrets
             .load_config_secrets(
                 &organization_id.to_string(),
@@ -554,8 +564,11 @@ impl ConnectionBroker {
                 &target.config_id,
             )
             .await?;
+        // Do not export a snapshot when authority was revoked during loading.
+        self.require_sync_target_authority(organization_id, target)
+            .await?;
         let key_names: Vec<String> = entries.keys().cloned().collect();
-        let content_version = content_version_for(&key, &target.id, &entries);
+        let content_version = authority::content_version_for(&key, &target.id, &entries);
 
         self.invoke_env_sync(
             &target.provider_id,
@@ -700,35 +713,6 @@ fn env_sync_provider_supported(provider_id: &str) -> bool {
     matches!(provider_id, "vercel" | "railway")
 }
 
-/// Change fingerprint for a synced key set (v2).
-///
-/// v1 hashed key names only, so pure value changes were invisible and any
-/// consumer that skipped "unchanged" content versions would skip real
-/// updates. v2 is an HMAC over the resolved entries, keyed by the deployment
-/// seal key: value-sensitive (including changes that arrive through secret
-/// references), deterministic, and useless to an offline brute-forcer who
-/// only sees the fingerprint.
-fn content_version_for(
-    seal_key: &[u8; 32],
-    target_id: &str,
-    entries: &BTreeMap<String, String>,
-) -> String {
-    use hmac::{Hmac, Mac};
-    use sha2::Sha256;
-    let mut mac =
-        <Hmac<Sha256> as Mac>::new_from_slice(seal_key).expect("hmac accepts 32-byte keys");
-    mac.update(target_id.as_bytes());
-    mac.update(b"|");
-    for (name, value) in entries {
-        mac.update(name.as_bytes());
-        mac.update(b"=");
-        mac.update(value.as_bytes());
-        mac.update(b"\0");
-    }
-    let digest = mac.finalize().into_bytes();
-    let hex = hex::encode(digest);
-    format!("cv2_{hex}")
-}
 
 #[cfg(test)]
 mod unit_tests {
@@ -747,8 +731,8 @@ mod unit_tests {
         let entries: BTreeMap<String, String> = [("FOO".to_string(), "one".to_string())]
             .into_iter()
             .collect();
-        let a = content_version_for(&key, "t1", &entries);
-        let b = content_version_for(&key, "t1", &entries);
+        let a = super::authority::content_version_for(&key, "t1", &entries);
+        let b = super::authority::content_version_for(&key, "t1", &entries);
         assert_eq!(a, b);
         assert!(a.starts_with("cv2_"));
         // A value change alone changes the fingerprint (the v1 names-only
@@ -756,10 +740,10 @@ mod unit_tests {
         let changed: BTreeMap<String, String> = [("FOO".to_string(), "two".to_string())]
             .into_iter()
             .collect();
-        assert_ne!(a, content_version_for(&key, "t1", &changed));
+        assert_ne!(a, super::authority::content_version_for(&key, "t1", &changed));
         // Keyed: without the deployment seal key the fingerprint differs, so
         // the stored value cannot be brute-forced from the fingerprint alone.
-        assert_ne!(a, content_version_for(&[8u8; 32], "t1", &entries));
+        assert_ne!(a, super::authority::content_version_for(&[8u8; 32], "t1", &entries));
         // The fingerprint never embeds the value.
         assert!(!a.contains("one"));
     }
