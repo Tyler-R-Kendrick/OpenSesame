@@ -29,6 +29,10 @@ asks for the name to be typed back. Settings already has that place
    organizations and disabled people are refused (`lib/vault-ownership.ts`).
    On the Identity API the recipient must be an *active* principal who is
    already a member of the project; a provisional principal is a guest.
+   The person handing it over may be the custodian of a vault sealed without
+   an account, whose owner person is a guest-named placeholder: only the
+   recipient must be registered. That placeholder becomes a member, since a
+   guest cannot be an admin.
 3. **The recipient becomes owner; the previous owner stays on as an admin.**
    The recipient is promoted first, so the directory never has no owner
    between the two writes, and both run under one directory lock.
