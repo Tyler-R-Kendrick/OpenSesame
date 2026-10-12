@@ -18,14 +18,24 @@
  * over — the link closes, so the owner sees the seat go — and the person may
  * ask again with a fresh request.
  *
- * Everything it receives lives in memory. When the channel closes — the
- * owner ended it, the time ran out, the owner's tab went away, or this
- * person left — the catalog and every value are dropped.
+ * Everything it receives lives in memory, dropped when the channel closes.
+ * A device (ADR 0195) joins the same way, and over a relay alone when it has
+ * no WebRTC: it makes no offer, and asks the owner's tab for connections.
  */
 
 import { type ChannelRequest, ChannelRequests } from "./channel-requests.js";
+import {
+  type DeviceMessage,
+  type DeviceRequest,
+  isDeviceMessage,
+} from "./device-messages.js";
 import { Greeter } from "./greeting.js";
-import type { LiveLink } from "./link.js";
+import {
+  CONNECTING_TIMEOUT_MS,
+  FALLBACK_MS,
+  type GuestOptions,
+  type GuestStatus,
+} from "./guest-types.js";
 import {
   type Catalog,
   type ChannelMessage,
@@ -34,54 +44,14 @@ import {
   characters,
   cleanText,
 } from "./messages.js";
-import type { NatsSession } from "./nats-route.js";
-import type { DialLink, LiveChannel, PeerTransport } from "./p2p.js";
+import type { DialLink, LiveChannel } from "./p2p.js";
 import { makeRequestCode, openReplyCode } from "./pairing.js";
-import type { Carrier } from "./rendezvous.js";
+import { Reposter } from "./repost.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
 import { SeatChannel, seatName } from "./seat-channel.js";
 
-/** How often an unanswered request is posted again on the carriers. */
-const REPOST_MS = 20_000;
-const REPOSTS = 30;
-
-/** How long a relayed seat gives the peer route before moving to the relay. */
-export const FALLBACK_MS = 8000;
-
-/** From the owner's reply to the catalog, before the attempt is given up. */
-export const CONNECTING_TIMEOUT_MS = 60_000;
-
-/** The carriers a joiner posts on, when the link names any. */
-export type GuestCarriers = Readonly<{
-  post(code: string): Promise<void>;
-  close(): void;
-  /** A seat's channel on a carrier that may carry the session, if any. */
-  seat?: (name: string) => Carrier | null;
-  /** How the link's NATS carrier carries the session; `off` without one. */
-  session?: NatsSession;
-}>;
-
-export type GuestStatus =
-  | Readonly<{ at: "preparing" }>
-  | Readonly<{ at: "request"; code: string }>
-  | Readonly<{ at: "connecting" }>
-  /** No catalog in time: the link is closed, and the person may ask again. */
-  | Readonly<{ at: "connect_timeout" }>
-  | Readonly<{ at: "joined"; catalog: Catalog }>
-  /** The browsers found no route to each other. */
-  | Readonly<{ at: "unreachable" }>
-  | Readonly<{ at: "ended" }>;
-
-export type GuestOptions = Readonly<{
-  link: LiveLink;
-  /** The normalized code for an invite session; null for an open one. */
-  code: string | null;
-  name: string;
-  note: string;
-  /** What carries the session, over the routes the person agreed to. */
-  transport: PeerTransport;
-  carriers?: GuestCarriers | null;
-}>;
+export { CONNECTING_TIMEOUT_MS, FALLBACK_MS } from "./guest-types.js";
+export type * from "./guest-types.js";
 
 export class LiveGuest {
   readonly #listeners = new Set<(status: GuestStatus) => void>();
@@ -97,7 +67,8 @@ export class LiveGuest {
   #fallback: ReturnType<typeof setTimeout> | null = null;
   #connectTimer: ReturnType<typeof setTimeout> | null = null;
   #keys: Keypair | null = null;
-  #repost: ReturnType<typeof setInterval> | null = null;
+  readonly #reposts = new Reposter();
+  #device: ((message: DeviceMessage) => void) | null = null;
 
   constructor(private readonly options: GuestOptions) {}
 
@@ -137,19 +108,27 @@ export class LiveGuest {
     }
   }
 
+  /** The peer link a request offers, or null on a relay route (no offer). */
+  async #dial(): Promise<DialLink | null> {
+    const { transport, route } = this.options;
+    if (route === "relay") return null;
+    if (!transport) throw new Error("join_transport_required");
+    return transport.dial();
+  }
+
   async #ask(): Promise<string> {
-    const { link, code, name, note, transport } = this.options;
+    const { link, code, name, note, kind, route } = this.options;
     const keys = this.#keys;
     if (!keys) return "";
-    const peer = await transport.dial();
+    const peer = await this.#dial();
     if (this.#over()) {
       // Left while the transport was dialing: `#finish` found no link.
-      peer.channel.catch(() => undefined);
-      peer.close();
+      peer?.channel.catch(() => undefined);
+      peer?.close();
       return "";
     }
     this.#peer = peer;
-    peer.channel.then(
+    peer?.channel.then(
       (channel) => {
         if (this.#peer === peer) this.#connected(channel);
         else channel.close();
@@ -162,8 +141,12 @@ export class LiveGuest {
       id: this.#id,
       name: cleanText(name),
       note: cleanText(note),
-      offer: peer.handshake,
+      offer: peer?.handshake ?? "",
       greets: true,
+      // Said only when not the default, so an owner from before them still
+      // reads an ordinary request.
+      ...(kind === "device" ? { kind } : {}),
+      ...(route === "relay" ? { route } : {}),
     });
     if (this.#status.at === "preparing") {
       this.#to({ at: "request", code: request });
@@ -177,20 +160,10 @@ export class LiveGuest {
     const { carriers } = this.options;
     if (!carriers) return;
     void carriers.post(request);
-    let left = REPOSTS;
-    this.#repost = setInterval(() => {
-      left -= 1;
-      // Answered, or enough reposts: stop posting, but keep listening — the
-      // owner may answer long after, and a reply on a closed carrier is
-      // heard by nobody.
-      if (this.#status.at !== "request" || left <= 0) this.#stopReposts();
-      else void carriers.post(request);
-    }, REPOST_MS);
-  }
-
-  #stopReposts(): void {
-    if (this.#repost) clearInterval(this.#repost);
-    this.#repost = null;
+    this.#reposts.start(
+      () => void carriers.post(request),
+      () => this.#status.at === "request",
+    );
   }
 
   /**
@@ -198,7 +171,7 @@ export class LiveGuest {
    * A seat that may move to one of them keeps them, and they close with it.
    */
   #release(): void {
-    this.#stopReposts();
+    this.#reposts.stop();
     if (!this.#relayed) this.options.carriers?.close();
   }
 
@@ -206,7 +179,9 @@ export class LiveGuest {
   async accept(text: string): Promise<boolean> {
     const keys = this.#keys;
     const peer = this.#peer;
-    if (this.#status.at !== "request" || !peer || !keys) return false;
+    const relayOnly = this.options.route === "relay";
+    if (this.#status.at !== "request" || !keys) return false;
+    if (!peer && !relayOnly) return false;
     const { link, code, transport } = this.options;
     const reply = await openReplyCode(
       link,
@@ -214,21 +189,32 @@ export class LiveGuest {
       keys,
       this.#id,
       text,
-      transport.readsAnswer,
+      transport?.readsAnswer ?? (() => false),
     );
     if (!reply || this.#status.at !== "request" || this.#peer !== peer)
       return false;
+    // A relay-only request is answered by the relay or not at all; and an
+    // answer-less reply is no answer to one that offered a peer route.
+    if (relayOnly !== (reply.answer === "")) return false;
     return this.#connectWithReply(peer, reply);
   }
 
-  async #connectWithReply(peer: DialLink, reply: JoinReply): Promise<boolean> {
+  async #connectWithReply(
+    peer: DialLink | null,
+    reply: JoinReply,
+  ): Promise<boolean> {
     const session = this.options.carriers?.session ?? "off";
     this.#relayed = reply.relay === "nats" && session !== "off";
+    if (!peer && !this.#relayed) {
+      // Nothing to meet the owner over: this side has no peer route either.
+      this.#finish({ at: "unreachable" });
+      return false;
+    }
     // The carriers stay open until the catalog comes: asking again uses them.
-    this.#stopReposts();
+    this.#reposts.stop();
     this.#to({ at: "connecting" });
     this.#armConnectTimeout();
-    if (this.#relayed && session === "always") {
+    if (!peer || (this.#relayed && session === "always")) {
       void this.#toRelay();
       return true;
     }
@@ -318,6 +304,19 @@ export class LiveGuest {
     else if (message.t === "end") this.#finish();
     else if (message.t === "value" || message.t === "denied")
       this.#requests.answer(message);
+    else if (isDeviceMessage(message)) this.#device?.(message);
+  }
+
+  /** Hear the owner's answers to a device's asks (ADR 0195). */
+  onDevice(handler: (message: DeviceMessage) => void): void {
+    this.#device = handler;
+  }
+
+  /** Send a device's ask; false unless in the session with the frame sent. */
+  sendDevice(request: DeviceRequest): boolean {
+    const channel = this.#channel;
+    if (this.#status.at !== "joined" || !channel) return false;
+    return channel.send(request);
   }
 
   /** The first catalog is the session; a later one answered a greeting. */
