@@ -1,4 +1,8 @@
 import { expect } from "@playwright/test";
+import {
+  openIdentityRecord,
+  openIdentityView,
+} from "./local-directory-navigation.mjs";
 
 // The directory's own refusal (`requireOwners`,
 // packages/app-core/src/lib/local-directory-memberships.ts).
@@ -73,15 +77,9 @@ export async function localMemberOrganizationsContract(page, tabTo) {
 }
 
 async function signInOwner(page, tabTo) {
-  await tabTo(page, page.getByRole("tab", { name: "People", exact: true }));
-  await page.keyboard.press("Enter");
-  const people = page.getByRole("region", {
-    name: "Local people",
-    exact: true,
-  });
-  const person = people.getByRole("listitem").filter({
-    has: page.getByRole("heading", { name: "Membership owner", exact: true }),
-  });
+  await openIdentityView(page, tabTo, "People");
+  await openIdentityRecord(page, tabTo, "Membership owner");
+  const person = page.locator(".record-workspace .vault__detail");
   await tabTo(page, person.locator("summary", { hasText: "Passkeys" }));
   await page.keyboard.press("Enter");
   const enroll = person.getByRole("button", {

@@ -118,6 +118,11 @@ export function LiveJoinGate({
   const allowed = state?.distributed === true && state.permitted;
   const notAllowed = snapshot.plan !== null && !allowed && !approved;
 
+  // Keep the link in memory across consent and navigation (ADR 0150).
+  useEffect(() => {
+    if (link) liveJoinGateSeams.holdLiveLink(link);
+  }, [link]);
+
   // Already on: straight to the join screen, with the link.
   useEffect(() => {
     if (!approved) return;
@@ -139,6 +144,7 @@ export function LiveJoinGate({
         proposal,
       );
       setNotice(outcome);
+      if (!outcome && link) liveJoinGateSeams.holdLiveLink(link);
       // The approved plan brings the route; the effect above then opens it.
     } finally {
       setBusy(false);

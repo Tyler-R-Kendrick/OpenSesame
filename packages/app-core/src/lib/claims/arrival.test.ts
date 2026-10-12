@@ -4,7 +4,7 @@
  * address: a claim in memory and in the tab's stash, a drop in memory only,
  * a leaked bearer refused — and nothing read on any other path.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { emitVaultLock } from "../vault/lock-events.js";
@@ -14,6 +14,7 @@ import {
   claimPath,
   forgetClaim,
   peekClaimArrival,
+  rememberClaimArrival,
   resetClaimArrivalForTests,
   takeClaimArrival,
 } from "./arrival.js";
@@ -21,6 +22,10 @@ import { claimStash } from "./stash.js";
 
 const TOKEN = "osc_clm_pub.secret"; // gitleaks:allow -- synthetic claim-shaped test vector
 const KEY = "a2V5LW1hdGVyaWFs"; // gitleaks:allow -- synthetic drop key test vector
+
+beforeEach(() => {
+  configureHost(createTestHost());
+});
 
 afterEach(() => {
   history.replaceState(null, "", "/");
@@ -119,16 +124,38 @@ describe("captureClaimArrivalFromPage", () => {
   });
 });
 
+describe("rememberClaimArrival", () => {
+  it("keeps a pasted claim in the stash and a pasted drop in memory only", () => {
+    rememberClaimArrival({ kind: "claim", token: TOKEN });
+    expect(peekClaimArrival()).toEqual({ kind: "claim", token: TOKEN });
+    expect(claimStash.read()).toMatchObject({
+      token: TOKEN,
+      presented: false,
+    });
+    rememberClaimArrival({ kind: "drop", token: TOKEN, key: KEY });
+    expect(peekClaimArrival()).toEqual({
+      kind: "drop",
+      token: TOKEN,
+      key: KEY,
+    });
+    expect(claimStash.read()).toMatchObject({ token: TOKEN });
+    const stored = JSON.stringify({ ...sessionStorage, ...localStorage });
+    expect(stored).not.toContain(KEY);
+    rememberClaimArrival({ kind: "none" });
+    expect(peekClaimArrival().kind).toBe("drop");
+  });
+});
+
 describe("forgetting a claim", () => {
   it("sign-out forgets the arrival and the stashed bearer", () => {
-    history.replaceState(null, "", `/claim#token=${TOKEN}`);
+    history.replaceState(null, "", `/claim#token=${TOKEN}&key=${KEY}`);
     captureClaimArrivalFromPage();
     forgetClaim();
     expect(peekClaimArrival()).toEqual({ kind: "none" });
     expect(claimStash.read()).toBeNull();
   });
 
-  it("every vault lock purges the arrival and the stash (D6)", () => {
+  it("a vault lock purges an ownership claim and keeps a drop in memory", () => {
     const unbind = bindClaimLockReset();
     history.replaceState(null, "", `/claim#token=${TOKEN}`);
     captureClaimArrivalFromPage();
@@ -139,6 +166,17 @@ describe("forgetting a claim", () => {
     history.replaceState(null, "", `/claim#token=${TOKEN}&key=${KEY}`);
     captureClaimArrivalFromPage();
     emitVaultLock();
+    expect(peekClaimArrival()).toEqual({
+      kind: "drop",
+      token: TOKEN,
+      key: KEY,
+    });
+    expect(claimStash.read()).toBeNull();
+    const stored = JSON.stringify({ ...sessionStorage, ...localStorage });
+    expect(stored).not.toContain(KEY);
+    expect(stored).not.toContain(TOKEN);
+    // Sign-out still ends the drop. The key never landed in storage.
+    forgetClaim();
     expect(peekClaimArrival()).toEqual({ kind: "none" });
     unbind();
     // Unbound: a lock no longer reaches it.

@@ -1,0 +1,43 @@
+{
+  "status": "expected-regression-reproduced",
+  "deploymentProfile": "dedicated_origin",
+  "protocol": [
+    {
+      "service": "HashiCorp Vault 1.21.4",
+      "issuer": "oidc-provider 9.11.2",
+      "pkce": "S256",
+      "realTokenIssued": true,
+      "authorizedRead": true,
+      "policyDenial": true,
+      "callbackReplayDenied": true,
+      "revokedTokenDenied": true
+    },
+    {
+      "service": "OpenBao 2.3.2",
+      "issuer": "oidc-provider 9.11.2",
+      "pkce": "S256",
+      "realTokenIssued": true,
+      "authorizedRead": true,
+      "policyDenial": true,
+      "callbackReplayDenied": true,
+      "revokedTokenDenied": true
+    }
+  ],
+  "ui": [
+    {
+      "label": "desktop",
+      "expectedRegressionReproduced": true,
+      "independentRootLookupConfirmsValidToken": true,
+      "providerRecoveryRegions": 0,
+      "removeActions": 0
+    },
+    {
+      "label": "phone",
+      "expectedRegressionReproduced": true,
+      "independentRootLookupConfirmsValidToken": true,
+      "providerRecoveryRegions": 0,
+      "removeActions": 0
+    }
+  ],
+  "staticServerOriginatorRouting": false
+}

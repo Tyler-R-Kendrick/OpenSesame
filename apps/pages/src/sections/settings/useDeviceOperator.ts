@@ -1,5 +1,5 @@
 /**
- * Whether the person in front of Settings › Capabilities operates this
+ * Whether the person in front of Settings › Features operates this
  * device's installation: a personal-local policy, the personal tomb, not a
  * guest. The instance policy and Allow guests are theirs alone; a member of
  * a managed instance, a project tomb or a guest never sees either control —

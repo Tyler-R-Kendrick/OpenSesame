@@ -1,6 +1,6 @@
 # ADR 0099: Explicit short-lived local agent launch capabilities
 
-Status: accepted
+Status: Accepted
 
 ## Context
 

@@ -21,6 +21,11 @@ the command that produced it. Anything that could not run says why.
 | Relevant resolved libraries | rustls 0.23.43 (ring provider), tokio-rustls 0.26.4, rustls-webpki 0.103.13, async-nats 0.50.0, nkeys 0.4.5, spiffe 0.16.1, sfv 0.15.0, oidc-provider 9.11.2, structured-headers 2.1.0 |
 | Pinned disposable servers | nats-server 2.11.17, OpenBao 2.3.2, SPIRE 1.12.6, Caddy 2.11.4 — all fetched and sha256-verified by `scripts/mtls/mtls-fixtures.sh`; pinned for linux-amd64 and linux-arm64 (the arm64 set added 2026-09-23, cross-checked against the same upstream checksum files except OpenBao's, which publishes only a cosign signature) |
 
+Status (2026-10-08): the library versions above are those of the tested tree.
+`Cargo.lock` now resolves rustls 0.23.45 and rustls-webpki 0.103.15 (the
+`crates/transport-security` floors are still 0.23.43 and 0.103.13); the other
+versions listed still match, and the fixture pins are unchanged.
+
 Every fixture binary is pinned by version and by hash of both the archive and
 the extracted binary. One exception is recorded honestly: OpenBao publishes no
 checksum file for its release, only a signature, so its hash is our own of a
@@ -156,7 +161,7 @@ rejected every genuine callout.
 | The callout xkey envelope | **closed 2026-09-23 (§8).** At this record it was unit-tested but not live-tested; the live server had not been configured with it |
 | Real certificate provisioning in a browser | the browser fixture proves harness-provisioned TLS only, and says nothing about how a person obtains or selects a certificate |
 | `pnpm verify` and the whole-repository clippy gate | both stop on pre-existing debt, measured rather than assumed — see below |
-| A Host secure-listener test in the gateway binary | none exists. The listener's real-handshake behaviour is covered by `opensesame-transport-security`'s own listener tests and by the interop crate's 21 scenarios, including the gateway process refusing to start rather than downgrade. The integration suite no longer implies a gateway test that was never written |
+| A Host secure-listener test in the gateway binary | none exists. The listener's real-handshake behaviour is covered by `opensesame-transport-security`'s own listener tests and by the interop crate's 21 scenarios, including the gateway process refusing to start rather than downgrade. The integration suite no longer implies a gateway test that was never written. Status (2026-10-08): the gateway crate now has in-crate tests that drive a real `SecureListener` with a real rustls client (`crates/gateway/src/transport/revocation_handshake_tests.rs`) and that a configured secure profile with unusable material stops the process (`transport/boot_tests.rs`) |
 
 ### Three steps that reported a result they had not earned
 
@@ -219,8 +224,8 @@ branch:
 
 | Finding | Why it is not this work's |
 |---|---|
-| `probe_access_token_account` trips `too_many_lines` at 125 | the same function was longer at the merge base; this branch's only change to that file deletes a stray blank line |
-| `items_after_statements` in `tests/rotation_leftover.rs` | the file is not in this branch's diff at all |
+| `probe_access_token_account` trips `too_many_lines` at 125 | the same function was longer at the merge base; this branch's only change to that file deletes a stray blank line (the function has since moved to `crates/connection-broker/src/forge_token_probe.rs`) |
+| `items_after_statements` in `tests/rotation_leftover.rs` | the file is not in this branch's diff at all (it is now `crates/connection-broker/src/tests/rotation_leftover.rs`) |
 
 Both are in the connection broker, and both are left alone: refactoring code
 this work does not touch semantically would widen the change.
@@ -253,7 +258,7 @@ linux-arm64 fixture pins being the only code changes in this pass).
 
 | Previously not run | What ran | Result |
 |---|---|---|
-| The callout xkey envelope | The pinned nats-server 2.11.17 configured with `auth_callout.xkey`, and the in-process bridge holding the matching callout xkey, with every callout envelope recorded by a passive subscriber (`crates/nats-callout/tests/live_callout.rs`): `cargo +1.88.0 test -p opensesame-nats-callout --all-features -- --ignored` | **passed**, 7 of 7 live tests. The sealed path admits and denies exactly as the bare path does; the reply is an `xkv1` box back to the server's key; a real sealed envelope is refused (`xkey_required`, `xkey_open_failed`) under no, wrong, missing-header and lying-header xkey and reaches no Host; a sealing server never serves a bare bridge (no message is ever delivered, `authorization violation`, zero Host decisions); an xkey bridge still serves a bare server unsealed |
+| The callout xkey envelope | The pinned nats-server 2.11.17 configured with `auth_callout.xkey`, and the in-process bridge holding the matching callout xkey, with every callout envelope recorded by a passive subscriber (`crates/nats-callout/tests/live_callout.rs`): `cargo +1.88.0 test -p opensesame-nats-callout --all-features -- --ignored` | **passed**, 7 of 7 live tests (the xkey tests are now in `live_callout_xkey.rs`, and the crate carries 8 `#[ignore]`d live tests across `live_callout.rs`, `live_callout_service.rs` and `live_callout_xkey.rs`). The sealed path admits and denies exactly as the bare path does; the reply is an `xkv1` box back to the server's key; a real sealed envelope is refused (`xkey_required`, `xkey_open_failed`) under no, wrong, missing-header and lying-header xkey and reaches no Host; a sealing server never serves a bare bridge (no message is ever delivered, `authorization violation`, zero Host decisions); an xkey bridge still serves a bare server unsealed |
 | The four libFuzzer entry points | `cargo +nightly fuzz run <target> -- -max_total_time=45` per target (cargo-fuzz 0.13.2 on the nightly toolchain — both present in this environment, and the earlier 4 GiB constraint gone) | **passed**, no crashes, leaks, timeouts or artifacts: `transport_bindings_config` 3 324 116 runs, `transport_callout_envelope` 903 904, `transport_ingress_fields` 1 167 621, `transport_leaf_parse` 1 315 326 |
 
 The pinned fixtures gained a **linux-arm64** asset set, recorded and hashed

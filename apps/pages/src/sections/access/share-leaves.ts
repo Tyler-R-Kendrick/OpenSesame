@@ -1,8 +1,6 @@
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
-import {
-  type LocalShare,
-  policyLabel,
-} from "@opensesame/app-core/lib/local-share-grants.js";
+import { policyLabel } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
+import type { LocalShare } from "@opensesame/app-core/lib/local-share-grants.js";
 import { useEffect, useState } from "react";
 import { useLocalShares } from "./LocalSharePanel.js";
 

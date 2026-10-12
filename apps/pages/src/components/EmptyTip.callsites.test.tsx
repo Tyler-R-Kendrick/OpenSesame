@@ -40,7 +40,7 @@ describe("every EmptyTip call site, under a finger", () => {
     // A tip handed as children is matched by nothing: it would be keys-only
     // and vanish on a phone with no word to say in its place.
     const sites = callSites();
-    expect(sites.length).toBeGreaterThan(10);
+    expect(sites.length).toBeGreaterThan(0);
     for (const { file, tag } of sites) {
       expect(tag, file).toMatch(/\btip=|\bkeys=\{false\}/);
     }

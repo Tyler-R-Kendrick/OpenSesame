@@ -17,6 +17,7 @@ import {
   sealJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
+import { kvHydrate } from "../kv.js";
 import {
   BODY_PATH,
   INDEX_PATH,
@@ -105,9 +106,18 @@ export async function rebindTombSeals(
   key: CryptoKey,
 ): Promise<void> {
   if (readPlaintextFile(tomb, SEAL_BOUND_MARKER_PATH) === "1") return;
+  // This runs first on a vault's first unlock, ahead of the unlock's own
+  // hydrate: on a fresh page the index and the files it names are on disk but
+  // not yet in memory. Reading them as absent would seal an empty index over
+  // the real one and drop every file written before the reload from the listing.
+  await kvHydrate([
+    tombFileKey(tomb, INDEX_PATH),
+    tombFileKey(tomb, BODY_PATH),
+  ]);
   const index = await rebindIndex(tomb, key);
   const paths = new Set<string>(Object.keys(index.files));
   paths.add(BODY_PATH);
+  await kvHydrate([...paths].map((path) => tombFileKey(tomb, path)));
   for (const path of paths) {
     if (path === INDEX_PATH) continue;
     const raw = vfsSeams.readRaw(tombFileKey(tomb, path));

@@ -9,6 +9,7 @@ import { type FormEvent, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { IconConnection } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import type { KeyView } from "./key-kinds.js";
 import type { Run } from "./run.js";
@@ -111,10 +112,10 @@ function AddressCard({
           autoComplete="url"
           value={address}
           onValueChange={setAddress}
-          hint={
-            address.trim().length > 0 && normalized === null
-              ? "An https address, or http on this machine."
-              : undefined
+          status={
+            address.trim().length > 0 && normalized === null ? (
+              <StatusMark tone="err" label="Needs an https address" />
+            ) : null
           }
         />
       </CeremonyShell>

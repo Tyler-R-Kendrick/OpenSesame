@@ -37,8 +37,12 @@ fn keyed(resolver: &EnvResolver, key: &str) -> Option<String> {
         .and_then(arg_string)
 }
 
+/// The variable leads and no colon follows it: a message that begins
+/// `VERCEL_TOKEN: …` has the shape of a log line whose key is a credential,
+/// and the log scrubber (ADR 0157) replaces what comes after the colon, which
+/// is the part that tells a person what to change.
 fn refuse(key: &str, reason: &str) -> EnvSpecError {
-    EnvSpecError::Scope(format!("{key}: {reason}"))
+    EnvSpecError::Scope(format!("{key} cannot be delivered: {reason}"))
 }
 
 /// The declaration on `resolver`, validated.

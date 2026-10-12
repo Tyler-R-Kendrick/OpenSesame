@@ -161,8 +161,8 @@ write (`insert`, edit, `rm`, `attach add|rm|gc`, `protect add|remove|rewrap`)
 holds it shared, so a write refuses while a rotation runs — and a rotation
 refuses while a write runs — rather than either one waiting. Writes also
 refuse while `.opensesame-rotation/` exists, and refuse to create anything
-under the reserved top-level names `.git`, `.attachments` and
-`.opensesame-rotation`.
+under the reserved top-level names `.git`, `.attachments`,
+`.opensesame-rotation` and `.opensesame-lock`.
 
 `.gpg` and `.age` entries are not sealed under the root and are left as they
 are. Rotation is not retroactive secrecy: ciphertext and key files already in

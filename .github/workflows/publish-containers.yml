@@ -1,0 +1,59 @@
+# Build and push the native `opensesame` image to GitHub Container Registry.
+#
+# Tyler action: grant the workflow `packages: write` (default GITHUB_TOKEN on
+# private repos may need `permissions` below) and optionally pin
+# `OPENSESAME_FEATURES` via repository variable.
+name: Publish containers
+
+on:
+  workflow_dispatch:
+    inputs:
+      features:
+        description: "Cargo features for opensesame-cli (comma-separated, optional)"
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  ghcr:
+    name: GHCR opensesame
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Log in to GHCR
+        uses: docker/login-action@5e57cdca8bd33bd31c8f2a4eabd65eb91159b82d # v3.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f88e8b696d8d65b0d1d6933ef0551 # v5.5.1
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build and push
+        uses: docker/build-push-action@263435318d21b0e6817656050636c60813afef10 # v6.18.0
+        with:
+          context: .
+          file: ops/compose/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            OPENSESAME_FEATURES=${{ inputs.features }}

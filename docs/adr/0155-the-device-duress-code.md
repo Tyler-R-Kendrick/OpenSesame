@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-28
+- Amended by: [ADR 0168](0168-duress-modes-from-scenarios.md) (one code per
+  device, two outcomes → one code, a mode chosen from a short list)
 - Builds on: [ADR 0130](0130-duress-profiles-trust-boundaries.md) (duress
   trust boundaries), [ADR 0089](0089-device-vault-switching.md) (one list of
   the device's vaults), [ADR 0090](0090-static-frontend-complete-without-backend.md)

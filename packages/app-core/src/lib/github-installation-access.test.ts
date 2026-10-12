@@ -11,10 +11,14 @@ import {
 import { identitySeams } from "./identity.js";
 import { localRequestFixture } from "./local-request.fixture.js";
 import {
-  createLocalShare,
-  listLocalShares,
-  revokeLocalShare,
+  approvePendingShare,
+  submitLocalShare,
+} from "./local-share-grants-approvals.js";
+import type {
+  CreateLocalShareInput,
+  LocalShare,
 } from "./local-share-grants.js";
+import { listLocalShares, revokeLocalShare } from "./local-share-grants.js";
 import { lockAllTombs, writeFile } from "./vfs.js";
 
 const originalConnectionSeams = { ...connectionSeams };
@@ -26,6 +30,17 @@ const listConnections = vi.fn();
 const listGithubInstallations = vi.fn();
 /** Every Host request a Pages library could make goes through this seam. */
 const hostFetch = vi.fn(async () => new Response(null, { status: 599 }));
+
+async function grantApplicationShare(
+  tomb: string,
+  input: CreateLocalShareInput,
+): Promise<LocalShare[]> {
+  const submitted = await submitLocalShare(tomb, input);
+  if (submitted.outcome !== "pending") {
+    throw new Error("expected an application grant to need approval");
+  }
+  return approvePendingShare(tomb, submitted.pending.id);
+}
 
 const baseConnection = overlapCast({
   connectionId: "con_gh",
@@ -181,7 +196,7 @@ it("a first visit with a live connection and no history issues the grant", async
 
 it("someone else's GitHub revocation does not withhold the owner's grant", async () => {
   const fixture = await localRequestFixture();
-  const [other] = await createLocalShare(fixture.tomb, {
+  const [other] = await grantApplicationShare(fixture.tomb, {
     principalId: fixture.applicationId,
     resourceKind: "connection",
     resourceId: "github",
@@ -205,7 +220,7 @@ it("the owner's revocation holds however others are granted after it", async () 
   const [share] = await ensureGithubAccessGrant(fixture.tomb, baseConnection);
   if (!share) throw new Error("expected a GitHub share");
   await revokeLocalShare(fixture.tomb, share.id);
-  await createLocalShare(fixture.tomb, {
+  await grantApplicationShare(fixture.tomb, {
     principalId: fixture.applicationId,
     resourceKind: "connection",
     resourceId: "github",

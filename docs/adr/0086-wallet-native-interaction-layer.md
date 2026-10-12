@@ -1,7 +1,16 @@
 # ADR 0086 — One interaction primitive: wallets, QR codes and passes are adapters over it
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-31
+Implementation: partly built. The primitive and its adapters exist as
+libraries: `packages/os-domain` (`interaction.ts`, `interaction-proof.ts`),
+`packages/ceremony-kit` (interaction URL, client, approval, outcome),
+`packages/wallet` (the Google Wallet provider), `packages/openid4vp` and
+`packages/openid4vci`, with Identity API routes in
+`packages/control-plane/src/routes` (`interactions-realm.ts`,
+`interactions-org.ts`, `interaction-handoff.ts`) and the wallet-native mounts
+of ADR 0119. The apps named in the body's table no longer exist (see the note
+below).
 References: ADR 0005 ([ConnectionRef over SecretRef](0005-authority-handle-connectionref.md)),
 ADR 0009 ([claims vs device auth](0009-claims-vs-device-auth.md)),
 ADR 0045 ([hosted ceremony pages](0045-hosted-ceremony-pages.md)),

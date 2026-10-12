@@ -1,36 +1,46 @@
 /**
- * One admitted guest, from the owner's side (ADR 0150 §5).
+ * One admitted guest, from the owner's side (ADR 0150 §5, ADR 0186).
  *
  * The owner's vault key never crosses. What does: the catalog — shared
  * items' names and types, and their fields, with a concealed field's value
  * left out — and then one concealed value at a time, on request. Under
  * `edit`, a joiner may also replace one shared field. Every request is
  * checked again against the session as it stands now: still within its time,
- * the item still shared, the field one that exists, `reveal` only under
- * `read` or `edit`, and `edit` only under `edit`. Every answer lands in the
- * owner's on-screen log.
+ * the item still shared, the field one that exists. `reveal` and `copy` run
+ * only under `read` or `edit`. Copy only (`use`) refuses both, so a concealed
+ * value is not handed to the joiner to place on their clipboard. `edit`
+ * writes only under `edit`. Every answer lands in the owner's on-screen log.
+ *
+ * The catalog answers the guest's greeting, every time it greets, and the
+ * guest is in at the first greeting (`greeting.ts`): sent once, unasked, the
+ * moment the channel opened, it was a frame WebRTC can drop, and the joiner
+ * waited on it for good. A joiner from before that never greets, and is sent
+ * the catalog unasked, as it expects.
  */
 
+import type { DeviceBroker } from "./device-broker.js";
+import { isDeviceMessage, isDeviceRequest } from "./device-messages.js";
+import type { SeatDevices } from "./device-types.js";
+import { GREETINGS_MAX } from "./greeting.js";
 import {
   type Catalog,
   type ChannelMessage,
+  type SeatKind,
+  type SeatRoute,
   VALUE_MAX,
   characters,
 } from "./messages.js";
-import { type IceSettings, type PeerFactory, answerOffer } from "./peer.js";
+import type { LiveChannel, PeerLink, PeerTransport } from "./p2p.js";
 import type { Carrier } from "./rendezvous.js";
 import type { Keypair } from "./seal.js";
-import {
-  type LiveChannel,
-  SeatChannel,
-  type SeatKeys,
-} from "./seat-channel.js";
+import { SeatChannel, type SeatKeys } from "./seat-channel.js";
 
 /** One answer to a guest's request, as the owner's log shows it. */
 export type LogEntry = Readonly<{
   at: number;
   guest: string;
-  what: "reveal" | "copy" | "edit" | "denied";
+  /** `invoke`: a device's call; `item` is the connection, `field` the operation. */
+  what: "reveal" | "copy" | "edit" | "denied" | "invoke";
   item: string;
   field: string;
 }>;
@@ -47,16 +57,25 @@ export type WriteField = (
 
 export type HostPeerOptions = Readonly<{
   guest: string;
-  ice: IceSettings;
-  peers: PeerFactory;
+  transport: PeerTransport;
+  /** The guest greets until it holds the catalog (its request said so). */
+  greets: boolean;
   catalog: () => Catalog;
   readField: ReadField;
-  writeField?: WriteField;
+  writeField?: WriteField | undefined;
   expiresAt: number;
   now: () => number;
   onJoined: () => void;
   onClosed: () => void;
   onLog: (entry: LogEntry) => void;
+  /** A person (the default) is shown shared items; a device is shown none. */
+  kind?: SeatKind;
+  /** Over a peer route (the default), or the relay alone, with no offer. */
+  route?: SeatRoute;
+  /** The guest's name, as the owner was shown it. */
+  name?: string;
+  /** Where a device asks to use the owner's connections (ADR 0196). */
+  devices?: DeviceBroker | null;
   /**
    * The seat is also offered over a NATS carrier (ADR 0167): a peer route
    * that fails does not end it, since the joiner may still arrive there.
@@ -75,33 +94,45 @@ type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
 type EditRequest = Extract<ChannelMessage, { t: "edit" }>;
 
 export class HostPeer {
-  #pc: RTCPeerConnection | null = null;
+  #peer: PeerLink | null = null;
   #channel: LiveChannel | null = null;
   /** The seat's relay, listening until the joiner's first frame. */
   #relay: LiveChannel | null = null;
   #grace: ReturnType<typeof setTimeout> | null = null;
+  #greetings = 0;
+  #joined = false;
   #closed = false;
+  /** This seat's end of the device broker; only a device seat has one. */
+  readonly #devices: SeatDevices | null;
 
-  constructor(private readonly options: HostPeerOptions) {}
+  constructor(private readonly options: HostPeerOptions) {
+    this.#devices =
+      options.kind === "device" && options.devices
+        ? options.devices.seat(
+            { key: options.guest, name: options.name ?? options.guest },
+            (reply) => void this.#channel?.send(reply),
+          )
+        : null;
+  }
 
   /**
    * Answer the joiner's offer — the admission — and return the answer for
    * the reply code. The channel opens once the joiner pastes that reply.
    */
   async open(offer: string): Promise<string> {
-    const side = await answerOffer(this.options.peers, this.options.ice, offer);
-    // Closed while the browser was gathering: `close()` found no connection
-    // to close, so this is the only place that can.
+    // A relay-only seat has no offer to answer: it is carried by the relay.
+    if (this.options.route === "relay") return "";
+    const peer = await this.options.transport.answer(offer);
+    // Closed while the transport was answering: `close()` found no link to
+    // close, so this is the only place that can.
     if (this.#closed) {
-      side.pc.close();
-      side.channel.catch(() => undefined);
+      peer.channel.catch(() => undefined);
+      peer.close();
       throw new Error("closed");
     }
-    this.#pc = side.pc;
-    side.pc.addEventListener("connectionstatechange", () => {
-      if (side.pc.connectionState === "failed") this.#peerFailed();
-    });
-    side.channel.then(
+    this.#peer = peer;
+    peer.onFailed(() => this.#peerFailed());
+    peer.channel.then(
       (channel) => {
         // The joiner already moved the seat to the relay: the late peer
         // route is not the session.
@@ -110,7 +141,7 @@ export class HostPeer {
       },
       () => this.#peerFailed(),
     );
-    return side.answer;
+    return peer.handshake;
   }
 
   /** The peer route failed: the seat ends, unless a relay may still carry it. */
@@ -147,21 +178,24 @@ export class HostPeer {
         this.#grace = null;
         if (!this.#channel) this.#closedByPeer();
       }, RELAY_GRACE_MS);
-    channel.onMessage(() => this.#adopt(channel));
+    channel.onMessage((message) => this.#adopt(channel, message));
     channel.onClose(() => {
       if (this.#relay === channel) this.#relay = null;
     });
   }
 
-  #adopt(channel: LiveChannel): void {
+  /** The guest's first frame on the relay moves the seat there; it is read. */
+  #adopt(channel: LiveChannel, first: ChannelMessage): void {
     if (this.#closed || this.#channel === channel) return;
     this.#relay = null;
     const previous = this.#channel;
+    const peer = this.#peer;
     this.#channel = null;
+    this.#peer = null;
     previous?.close();
-    this.#pc?.close();
-    this.#pc = null;
+    peer?.close();
     this.#connected(channel);
+    void this.#handle(first);
   }
 
   #connected(channel: LiveChannel): void {
@@ -176,12 +210,36 @@ export class HostPeer {
       if (this.#channel === channel) this.#closedByPeer();
     });
     channel.onMessage((message) => void this.#handle(message));
-    // A guest that never receives the catalog is not in the session: say so
-    // by ending it, not by counting them joined.
-    if (!channel.send({ t: "catalog", catalog: this.options.catalog() })) {
-      this.#closedByPeer();
-      return;
-    }
+    // A joiner from before ADR 0186 never greets: it is sent the catalog now.
+    if (!this.options.greets && this.#sendCatalog()) this.#in();
+  }
+
+  /** A greeting is answered with the catalog, a bounded number of times. */
+  #greeted(): void {
+    if (this.#greetings >= GREETINGS_MAX) return;
+    this.#greetings += 1;
+    if (this.#sendCatalog()) this.#in();
+  }
+
+  /**
+   * Send the catalog. A guest it cannot be sent to is not in the session:
+   * say so by ending it, not by counting them joined.
+   */
+  #sendCatalog(): boolean {
+    // A device is shown no item of the owner's vault: it is here for the
+    // connections, and the catalog it greets for is empty (ADR 0196).
+    const catalog =
+      this.options.kind === "device"
+        ? { ...this.options.catalog(), policy: "use" as const, items: [] }
+        : this.options.catalog();
+    if (this.#channel?.send({ t: "catalog", catalog })) return true;
+    this.#closedByPeer();
+    return false;
+  }
+
+  #in(): void {
+    if (this.#joined) return;
+    this.#joined = true;
     this.options.onJoined();
   }
 
@@ -192,6 +250,14 @@ export class HostPeer {
   }
 
   async #handle(message: ChannelMessage): Promise<void> {
+    if (message.t === "hello") {
+      this.#greeted();
+      return;
+    }
+    if (isDeviceMessage(message)) {
+      await this.#device(message);
+      return;
+    }
     if (message.t === "edit") {
       await this.#save(message);
       return;
@@ -212,11 +278,28 @@ export class HostPeer {
     );
   }
 
+  /** A device's ask goes to the broker; from anyone else it is refused. */
+  async #device(message: ChannelMessage): Promise<void> {
+    if (!isDeviceRequest(message) || this.#closed) return;
+    if (!this.#devices) {
+      this.#channel?.send({
+        t: "dev.error",
+        req: message.req,
+        error: "access_denied",
+      });
+      return;
+    }
+    await this.#devices.handle(message);
+  }
+
   async #answerFor(request: Request): Promise<string | null> {
     if (this.#closed || this.options.now() >= this.options.expiresAt)
       return null;
+    if (this.options.kind === "device") return null;
     const catalog = this.options.catalog();
-    if (request.t === "reveal" && catalog.policy === "use") return null;
+    // Copy only keeps the concealed plaintext on this device. It is not
+    // revealed, and it is not returned for the joiner to copy.
+    if (catalog.policy === "use") return null;
     const item = catalog.items.find((entry) => entry.id === request.item);
     const field = item?.fields.find((entry) => entry.key === request.field);
     if (!item || !field?.concealed) return null;
@@ -243,6 +326,7 @@ export class HostPeer {
   async #commit(message: EditRequest): Promise<string | null> {
     if (this.#closed || this.options.now() >= this.options.expiresAt)
       return null;
+    if (this.options.kind === "device") return null;
     const catalog = this.options.catalog();
     if (catalog.policy !== "edit") return null;
     const item = catalog.items.find((entry) => entry.id === message.item);
@@ -261,12 +345,13 @@ export class HostPeer {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    this.#devices?.close();
     if (this.#grace) clearTimeout(this.#grace);
     this.#grace = null;
     this.#channel?.send({ t: "end" });
     this.#channel?.close();
     this.#relay?.close();
     this.#relay = null;
-    this.#pc?.close();
+    this.#peer?.close();
   }
 }

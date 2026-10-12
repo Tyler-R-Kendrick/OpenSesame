@@ -1,8 +1,9 @@
 # Writing a vault item type
 
 A vault item type is a JSON file. It is not code, it is not compiled, and
-installing one does not rebuild anything — paste it into **Settings → Vault
-data → Item types** and the type exists, on this device and on every other
+installing one does not rebuild anything — write or paste it as a new file in
+**Settings › Vaults › Item types** (the *Write a new item type* key opens
+`installed/new.json`) and the type exists, on this device and on every other
 device this vault syncs to.
 
 The decision behind this is [ADR 0087](../adr/0087-vault-item-type-plugins.md);
@@ -78,7 +79,7 @@ A field names a type from the catalogue; it never describes one.
 
 | Key | Meaning |
 |-----|---------|
-| `id` | Stable identifier, `[A-Za-z][A-Za-z0-9_]*`. Values are keyed by it, so renaming one is a data change. |
+| `id` | Stable identifier, `[A-Za-z][A-Za-z0-9_]*`, up to 48 characters. Values are keyed by it, so renaming one is a data change. |
 | `type` | A catalogue entry (below). |
 | `label` | What the person reads. Change it freely — it is presentation. |
 | `help` | One line under the input. |
@@ -93,8 +94,8 @@ A field names a type from the catalogue; it never describes one.
 *Plain* — `string`, `multiline`, `email`, `url`, `number`, `boolean`, `date`,
 `month-year`, `country`, `select`, `phone`.
 
-*Concealed* — `concealed`, `password`, `pin`, `key-material`, `totp`. These
-never render without a reveal gesture, anywhere.
+*Concealed* — `concealed`, `password`, `pin`, `key-material`, `totp`, `blob`
+(a file's sealed parts). These never render without a reveal gesture, anywhere.
 
 *Structured* (a fixed set of named parts) —
 
@@ -161,9 +162,9 @@ Each of these is a parse-time refusal with a message naming the path:
 
 - carry a value (`default` on a concealed field);
 - put a concealed field in `subtitle` or `search`;
-- name a ceremony `handler` — those belong to the platform, for the four
-  built-ins that call the Host API (certificate issuance, drop claims, passkey
-  custody, grant ceilings);
+- name a ceremony `handler` — those belong to the platform (`account`,
+  `passkey`, `secret`, `certificate` and `drop`), each used by the
+  built-in of that id;
 - redefine a built-in id, or take over an id another publisher installed;
 - reuse another registered type's extension, title, or vault directory.
   A type's directory is its `plural` as a path segment (`Event tickets` →

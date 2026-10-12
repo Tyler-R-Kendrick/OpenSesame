@@ -7,7 +7,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -90,7 +90,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -165,7 +165,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -241,7 +241,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -297,7 +297,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [],
@@ -367,7 +367,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -456,7 +456,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -537,7 +537,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [],
@@ -618,7 +618,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -699,7 +699,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "crm",
       "configured": false,
       "connection_configuration_fields": [],
@@ -780,7 +780,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [],
@@ -855,7 +855,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "storage",
       "configured": false,
       "connection_configuration_fields": [],
@@ -937,7 +937,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "storage",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1007,7 +1007,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1082,7 +1082,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1156,7 +1156,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1237,8 +1237,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1259,6 +1259,10 @@
       "id": "openai",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.openai.com/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "completion.create",
         "embedding.create",
@@ -1273,8 +1277,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1295,6 +1299,10 @@
       "id": "anthropic",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.anthropic.com/v1",
+        "protocol": "anthropic_messages"
+      },
       "operations": [
         "message.create",
         "model.list"
@@ -1308,7 +1316,7 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "testing",
       "configured": false,
       "connection_configuration_fields": [],
@@ -1382,8 +1390,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1404,6 +1412,10 @@
       "id": "cohere",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.cohere.com/compatibility/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "chat.create",
         "embedding.create",
@@ -1418,8 +1430,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1440,6 +1452,10 @@
       "id": "mistral",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.mistral.ai/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "chat.create",
         "embedding.create",
@@ -1454,8 +1470,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1476,6 +1492,10 @@
       "id": "groq",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "chat.create",
         "audio.transcribe",
@@ -1490,8 +1510,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1512,6 +1532,10 @@
       "id": "perplexity",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.perplexity.ai",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "response.create",
         "search.create",
@@ -1526,8 +1550,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1548,6 +1572,10 @@
       "id": "together",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.together.xyz/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "chat.create",
         "image.create",
@@ -1562,8 +1590,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1584,6 +1612,10 @@
       "id": "replicate",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.replicate.com/v1",
+        "protocol": "rest_json"
+      },
       "operations": [
         "prediction.create",
         "prediction.read",
@@ -1598,8 +1630,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1620,6 +1652,10 @@
       "id": "huggingface",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://router.huggingface.co/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "chat.create",
         "model.list",
@@ -1634,8 +1670,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "developer",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1656,6 +1692,10 @@
       "id": "elevenlabs",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.elevenlabs.io/v1",
+        "protocol": "rest_json"
+      },
       "operations": [
         "speech.create",
         "transcription.create",
@@ -1670,8 +1710,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "developer",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1692,6 +1732,10 @@
       "id": "stability",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.stability.ai/v1",
+        "protocol": "rest_json"
+      },
       "operations": [
         "image.create",
         "engine.list",
@@ -1706,8 +1750,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "developer",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1728,6 +1772,10 @@
       "id": "deepgram",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.deepgram.com/v1",
+        "protocol": "rest_json"
+      },
       "operations": [
         "transcription.create",
         "speech.create",
@@ -1742,8 +1790,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "developer",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1764,6 +1812,10 @@
       "id": "assemblyai",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.assemblyai.com/v2",
+        "protocol": "rest_json"
+      },
       "operations": [
         "transcript.create",
         "transcript.read",
@@ -1778,8 +1830,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1800,6 +1852,10 @@
       "id": "gemini",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta",
+        "protocol": "gemini_generate_content"
+      },
       "operations": [
         "content.generate",
         "embedding.create",
@@ -1814,8 +1870,8 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -1836,6 +1892,10 @@
       "id": "fireworks",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.fireworks.ai/inference/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "chat.create",
         "embedding.create",
@@ -1852,7 +1912,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -1889,7 +1949,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "certificates",
       "configured": false,
       "connection_configuration_fields": [
@@ -1925,7 +1985,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "certificates",
       "configured": false,
       "connection_configuration_fields": [
@@ -1971,7 +2031,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "certificates",
       "configured": false,
       "connection_configuration_fields": [
@@ -2016,7 +2076,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2054,7 +2114,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2090,7 +2150,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2126,7 +2186,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2162,7 +2222,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2198,7 +2258,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2234,7 +2294,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2270,7 +2330,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2316,7 +2376,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2352,7 +2412,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2398,7 +2458,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2419,7 +2479,7 @@
         }
       ],
       "display_name": "Plivo",
-      "docs_url": "https://www.plivo.com/docs/sms/api/overview/",
+      "docs_url": "https://www.plivo.com/docs/messaging/api/overview",
       "egress": {
         "authorities": [
           "api.plivo.com"
@@ -2443,7 +2503,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "communication",
       "configured": false,
       "connection_configuration_fields": [
@@ -2480,7 +2540,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2516,7 +2576,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2552,7 +2612,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2599,7 +2659,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2635,7 +2695,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "identity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2682,7 +2742,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "productivity",
       "configured": false,
       "connection_configuration_fields": [
@@ -2718,7 +2778,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2754,7 +2814,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2790,7 +2850,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2826,7 +2886,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2862,7 +2922,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2900,7 +2960,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -2938,7 +2998,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -2959,7 +3019,7 @@
         }
       ],
       "display_name": "1Password",
-      "docs_url": "https://fnox.jdx.dev/providers/1password.html",
+      "docs_url": "https://www.1password.dev/cli",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -2980,7 +3040,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -2996,7 +3056,7 @@
         }
       ],
       "display_name": "age",
-      "docs_url": "https://fnox.jdx.dev/providers/age.html",
+      "docs_url": "https://github.com/FiloSottile/age",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3019,7 +3079,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3050,7 +3110,7 @@
         }
       ],
       "display_name": "AWS Secrets Manager",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-sm.html",
+      "docs_url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3071,7 +3131,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3102,7 +3162,7 @@
         }
       ],
       "display_name": "AWS KMS",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-kms.html",
+      "docs_url": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3127,7 +3187,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3158,7 +3218,7 @@
         }
       ],
       "display_name": "AWS Parameter Store",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-ps.html",
+      "docs_url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3181,7 +3241,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3212,7 +3272,7 @@
         }
       ],
       "display_name": "Azure Key Vault Keys",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-kms.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3237,7 +3297,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3268,7 +3328,7 @@
         }
       ],
       "display_name": "Azure Key Vault Secrets",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-sm.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/key-vault/secrets/about-secrets",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3291,7 +3351,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3322,7 +3382,7 @@
         }
       ],
       "display_name": "Azure App Configuration",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-ac.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/azure-app-configuration/overview",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3345,7 +3405,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3366,7 +3426,7 @@
         }
       ],
       "display_name": "Google Cloud Secret Manager",
-      "docs_url": "https://fnox.jdx.dev/providers/gcp-sm.html",
+      "docs_url": "https://docs.cloud.google.com/secret-manager/docs/overview",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3387,7 +3447,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3418,7 +3478,7 @@
         }
       ],
       "display_name": "Google Cloud KMS",
-      "docs_url": "https://fnox.jdx.dev/providers/gcp-kms.html",
+      "docs_url": "https://docs.cloud.google.com/kms/docs/key-management-service",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3441,7 +3501,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -3462,7 +3522,7 @@
         }
       ],
       "display_name": "FIDO2",
-      "docs_url": "https://fnox.jdx.dev/providers/fido2.html",
+      "docs_url": "https://fidoalliance.org/specifications/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3483,7 +3543,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3509,7 +3569,7 @@
         }
       ],
       "display_name": "Bitwarden",
-      "docs_url": "https://fnox.jdx.dev/providers/bitwarden.html",
+      "docs_url": "https://bitwarden.com/help/bitwarden-apis/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3530,7 +3590,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3579,7 +3639,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3595,7 +3655,7 @@
         }
       ],
       "display_name": "FOKS",
-      "docs_url": "https://fnox.jdx.dev/providers/foks.html",
+      "docs_url": "https://foks.pub/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3618,7 +3678,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3644,7 +3704,7 @@
         }
       ],
       "display_name": "Bitwarden Secrets Manager",
-      "docs_url": "https://fnox.jdx.dev/providers/bitwarden-sm.html",
+      "docs_url": "https://bitwarden.com/help/secrets-manager-overview/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3665,7 +3725,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3691,7 +3751,7 @@
         }
       ],
       "display_name": "Infisical",
-      "docs_url": "https://fnox.jdx.dev/providers/infisical.html",
+      "docs_url": "https://infisical.com/docs/documentation/getting-started/introduction",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3712,7 +3772,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3733,7 +3793,7 @@
         }
       ],
       "display_name": "KeePass",
-      "docs_url": "https://fnox.jdx.dev/providers/keepass.html",
+      "docs_url": "https://keepass.info/help/base/index.html",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3754,7 +3814,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3791,7 +3851,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3807,7 +3867,7 @@
         }
       ],
       "display_name": "password-store",
-      "docs_url": "https://fnox.jdx.dev/providers/password-store.html",
+      "docs_url": "https://www.passwordstore.org/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3828,7 +3888,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3870,7 +3930,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3891,7 +3951,7 @@
         }
       ],
       "display_name": "Passwordstate",
-      "docs_url": "https://fnox.jdx.dev/cli/provider/add",
+      "docs_url": "https://www.clickstudios.com.au/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3912,7 +3972,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -3944,7 +4004,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -3960,7 +4020,7 @@
         }
       ],
       "display_name": "Proton Pass",
-      "docs_url": "https://fnox.jdx.dev/providers/proton-pass.html",
+      "docs_url": "https://proton.me/support/pass",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -3981,7 +4041,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4007,7 +4067,7 @@
         }
       ],
       "display_name": "HashiCorp Vault",
-      "docs_url": "https://fnox.jdx.dev/providers/vault.html",
+      "docs_url": "https://developer.hashicorp.com/vault/docs",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -4028,7 +4088,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4054,7 +4114,7 @@
         }
       ],
       "display_name": "OpenBao",
-      "docs_url": "https://fnox.jdx.dev/providers/openbao.html",
+      "docs_url": "https://openbao.org/docs/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -4075,7 +4135,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [
@@ -4101,7 +4161,7 @@
         }
       ],
       "display_name": "Vaultwarden",
-      "docs_url": "https://fnox.jdx.dev/providers/vaultwarden.html",
+      "docs_url": "https://github.com/dani-garcia/vaultwarden/wiki",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -4122,7 +4182,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "local_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4159,7 +4219,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4196,8 +4256,8 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -4231,6 +4291,9 @@
       "id": "azure-openai",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "protocol": "rest_json"
+      },
       "operations": [
         "model.invoke"
       ],
@@ -4243,8 +4306,8 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [
         {
@@ -4283,6 +4346,9 @@
       "id": "aws-bedrock",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "protocol": "rest_json"
+      },
       "operations": [
         "model.invoke"
       ],
@@ -4295,8 +4361,8 @@
       "auth_kind": "oauth2_authorization_code",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
-      "category": "agent_harnesses",
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
       "configured": false,
       "connection_configuration_fields": [],
       "display_name": "OpenRouter",
@@ -4313,6 +4379,10 @@
       "id": "openrouter",
       "integration_configuration_fields": [],
       "missing_config": [],
+      "model_api": {
+        "base_url": "https://openrouter.ai/api/v1",
+        "protocol": "openai_chat"
+      },
       "operations": [
         "model.invoke"
       ],
@@ -4325,7 +4395,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [
@@ -4346,7 +4416,7 @@
         }
       ],
       "display_name": "YubiKey",
-      "docs_url": "https://fnox.jdx.dev/providers/yubikey.html",
+      "docs_url": "https://docs.yubico.com/",
       "egress": {
         "authorities": [],
         "path_prefixes": [],
@@ -4369,7 +4439,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "networking",
       "configured": false,
       "connection_configuration_fields": [
@@ -4429,7 +4499,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4471,7 +4541,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4518,7 +4588,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4560,7 +4630,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4597,7 +4667,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4629,7 +4699,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4661,7 +4731,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4694,7 +4764,7 @@
       "auth_kind": "api_key",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "wallet",
       "configured": false,
       "connection_configuration_fields": [
@@ -4728,7 +4798,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4765,7 +4835,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4802,7 +4872,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "cloud_secret_storage",
       "configured": false,
       "connection_configuration_fields": [
@@ -4839,7 +4909,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -4881,7 +4951,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "custom",
       "configured": false,
       "connection_configuration_fields": [
@@ -4913,7 +4983,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -4955,7 +5025,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "developer",
       "configured": false,
       "connection_configuration_fields": [
@@ -4992,7 +5062,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "encryption",
       "configured": false,
       "connection_configuration_fields": [],
@@ -5020,7 +5090,7 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
       "category": "backup_recovery",
       "configured": false,
       "connection_configuration_fields": [
@@ -5083,7 +5153,70 @@
       "auth_kind": "configuration",
       "auto_configurable": false,
       "callback_url": null,
-      "catalog_revision": "2026-10-05.1",
+      "catalog_revision": "2026-10-12.1",
+      "category": "local_storage",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "endpoint",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "region",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "bucket",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "prefix",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "access_key_id",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "secret_access_key",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "session_token",
+          "required": false,
+          "secret": true
+        }
+      ],
+      "display_name": "S3-compatible bucket",
+      "docs_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "s3",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "s3.get",
+        "s3.put"
+      ],
+      "provenance_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [],
@@ -5103,7 +5236,2714 @@
       "provenance_url": "https://datatracker.ietf.org/doc/html/rfc6238",
       "scopes": [],
       "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "xAI",
+      "docs_url": "https://docs.x.ai/docs/models",
+      "egress": {
+        "authorities": [
+          "api.x.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "xai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.x.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.x.ai/docs/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Meta",
+      "docs_url": "https://dev.meta.ai/docs",
+      "egress": {
+        "authorities": [
+          "api.meta.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "meta",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.meta.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://dev.meta.ai/docs",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Z.AI",
+      "docs_url": "https://docs.z.ai/guides/overview/pricing",
+      "egress": {
+        "authorities": [
+          "api.z.ai"
+        ],
+        "path_prefixes": [
+          "/api/paas/v4/"
+        ],
+        "scheme": "https"
+      },
+      "id": "zai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.z.ai/api/paas/v4",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.z.ai/guides/overview/pricing",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "DeepSeek",
+      "docs_url": "https://api-docs.deepseek.com/quick_start/pricing",
+      "egress": {
+        "authorities": [
+          "api.deepseek.com"
+        ],
+        "path_prefixes": [],
+        "scheme": "https"
+      },
+      "id": "deepseek",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.deepseek.com",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://api-docs.deepseek.com/quick_start/pricing",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Nvidia",
+      "docs_url": "https://docs.api.nvidia.com/nim/",
+      "egress": {
+        "authorities": [
+          "integrate.api.nvidia.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "nvidia",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://integrate.api.nvidia.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.api.nvidia.com/nim/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "MiniMax (minimax.io)",
+      "docs_url": "https://platform.minimax.io/docs/guides/quickstart",
+      "egress": {
+        "authorities": [
+          "api.minimax.io"
+        ],
+        "path_prefixes": [
+          "/anthropic/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "minimax",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.minimax.io/anthropic/v1",
+        "protocol": "anthropic_messages"
+      },
+      "operations": [
+        "message.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.minimax.io/docs/guides/quickstart",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Moonshot AI",
+      "docs_url": "https://platform.moonshot.ai/docs/api/chat",
+      "egress": {
+        "authorities": [
+          "api.moonshot.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "moonshotai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.moonshot.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.moonshot.ai/docs/api/chat",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Alibaba",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "egress": {
+        "authorities": [
+          "dashscope-intl.aliyuncs.com"
+        ],
+        "path_prefixes": [
+          "/compatible-mode/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "alibaba",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Baseten",
+      "docs_url": "https://docs.baseten.co/inference/model-apis/overview",
+      "egress": {
+        "authorities": [
+          "inference.baseten.co"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "baseten",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://inference.baseten.co/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.baseten.co/inference/model-apis/overview",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Cerebras",
+      "docs_url": "https://inference-docs.cerebras.ai/models/overview",
+      "egress": {
+        "authorities": [
+          "api.cerebras.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "cerebras",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.cerebras.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://inference-docs.cerebras.ai/models/overview",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Chutes",
+      "docs_url": "https://llm.chutes.ai/v1/models",
+      "egress": {
+        "authorities": [
+          "llm.chutes.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "chutes",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://llm.chutes.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://llm.chutes.ai/v1/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Deep Infra",
+      "docs_url": "https://deepinfra.com/models",
+      "egress": {
+        "authorities": [
+          "api.deepinfra.com"
+        ],
+        "path_prefixes": [
+          "/v1/openai/"
+        ],
+        "scheme": "https"
+      },
+      "id": "deepinfra",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.deepinfra.com/v1/openai",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://deepinfra.com/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "DigitalOcean AI",
+      "docs_url": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "egress": {
+        "authorities": [
+          "inference.do-ai.run"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "digitalocean-ai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://inference.do-ai.run/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Thinking Machines",
+      "docs_url": "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/",
+      "egress": {
+        "authorities": [
+          "tinker.thinkingmachines.dev"
+        ],
+        "path_prefixes": [
+          "/services/tinker-prod/anthropic/api/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "thinking-machines",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://tinker.thinkingmachines.dev/services/tinker-prod/anthropic/api/v1",
+        "protocol": "anthropic_messages"
+      },
+      "operations": [
+        "message.create",
+        "model.list"
+      ],
+      "provenance_url": "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Poolside",
+      "docs_url": "https://platform.poolside.ai",
+      "egress": {
+        "authorities": [
+          "inference.poolside.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "poolside",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://inference.poolside.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.poolside.ai",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "SiliconFlow",
+      "docs_url": "https://cloud.siliconflow.com/models",
+      "egress": {
+        "authorities": [
+          "api.siliconflow.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "siliconflow",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.siliconflow.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://cloud.siliconflow.com/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Vultr",
+      "docs_url": "https://api.vultrinference.com/",
+      "egress": {
+        "authorities": [
+          "api.vultrinference.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "vultr",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.vultrinference.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://api.vultrinference.com/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Venice AI",
+      "docs_url": "https://docs.venice.ai",
+      "egress": {
+        "authorities": [
+          "api.venice.ai"
+        ],
+        "path_prefixes": [
+          "/api/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "venice",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.venice.ai/api/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.venice.ai",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Vercel AI Gateway",
+      "docs_url": "https://vercel.com/docs/ai-gateway",
+      "egress": {
+        "authorities": [
+          "ai-gateway.vercel.sh"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "vercel-ai-gateway",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://ai-gateway.vercel.sh/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://vercel.com/docs/ai-gateway",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Xiaomi",
+      "docs_url": "https://platform.xiaomimimo.com/#/docs",
+      "egress": {
+        "authorities": [
+          "api.xiaomimimo.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "xiaomi",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.xiaomimimo.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.xiaomimimo.com/#/docs",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "AI21 Labs",
+      "docs_url": "https://docs.ai21.com/docs/jamba-foundation-models",
+      "egress": {
+        "authorities": [
+          "api.ai21.com"
+        ],
+        "path_prefixes": [
+          "/studio/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "ai21",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.ai21.com/studio/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.ai21.com/docs/jamba-foundation-models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Nebius Token Factory",
+      "docs_url": "https://docs.tokenfactory.nebius.com/",
+      "egress": {
+        "authorities": [
+          "api.tokenfactory.nebius.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "nebius",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.tokenfactory.nebius.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.tokenfactory.nebius.com/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Novita AI",
+      "docs_url": "https://novita.ai/docs/guides/introduction",
+      "egress": {
+        "authorities": [
+          "api.novita.ai"
+        ],
+        "path_prefixes": [
+          "/openai/"
+        ],
+        "scheme": "https"
+      },
+      "id": "novita",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.novita.ai/openai",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://novita.ai/docs/guides/introduction",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Scaleway",
+      "docs_url": "https://www.scaleway.com/en/docs/generative-apis/",
+      "egress": {
+        "authorities": [
+          "api.scaleway.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "scaleway",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.scaleway.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://www.scaleway.com/en/docs/generative-apis/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "OVHcloud AI Endpoints",
+      "docs_url": "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//",
+      "egress": {
+        "authorities": [
+          "oai.endpoints.kepler.ai.cloud.ovh.net"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "ovhcloud",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Friendli",
+      "docs_url": "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+      "egress": {
+        "authorities": [
+          "api.friendli.ai"
+        ],
+        "path_prefixes": [
+          "/serverless/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "friendli",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.friendli.ai/serverless/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Upstage",
+      "docs_url": "https://developers.upstage.ai/docs/apis/chat",
+      "egress": {
+        "authorities": [
+          "api.upstage.ai"
+        ],
+        "path_prefixes": [
+          "/v1/solar/"
+        ],
+        "scheme": "https"
+      },
+      "id": "upstage",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.upstage.ai/v1/solar",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://developers.upstage.ai/docs/apis/chat",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Sarvam AI",
+      "docs_url": "https://docs.sarvam.ai/api-reference-docs/getting-started/models",
+      "egress": {
+        "authorities": [
+          "api.sarvam.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "sarvam",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.sarvam.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.sarvam.ai/api-reference-docs/getting-started/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "StepFun (Global)",
+      "docs_url": "https://platform.stepfun.ai/docs/en/overview/concept",
+      "egress": {
+        "authorities": [
+          "api.stepfun.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "stepfun",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.stepfun.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.stepfun.ai/docs/en/overview/concept",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Zhipu AI",
+      "docs_url": "https://docs.z.ai/guides/overview/pricing",
+      "egress": {
+        "authorities": [
+          "open.bigmodel.cn"
+        ],
+        "path_prefixes": [
+          "/api/paas/v4/"
+        ],
+        "scheme": "https"
+      },
+      "id": "zhipuai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.z.ai/guides/overview/pricing",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Moonshot AI (China)",
+      "docs_url": "https://platform.moonshot.cn/docs/api/chat",
+      "egress": {
+        "authorities": [
+          "api.moonshot.cn"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "moonshotai-cn",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.moonshot.cn/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://platform.moonshot.cn/docs/api/chat",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Alibaba (China)",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "egress": {
+        "authorities": [
+          "dashscope.aliyuncs.com"
+        ],
+        "path_prefixes": [
+          "/compatible-mode/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "alibaba-cn",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Volcengine Ark",
+      "docs_url": "https://www.volcengine.com/docs/82379/1330310",
+      "egress": {
+        "authorities": [
+          "ark.cn-beijing.volces.com"
+        ],
+        "path_prefixes": [
+          "/api/v3/"
+        ],
+        "scheme": "https"
+      },
+      "id": "volcengine",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://www.volcengine.com/docs/82379/1330310",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Inception",
+      "docs_url": "https://docs.inceptionlabs.ai/get-started/models",
+      "egress": {
+        "authorities": [
+          "api.inceptionlabs.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "inception",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.inceptionlabs.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.inceptionlabs.ai/get-started/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Arcee",
+      "docs_url": "https://docs.arcee.ai",
+      "egress": {
+        "authorities": [
+          "api.arcee.ai"
+        ],
+        "path_prefixes": [
+          "/api/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "arcee",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.arcee.ai/api/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.arcee.ai",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Amazon Nova",
+      "docs_url": "https://nova.amazon.com/dev/documentation",
+      "egress": {
+        "authorities": [
+          "api.nova.amazon.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "amazon-nova",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.nova.amazon.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://nova.amazon.com/dev/documentation",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Clarifai",
+      "docs_url": "https://docs.clarifai.com/compute/inference/",
+      "egress": {
+        "authorities": [
+          "api.clarifai.com"
+        ],
+        "path_prefixes": [
+          "/v2/ext/openai/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "clarifai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.clarifai.com/v2/ext/openai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.clarifai.com/compute/inference/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Modal",
+      "docs_url": "https://modal.com/docs/guide/endpoints",
+      "egress": {
+        "authorities": [
+          "inference.us-west.modal.direct"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "modal",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://inference.us-west.modal.direct/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://modal.com/docs/guide/endpoints",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "CoreWeave",
+      "docs_url": "https://docs.wandb.ai/inference",
+      "egress": {
+        "authorities": [
+          "api.inference.wandb.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "coreweave",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.inference.wandb.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.wandb.ai/inference",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Crusoe",
+      "docs_url": "https://docs.crusoecloud.com/managed-inference/overview",
+      "egress": {
+        "authorities": [
+          "api.inference.crusoecloud.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "crusoe",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.inference.crusoecloud.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.crusoecloud.com/managed-inference/overview",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Hetzner",
+      "docs_url": "https://experiments.hetzner.com/docs/inference",
+      "egress": {
+        "authorities": [
+          "inference.hetzner.com"
+        ],
+        "path_prefixes": [
+          "/api/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "hetzner",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://inference.hetzner.com/api/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://experiments.hetzner.com/docs/inference",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "NEAR AI Cloud",
+      "docs_url": "https://docs.near.ai/",
+      "egress": {
+        "authorities": [
+          "cloud-api.near.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "nearai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://cloud-api.near.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.near.ai/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "IO.NET",
+      "docs_url": "https://io.net/docs/guides/intelligence/io-intelligence",
+      "egress": {
+        "authorities": [
+          "api.intelligence.io.solutions"
+        ],
+        "path_prefixes": [
+          "/api/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "io-net",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.intelligence.io.solutions/api/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://io.net/docs/guides/intelligence/io-intelligence",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "GMI Cloud",
+      "docs_url": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "egress": {
+        "authorities": [
+          "api.gmi-serving.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "gmicloud",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.gmi-serving.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Tinfoil",
+      "docs_url": "https://docs.tinfoil.sh",
+      "egress": {
+        "authorities": [
+          "inference.tinfoil.sh"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "tinfoil",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://inference.tinfoil.sh/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.tinfoil.sh",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Berget.AI",
+      "docs_url": "https://api.berget.ai",
+      "egress": {
+        "authorities": [
+          "api.berget.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "berget",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.berget.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://api.berget.ai",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Ollama Cloud",
+      "docs_url": "https://docs.ollama.com/cloud",
+      "egress": {
+        "authorities": [
+          "ollama.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "ollama-cloud",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://ollama.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.ollama.com/cloud",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Helicone",
+      "docs_url": "https://helicone.ai/models",
+      "egress": {
+        "authorities": [
+          "ai-gateway.helicone.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "helicone",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://ai-gateway.helicone.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://helicone.ai/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Requesty",
+      "docs_url": "https://requesty.ai/solution/llm-routing/models",
+      "egress": {
+        "authorities": [
+          "router.requesty.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "requesty",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://router.requesty.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://requesty.ai/solution/llm-routing/models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Eden AI",
+      "docs_url": "https://docs.edenai.co",
+      "egress": {
+        "authorities": [
+          "api.edenai.run"
+        ],
+        "path_prefixes": [
+          "/v3/"
+        ],
+        "scheme": "https"
+      },
+      "id": "edenai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.edenai.run/v3",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.edenai.co",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Poe",
+      "docs_url": "https://creator.poe.com/docs/external-applications/openai-compatible-api",
+      "egress": {
+        "authorities": [
+          "api.poe.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "poe",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.poe.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://creator.poe.com/docs/external-applications/openai-compatible-api",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "302.AI",
+      "docs_url": "https://doc.302.ai",
+      "egress": {
+        "authorities": [
+          "api.302.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "302ai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.302.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://doc.302.ai",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "NanoGPT",
+      "docs_url": "https://docs.nano-gpt.com",
+      "egress": {
+        "authorities": [
+          "nano-gpt.com"
+        ],
+        "path_prefixes": [
+          "/api/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "nanogpt",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://nano-gpt.com/api/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.nano-gpt.com",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Kilo Gateway",
+      "docs_url": "https://kilo.ai",
+      "egress": {
+        "authorities": [
+          "api.kilo.ai"
+        ],
+        "path_prefixes": [
+          "/api/gateway/"
+        ],
+        "scheme": "https"
+      },
+      "id": "kilo",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.kilo.ai/api/gateway",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://kilo.ai",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "LLM Gateway",
+      "docs_url": "https://llmgateway.io/docs",
+      "egress": {
+        "authorities": [
+          "api.llmgateway.io"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "llmgateway",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.llmgateway.io/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://llmgateway.io/docs",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Abacus",
+      "docs_url": "https://abacus.ai/help/api",
+      "egress": {
+        "authorities": [
+          "routellm.abacus.ai"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "abacus",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://routellm.abacus.ai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://abacus.ai/help/api",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "OpenCode Zen",
+      "docs_url": "https://opencode.ai/zen",
+      "egress": {
+        "authorities": [
+          "opencode.ai"
+        ],
+        "path_prefixes": [
+          "/zen/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "opencode-zen",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://opencode.ai/zen/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://opencode.ai/docs/zen",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "AIHubMix",
+      "docs_url": "https://docs.aihubmix.com",
+      "egress": {
+        "authorities": [
+          "aihubmix.com"
+        ],
+        "path_prefixes": [
+          "/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "aihubmix",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://aihubmix.com/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://docs.aihubmix.com",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "api_key",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Synthetic",
+      "docs_url": "https://synthetic.new/pricing",
+      "egress": {
+        "authorities": [
+          "api.synthetic.new"
+        ],
+        "path_prefixes": [
+          "/openai/v1/"
+        ],
+        "scheme": "https"
+      },
+      "id": "synthetic",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "base_url": "https://api.synthetic.new/openai/v1",
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "chat.create",
+        "model.list"
+      ],
+      "provenance_url": "https://synthetic.new/pricing",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "project",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "location",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "service_account_json",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Google Vertex AI",
+      "docs_url": "https://cloud.google.com/vertex-ai/generative-ai/docs/start/api-keys",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "google-vertex",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "rest_json"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://cloud.google.com/vertex-ai/generative-ai/docs/start/api-keys",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "account_id",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "gateway_id",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Cloudflare AI Gateway",
+      "docs_url": "https://developers.cloudflare.com/ai-gateway/",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "cloudflare-ai-gateway",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://developers.cloudflare.com/ai-gateway/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "account_id",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Cloudflare Workers AI",
+      "docs_url": "https://developers.cloudflare.com/workers-ai/models/",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "cloudflare-workers-ai",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://developers.cloudflare.com/workers-ai/models/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "host",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Databricks AI Gateway",
+      "docs_url": "https://docs.databricks.com/aws/en/machine-learning/foundation-models/",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "databricks-ai-gateway",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://docs.databricks.com/aws/en/machine-learning/foundation-models/",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "account",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "Snowflake Cortex",
+      "docs_url": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "snowflake-cortex",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "project_id",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": true,
+          "secret": true
+        }
+      ],
+      "display_name": "IBM watsonx.ai",
+      "docs_url": "https://www.ibm.com/docs/en/watsonx/saas?topic=solutions-supported-foundation-models",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "watsonx",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://www.ibm.com/docs/en/watsonx/saas?topic=solutions-supported-foundation-models",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-12.1",
+      "category": "ai_model_provider",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "base_url",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "api_key",
+          "required": false,
+          "secret": true
+        }
+      ],
+      "display_name": "LiteLLM",
+      "docs_url": "https://docs.litellm.ai/docs/proxy/virtual_keys",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "litellm",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "model_api": {
+        "protocol": "openai_chat"
+      },
+      "operations": [
+        "model.invoke"
+      ],
+      "provenance_url": "https://docs.litellm.ai/docs/proxy/virtual_keys",
+      "scopes": [],
+      "supports_refresh": false
     }
   ],
-  "revision": "2026-10-05.1"
+  "revision": "2026-10-12.1"
 }

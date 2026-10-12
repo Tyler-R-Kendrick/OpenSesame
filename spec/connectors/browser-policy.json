@@ -1,0 +1,1765 @@
+{
+  "schema_version": 1,
+  "audited_origin": "https://tyler-r-kendrick.github.io",
+  "checked_date": "2026-10-09",
+  "qualification": "Unauthenticated TLS-verified OPTIONS and public metadata GET only, no account grant/proof. Errors and 5xx do not establish provider CORS refusal. Dynamic tenant and credential URLs are not guessed. New MCP rules apply only to the audited origin; another operator origin must complete actual metadata, registration, token and resource requests. Origin-specific response admission does not prove authenticated access.",
+  "rules": [
+    {
+      "provider_id": "agentmail",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "AgentMail rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.agentmail.to/knowledge-base/getting-api-key"
+      ],
+      "probe": {
+        "url": "https://api.agentmail.to/v0/inboxes",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.371322+00:00"
+      }
+    },
+    {
+      "provider_id": "beehiiv",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "beehiiv rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://developers.beehiiv.com/welcome/create-an-api-key"
+      ],
+      "probe": {
+        "url": "https://api.beehiiv.com/v2/publications",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.166001+00:00"
+      }
+    },
+    {
+      "provider_id": "circleci",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "CircleCI rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://circleci.com/docs/guides/toolkit/managing-api-tokens/"
+      ],
+      "probe": {
+        "url": "https://circleci.com/api/v2/me",
+        "method": "GET",
+        "request_header_names": ["circle-token"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": "DELETE,GET,OPTIONS,PATCH,POST,PUT",
+        "allow_headers": "Content-Type,x-csrftoken,x-gitlab-authorization,Range,x-bitbucket-token,If-None-Match,If-Modified-Since",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.272327+00:00"
+      }
+    },
+    {
+      "provider_id": "clerk",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Clerk rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://clerk.com/docs/reference/backend-api"],
+      "probe": {
+        "url": "https://api.clerk.com/v1/instance",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.405832+00:00"
+      }
+    },
+    {
+      "provider_id": "cloudflare",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Cloudflare rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/"
+      ],
+      "probe": {
+        "url": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.294566+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "datadoghq.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.datadoghq.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.729829+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "us3.datadoghq.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.us3.datadoghq.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.704047+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "us5.datadoghq.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.us5.datadoghq.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.776186+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "datadoghq.eu"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.datadoghq.eu/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:36.969850+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "ap1.datadoghq.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.ap1.datadoghq.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.095607+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "ap2.datadoghq.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.ap2.datadoghq.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.385979+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "uk1.datadoghq.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.uk1.datadoghq.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.404830+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "ddog-gov.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.ddog-gov.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.097466+00:00"
+      }
+    },
+    {
+      "provider_id": "datadog",
+      "method": "api-key",
+      "parameters": {
+        "site": "us2.ddog-gov.com"
+      },
+      "reason": "Datadog rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.datadoghq.com/api/latest/authentication/"
+      ],
+      "probe": {
+        "url": "https://api.us2.ddog-gov.com/api/v2/validate_keys",
+        "method": "GET",
+        "request_header_names": ["dd-api-key", "dd-application-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:38.020032+00:00"
+      }
+    },
+    {
+      "provider_id": "deepgram",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Deepgram rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://developers.deepgram.com/docs/create-additional-api-keys"
+      ],
+      "probe": {
+        "url": "https://api.deepgram.com/v1/projects",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.373519+00:00"
+      }
+    },
+    {
+      "provider_id": "dovetail",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Dovetail rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://developers.dovetail.com/docs/authorization"],
+      "probe": {
+        "url": "https://dovetail.com/api/v1/token/info",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.541739+00:00"
+      }
+    },
+    {
+      "provider_id": "exa",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Exa rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://exa.ai/docs/reference/getting-started"],
+      "probe": {
+        "url": "https://api.exa.ai/websets/v0/websets",
+        "method": "GET",
+        "request_header_names": ["x-api-key"],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+        "allow_headers": "x-api-key",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.605956+00:00"
+      }
+    },
+    {
+      "provider_id": "fathom",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Fathom rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://developers.fathom.ai/quickstart"],
+      "probe": {
+        "url": "https://api.fathom.ai/external/v1/meetings",
+        "method": "GET",
+        "request_header_names": ["x-api-key"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:37.656719+00:00"
+      }
+    },
+    {
+      "provider_id": "jev",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Jev rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://docs.typesafe.ai/api"],
+      "probe": {
+        "url": "https://api.typesafe.ai/v1/models",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+        "allow_headers": "Accept, Accept-Language, Authorization, Content-Encoding, Content-Language, Content-Type, X-Dashboard-JWT, X-Typesafe-Organization-ID, X-Typesafe-Debug",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:38.082211+00:00"
+      }
+    },
+    {
+      "provider_id": "kernel",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Kernel rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://www.kernel.sh/auth.md"],
+      "probe": {
+        "url": "https://api.onkernel.com/browsers",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 405,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:38.392240+00:00"
+      }
+    },
+    {
+      "provider_id": "lemma",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Lemma rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://getlemma.com/docs/api-reference/authentication"
+      ],
+      "probe": {
+        "url": "https://api.getlemma.com/v0/entities",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:38.498156+00:00"
+      }
+    },
+    {
+      "provider_id": "neon",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Neon rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://neon.com/docs/manage/api-keys"],
+      "probe": {
+        "url": "https://console.neon.tech/api/v2/projects?limit=20",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:38.671809+00:00"
+      }
+    },
+    {
+      "provider_id": "npm",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "npm rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.npmjs.com/creating-and-viewing-access-tokens"
+      ],
+      "probe": {
+        "url": "https://registry.npmjs.org/-/whoami",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:38.712575+00:00"
+      }
+    },
+    {
+      "provider_id": "railway",
+      "method": "api-key",
+      "parameters": {
+        "credential_variant": "account"
+      },
+      "reason": "Railway only allows this API request from railway.com. API-key verification is unavailable from a self-hosted page.",
+      "evidence_urls": ["https://docs.railway.com/reference/public-api"],
+      "probe": {
+        "url": "https://backboard.railway.com/graphql/v2",
+        "method": "POST",
+        "request_header_names": ["authorization", "content-type"],
+        "status": 204,
+        "allow_origin": "https://railway.com",
+        "allow_methods": "GET,HEAD,PUT,POST,DELETE,PATCH",
+        "allow_headers": "authorization,content-type",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.093930+00:00"
+      }
+    },
+    {
+      "provider_id": "railway",
+      "method": "api-key",
+      "parameters": {
+        "credential_variant": "workspace"
+      },
+      "reason": "Railway only allows this API request from railway.com. API-key verification is unavailable from a self-hosted page.",
+      "evidence_urls": ["https://docs.railway.com/reference/public-api"],
+      "probe": {
+        "url": "https://backboard.railway.com/graphql/v2",
+        "method": "POST",
+        "request_header_names": ["authorization", "content-type"],
+        "status": 204,
+        "allow_origin": "https://railway.com",
+        "allow_methods": "GET,HEAD,PUT,POST,DELETE,PATCH",
+        "allow_headers": "authorization,content-type",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.108721+00:00"
+      }
+    },
+    {
+      "provider_id": "railway",
+      "method": "api-key",
+      "parameters": {
+        "credential_variant": "project"
+      },
+      "reason": "Railway only allows this API request from railway.com. API-key verification is unavailable from a self-hosted page.",
+      "evidence_urls": ["https://docs.railway.com/reference/public-api"],
+      "probe": {
+        "url": "https://backboard.railway.com/graphql/v2",
+        "method": "POST",
+        "request_header_names": ["content-type", "project-access-token"],
+        "status": 204,
+        "allow_origin": "https://railway.com",
+        "allow_methods": "GET,HEAD,PUT,POST,DELETE,PATCH",
+        "allow_headers": "content-type,project-access-token",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.173744+00:00"
+      }
+    },
+    {
+      "provider_id": "render",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Render rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://render.com/docs/api"],
+      "probe": {
+        "url": "https://api.render.com/v1/owners?limit=20",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.317942+00:00"
+      }
+    },
+    {
+      "provider_id": "replicate",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Replicate documents that its API cannot be called directly from a browser. This API-key method is unavailable on a self-hosted page.",
+      "evidence_urls": [
+        "https://replicate.com/docs/reference/http#accounts.get",
+        "https://github.com/replicate/replicate-javascript"
+      ],
+      "probe": {
+        "url": "https://api.replicate.com/v1/account",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.356474+00:00"
+      }
+    },
+    {
+      "provider_id": "resend",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Resend rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://resend.com/docs/api-reference/domains/list-domains",
+        "https://resend.com/docs/guides/building-a-resend-oauth-client"
+      ],
+      "probe": {
+        "url": "https://api.resend.com/domains",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.389666+00:00"
+      }
+    },
+    {
+      "provider_id": "resend",
+      "method": "oauth",
+      "parameters": {},
+      "reason": "Resend's domain API rejected browser access. REST OAuth is unavailable under the current browser policy; choose MCP when offered.",
+      "evidence_urls": [
+        "https://resend.com/docs/api-reference/domains/list-domains",
+        "https://resend.com/docs/guides/building-a-resend-oauth-client"
+      ],
+      "probe": {
+        "url": "https://api.resend.com/domains",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.389666+00:00"
+      }
+    },
+    {
+      "provider_id": "sanity",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Sanity rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://www.sanity.io/docs/content-lake/http-auth"],
+      "probe": {
+        "url": "https://api.sanity.io/v2021-06-07/users/me",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.450598+00:00"
+      }
+    },
+    {
+      "provider_id": "segment",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Segment rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://docs.segmentapis.com/tag/Getting-Started"],
+      "probe": {
+        "url": "https://api.segmentapis.com/",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.621374+00:00"
+      }
+    },
+    {
+      "provider_id": "sendgrid",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "SendGrid rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
+        "https://www.twilio.com/docs/sendgrid/for-developers/sending-email/cors"
+      ],
+      "probe": {
+        "url": "https://api.sendgrid.com/v3/scopes",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": "OPTIONS, GET, POST, PUT, PATCH, DELETE",
+        "allow_headers": "AUTHORIZATION, Browser-Fingerprint, Content-Type, On-behalf-of, x-sg-elas-acl, X-Recaptcha, X-Request-Source, x-sendgrid-mc-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.638311+00:00"
+      }
+    },
+    {
+      "provider_id": "typeform",
+      "method": "api-key",
+      "parameters": {
+        "api_host": "api.typeform.com"
+      },
+      "reason": "Typeform does not allow direct browser requests to its API. This API-key method is unavailable on a self-hosted page.",
+      "evidence_urls": [
+        "https://www.typeform.com/developers/get-started/personal-access-token/",
+        "https://community.typeform.com/typeform-developers-44/help-needed-cors-policy-5899"
+      ],
+      "probe": {
+        "url": "https://api.typeform.com/me",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": "GET, OPTIONS, POST, PUT, PATCH, DELETE",
+        "allow_headers": "X-Typeform-Key, Content-Type, Authorization, Typeform-Version, typeform-app, X-Requested-With, anonymousid, X-Namespace",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:39.844517+00:00"
+      }
+    },
+    {
+      "provider_id": "typeform",
+      "method": "api-key",
+      "parameters": {
+        "api_host": "api.eu.typeform.com"
+      },
+      "reason": "Typeform does not allow direct browser requests to its API. This API-key method is unavailable on a self-hosted page.",
+      "evidence_urls": [
+        "https://www.typeform.com/developers/get-started/personal-access-token/",
+        "https://community.typeform.com/typeform-developers-44/help-needed-cors-policy-5899"
+      ],
+      "probe": {
+        "url": "https://api.eu.typeform.com/me",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": "GET, OPTIONS, POST, PUT, PATCH, DELETE",
+        "allow_headers": "X-Typeform-Key, Content-Type, Authorization, Typeform-Version, typeform-app, X-Requested-With, anonymousid, X-Namespace",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:40.202339+00:00"
+      }
+    },
+    {
+      "provider_id": "webflow",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Webflow rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://developers.webflow.com/data/reference/authentication/site-token"
+      ],
+      "probe": {
+        "url": "https://api.webflow.com/v2/sites",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:40.064472+00:00"
+      }
+    },
+    {
+      "provider_id": "cloudflare-origin-ca",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Cloudflare Origin CA rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/"
+      ],
+      "probe": {
+        "url": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:40.428459+00:00"
+      }
+    },
+    {
+      "provider_id": "doppler",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Doppler only allows this API request from docs.doppler.com. API-key verification is unavailable from a self-hosted page.",
+      "evidence_urls": ["https://docs.doppler.com/reference/api"],
+      "probe": {
+        "url": "https://api.doppler.com/v3/me",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 204,
+        "allow_origin": "https://docs.doppler.com",
+        "allow_methods": "POST,PUT,GET,OPTIONS,DELETE",
+        "allow_headers": "Content-Type,Accept,X-Requested-With,Authorization,Accepts,X-Readme-API-Explorer",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:40.458853+00:00"
+      }
+    },
+    {
+      "provider_id": "postmark",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Postmark rejected browser access to this API endpoint. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://postmarkapp.com/developer/api/overview"],
+      "probe": {
+        "url": "https://api.postmarkapp.com/server",
+        "method": "GET",
+        "request_header_names": ["x-postmark-server-token"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
+        "allow_headers": "Content-Type,X-Postmark-Account-Token,X-Postmark-Server-Token",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T08:05:41.132783+00:00"
+      }
+    },
+    {
+      "provider_id": "airtable",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Airtable MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/airtable",
+        "https://mcp.airtable.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.airtable.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "axiom",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Axiom MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://axiom.co/docs/console/intelligence/mcp-server",
+        "https://mcp.axiom.co/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.axiom.co/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "beehiiv",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "beehiiv MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://developers.beehiiv.com/oauth2",
+        "https://mcp.beehiiv.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.beehiiv.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "better-stack",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Better Stack MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://betterstack.com/docs/getting-started/integrations/mcp/",
+        "https://betterstack.com/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://betterstack.com/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "brex",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Brex MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/brex",
+        "https://api.brex.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://api.brex.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "checkly",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Checkly MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://www.checklyhq.com/docs/ai/mcp-server/",
+        "https://api.checklyhq.com/mcp"
+      ],
+      "probe": {
+        "url": "https://api.checklyhq.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "cloudflare",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Cloudflare MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/",
+        "https://mcp.cloudflare.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.cloudflare.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "cloudinary",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Cloudinary MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/cloudinary",
+        "https://asset-management.mcp.cloudinary.com/sse"
+      ],
+      "probe": {
+        "url": "https://asset-management.mcp.cloudinary.com/sse",
+        "method": "GET",
+        "request_method": "OPTIONS",
+        "request_header_names": ["authorization"],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "sse-get-preflight"
+      }
+    },
+    {
+      "provider_id": "common-room",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Common Room MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://commonroom.io",
+        "https://mcp.commonroom.io/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.commonroom.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": "http://localhost:6274",
+        "allow_methods": "GET,POST,OPTIONS",
+        "allow_headers": "Content-Type,Authorization,Mcp-Method,Mcp-Name,Mcp-Protocol-Version,X-Community-ID",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "coupler-io",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Coupler.io MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://blog.coupler.io/how-to-use-coupler-mcp-server/",
+        "https://auth.coupler.io/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://auth.coupler.io/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "fireflies",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Fireflies MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://fireflies.ai",
+        "https://api.fireflies.ai/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://api.fireflies.ai/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "honeycomb",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Honeycomb MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.honeycomb.io/integrations/mcp/configuration-guide",
+        "https://mcp.honeycomb.io/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.honeycomb.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 405,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "indeed",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Indeed MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://indeed.com",
+        "https://mcp.indeed.com/claude/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.indeed.com/claude/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 400,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY",
+        "allow_headers": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "intuit-mailchimp",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Intuit Mailchimp MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://mailchimp.com",
+        "https://ai-inc.mailchimp.com/claude/mcp/v2"
+      ],
+      "probe": {
+        "url": "https://ai-inc.mailchimp.com/claude/mcp/v2",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "lovable",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Lovable MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://lovable.dev",
+        "https://api.lovable.dev/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://api.lovable.dev/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "manufact",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Manufact MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/manufact",
+        "https://cloud.manufact.com/.well-known/oauth-authorization-server/api/auth"
+      ],
+      "probe": {
+        "url": "https://cloud.manufact.com/.well-known/oauth-authorization-server/api/auth",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "new-relic",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "New Relic MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.newrelic.com/docs/agentic-ai/mcp/setup/",
+        "https://oauth2.service.newrelic.com/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://oauth2.service.newrelic.com/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "otter-ai",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Otter.ai MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://otter.ai",
+        "https://otter.ai/.well-known/oauth-authorization-server"
+      ],
+      "probe": {
+        "url": "https://otter.ai/.well-known/oauth-authorization-server",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "authorization-metadata"
+      }
+    },
+    {
+      "provider_id": "pendo",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Pendo MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://pendo.io",
+        "https://app.pendo.io/.well-known/oauth-protected-resource/mcp/v0/shttp"
+      ],
+      "probe": {
+        "url": "https://app.pendo.io/.well-known/oauth-protected-resource/mcp/v0/shttp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "posthog",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "PostHog MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/posthog",
+        "https://mcp.posthog.com/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.posthog.com/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "pylon",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Pylon MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://support.usepylon.com/articles/2407390554-connecting-to-the-pylon-mcp-server",
+        "https://mcp.usepylon.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.usepylon.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "quicknode",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Quicknode MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://www.quicknode.com/docs/build-with-ai/quicknode-mcp",
+        "https://mcp.quicknode.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.quicknode.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "read-ai",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Read AI MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://support.read.ai/hc/en-us/articles/49381158409491-MCP-Server",
+        "https://api.read.ai/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://api.read.ai/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "readwise",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Readwise MCP is unavailable from this site's origin.",
+      "evidence_urls": ["https://readwise.io", "https://mcp2.readwise.io/mcp"],
+      "probe": {
+        "url": "https://mcp2.readwise.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 405,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "resend",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Resend MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://resend.com/docs/guides/building-a-resend-oauth-client",
+        "https://mcp.resend.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.resend.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "sentry",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Sentry MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.sentry.io/api/auth/",
+        "https://mcp.sentry.dev/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.sentry.dev/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "streak",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Streak MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://support.streak.com/en/articles/13931874-integrating-streak-with-gemini-claude-chatgpt-and-other-ai-tools",
+        "https://api.streak.com/mcp"
+      ],
+      "probe": {
+        "url": "https://api.streak.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "superhuman-mail",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Superhuman Mail MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://superhuman.com",
+        "https://mcp.mail.superhuman.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.mail.superhuman.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 404,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "ticktick",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "TickTick MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/ticktick",
+        "https://mcp.ticktick.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.ticktick.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "todoist",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Todoist MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/todoist",
+        "https://ai.todoist.net/.well-known/oauth-protected-resource/mcp"
+      ],
+      "probe": {
+        "url": "https://ai.todoist.net/.well-known/oauth-protected-resource/mcp",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "webflow",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Webflow MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://developers.webflow.com/data/reference/oauth-app",
+        "https://mcp.webflow.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.webflow.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "whimsical",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Whimsical MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://whimsical.com/learn/integrations/mcp",
+        "https://mcp.whimsical.com/.well-known/oauth-protected-resource"
+      ],
+      "probe": {
+        "url": "https://mcp.whimsical.com/.well-known/oauth-protected-resource",
+        "method": "GET",
+        "request_method": "GET",
+        "request_header_names": ["origin"],
+        "status": 200,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-metadata"
+      }
+    },
+    {
+      "provider_id": "zapier",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Zapier MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/zapier",
+        "https://mcp.zapier.com/api/v1/connect"
+      ],
+      "probe": {
+        "url": "https://mcp.zapier.com/api/v1/connect",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 204,
+        "allow_origin": null,
+        "allow_methods": "GET, PATCH, POST, PUT, DELETE, OPTIONS",
+        "allow_headers": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "zernio",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Zernio MCP is unavailable from this site's origin.",
+      "evidence_urls": [
+        "https://docs.zernio.com",
+        "https://mcp.zernio.com/mcp"
+      ],
+      "probe": {
+        "url": "https://mcp.zernio.com/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version",
+          "mcp-session-id"
+        ],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-09T16:57:00Z",
+        "stage": "resource-preflight"
+      }
+    },
+    {
+      "provider_id": "adobe",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Adobe MCP does not admit the required protocol header from this site's origin.",
+      "evidence_urls": [
+        "https://adobe.io",
+        "https://express-mcp-service.adobe.io/mcp",
+        "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header"
+      ],
+      "probe": {
+        "url": "https://express-mcp-service.adobe.io/mcp",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version"
+        ],
+        "status": 200,
+        "allow_origin": "https://tyler-r-kendrick.github.io",
+        "allow_methods": "GET,OPTIONS,POST",
+        "allow_headers": "authorization,x-api-key,x-request-id,Accept,Accept-Encoding,x-session-id,Content-Type,Mcp-Session-Id,traceparent,tracestate",
+        "denied_header": "mcp-protocol-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T17:00:53Z",
+        "stage": "resource-protocol-preflight"
+      }
+    },
+    {
+      "provider_id": "local-falcon",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Local Falcon MCP does not admit the required protocol header from this site's origin.",
+      "evidence_urls": [
+        "https://vercel.com/connect/local-falcon",
+        "https://mcp.localfalcon.com",
+        "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header"
+      ],
+      "probe": {
+        "url": "https://mcp.localfalcon.com",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version"
+        ],
+        "status": 204,
+        "allow_origin": "*",
+        "allow_methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+        "allow_headers": "Content-Type,Authorization,mcp-session-id,last-event-id",
+        "denied_header": "mcp-protocol-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T17:00:53Z",
+        "stage": "resource-protocol-preflight"
+      }
+    },
+    {
+      "provider_id": "sanity",
+      "method": "mcp",
+      "origins": ["https://tyler-r-kendrick.github.io"],
+      "parameters": {},
+      "reason": "Sanity MCP does not admit the required protocol header from this site's origin.",
+      "evidence_urls": [
+        "https://www.sanity.io/docs/oauth2",
+        "https://mcp.sanity.io",
+        "https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header"
+      ],
+      "probe": {
+        "url": "https://mcp.sanity.io",
+        "method": "POST",
+        "request_method": "OPTIONS",
+        "request_header_names": [
+          "authorization",
+          "content-type",
+          "mcp-protocol-version"
+        ],
+        "status": 204,
+        "allow_origin": "*",
+        "allow_methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+        "allow_headers": "Content-Type,Authorization,Mcp-Session-Id,mcp-session-id",
+        "denied_header": "mcp-protocol-version",
+        "tls_verified": true,
+        "checked_at": "2026-10-09T17:00:53Z",
+        "stage": "resource-protocol-preflight"
+      }
+    }
+  ]
+}

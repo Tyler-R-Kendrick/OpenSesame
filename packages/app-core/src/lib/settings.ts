@@ -180,16 +180,12 @@ export function defaultIdentityApi(): string {
 /**
  * What this app talks to when nobody has said: nothing.
  *
- * A local host is a capability somebody configures — `pages-dev.sh` bakes
- * `VITE_*`, a deploy writes `os-runtime-config.json`, an operator fills in
- * Settings → Endpoints or pairs a daemon — never something the app assumes
- * from its own hostname (ADR 0090). The old split (loopback tabs defaulted to
- * `127.0.0.1` Host/daemon/MFA endpoints, everything else to empty) made a dev
- * tab look paired with services that were not running, and left every
- * "Connect this machine" hint half true. Empty is honest on every origin: the
- * pairing UI asks for an address instead of looking like loopback will work,
- * and the shipped loopback values remain *suggestions* where a loopback tab
- * asks for one (`shippedHostApi` and friends).
+ * Host / Identity / daemon are not Pages backends (ADR 0090; Tyler
+ * 2026-10-08). Empty defaults are honest on every origin. A static deploy
+ * ships `{}` in `os-runtime-config.json`. Full-stack local tabs may still
+ * bake `VITE_*` via `pages-dev.sh`; that is operator tooling, not the
+ * shipped PWA. The shipped loopback values remain *suggestions* only where
+ * a loopback tab explicitly asks (`shippedHostApi` and friends).
  */
 function defaultsForPage(): PersistedSettings {
   return {

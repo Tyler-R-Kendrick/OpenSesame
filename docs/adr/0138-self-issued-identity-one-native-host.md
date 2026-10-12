@@ -1,7 +1,24 @@
 # ADR 0138 — Self-issued identity by default, one native host, apps are packages
 
-- Status: Proposed
+- Status: Proposed (partly implemented; see Implementation)
 - Date: 2026-09-24
+- Implementation: partly built. Landed: one native binary, `opensesame`
+  (`apps/cli`), whose roles are the subcommands `host run`, `daemon run` and
+  `worker run` and which answers as each credential helper under its link name
+  (`opensesame helpers link`; `apps/cli/src/entry.rs`); `apps/` holds only
+  `android`, `browser-extension`, `browser-extension-autofill`, `cli` and
+  `pages`, and the app's own serverless relay is `apps/pages/api` with
+  `apps/pages/server`. Not built: the `desktop` shell, `@opensesame/mcp`
+  (`packages/mcp-host` and `packages/mcp-client` remain two packages), the
+  Rust MCP module (`opensesame mcp serve`) and the Host's own local OpenID
+  provider of §3 (no `rmcp` dependency; no OpenID discovery document, JWKS or
+  authorization-code endpoint in `crates/gateway`). The
+  `worker` (Rust) row was overtaken by [ADR 0132](0132-optional-mtls-and-workload-identity.md):
+  `crates/worker` exists and runs as `opensesame worker run`. The body's "24
+  tools over WebMCP" is 29 `opensesame_*` tool specs in
+  `packages/app-core/src/webmcp` today.
+- Amended by: [ADR 0140](0140-pages-hosts-every-ceremony.md) (the row that
+  assembles `ceremonies` and `mobile-mfa` into a hosted deployment)
 - Amends: [ADR 0007](0007-dual-plane-identity-authority.md) and [ADR 0017](0017-host-client-product-topology.md)
   (the Identity API stops being a required plane), [ADR 0033](0033-federated-identity-admission.md)
   (a durable principal no longer needs an upstream broker),

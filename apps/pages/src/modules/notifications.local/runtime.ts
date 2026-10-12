@@ -1,7 +1,7 @@
 /**
  * `notifications.local` — tells the person who holds this vault that a request
  * is waiting, while the app is open or in the background (ADR 0162, on ADR
- * 0084). Optional, in its own Settings › Capabilities section: nothing of it
+ * 0084). Optional, in its own Settings › Features section: nothing of it
  * reaches the page before the plan approved it and a consent receipt covered
  * its exposure (ADR 0130).
  *
@@ -13,7 +13,7 @@
  *    the device allow: the bell in the tray, the tab's title and badge, and a
  *    system notification when the tab is in the background. It stops, and
  *    takes every mark down, when the vault locks;
- *  - the section's panel and its file (`settings/capabilities/
+ *  - the section's panel and its file (`settings/features/
  *    local-notifications.json`): which places the person wants, narrowed to
  *    what the device allows.
  *
@@ -38,7 +38,7 @@ import {
   LOCAL_NOTIFICATIONS_GOALS,
   LOCAL_NOTIFICATIONS_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/notifications-catalog.js";
-import { sectionCategory } from "../../sections/settings/CapabilitySections.js";
+import { sectionCategory } from "../../sections/settings/FeatureSections.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { LocalNotificationsPanel } from "./LocalNotificationsPanel.js";
@@ -52,7 +52,7 @@ export const TUTORIAL = {
   goals: LOCAL_NOTIFICATIONS_GOALS,
 } as const;
 
-/** The Capabilities section this capability's panel is drawn in. */
+/** The Features section this capability's panel is drawn in. */
 export const SECTION = "feature-local-notifications";
 
 export const capabilityRuntime: CapabilityRuntime = {

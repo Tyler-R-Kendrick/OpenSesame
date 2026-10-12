@@ -24,13 +24,13 @@ export function DirectoryDevices({ online, session }: DevicesProps) {
 /** The same form the `/device` route draws (`DeviceApproval`), in a panel. */
 function ApproveDeviceCard({ online }: { online: boolean }) {
   return (
-    <section className="panel" aria-labelledby="identity-device-approve">
-      <div className="panel__head">
+    <section className="detail" aria-labelledby="identity-device-approve">
+      <div className="detail__head">
         <div>
-          <h2 id="identity-device-approve">Approve a device</h2>
+          <h1 id="identity-device-approve">Approve a device</h1>
         </div>
       </div>
-      <div className="panel__body">
+      <div className="detail__group">
         <DeviceApproval online={online} id="identity-device-code" />
       </div>
     </section>

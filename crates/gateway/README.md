@@ -40,20 +40,24 @@ Flags (each also an env var): `--listen` (`OPENSESAME_LISTEN`, default
 `127.0.0.1:8787`), `--resource` (`OPENSESAME_RESOURCE`), `--issuer`
 (`OPENSESAME_ISSUER`), `--database-url` (`OPENSESAME_DB`), `--task-database-url`
 (`OPENSESAME_TASK_DB`). Feature `wasm-connectors` (default off) enables the
-community Wasm connector runtime. Contract: [`spec/openapi/host-api.yaml`](../../spec/openapi/host-api.yaml).
+community Wasm connector runtime; feature `bitwarden-compat` (default off)
+compiles in the Bitwarden-compatible server, which `src/bitwarden_compat.rs`
+mounts at `/bitwarden` only when `OPENSESAME_BITWARDEN_COMPAT=on`
+([`opensesame-bitwarden-server`](../bitwarden-server)). Contract:
+[`spec/openapi/host-api.yaml`](../../spec/openapi/host-api.yaml).
 
 | Route group | Prefixes (bare names are under `/api/v1/`) |
 |---|---|
-| Health, discovery | `/health/*`, `/api/v1/health`, `/auth.md`, `/api/v1/whoami` |
-| Connections | `/api/v1/connections`, `providers`, `custom-providers`, `configs`, `delegations`, `attachments` |
-| Authority | `/api/v1/tasks`, `intents`, `receipts`, `agent*`, `host-authorizations`, `ceremonies`, `/experimental/aauth/*` |
+| Health, discovery | `/health/*`, `/api/v1/health`, `/auth.md`, `/.well-known/agent-card.json`, `/.well-known/oauth-protected-resource`, `/api/v1/whoami` |
+| Connections | `/api/v1/connections`, `providers`, `custom-providers`, `credential-providers`, `credential-connections`, `integrations`, `oauth/*` callbacks, `projects/{id}/configs`, `configs`, `delegations`, `attachments` |
+| Authority | `/api/v1/tasks`, `intents`, `receipts`, `agent*` (incl. `agent/runs`, `agent-hooks`), `web-login`, `host-authorizations`, `ceremonies`, `organizations/{org}/grants`, `grant-offers` and `access-domains`, `/experimental/aauth/*` |
 | Sessions, pairing | `/api/v1/session`, `sessions`, `shared-sessions`, `browser-pairings`, `browser-clients`, `device`, `/pair` |
-| Sync, backup | `/api/v1/sync`, `sync-targets`, `backup`, `changelog` |
+| Sync, backup | `/api/v1/sync`, `sync-targets`, `backup`, `changelog`, `webhooks/github` |
 | Certificates | `/api/v1/certs`, `/api/v1/certmgr/*`, `/.well-known/est/*` |
 | Lifecycle, security | `/api/v1/lifecycle`, `rotations`, `security`, `a2h` |
 | Relay, task bus | `/api/v1/relay`, `/api/v1/nats` |
 | Operator | `/api/v1/operator/*` (incl. `operator/transport/*`), `/api/v1/admin` |
-| KV v2 facade | `/v1/sys`, `/v1/{mount}`, only with `OPENSESAME_KV_FACADE=true` |
+| KV v2 facade | `/v1/sys`, `/v1/{mount}`, only with `OPENSESAME_KV_FACADE` set to `true` or `1` |
 
 Source areas under `src/`: `routes/` (one module per group), `middleware/`
 (caller resolution, agent and browser grants), `transport/` and
@@ -70,8 +74,10 @@ pnpm test:live-stack    # live OpenFGA / OpenBao / gateway
 pnpm test:mtls          # transport-security contract suites
 ```
 
-`tests/startup_security.rs` checks that a configuration refusal comes before
-SQLite or a listener starts. Response shapes are `insta` snapshots in
+A configuration refusal comes before SQLite or a listener starts:
+`config::assert_cors_origins` and `config::StartupSecurity::load` run first in
+`run` and `app_state::build`, and the secret checks are unit-tested in
+`src/config.rs`. Response shapes are `insta` snapshots in
 `src/routes/snapshots/`. A new route needs a
 [`capability-registry`](../../packages/capability-registry) entry
 ([ADR 0065](../../docs/adr/0065-agent-surface-parity.md)).

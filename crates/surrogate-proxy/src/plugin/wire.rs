@@ -5,17 +5,22 @@
 //! parent → plugin  {"run_id","ttl_secs","entries":[{"env_var","provider_id",
 //!                   "connection_ref","site","methods","path_prefixes"}],
 //!                   "logins":[{"env_var","origin","action","field","secret",
-//!                   "ca_pem"?}],"passthrough_hosts":[],"watched"?,"notices_path"}
+//!                   "ca_pem"?}],"credentials":[{"connection_ref","secret"}],
+//!                   "passthrough_hosts":[],"watched"?,"notices_path"}
 //! plugin → parent  {"proxy_url","ca_pem_path","env":{…},"unserved":[…]}
 //!              or  {"error":"<class>"}
 //! plugin → parent  {"event":"tripwire",…} | {"event":"login",…}  (while it runs)
 //! ```
 //!
 //! A login's `secret` is the credential itself, read by the parent from the
-//! person's sealed store (ADR 0150 §6.3). It travels only in this line, over
-//! this pipe — never argv, never a file — and nothing the plugin writes
-//! repeats it: the spec types have no `Serialize` and a `Debug` that names
-//! no value. `watched` defaults to true: the parent that spawned the run is
+//! person's sealed store (ADR 0150 §6.3). A connection's credential
+//! (`credentials`) is the same thing for an API: the parent reads the token a
+//! connection holds in the sealed store and names the `connection_ref` it
+//! belongs to, and the plugin redeems it for the entries of that connection
+//! whose provider draws no credential from a local tool. Either travels only
+//! in this line, over this pipe — never argv, never a file — and nothing the
+//! plugin writes repeats it: the spec types have no `Serialize` and a `Debug`
+//! that names no value. `watched` defaults to true: the parent that spawned the run is
 //! reading its stdout, so a misdirected surrogate revokes the run at once
 //! (ADR 0150 §6.2) unless the parent says nobody is watching.
 //!
@@ -27,20 +32,22 @@
 //! before anything is issued; the run does not start.
 //!
 //! `site` is `"authorization"` or `"header:<name>"`. An entry whose provider
-//! this build cannot broker (no egress rule, or no local credential source)
-//! is listed in `unserved` and issued nothing, so the parent keeps whatever it
-//! would have delivered without the plugin. Unknown fields are refused: a
+//! this build cannot broker (no egress rule, or no credential source: neither
+//! a local tool nor a `credentials` row for its connection) is listed in
+//! `unserved` and issued nothing, so the parent keeps whatever it would have
+//! delivered without the plugin. Unknown fields are refused: a
 //! misspelt field silently ignored is a scope nobody asked for.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use opensesame_invoke_through::{rule_for, source_tool, SurrogateSite, EGRESS_RULES};
-use secrecy::SecretString;
+use opensesame_invoke_through::{source_tool, SurrogateSite};
+use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 
 use crate::login::{LoginGrant, LoginTrust};
+use crate::providers;
 use crate::runs::{RunSpec, SurrogateGrant};
 
 /// The longest spec line the plugin reads. Far above any real run; a parent
@@ -95,6 +102,24 @@ impl std::fmt::Debug for LoginSpec {
     }
 }
 
+/// The credential one connection holds, for the entries that name it. `Debug`
+/// names the connection, never the secret.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialSpec {
+    /// The `conn://…` reference of the entries this credential serves.
+    pub connection_ref: String,
+    pub secret: SecretString,
+}
+
+impl std::fmt::Debug for CredentialSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CredentialSpec")
+            .field("connection_ref", &self.connection_ref)
+            .finish_non_exhaustive()
+    }
+}
+
 /// The one line the parent writes.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -104,6 +129,8 @@ pub struct RunRequest {
     pub entries: Vec<EntrySpec>,
     #[serde(default)]
     pub logins: Vec<LoginSpec>,
+    #[serde(default)]
+    pub credentials: Vec<CredentialSpec>,
     #[serde(default)]
     pub passthrough_hosts: Vec<String>,
     #[serde(default = "watched_by_default")]
@@ -148,6 +175,10 @@ pub enum SpecError {
     Site,
     #[error("spec_notices_path")]
     NoticesPath,
+    /// A credential with no connection, no secret, or a second one for a
+    /// connection that already has one.
+    #[error("spec_credential")]
+    Credential,
     /// A served entry whose methods or path prefixes are not a bounded scope.
     /// Names the entry's environment variable, never a value.
     #[error("spec_path_scope:{0}")]
@@ -167,8 +198,8 @@ impl SpecError {
 /// # Errors
 ///
 /// `TooLarge`, `Malformed`, `RunId` (empty, too long, or not
-/// `[A-Za-z0-9._-]`), `Ttl` (zero or beyond [`MAX_TTL_SECS`]), or
-/// `NoticesPath` (relative).
+/// `[A-Za-z0-9._-]`), `Ttl` (zero or beyond [`MAX_TTL_SECS`]), `NoticesPath`
+/// (relative), or `Credential` (see [`SpecError::Credential`]).
 pub fn parse_request(line: &[u8]) -> Result<RunRequest, SpecError> {
     if line.len() > MAX_SPEC_BYTES {
         return Err(SpecError::TooLarge);
@@ -182,6 +213,15 @@ pub fn parse_request(line: &[u8]) -> Result<RunRequest, SpecError> {
     }
     if !request.notices_path.is_absolute() {
         return Err(SpecError::NoticesPath);
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    let credentials_ok = request.credentials.iter().all(|credential| {
+        !credential.connection_ref.is_empty()
+            && !credential.secret.expose_secret().is_empty()
+            && seen.insert(credential.connection_ref.as_str())
+    });
+    if !credentials_ok {
+        return Err(SpecError::Credential);
     }
     Ok(request)
 }
@@ -218,10 +258,11 @@ pub fn parse_site(site: &str) -> Result<SurrogateSite, SpecError> {
 }
 
 /// Whether this build can broker `provider_id`: an egress rule to admit
-/// against and a local tool to draw the credential from.
+/// against ([`providers`]) and a credential to place, from a local tool or
+/// from the connection's own (`credentialed`).
 #[must_use]
-pub fn is_served(provider_id: &str) -> bool {
-    rule_for(EGRESS_RULES, provider_id).is_some() && source_tool(provider_id).is_some()
+pub fn is_served(provider_id: &str, credentialed: bool) -> bool {
+    providers::has_rule(provider_id) && (credentialed || source_tool(provider_id).is_some())
 }
 
 /// The HTTP methods a surrogate may be scoped to, exactly as the resolver
@@ -264,7 +305,11 @@ pub fn to_run_spec(request: &RunRequest) -> Result<(RunSpec, Vec<String>), SpecE
     let mut grants = Vec::new();
     let mut unserved = Vec::new();
     for entry in &request.entries {
-        if !is_served(&entry.provider_id) {
+        let credentialed = request
+            .credentials
+            .iter()
+            .any(|credential| credential.connection_ref == entry.connection_ref);
+        if !is_served(&entry.provider_id, credentialed) {
             unserved.push(entry.env_var.clone());
             continue;
         }

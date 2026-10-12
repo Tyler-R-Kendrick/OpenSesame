@@ -20,6 +20,7 @@ export function PaintedText({
   path,
   source,
   readOnly = false,
+  busy = false,
   invalid = false,
   inputRef,
   onChange,
@@ -33,6 +34,8 @@ export function PaintedText({
   path: string;
   source: string;
   readOnly?: boolean;
+  /** The text is still arriving: shown as it is, not yet editable. */
+  busy?: boolean;
   invalid?: boolean;
   inputRef?: Ref<HTMLTextAreaElement>;
   onChange?: (text: string, caret: number) => void;
@@ -70,10 +73,11 @@ export function PaintedText({
         className="set-raw__input"
         aria-label={path}
         aria-invalid={invalid ? true : undefined}
+        aria-busy={busy ? true : undefined}
         spellCheck={false}
         autoComplete="off"
         wrap="off"
-        readOnly={readOnly}
+        readOnly={readOnly || busy}
         value={source}
         onFocus={onFocus}
         onChange={(event) =>

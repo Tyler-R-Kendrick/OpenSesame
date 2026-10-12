@@ -1,0 +1,345 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1366,
+      "height": 1000,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "visit": "settings/general"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "connections/algolia"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "desktop-algolia-configure"
+        },
+        {
+          "visit": "connections/datadog"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "desktop-datadog-configure"
+        },
+        {
+          "visit": "connections/railway"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "selectOptional": {
+            "label": "Credential type",
+            "value": "workspace"
+          }
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "desktop-railway-configure"
+        },
+        {
+          "visit": "connections/linq"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "desktop-linq-configure"
+        },
+        {
+          "visit": "connections/vault"
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main [role=img], main a"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select, .cx-icon-field"
+        },
+        {
+          "shot": "desktop-vault-configure"
+        },
+        {
+          "visit": "connections/keepass"
+        },
+        {
+          "report": "main label, main h2, main [role=img], main a"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select, .cx-icon-field"
+        },
+        {
+          "shot": "desktop-keepass-configure"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "visit": "settings/general"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "connections/algolia"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "phone-algolia-configure"
+        },
+        {
+          "visit": "connections/datadog"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "phone-datadog-configure"
+        },
+        {
+          "visit": "connections/railway"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "selectOptional": {
+            "label": "Credential type",
+            "value": "workspace"
+          }
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "phone-railway-configure"
+        },
+        {
+          "visit": "connections/linq"
+        },
+        {
+          "chooseOptional": "API Key"
+        },
+        {
+          "report": "main label, main h2, main summary, main [role=img], .go-verb"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select"
+        },
+        {
+          "shot": "phone-linq-configure"
+        },
+        {
+          "visit": "connections/vault"
+        },
+        {
+          "discloseOptional": "Provider setup guide"
+        },
+        {
+          "report": "main label, main h2, main [role=img], main a"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select, .cx-icon-field"
+        },
+        {
+          "shot": "phone-vault-configure"
+        },
+        {
+          "visit": "connections/keepass"
+        },
+        {
+          "report": "main label, main h2, main [role=img], main a"
+        },
+        {
+          "measure": ".cx-mode, .go-row, main input, main select, .cx-icon-field"
+        },
+        {
+          "shot": "phone-keepass-configure"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-algolia-configure",
+      "width": 1366,
+      "title": "Algolia configuration \u2014 1366 \u00d7 1000",
+      "caption": "Application ID and API key belong to the selected Algolia application. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "desktop-datadog-configure",
+      "width": 1366,
+      "title": "Datadog configuration \u2014 1366 \u00d7 1000",
+      "caption": "Datadog explains the observed API browser restriction and offers only supported browser methods. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "desktop-railway-configure",
+      "width": 1366,
+      "title": "Railway configuration \u2014 1366 \u00d7 1000",
+      "caption": "Railway restricts API requests to its own origin. The self-hosted configuration explains the provider restriction instead of accepting credentials for an unusable route. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "desktop-linq-configure",
+      "width": 1366,
+      "title": "Linq configuration \u2014 1366 \u00d7 1000",
+      "caption": "A hosted-only service explains its missing browser route without invented OAuth fields. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "phone-algolia-configure",
+      "width": 390,
+      "title": "Algolia configuration \u2014 390 \u00d7 844",
+      "caption": "Application ID and API key belong to the selected Algolia application. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "phone-datadog-configure",
+      "width": 390,
+      "title": "Datadog configuration \u2014 390 \u00d7 844",
+      "caption": "Datadog explains the observed API browser restriction and offers only supported browser methods. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "phone-railway-configure",
+      "width": 390,
+      "title": "Railway configuration \u2014 390 \u00d7 844",
+      "caption": "Railway restricts API requests to its own origin. The self-hosted configuration explains the provider restriction instead of accepting credentials for an unusable route. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "phone-linq-configure",
+      "width": 390,
+      "title": "Linq configuration \u2014 390 \u00d7 844",
+      "caption": "A hosted-only service explains its missing browser route without invented OAuth fields. Two genuine builds, identical human journey; no provider requests or account fixtures in these comparisons.",
+      "before": "Generic configuration fields",
+      "after": "Provider browser contract and supported-method availability"
+    },
+    {
+      "shot": "desktop-vault-configure",
+      "width": 1366,
+      "title": "Vault configuration \u2014 1366 \u00d7 1000",
+      "caption": "A self-hosted Vault HTTPS origin, namespace and provider token are verified before connection; local icon metadata uses the shared validated upload. Two genuine builds, identical sealed-vault journey; no upstream or account fixtures in these comparisons.",
+      "before": "Existing catalog configuration",
+      "after": "Verified browser instance or explicit companion/import route"
+    },
+    {
+      "shot": "desktop-keepass-configure",
+      "width": 1366,
+      "title": "Keepass configuration \u2014 1366 \u00d7 1000",
+      "caption": "KeePass directs the user to companion setup and browser file import, distinguishing a local snapshot from a running OS integration. Two genuine builds, identical sealed-vault journey; no upstream or account fixtures in these comparisons.",
+      "before": "Existing catalog configuration",
+      "after": "Verified browser instance or explicit companion/import route"
+    },
+    {
+      "shot": "phone-vault-configure",
+      "width": 390,
+      "title": "Vault configuration \u2014 390 \u00d7 844",
+      "caption": "A self-hosted Vault HTTPS origin, namespace and provider token are verified before connection; local icon metadata uses the shared validated upload. Two genuine builds, identical sealed-vault journey; no upstream or account fixtures in these comparisons.",
+      "before": "Existing catalog configuration",
+      "after": "Verified browser instance or explicit companion/import route"
+    },
+    {
+      "shot": "phone-keepass-configure",
+      "width": 390,
+      "title": "Keepass configuration \u2014 390 \u00d7 844",
+      "caption": "KeePass directs the user to companion setup and browser file import, distinguishing a local snapshot from a running OS integration. Two genuine builds, identical sealed-vault journey; no upstream or account fixtures in these comparisons.",
+      "before": "Existing catalog configuration",
+      "after": "Verified browser instance or explicit companion/import route"
+    }
+  ]
+}

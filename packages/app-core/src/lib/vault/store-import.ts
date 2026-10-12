@@ -37,11 +37,23 @@ import {
 } from "@opensesame/vault-core";
 import { lockManager } from "../../ports.js";
 import type { IdentityChange } from "../device-identity-carry.js";
-import { BODY_PATH } from "../vfs.js";
+import { setStatusNotice } from "../notices.js";
+import { BODY_PATH, readSealedFile } from "../vfs.js";
 import { recordItemTypes } from "./body-edits.js";
 import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import { openJsonForRebind } from "./seal-rebind.js";
 import { type VaultBodyPort, levelDeviceKey } from "./store-device-key.js";
+
+/**
+ * The identity modules, loaded when a restore needs them and not with the
+ * store. A seam so a suite can make one unreachable, as it is to a tab that
+ * outlived the deploy that replaced its chunks.
+ */
+export const storeImportSeams = {
+  trust: () => import("../device-identity-trust.js"),
+  keys: () => import("../device-identity-key.js"),
+  carry: () => import("../device-identity-carry.js"),
+};
 
 /** What a person decided about a restore. */
 export type ImportOptions = Readonly<{
@@ -51,6 +63,28 @@ export type ImportOptions = Readonly<{
    */
   adoptIdentity?: boolean;
 }>;
+
+/** The sealed backup `VaultStore.exportSealed` writes. */
+export function sealedVaultExport(
+  header: VaultHeader | null,
+  tomb: string,
+): string {
+  if (!header) throw new Error("There is no vault to export.");
+  const body = readSealedFile(tomb, BODY_PATH);
+  if (!body) throw new Error("There is nothing stored to export yet.");
+  return JSON.stringify(
+    {
+      format: "opensesame-vault-export",
+      v: 1,
+      exportedAt: new Date().toISOString(),
+      tomb,
+      header,
+      body,
+    },
+    null,
+    2,
+  );
+}
 
 type ParsedExport = { header: VaultHeader; body: SealedBlob; tomb: string };
 
@@ -139,7 +173,9 @@ export async function importSealedInto(
     isFreshVault(port.body());
   if (!adopting) return mergeAndCount(port, incoming);
 
-  const { vetCarriedKey } = await import("../device-identity-trust.js");
+  // Before anything is written: a chunk that cannot load stops the restore
+  // here, with the vault as it was.
+  const { vetCarriedKey } = await storeImportSeams.trust();
   const carried = await vetCarriedKey(incoming.deviceIdentityKey);
   if (carried.kind === "trusted") {
     const outcome = await importWithKey(port, incoming, carried.record);
@@ -168,11 +204,23 @@ async function mergeAndCount(
   return added;
 }
 
+/**
+ * Say what became of the principal. Runs after the restore has written, so it
+ * never fails one: a notice that cannot be composed is replaced by the plain
+ * fact that there is something to look at.
+ */
 async function tell(cause: IdentityChange): Promise<void> {
-  const { noteDeviceIdentityChanged } = await import(
-    "../device-identity-carry.js"
-  );
-  noteDeviceIdentityChanged(cause);
+  try {
+    const { noteDeviceIdentityChanged } = await storeImportSeams.carry();
+    noteDeviceIdentityChanged(cause);
+  } catch {
+    setStatusNotice({
+      id: "device-identity-changed",
+      tone: "info",
+      title: "Restored",
+      body: "The backup was restored, but this page could not say what became of this device's identity key. Reload it to see.",
+    });
+  }
 }
 
 /** How many items a keyed restore added; null when the tomb's record is not replaceable. */
@@ -212,7 +260,7 @@ async function importWithKey(
   incoming: VaultBody,
   record: DeviceIdentityKeyRecord,
 ): Promise<ImportWithKey> {
-  const keys = await import("../device-identity-key.js");
+  const keys = await storeImportSeams.keys();
   const tomb = port.tomb();
   const outcome = await keys.withDeviceIdentityFence(tomb, async () => {
     let previous: DeviceIdentityKeyRecord | null;
@@ -262,8 +310,8 @@ async function importWithKey(
  * under there is no key to report.
  */
 async function mintAfterKeylessRestore(port: VaultBodyPort): Promise<void> {
-  const { ensureDeviceIdentityKey } = await import("../device-identity-key.js");
   try {
+    const { ensureDeviceIdentityKey } = await storeImportSeams.keys();
     await ensureDeviceIdentityKey(port.tomb());
   } catch {
     return;

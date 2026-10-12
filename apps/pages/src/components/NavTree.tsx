@@ -3,6 +3,7 @@ import {
   type Folder,
   type VaultItem,
   itemTypeId,
+  listedItems,
 } from "@opensesame/vault-core";
 /**
  * The rail's section tree, split out of `AppShell` so the shell file stays
@@ -11,12 +12,20 @@ import {
  * one per `section` contribution, and nothing for a capability that is not
  * approved (ADR 0130).
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useClaimedDrags } from "../lib/use-claimed-drags.js";
 import { useShowHidden } from "../lib/use-show-hidden.js";
 import { useVaultAllTo } from "../lib/vault-list-path.js";
 import { useVault } from "../lib/vault/hooks.js";
+import { SupportContext } from "../tutorial/support-context.js";
 import { IconChevronLeft } from "./Icons.js";
 import { nextSectionOpen } from "./PageTreeBranch.js";
 import {
@@ -54,10 +63,24 @@ function useSectionExpands(
 ): (to: string) => SectionExpand {
   const mountedAt = useRef(pathname);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const support = useContext(SupportContext);
+  const target = useSyncExternalStore(
+    support?.subscribe ?? (() => () => {}),
+    () => support?.view().guide?.tour?.target ?? null,
+    () => null,
+  );
+  // A guide may point at a category after entering a closed section. Reveal
+  // its children only for that step; ordinary navigation retains its state.
+  const guidedSection = target?.startsWith("access.")
+    ? "/access"
+    : target?.startsWith("identity.")
+      ? "/identity"
+      : null;
   return useCallback(
     (to: string) => {
       const here = pathname.startsWith(to);
-      const expanded = open[to] ?? mountedAt.current.startsWith(to);
+      const expanded =
+        guidedSection === to || (open[to] ?? mountedAt.current.startsWith(to));
       return {
         expanded,
         here,
@@ -69,7 +92,7 @@ function useSectionExpands(
         },
       };
     },
-    [open, pathname, navigate],
+    [open, pathname, navigate, guidedSection],
   );
 }
 
@@ -261,8 +284,13 @@ export function NavTree() {
   const sectionOpen = Boolean(
     section && isBranch(section) && expandFor(section.to).expanded,
   );
-  currentToRef.current = section && !sectionOpen ? section.to : selectedTo;
-  const counts = useVaultCounts(items);
+  // The report is no row of the tree: while it is open the cursor stands on the
+  // vault's own row, as it does when the section is closed.
+  const onReport = selectedTo === "/vault/health";
+  currentToRef.current =
+    section && (!sectionOpen || onReport) ? section.to : selectedTo;
+  const listed = useMemo(() => listedItems(items), [items]);
+  const counts = useVaultCounts(listed);
 
   useClaimedDrags(treeRef);
   useRailKeyboard(treeRef, navigateRef, currentToRef);
@@ -281,7 +309,7 @@ export function NavTree() {
       // biome-ignore lint/a11y/noNoninteractiveTabindex: role=tree with aria-activedescendant is the interactive element; the tab stop belongs on it
       tabIndex={0}
       aria-activedescendant={
-        cursorId ?? railRowId(currentToRef.current, sectionOpen)
+        cursorId ?? railRowId(currentToRef.current, sectionOpen && !onReport)
       }
       onContextMenu={(event) => {
         const row = railRowAt(event.target);
@@ -302,7 +330,7 @@ export function NavTree() {
           pathname={location.pathname}
           selectedTo={selectedTo}
           counts={counts}
-          items={items}
+          items={listed}
           folders={folders}
           kinds={kinds}
           showHidden={showHidden}

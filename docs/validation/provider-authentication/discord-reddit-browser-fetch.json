@@ -1,0 +1,26 @@
+{
+  "origin": "https://tyler-r-kendrick.github.io",
+  "href": "https://tyler-r-kendrick.github.io/OpenSesame/robots.txt",
+  "results": [
+    {
+      "url": "https://discord.com/api/v10/users/@me",
+      "status": 401,
+      "type": "cors",
+      "body": "{\"message\": \"401: Unauthorized\", \"code\": 0}"
+    },
+    {
+      "url": "https://discord.com/api/v10/oauth2/@me",
+      "status": 401,
+      "type": "cors",
+      "body": "{\"message\": \"401: Unauthorized\", \"code\": 0}"
+    },
+    {
+      "url": "https://oauth.reddit.com/api/v1/me",
+      "error": "Failed to fetch"
+    },
+    {
+      "url": "https://www.reddit.com/api/v1/access_token",
+      "error": "Failed to fetch"
+    }
+  ]
+}

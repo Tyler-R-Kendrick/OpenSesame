@@ -23,8 +23,9 @@ vectors disagree, the vectors win, and this document has a bug.
 
 ## 1. Encodings
 
-- **Base64.** Standard alphabet with `=` padding (`btoa`/`atob`), not URL
-  safe. Fields ending in `B64` hold it.
+- **Base64.** Standard alphabet, written with `=` padding as `btoa` does, not
+  URL safe. A reader accepts what `atob` accepts (padding optional, ASCII
+  whitespace ignored). Fields ending in `B64` hold it.
 - **Text.** UTF-8 (`TextEncoder`). JSON is `JSON.stringify` with no
   canonicalisation: readers must parse, never compare bytes.
 - **`SealedBlob`** is `{ "ivB64": string, "ctB64": string }`:
@@ -96,17 +97,19 @@ These wrap the same VK. Listing several methods is any-of, not MFA
 
 | Field | Contents |
 |---|---|
-| `pin` | `{ kdf, wrap }`, with the §3 KDF rules. Written with 1,200,000 iterations. The PIN is 8–12 characters, checked before derivation. `wrap = AES-GCM(PIN KEK, VK)`, no additional data. |
+| `pin` | `{ kdf, wrap }`, with the §3 KDF rules. Written with 1,200,000 iterations. The PIN is 8–64 characters, checked before derivation. Duress codes stay 8–12 digits (ADR 0155). `wrap = AES-GCM(PIN KEK, VK)`, no additional data. |
 | `passkeys[]` / legacy `passkey` | `{ credentialIdB64, userIdB64, prfSaltB64, wrap }`. `wrap = AES-GCM(PRF KEK, VK)`, no additional data. `PRF KEK = HKDF-SHA-256(ikm = PRF output, salt = prfSalt, info = "opensesame/vault/webauthn-prf/v1")`, which matches `crates/human-vault` `kek_from_webauthn_prf`. On read, a lone `passkey` becomes a one-element list, and is prepended when its credential id is not already in `passkeys`. |
 | `totp` | `{ secretWrap: AES-GCM(VK, seed), digits: 6, period: 30, selfItemId? }`. A second step, not an unlock. |
 | `email`, `sms` | `{ toWrap: AES-GCM(VK, address), since }`. |
 | `recovery` | `{ codesWrap: AES-GCM(VK, {codes, used}), total, since }`. |
 
-A tailnet snapshot omits the PIN wrap (`portableHeader`). The older
-vault-export format still requires `wrap` and `kdf`. An offline backup
-keeps the unlock the vault has: the password when `wrap` and `kdf` are
-set, otherwise the passkey, otherwise the PIN. That same unlock opens
-the file.
+A tailnet snapshot omits the PIN wrap (`portableHeader`). The file readers
+(`openVaultFile`, the native `opensesame vault`) open a sealed export only by
+its password wrap, so they need `wrap` and `kdf`; the store's `importSealed`
+also opens an export whose only wrap is a PIN, given the PIN. An offline
+backup keeps the unlock the vault has: the password when `wrap` and `kdf` are
+set, otherwise the passkey, otherwise the PIN. That same unlock opens the
+file.
 
 ## 6. Body
 
@@ -116,7 +119,8 @@ The plaintext is `VaultBody` JSON:
 { "v": 1, "items": [], "folders": [], "itemTypes": {}, "rev": 12 }
 ```
 
-Optional members (`itemTypesAt`, `tombstones`, and `deviceIdentityKey`, below).
+Optional members (`itemTypesAt`, `tombstones`, `masterWrap` — the current
+master-password wrap, ADR 0144 — and `deviceIdentityKey`, below).
 A reader that does not know one ignores it on read. A build from before one was
 added also drops it on its first re-save of the body, because it rebuilds the
 body from the members it knows; the next merge or reconcile on a build that
@@ -201,7 +205,9 @@ Written by `VaultStore.exportSealed`. Read by `VaultStore.importSealed`.
 - **Rejected:**
   - `format` is not `opensesame-vault-export`;
   - `header` or `body` is missing;
-  - the header has no password wrap.
+  - the header has no password wrap (the native reader refuses it on
+    reading; `openVaultFile` fails at the unwrap; `importSealed` also
+    accepts a PIN-only header, given the PIN, or a raw vault key).
 
 ### 7.2 Offline backup — `opensesame-offline-backup` v1
 
@@ -223,7 +229,9 @@ Written by `buildOfflineBackup` / `serializeOfflineBackup`. Pushed by
   - `format` or `v` differs;
   - `deploymentSealUsed !== false`;
   - the vault part is missing or malformed;
-  - there are more than 4,096 sync blobs;
+  - there are more than 4,096 sync blobs, a sync blob lacks a string `id`, a
+    numeric `epoch` or a non-empty `ciphertextB64`, or their ciphertext
+    together exceeds 64 MiB;
   - the text contains any of the plaintext markers in
     `FORBIDDEN_SUBSTRINGS`: `"plaintext"`, `"password":`, `"secret":`,
     `"token":`, `OPENSESAME_CONNECTION_KEY`, `deployment_seal`.
@@ -239,9 +247,12 @@ Per ADR 0063, each tomb lives under the flat key prefix `tomb/<name>/`:
 - `migrated.v1` and `seal-bound.v1`: plaintext markers
 
 `tombs.v1` lists the tomb names. Lockout counters sit outside the tomb, in
-plaintext. The portable envelopes carry only `header` and `body`. Of the
-`config/*` files, one rides inside the body: the device identity key
-(`config/device-identity-key`, §6), whose working copy is the tomb file.
+plaintext. "Plaintext" here is relative to the vault format: on the device the
+browser and CLI hosts also seal every stored value under their at-rest key
+([ADR 0149](../adr/0149-nothing-stored-in-the-clear.md)). The portable
+envelopes carry only `header` and `body`. Of the `config/*` files, one rides
+inside the body: the device identity key (`config/device-identity-key`, §6),
+whose working copy is the tomb file.
 
 ## 9. What a conforming reader must do
 

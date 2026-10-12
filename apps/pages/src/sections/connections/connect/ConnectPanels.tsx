@@ -4,12 +4,15 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useIdentitySession } from "../../../bindings/identity.js";
 import { useVault } from "../../../lib/vault/hooks.js";
-import { ConnectCreateForm } from "./ConnectCreateForm.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
+import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
+import { SavedConnectorSummary } from "./SavedConnectorSummary.js";
+import { SelfHostedConnectorForm } from "./SelfHostedConnectorForm.js";
 import { UserTokenPanel } from "./UserTokenPanel.js";
 import { useConnectTransport } from "./useConnectTransport.js";
 import "./connect.css";
@@ -19,79 +22,92 @@ export function isConnectConnection(connection: Connection | null): boolean {
   return connection?.connectionRef.startsWith("connect://") === true;
 }
 
-/**
- * A connector page on Vercel Connect: never blank. Before a connector exists
- * the page asks for the Connect credential; with it held, the whole
- * configuration is on the page, filled from the plan — a Create key that
- * could not act without the credential is not drawn (ADR 0158). Once a
- * connector exists, its settings and a person's own token. Who may use it is decided
- * on Access › Connectors, which lists every connector this page configures.
- */
-export function ConnectPanels({
-  provider,
-  connection,
-  online,
-  onFlash,
-  onChanged,
-}: {
+type Props = {
   provider: Provider;
   connection: Connection | null;
   online: boolean;
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
-}) {
+};
+
+function ImportedConnectPanels({
+  provider,
+  connection,
+  online,
+  onFlash,
+}: Props & { connection: Connection }) {
   const plan = connectPlan(provider.id);
   const transport = useConnectTransport();
   const session = useIdentitySession();
   const { tomb } = useVault();
-  if (!plan || plan.refused) return null;
-  const connected = isConnectConnection(connection) ? connection : null;
+  if (!plan) return null;
   return (
-    <>
+    <div className="cx-setup">
       <ConnectTransportPanel
         relay={transport.relay}
         showForm={!transport.canManage}
         held={transport.held}
         onFlash={onFlash}
       />
-      {connected || transport.canManage ? (
-        <section className="panel" id="connector" aria-label="Connector">
-          <div className="panel__head">
-            <h2>{connected ? "Connector settings" : "Create connector"}</h2>
-          </div>
-          {connected ? (
-            <ConnectorSettingsForm
-              key={connected.connectionId}
-              plan={plan}
-              connectorId={connected.connectionId}
-              canManage={transport.canManage}
-              online={online}
-              onFlash={onFlash}
-            />
-          ) : (
-            <ConnectCreateForm
-              key={plan.id}
-              plan={plan}
-              canManage={transport.canManage}
-              online={online}
-              onFlash={onFlash}
-              onCreated={onChanged}
-            />
-          )}
-        </section>
-      ) : null}
-      {connected ? (
-        <UserTokenPanel
-          key={connected.connectionId}
-          connectorId={connected.connectionId}
-          subjectId={connectSubjectId(session?.principalId, tomb)}
-          scopes={connected.grantedScopes}
+      <section className="panel" id="connector" aria-label="Connector">
+        <div className="panel__head">
+          <h2>Connector settings</h2>
+        </div>
+        <ConnectorSettingsForm
+          key={connection.connectionId}
+          plan={plan}
+          connectorId={connection.connectionId}
           canManage={transport.canManage}
-          canProve={transport.canProve}
           online={online}
           onFlash={onFlash}
         />
-      ) : null}
-    </>
+      </section>
+      <UserTokenPanel
+        key={connection.connectionId}
+        connectorId={connection.connectionId}
+        subjectId={connectSubjectId(session?.principalId, tomb)}
+        scopes={connection.grantedScopes}
+        canManage={transport.canManage}
+        canProve={transport.canProve}
+        online={online}
+        onFlash={onFlash}
+      />
+    </div>
+  );
+}
+
+/** New provider configuration is local; imported hosted connections retain their ceremony. */
+export function ConnectPanels(props: Props) {
+  const { provider, connection, onFlash, onChanged } = props;
+  const plan = connectPlan(provider.id);
+  if (!plan || plan.refused) return null;
+  if (connection && isConnectConnection(connection))
+    return <ImportedConnectPanels {...props} connection={connection} />;
+  if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
+  const local = isSelfHostedConnector(connection) ? connection : null;
+  const connectorId = local?.connectionId;
+  return (
+    <div className="cx-setup">
+      <section className="panel" id="connector" aria-label="Connector">
+        <div className="panel__head">
+          <h2>
+            <span className="cx-step">2</span> Configure
+          </h2>
+        </div>
+        <SelfHostedConnectorForm
+          key={`${plan.id}/${connectorId ?? "new"}`}
+          plan={plan}
+          connectorId={connectorId}
+          onFlash={onFlash}
+          onSaved={onChanged}
+        />
+      </section>
+      <SavedConnectorSummary
+        key={connectorId ?? "new"}
+        connection={local}
+        onFlash={onFlash}
+        onChanged={onChanged}
+      />
+    </div>
   );
 }

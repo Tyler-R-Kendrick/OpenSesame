@@ -3,14 +3,21 @@
  *
  * The peers link an offer to its answer through the SDP, and a data channel
  * through two event targets, so the protocol — the sealed pairing codes, the
- * catalog, the reveals — runs end to end without WebRTC. Real WebRTC is
- * `verify:live-join`'s job.
+ * catalog, the reveals — runs end to end through the WebRTC transport
+ * (`webrtc.ts`) without a browser. Real WebRTC is `verify:live-join`'s job;
+ * a transport with no WebRTC in it at all is `p2p-fakes.ts`.
  */
 
 import { overlapCast } from "@opensesame/os-domain";
-import type { PeerFactory } from "./peer.js";
+import {
+  DIRECT_ROUTING,
+  type PeerRouting,
+  type PeerTransport,
+  type TransportFactory,
+} from "./p2p.js";
 import type { Carrier, CarrierFactory } from "./rendezvous.js";
 import type { CarrierSpec } from "./routes.js";
+import { type PeerFactory, webRtc, webRtcTransport } from "./webrtc.js";
 
 /**
  * The smallest description a data-channel peer sends (`sdp.ts` reads it):
@@ -70,6 +77,16 @@ export class FakeNet {
   /** Every peer made, in order, and whether each was closed. */
   readonly peers: FakePeer[] = [];
   readonly #offers = new Map<string, FakePeer>();
+
+  /** The WebRTC transport over this network, for one side's routing. */
+  transport(routing: PeerRouting = DIRECT_ROUTING): PeerTransport {
+    return webRtcTransport(this.factory(), routing);
+  }
+
+  /** What a shell hands sessions, over this network. */
+  transports(): TransportFactory {
+    return webRtc(this.factory());
+  }
 
   factory(): PeerFactory {
     return () => {

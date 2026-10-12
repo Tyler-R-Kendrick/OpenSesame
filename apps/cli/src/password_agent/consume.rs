@@ -23,8 +23,23 @@ pub(crate) enum Env {
         command: Vec<String>,
     },
 }
-pub(super) fn read(reference: &str) -> anyhow::Result<()> {
+pub(super) fn read(reference: &str, desktop: bool, reveal: bool) -> anyhow::Result<()> {
+    use opensesame_connector_host::password_agent::reveal_gate::{
+        assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
+    };
     anyhow::ensure!(reference.starts_with("op://"), "Expected op://reference");
+    assert_human_reveal(HumanRevealRequest {
+        verb: "read",
+        reveal,
+        desktop,
+        reference: Some(reference),
+        stdin_tty: None,
+        stdout_tty: None,
+    })?;
+    if reveal {
+        crate::cli_app_integration::ensure_reveal("read", Some(reference))?;
+    }
+    emit_reveal_receipt("read", Some(reference));
     std::io::stdout().write_all(&super::io::op(
         &["read".into(), reference.into()],
         None,
@@ -32,8 +47,15 @@ pub(super) fn read(reference: &str) -> anyhow::Result<()> {
     )?)?;
     Ok(())
 }
-pub(super) fn run_assignments(assignments: &[String], command: &[String]) -> anyhow::Result<()> {
+pub(super) fn run_assignments(
+    assignments: &[String],
+    command: &[String],
+    desktop: bool,
+) -> anyhow::Result<()> {
     core::validate_run_assignments(assignments)?;
+    if desktop {
+        crate::cli_app_integration::ensure_reveal("run", None)?;
+    }
     let mut args = super::io::helper("op")?;
     args.arg("run");
     for assignment in assignments {
@@ -87,7 +109,7 @@ pub(super) fn internal_batch(count: usize) -> anyhow::Result<()> {
     std::io::stdout().write_all(&serde_json::to_vec(&values)?)?;
     Ok(())
 }
-pub(super) fn env(cmd: Env) -> anyhow::Result<()> {
+pub(super) fn env(cmd: Env, desktop: bool, reveal: bool) -> anyhow::Result<()> {
     match cmd {
         Env::Write { file, env } => {
             let assignments = env
@@ -104,6 +126,9 @@ pub(super) fn env(cmd: Env) -> anyhow::Result<()> {
             std::fs::write(file, text)?;
         }
         Env::Run { file, command } => {
+            if desktop {
+                crate::cli_app_integration::ensure_reveal("run", None)?;
+            }
             let content = zeroize::Zeroizing::new(std::fs::read_to_string(file)?);
             core::validate_run_template(&content)?;
             let mut snapshot = tempfile::NamedTempFile::new()?;
@@ -116,6 +141,24 @@ pub(super) fn env(cmd: Env) -> anyhow::Result<()> {
             finish(status);
         }
         Env::Resolve { file, target } => {
+            use opensesame_connector_host::password_agent::reveal_gate::{
+                assert_human_reveal, emit_reveal_receipt, HumanRevealRequest,
+            };
+            assert_human_reveal(HumanRevealRequest {
+                verb: "env-resolve",
+                reveal,
+                desktop,
+                reference: None,
+                stdin_tty: None,
+                stdout_tty: None,
+            })?;
+            if reveal {
+                crate::cli_app_integration::ensure_reveal("env-resolve", None)?;
+            }
+            emit_reveal_receipt("env-resolve", None);
+            eprintln!(
+                "Deprecation: env resolve writes plaintext at rest; prefer `password-agent env run` or `opensesame run --env` (same run wrapper as op run)."
+            );
             let target = PathBuf::from(target);
             let content = std::fs::read_to_string(file)?;
             let lines = core::parse(&content);

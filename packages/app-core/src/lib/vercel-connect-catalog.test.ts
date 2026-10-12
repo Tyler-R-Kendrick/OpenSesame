@@ -127,7 +127,7 @@ describe("Vercel Connect browse catalog", () => {
 
   it("lists a plan with no bundled row of its own", () => {
     const ids = vercelConnectCatalog().map((row) => row.id);
-    expect(ids).toEqual(expect.arrayContaining(["discord", "groq"]));
+    expect(ids).toEqual(expect.arrayContaining(["discord", "brevo"]));
   });
 
   it("refuses card issuers on Connect and keeps their bundled road", () => {
@@ -138,7 +138,11 @@ describe("Vercel Connect browse catalog", () => {
       expect(merged.filter((row) => row.id === id)).toHaveLength(1);
       const row = merged.find((item) => item.id === id);
       expect(row?.category).toBe("wallet");
-      if (row) expect(catalogTileNote(row, null)).toBeNull();
+      if (!row) throw new Error(`Expected the retained wallet provider ${id}`);
+      expect(catalogTileNote(row, null)).toEqual({
+        label: "Not connectable",
+        tone: "chip--err",
+      });
     }
   });
 });

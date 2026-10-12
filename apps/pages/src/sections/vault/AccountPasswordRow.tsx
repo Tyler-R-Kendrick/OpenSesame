@@ -1,3 +1,4 @@
+import { comparePrivatePassword } from "@opensesame/app-core/lib/vault/password-workflows.js";
 import {
   type AccountItem,
   type PasswordMethod,
@@ -57,6 +58,11 @@ export function AccountPasswordRow({
     <UpdateSecretPanel
       itemId={`${item.id}:${method.id}`}
       label="password"
+      guideCompare={guide}
+      compare={async (candidate) =>
+        (await comparePrivatePassword(item.id, candidate, false, method.id))
+          .matches
+      }
       onUpdate={(next) =>
         onSave({
           ...method,

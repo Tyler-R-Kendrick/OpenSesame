@@ -17,9 +17,9 @@ async function count(page, role, name, exact = false) {
 }
 
 /**
- * A. The first screen: two roads — set up your own, join a session — and
- * the guest road as the corner Skip. No sign-in: a device with no vault has
- * nothing to sign in to (ADR 0150 §1).
+ * A. The first screen: three roads — set up your own, join a session, import
+ * a file — and the guest road as the corner Skip. No sign-in: a device with
+ * no vault has nothing to sign in to (ADR 0150 §1, ADR 0188).
  */
 export async function checkFrontDoor(page, check, text, base) {
   check(
@@ -35,6 +35,10 @@ export async function checkFrontDoor(page, check, text, base) {
       "Join a session",
       "join road on the front door, even on the shared origin (ADR 0150)",
     ],
+    [
+      "Import a file",
+      "import road on the front door: a vault can begin from a backup or a .env file (ADR 0188)",
+    ],
     ["Skip sign-in and continue as guest", "Skip link present"],
   ]) {
     check((await count(page, "button", name)) === 1, label);
@@ -42,6 +46,7 @@ export async function checkFrontDoor(page, check, text, base) {
   for (const [name, label] of [
     ["Continue with Google", "no Google button on the door"],
     ["Continue as guest", "no full-size guest button on the door"],
+    ["Skip to the guest vault", "no unlock-footer guest link on the door"],
     ["Use without an account", "no local-only road on the door"],
   ]) {
     check((await count(page, "button", name, true)) === 0, label);
@@ -61,7 +66,8 @@ export async function checkFrontDoor(page, check, text, base) {
  * contributions their capabilities register, so a household that never
  * chose external connectors is never asked for a directory endpoint —
  * which is the product requirement this walk exists to hold. Skip all still
- * retires the door: sign-in, then plain sign-in (setup behind unlock).
+ * retires the door: plain sign-in, and setup lives behind unlock. Join stays
+ * on that sign-in, because a setup record does not take the road away.
  */
 export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: "Set up your own" }).click();
@@ -147,7 +153,9 @@ export async function walkSetupCeremony(page, check, snap) {
   check(
     /^Sign in$/m.test(back) &&
       (await count(page, "button", "Deployment setup")) === 0 &&
-      (await count(page, "button", "Join a session")) === 0,
-    "skip all retires the front door: plain sign-in (setup lives behind unlock)",
+      (await count(page, "button", "Set up your own")) === 0 &&
+      (await count(page, "button", "Join a session")) === 1 &&
+      (await count(page, "button", "Import a file")) === 1,
+    "skip all retires the front door: plain sign-in keeps join and import (setup lives behind unlock)",
   );
 }

@@ -30,7 +30,7 @@ const REQUIRED_IN_DESIGN = [
   "gg",
   "Backspace",
   "Tab",
-  "g v/c/a/i/w/s",
+  "g v/c/a/i/w/y/s",
   "Shift+F10",
   "Shift+Enter",
   "`q{a–z}`",

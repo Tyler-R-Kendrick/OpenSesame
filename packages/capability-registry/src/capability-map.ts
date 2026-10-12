@@ -22,10 +22,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.command_bar": "shell.navigation",
 
     // --- core: vault items -----------------------------------------------
-    "password_provider.request": "access.authority",
-    "password_provider.lease_approve": "access.authority",
-    "password_provider.lease_status": "access.authority",
-    "password_provider.lease_revoke": "access.authority",
     "password_provider.read": "vault.passwords",
     "password_provider.env_resolve": "vault.passwords",
     "vault.workflow.find_references": "vault.passwords",
@@ -130,6 +126,13 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "connectors.connect.configure": "connectors.external",
     "connectors.connect.authorize_user": "connectors.external",
     "connectors.connect.token_check": "connectors.external",
+    // Model keys (ADR 0192): the broker is bound while External connectors is
+    // active, because the credential a key stands for is that capability's.
+    "models.keys.mint": "connectors.external",
+    "models.keys.read": "connectors.external",
+    "models.keys.revoke": "connectors.external",
+    "models.keys.exchange": "connectors.external",
+    "models.keys.invoke": "connectors.external",
 
     // --- optional: git remote backup ------------------------------------
     "backup.status": "backup.git-remote",
@@ -149,6 +152,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
 
     // --- optional: breach and two-step checks (ADR 0080 §5) ------------
     "vault.health.security_check": "vault.security-checks",
+
+    // --- optional: environments (ADR 0194) ------------------------------
+    "vault.environments.manage": "vault.environments",
 
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
@@ -174,6 +180,18 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: live sessions (ADR 0150) -----------------------------
     "shared_sessions.live_host": "sharing.live",
     "shared_sessions.live_join": "sharing.live",
+    "shared_sessions.device_authorize": "sharing.live",
+    "shared_sessions.device_connections": "sharing.live",
+    "shared_sessions.device_invoke": "sharing.live",
+
+    // --- optional: trusted contacts (ADR 0187) ---------------------------
+    // A circle of people who approve or hold shares; every operation is a
+    // ceremony on someone's own device, withheld from every agent surface.
+    "quorum.circle.manage": "sharing.trusted-contacts",
+    "quorum.share.ask": "sharing.trusted-contacts",
+    "quorum.guardian.hold": "sharing.trusted-contacts",
+    "quorum.request.approve": "sharing.trusted-contacts",
+    "quorum.recover": "sharing.trusted-contacts",
 
     // --- optional: browser-local IAM ------------------------------------
     "identity.local.agent.keys.manage": "identity.local-iam",
@@ -182,6 +200,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.local.directory.manage": "identity.local-iam",
     "identity.local.organizations.read": "identity.local-iam",
     "identity.local.organizations.membership.manage": "identity.local-iam",
+    "identity.local.vault.transfer": "identity.local-iam",
+    "cli.app_integration.list": "identity.local-iam",
+    "cli.app_integration.respond": "identity.local-iam",
     "identity.local.siop.authorize": "identity.siop",
 
     // --- optional: enterprise -------------------------------------------
@@ -202,6 +223,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "client.tutorial": "support.guided-help",
     "model_plane.read": "support.local-ai",
     "model_plane.choose": "support.local-ai",
+
+    // --- optional: password reset ---------------------------------------
+    "password_reset.mailboxes.manage": "ai.password-reset",
 
     // --- optional: wallet -----------------------------------------------
     "wallet.capabilities.read": "wallet.spending",

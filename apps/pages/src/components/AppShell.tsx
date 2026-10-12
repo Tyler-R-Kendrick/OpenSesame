@@ -19,7 +19,7 @@ import {
 import { useTabSwipe } from "../lib/tab-swipe-hook.js";
 import { useGestures } from "../lib/use-gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
-import { useVaultStore } from "../lib/vault/hooks.js";
+import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { Crumbs } from "./Crumbs.js";
 import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
@@ -32,8 +32,10 @@ import {
 } from "./RailRows.js";
 import { SessionPrompt } from "./SessionPrompt.js";
 import { Statusline } from "./Statusline.js";
+import { ToastStack } from "./ToastStack.js";
 import { Wordmark } from "./Wordmark.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
+import { PageTreeExpansionProvider } from "./page-tree-expansion.js";
 
 /**
  * A capability removed while its route is current leaves the person on a
@@ -139,6 +141,10 @@ function Shell({ children }: { children?: ReactNode }) {
         {children}
       </div>
 
+      {/* A row of the frame, not an overlay: it takes height only while a toast
+          shows, so nothing rests on a control (DESIGN.md § Layout). */}
+      <ToastStack />
+
       <Statusline />
 
       <KeymapSheet open={keymapOpen} close={closeKeymap} />
@@ -153,5 +159,10 @@ function Shell({ children }: { children?: ReactNode }) {
  * plan may have excluded.
  */
 export function AppShell({ children }: { children?: ReactNode }) {
-  return <Shell>{children}</Shell>;
+  const { tomb } = useVault();
+  return (
+    <PageTreeExpansionProvider key={tomb}>
+      <Shell>{children}</Shell>
+    </PageTreeExpansionProvider>
+  );
 }

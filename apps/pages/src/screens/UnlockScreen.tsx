@@ -24,19 +24,19 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useFileWaitingForVault,
+  usePendingImport,
+} from "../bindings/pending-import.js";
 import { FailureNotice } from "../components/FailureNotice.js";
-import { GateTools } from "../components/GateTools.js";
 import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
   IconEye,
   IconEyeOff,
-  IconLock,
   IconPasskey,
   IconSettings,
-  IconShield,
 } from "../components/Icons.js";
-import { Wordmark } from "../components/Wordmark.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
@@ -45,16 +45,16 @@ import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
-import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
+import { PendingImportNote } from "./unlock/ImportRoad.js";
+import { MethodIcon } from "./unlock/MethodIcon.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
-import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
-import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
+import { DurabilityNote, LockoutNote } from "./unlock/Notes.js";
+import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
-import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
-import { ResetBrowser } from "./unlock/ResetBrowser.js";
-import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { UnlockFoot } from "./unlock/UnlockFoot.js";
+import { UnlockStage } from "./unlock/UnlockStage.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
 import {
   METHOD_LABEL,
@@ -62,6 +62,7 @@ import {
   isCeremonyMethod,
   isTypedProtector,
   unlockGoVerb,
+  unlockTitle,
 } from "./unlock/labels.js";
 import { useUnlockFormFocus } from "./unlock/unlock-form-focus.js";
 import { submitUnlockForm } from "./unlock/unlock-form-submit.js";
@@ -71,7 +72,9 @@ import {
 } from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
+import { usePasskeyRoad } from "./unlock/use-passkey-road.js";
 import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
+import { useUnlockLockV5 } from "./unlock/use-unlock-lock-v5.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -109,10 +112,14 @@ export function UnlockScreen() {
   // The front door (ADR 0115, ADR 0150 §1): no vault and no setup record.
   // An answered or skipped ceremony retires it; guest prepare leaves status
   // empty (no wrap on disk), which is Unlock.
+  // A file chosen at the door retires it for the seal screen: the vault that
+  // file is for is made first (ADR 0188).
+  const startsFromFile = useFileWaitingForVault(status);
   const frontDoor =
     status === "empty" &&
     tomb !== GUEST_TOMB &&
-    unlockScreenDependencies.loadSetup() === null;
+    unlockScreenDependencies.loadSetup() === null &&
+    !startsFromFile;
 
   if (join.screen) return join.screen;
   if (ceremony) {
@@ -186,8 +193,13 @@ function UnlockForm({
           .find((vault) => vault.id === activeTomb)?.label ?? activeTomb)
       : null;
   const passkeyHost = checkWebauthnHost();
+  const passkeyOk = usePasskeyRoad(passkeyHost.ok);
   // First run leads with identity (ADR 0033 §4): sign-in is the default stage, the local seal form the explicit road.
-  const [localOnly, setLocalOnly] = useState(false);
+  const [localOnlyChosen, setLocalOnly] = useState(false);
+  // A vault that begins from a file is sealed on this device, whichever road
+  // the file was chosen from (ADR 0188); removing the file gives the road back.
+  const startsFromFile = usePendingImport() !== null && firstRun;
+  const localOnly = localOnlyChosen || startsFromFile;
   const signInStage = firstRun && !localOnly;
   // A returning vault shows the key ceremony; sign-in lives in the user menu. Mid-MFA the code field is the screen.
   const [signingIn, setSigningIn] = useState(() =>
@@ -199,8 +211,8 @@ function UnlockForm({
   const nothingSignsIn = unlockScreenDependencies.noWayIn();
 
   const methods = useMemo<UnlockTabId[]>(
-    () => unlockMethodTabs({ firstRun, header, passkeyOk: passkeyHost.ok }),
-    [firstRun, header, passkeyHost.ok],
+    () => unlockMethodTabs({ firstRun, header, passkeyOk }),
+    [firstRun, header, passkeyOk],
   );
   // A guest tomb that enrolled no key at all: guest entry itself is the road
   // in, and the commit says so rather than pretending to unlock something.
@@ -221,7 +233,7 @@ function UnlockForm({
   const fallbackMethod = fallbackUnlockMethod({
     firstRun,
     header,
-    passkeyOk: passkeyHost.ok,
+    passkeyOk,
     methods,
   });
   const activeMethod =
@@ -272,12 +284,16 @@ function UnlockForm({
   const goRef = useRef<HTMLButtonElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const acceptRef = useRef<HTMLInputElement>(null);
+  const { stage: lockStage, beginCeremonyIfUnlocked } = useUnlockLockV5(status);
 
   const lockedFor = useCountdown(lockedOutUntil);
-  const { passkeyAbort, cancelPasskeyCeremony } = usePasskeyCeremony(
+  const ceremony = usePasskeyCeremony(
     setAwaitingPasskeyDuressCode,
     setBusy,
+    setError,
+    setMethod,
   );
+  const { passkeyAbort, cancelPasskeyCeremony, attachment } = ceremony;
 
   const formGated = lockedFor > 0;
   const pendingFocus = useUnlockFormFocus({
@@ -338,8 +354,9 @@ function UnlockForm({
     };
   }, [awaitingSecondStep, activeSecondStep, recoveryMode, store]);
 
-  function onSubmit(event: FormEvent) {
-    void submitUnlockForm({
+  async function onSubmit(event: FormEvent) {
+    const before = status;
+    await submitUnlockForm({
       event,
       busy,
       setBusy,
@@ -354,6 +371,8 @@ function UnlockForm({
       activeSecondStep,
       store,
       passkeyAbort,
+      attachment,
+      onSealUnsupported: ceremony.sealUnsupported,
       pin,
       confirm,
       password,
@@ -372,6 +391,7 @@ function UnlockForm({
       totpRef,
       pendingFocus,
     });
+    beginCeremonyIfUnlocked(before, signInStage || showSignIn || firstRun);
   }
 
   const pinProblems =
@@ -411,432 +431,387 @@ function UnlockForm({
   });
 
   return (
-    <div className="unlock">
-      <div className="unlock__card">
-        <PendingLinkBanner />
-        <div className="unlock__brand">
-          <Wordmark className="unlock__wordmark" size={28} replay />
-          <div className="unlock__brand-tools">
-            <GateTools />
-          </div>
+    <UnlockStage {...lockStage}>
+      <div className="unlock__heading">
+        <h1 className="unlock__title">
+          {unlockTitle({
+            signIn: signInStage || showSignIn,
+            firstRun,
+            awaitingSecondStep,
+          })}
+        </h1>
+        {!firstRun ? (
+          <UnlockUserMenu
+            disabled={busy}
+            currentVaultId={activeTomb}
+            signingIn={showSignIn}
+            showAllVaults={vaultCrumb !== null}
+            onOpenVaults={onOpenVaults}
+            onSignIn={() => {
+              cancelPasskeyCeremony();
+              if (awaitingSecondStep) store.cancelTotpChallenge();
+              setError(null);
+              setSigningIn(true);
+            }}
+            onUnlock={() => {
+              setError(null);
+              setSigningIn(false);
+            }}
+            onPickVault={(vault: DeviceVault) => {
+              cancelPasskeyCeremony();
+              setError(null);
+              setBusy(true);
+              void switchVault(vault.id)
+                .then(() => setSigningIn(false))
+                .catch((caught) => {
+                  setError(
+                    caught instanceof Error
+                      ? caught.message
+                      : "Could not switch vault.",
+                  );
+                })
+                .finally(() => setBusy(false));
+            }}
+          />
+        ) : null}
+      </div>
+
+      {startsFromFile ? <PendingImportNote /> : null}
+
+      <RequirementsGate
+        onOpenSetup={(join) => onOpenSetup("capabilities", join)}
+      />
+      {/* Setup left no way in: one sentence and the road that fixes it. */}
+      {nothingSignsIn && (signInStage || showSignIn) ? (
+        <div className="note unlock__unset">
+          <span>
+            No way in is configured for this deployment yet, so sign-in has
+            nowhere to go.
+          </span>
+          <IconKey
+            label="Set it up"
+            small
+            keyRef={setupRef}
+            onClick={() => onOpenSetup("identity")}
+          >
+            <IconSettings size={16} />
+          </IconKey>
         </div>
-        <div className="unlock__heading">
-          <h1 className="unlock__title">
-            {signInStage || showSignIn
-              ? "Sign in"
-              : firstRun
-                ? "Seal this device"
-                : awaitingSecondStep
-                  ? "Confirm it is you"
-                  : "Unlock"}
-          </h1>
-          {!firstRun ? (
-            <UnlockUserMenu
-              disabled={busy}
-              currentVaultId={activeTomb}
-              signingIn={showSignIn}
-              showAllVaults={vaultCrumb !== null}
-              onOpenVaults={onOpenVaults}
-              onSignIn={() => {
-                cancelPasskeyCeremony();
-                if (awaitingSecondStep) store.cancelTotpChallenge();
+      ) : null}
+
+      {signInStage ? (
+        <GuideTarget id="unlock.signin">
+          <SignInPanel
+            placement="primary"
+            providers={providers}
+            onUseLocalOnly={() => setLocalOnly(true)}
+          />
+        </GuideTarget>
+      ) : showSignIn ? (
+        <GuideTarget id="unlock.signin">
+          <SignInPanel placement="secondary" providers={providers} />
+        </GuideTarget>
+      ) : (
+        <form
+          className="unlock__form"
+          ref={formRef}
+          onSubmit={(e) => void onSubmit(e)}
+        >
+          {hasTotpStep ? (
+            <div className="steps" aria-label="Unlock steps">
+              <div
+                className={
+                  awaitingSecondStep
+                    ? "steps__seg is-done"
+                    : "steps__seg is-now"
+                }
+              >
+                <span className="steps__bar" />
+                <span className="steps__label">1 · Key</span>
+              </div>
+              <div
+                className={
+                  awaitingSecondStep ? "steps__seg is-now" : "steps__seg"
+                }
+              >
+                <span className="steps__bar" />
+                <span className="steps__label">
+                  {secondSteps.length === 1 && secondSteps[0] === "totp"
+                    ? "2 · Authenticator code"
+                    : "2 · Code"}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          {noPrimary ? <NoPrimaryNote /> : null}
+
+          {showMethodTabs ? (
+            <div
+              ref={methodsRef}
+              className="unlock__methods"
+              role="tablist"
+              aria-label="Unlock method"
+            >
+              {methods.map((id) => (
+                <button
+                  key={id}
+                  ref={id === "passkey" ? passkeyRef : undefined}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeMethod === id}
+                  className={
+                    activeMethod === id
+                      ? "unlock__method unlock__method--active"
+                      : "unlock__method"
+                  }
+                  // Not gated on `busy`: switching methods is exactly how you
+                  // escape a blocking passkey prompt, so the tabs must stay
+                  // live while a ceremony is pending.
+                  disabled={lockedFor > 0}
+                  onClick={() => {
+                    cancelPasskeyCeremony();
+                    setMethod(id);
+                    setError(null);
+                    setConfirm("");
+                    setProtectorSecret("");
+                    setReveal(false); // one toggle serves every field
+                  }}
+                >
+                  <MethodIcon id={id} />
+                  {METHOD_LABEL[id]}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {awaitingSecondStep ? (
+            <SecondStepFields
+              secondSteps={secondSteps}
+              activeSecondStep={activeSecondStep}
+              recoveryMode={recoveryMode}
+              hasRecoveryCodes={!!header?.unlocks?.recovery}
+              sent={sent}
+              resendIn={resendIn}
+              busy={busy}
+              lockedFor={lockedFor}
+              totp={totp}
+              recovery={recovery}
+              totpRef={totpRef}
+              onPickStep={(id) => {
+                setSecondStep(id);
+                setTotp("");
                 setError(null);
-                setSigningIn(true);
               }}
-              onUnlock={() => {
+              onTotp={setTotp}
+              onRecovery={setRecovery}
+              onUseRecoveryCode={() => {
+                setRecoveryMode(true);
                 setError(null);
-                setSigningIn(false);
               }}
-              onPickVault={(vault: DeviceVault) => {
-                cancelPasskeyCeremony();
+              onUseCode={() => {
+                setRecoveryMode(false);
+                setRecovery("");
                 setError(null);
-                setBusy(true);
-                void switchVault(vault.id)
-                  .then(() => setSigningIn(false))
-                  .catch((caught) => {
-                    setError(
-                      caught instanceof Error
-                        ? caught.message
-                        : "Could not switch vault.",
-                    );
-                  })
-                  .finally(() => setBusy(false));
               }}
+              onResend={() => {
+                requestedFor.current = null;
+                setSent(null);
+                setSentAt(null);
+                setTotp("");
+                setError(null);
+              }}
+              onStartOver={() => {
+                store.cancelTotpChallenge();
+                setTotp("");
+                setRecovery("");
+                setRecoveryMode(false);
+                setError(null);
+              }}
+              onComplete={() => formRef.current?.requestSubmit()}
             />
           ) : null}
-        </div>
 
-        <RequirementsGate
-          onOpenSetup={(join) => onOpenSetup("capabilities", join)}
-        />
-        {/* Setup left no way in: one sentence and the road that fixes it. */}
-        {nothingSignsIn && (signInStage || showSignIn) ? (
-          <div className="note unlock__unset">
-            <span>
-              No way in is configured for this deployment yet, so sign-in has
-              nowhere to go.
-            </span>
-            <IconKey
-              label="Set it up"
-              small
-              keyRef={setupRef}
-              onClick={() => onOpenSetup("identity")}
-            >
-              <IconSettings size={16} />
-            </IconKey>
-          </div>
-        ) : null}
-
-        {signInStage ? (
-          <GuideTarget id="unlock.signin">
-            <SignInPanel
-              placement="primary"
-              providers={providers}
-              onUseLocalOnly={() => setLocalOnly(true)}
+          {(firstRun || !awaitingSecondStep) &&
+          isCeremonyMethod(activeMethod) ? (
+            <PasskeyChoice
+              host={passkeyHost}
+              seals={firstRun && activeMethod === "passkey"}
+              value={attachment}
+              onPick={ceremony.pickAttachment}
             />
-          </GuideTarget>
-        ) : showSignIn ? (
-          <GuideTarget id="unlock.signin">
-            <SignInPanel placement="secondary" providers={providers} />
-          </GuideTarget>
-        ) : (
-          <form
-            className="unlock__form"
-            ref={formRef}
-            onSubmit={(e) => void onSubmit(e)}
-          >
-            {hasTotpStep ? (
-              <div className="steps" aria-label="Unlock steps">
-                <div
-                  className={
-                    awaitingSecondStep
-                      ? "steps__seg is-done"
-                      : "steps__seg is-now"
-                  }
-                >
-                  <span className="steps__bar" />
-                  <span className="steps__label">1 · Key</span>
-                </div>
-                <div
-                  className={
-                    awaitingSecondStep ? "steps__seg is-now" : "steps__seg"
-                  }
-                >
-                  <span className="steps__bar" />
-                  <span className="steps__label">
-                    {secondSteps.length === 1 && secondSteps[0] === "totp"
-                      ? "2 · Authenticator code"
-                      : "2 · Code"}
-                  </span>
-                </div>
-              </div>
-            ) : null}
+          ) : null}
 
-            {noPrimary ? <NoPrimaryNote /> : null}
-
-            {showMethodTabs ? (
-              <div
-                ref={methodsRef}
-                className="unlock__methods"
-                role="tablist"
-                aria-label="Unlock method"
-              >
-                {methods.map((id) => (
-                  <button
-                    key={id}
-                    ref={id === "passkey" ? passkeyRef : undefined}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeMethod === id}
-                    className={
-                      activeMethod === id
-                        ? "unlock__method unlock__method--active"
-                        : "unlock__method"
-                    }
-                    // Not gated on `busy`: switching methods is exactly how you
-                    // escape a blocking passkey prompt, so the tabs must stay
-                    // live while a ceremony is pending.
-                    disabled={lockedFor > 0}
-                    onClick={() => {
-                      cancelPasskeyCeremony();
-                      setMethod(id);
-                      setError(null);
-                      setConfirm("");
-                      setProtectorSecret("");
-                      setReveal(false); // one toggle serves every field
-                    }}
-                  >
-                    {isCeremonyMethod(id) ? (
-                      <IconPasskey size={16} />
-                    ) : id === "pin" ? (
-                      <IconLock size={16} />
-                    ) : (
-                      <IconShield size={16} />
-                    )}
-                    {METHOD_LABEL[id]}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {awaitingSecondStep ? (
-              <SecondStepFields
-                secondSteps={secondSteps}
-                activeSecondStep={activeSecondStep}
-                recoveryMode={recoveryMode}
-                hasRecoveryCodes={!!header?.unlocks?.recovery}
-                sent={sent}
-                resendIn={resendIn}
-                busy={busy}
-                lockedFor={lockedFor}
-                totp={totp}
-                recovery={recovery}
-                totpRef={totpRef}
-                onPickStep={(id) => {
-                  setSecondStep(id);
-                  setTotp("");
-                  setError(null);
+          {showsPinField ? (
+            <div className="field">
+              <label htmlFor="unlock-pin">
+                {awaitingPasskeyDuressCode
+                  ? "Code"
+                  : firstRun
+                    ? "Device PIN"
+                    : "PIN"}
+              </label>
+              <input
+                id="unlock-pin"
+                ref={(element) => {
+                  pinRef.current = element;
+                  secretRef(element);
                 }}
-                onTotp={setTotp}
-                onRecovery={setRecovery}
-                onUseRecoveryCode={() => {
-                  setRecoveryMode(true);
-                  setError(null);
-                }}
-                onUseCode={() => {
-                  setRecoveryMode(false);
-                  setRecovery("");
-                  setError(null);
-                }}
-                onResend={() => {
-                  requestedFor.current = null;
-                  setSent(null);
-                  setSentAt(null);
-                  setTotp("");
-                  setError(null);
-                }}
-                onStartOver={() => {
-                  store.cancelTotpChallenge();
-                  setTotp("");
-                  setRecovery("");
-                  setRecoveryMode(false);
-                  setError(null);
-                }}
-                onComplete={() => formRef.current?.requestSubmit()}
+                type={reveal ? "text" : "password"}
+                inputMode="numeric"
+                autoComplete={firstRun ? "new-password" : "one-time-code"}
+                value={pin}
+                title={
+                  firstRun
+                    ? `${MIN_PIN_LENGTH}–12 characters, no repeated character, no sequential digits`
+                    : undefined
+                }
+                aria-invalid={pinProblem ? true : undefined}
+                disabled={busy || lockedFor > 0}
+                onChange={(e) => setPin(e.target.value)}
               />
-            ) : null}
+              {pinProblem ? (
+                <p className="hint" aria-live="polite">
+                  {pinProblem}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
-            {(firstRun || !awaitingSecondStep) &&
-            isCeremonyMethod(activeMethod) &&
-            !passkeyHost.ok ? (
-              <PasskeyHostNote host={passkeyHost} />
-            ) : null}
+          {showsPrimaryField &&
+          (activeMethod === "recovery" || activeMethod === "age") ? (
+            <ProtectorField
+              method={activeMethod}
+              value={protectorSecret}
+              reveal={reveal}
+              disabled={busy || lockedFor > 0}
+              inputRef={(element) => {
+                protectorRef.current = element;
+                secretRef(element);
+              }}
+              onValue={setProtectorSecret}
+              onReveal={() => setReveal((value) => !value)}
+            />
+          ) : null}
 
-            {showsPinField ? (
-              <div className="field">
-                <label htmlFor="unlock-pin">
-                  {awaitingPasskeyDuressCode
-                    ? "Code"
-                    : firstRun
-                      ? "Device PIN"
-                      : "PIN"}
-                </label>
+          {showsPrimaryField && activeMethod === "password" && (
+            <div className="field">
+              <label htmlFor="master">Password</label>
+              <div className="unlock__reveal">
                 <input
-                  id="unlock-pin"
+                  id="master"
                   ref={(element) => {
-                    pinRef.current = element;
+                    passwordRef.current = element;
                     secretRef(element);
                   }}
                   type={reveal ? "text" : "password"}
-                  inputMode="numeric"
-                  autoComplete={firstRun ? "new-password" : "one-time-code"}
-                  value={pin}
-                  aria-invalid={pinProblem ? true : undefined}
+                  autoComplete="current-password"
+                  value={password}
                   disabled={busy || lockedFor > 0}
-                  onChange={(e) => setPin(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
-                {firstRun ? (
-                  <p className="hint">
-                    {MIN_PIN_LENGTH}–12 characters · no repeated character · no
-                    sequential digits.
-                  </p>
-                ) : null}
-                {pinProblem ? (
-                  <p className="hint" aria-live="polite">
-                    {pinProblem}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
-            {showsPrimaryField &&
-            (activeMethod === "recovery" || activeMethod === "age") ? (
-              <ProtectorField
-                method={activeMethod}
-                value={protectorSecret}
-                reveal={reveal}
-                disabled={busy || lockedFor > 0}
-                inputRef={(element) => {
-                  protectorRef.current = element;
-                  secretRef(element);
-                }}
-                onValue={setProtectorSecret}
-                onReveal={() => setReveal((value) => !value)}
-              />
-            ) : null}
-
-            {showsPrimaryField && activeMethod === "password" && (
-              <div className="field">
-                <label htmlFor="master">Password</label>
-                <div className="unlock__reveal">
-                  <input
-                    id="master"
-                    ref={(element) => {
-                      passwordRef.current = element;
-                      secretRef(element);
-                    }}
-                    type={reveal ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    disabled={busy || lockedFor > 0}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="icon-btn"
-                    onClick={() => setReveal((value) => !value)}
-                    aria-label={reveal ? "Hide password" : "Show password"}
-                  >
-                    {reveal ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {firstRun && activeMethod === "pin" ? (
-              <div className="field">
-                <label htmlFor="confirm">Confirm PIN</label>
-                <input
-                  id="confirm"
-                  type={reveal ? "text" : "password"}
-                  inputMode="numeric"
-                  autoComplete="new-password"
-                  value={confirm}
-                  disabled={busy}
-                  onChange={(e) => setConfirm(e.target.value)}
-                />
-              </div>
-            ) : null}
-
-            {firstRun ? (
-              <div className="unlock__terms">
-                <p id="master-help">
-                  {activeMethod === "passkey"
-                    ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us."
-                    : "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."}
-                </p>
-                <label className="check">
-                  <input
-                    type="checkbox"
-                    ref={acceptRef}
-                    checked={accepted}
-                    onChange={(e) => setAccepted(e.target.checked)}
-                  />
-                  <span>I understand this vault cannot be recovered.</span>
-                </label>
-              </div>
-            ) : header?.hint &&
-              activeMethod === "password" &&
-              !awaitingSecondStep ? (
-              <p className="unlock__hint">
-                <strong>Reminder:</strong> {header.hint}
-              </p>
-            ) : null}
-
-            {!durable ? (
-              <output className="note note--warn">
-                <span>
-                  This browser gives this app no persistent storage, so the
-                  vault will be gone when the tab closes — private windows and
-                  some embedded browsers do this. Do not put your only copy of
-                  anything in here.
-                </span>
-              </output>
-            ) : null}
-
-            <FailureNotice id="unlock:error" title="Unlock" message={error} />
-
-            {lockedFor > 0 ? (
-              <output className="note note--warn">
-                <span>
-                  {failedAttempts} failed attempts. Try again in {lockedFor}s.
-                </span>
-              </output>
-            ) : null}
-
-            {noPrimary ? null : (
-              <div className="go-row">
                 <button
-                  ref={(element) => {
-                    goRef.current = element;
-                    submitRef(element);
-                  }}
-                  type="submit"
-                  className="go"
-                  disabled={disabled}
-                  aria-busy={busy}
-                  aria-label={goVerb}
-                  title={goVerb}
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setReveal((value) => !value)}
+                  aria-label={reveal ? "Hide password" : "Show password"}
                 >
-                  {isCeremonyMethod(activeMethod) &&
-                  !awaitingSecondStep &&
-                  !awaitingPasskeyDuressCode ? (
-                    <IconPasskey size={18} />
-                  ) : (
-                    <IconArrowRight size={18} />
-                  )}
+                  {reveal ? <IconEyeOff size={18} /> : <IconEye size={18} />}
                 </button>
-                <span className="go-verb" aria-hidden="true">
-                  {goVerb}
-                </span>
               </div>
-            )}
-          </form>
-        )}
+            </div>
+          )}
 
-        <div className="unlock__foot">
-          {firstRun && localOnly ? (
-            <button
-              type="button"
-              className="unlock__switch"
-              onClick={() => setLocalOnly(false)}
-            >
-              Sign in instead
-            </button>
+          {firstRun && activeMethod === "pin" ? (
+            <div className="field">
+              <label htmlFor="confirm">Confirm PIN</label>
+              <input
+                id="confirm"
+                type={reveal ? "text" : "password"}
+                inputMode="numeric"
+                autoComplete="new-password"
+                value={confirm}
+                disabled={busy}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
+            </div>
           ) : null}
-          {/* The guest road on the unlock form itself (GuestRoad.tsx): never
-              gated on anything but the operator's "Allow guests" switch
-              (AGENTS.md §5) — including beside the guest tomb, where it
-              resumes rather than gates. */}
-          {!firstRun && !showSignIn && !showReset ? (
-            <GuestUnlockSwitch
-              busy={busy}
-              setBusy={setBusy}
-              setError={setError}
-            />
+
+          {firstRun ? (
+            <div className="unlock__terms">
+              <p id="master-help">
+                {activeMethod === "passkey"
+                  ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us. An authenticator that cannot seal fails on Seal; the PIN tab works on any device."
+                  : "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."}
+              </p>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  ref={acceptRef}
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                />
+                <span>I understand this vault cannot be recovered.</span>
+              </label>
+            </div>
+          ) : header?.hint &&
+            activeMethod === "password" &&
+            !awaitingSecondStep ? (
+            <p className="unlock__hint">
+              <strong>Reminder:</strong> {header.hint}
+            </p>
           ) : null}
-          {!firstRun && !showSignIn ? (
-            <ResetVault
-              open={showReset}
-              onOpen={() => setShowReset(true)}
-              onDelete={() => void store.destroy()}
-              onKeep={() => setShowReset(false)}
-            />
-          ) : null}
-          {showReset ? null : <ResetBrowser />}
-        </div>
-      </div>
-      <ReleaseNotes />
-    </div>
+
+          <DurabilityNote durable={durable} />
+
+          <FailureNotice id="unlock:error" title="Unlock" message={error} />
+
+          <LockoutNote lockedFor={lockedFor} failedAttempts={failedAttempts} />
+
+          {noPrimary ? null : (
+            <div className="go-row">
+              <button
+                ref={(element) => {
+                  goRef.current = element;
+                  submitRef(element);
+                }}
+                type="submit"
+                className="go"
+                disabled={disabled}
+                aria-busy={busy}
+                aria-label={goVerb}
+                title={goVerb}
+              >
+                {isCeremonyMethod(activeMethod) &&
+                !awaitingSecondStep &&
+                !awaitingPasskeyDuressCode ? (
+                  <IconPasskey size={18} />
+                ) : (
+                  <IconArrowRight size={18} />
+                )}
+              </button>
+              <span className="go-verb" aria-hidden="true">
+                {goVerb}
+              </span>
+            </div>
+          )}
+        </form>
+      )}
+
+      <UnlockFoot
+        firstRun={firstRun}
+        offerSignIn={firstRun && localOnly && !startsFromFile}
+        showSignIn={showSignIn}
+        showReset={showReset}
+        guestKeyless={guestKeyless}
+        busy={busy}
+        setBusy={setBusy}
+        setError={setError}
+        onSignIn={() => setLocalOnly(false)}
+        onAskReset={() => setShowReset(true)}
+        onKeepVault={() => setShowReset(false)}
+        onDeleteVault={() => void store.destroy()}
+      />
+    </UnlockStage>
   );
 }

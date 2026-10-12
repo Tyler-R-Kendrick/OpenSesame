@@ -47,14 +47,15 @@ function refusal(
 
 /**
  * Directory names the vault rail draws that are not a type's own: the fixed
- * filters beside the type directories, and the short names the rail gives
- * platform kinds whose plurals would read differently (`certs`, `notes`). An
- * install may not claim one, or its items would share a directory with
- * something else.
+ * filters beside the type directories, the password health page, and the
+ * short names the rail gives platform kinds whose plurals would read
+ * differently (`certs`, `notes`). An install may not claim one, or its items
+ * would share a directory with something else.
  */
 export const RESERVED_DIRECTORIES: readonly string[] = [
   "all",
   "favorites",
+  "health",
   "trash",
   "certs",
   "notes",

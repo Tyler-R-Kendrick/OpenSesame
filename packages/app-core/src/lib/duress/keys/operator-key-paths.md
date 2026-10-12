@@ -8,8 +8,9 @@ guidance for local PWA vaults.
 - Restricted, decoy, and limited-carry compartments mint their own 32-byte
   roots via `createIndependentCompartmentKey` / `createIndependentNode`.
 - Shared vault-root project forks (`createSharedRootNode`) **must not** be
-  inventoried as cryptographic isolation. Compilers reject isolation claims
-  against shared-root nodes (`assertIndependentIsolation`).
+  inventoried as cryptographic isolation. `assertIndependentIsolation` throws
+  on an isolation claim against a shared-root node (the compartment registry's
+  `requireIndependentPresentation` calls it).
 
 ## Wrapper inventory (password / PIN / PRF / legacy / recovery / age / SOPS / cloud)
 
@@ -26,7 +27,9 @@ guidance for local PWA vaults.
 
 Use `inventoryWrappers` / `inventoryFromVaultSignals` and surface
 `survivingAlternateWrappers` whenever a profile claims two-input crypto or a
-hold. Silent bypass is fail-closed (`assertNoSilentBypass`).
+hold. A two-input claim with a surviving wrapper is refused
+(`assertNoSilentBypass` throws `alternate_unlock_bypass`); a hold alone only
+discloses.
 
 ## Profile-slot activation (KEYS-B)
 
@@ -35,7 +38,7 @@ hold. Silent bypass is fail-closed (`assertNoSilentBypass`).
 - Opening a slot does **not** require unlocking the protected shared root.
 - Application codes are digit-only, length 8–12 (PIN length floors).
 
-## PRF-and-code envelopes (KEYS-C)
+## PRF-and-code envelopes (KEYS-E)
 
 - Outer layer: HKDF-SHA-256 over WebAuthn PRF output.
 - Inner layer: PBKDF2-SHA-256 over the application code at the PIN iteration floor.

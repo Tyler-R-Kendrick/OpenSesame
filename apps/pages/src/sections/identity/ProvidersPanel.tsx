@@ -50,7 +50,7 @@ import { monogram } from "../connections/connector-marks.js";
  * unreachable catalog filters nothing — the same list drawn before it
  * answers.
  */
-function useProviderCatalog(providers: IdpRecord[]) {
+export function useProviderCatalog(providers: IdpRecord[]) {
   const [catalog, setCatalog] = useState<FederatedProviderSummary[] | null>(
     null,
   );
@@ -259,7 +259,7 @@ function ProviderRow({
   );
 }
 
-function ProviderActions({
+export function ProviderActions({
   record,
   online,
   confirming,

@@ -6,7 +6,8 @@ run it, and what it deliberately does not cover.
 
 Swarm: **COLLAB-ADAPTER** (`COL-REGISTER`, `COL-APPLY`, `COL-RECONCILE`,
 `COL-TEST`, `COL-PORTAL`), under the general-authority programme
-([ADR 0120](../adr/0120-generalized-hierarchical-authority.md), Proposed).
+([ADR 0120](../adr/0120-generalized-hierarchical-authority.md), Accepted,
+implementation in progress).
 
 ## Commands
 

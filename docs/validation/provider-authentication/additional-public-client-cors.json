@@ -1,0 +1,77 @@
+[
+  {
+    "name": "beehiiv-token",
+    "url": "https://app.beehiiv.com/oauth/token",
+    "status": 200,
+    "cors": {},
+    "tls_verified": true
+  },
+  {
+    "name": "beehiiv-resource",
+    "url": "https://api.beehiiv.com/v2/users/identify",
+    "status": 200,
+    "cors": {},
+    "tls_verified": true
+  },
+  {
+    "name": "crowdin-token",
+    "url": "https://accounts.crowdin.com/oauth/token",
+    "status": 204,
+    "cors": {
+      "access-control-allow-origin": "https://tyler-r-kendrick.github.io",
+      "access-control-allow-credentials": "true",
+      "access-control-allow-methods": "POST",
+      "access-control-allow-headers": "content-type",
+      "access-control-max-age": "0"
+    },
+    "tls_verified": true
+  },
+  {
+    "name": "crowdin-resource",
+    "url": "https://api.crowdin.com/api/v2/user",
+    "status": 204,
+    "cors": {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS, DELETE, PATCH, PUT",
+      "access-control-allow-headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,ETag,Accept,AcceptEncoding,Authorization,Crowdin-API-FileName,X-Crowdin-Integrations-User-Agent",
+      "access-control-allow-credentials": "true",
+      "access-control-max-age": "600"
+    },
+    "tls_verified": true
+  },
+  {
+    "name": "twitch-token",
+    "url": "https://id.twitch.tv/oauth2/token",
+    "status": 200,
+    "cors": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "POST",
+      "access-control-allow-origin": "*",
+      "access-control-max-age": "300"
+    },
+    "tls_verified": true
+  },
+  {
+    "name": "twitch-resource",
+    "url": "https://id.twitch.tv/oauth2/userinfo",
+    "status": 200,
+    "cors": {
+      "access-control-allow-origin": "*"
+    },
+    "tls_verified": true
+  },
+  {
+    "name": "zoom-token",
+    "url": "https://zoom.us/oauth/token",
+    "status": 200,
+    "cors": {},
+    "tls_verified": true
+  },
+  {
+    "name": "zoom-resource",
+    "url": "https://api.zoom.us/v2/users/me",
+    "status": 200,
+    "cors": {},
+    "tls_verified": true
+  }
+]

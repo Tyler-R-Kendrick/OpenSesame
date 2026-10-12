@@ -22,7 +22,6 @@ import {
 import type { ClaimArrival } from "@opensesame/app-core/lib/claims/link.js";
 import {
   claimStartFor,
-  clearClaimNotice,
   reportClaim,
 } from "@opensesame/app-core/lib/claims/route-model.js";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -80,7 +79,6 @@ export function useClaimCeremony(arrival: ClaimArrival): ClaimView {
     if (!next || !live.current) return;
     setStep(next);
     if (toneOf(next) === "err" && next.message) reportClaim(next.message);
-    else clearClaimNotice();
     // Spent, refused for good, or accepted: nothing left for the route to hold.
     if (next.phase.kind === "token" || next.phase.kind === "done") {
       takeClaimArrival();

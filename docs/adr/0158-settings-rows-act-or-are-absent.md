@@ -167,3 +167,8 @@ was fixed at its root:
 - **Dev only, and fatal there.** `main.tsx` renders under StrictMode; the
   authenticator sheet's cleanup cancelled an enrollment its re-mount never began,
   so the first code was refused with "Start authenticator enrollment first."
+- **Household sharing has no Pages surface** (2026-10-07).
+  `sharing.household` registers nothing
+  (`modules/sharing.household/runtime.ts`). Its switch is not drawn
+  (`NO_SURFACE`) unless a plan already approves it, so a persisted selection
+  can still be turned off. Live sessions keep the Sharing section.

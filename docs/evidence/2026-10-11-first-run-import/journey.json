@@ -1,0 +1,144 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "shot": "390-door"
+        },
+        {
+          "measure": ".door__roads .road"
+        },
+        {
+          "measure": ".door__card"
+        },
+        {
+          "chooseFile": {
+            "name": "app.env",
+            "text": "API_KEY=example-not-a-secret\nDATABASE_URL=example-not-a-url\nSESSION_SECRET=example-not-a-secret\n"
+          },
+          "only": "after"
+        },
+        {
+          "shot": "390-seal",
+          "only": "after"
+        },
+        {
+          "measure": ".unlock__import",
+          "only": "after"
+        },
+        {
+          "measure": ".unlock__import .icon-btn",
+          "only": "after"
+        },
+        {
+          "sealHere": null,
+          "only": "after"
+        },
+        {
+          "shot": "390-sheet",
+          "only": "after"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "shot": "1280-door"
+        },
+        {
+          "measure": ".door__roads .road"
+        },
+        {
+          "measure": ".door__card"
+        },
+        {
+          "chooseFile": {
+            "name": "app.env",
+            "text": "API_KEY=example-not-a-secret\nDATABASE_URL=example-not-a-url\nSESSION_SECRET=example-not-a-secret\n"
+          },
+          "only": "after"
+        },
+        {
+          "shot": "1280-seal",
+          "only": "after"
+        },
+        {
+          "measure": ".unlock__import",
+          "only": "after"
+        },
+        {
+          "measure": ".unlock__import .icon-btn",
+          "only": "after"
+        },
+        {
+          "sealHere": null,
+          "only": "after"
+        },
+        {
+          "shot": "1280-sheet",
+          "only": "after"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-first-run-import",
+      "width": 390,
+      "title": "A vault that begins from a file \u2014 390 \u00d7 844",
+      "caption": "A device with no vault could not reach the Import sheet at all: it lived inside an unlocked vault. The door now has a third road, Import a file, and choosing one goes straight to sealing the vault it is for \u2014 a passkey or a PIN, no account asked \u2014 after which the Import sheet opens on the file by itself. A .env file previews and merges; an OpenSesame backup is opened by its own PIN, passkey or password. The base build cannot reach screens 2 and 3, so they have no before.",
+      "rows": [
+        {
+          "shot": "390-door",
+          "heading": "1 \u00b7 The front door",
+          "before": "2 roads \u00b7 card 333px tall",
+          "after": "3 roads, each 350\u00d782 \u00b7 card 423px tall"
+        },
+        {
+          "shot": "390-seal",
+          "added": true,
+          "heading": "2 \u00b7 Choosing a file goes to sealing the vault it is for",
+          "after": "file row 350\u00d767; its Remove key is 44\u00d744"
+        },
+        {
+          "shot": "390-sheet",
+          "added": true,
+          "heading": "3 \u00b7 Once the vault is open, the Import sheet is already on the file",
+          "after": ".env previewed; a backup asks for its own PIN, passkey or password"
+        }
+      ]
+    },
+    {
+      "shot": "1280-first-run-import",
+      "width": 640,
+      "title": "A vault that begins from a file \u2014 1280 \u00d7 900",
+      "caption": "A device with no vault could not reach the Import sheet at all: it lived inside an unlocked vault. The door now has a third road, Import a file, and choosing one goes straight to sealing the vault it is for \u2014 a passkey or a PIN, no account asked \u2014 after which the Import sheet opens on the file by itself. A .env file previews and merges; an OpenSesame backup is opened by its own PIN, passkey or password. The base build cannot reach screens 2 and 3, so they have no before.",
+      "rows": [
+        {
+          "shot": "1280-door",
+          "heading": "1 \u00b7 The front door",
+          "before": "2 roads side by side (236\u00d777) \u00b7 card 265px tall",
+          "after": "the pair, plus Import a file at 480\u00d777 \u00b7 card 351px tall"
+        },
+        {
+          "shot": "1280-seal",
+          "added": true,
+          "heading": "2 \u00b7 Choosing a file goes to sealing the vault it is for",
+          "after": "file row 432\u00d747; its Remove key is 24\u00d724 (a mouse's key)"
+        },
+        {
+          "shot": "1280-sheet",
+          "added": true,
+          "heading": "3 \u00b7 Once the vault is open, the Import sheet is already on the file",
+          "after": ".env previewed; a backup asks for its own PIN, passkey or password"
+        }
+      ]
+    }
+  ]
+}

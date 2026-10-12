@@ -96,6 +96,28 @@ export function profileSelection(
 }
 
 /** A shipped profile resolved to the plan a device would actually run. */
+const PERSONAL_LOCAL_PWA_DEFAULTS = [
+  "access.authority",
+  "identity.local-iam",
+] as const satisfies readonly CapabilityId[];
+
+/** Plan after boot applies personal-local PWA defaults (D2); profile JSON stays minimal. */
+export function profilePlanWithPwaDefaults(
+  name: string,
+  overrides: Partial<ResolveInput> = {},
+): EffectivePlan {
+  const selection = profileSelection(name);
+  return profilePlan(name, {
+    ...overrides,
+    installation: {
+      ...selection,
+      ...overrides.installation,
+      selectedOptional: [...PERSONAL_LOCAL_PWA_DEFAULTS],
+      revision: `${selection.revision}-pwa-defaults`,
+    },
+  });
+}
+
 export function profilePlan(
   name: string,
   overrides: Partial<ResolveInput> = {},

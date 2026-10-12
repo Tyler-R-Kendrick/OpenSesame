@@ -2,135 +2,66 @@
  * The owner's side of a live session (ADR 0150 §2–§5): the open tab hosts it.
  *
  * The owner pastes each request code a joiner sends, or a carrier passes it
- * on. In an invite session, one that the link opens but the code does not is
- * a miss — a guess at the code — and the fifth miss **locks** the session:
- * from then on it takes no new request, while everyone already asking or in
- * stays (ending the session would let anyone holding the link, which is not
- * a secret from the people it was sent to, throw out those who are in). An
- * open session has no code to guess, so a request that does not open there is
- * not a request and is never a miss. A joiner's page reposts its unanswered
- * request, so the same code again is one miss, not a new one: a single
- * mistyped code cannot lock the session by being retried. A request that opens
- * waits for the owner — or, in an open session, is let in at once. Letting
- * someone in is the only thing that answers their offer (`host-peer.ts`), and
- * the answer leaves only in the reply code the owner hands back, so nobody the
- * owner turned away learns where the owner is.
+ * on. In an invite session, a code the link did not open is a miss, and the
+ * fifth miss **locks** the session: no new request is taken, and everyone
+ * already asking or in stays. An open session has no code to guess, so a
+ * request that does not open there is not a miss. A reposted code is the same
+ * miss, not a new one. Ending the session is not how it locks: anyone holding
+ * the link could then throw out the people already in. Letting someone in is
+ * the only answer to their offer (`host-peer.ts`), and that answer leaves only
+ * in the reply code, so nobody turned away learns where the owner is.
  *
- * A seat is not kept for ever: one that is asking or has been let in but never
- * connects expires after the pairing window, and a seat that has ended is
- * forgotten shortly after, so requests that never finish cannot fill the
- * session or grow it.
+ * A seat is not kept for ever: one that is asking or let in but never connects
+ * expires after the pairing window, and an ended seat is forgotten shortly
+ * after, so requests that never finish cannot fill the session or grow it.
  *
  * The session keeps nothing in storage. It ends — for everyone, on every
  * channel — when the owner ends it, when its time runs out, or when the tab
  * that hosts it goes away.
  */
 
+import { noteLiveSessionGranted } from "../sharing-receipts.js";
+import { DeviceBroker } from "./device-broker.js";
+import { NO_DEVICES } from "./device-types.js";
+import { HostPeer, type LogEntry } from "./host-peer.js";
 import {
-  HostPeer,
-  type LogEntry,
-  type ReadField,
-  type WriteField,
-} from "./host-peer.js";
+  CLOSED_MAX,
+  type Guest,
+  type HostOptions,
+  type HostState,
+  MAX_GUESTS,
+  MAX_MISSES,
+  MAX_SESSION_MS,
+  MISSED_MAX,
+  OPEN,
+  type Received,
+  SEAT_GRACE_MS,
+  type HostSeat as Seat,
+} from "./host-types.js";
 import type { LiveLink } from "./link.js";
-import type { Catalog } from "./messages.js";
+import type { JoinRequest } from "./messages.js";
+import { PAIRING_MS } from "./p2p.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
-import { type IceSettings, PAIRING_MS, type PeerFactory } from "./peer.js";
 import type { Carrier } from "./rendezvous.js";
-import { type LiveRoutes, NO_ROUTES, routesSegment } from "./routes.js";
+import { NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 import { seatName } from "./seat-channel.js";
 
-export const MAX_MISSES = 5;
-export const MAX_GUESTS = 8;
-/** How long a seat that has ended stays listed before it is forgotten. */
-export const SEAT_GRACE_MS = 60_000;
-/** How many distinct wrong codes are remembered; each still counts as a miss. */
-const MISSED_MAX = 256;
-/** How many forgotten requests are remembered, so a repost is not seated again. */
-const CLOSED_MAX = 256;
-export const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
+// What a host is made of lives in `host-types.ts`; it is named here as well.
+export * from "./host-types.js";
 
-export type Admission = "invite" | "open";
-
-export type GuestState = "asking" | "replied" | "joined" | "refused" | "gone";
-
-export type Guest = Readonly<{
-  /** The request id. */
-  key: string;
-  name: string;
-  note: string;
-  state: GuestState;
-  askedAt: number;
-  /** The reply code to hand back, once the owner has let them in. */
-  reply: string | null;
-}>;
-
-export type HostState = Readonly<{
-  status: "live" | "ended";
-  endedBecause: "owner" | "expired" | null;
-  guests: readonly Guest[];
-  log: readonly LogEntry[];
-  misses: number;
-  /** Too many wrong codes: no new request is taken; the people in stay. */
-  locked: boolean;
-}>;
-
-/** What pasting one request code did. */
-export type Received =
-  /** Not a request for this session, or one that has already closed. */
-  | Readonly<{ kind: "not-a-request" }>
-  | Readonly<{ kind: "not-this-session"; misses: number }>
-  /** The session is locked: it takes no new request. */
-  | Readonly<{ kind: "locked" }>
-  | Readonly<{ kind: "full" }>
-  | Readonly<{ kind: "ended" }>
-  | Readonly<{ kind: "guest"; key: string }>;
-
-export type HostOptions = Readonly<{
-  admission: Admission;
-  ice: IceSettings;
-  /** Epoch ms; clamped to eight hours from now. */
-  expiresAt: number;
-  catalog: () => Catalog;
-  readField: ReadField;
-  /** Present when the session may write a shared field back. Absent denies. */
-  writeField?: WriteField;
-  peers: PeerFactory;
-  /** What the link carries for joiners: ICE servers, relay only, carriers. */
-  routes?: LiveRoutes;
-  /** Where a reply code goes besides the owner's screen (a carrier). */
-  post?: (code: string) => void;
-  /**
-   * A seat's channel on a carrier that may carry the session (NATS), or
-   * null when none can; asked at each admission (ADR 0167).
-   */
-  relay?: (name: string) => Carrier | null;
-  /** The link secret, when the caller minted credentials for its topic. */
-  secret?: string;
-  now?: () => number;
-}>;
-
-type Seat = {
-  guest: Guest;
-  offer: string;
-  /** The joiner's public key: its reply is sealed to it. */
-  joiner: string;
-  peer: HostPeer | null;
-  /** An admit is waiting on its peer's answer: a second must not start. */
-  admitting: boolean;
-  /** The seat's expiry while it waits, or its removal once it has ended. */
-  timer: ReturnType<typeof setTimeout> | null;
-};
-
-const OPEN = new Set<GuestState>(["asking", "replied", "joined"]);
+const seatState = (seat: Seat | undefined) => seat?.guest.state;
 
 /** One live session, hosted by this tab. */
 export class LiveHost {
   readonly link: LiveLink;
+  /** Receipt id. Not the link secret and not the invite code. */
+  readonly id = crypto.randomUUID();
   /** The out-of-band code, in an invite session. */
   readonly code: string | null;
   readonly expiresAt: number;
+  /** Where devices ask for the owner's connections; null when they may not. */
+  readonly devices: DeviceBroker | null;
   readonly #owner: Keypair;
   readonly #seats = new Map<string, Seat>();
   readonly #listeners = new Set<(state: HostState) => void>();
@@ -163,6 +94,28 @@ export class LiveHost {
       () => this.end("expired"),
       Math.max(0, this.expiresAt - this.#now()),
     );
+    this.devices = options.devices
+      ? new DeviceBroker({
+          port: options.devices.port,
+          expiresAt: this.expiresAt,
+          now: this.#now,
+          onLog: (entry) =>
+            this.#record({
+              at: entry.at,
+              guest: entry.guest,
+              what: entry.what,
+              item: entry.connection,
+              field: entry.operation,
+            }),
+        })
+      : null;
+    this.devices?.subscribe(() => this.#emit());
+  }
+
+  /** One more line in the owner's log, the last two hundred kept. */
+  #record(entry: LogEntry): void {
+    this.#log = [...this.#log.slice(-199), entry];
+    this.#emit();
   }
 
   /** Start a session: a fresh owner key, link secret and code. */
@@ -178,6 +131,7 @@ export class LiveHost {
       log: this.#log,
       misses: this.#misses,
       locked: this.#locked,
+      devices: this.devices?.state ?? NO_DEVICES,
     };
   }
 
@@ -218,6 +172,7 @@ export class LiveHost {
       this.code,
       this.#owner,
       text,
+      this.options.transport.readsOffer,
     );
     if (this.#ended) return { kind: "ended" };
     if (opened.kind === "not-a-request") return opened;
@@ -252,10 +207,14 @@ export class LiveHost {
     return { kind: "not-this-session", misses: this.#misses };
   }
 
-  async #seat(
-    request: { id: string; name: string; note: string; offer: string },
-    joiner: string,
-  ): Promise<Received> {
+  async #seat(request: JoinRequest, joiner: string): Promise<Received> {
+    const kind = request.kind ?? "person";
+    const route = request.route ?? "peer";
+    // A device is seated only where devices may ask, and a relay-only request
+    // only where a relay could carry it: say so now, not after a long wait.
+    if (kind === "device" && !this.devices) return { kind: "no-devices" };
+    if (route === "relay" && !(this.options.canRelay?.() ?? false))
+      return { kind: "no-relay" };
     const seated = [...this.#seats.values()].filter((seat) =>
       OPEN.has(seat.guest.state),
     );
@@ -269,9 +228,13 @@ export class LiveHost {
         state: "asking",
         askedAt: this.#now(),
         reply: null,
+        kind,
       },
       offer: request.offer,
+      greets: request.greets,
       joiner,
+      kind,
+      route,
       peer: null,
       admitting: false,
       timer: null,
@@ -283,22 +246,27 @@ export class LiveHost {
     return { kind: "guest", key };
   }
 
-  /** Let an asker in: only now is their offer answered. */
-  async admit(key: string): Promise<void> {
-    const seat = this.#seats.get(key);
-    if (!seat || seat.guest.state !== "asking" || this.#ended) return;
-    // `peer.open` waits on the browser: a second admit must not start beside it.
-    if (seat.admitting) return;
-    seat.admitting = true;
-    const relay = this.options.relay?.(seatName(key)) ?? null;
-    const peer = new HostPeer({
+  /** The seat's peer: what it will be shown, and how its life reports back. */
+  #peerFor(key: string, seat: Seat, relay: Carrier | null): HostPeer {
+    // A device is built a peer that has no vault to read from: an empty
+    // catalog, nothing to reveal and nothing to write. The peer refuses a
+    // device the same things on its own account, but a future message that
+    // reads the vault finds nothing here to read, whatever it forgot to check.
+    const device = seat.kind === "device";
+    const peer: HostPeer = new HostPeer({
       relayed: relay !== null,
+      route: seat.route,
+      kind: seat.kind,
+      name: seat.guest.name,
+      devices: this.devices,
       guest: key,
-      ice: this.options.ice,
-      peers: this.options.peers,
-      catalog: this.options.catalog,
-      readField: this.options.readField,
-      writeField: this.options.writeField,
+      transport: this.options.transport,
+      greets: seat.greets,
+      catalog: device
+        ? () => ({ ...this.options.catalog(), items: [] })
+        : this.options.catalog,
+      readField: device ? async () => null : this.options.readField,
+      writeField: device ? undefined : this.options.writeField,
       expiresAt: this.expiresAt,
       now: this.#now,
       onJoined: () => {
@@ -309,11 +277,38 @@ export class LiveHost {
       onClosed: () => {
         if (seat.peer === peer) this.#drop(key, "gone");
       },
-      onLog: (entry) => {
-        this.#log = [...this.#log.slice(-199), entry];
-        this.#emit();
-      },
+      onLog: (entry) => this.#record(entry),
     });
+    return peer;
+  }
+
+  /**
+   * The asker to admit and the relay that will carry it, or null when it
+   * cannot be admitted now. A second admit must not start beside one that is
+   * waiting on the browser (`peer.open`), and a relay-only asker whose relay
+   * went away since its request was taken has nothing to be carried by.
+   */
+  #admission(
+    key: string,
+  ): Readonly<{ seat: Seat; relay: Carrier | null }> | null {
+    const seat = this.#seats.get(key);
+    if (!seat || seat.guest.state !== "asking" || this.#ended) return null;
+    if (seat.admitting) return null;
+    const relay = this.options.relay?.(seatName(key)) ?? null;
+    if (seat.route === "relay" && !relay) {
+      this.#drop(key, "gone");
+      return null;
+    }
+    seat.admitting = true;
+    return { seat, relay };
+  }
+
+  /** Let an asker in: only now is their offer answered. */
+  async admit(key: string): Promise<void> {
+    const admission = this.#admission(key);
+    if (!admission) return;
+    const { seat, relay } = admission;
+    const peer = this.#peerFor(key, seat, relay);
     seat.peer = peer;
     try {
       const answer = await peer.open(seat.offer);
@@ -345,6 +340,14 @@ export class LiveHost {
       if (seat.peer === peer) this.#drop(key, "gone");
     } finally {
       seat.admitting = false;
+    }
+    // A receipt must not close the peer the joiner is about to use.
+    if (seatState(this.#seats.get(key)) === "replied") {
+      try {
+        noteLiveSessionGranted(this.id, key);
+      } catch {
+        // The trail is best-effort. The admission stands.
+      }
     }
   }
 
@@ -382,6 +385,7 @@ export class LiveHost {
     if (this.#ended) return;
     this.#ended = because;
     if (this.#timer) clearTimeout(this.#timer);
+    this.devices?.end();
     for (const seat of this.#seats.values()) {
       this.#disarm(seat);
       seat.peer?.close();

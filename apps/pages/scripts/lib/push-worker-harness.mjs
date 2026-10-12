@@ -67,12 +67,35 @@ export const scriptsOf = (page, base) =>
       return {
         registrations: registrations.length,
         active: own[0]?.active?.scriptURL ?? null,
+        activeState: own[0]?.active?.state ?? null,
         installing: own[0]?.installing?.scriptURL ?? null,
         waiting: own[0]?.waiting?.scriptURL ?? null,
         controller: navigator.serviceWorker.controller?.scriptURL ?? null,
       };
     },
     `${new URL(page.url()).origin}${base}`,
+  );
+
+/** A takeover retry changes the query, while the worker variant stays the same. */
+export const sameScript = (a, b) =>
+  a !== null &&
+  b !== null &&
+  new URL(a).origin === new URL(b).origin &&
+  new URL(a).pathname === new URL(b).pathname;
+
+/** Claiming clients can precede activation completion; wait for the whole scope. */
+export const untilWorkerHeld = (page, base, script, what, timeout = 60_000) =>
+  until(
+    () => scriptsOf(page, base),
+    (state) =>
+      state.registrations === 1 &&
+      state.activeState === "activated" &&
+      state.installing === null &&
+      state.waiting === null &&
+      sameScript(state.active, script) &&
+      sameScript(state.controller, script),
+    what,
+    timeout,
   );
 
 export async function until(read, ok, what, timeout = 60_000) {
@@ -129,3 +152,27 @@ export const notificationsOf = (page) =>
       data: n.data,
     }));
   });
+
+const sameUrl = (a, b) =>
+  a !== null &&
+  b !== null &&
+  new URL(a).origin === new URL(b).origin &&
+  new URL(a).pathname === new URL(b).pathname;
+
+/**
+ * Wait for `script` to hold this page's scope, settled. A first install Chrome
+ * leaves waiting is asked for again under a fresh `?r=<n>` URL
+ * (`worker/activation.ts`), and that re-ask can still be in flight when the
+ * original takes the scope; it settles on its own, and a walk checks the end
+ * state.
+ */
+export const untilHeld = (page, base, script, what) =>
+  until(
+    () => scriptsOf(page, base),
+    (s) =>
+      sameUrl(s.active, script) &&
+      sameUrl(s.controller, script) &&
+      s.waiting === null &&
+      s.installing === null,
+    what,
+  );

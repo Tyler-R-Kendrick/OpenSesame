@@ -13,6 +13,7 @@ type Props = {
   state: DraftState;
   onState: (next: DraftState) => void;
   redirectUri?: string;
+  local?: boolean;
 };
 
 const REGISTRATION = {
@@ -23,7 +24,9 @@ const REGISTRATION = {
 
 function McpFields({ plan, state, onState }: Props) {
   const method = methodOf(plan, "mcp");
-  if (method?.kind !== "mcp" || method.mcp.status !== "ok") return null;
+  if (method?.kind !== "mcp") return null;
+  if (method.mcp.status !== "ok")
+    return <Facts rows={[["Server", method.mcp.url]]} />;
   const mcp = method.mcp;
   return (
     <fieldset className="cx-block">
@@ -67,7 +70,7 @@ const SUBJECTS = [
   { id: "app", label: "One shared key" },
 ] as const;
 
-function KeyFields({ plan, state, onState }: Props) {
+function KeyFields({ plan, state, onState, local }: Props) {
   const method = methodOf(plan, "api-key");
   const preset = method?.kind === "api-key" ? method.preset : null;
   return (
@@ -85,13 +88,15 @@ function KeyFields({ plan, state, onState }: Props) {
           }
         />
       ))}
-      <SelectField
-        label="Whose key"
-        value={state.keySubject}
-        options={SUBJECTS}
-        onChange={(keySubject) => onState({ ...state, keySubject })}
-      />
-      {state.keySubject === "app" ? (
+      {local ? null : (
+        <SelectField
+          label="Whose key"
+          value={state.keySubject}
+          options={SUBJECTS}
+          onChange={(keySubject) => onState({ ...state, keySubject })}
+        />
+      )}
+      {local || state.keySubject === "app" ? (
         <FieldShell
           label="API key"
           type="password"

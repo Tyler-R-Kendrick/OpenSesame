@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import { overlapCast } from "@opensesame/os-domain";
 import type { VaultItem } from "@opensesame/vault-core";
 import { OptionalField } from "./EditorExtras.js";
@@ -16,6 +17,7 @@ function PasskeyFields({ draft, onChange: patch }: Props) {
           <label htmlFor="rpid">Relying party</label>
           <input
             id="rpid"
+            maxLength={FIELD_LIMITS.line}
             placeholder="example.com"
             value={draft.rpId}
             onChange={(event) => patch({ rpId: event.target.value })}
@@ -25,6 +27,7 @@ function PasskeyFields({ draft, onChange: patch }: Props) {
           <label htmlFor="pk-user">Account</label>
           <input
             id="pk-user"
+            maxLength={FIELD_LIMITS.line}
             value={draft.username}
             onChange={(event) => patch({ username: event.target.value })}
           />
@@ -49,6 +52,7 @@ function PasskeyFields({ draft, onChange: patch }: Props) {
         <label htmlFor="credid">Credential id</label>
         <input
           id="credid"
+          maxLength={FIELD_LIMITS.list}
           spellCheck={false}
           value={draft.credentialIdB64}
           onChange={(event) => patch({ credentialIdB64: event.target.value })}
@@ -74,6 +78,7 @@ function CardFields({ draft, onChange: patch }: Props) {
           <input
             id="cardholder"
             autoComplete="off"
+            maxLength={FIELD_LIMITS.line}
             value={draft.cardholder}
             onChange={(event) => patch({ cardholder: event.target.value })}
           />
@@ -84,6 +89,7 @@ function CardFields({ draft, onChange: patch }: Props) {
             <input
               id="brand"
               autoComplete="off"
+              maxLength={FIELD_LIMITS.label}
               value={draft.brand}
               onChange={(event) => patch({ brand: event.target.value })}
             />
@@ -96,6 +102,7 @@ function CardFields({ draft, onChange: patch }: Props) {
           id="number"
           inputMode="numeric"
           autoComplete="off"
+          maxLength={FIELD_LIMITS.cardNumber}
           value={draft.number}
           onChange={(event) =>
             patch({ number: event.target.value.replace(/[^\d]/g, "") })
@@ -153,6 +160,7 @@ function CertificateFields({ draft, onChange: patch }: Props) {
         <label htmlFor="cert-cn">Common name</label>
         <input
           id="cert-cn"
+          maxLength={FIELD_LIMITS.line}
           value={draft.commonName}
           readOnly={Boolean(draft.certificatePem)}
           onChange={(event) => patch({ commonName: event.target.value })}
@@ -163,6 +171,7 @@ function CertificateFields({ draft, onChange: patch }: Props) {
           <label htmlFor="cert-dns">DNS names</label>
           <input
             id="cert-dns"
+            maxLength={FIELD_LIMITS.list}
             value={draft.dnsNames}
             placeholder="localhost, *.local"
             readOnly={Boolean(draft.certificatePem)}
@@ -179,6 +188,7 @@ function CertificateFields({ draft, onChange: patch }: Props) {
             <label htmlFor="cert-ip">IP addresses</label>
             <input
               id="cert-ip"
+              maxLength={FIELD_LIMITS.list}
               value={draft.ipAddrs}
               placeholder="127.0.0.1"
               readOnly={Boolean(draft.certificatePem)}
@@ -190,6 +200,7 @@ function CertificateFields({ draft, onChange: patch }: Props) {
           <label htmlFor="cert-ttl">TTL (hours)</label>
           <input
             id="cert-ttl"
+            maxLength={FIELD_LIMITS.hours}
             inputMode="numeric"
             value={draft.ttlHours}
             readOnly={Boolean(draft.certificatePem)}

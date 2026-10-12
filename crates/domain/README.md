@@ -13,9 +13,9 @@ provider ids.
   [`authz`](../authz), [`broker`](../broker), [`storage`](../storage),
   [`connection-broker`](../connection-broker), [`audit`](../audit),
   [`transport-security`](../transport-security) — plus
-  [`crates/gateway`](../../crates/gateway), [`packages/identity-worker`](../../packages/identity-worker),
-  [`apps/cli`](../../apps/cli), [`tests/mtls-interop`](../../tests/mtls-interop)
-  and the fuzz harness in [`tests/fuzz/cargo`](../../tests/fuzz/cargo). New
+  [`crates/gateway`](../../crates/gateway), [`apps/cli`](../../apps/cli),
+  [`tests/mtls-interop`](../../tests/mtls-interop) and the fuzz harness in
+  [`tests/fuzz/cargo`](../../tests/fuzz/cargo). New
   dependents should prefer the [`opensesame-core`](../core) facade, which
   re-exports this crate whole.
 - **Builds on:** no workspace crates — `chrono`, `serde`, `serde_json`,

@@ -841,12 +841,6 @@ export function CodeCeremony({
                 refused ? <StatusMark tone="err" label="Did not match" /> : null
               }
             />
-            {refused ? (
-              <p className="hint">
-                Use the newest code you were sent; an older one no longer
-                counts. Five wrong codes spend it, and a new one is sent.
-              </p>
-            ) : null}
           </CeremonyShell>
         </form>
         <CeremonyAlts alts={alts} />

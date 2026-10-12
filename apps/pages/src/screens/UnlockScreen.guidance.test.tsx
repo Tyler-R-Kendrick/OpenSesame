@@ -71,20 +71,18 @@ describe("UnlockScreen — guidance is drawn in the page, not trayed", () => {
     };
     v.methods = [];
     render(<UnlockScreen />);
-    const note = screen.getByText(
-      /no passkey, PIN or password to open it with/,
-    );
+    const note = screen.getByText("No key opens it.");
     expect(note.className).toBe("hint");
-    expect(note.textContent).toContain(
-      "Delete it and seal it again, or continue as a guest.",
-    );
     expect(statusNotices()).toEqual([]);
     expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Unlock/ })).toBeNull();
-    // The roads that still work stay: guest, and deleting to seal again.
+    // The roads that still work stay: the guest tomb, and deleting to seal again.
     expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
+      screen.getByRole("button", { name: "Skip to the guest vault" }),
     ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
     expect(
       screen.getByRole("button", { name: "Forgotten how to unlock?" }),
     ).toBeTruthy();

@@ -203,15 +203,15 @@ describe("SettingsSection", () => {
   });
 
   it("activates categories from the hash and the nav", async () => {
-    // `#taskbus` is a legacy Connections hash; Connections is Capabilities now.
+    // `#taskbus` is a legacy Connections hash; Connections is Integrations now.
     renderSettings("#taskbus");
-    expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
+    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
     const nav = screen.getByRole("navigation", {
       name: /Settings sections/i,
     });
     expect(
       nav.querySelector('[aria-current="page"]')?.textContent?.toLowerCase(),
-    ).toBe("capabilities");
+    ).toBe("integrations");
     expect(within(nav).queryByRole("link", { name: "Connections" })).toBeNull();
 
     await userEvent.click(screen.getByRole("link", { name: /Danger/i }));
@@ -248,11 +248,15 @@ describe("SettingsSection", () => {
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
   });
 
-  // The nav has declared a Capabilities tab since the composition work
-  // landed, but the section drew nothing for it, so the tab opened empty.
-  it("draws the capabilities panel on its own category", () => {
-    renderSettings("#capabilities");
-    expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
+  // The nav declares a tab for each; each draws its own page (ADR 0189).
+  it("draws the features panel and the integrations panel on their own categories", () => {
+    renderSettings("#features");
+    expect(screen.getByTestId("features-panel")).toBeTruthy();
+    expect(screen.queryByTestId("integrations-panel")).toBeNull();
+    cleanup();
+    renderSettings("#integrations");
+    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
+    expect(screen.queryByTestId("features-panel")).toBeNull();
   });
 
   it("shows the security category with one password form: the unlock methods", () => {
@@ -265,13 +269,13 @@ describe("SettingsSection", () => {
     expect(screen.queryByLabelText("New password")).toBeNull();
   });
 
-  it("opens Capabilities from the old Connections and Backups paths", () => {
+  it("opens Integrations from the old Connections and Backups paths", () => {
     for (const path of ["/settings/connections", "/settings/backups"]) {
       renderSettings(path);
-      expect(screen.getByTestId("capabilities-panel")).toBeTruthy();
+      expect(screen.getByTestId("integrations-panel")).toBeTruthy();
       expect(
         screen
-          .getByRole("link", { name: "Capabilities" })
+          .getByRole("link", { name: "Integrations" })
           .getAttribute("aria-current"),
       ).toBe("page");
       expect(screen.queryByText("Appearance")).toBeNull();
@@ -279,19 +283,22 @@ describe("SettingsSection", () => {
     }
   });
 
-  it("puts every provider on Capabilities, with no Connections tab", () => {
+  it("puts every provider on Integrations, with no Connections tab", () => {
     renderSettings("#connectivity");
+    expect(screen.getByTestId("integrations-panel")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
-    // Endpoints is a panel on this page (the addresses its config.yaml holds),
-    // never a tab of its own.
-    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
+    // No Endpoints panel — Host/Identity/daemon are not Pages backends.
+    expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
     expect(
       within(
         screen.getByRole("navigation", { name: "Settings sections" }),
       ).queryByRole("link", { name: "Endpoints" }),
     ).toBeNull();
-    expect(screen.getByRole("region", { name: "Identity" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Identity" })).toBeTruthy();
+    // Backups is a built-in function: its history roads act without a page.
+    expect(screen.getByRole("region", { name: "Backups" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Backups" })).toBeTruthy();
+    // The switches stay on Features.
+    expect(screen.queryByRole("region", { name: "Identity" })).toBeNull();
   });
 
   it("lands a rail link on its panel on every tab, not only Security", () => {

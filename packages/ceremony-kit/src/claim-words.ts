@@ -118,6 +118,7 @@ export type DropRefusalCode =
   | "invalid_code"
   | "already_opened"
   | "expired"
+  | "revoked"
   | "invalid"
   | "unreachable";
 
@@ -128,6 +129,7 @@ const DROP_WORDS: Record<Exclude<DropRefusalCode, "unreachable">, string> = {
     "That code did not match this drop. Check it with the sender and try again.",
   already_opened: "This drop was already opened.",
   expired: "This drop expired before it was opened.",
+  revoked: "This drop was revoked.",
   invalid: "This drop link is not valid. Ask the sender for a fresh one.",
 };
 
@@ -135,6 +137,7 @@ const DROP_BY_CODE: Readonly<Record<string, DropRefusalCode>> = {
   invalid_user_code: "invalid_code",
   too_many_attempts: "invalid_code",
   EXPIRED: "expired",
+  REVOKED: "revoked",
   // The single-use transition refused a second presentation.
   INVALID_TRANSITION: "already_opened",
   CONFLICT: "already_opened",

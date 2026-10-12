@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { VaultItem } from "@opensesame/vault-core";
@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseArgs } from "./parse.js";
 import { runCli } from "./run.js";
 import { releaseVaultKv } from "./vault-kv.js";
+import { readVaultTree } from "./vault-tree.test-support.js";
 
 interface ItemRun {
   readPassword?: (prompt: string) => Promise<string>;
@@ -222,8 +223,12 @@ describe("opensesame-id vault item commands", () => {
         });
         expect(reopened.out).toContain("Deploy key");
         expect(reopened.out).not.toContain(CANARY);
-        const stored = await readFile(join(stateDir, "vault-kv.json"), "utf8");
+        const stored = await readVaultTree(stateDir);
         expect(stored).not.toContain(CANARY);
+        // The secret is a file of its own, named for it.
+        await expect(
+          stat(join(stateDir, "vault/personal/secrets/Deploy-key.secret.json")),
+        ).resolves.toBeDefined();
 
         const out = join(stateDir, "export.json");
         const exported = await run(

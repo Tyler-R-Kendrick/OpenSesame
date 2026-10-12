@@ -21,16 +21,20 @@ prompt-injected model cannot ask for an operation the grammar cannot express.
 - Hard limits (`GUIDE_LIMITS`): 8 instructions, 500 characters of text per
   directive (counted in code points), 8192 bytes, 32 lines, timeouts between
   250 ms and 60 s, one guide on screen. Control, bidi and zero-width
-  characters are rejected in model text.
+  characters are rejected in model text. A checked-in tour, which a model never
+  writes, compiles under the wider `AUTHORED_GUIDE_LIMITS` (40 instructions,
+  16384 bytes, 96 lines; the rest unchanged): `parseGuide` and `compileGuide`
+  take the budget as an argument, and only the authored path chooses it
+  (ADR 0163).
 
 ## Surface
 
 | Area | Exports |
 |---|---|
-| Syntax (`ast.ts`) | `GuideProgram`, `GuideInstruction` and one type per directive: `say`, `focus`, `hint`, `annotate`, `scroll`, `navigate`, `wait`, `success`, `pause`, `end`; `GUIDE_LANG_HEADER` (`guide/1`), `GUIDE_LIMITS`, `countGuideTextCharacters`, `hasForbiddenTextCharacter` |
-| Parse (`parse.ts`) | `parseGuide(source)` returning a program or `GuideParseError`s |
+| Syntax (`ast.ts`) | `GuideProgram`, `GuideInstruction` and one type per directive: `say`, `focus`, `hint`, `annotate`, `scroll`, `navigate`, `wait`, `success`, `pause`, `end`; `GUIDE_LANG_HEADER` (`guide/1`), `GUIDE_LIMITS`, `AUTHORED_GUIDE_LIMITS`, `countGuideTextCharacters`, `hasForbiddenTextCharacter` |
+| Parse (`parse.ts`) | `parseGuide(source, limits?)` returning a program or `GuideParseError`s |
 | Serialize (`serialize.ts`) | `serializeGuide`, `serializeInstruction` (canonical form) |
-| Validate (`validate.ts`) | `validateGuide(program, vocabulary)`, `compileGuide(source, vocabulary)` (parse, then validate) |
+| Validate (`validate.ts`) | `validateGuide(program, vocabulary)`, `compileGuide(source, vocabulary, limits?)` (parse, then validate) |
 | Ids (`ids.ts`) | `isGuideGoalId`, `isGuideTargetId`, `isGuideRouteId`, `isGuidePredicateId` |
 | Errors (`errors.ts`) | `GUIDE_PARSE_ERROR_CODES`, `guideParseErrorMessage` |
 

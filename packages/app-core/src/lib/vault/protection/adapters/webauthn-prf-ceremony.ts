@@ -3,11 +3,10 @@
  * Failed ceremonies throw typed errors and never touch unlock wraps (KP-23).
  */
 
-import { isString, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64, randomBytes } from "@opensesame/vault-core";
 import {
   isPublicKeyCredential,
-  maybePage,
   publicKeyCredentialApi,
   requireCredentials,
 } from "../../../../ports.js";
@@ -23,7 +22,15 @@ import {
   webauthnRpId,
 } from "../../webauthn-host.js";
 import {
+  type CeremonyClientDataAssert,
+  assertCeremonyClientData,
+  credentialIdMatches,
+  toWebauthnBase64Url,
+} from "./webauthn-prf-client-data.js";
+import {
   PrfCeremonyError,
+  prfExtensionEnabled,
+  readPrfFirst,
   requirePrfOutputFromExtension,
 } from "./webauthn-prf-output.js";
 
@@ -33,85 +40,16 @@ export type PasskeyCeremonyGetOptions = {
   credentialIdB64?: string;
 };
 
-type CeremonyClientDataAssert = {
-  rpId: string;
-  expectCreate: boolean;
+/**
+ * Which kind of authenticator a new passkey may live on. Left unset, the
+ * browser chooses and, on Windows, offers Windows Hello first — which may not
+ * answer PRF at all — so a person who holds a security key names it here.
+ */
+export type PasskeyAttachment = "platform" | "cross-platform";
+
+export type PasskeyCreateOptions = {
+  attachment?: PasskeyAttachment | undefined;
 };
-
-type CeremonyClientData = {
-  type?: string;
-  origin?: string;
-  rpId?: string;
-};
-
-function readCeremonyClientData(
-  credential: PublicKeyCredential,
-): CeremonyClientData | null {
-  const response = credential.response;
-  if (response === undefined || response === null) return null;
-  if (!("clientDataJSON" in response)) return null;
-  try {
-    const parsed = overlapCast(
-      JSON.parse(new TextDecoder().decode(response.clientDataJSON)),
-    );
-    const data: CeremonyClientData = {};
-    if (isString(parsed.type)) data.type = parsed.type;
-    if (isString(parsed.origin)) data.origin = parsed.origin;
-    if (isString(parsed.rpId)) data.rpId = parsed.rpId;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function expectedWebauthnOrigin(): string {
-  return maybePage()?.location.origin ?? "http://localhost";
-}
-
-function assertCeremonyClientData(
-  credential: PublicKeyCredential,
-  options: CeremonyClientDataAssert,
-): void {
-  const data = readCeremonyClientData(credential);
-  if (!data) return;
-  const expectedType = options.expectCreate
-    ? "webauthn.create"
-    : "webauthn.get";
-  if (data.type && data.type !== expectedType) {
-    throw new PrfCeremonyError(
-      "wrong_rp",
-      `Passkey ceremony type was ${data.type}, expected ${expectedType}.`,
-    );
-  }
-  const expectedOrigin = expectedWebauthnOrigin();
-  if (data.origin && data.origin !== expectedOrigin) {
-    throw new PrfCeremonyError(
-      "origin_mismatch",
-      `Passkey origin was ${data.origin}, expected ${expectedOrigin}.`,
-    );
-  }
-  if (data.rpId && data.rpId !== options.rpId) {
-    throw new PrfCeremonyError(
-      "wrong_rp",
-      `Passkey RP id was ${data.rpId}, expected ${options.rpId}.`,
-    );
-  }
-}
-
-function credentialIdMatches(
-  credential: PublicKeyCredential,
-  credentialIdB64: string,
-): boolean {
-  return bytesToB64(new Uint8Array(credential.rawId)) === credentialIdB64;
-}
-
-/** Convert our standard btoa id into the base64url form WebAuthn maps use. */
-function toWebauthnBase64Url(standardB64: string): string {
-  return standardB64
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/u, "");
-}
 
 function mapHostError<Thrown>(error: Thrown): never {
   if (error instanceof WebauthnHostError) {
@@ -120,9 +58,84 @@ function mapHostError<Thrown>(error: Thrown): never {
   throw error;
 }
 
+/**
+ * Most authenticators take the PRF extension at creation and compute nothing
+ * until an assertion (`enabled: true`, no `results`) — a YubiKey whose
+ * firmware lacks `hmac-secret-mc` is the common case. The salt is the one the
+ * new credential will be asked for at unlock, so the output this returns is
+ * the one that will open the vault later. A second touch, not a second key.
+ */
+async function evaluatePrfAfterCreate(
+  credential: PublicKeyCredential,
+  prfSalt: Uint8Array,
+  rpId: string,
+  signal: AbortSignal | undefined,
+): Promise<ArrayBuffer> {
+  const id: BufferSource = new Uint8Array(credential.rawId);
+  const assertion = await getPasskeyCredential({
+    publicKey: {
+      challenge: overlapCast(randomBytes(32)),
+      rpId,
+      allowCredentials: [{ type: "public-key", id }],
+      userVerification: "required",
+      timeout: 120_000,
+      extensions: overlapCast({ prf: { eval: { first: prfSalt } } }),
+    },
+    ...(signal ? { signal } : undefined),
+  });
+  assertCeremonyClientData(assertion, { rpId, expectCreate: false });
+  if (
+    bytesToB64(new Uint8Array(assertion.rawId)) !==
+    bytesToB64(new Uint8Array(credential.rawId))
+  ) {
+    throw new PrfCeremonyError(
+      "wrong_credential",
+      "A different passkey answered than the one just created.",
+    );
+  }
+  return requirePrfOutputFromExtension(assertion.getClientExtensionResults());
+}
+
+async function prfOutputForNewCredential(
+  credential: PublicKeyCredential,
+  prfSalt: Uint8Array,
+  rpId: string,
+  signal: AbortSignal | undefined,
+): Promise<ArrayBuffer> {
+  const results = credential.getClientExtensionResults();
+  if (readPrfFirst(results)) return requirePrfOutputFromExtension(results);
+  if (prfExtensionEnabled(results)) {
+    return evaluatePrfAfterCreate(credential, prfSalt, rpId, signal);
+  }
+  throw new PrfCeremonyError(
+    "prf_missing_output",
+    "This authenticator did not return a WebAuthn PRF result, so it cannot seal a vault. Windows Hello often does not support PRF — choose a security key, or seal with a PIN.",
+  );
+}
+
+/**
+ * Attachment is named only when the person chose one. The credential id lives
+ * in the vault header and every unlock names it, so a security key's limited
+ * resident slots buy nothing and it is asked for a non-resident credential.
+ * User verification stays required in create and get alike: a key derives a
+ * different PRF secret with and without it.
+ */
+function authenticatorSelectionFor(
+  attachment: PasskeyAttachment | undefined,
+): AuthenticatorSelectionCriteria {
+  const selection: AuthenticatorSelectionCriteria = {
+    residentKey: attachment === "cross-platform" ? "discouraged" : "preferred",
+    requireResidentKey: false,
+    userVerification: "required",
+  };
+  if (attachment) selection.authenticatorAttachment = attachment;
+  return selection;
+}
+
 export async function createPasskeyUnlockCeremonyDefault(
   rpId: string = webauthnRpId(),
   signal?: AbortSignal,
+  options: PasskeyCreateOptions = {},
 ): Promise<PasskeyCeremony> {
   if (signal?.aborted) {
     throw new DOMException("The operation was aborted.", "AbortError");
@@ -156,11 +169,7 @@ export async function createPasskeyUnlockCeremonyDefault(
           { type: "public-key", alg: -7 },
           { type: "public-key", alg: -257 },
         ],
-        authenticatorSelection: {
-          residentKey: "preferred",
-          requireResidentKey: false,
-          userVerification: "required",
-        },
+        authenticatorSelection: authenticatorSelectionFor(options.attachment),
         timeout: 120_000,
         extensions: overlapCast({
           prf: { eval: { first: prfSalt } },
@@ -189,8 +198,11 @@ export async function createPasskeyUnlockCeremonyDefault(
   const credential = result;
   const createAssert: CeremonyClientDataAssert = { rpId, expectCreate: true };
   assertCeremonyClientData(credential, createAssert);
-  const prfOutput = requirePrfOutputFromExtension(
-    credential.getClientExtensionResults(),
+  const prfOutput = await prfOutputForNewCredential(
+    credential,
+    prfSalt,
+    rpId,
+    signal,
   );
   return { credential, prfOutput, prfSalt, userId };
 }

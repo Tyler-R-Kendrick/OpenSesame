@@ -47,7 +47,7 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 
 ## Mission
 
-1. Confirm `cargo fuzz --version`. If cargo-fuzz or nightly rustc is missing,
+1. Confirm `cargo +nightly fuzz --version`. If cargo-fuzz or nightly rustc is missing,
    write a one-paragraph note at the bottom of
    `docs/security/tooling-evaluation.md` and stop. Do not try to install a
    toolchain that needs elevated privileges.
@@ -58,13 +58,19 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
    ```
 
 3. If a target crashes:
-   - Minimize the input (`cargo fuzz tmin <target> <crash>`).
+   - Find the crash input under `$OPENSESAME_AUDIT_DIR/artifacts/` (a fresh
+     private directory outside the checkout; the batch prints its path) and
+     minimize it (`cargo +nightly fuzz tmin --fuzz-dir tests/fuzz/cargo
+     <target> <crash>`).
    - Copy it to `tests/fuzz/cargo/regressions/<target>/`.
    - Fix the product code if the oracle is right.
    - Write `docs/security/audits/YYYY-MM-DD-fuzz-<target>.md`.
    - Open a PR (`fix(fuzz): …`).
-4. Optionally grow `tests/fuzz/cargo/corpus/` and include only small, reviewable new
-   seeds in that PR. Do not commit megabytes of unreviewed corpus.
+4. Optionally promote small, reviewable new seeds from the private corpus
+   (`$OPENSESAME_AUDIT_DIR/corpus/<target>/`) into
+   `tests/fuzz/cargo/corpus/<target>/` and include them in that PR. The gates
+   never write to the tracked corpus. Do not commit megabytes of unreviewed
+   corpus.
 5. If everything is CLEAN, do not open an empty PR.
 
 ## TypeScript
@@ -75,4 +81,6 @@ If time remains inside the budget:
 FUZZ_SECONDS=60 pnpm test:fuzz
 ```
 
-Triage Jazzer crashes the same way under `tests/fuzz/jazzer/artifacts/`.
+Triage Jazzer crashes the same way; they land in
+`$OPENSESAME_AUDIT_DIR/artifacts/` (prefixed with the target name), not under
+`tests/fuzz/jazzer/`.

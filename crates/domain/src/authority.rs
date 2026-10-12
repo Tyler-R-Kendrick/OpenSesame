@@ -7,6 +7,8 @@ use crate::{ConnectionId, CredentialHandleId, DomainError, OrganizationId, Proje
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+mod egress_path;
+
 /// Stable logical reference kinds under `AuthorityHandle`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -227,6 +229,11 @@ impl EgressBinding {
         }
         if !self.path_prefixes.is_empty() {
             let path = parsed.path();
+            if !egress_path::egress_path_is_well_formed(path) {
+                return Err(DomainError::GrantAttenuation(
+                    "path not in egress allowlist".into(),
+                ));
+            }
             if !self
                 .path_prefixes
                 .iter()
@@ -577,24 +584,6 @@ mod tests {
             .is_err());
         assert!(e
             .allows_url("https://user:pass@api.github.com/repos/x")
-            .is_err());
-    }
-
-    #[test]
-    fn path_prefixes_stop_at_a_segment_boundary() {
-        let e = EgressBinding {
-            scheme: "https".into(),
-            authorities: vec!["api.github.com".into()],
-            path_prefixes: vec!["/repos/acme".into()],
-            allow_redirects_cross_authority: false,
-        };
-        assert!(e.allows_url("https://api.github.com/repos/acme").is_ok());
-        assert!(e
-            .allows_url("https://api.github.com/repos/acme/catalog")
-            .is_ok());
-        // A bare prefix match let an attenuated grant reach a different owner.
-        assert!(e
-            .allows_url("https://api.github.com/repos/acme-private/secrets")
             .is_err());
     }
 

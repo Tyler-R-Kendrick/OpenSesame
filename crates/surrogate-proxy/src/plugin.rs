@@ -15,6 +15,8 @@ pub mod gate;
 pub mod notices;
 pub mod serve;
 pub mod source;
+#[cfg(feature = "upstream-override")]
+pub mod upstream_override;
 pub mod wire;
 
 use std::process::ExitCode;

@@ -13,7 +13,7 @@ run() { ast-grep scan --inline-rules "$R" "$1" 2>/dev/null | grep -c '^error\[';
 mkdir -p /tmp/ng/src
 ```
 
-## The four cases
+## The five cases
 
 **1. A production file writing to web storage — must FAIL.**
 
@@ -84,18 +84,22 @@ rm -rf /tmp/ng
 
 ## Suppressions
 
-Three production findings are suppressed individually, each with its reason at
-the call site:
+Production findings are suppressed individually, at the call site, with
+`// ast-grep-ignore: <rule-id>`. Most carry a reason in the comment above. At
+the time of writing there are 65 such lines under `apps`, `crates` and
+`packages` (`rg 'ast-grep-ignore'` lists them):
 
-| Site | Rule | Why |
-| --- | --- | --- |
-| `packages/app-core/src/lib/connectivity-monitor.ts` | `ts-math-random-security` | Probe jitter. Nothing treats the delay as unpredictable-to-an-attacker; it only stops a fleet sweeping in lockstep. |
-| `packages/app-core/src/lib/guest-auth.ts` (stash) | `ts-localstorage-set` | Real and deliberate — the guest access token has to survive the OIDC redirect, which is a full navigation. Follows `docs/security/audits/2026-08-07-sdk-browser-storage.md`: sessionStorage, no refresh token. |
-| `packages/app-core/src/lib/guest-auth.ts` (pending link) | `ts-localstorage-set` | A literal `"1"`. The only thing it leaks is that a link is pending, which the on-screen notice already says. |
+| Rule | Sites | Where | What is suppressed |
+| --- | --- | --- | --- |
+| `sql-format-injection` | 54 | `crates/storage` (including `src/bitwarden/` and `src/web_login_runs/`), `crates/connection-broker/src/store.rs`, `crates/bitwarden-server/src/import/vaultwarden/files.rs`, two test modules in `crates/gateway/src/transport_lifecycle/` | `sqlx::query(&format!(..))` calls whose interpolated parts are reviewed column lists, a closed enum's column name or fixed test constants; caller values stay bound parameters. |
+| `ts-localstorage-set` | 11 | `packages/app-core/src/lib/`: `guest-auth.ts`, `last-sign-in.ts`, `federation-pending.ts`, `federation-session-store.ts`, `auth-outcome.ts`, `ambient-auth/` (`transactions.ts`, `policy.ts`, `generation.ts`), `duress/session/fence.ts` | Writes through the host's local and session store ports. The `guest-auth.ts` site stores a literal `"1"` marking a pending link, which the on-screen notice already says. See `docs/security/audits/2026-08-07-sdk-browser-storage.md` for the storage rules. |
+
+There is no `ts-math-random-security` suppression: a new `Math.random()` in
+production code should turn this gate red.
 
 `// ast-grep-ignore: <rule-id>` must be the line **immediately** above the
 match. Another comment between the two silently does nothing, and the gate
 stays red with no explanation of why the suppression "didn't work".
 
-Suppress at the call site, never by deleting a rule. A fourth production
-finding should turn this gate red.
+Suppress at the call site, never by deleting a rule. A new production finding
+should turn this gate red.

@@ -200,12 +200,20 @@ async fn bounded_private_requests_reject_redirects_oversize_stalls_and_send_fail
             2 => backend.send_behavior = SendBehavior::Hang,
             _ => backend.send_behavior = SendBehavior::Fail,
         }
+        let sends_before = backend
+            .events
+            .borrow()
+            .iter()
+            .filter(|e| **e == "send")
+            .count();
         assert!(execute_bounded(
             &mut store,
             &grant.id,
             &binding,
             &backend,
-            Duration::from_millis(20)
+            // CI runners can schedule slowly; a short deadline sometimes expired before
+            // `send` was entered, yielding zero send events despite a consumed lease.
+            Duration::from_millis(500)
         )
         .await
         .is_err());
@@ -216,7 +224,8 @@ async fn bounded_private_requests_reject_redirects_oversize_stalls_and_send_fail
                 .iter()
                 .filter(|e| **e == "send")
                 .count(),
-            1
+            sends_before + 1,
+            "leased private request must reach send once before failing"
         );
         assert_eq!(store.status(&grant.id).await.unwrap().uses_remaining, 0);
     }

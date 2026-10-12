@@ -5,7 +5,7 @@ Before/after images for user-visible changes, one directory per change
 to the interface without cloning the branch, installing, building and walking
 the app.
 
-Each directory holds:
+Most directories hold:
 
 - the composed sheets — one PNG per comparison, each a before and an after of
   the same screen with the measurement that makes the difference a fact;
@@ -16,6 +16,12 @@ Each directory holds:
 - `journey.json` — the screens visited, the steps taken to reach them, and the
   captions. It lives here rather than in the script because a caption that
   outlives its change is a caption nobody rechecks.
+
+A few carry other evidence instead of, or beside, sheets: command output, JSON
+ledgers or measurements (for example `2026-09-24-bitwarden-oracle/`,
+`2026-09-17-ambient-sso/` and the programme directories
+`capability-composition/` and `general-authority/`), with no `journey.json` or
+no images.
 
 Both halves of every pair come from a real build: the base branch's for the
 before, the branch's for the after, walked the same way. Nothing here is a
@@ -47,7 +53,53 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
+| [`2026-10-12-honest-dispositions/`](2026-10-12-honest-dispositions/README.md) | Connections — honest reasons, real docs links, AWS in the browser |
+| [`2026-10-11-vault-environments/`](2026-10-11-vault-environments/README.md) | Vault environments — before / after |
+| [`2026-10-11-toast-notices/`](2026-10-11-toast-notices/README.md) | Toasts for notices — before and after |
+| [`2026-10-11-password-reset-mailboxes/`](2026-10-11-password-reset-mailboxes/README.md) | Password reset: mailboxes as vault items |
+| [`2026-10-11-lock-v5-dial-shimmer/`](2026-10-11-lock-v5-dial-shimmer/README.md) | Lock-v5: the shimmer runs on, the dial is on the front door, the key is in front |
+| [`2026-10-11-hero-field-on-phones/`](2026-10-11-hero-field-on-phones/README.md) | Every gate's hero is the particle field, a phone's included |
+| [`2026-10-11-health-key-danger-bin/`](2026-10-11-health-key-danger-bin/README.md) | The health report's add key, and the Danger row's bin at the row end |
+| [`2026-10-11-first-run-import/`](2026-10-11-first-run-import/README.md) | A vault that begins from a file — before / after |
+| [`2026-10-11-features-and-integrations/`](2026-10-11-features-and-integrations/README.md) | Settings splits into Features and Integrations (ADR 0189) |
+| [`2026-10-11-dial-under-card/`](2026-10-11-dial-under-card/README.md) | The cipher dial carries on behind the gate's card |
+| [`2026-10-11-chrome-wordmark-field/`](2026-10-11-chrome-wordmark-field/README.md) | The rail, the drawer and the setup bar draw the particle field |
+| [`2026-10-11-ai-model-providers/`](2026-10-11-ai-model-providers/README.md) | AI model providers: their own section, a one-sheet add, and keys for apps |
+| [`2026-10-10-wordmark-decode/`](2026-10-10-wordmark-decode/README.md) | Wordmark decode: every slot visible from the first frame |
+| [`2026-10-10-trusted-contacts/`](2026-10-10-trusted-contacts/README.md) | Settings › Trusted contacts (ADR 0187) — visual evidence |
+| [`2026-10-10-persona-r3-c3-live-listed-items/`](2026-10-10-persona-r3-c3-live-listed-items/README.md) |  |
+| [`2026-10-10-persona-r3-c2-claim-different-link/`](2026-10-10-persona-r3-c2-claim-different-link/README.md) | C2 / F5 — claim route different link |
+| [`2026-10-10-persona-r3-b1-share-revoke-armed/`](2026-10-10-persona-r3-b1-share-revoke-armed/README.md) | B1 / F7 — share revoke armed state |
+| [`2026-10-10-persona-r3-a-sent-drops/`](2026-10-10-persona-r3-a-sent-drops/README.md) | A1 / F6 — sent drops lockout and receipts |
+| [`2026-10-10-passkey-authenticator-choice/`](2026-10-10-passkey-authenticator-choice/README.md) | Sealing with a security key, and a seal that moves on instead of failing |
+| [`2026-10-10-lock-v5-title-screen/`](2026-10-10-lock-v5-title-screen/README.md) | Lock v5 title screen evidence (2026-10-10) |
+| [`2026-10-10-live-join-greeting/`](2026-10-10-live-join-greeting/README.md) | Live join: the catalog answers a greeting (ADR 0186) |
+| [`2026-10-10-live-join-browsers/`](2026-10-10-live-join-browsers/README.md) | Live join across three browsers: the road to transport.json |
+| [`2026-10-10-frontdoor-contract/`](2026-10-10-frontdoor-contract/README.md) | Front-door visual contract after the merged brand update |
+| [`2026-10-10-design-tooling/`](2026-10-10-design-tooling/README.md) | Design tooling: Storybook on the app's own CSS |
+| [`2026-10-10-connector-self-review/`](2026-10-10-connector-self-review/README.md) | Connector self-review |
+| [`2026-10-10-cli-authorize-ui/`](2026-10-10-cli-authorize-ui/README.md) | CLI Authorize UI (D4) |
+| [`2026-10-10-brand-plates/`](2026-10-10-brand-plates/README.md) | The brand on plates: one mark, one wordmark, three size tiers |
+| [`2026-10-09-provider-authentication/`](2026-10-09-provider-authentication/README.md) | Provider authentication and connector actions |
+| [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |
+| [`2026-10-09-native-connectors/`](2026-10-09-native-connectors/README.md) | Native connector configuration evidence |
+| [`2026-10-09-main-visual-baselines/`](2026-10-09-main-visual-baselines/README.md) | Reviewed visual baselines from merged main |
+| [`2026-10-09-greyscale/`](2026-10-09-greyscale/README.md) | Greyscale Pages (before / after) |
+| [`2026-10-09-connector-controls/`](2026-10-09-connector-controls/README.md) | Linear connector controls — production browser comparisons |
+| [`2026-10-08-vault-style-sections/`](2026-10-08-vault-style-sections/README.md) | Vault style for Identity, Access and Wallet |
+| [`2026-10-08-static-pwa-no-backend/`](2026-10-08-static-pwa-no-backend/README.md) | Evidence — static PWA, no Host/Identity/daemon backend (2026-10-08) |
+| [`2026-10-08-self-hosted-connectors/`](2026-10-08-self-hosted-connectors/README.md) | Self-hosted provider configuration |
+| [`2026-10-08-s3-setup-step/`](2026-10-08-s3-setup-step/README.md) | S3-compatible bucket in the Custom setup ceremony |
+| [`2026-10-08-s3-bucket-connector/`](2026-10-08-s3-bucket-connector/README.md) | S3-compatible bucket connector — Settings › Capabilities › Local storage |
+| [`2026-10-08-linear-runtime/`](2026-10-08-linear-runtime/README.md) | Functional Linear connector |
 | [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
+| [`2026-10-07-release-notes-default/`](2026-10-07-release-notes-default/README.md) | Release notes default state |
+| [`2026-10-07-path-field/`](2026-10-07-path-field/README.md) | The editor's title row is one path control |
+| [`2026-10-07-password-workflows-in-place/`](2026-10-07-password-workflows-in-place/README.md) | Password workflows, in place |
+| [`2026-10-07-password-no-account/`](2026-10-07-password-no-account/README.md) | A password's form names no account |
+| [`2026-10-07-no-hint-captions/`](2026-10-07-no-hint-captions/README.md) | Hint captions removed (2026-10-07) |
 | [`2026-10-07-mobile-toolbar/`](2026-10-07-mobile-toolbar/README.md) | Mobile toolbar and share icon |
 | [`2026-10-07-mobile-gates/`](2026-10-07-mobile-gates/README.md) | Mobile lock screen and front door |
 | [`2026-10-07-item-timestamps/`](2026-10-07-item-timestamps/README.md) | Item timestamps |

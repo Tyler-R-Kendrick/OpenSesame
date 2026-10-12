@@ -272,4 +272,4 @@ deployment using it and does nothing about anyone else who has a copy.
 - `docs/architecture/federated-signin.md` §8–§9 — registry, trust fence, OAuth2 leg
 - ADR 0055 — provider registry, BYO issuers, organization sign-in
 - `.env.schema` — the authoritative variable list and its `@sensitive` annotations
-- `docs/operators/local.md` — local stack, where the reference IdP stands in for all four
+- `docs/getting-started/README.md` — local stack, where the reference IdP stands in for all four

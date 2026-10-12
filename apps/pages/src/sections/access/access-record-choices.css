@@ -1,0 +1,38 @@
+.access-record-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-block: 1px solid var(--line);
+}
+
+.access-record-choices .access-record-choice {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  text-decoration: none;
+}
+
+.access-record-choices .access-record-choice.is-cursor {
+  color: var(--canvas);
+  background: var(--ink);
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .access-record-choices .access-record-choice {
+    min-height: 44px;
+  }
+}
+
+.access-record-choices .access-record-choice:hover:not(.is-cursor) {
+  background: var(--surface-2);
+}
+
+.access-record-review {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

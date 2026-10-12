@@ -28,11 +28,14 @@ export type VaultTreeActions = {
   purge?: (item: VaultItem) => void;
   /** The menu already asked. Runs the delete without arming the path-strip key. */
   commitPurge?: (item: VaultItem) => void;
+  /** The menu already asked. Moves the item without arming the tree key again. */
+  commitTrash?: (item: VaultItem) => void;
   /** The listing is the trash directory: no new item from a folder or the pane. */
   inTrash?: boolean;
 };
 
 export const PURGE_CONFIRM = "Really delete permanently? This cannot be undone";
+export const TRASH_CONFIRM = "Really move to trash?";
 
 function secretShare(item: VaultItem, actions: VaultTreeActions): MenuGroup {
   const ways: MenuItem[] = [
@@ -216,7 +219,11 @@ export function vaultItemMenu(
     // Share opens the ways out. A sealed drop expires; a standing grant is a
     // person or an agent, and only when Access is part of this installation.
     ...(item.kind === "secret" ? [secretShare(item, actions)] : []),
-    [verb("trash", "Trash", "x", actions.trash)],
+    [
+      verb("trash", "Trash", "x", actions.commitTrash ?? actions.trash, {
+        confirm: TRASH_CONFIRM,
+      }),
+    ],
   ];
 }
 

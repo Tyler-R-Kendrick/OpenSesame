@@ -1,8 +1,22 @@
 # Operations (identity + dual-plane)
 
 ## Health
-- Liveness: `GET /v1/health/live`
-- Readiness: `GET /v1/health/ready` (DB/signing/config; does not probe external IdPs continuously)
+Identity API:
+- Liveness: `GET /v1/health/live` answers `{"status":"ok"}`.
+- Readiness: `GET /v1/health/ready` answers `{"status":"ready"}` once the system
+  owner principal exists and, with a database, every declared table reads and a
+  write/read/delete round trip succeeds; otherwise `503 {"status":"not_ready"}`.
+  It does not probe external IdPs.
+
+Host API:
+- Liveness: `GET /health/live` (also `GET /api/v1/health`) answers `ok`.
+- Readiness: `GET /health/ready` answers `200 {"status":"ready"}` or
+  `503 {"status":"not_ready","reason":…}` (`authority_quorum`,
+  `authority_unavailable`, or `demo_bootstrap_forbidden_in_production`).
+- `GET /health/authority` and `GET /health/degraded` answer `{"ok":…}`, the
+  authority quorum.
+- `GET /health/providers` is operator-gated: whether OpenFGA and OpenBao are
+  configured and healthy.
 
 ## Local ports
 | Service | Port |

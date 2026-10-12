@@ -9,14 +9,14 @@ import {
   b64ToBytes,
 } from "@opensesame/vault-core";
 import {
-  MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
   PIN_PBKDF2_ITERATIONS,
 } from "../../vault/unlock-methods.js";
 import type { BoundaryValue } from "../json-boundary.js";
 
 export const DURESS_PIN_MIN = MIN_PIN_LENGTH;
-export const DURESS_PIN_MAX = MAX_PIN_LENGTH;
+/** ADR 0155: a duress code is 8–12 digits. The vault PIN ceiling is higher. */
+export const DURESS_PIN_MAX = 12;
 export const DURESS_PIN_PBKDF2_ITERATIONS = PIN_PBKDF2_ITERATIONS;
 /** Same ceiling as vault `MAX_PBKDF2_ITERATIONS` — reject unbound metadata. */
 export const DURESS_PIN_PBKDF2_ITERATIONS_MAX = MAX_PBKDF2_ITERATIONS;

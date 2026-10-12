@@ -12,9 +12,10 @@ Infisical product or copying brand marks.
 
 [Infisical](https://infisical.com/) is an open-core secrets platform: projects,
 environments, machine identities, CLI injection (`infisical run`), and an Agent
-Proxy that keeps secrets out of application config by mediating access at
-runtime. Teams use it as a centralized secret store plus delivery path for
-apps, CI, and agents.
+Proxy (announced 2026-07-30, successor to the open-source Agent Vault), a
+forward HTTP proxy that attaches real credentials to an agent's outbound
+requests at the network boundary so the agent never reads them. Teams use it
+as a centralized secret store plus delivery path for apps, CI, and agents.
 
 | Dimension | Infisical |
 |-----------|-----------|
@@ -29,7 +30,7 @@ apps, CI, and agents.
 
 - Project / environment scoped secrets and folders.
 - CLI: login, secret pull/push, `infisical run <cmd>` to inject into a child process.
-- Machine identities, service tokens, and (where enabled) Agent Proxy.
+- Machine identities (service tokens are deprecated upstream) and Agent Proxy.
 - Integrations across clouds, CI, Kubernetes, and developer tools.
 - Self-host and SaaS deployment modes.
 
@@ -59,21 +60,21 @@ not env injection as the primary agent API.
 |-------------------|------------|
 | Project secrets | Host connections + sealed store / vault items (by role) |
 | `infisical run` env injection | Craft bar only — prefer ConnectionRef invoke over env dump |
-| Agent Proxy | Host authorize → invoke; receipts for audit |
+| Agent Proxy | Host authorize → invoke; receipts for audit. The optional `surrogate-proxy` plugin (off until enabled, [ADR 0150](../../adr/0150-surrogate-credentials-at-the-last-hop.md)) is the stand-in swap for an unmodified client |
 | Machine identity | Device / workload auth + connection grants |
 | Human password UI | Pages vault habits (Bitwarden craft bar), not Infisical |
 | Private CA / issue cert | Host `/api/v1/certs` · `opensesame cert issue` · Pages certificate vault item |
-| Certificate Manager | Host `/api/v1/certmgr/*` + `opensesame cert` verbs + the Pages Certificates section ([ADR 0066](../../adr/0066-certificate-manager-domain-model.md)) |
+| Certificate Manager | Host `/api/v1/certmgr/{cas,policies,profiles}` routes and the EST server. `opensesame cert` has only `ca`, `issue`, `ls` and `key`, and `apps/pages`, `packages/api-client` and the CLI have no `certmgr` client ([ADR 0066](../../adr/0066-certificate-manager-domain-model.md)) |
 | CA hierarchy (root + intermediate) | `certificate_authorities` with parent links, path-length constraints, DN fields, RSA-2048/4096 and ECDSA P-256/P-384 keys; externally-signed intermediates via CSR export + chain import |
 | Certificate templates | Split in two: **policies** (constraints) and **profiles** (CA + policy + defaults), reusable across applications ([ADR 0066 §2](../../adr/0066-certificate-manager-domain-model.md)) |
-| Projects / workspaces | `pki_applications` with `admin`/`operator`/`auditor` members layered over the existing organization caller model |
-| Enrollment methods | API (CSR or managed key), ACME server (RFC 8555, EAB required), EST (RFC 7030), SCEP (RFC 8894) — [ADR 0068](../../adr/0068-enrollment-protocol-servers.md) |
-| Revocation | RFC 5280 CRL v2 with reason codes, embedded CDP, ≤4 advertised mirrors — **plus an RFC 6960 OCSP responder, which Infisical does not ship** ([ADR 0067](../../adr/0067-certificate-revocation-crl-ocsp.md)) |
-| Certificate syncs | Broker-fenced pushes to admin-configured destinations; SSH/WinRM executors feature-gated default-off; never agent-triggerable ([ADR 0069](../../adr/0069-certificate-syncs.md)) |
-| Code signing / Sign API | Signers as authority handles with no key read path; digest-only Sign API; scope-pinned approvals with counters and windows; PKCS#11 provider module ([ADR 0070](../../adr/0070-code-signing.md)) |
-| HSM-backed keys | PKCS#11 connectors (`cryptoki`); HSM keys implement the same `Signer` trait as sealed keys ([ADR 0071](../../adr/0071-hsm-connectors.md)) |
-| Kubernetes issuer | `apps/k8s-issuer` kube-rs controller with `certmgr.opensesame.dev` CRDs, or the stock cert-manager ACME issuer against our ACME server ([ADR 0072](../../adr/0072-kubernetes-external-issuer.md)) |
-| Microsoft ADCS via MS-WCCE | **Not built** — DCOM/RPC transport; the HTTPS web-enrollment adapter covers the reachable surface ([ADR 0066 §N2](../../adr/0066-certificate-manager-domain-model.md)) |
+| Projects / workspaces | `pki_applications` with `admin`/`operator`/`auditor` members layered over the existing organization caller model — schema and storage accessors only; no Host route manages an application |
+| Enrollment methods | API (`POST /api/v1/certs/issue`), EST (RFC 7030, served at `/.well-known/est/{profileId}/…`); the ACME server (RFC 8555, EAB required) and SCEP (RFC 8894) are tables in `crates/storage` with no route — [ADR 0068](../../adr/0068-enrollment-protocol-servers.md) |
+| Revocation | `crates/pki-core` builds RFC 5280 CRLs and RFC 6960 OCSP responses, and `crl_state` / `certificate_revocations` tables exist; no Host route serves a CRL or an OCSP responder ([ADR 0067](../../adr/0067-certificate-revocation-crl-ocsp.md)) |
+| Certificate syncs | Decided: broker-fenced pushes to admin-configured destinations, never agent-triggerable ([ADR 0069](../../adr/0069-certificate-syncs.md)). Built: the `cert_syncs` / `sync_runs` tables only; no sync actor |
+| Code signing / Sign API | Decided: signers as authority handles with no key read path, a digest-only Sign API, scope-pinned approvals, a PKCS#11 provider module ([ADR 0070](../../adr/0070-code-signing.md)). Built: the `signers`, `signing_access_records` and `signing_events` tables only; no Sign API route or provider module |
+| HSM-backed keys | Decided: PKCS#11 connectors (`cryptoki`) whose keys implement the same `Signer` trait as sealed keys ([ADR 0071](../../adr/0071-hsm-connectors.md)). Built: the `Signer` trait (`crates/pki-core/src/signer.rs`) and an `hsm_connectors` table; `cryptoki` is not a dependency |
+| Kubernetes issuer | **Not built** — no `apps/k8s-issuer` in this checkout. ADR 0072 decides a kube-rs controller with `certmgr.opensesame.dev` CRDs, or the stock cert-manager ACME issuer against our ACME server, which is not served either ([ADR 0072](../../adr/0072-kubernetes-external-issuer.md)) |
+| Microsoft ADCS via MS-WCCE | **Not built** — DCOM/RPC transport; ADR 0066 names an HTTPS web-enrollment adapter for the reachable surface, and `crates/gateway/src/cert_issuers/` has no such adapter yet ([ADR 0066 §N2](../../adr/0066-certificate-manager-domain-model.md)) |
 | Post-quantum ML-DSA CAs | **Not built** — roadmap; no ML-DSA X.509 path in the pinned stack ([ADR 0066 §N1](../../adr/0066-certificate-manager-domain-model.md)) |
 | Terraform provider | **Not built** — REST / CLI / MCP are the IaC surfaces under ADR 0065 ([ADR 0066 §N5](../../adr/0066-certificate-manager-domain-model.md)) |
 
@@ -86,11 +87,13 @@ fixture-mocked or build-only — is in
 [docs/validation/certificate-manager.md](../../validation/certificate-manager.md).
 
 > **Delivery status.** The `Private CA / issue cert` row above describes what
-> ships today (ADR 0052: private CA, ACME DNS-01 client, `/api/v1/certs`). Every
-> row from `Certificate Manager` onward describes the **decided target state**
-> recorded in ADRs 0066–0072 and is being implemented — the ADRs are accepted,
-> but do not read these rows as shipped capability. Current delivery status per
-> area lives in
+> ships today ([ADR 0052](../../adr/0052-automatic-certificate-authority-selection.md):
+> private CA, ACME DNS-01 client, `/api/v1/certs`). Rows from `Certificate
+> Manager` onward describe the **decided target state** recorded in ADRs
+> 0066–0072, which are accepted; each row says what exists in this checkout.
+> Routes exist for the CA hierarchy, policies, profiles and the EST server;
+> the rest has storage tables or library code at most, or nothing. Do not read
+> these rows as shipped capability. Current delivery status per area lives in
 > [docs/validation/certificate-manager.md](../../validation/certificate-manager.md);
 > that document is the source of truth for what is actually built and how deeply
 > it is validated.

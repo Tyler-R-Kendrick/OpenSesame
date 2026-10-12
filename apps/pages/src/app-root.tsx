@@ -1,4 +1,5 @@
 import { activatePlan } from "@opensesame/app-core/lib/capabilities/change.js";
+import { JOIN_COMMAND_PATH } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   type ComponentType,
   type ReactNode,
@@ -7,6 +8,7 @@ import {
   lazy,
   useContext,
   useEffect,
+  useSyncExternalStore,
 } from "react";
 import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
@@ -23,8 +25,9 @@ import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js
 import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
-import { NoticeCorner } from "./components/NoticeCorner.js";
+import { Notices } from "./components/Notices.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
+import { unlockCeremonyStore } from "./lib/unlock-ceremony-store.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -32,6 +35,7 @@ import {
 } from "./lib/vault/hooks.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
+import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
 import { useComposition } from "./bindings/capabilities.js";
@@ -75,6 +79,12 @@ const DefaultSettingsSection = lazy(() =>
     default: m.SettingsSection,
   })),
 );
+
+const DevLockV5Demo = import.meta.env.DEV
+  ? lazy(() =>
+      import("./dev/LockV5Demo.js").then((m) => ({ default: m.LockV5Demo })),
+    )
+  : null;
 
 type VaultStatus = { status: string; tomb?: string; guest?: boolean };
 type EditorProps = { mode: "edit" | "new" };
@@ -155,7 +165,7 @@ export function matchesOptionalSection(pathname: string): boolean {
 export function UnavailableRoute() {
   return (
     <main id="main" className="section" tabIndex={-1}>
-      <p className="hint">Not available on this installation.</p>
+      <p className="hint">Not available here.</p>
       <Link to="/vault">Vault</Link>
     </main>
   );
@@ -249,6 +259,10 @@ function Fallback() {
 function VaultApp() {
   const slots = useContext(AppSlotsContext);
   const { status, tomb, guest } = slots.useVault();
+  const ceremonyActive = useSyncExternalStore(
+    unlockCeremonyStore.subscribe,
+    unlockCeremonyStore.getSnapshot,
+  );
   const location = useLocation();
   const routes = slots.useRouteContributions();
   const wrappers = slots.useShellWrappers();
@@ -264,7 +278,7 @@ function VaultApp() {
     slots.recoverPendingFederatedLink,
   );
 
-  if (status !== "unlocked") {
+  if (status !== "unlocked" || ceremonyActive) {
     return (
       <GateHost wrappers={wrappers}>
         <slots.UnlockScreen />
@@ -314,6 +328,7 @@ function VaultApp() {
                   </Framed>
                 }
               />
+              <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
               <Route path="*" element={<Fallback />} />
             </Routes>
           </Suspense>
@@ -339,6 +354,21 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
 
+  if (
+    import.meta.env.DEV &&
+    DevLockV5Demo &&
+    location.pathname === "/dev/lock-v5"
+  ) {
+    return (
+      <AppSlotsContext.Provider value={resolved}>
+        <Suspense fallback={null}>
+          <DevLockV5Demo />
+        </Suspense>
+        <ContextMenuLayer />
+      </AppSlotsContext.Provider>
+    );
+  }
+
   const ungated = isAuthCallback
     ? null
     : ungatedRoute(routes, location.pathname, status === "unlocked");
@@ -361,7 +391,7 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
 
   return (
     <AppSlotsContext.Provider value={resolved}>
-      {shellless ? <NoticeCorner /> : null}
+      <Notices shellless={shellless} />
       {body}
       <ContextMenuLayer />
     </AppSlotsContext.Provider>

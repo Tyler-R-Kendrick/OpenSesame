@@ -66,6 +66,8 @@ export async function withdrawSelfAuthenticator(page, check) {
   await entry.first().click();
   await page.waitForTimeout(1000);
   await page.getByRole("button", { name: "Move to trash" }).click();
+  // The first press arms the key. The second is the move.
+  await page.getByRole("button", { name: "Really move to trash?" }).click();
   await page.waitForTimeout(1000);
 }
 

@@ -11,8 +11,9 @@
  * The no-account road is a single one, "Use without an account" — the local
  * seal — and it is offered on first run only. It used to sit beside a
  * full-size "Continue as guest" button and a corner "Skip", three controls
- * for one intent; guest has its own placements (the front door's Skip and the
- * unlock form's footer) and is not duplicated here.
+ * for one intent; the guest tomb has its own placements (the front door's
+ * Skip, and "Skip to the guest vault" beside a sealed vault) and is not
+ * duplicated here.
  *
  * Two placements, because a returning visitor is not a new one:
  *
@@ -24,9 +25,9 @@
  *    the passkey, PIN, or password on the unlock form, so signing in here
  *    attaches an account rather than opening anything —
  *    `adoptFederatedIdentity` says exactly that when it comes back to a locked
- *    vault. Neither the local seal nor guest is offered here: the guest road
- *    beside a sealed vault is the unlock form's own footer, which stays
- *    untouched. Who is signed in, and the way out of it, is the user menu —
+ *    vault. Neither the local seal nor the guest tomb is offered here: the
+ *    guest road beside a sealed vault is the unlock form's own footer, which
+ *    stays untouched. Who is signed in, and the way out of it, is the user menu —
  *    not this panel's.
  *
  * Every federated entry ends in a navigation, so success never returns here —
@@ -75,8 +76,8 @@ import { landFocus } from "../../lib/focus.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
+import { ImportRoadButton } from "./ImportRoad.js";
 import { MagicLinkStage } from "./MagicLinkStage.js";
-import { brandFor } from "./ProviderBrand.js";
 import { SignInSocialBar } from "./SignInSocialBar.js";
 
 type Props =
@@ -111,15 +112,6 @@ export function SignInPanel(props: Props) {
   // Reads location.hostname, so it must be resolved at render, not at import:
   // loopback deployments get the local mock IdP, everything else the broker.
   const upstream = defaultUpstream();
-  // Broker disclosures the branded buttons owe the reader (e.g. Google via
-  // shoo.dev) — under the buttons, never in the label.
-  const brokerNotes = [
-    ...new Set(
-      providers
-        .map((provider) => brandFor(provider.id)?.note)
-        .filter((note): note is string => Boolean(note)),
-    ),
-  ];
   // The loopback mock IdP is development plumbing, never a sign-in road: the
   // catalog's "mock" entry is filtered out before anything renders, and a mock
   // default upstream means there is NO fallback button at all.
@@ -326,11 +318,6 @@ export function SignInPanel(props: Props) {
               onByo={() => setStage("byo")}
               onMagicLink={() => setStage("magic-link")}
             />
-            {brokerNotes.map((note) => (
-              <p className="hint signin__provider-note" key={note}>
-                {note}
-              </p>
-            ))}
           </div>
 
           {/* The identifier field looks an organisation up and routes to its
@@ -359,15 +346,20 @@ export function SignInPanel(props: Props) {
       {identifierEngaged ? null : (
         <div className="signin__more">
           {props.placement === "primary" ? (
-            <button
-              ref={localOnlyRef}
-              type="button"
-              className="unlock__switch"
-              disabled={busy}
-              onClick={props.onUseLocalOnly}
-            >
-              Use without an account
-            </button>
+            <>
+              <button
+                ref={localOnlyRef}
+                type="button"
+                className="unlock__switch"
+                disabled={busy}
+                onClick={props.onUseLocalOnly}
+              >
+                Use without an account
+              </button>
+              {/* Begin from a file instead: the door's third road, once the
+                  door has retired (ADR 0188). */}
+              <ImportRoadButton variant="foot" />
+            </>
           ) : null}
         </div>
       )}

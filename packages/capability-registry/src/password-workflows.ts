@@ -9,7 +9,7 @@ export const NO_CUSTODY: CapabilityExclusion = {
 };
 export const HANDOFF: CapabilityExclusion = {
   reason:
-    "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+    "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
   adr: ADR,
 };
 export const WALLET_ONLY: CapabilityExclusion = {
@@ -32,7 +32,7 @@ export const passwordWorkflowCapabilities: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame-id find",
-      pwa: "lib/vault/password-workflows.ts:passwordWorkflowFind",
+      pwa: "route:/vault",
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_vault_find_references",
@@ -92,7 +92,7 @@ export const passwordWorkflowCapabilities: readonly Capability[] = [
     kind: "read",
     surfaces: {
       cli: "opensesame-id env write",
-      pwa: "route:/vault",
+      pwa: "lib/vault/item-references.ts:itemEnvTemplate",
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_vault_env_template",
@@ -112,7 +112,7 @@ export const passwordWorkflowCapabilities: readonly Capability[] = [
     kind: "act",
     surfaces: {
       cli: "opensesame-id create api-credential",
-      pwa: "lib/vault/password-workflows.ts:createPrivateCredential",
+      pwa: "route:/vault",
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_open_password_workflow",

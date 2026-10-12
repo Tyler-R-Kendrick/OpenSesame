@@ -65,7 +65,9 @@ export function ConnectSection({
   } else if (!canConfigure) {
     body = (
       <div className="panel__body">
-        <p className="hint">{configureHint}</p>
+        <p className="hint" title={configureHint}>
+          Not configured.
+        </p>
       </div>
     );
   } else if (connectFormDraws(provider)) {

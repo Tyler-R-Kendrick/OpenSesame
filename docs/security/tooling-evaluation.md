@@ -10,13 +10,13 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 | **OSV-Scanner** | Google OSV across Cargo + pnpm lockfiles (catches GHSA not yet in RustSec) | `pnpm run audit:osv` (`scripts/audit/osv-scanner-gate.sh`, `osv-scanner.toml`) |
 | **cargo-audit** | RustSec advisory scan of `Cargo.lock` (dedicated CLI) | `pnpm run audit:cargo-audit` (`scripts/audit/cargo-audit-gate.sh`) |
 | **ast-grep** | Structural SAST for XSS/crypto/injection antipatterns | `pnpm run audit:ast-grep` (`tools/security/ast-grep-rules.yml`) |
-| **cargo clippy** | Rust correctness / suspicious patterns (`-D warnings`) | `pnpm run audit:clippy` (matches CI) |
+| **cargo clippy** | Rust correctness / suspicious patterns (`-D warnings`, pedantic) | `pnpm run audit:clippy` (`scripts/audit/clippy-gate.sh`; also part of `pnpm verify`; no CI workflow runs it) |
 | **gitleaks** | Secret scanning; catches accidental keys in source | `pnpm run audit:gitleaks` (`.gitleaks.toml` prunes `target`/`node_modules`) |
-| **cargo-deny** | RustSec advisories, license, source policy | `cargo deny check` + workspace `deny.toml` |
+| **cargo-deny** | RustSec advisories, license, source policy | `cargo deny check` + workspace `deny.toml` (run by the nightly dependency-triage routine; no `pnpm` script) |
 | **pnpm audit** | npm advisory DB for TS apps/packages | `pnpm audit` after dep bumps |
-| **Semgrep** | Static rules (`p/rust`, `p/typescript`) on source trees | `pnpm run audit:semgrep` (apps/crates/packages only) |
+| **Semgrep** | Static rules (`p/rust`, `p/typescript`, `p/javascript`) on source trees | `pnpm run audit:semgrep` (apps/crates/packages only) |
 | **Manual auth-path review** | Catches design bugs scanners miss | Bearer bypass, unauthenticated sync, prod fail-closed |
-| **cargo-fuzz / libFuzzer** | Persistent coverage-guided Rust fuzz | `pnpm audit:fuzz` / `pnpm audit:fuzz:batch` (`scripts/fuzz-*-gate.sh`) |
+| **cargo-fuzz / libFuzzer** | Persistent coverage-guided Rust fuzz | `pnpm audit:fuzz` / `pnpm audit:fuzz:batch` (`scripts/fuzz/fuzz-pr-gate.sh`, `scripts/fuzz/fuzz-batch.sh`) |
 | **Jazzer.js** | Coverage-guided TS parse/normalize fuzz | `pnpm test:fuzz` (`tests/fuzz/jazzer`, `scripts/fuzz/jazzer-gate.sh`) |
 | **Kani** | Bounded proofs on capability/grant/rotation | `pnpm audit:kani` (not in `verify`) |
 | **Miri** | UB on selected lib tests | `pnpm audit:miri` (nightly; weekly routine) |
@@ -56,6 +56,8 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 
     **Correction (2026-08-10):** the "CI `security` job" described above does not exist in this repository and never has — `git ls-files .github` returns nothing at commit `0608ccc` (the base of the `claude/ai-subscriptions-optimization-1gtbyx` branch), and no `.github/` directory has ever been committed to this tree. The gates themselves (gitleaks/osv/cargo-audit/deny/pnpm-audit/ast-grep/semgrep) are real and still CLEAN as scripted; only the "wired into CI" framing was inaccurate — they were, and remain, local scripts (`scripts/*-gate.sh`) invoked by developers/agents, not by any CI job. As of this build-out the repo's posture is now **explicit and permanent: zero GitHub Actions**. The same gates run instead through: (1) local git hooks under `.githooks/` (installed via `scripts/dev/setup-hooks.sh`, see `CONTRIBUTING.md`'s "Local gates (no CI)" section) on `pre-commit`/`pre-push`; and (2) scheduled Claude Code cloud sessions ("Routines") for the deeper recurring work — dependency triage, security audits, docs-drift checks — documented in `docs/contributing/agent-routines.md`. See also `docs/contributing/ai-automation-roadmap.md`'s "Amendment — no-GitHub-Actions posture (2026-08)" section, which supersedes that roadmap's original CI-workflow recommendation.
 
+    > Status (2026-10-08): the zero-Actions posture no longer holds. `.github/workflows/` now holds `ci.yml`, `deploy-pages.yml`, `full-suite.yml` and `password-parity.yml`. None of them runs an `audit:*` gate, `cargo clippy` or `cargo deny`; those remain local scripts, git hooks and routines (`docs/contributing/agent-routines.md`).
+
 0e. **ast-grep after UX (#23)** — extension popup `innerHTML` → `textContent` — see `audits/2026-08-07-ast-grep-popup.md`.
 0f. **Pages PWA (#25)** — removed `localStorage` for settings/outbox; OPFS + session-only operator token — see `audits/2026-08-07-pages-localstorage.md`.
 0g. **sdk-browser storage** — default `sessionStorage` (not `localStorage`); strip refresh tokens from persisted session — see `audits/2026-08-07-sdk-browser-storage.md`.
@@ -64,12 +66,12 @@ Evaluation of candidate scanners/harnesses for OpenSesame (polyglot Rust/TS, aut
 0j. **Pages unlock PIN (#31)** — salted PBKDF2 instead of bare SHA-256 — see `audits/2026-08-07-pages-unlock-pin.md`.
 0k. **Pages unlock lockout** — progressive fail lockout after 3 bad PINs — see `audits/2026-08-07-pages-unlock-lockout.md`.
 0l. **TOTP stub** — `/v1/mfa/totp/*` gated to `allowDevDefaults` only — see `audits/2026-08-07-totp-dev-only.md`.
-0m. **Gateway bind + CORS** — loopback fence on Host API; production CORS fail-closed — see `audits/2026-08-07-gateway-bind-cors.md`.
+0m. **Gateway bind + CORS** — loopback fence on Host API; production CORS fail-closed — see `audits/2026-08-07-gateway-bind-cors.md`. *Status (2026-10-08): the loopback fence is in force; for CORS see the bind policy below — `OPENSESAME_CORS_ORIGINS` mounts no CORS layer on the Host API, so "fail-closed" there means no cross-origin access from that list; a paired browser origin is answered by the browser-grant middleware (`crates/gateway/src/middleware/browser_grants.rs`).*
 0n. **Listen fences** — control-plane, callback-edge, mock-idp share `OPENSESAME_ALLOW_NONLOCAL` — see `audits/2026-08-07-listen-fence-remaining.md`.
 0o. **Mobile MFA** — real WebAuthn ceremony + session token required — see `audits/2026-08-07-mobile-mfa-webauthn.md`.
 0p. **Provisional auth** — session ids (`ps_…`) are not credentials; only `pst_…` access tokens authenticate — see `audits/2026-08-07-provisional-session-id.md`.
 0q. **Claim verify + API headers** — escape HTML on `/v1/claims/:id/verify`; nosniff/frame/HSTS on Identity API — see `audits/2026-08-07-claim-verify-xss.md`.
-0r. **Host API CORS + headers** — gateway/daemon get nosniff/frame + fail-closed `OPENSESAME_CORS_ORIGINS` (same env as Identity) — see `audits/2026-08-07-gateway-cors-headers.md`.
+0r. **Host API CORS + headers** — gateway/daemon get nosniff/frame + fail-closed `OPENSESAME_CORS_ORIGINS` (same env as Identity) — see `audits/2026-08-07-gateway-cors-headers.md`. *Status (2026-10-08): the headers are applied; the gateway and daemon validate `OPENSESAME_CORS_ORIGINS` but `apply_http_security` ignores the list, so only the Identity API enforces it on its routes; the daemon applies it to its ciphertext-drive routes only (see the bind policy below).*
 0s. **SPA CSP + mock IdP** — Vite apps ship a baseline Content-Security-Policy; mock upstream IdP gets nosniff/frame — see `audits/2026-08-07-spa-csp-mock-idp.md`.
 0t. **Mock IdP PKCE** — S256-only; `code_verifier` required on token exchange — see `audits/2026-08-07-mock-idp-pkce.md`.
 0u. **Task API auth** — `/api/v1/tasks*` requires session or operator bearer — see `audits/2026-08-07-task-api-auth.md`.
@@ -127,11 +129,11 @@ Re-run checklist: `pnpm run audit:cve-lite`, `pnpm run audit:osv`, `pnpm run aud
 
 ## Residual (tracked, not blocking this pass)
 
-- Console has no Better Auth passkey UI yet (mobile MFA uses `/registration-options`; console is sign-in / device / claim / task-access only).
+- Status (2026-10-08): there is no `console` app in this tree, so this residual no longer names anything. Passkey verification runs through `@simplewebauthn/server` in `packages/auth-upstream`; Better Auth is mounted for email magic link only. The original note read: "Console has no Better Auth passkey UI yet (mobile MFA uses `/registration-options`; console is sign-in / device / claim / task-access only)."
 
-## Bind policy (daemon / credential-agent)
+## Bind policy (daemon and services)
 
 - Default TCP is loopback-only; non-loopback requires `OPENSESAME_ALLOW_NONLOCAL=1` (legacy alias `OPENSESAME_DAEMON_ALLOW_NONLOCAL=1`).
-- Browser CORS: `OPENSESAME_CORS_ORIGINS` (Identity + Host API + daemon). Production must list explicit origins; `*`/`null` rejected.
+- Browser CORS: `OPENSESAME_CORS_ORIGINS` is read by the Identity API, Host API and daemon, and an empty list means no cross-origin access. The Identity API enforces the list. The Host API and daemon validate it at start-up (wildcards, `null`, non-canonical and remote-HTTP origins are refused in every mode) but `apply_http_security` in `crates/host-core/src/http_security.rs` applies only the response security headers and mounts no CORS layer from it; the daemon uses the list for its ciphertext-drive routes (`ciphertext_drive_cors_layer`). Host browser access is by origin- and key-bound pairing (`OPENSESAME_BROWSER_PAIRABLE_ORIGINS`).
 - Locked-down hosts: `OPENSESAME_DAEMON_UDS_ONLY=1` + `OPENSESAME_AGENT_SOCK` (no TCP).
-- Legacy `opensesame-credential-agent`, gateway, callback-edge, control-plane, and mock-idp use the same loopback fence.
+- The gateway, control-plane and mock-idp use the same loopback fence. The legacy `opensesame-credential-agent` named in earlier audits no longer exists in this tree; the daemon is the only local host agent.

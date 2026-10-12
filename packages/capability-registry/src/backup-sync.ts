@@ -6,7 +6,9 @@ import {
 } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
+import { passwordResetCapabilities } from "./password-reset.js";
 import { tailnetDeviceCapabilities } from "./tailnet-devices.js";
+import { trustedContactCapabilities } from "./trusted-contacts.js";
 
 /**
  * Getting a vault off one device: the server-side backup posture (ADR 0039)
@@ -34,7 +36,7 @@ export const backupSyncCapabilities: readonly Capability[] = [
     id: "backup.status",
     // The Host reads its server-side target (ADR 0039); Pages reads the
     // browser-local target that replaced it there (ADR 0128's backup road),
-    // drawn by Settings › Capabilities › Backups.
+    // drawn by Settings › Integrations › Backups.
     title: "Read vault backup posture",
     plane: "host",
     kind: "read",
@@ -150,4 +152,6 @@ export const backupSyncCapabilities: readonly Capability[] = [
     },
   },
   ...tailnetDeviceCapabilities,
+  ...trustedContactCapabilities,
+  ...passwordResetCapabilities,
 ];

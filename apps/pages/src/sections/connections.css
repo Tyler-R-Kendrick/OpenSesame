@@ -414,6 +414,7 @@ button.conn-tile__link {
 /* A tile opens its connector's page: the rail's and the vault list's
    chevron says so, where the tile read as a label with nothing behind it. */
 .conn-tile__go {
+  margin-left: auto;
   flex: none;
   color: var(--ink-3);
 }
@@ -479,6 +480,14 @@ button.conn-tile__link {
   color: var(--ink-3);
 }
 
+/* The key to test a model provider's key, and what the test said. */
+.ai-sheet__test {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
 .conn-tile__body {
   display: grid;
   gap: 1rem;
@@ -506,12 +515,6 @@ button.conn-tile__link {
   display: flex;
   align-items: center;
   gap: 0.3rem;
-}
-
-.conn-field-label span {
-  display: inline-flex;
-  color: var(--ink-3);
-  cursor: help;
 }
 
 .conn-tile__body .field > .hint {

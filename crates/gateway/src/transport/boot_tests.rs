@@ -15,6 +15,7 @@ async fn the_plain_listener_serves_and_carries_its_provenance() {
         issuer: state.issuer.clone(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     };
     let app = crate::routes::router(state.clone());
     let served = tokio::spawn(async move { super::boot::serve(state, &args, app).await });
@@ -39,6 +40,7 @@ async fn a_required_but_unusable_secure_profile_stops_everything() {
         issuer: state.issuer.clone(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     };
     let app = crate::routes::router(state.clone());
     let error = super::boot::serve(state, &args, app)

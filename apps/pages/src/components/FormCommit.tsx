@@ -17,6 +17,7 @@ import { IconCheck } from "./Icons.js";
 export function FormCommit({
   label,
   disabled = false,
+  disabledReason,
   busy = false,
   icon,
   buttonRef,
@@ -26,6 +27,8 @@ export function FormCommit({
   /** The verb, as the square's accessible name and as the words beside it. */
   label: string;
   disabled?: boolean;
+  /** When disabled, spoken on long-press / hover — not drawn as page copy. */
+  disabledReason?: string;
   busy?: boolean;
   icon?: ReactNode;
   buttonRef?: Ref<HTMLButtonElement>;
@@ -33,6 +36,8 @@ export function FormCommit({
   onClick?: () => void;
   children?: ReactNode;
 }) {
+  const named =
+    disabled && disabledReason ? `${label}. ${disabledReason}` : label;
   return (
     <div className="go-row">
       <button
@@ -41,8 +46,8 @@ export function FormCommit({
         className="go"
         disabled={disabled}
         aria-busy={busy || undefined}
-        aria-label={label}
-        title={label}
+        aria-label={named}
+        title={named}
         onClick={onClick}
       >
         {icon ?? <IconCheck size={18} />}

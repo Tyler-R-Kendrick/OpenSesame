@@ -4,7 +4,7 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { inTray } from "../../../components/tray.test-support.js";
+import { expectInTray } from "../../../components/tray.test-support.js";
 import { DuressPanel } from "./DuressPanel.js";
 
 const REFUSAL =
@@ -28,7 +28,7 @@ afterEach(async () => {
 });
 
 describe("DuressPanel, a code that opens a vault", () => {
-  it("keeps the instruction in the page, on the field, and does not tray it", async () => {
+  it("marks the field and trays the instruction", async () => {
     render(<DuressPanel arm={collides} />);
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     const [first, again] = document.querySelectorAll<HTMLInputElement>(
@@ -41,8 +41,7 @@ describe("DuressPanel, a code that opens a vault", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Turn on duress code" }),
     );
-    expect(await screen.findByText(REFUSAL)).toBeTruthy();
-    expect(screen.getByRole("img", { name: REFUSAL })).toBeTruthy();
-    expect(inTray(REFUSAL)).toBe(false);
+    expect(await screen.findByRole("img", { name: REFUSAL })).toBeTruthy();
+    await expectInTray(REFUSAL);
   });
 });

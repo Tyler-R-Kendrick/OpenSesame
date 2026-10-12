@@ -52,7 +52,9 @@ pub struct Endpoint {
     #[serde(flatten)]
     pub address: Variable,
     pub listen: Variable,
-    pub pages_runtime_key: String,
+    /// Absent for Host/Identity/daemon — Pages is static and does not stamp them.
+    #[serde(default)]
+    pub pages_runtime_key: Option<String>,
     pub vite_key: String,
     pub setting: String,
     pub loopback_only: bool,

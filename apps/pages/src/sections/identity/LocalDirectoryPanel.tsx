@@ -80,7 +80,10 @@ function useDirectorySeed(
   return seeding;
 }
 
-function useDirectory(tomb: string) {
+export function useDirectory(
+  tomb: string,
+  onSaved?: (next: LocalDirectory, command: LocalDirectoryChange) => void,
+) {
   const [directory, setDirectory] = useState<LocalDirectory | null>(null);
   const [draft, setDraft] = useState<LocalIdentity | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -115,11 +118,15 @@ function useDirectory(tomb: string) {
     setBusy(true);
     setError("");
     try {
-      setDirectory(
-        await changeLocalDirectory(tomb, directory.revision, command),
+      const next = await changeLocalDirectory(
+        tomb,
+        directory.revision,
+        command,
       );
+      setDirectory(next);
       setDraft(null);
       setRemoving(null);
+      onSaved?.(next, command);
       if (focusId) focusAfter(byId(focusId));
     } catch (error) {
       setError(

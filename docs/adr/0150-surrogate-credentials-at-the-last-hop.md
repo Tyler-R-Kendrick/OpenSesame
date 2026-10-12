@@ -1,7 +1,8 @@
 # ADR 0150 — Surrogate credentials at the last hop
 
-- Status: Proposed. The core (§2–§5) and the reflection fix (§4) have landed.
-  The proxy adapter (§6.1) has not.
+- Status: Proposed. The core (§2–§5), the reflection fix (§4) and the proxy
+  adapter (§6.1, `crates/surrogate-proxy`, an optional plugin binary with the
+  §6.3 login substitution behind its own switch) have landed.
 - Numbering: drafted as 0148, then 0149; renumbered to 0150 when `main` took
   0148 (the Bitwarden bridge) and 0149 (nothing stored in the clear). Branch
   names under `adr0148/` and `adr0149/` refer to this ADR.

@@ -9,7 +9,8 @@ use; reveal is a human CLI concern.
 ## Where it fits
 
 - **Used by:** [`apps/cli`](../../apps/cli) (the `pass` verbs, attachments,
-  root protection, OTP), [`crates/pm-bridges`](../../crates/pm-bridges),
+  root protection, OTP), [`crates/daemon`](../../crates/daemon) (autofill of
+  produced passwords), [`crates/pm-bridges`](../../crates/pm-bridges),
   [`opensesame-connector-host`](../connector-host),
   [`opensesame-kdbx-bridge`](../kdbx-bridge),
   [`opensesame-vault-item-types`](../vault-item-types), and the fuzz crate
@@ -27,7 +28,7 @@ use; reveal is a human CLI concern.
 | Area | Items |
 |---|---|
 | Store | `init_store`, `init_store_key`, `unlock_store_key`, `list_names`, `StoreRoot`, `resolve_store_dir`, `FormatHint` (`Osseal`, `Gpg`, `Age`) |
-| Entries | `Entry`, `apply_secret_update`, `rotate_secret_entry`, `UpdateOptions`, `generate_password`, `entry_history`, `restore_entry` |
+| Entries | `Entry`, `apply_secret_update`, `rotate_secret_entry`, `UpdateOptions`, `generate_password`, `entry_history`, `restore_entry`, `produce_entry` / `Produced` (the one facade for an entry's password, [ADR 0174](../../docs/adr/0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md)) |
 | Formats | `seal_osseal` / `open_osseal` (`OSSEAL1` envelope), `encrypt_age_file` / `decrypt_age_file`, `encrypt_gpg_file` / `decrypt_gpg_file`, `sops_encrypt` / `sops_decrypt` |
 | Git | `ensure_git_repo`, `auto_commit`, `push_backup`, `set_remote`, `set_auto_push`, `git_passthrough`, `GIT_TOKEN_ENV` |
 | Attachments | `AttachmentManifest`, `ChunkRef`, `GcOutcome`, `MAX_ATTACHMENT_BYTES` — chunked, content-addressed, each chunk sealed separately |

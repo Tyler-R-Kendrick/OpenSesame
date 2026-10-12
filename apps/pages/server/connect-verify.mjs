@@ -7,6 +7,10 @@
  */
 
 import {
+  providerAnswered,
+  truncatedProofAllowed,
+} from "./connect-verify-response.mjs";
+import {
   VERIFY_HOSTS,
   VERIFY_TARGETS,
 } from "./connect-verify-targets.generated.mjs";
@@ -26,7 +30,7 @@ function text(value, max = 256) {
   return readString(value)?.trim().slice(0, max) ?? "";
 }
 
-function pick(value, path) {
+function pick(value, path, token) {
   let current = value;
   for (const part of path.split(".")) {
     if (Array.isArray(current) && /^\d+$/.test(part))
@@ -34,9 +38,11 @@ function pick(value, path) {
     else if (isObject(current)) current = current[part];
     else return "";
   }
-  return isString(current) || isNumber(current)
-    ? String(current).slice(0, 80)
-    : "";
+  if (!isString(current) && !isNumber(current)) return "";
+  const account = String(current);
+  return account.includes(token) || account.includes(encodeURIComponent(token))
+    ? null
+    : account.slice(0, 80);
 }
 
 /** Which of the service's verify calls fits this connector. */
@@ -76,16 +82,6 @@ function authorizationFor(target, token) {
  * Slack's Web API answers one with `{ "ok": false, "error": … }`, and some
  * APIs answer an anonymous caller with an empty object.
  */
-function answered(body, kind) {
-  if (kind === "mcp") return true;
-  if (!isObject(body) && !Array.isArray(body)) return false;
-  if (isObject(body) && Array.isArray(body.errors) && body.errors.length > 0) {
-    return false;
-  }
-  if (isObject(body) && body.ok === false) return false;
-  return !(isObject(body) && Object.keys(body).length === 0);
-}
-
 /**
  * Values for a target's `{placeholders}`, read back from the connector's own
  * stored endpoints (an Okta domain from its authorization endpoint). Only
@@ -253,18 +249,25 @@ function verifyRequest(target, token) {
   };
 }
 
-async function verdict(target, response) {
+async function verdict(target, response, token) {
   const readable = response.ok && target.kind !== "mcp";
   const read = readable
     ? await boundedJson(response)
     : { value: null, truncated: false };
   if (!readable) await response.body?.cancel?.();
   const body = read.value;
+  const account =
+    body && target.accountField ? pick(body, target.accountField, token) : "";
   return {
     status: response.status,
     // Too large to inspect, but a 2xx answer all the same.
-    ok: response.ok && (read.truncated || answered(body, target.kind)),
-    account: body && target.accountField ? pick(body, target.accountField) : "",
+    ok:
+      response.ok &&
+      account !== null &&
+      (read.truncated
+        ? truncatedProofAllowed(target)
+        : providerAnswered(body, target)),
+    account: account ?? "",
   };
 }
 
@@ -278,7 +281,7 @@ export async function verifyWithToken(target, token, fetchImpl = fetch) {
       ...init,
       signal: controller.signal,
     });
-    return await verdict(target, response);
+    return await verdict(target, response, token);
   } catch {
     return { status: 0, ok: false, account: "" };
   } finally {

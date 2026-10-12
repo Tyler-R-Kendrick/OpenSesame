@@ -12,8 +12,7 @@ parses OIDC discovery fail-closed and checks token audiences.
   device polling, `whoami`), [`opensesame-host-core`](../host-core)
   (re-exported as `host_core::authn`), and the fuzz harness in
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`device_auth`,
-  `oidc_discovery`, `token_audience`). [`crates/gateway`](../../crates/gateway)
-  lists it as a dependency.
+  `oidc_discovery`, `token_audience`).
 - **Builds on:** [`opensesame-domain`](../domain) (`OrganizationRole`).
 - Flow selection is deterministic; environment heuristics affect usability,
   never security.
@@ -32,7 +31,7 @@ Every module is re-exported at the crate root.
 | `flow` | `LoginFlow` (`Auto`, `Loopback`, `Device`, `Ciba`, `Workload`), `EnvironmentSignals`, `OpenBrowser`, `resolve_login_flow`, `detect_signals_from_env` |
 | `pkce` | `Pkce::s256()` |
 | `device` | `DeviceAuthorization`, `DevicePollState`, `DeviceServerStatus`, `DevicePollOutcome`, `DeviceFlowError`, `validate_verification_uri_complete`, `demo_device_authorization` |
-| `discovery` | `parse_oidc_discovery` (capped at `MAX_DISCOVERY_BYTES` = 4096; requires `issuer` and `jwks_uri`, HTTP(S) only, no userinfo), `assert_discovery_issuer` |
+| `discovery` | `parse_oidc_discovery` (capped at `MAX_DISCOVERY_BYTES` = 4096; requires `issuer` and `jwks_uri`, HTTPS only — plain HTTP just for `127.0.0.1`, `localhost` and `::1` — no userinfo, no fragment), `assert_discovery_issuer` |
 | `token` | `validate_audience`, `reject_foreign_resource_token`, `ValidatedAccessToken`, `TokenValidationError` |
 | `session` | `SessionMetadata`, `WhoAmI` |
 

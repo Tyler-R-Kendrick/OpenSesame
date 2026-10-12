@@ -20,7 +20,7 @@ The first correction still missed immediate movement after unlocking an empty
 saved vault. New item held focus, but arrow/vim movement dispatched to an empty
 listing, and F6 refused toolbar focus. Movement now selects the rail when the
 vault has no rows and lands focus on its target. F6 also admits toolbar focus.
-The browser gate now seals a password vault, reloads, unlocks by typing and
+The browser gate now seals a vault with a PIN, reloads, unlocks by typing and
 Enter, then checks immediate navigation without preparatory Tab or focus calls.
 
 ## Enforcement
@@ -31,9 +31,12 @@ Enter, then checks immediate navigation without preparatory Tab or focus calls.
   taking away access to toolbars, footer controls or browser chrome.
 - Only an active modal contains focus; closing it restores its trigger.
 - `verify:keyboard` uses real browser keyboard input, starting from a fresh
-  static-origin load. It covers saved password-vault unlock, guest entry, empty-vault New, editing and
+  static-origin load. It covers saved PIN-sealed vault unlock, the front door's
+  roads and its Support help key, guest entry, empty-vault New, editing and
   cancellation, saving an item, populated-tree navigation, section chords,
-  footer reachability, modal return, lock and reload at 1280px and 390px.
+  footer reachability, modal return, lock and reload at 1280px and 390px, plus
+  the context-menu, live-session and settings-file contracts under
+  `apps/pages/scripts/lib/`.
 - Access and Identity tree children and page tabs share the same URL-backed
   view, built by `pageTabTree` in page order. Each Access tab is a subtree of
   the panels that tab shows. Subtrees start closed; Right/l expands, Left/h

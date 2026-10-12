@@ -7,7 +7,7 @@ import {
   createCredential,
   createItem,
 } from "@opensesame/vault-core";
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -62,6 +62,50 @@ describe("an account can always take a credential", () => {
     await userEvent.click(screen.getByRole("button", { name: "API key" }));
     expect(screen.getByRole("group", { name: "API key method" })).toBeTruthy();
     expect(enablePack).toHaveBeenCalledWith("api-key");
+  });
+
+  it("installs a chosen type for the draft only, remembering nothing", async () => {
+    resetPackStateForTests();
+    const installer = await import(
+      "@opensesame/app-core/lib/type-packs/installer.js"
+    );
+    const real = vi.spyOn(installer, "enablePack").mockImplementation(() => {});
+    credentialPackSeams.enable("api-key");
+    expect(real).toHaveBeenCalledWith("api-key", { keep: false });
+    real.mockRestore();
+  });
+
+  it("gives back the types a draft switched on when the account is abandoned", async () => {
+    resetPackStateForTests();
+    const release = vi
+      .spyOn(credentialPackSeams, "release")
+      .mockImplementation(async () => {});
+    release.mockClear();
+    open("/vault/new/account");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "API key" }));
+    expect(release).not.toHaveBeenCalled();
+    cleanup();
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(release.mock.calls[0]?.[0]).toContain("api-key");
+  });
+
+  it("gives back nothing for a type that was already on", async () => {
+    resetPackStateForTests();
+    setStatus("api-key", { phase: "on" });
+    const release = vi
+      .spyOn(credentialPackSeams, "release")
+      .mockImplementation(async () => {});
+    release.mockClear();
+    open("/vault/new/account");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "API key" }));
+    cleanup();
+    expect(release.mock.calls[0]?.[0] ?? []).not.toContain("api-key");
   });
 
   it("does not ask for a type that is already on", async () => {
@@ -195,6 +239,39 @@ describe("a credential written on its own", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedCredential().accountId).toBeNull();
+  });
+
+  it("draws no Account row for a new password, and saves it unbound", async () => {
+    vault.current = { items: [billing], folders: [] };
+    open("/vault/new/password");
+    expect(screen.getByRole("group", { name: "Password method" })).toBeTruthy();
+    expect(screen.queryByLabelText("Account")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    const credential = savedCredential();
+    expect(credential.method.type).toBe("password");
+    expect(credential.accountId).toBeNull();
+  });
+
+  it("draws no Account row for a bound password and leaves its binding alone", async () => {
+    const bound = createCredential(
+      {
+        id: "p2",
+        type: "password",
+        generator: { id: "manual" },
+        pepper: false,
+        secret: "hunter2",
+        changedAt: "2026-01-01T00:00:00.000Z",
+      },
+      "Billing · Password",
+      billing.id,
+    );
+    vault.current = { items: [billing, bound], folders: [] };
+    open("/vault/p2/edit");
+    expect(screen.queryByLabelText("Account")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedCredential().accountId).toBe(billing.id);
   });
 
   it("will not offer another account for a password an earlier pepper sealed", async () => {

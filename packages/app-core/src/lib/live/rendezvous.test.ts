@@ -9,6 +9,7 @@ import type { LiveHost } from "./host.js";
 import { FakeBus, FakeNet, fakeSdp } from "./live-fakes.js";
 import { makeRequestCode, openRequestCode } from "./pairing.js";
 import { Reassembler, carrierTopic, toFrames } from "./rendezvous.js";
+import { isDataChannelSdp } from "./sdp.js";
 import { newKeypair, newLinkSecret, newRequestId } from "./seal.js";
 import {
   currentGuest,
@@ -105,6 +106,7 @@ describe("frames", () => {
       name: "Ada",
       note: "",
       offer: `${fakeSdp()}${padding}`,
+      greets: true,
     });
     const joiner = new Reassembler();
     const frames = toFrames(code);
@@ -118,9 +120,17 @@ describe("frames", () => {
     expect(spoiled).toBeDefined();
     expect(spoiled).not.toBe(code);
     // What it made is no request — and no miss.
-    expect((await openRequestCode(link, null, owner, spoiled ?? "")).kind).toBe(
-      "not-a-request",
-    );
+    expect(
+      (
+        await openRequestCode(
+          link,
+          null,
+          owner,
+          spoiled ?? "",
+          isDataChannelSdp,
+        )
+      ).kind,
+    ).toBe("not-a-request");
     // The joiner's next post has an id of its own.
     const again = toFrames(code).map((frame) => joiner.push(frame));
     expect(again.filter((value) => value !== null)).toEqual([code]);
@@ -157,8 +167,8 @@ describe("a session paired over a carrier", () => {
       policy: "read",
       admission,
       minutes: 30,
-      peers: net.factory(),
-      transport: PROFILE,
+      transport: net.transports(),
+      routes: PROFILE,
       carriers: bus.factory(),
     });
   }
@@ -171,7 +181,7 @@ describe("a session paired over a carrier", () => {
       code: null,
       name: "Ada",
       note: "",
-      peers: net.factory(),
+      transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
     });
@@ -198,7 +208,7 @@ describe("a session paired over a carrier", () => {
       code: owner.code,
       name: "Ada",
       note: "",
-      peers: net.factory(),
+      transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
     });
@@ -230,6 +240,7 @@ describe("a session paired over a carrier", () => {
         name: "Mallory",
         note: "",
         offer: "v=0\r\n",
+        greets: true,
       },
     );
     for (const frame of toFrames(guess)) bus.inject(topic, frame);
@@ -246,7 +257,7 @@ describe("a session paired over a carrier", () => {
       code: null,
       name: "Ada",
       note: "",
-      peers: net.factory(),
+      transport: net.transports(),
       useRoutes: false,
       carriers: bus.factory(),
     });
@@ -268,7 +279,7 @@ describe("a session paired over a carrier", () => {
       code: null,
       name: "Ada",
       note: "",
-      peers: net.factory(),
+      transport: net.transports(),
       useRoutes: true,
       carriers: bus.factory(),
     });

@@ -22,7 +22,11 @@ export type DirectoryPanels = {
     session: IdentitySession | null;
   }>;
   /** Identity › Organizations' sign-in panels; `known` is the section's list. */
-  readonly OrgSignIn: ComponentType<{ online: boolean; known: unknown }>;
+  readonly OrgSignIn: ComponentType<{
+    online: boolean;
+    known: unknown;
+    selectedOrg?: string;
+  }>;
 };
 
 let current: DirectoryPanels | null = null;

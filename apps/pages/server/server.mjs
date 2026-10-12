@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { pathToFileURL } from "node:url";
 import { handleCallback } from "./callback.mjs";
 import {
   handleGitBackupPut,
@@ -16,7 +17,9 @@ import {
   handleGithubAppInstallations,
   handleGithubAppLookup,
 } from "./github-app.mjs";
+import { isString } from "./json-boundary.mjs";
 import { handleManage, readJsonBody, readRawBody } from "./manage.mjs";
+import { isPayloadTooLarge } from "./read-body.mjs";
 
 const port = Number(process.env.PORT ?? 8789);
 const host = process.env.HOST ?? "127.0.0.1";
@@ -30,7 +33,12 @@ const MANAGE_PATHS = new Set([
   "/api/connect/token-check",
 ]);
 
-const server = createServer((req, res) => {
+function writeBodyTooLarge(res) {
+  res.writeHead(413, { "content-type": "text/plain; charset=utf-8" });
+  res.end("body_too_large");
+}
+
+export function handleRelayRequest(req, res) {
   const url = new URL(req.url ?? "/", "http://relay.invalid");
   const proto = req.headers["x-forwarded-proto"] ?? "http";
   const requestHost = `${proto}://${req.headers.host ?? "localhost"}`;
@@ -64,7 +72,11 @@ const server = createServer((req, res) => {
       let body = {};
       try {
         body = await readJsonBody(req);
-      } catch {
+      } catch (error) {
+        if (isPayloadTooLarge(error)) {
+          writeBodyTooLarge(res);
+          return;
+        }
         res.writeHead(400, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: "invalid_json" }));
         return;
@@ -85,7 +97,11 @@ const server = createServer((req, res) => {
       try {
         rawBody = await readRawBody(req);
         body = rawBody ? JSON.parse(rawBody) : {};
-      } catch {
+      } catch (error) {
+        if (isPayloadTooLarge(error)) {
+          writeBodyTooLarge(res);
+          return;
+        }
         body = {};
       }
       const outcome = await handleGithubAppWebhook(body, req.headers, rawBody);
@@ -115,7 +131,11 @@ const server = createServer((req, res) => {
       let body = {};
       try {
         body = await readJsonBody(req);
-      } catch {
+      } catch (error) {
+        if (isPayloadTooLarge(error)) {
+          writeBodyTooLarge(res);
+          return;
+        }
         res.writeHead(400, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: "invalid_json" }));
         return;
@@ -154,7 +174,11 @@ const server = createServer((req, res) => {
       let body = {};
       try {
         body = await readJsonBody(req);
-      } catch {
+      } catch (error) {
+        if (isPayloadTooLarge(error)) {
+          writeBodyTooLarge(res);
+          return;
+        }
         res.writeHead(400, { "content-type": "application/json" });
         res.end(JSON.stringify({ error: "invalid_json" }));
         return;
@@ -169,7 +193,11 @@ const server = createServer((req, res) => {
       if (req.method !== "GET" && req.method !== "OPTIONS") {
         try {
           body = await readJsonBody(req);
-        } catch {
+        } catch (error) {
+          if (isPayloadTooLarge(error)) {
+            writeBodyTooLarge(res);
+            return;
+          }
           res.writeHead(400, { "content-type": "application/json" });
           res.end(
             JSON.stringify({
@@ -194,11 +222,22 @@ const server = createServer((req, res) => {
     res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
     res.end("Nothing here but the Connect relay.");
   })().catch((error) => {
+    if (isPayloadTooLarge(error)) {
+      writeBodyTooLarge(res);
+      return;
+    }
     res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
     res.end(error instanceof Error ? error.message : "Relay failed.");
   });
-});
+}
 
-server.listen(port, host, () => {
-  console.log(`relay on http://${host}:${port}`);
-});
+const server = createServer(handleRelayRequest);
+
+if (
+  isString(process.argv[1]) &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  server.listen(port, host, () => {
+    console.log(`relay on http://${host}:${port}`);
+  });
+}

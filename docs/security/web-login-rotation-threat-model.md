@@ -76,8 +76,8 @@ Numbered to continue the base model's list.
 | Recipe poisoned via corpus contribution | Signing required; canary round trip required; corpus promotion is a reviewed ceremony | corpus review checklist |
 | Recipe drift silently rotates into the wrong form | Bundle-hash binding, `expires_at`, verification is always a fresh login | drift tests |
 | Recording exfiltrated from the gateway | Sealed at rest, TTL-bound, excluded from every agent surface, human ceremony to fetch | registry parity test |
-| Agent surface gains a recording or value read | `rotations.recording_read` excluded on all agent surfaces citing ADR 0076 §5 | `packages/capability-registry` self-test |
-| Browser driver pulled into the daemon's tree | New crate is not a daemon dependency | `scripts/audit/daemon-deps-gate.sh` |
+| Agent surface gains a recording or value read | `rotations.recording_read` is excluded in ADR 0076's agent-surface table (§10, citing §5) and has no capability-registry entry; `agent.runs.observe` is excluded from `mcp_host` and `webmcp` citing ADR 0081 | `packages/capability-registry` parity tests |
+| Browser driver pulled into the daemon's tree | `crates/rotation-web` is not a daemon dependency; the daemon-deps gate bounds the daemon's direct dependencies | `scripts/audit/daemon-deps-gate.sh` (`pnpm audit:daemon-deps`) |
 | A live frame ships before its mask is solved, or masked with geometry from a layout the page has left | Frames carry their layout generation; `admit_frame` requires a manifest for that exact generation covering every sensitive node, and drops otherwise | `session-observe` frame-admission tests |
 | A low-latency live path skips a redaction the recorded path applies | Live is a read position on one log, not a second pipeline (ADR 0081 §1) | there is no live-only capture code to test |
 | A hostile page plants text in the model's rationale, which renders inside `OpenSesame`'s chrome | Thoughts are inert quoted data, never in a notification body, never cited by an approval; bidi overrides and controls stripped at capture | `UntrustedText::capture` tests |
@@ -228,3 +228,18 @@ Two honest notes on what live observation does **not** do:
 - The render rules that keep the thought lane inert are interface obligations,
   and interface obligations decay faster than type-level ones. Capture-time
   stripping (`UntrustedText`) is the part that does not.
+
+## Proposed addendum: a hosted browser the person chose (ADR 0191)
+
+**Not accepted.** [ADR 0191](../adr/0191-forgot-password-ceremony-remote-browser.md)
+proposes a forgot-password ceremony that may run in a hosted browser the person
+named and pays for (class C), which ADR 0076 constraint 6 refuses today. If it is
+accepted, S1 above gets one stronger case: the provider's operator holds the
+session **and** the password just typed **and** the reset link just opened, and
+the driver cannot verify what a dishonest provider reports, so a class C run claims
+confidentiality against the planner and the Host and never integrity against the
+provider. The controls are the person's consent per provider and site, a receipt
+that records the class, confinement enforced where the provider can and attested
+where it cannot, recording provably off, no automatic fallback, and an
+organization policy that can forbid the class. The abuse cases for the ceremony
+are in [the design](../architecture/forgot-password-ceremony.md#8-abuse-cases).

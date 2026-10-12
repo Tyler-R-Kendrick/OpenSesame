@@ -1,0 +1,262 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Identity"
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "feature": "Access"
+        },
+        {
+          "enable": "Wallet"
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "press": "^Continue as guest$"
+        },
+        {
+          "visit": "settings?file=config.yaml"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "identity?view=agents#local_00000000-0000-4000-8000-000000000001"
+        },
+        {
+          "expand": "identity/"
+        },
+        {
+          "expand": "Agents"
+        },
+        {
+          "tap": ".railtree__row[href*=\"identity?view=agents#local_00000000-0000-4000-8000-000000000001\"]"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "1280-identity"
+        },
+        {
+          "visit": "access?view=grants#identity-shares"
+        },
+        {
+          "expand": "access/"
+        },
+        {
+          "expand": "Grants"
+        },
+        {
+          "expand": "Identity shares"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "1280-access"
+        },
+        {
+          "visit": "wallet/budgets"
+        },
+        {
+          "expand": "wallet/"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "1280-wallet"
+        },
+        {
+          "tap": "[aria-label=\"Add budget\"]:visible"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Travel"
+          }
+        },
+        {
+          "fill": {
+            "label": "Ceiling (subunits)",
+            "text": "50000"
+          }
+        },
+        {
+          "press": "^Save budget$"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "1280-wallet-populated"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Identity"
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "feature": "Access"
+        },
+        {
+          "enable": "Wallet"
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "press": "^Continue as guest$"
+        },
+        {
+          "visit": "settings?file=config.yaml"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "identity?view=agents#local_00000000-0000-4000-8000-000000000001"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "390-identity"
+        },
+        {
+          "visit": "access?view=grants#identity-shares"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "390-access"
+        },
+        {
+          "visit": "wallet/budgets"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "390-wallet"
+        },
+        {
+          "tap": "[aria-label=\"Add budget\"]:visible"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Travel"
+          }
+        },
+        {
+          "fill": {
+            "label": "Ceiling (subunits)",
+            "text": "50000"
+          }
+        },
+        {
+          "press": "^Save budget$"
+        },
+        {
+          "measure": ".section__head, .identity-tabs, .set__nav, .vtree__pathbar, .vault__list, .vault__detail, .identity-row, .detail__head"
+        },
+        {
+          "shot": "390-wallet-populated"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-identity",
+      "width": 1280,
+      "title": "Identity \u2014 selected agent \u2014 1280 \u00d7 900",
+      "caption": "The same guest journey before and after sharing the vault listing, detail pane and action bar.",
+      "before": "agent card 960\u00d7104; tabs 37px",
+      "after": "list 336\u00d7847; action bar 335\u00d735"
+    },
+    {
+      "shot": "1280-access",
+      "width": 1280,
+      "title": "Access \u2014 identity shares \u2014 1280 \u00d7 900",
+      "caption": "The same guest journey before and after sharing the vault listing, detail pane and action bar.",
+      "before": "share cards 960\u00d775",
+      "after": "list 336\u00d7847; action bar 335\u00d735"
+    },
+    {
+      "shot": "1280-wallet",
+      "width": 1280,
+      "title": "Wallet \u2014 empty budgets \u2014 1280 \u00d7 900",
+      "caption": "The same guest journey before and after sharing the vault listing, detail pane and action bar.",
+      "before": "tabs 960\u00d737; no budget rows",
+      "after": "list 336\u00d7847; action bar 335\u00d735"
+    },
+    {
+      "shot": "390-identity",
+      "width": 390,
+      "title": "Identity \u2014 selected agent \u2014 390 \u00d7 844",
+      "caption": "The same guest journey before and after sharing the vault listing, detail pane and action bar.",
+      "before": "agent card 358\u00d7146; tabs 44px",
+      "after": "detail 390\u00d7714; heading 358\u00d756"
+    },
+    {
+      "shot": "390-access",
+      "width": 390,
+      "title": "Access \u2014 identity shares \u2014 390 \u00d7 844",
+      "caption": "The same guest journey before and after sharing the vault listing, detail pane and action bar.",
+      "before": "share cards 358\u00d776",
+      "after": "list 390\u00d7714; action bar 390\u00d757"
+    },
+    {
+      "shot": "390-wallet",
+      "width": 390,
+      "title": "Wallet \u2014 empty budgets \u2014 390 \u00d7 844",
+      "caption": "The same guest journey before and after sharing the vault listing, detail pane and action bar.",
+      "before": "tabs 390\u00d744; no budget rows",
+      "after": "list 390\u00d7714; action bar 390\u00d757"
+    },
+    {
+      "shot": "1280-wallet-populated",
+      "width": 1280,
+      "title": "Wallet \u2014 created Travel budget \u2014 1280 \u00d7 900",
+      "caption": "Both builds create Travel with a 50000 subunit ceiling using the real form. The branch lands on its detail with the same list and command strip as vault items.",
+      "before": "budget card 960\u00d775",
+      "after": "list 336\u00d7847; action bar 335\u00d735"
+    },
+    {
+      "shot": "390-wallet-populated",
+      "width": 390,
+      "title": "Wallet \u2014 created Travel budget \u2014 390 \u00d7 844",
+      "caption": "Both builds create Travel with a 50000 subunit ceiling using the real form. The branch lands on its detail with the same list and command strip as vault items.",
+      "before": "budget card 358\u00d776",
+      "after": "detail 390\u00d7714; heading 358\u00d756"
+    }
+  ]
+}

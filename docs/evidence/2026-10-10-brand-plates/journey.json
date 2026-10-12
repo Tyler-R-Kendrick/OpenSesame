@@ -1,0 +1,70 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 1200,
+      "steps": [
+        {
+          "measure": ".door__wordmark canvas, .door__wordmark .wordmark__slots"
+        },
+        { "shot": "390-door" },
+        { "guest": null },
+        {
+          "measure": ".rail__wordmark canvas, .rail__wordmark .wordmark__slots"
+        },
+        { "shot": "390-shell" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "measure": ".door__wordmark canvas, .door__wordmark .wordmark__slots"
+        },
+        { "shot": "1280-door" },
+        { "guest": null },
+        {
+          "measure": ".rail__wordmark canvas, .rail__wordmark .wordmark__slots"
+        },
+        { "shot": "1280-shell" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-door",
+      "width": 390,
+      "title": "The front door — 390 wide",
+      "caption": "The hero is the name on plates, fitted to the card: at 390 the column is under 48 em, so solid plates, the mark at plate height.",
+      "before": "Share Tech Mono slot reel at clamp(1.05rem, 6cqi, 2.6rem), the mark an SVG beside it",
+      "after": "OS Logo plates on a canvas, fitted to the card (em = width / 7.78), one pinned mark"
+    },
+    {
+      "shot": "1280-door",
+      "width": 1280,
+      "title": "The front door — 1280 wide",
+      "caption": "At desktop the column is wide enough for the field tier: ink particles with the letters cut out, frozen once the name has decrypted.",
+      "before": "Slot reel at 2.6rem",
+      "after": "Particle field at up to 90px of em"
+    },
+    {
+      "shot": "390-shell",
+      "width": 390,
+      "title": "The shell as a guest — 390 wide",
+      "caption": "The drawer's wordmark at 13px is the letters tier: no plates under 16px.",
+      "before": "Slot reel cells at 12px (redacted blocks)",
+      "after": "Letters only, the mark beside them"
+    },
+    {
+      "shot": "1280-shell",
+      "width": 1280,
+      "title": "The rail as a guest — 1280 wide",
+      "caption": "The rail's wordmark at 12px: letters in ink on the plate grid, the same mark geometry as the icon.",
+      "before": "Slot reel cells at 12px",
+      "after": "Letters only"
+    }
+  ]
+}

@@ -2,7 +2,6 @@ import type { CredentialItem, PasswordMethod } from "@opensesame/vault-core";
 import { Link } from "react-router";
 import { FieldRow } from "../../components/FieldRow.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import type { MethodRowPorts } from "./AccountMethodRows.js";
 import { MethodRow } from "./MethodRow.js";
 
@@ -20,9 +19,6 @@ export function CredentialDetail({
 }) {
   const { items } = useVault();
   const store = useVaultStore();
-  const credentialsRef = useGuideTarget<HTMLElement>(
-    "item.credentials.references",
-  );
   const owner = items.find(
     (candidate) =>
       candidate.kind === "account" &&
@@ -37,10 +33,7 @@ export function CredentialDetail({
     });
   };
   return (
-    <section
-      className="detail__group"
-      ref={item.deletedAt === null ? credentialsRef : undefined}
-    >
+    <section className="detail__group">
       <h2 className="detail__grouphead">Credential</h2>
       <FieldRow label="Account">
         {owner ? (

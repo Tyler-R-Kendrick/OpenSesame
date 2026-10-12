@@ -52,6 +52,7 @@ const CATALOG_SOURCE = read("catalog.ts")
   .replace("...SHELL_TARGETS,", read("shell-catalog.ts"))
   .replace("...VAULT_TARGETS,", read("vault-catalog.ts"))
   .replace("...FEATURE_TARGETS,", read("feature-catalog.ts"))
+  .replace("...INTEGRATION_TARGETS,", read("integration-catalog.ts"))
   .replace("...GUIDE_TARGETS_MORE,", CATALOG_MORE_SOURCE);
 
 /**
@@ -76,7 +77,7 @@ const GOALS_SOURCES = [
   "setup-goals.ts", // `SETUP_HELP`, then `SHELL_HELP` closes the core list
   "shell-goals.ts",
   "duress-goals.ts",
-  "password-workflow-goals.ts",
+  "item-reference-help.ts",
   "connections-goals.ts",
   "access-goals.ts",
   "authority-help.ts",

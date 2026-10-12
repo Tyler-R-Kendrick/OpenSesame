@@ -133,16 +133,20 @@ presence assertion and produce a receipt that cannot say who did what.
 
 ```
 AgentDriving ──request──> HandoffRequested ──park──> AwaitingHuman
-                                │                         │ grant
-                            withdraw                      v
-                                └──────────────>     HumanDriving
+     ^                          │                         │ grant
+     └────────withdraw──────────┘                         v
+                                                     HumanDriving
                                                           │ release
                                                           v
-AgentDriving  <──reassertion passed──  ResumeRequested ────┘
+AgentDriving  <──reassertion passed──  ResumeRequested ───┘
                                             │ failed
                                             v
                                         Suspended  ──reattach──> AwaitingHuman
 ```
+
+`AgentDriving` can also park straight to `AwaitingHuman`, and every state but
+`Suspended` can go to `Suspended` (lease expiry, a vanished viewer, a failed
+re-assertion, a blocker with nobody attached).
 
 `ControlLease` in `crates/session-observe` is that machine. Three properties it
 holds:
@@ -155,8 +159,10 @@ surface is a property of the state rather than a check at each call site.
 from a state where either the agent never stopped (a withdrawn request) or a
 re-assertion just ran. A lease that expires, a viewer that vanishes, and a failed
 re-assertion all land in `Suspended`, and `Suspended → AgentDriving` does not
-exist. Kani proves it:
-`autonomy_resumes_only_through_a_withdrawal_or_a_reassertion`.
+exist. A Kani harness states it:
+`autonomy_resumes_only_through_a_withdrawal_or_a_reassertion`. `pnpm audit:kani`
+covers `opensesame-domain` and `opensesame-rotation` only, so this one is run by
+hand (`cargo kani -p opensesame-session-observe --lib`).
 
 **A human driving does not gain the agent's authority — the agent loses its
 own.** The person types their own input. Credential material still comes only
@@ -206,12 +212,12 @@ drive discloses who else is on the account.
 
 ## Transport
 
-ADR 0046 §7's ladder, unchanged:
+ADR 0046 §7's ladder, unchanged in the ADR:
 
 | Tier | Used for | Notes |
 |---|---|---|
-| 1 — per-principal NATS inbox | park, notify, lease events | already granted bidirectionally; a `filter_subject` change, not a new permission rule |
-| 2 — WSS relay through the gateway | the observation stream | payloads sealed to xkeys recipient keys (ADR 0042); the relay is a courier, not a reader |
+| 1 — per-principal NATS inbox | park, notify, lease events | the ADR's design; no run route publishes to an inbox in this checkout |
+| 2 — relay through the gateway | the observation stream | the ADR says WSS; the Host serves it as `GET /api/v1/agent/runs/{id}/observe` (an SSE tail that polls the sealed log every 500 ms) and `GET /api/v1/agent/runs/{id}/log` (one page); every entry leaves as the ciphertext it was sealed as, so the relay is a courier, not a reader |
 | 3 — WebRTC | not taken | §3's admission gate keeps the frame rate low enough that relay bandwidth is not the constraint |
 
 Sealing is to the owner's **public** viewer key, so a run at 04:00 seals to a
@@ -228,27 +234,30 @@ client sees that a run is in progress and nothing else.
 
 ## Receipts
 
-Per ADR 0046 §11's `decidedByKind: human | agent`, the receipt records that a
-viewer attached, when, whether they held control, and over which step range.
+ADR 0081 §10 specifies that, per ADR 0046 §11's `decidedByKind: human | agent`,
+the receipt records that a viewer attached, when, whether they held control, and
+over which step range. No such receipt is written in this checkout: the Host
+persists the lease on the run row (`lease_holder`, `lease_expires_at`, a
+version-guarded `control_state`) and nothing more.
 
 A rotation is not less trustworthy for having been driven by its owner; it is
 differently trustworthy. The receipt that misleads is the one that cannot tell an
 unattended run from a hand-held one, and later gets read as proof the automation
 worked.
 
-## Intended code homes
-
-For the implementation pass. Only `crates/session-observe` exists today.
+## Code homes
 
 | Change | Where |
 |---|---|
-| Lease machine, frame admission, attach entitlement | `crates/session-observe` (done) |
-| Sealed observation log: append, range, tail | `crates/storage`, new migration |
-| Capture pipeline, mask solver, screencast admission | the T4 runner, alongside `crates/rotation-web` (ADR 0076) |
-| Attach ceremony, lease routes, WSS relay | `crates/gateway/src/routes/rotation.rs` |
-| Park / notify events | the existing per-principal NATS inbox (`crates/authz/src/callout.rs`) |
-| Viewer: tail, seek, lane rendering, take-control | `apps/pages` — it holds the viewer key |
-| Registry entries | `packages/capability-registry`, with the routes |
+| Lease machine, frame admission, attach entitlement | `crates/session-observe` |
+| Sealed observation log: append, range, tail | `crates/storage` (`src/observation.rs`, migration `0021_web_login_observation.sql`) |
+| Capture classification, mask manifests, the frame tool | `crates/rotation-web` (`src/capture.rs`, `src/tools.rs`) |
+| A producer that appends sealed events | not present: `append_observation_event` has no caller outside tests, and a run the Host opens has no viewer key, so its observation is its `agent_hook_records` (`GET /api/v1/agent/runs/{id}/hook-records`) |
+| Observe, log, handoff, control and release routes | `crates/gateway/src/routes/agent_runs.rs` and `agent_runs/{stream,lease}.rs` |
+| Tripwire and agent-phase notices parking a watched run | `crates/gateway/src/run_lease.rs` |
+| Viewer CLI (ciphertext only: `rotate runs`, `rotate watch`) | `apps/cli/src/agent_runs.rs` |
+| Registry entries | `packages/capability-registry` (`agent.runs.read`, `agent.runs.observe`, `agent.runs.control`) |
+| Viewer: tail, seek, lane rendering, take-control | not present: nothing in `apps/pages` or `packages/app-core` holds a viewer key or reads these routes |
 
 `crates/session-observe` must not become a daemon dependency —
 `scripts/audit/daemon-deps-gate.sh` audits that tree, and ADR 0053 §2's rule is that

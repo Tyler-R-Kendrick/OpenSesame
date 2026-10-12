@@ -5,6 +5,7 @@ import { readVaultFile } from "@opensesame/vault-core";
 import { expect, it, vi } from "vitest";
 import { runCli } from "./run.js";
 import { releaseVaultKv } from "./vault-kv.js";
+import { readVaultTree } from "./vault-tree.test-support.js";
 
 const PASSWORD = "shared operator password for customer vault test";
 
@@ -62,9 +63,7 @@ it("keeps two CLI vault roots separate even under the same master password", asy
         [PASSWORD],
       );
       expect(exported.code).toBe(0);
-      expect(
-        await readFile(join(stateDir ?? "", "vault-kv.json"), "utf8"),
-      ).not.toContain(secret);
+      expect(await readVaultTree(stateDir ?? "")).not.toContain(secret);
     }
     const exportA = await readFile(join(customerA, "export.json"), "utf8");
     const exportB = await readFile(join(customerB, "export.json"), "utf8");

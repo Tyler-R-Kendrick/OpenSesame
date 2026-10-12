@@ -27,6 +27,12 @@ import { IconArrowRight, IconLogin } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useOnline } from "../../lib/use-online.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 
 export const hostedRequestsSeams = { list: () => listHostedRequests() };
 
@@ -56,69 +62,33 @@ function useHostedInbox() {
   return { inbox, busy, load };
 }
 
-function Rows({ inbox }: { inbox: Extract<HostedInbox, { kind: "rows" }> }) {
-  if (inbox.rows.length === 0) return null;
-  return (
-    <ul className="access-local-records">
-      {inbox.rows.map((row) => (
-        <li key={row.id}>
-          <strong>{row.bindingMessage}</strong>
-          {row.details.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-          <p className="hint">
-            {row.summary} ·{" "}
-            <time dateTime={row.expiresAt}>
-              {new Date(row.expiresAt).toLocaleTimeString()}
-            </time>
-          </p>
-          <p>
-            <code className="access-ref" title={row.requestDigest}>
-              {row.digestPrefix}
-            </code>
-          </p>
-          <Link
-            to={row.reviewPath}
-            className="icon-btn icon-btn--sm"
-            aria-label={APPROVAL_LABELS.open}
-            title={APPROVAL_LABELS.open}
-          >
-            <IconArrowRight size={16} />
-          </Link>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 export function HostedRequestsPanel() {
   const online = useOnline();
   const { connect, connecting } = useConnect();
   const { inbox, busy, load } = useHostedInbox();
-  const count = inbox?.kind === "rows" ? inbox.rows.length : null;
-  const panelRef = useGuideTarget<HTMLElement>("access.relay");
+  const selection = useAccessRecord("hosted-requests", "requests");
+  const rows = inbox?.kind === "rows" ? inbox.rows : [];
+  const selected = rows.find((row) => row.id === selection.id);
+  const panelRef = useGuideTarget<HTMLDivElement>("access.relay");
   return (
-    <section
-      ref={panelRef}
-      className="panel"
-      id="hosted-requests"
-      aria-label={APPROVAL_LABELS.inbox}
-    >
-      <div className="panel__head">
-        <h2>
-          {APPROVAL_LABELS.inbox}
-          {count !== null ? ` · ${count}` : null}
+    <AccessRecords
+      title={APPROVAL_LABELS.inbox}
+      selection={selection}
+      rows={rows.map((row) => ({
+        id: row.id,
+        label: row.bindingMessage,
+        extension: "request",
+        to: selection.path(row.id),
+      }))}
+      status={<div id="hosted-requests" ref={panelRef} />}
+      commands={
+        <>
           {inbox?.kind === "signin" || inbox?.kind === "failed" ? (
-            <>
-              {" "}
-              <StatusMark
-                tone={inbox.kind === "signin" ? "warn" : "err"}
-                label={inbox.words}
-              />
-            </>
+            <StatusMark
+              tone={inbox.kind === "signin" ? "warn" : "err"}
+              label={inbox.words}
+            />
           ) : null}
-        </h2>
-        <div className="actions">
           {inbox?.kind === "signin" ? (
             <IconKey
               small
@@ -134,13 +104,37 @@ export function HostedRequestsPanel() {
             disabled={busy || !online}
             onReload={() => void load()}
           />
-        </div>
+        </>
+      }
+    >
+      <div>
+        {selected ? (
+          <AccessDetail
+            title={selected.bindingMessage}
+            kind="Request"
+            actions={
+              <Link
+                to={selected.reviewPath}
+                className="icon-btn icon-btn--sm"
+                aria-label={APPROVAL_LABELS.open}
+                title={APPROVAL_LABELS.open}
+              >
+                <IconArrowRight size={16} />
+              </Link>
+            }
+          >
+            {selected.details.map((line) => (
+              <AccessFact key={line} label="Binding" value={line} />
+            ))}
+            <AccessFact label="Summary" value={selected.summary} />
+            <AccessFact
+              label="Expires"
+              value={new Date(selected.expiresAt).toLocaleString()}
+            />
+            <AccessFact label="Digest" value={selected.requestDigest} />
+          </AccessDetail>
+        ) : null}
       </div>
-      {inbox?.kind === "rows" ? (
-        <div className="panel__body">
-          <Rows inbox={inbox} />
-        </div>
-      ) : null}
-    </section>
+    </AccessRecords>
   );
 }

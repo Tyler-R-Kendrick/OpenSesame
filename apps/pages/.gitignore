@@ -34,3 +34,6 @@ dev-dist/
 dist-profiles/
 dist-live-dedicated/
 dist-push-verify/
+
+*storybook.log
+storybook-static

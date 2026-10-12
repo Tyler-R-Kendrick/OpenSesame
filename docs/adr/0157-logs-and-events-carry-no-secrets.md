@@ -2,6 +2,12 @@
 
 - Status: Accepted
 - Date: 2026-09-28
+- Implementation: the body names the first formats. New event values are now
+  `osev2.` envelopes (a random data key per value, wrapped under a purpose- and
+  customer-derived key; `crates/event-seal`,
+  `packages/database/src/event-seal.ts`) and log lines are `osl2.`
+  wrapped-key envelopes (`crates/sealed-log`); `osev1.` and `osl1.` are the
+  legacy formats, kept for migration and compatibility reads.
 - Builds on: [ADR 0080](0080-security-event-hooks.md) (every security fact is
   a `SecurityNotice`), [ADR 0139](0139-one-definition-every-target.md) (one
   definition, every target), [ADR 0149](0149-nothing-stored-in-the-clear.md)
@@ -36,9 +42,9 @@ JWTs, `osc_` tokens and PEM blocks were invisible to it.
 ## Decision
 
 1. **One scrubber, written once.** `spec/log-scrub/log-scrub.json` is the
-   definition: nine ordered value rules (PEM, DSN userinfo, secret URL
-   parameters, cookie lines, labelled values, bearer/DPoP, JWT, our own token
-   shapes, vendor key shapes), the key-name rule, and a vector table with
+   definition: ten ordered value rules (PEM, DSN userinfo, secret URL
+   parameters, cookie lines, labelled values, bearer/DPoP, JWT, model keys
+   (`osk_`, ADR 0192), our own token shapes, vendor key shapes), the key-name rule, and a vector table with
    negative controls (`token_type=Bearer` and `the bearer of bad news` must
    survive). `@opensesame/log-scrub` (TypeScript) and `crates/redaction`
    (Rust) each compile it and run every vector, so a rule is added once and

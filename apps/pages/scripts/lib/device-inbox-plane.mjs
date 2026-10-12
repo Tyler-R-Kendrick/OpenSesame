@@ -12,7 +12,9 @@ import { BASE, PATIENCE } from "./device-inbox-tabs.mjs";
 import { lockVault } from "./pages-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
-const DIST = fileURLToPath(new URL("../../dist", import.meta.url));
+const DIST =
+  process.env.PAGES_VERIFY_DIST ??
+  fileURLToPath(new URL("../../dist", import.meta.url));
 
 export const hostChunk = () =>
   fs
@@ -37,6 +39,10 @@ export async function lockedDevice(context, width) {
   page.setDefaultTimeout(PATIENCE);
   await page.setViewportSize({ width, height: 900 });
   await page.goto(`${BASE}/access?view=sessions`);
+  const passwordTab = page.getByRole("tab", { name: "Password", exact: true });
+  if (await passwordTab.count()) {
+    await passwordTab.click();
+  }
   await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
   const text = await page.locator("body").innerText();
   expect(text).not.toMatch(/Receipts|Local requests|waiting|Test application/i);

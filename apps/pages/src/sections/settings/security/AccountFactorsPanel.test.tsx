@@ -222,9 +222,6 @@ describe("account rows", () => {
     const panel = within(
       await screen.findByRole("region", { name: "Your account" }),
     );
-    expect(
-      panel.getByText(/None of these open this vault/, { exact: false }),
-    ).toBeTruthy();
     await panel.findByText(/key 4f2a/);
     const passkey = row("Account passkey");
     expect(passkey.getAllByRole("button")).toHaveLength(1);

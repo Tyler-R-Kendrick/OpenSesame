@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { readFile, readdir, rm, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { nativeProcessFixture as processFixture } from "../../packages/cli/src/fixtures/password-agent/native-process.js";
 const TOKEN = "ops_fake-token";
@@ -87,18 +89,38 @@ describe("2password native CLI process gauntlet", { timeout: 30_000 }, () => {
     expect((await cli(["env", "write", template, "API=op://v/i/f"])).code).toBe(
       0,
     );
-    expect(
-      (await cli(["env", "resolve", template, "--output", target, "--desktop"]))
-        .code,
-    ).toBe(0);
+    const resolveArgs = [
+      "env",
+      "resolve",
+      template,
+      "--output",
+      target,
+      "--desktop",
+      "--reveal",
+    ];
+    const denied = await cli(resolveArgs);
+    expect(denied.code).toBe(1);
+    expect(denied.stderr).toContain(
+      "stdin and stdout must both be interactive terminals",
+    );
+    await expect(stat(target)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await calls()).toHaveLength(0);
+    await humanTerminal(resolveArgs);
     expect(await readFile(target, "utf8")).toContain('API="private-canary"');
     expect((await stat(target)).mode & 0o777).toBe(0o600);
     expect(
       (await readdir(directory)).some((name) => name.endsWith(".tmp")),
     ).toBe(false);
-    expect((await cli(["read", "op://v/i/f", "--desktop"])).stdout).toBe(
-      "private-canary\n",
+    const readArgs = ["read", "op://v/i/f", "--desktop", "--reveal"];
+    const deniedRead = await cli(readArgs);
+    expect(deniedRead.code).toBe(1);
+    expect(deniedRead.stdout).toBe("");
+    expect(deniedRead.stderr).toContain(
+      "stdin and stdout must both be interactive terminals",
     );
+    const revealed = await humanTerminal(readArgs);
+    expect(revealed).toContain("private-canary\r\n");
+    expect(revealed).toContain('"lane":"reveal"');
     env.OP_SERVICE_ACCOUNT_TOKEN = TOKEN;
     const script =
       "process.stdout.write(JSON.stringify({secret:process.env.API,token:process.env.OP_SERVICE_ACCOUNT_TOKEN,args:process.argv.slice(1)}));process.exit(7)";
@@ -229,3 +251,23 @@ describe("2password native CLI process gauntlet", { timeout: 30_000 }, () => {
     );
   });
 });
+
+/** Exercise the same human terminal boundary used by interactive lease approval. */
+async function humanTerminal(args: string[]): Promise<string> {
+  const binary =
+    process.env.OPENSESAME_NATIVE_BINARY ??
+    resolve(
+      process.env.CARGO_TARGET_DIR ??
+        resolve(process.env.HOME ?? "", ".cache/packages/cargo-target"),
+      "debug/opensesame",
+    );
+  const command = [binary, "password-agent", ...args]
+    .map((arg) => `'${arg.replaceAll("'", "'\\''")}'`)
+    .join(" ");
+  const { stdout, stderr } = await promisify(execFile)(
+    "/usr/bin/script",
+    ["-q", "-e", "-c", command, "/dev/null"],
+    { env, timeout: 30_000 },
+  );
+  return stdout + stderr;
+}

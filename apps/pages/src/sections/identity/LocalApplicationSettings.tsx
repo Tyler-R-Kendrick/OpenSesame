@@ -165,10 +165,6 @@ function RegistrationEditor({
   const removeButton = useRef<HTMLButtonElement>(null);
   return (
     <div aria-busy={model.busy}>
-      <p className="hint">
-        Bind this application to an organization and exact callbacks.
-        Registration alone grants no sign-in or resource access.
-      </p>
       {model.state ? (
         <output>
           {registration
@@ -282,6 +278,7 @@ function RegistrationForm({
             required
             rows={3}
             maxLength={32768}
+            title="Use exact HTTPS callbacks, or HTTP on loopback for development"
             spellCheck={false}
             value={redirects}
             onChange={(event) =>
@@ -310,10 +307,6 @@ function RegistrationForm({
           value={scopeRoles}
           onChange={(scopeRoles) => setDraft({ ...draft, scopeRoles })}
         />
-        <p className="hint">
-          Use exact HTTPS callbacks, or HTTP on loopback for development.
-          Include openid. No client secret is stored in an application.
-        </p>
         <FormCommit
           label="Save registration"
           disabled={!organizationId || !redirects.trim() || !scopes.trim()}

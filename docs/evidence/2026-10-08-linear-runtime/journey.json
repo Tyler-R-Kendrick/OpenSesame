@@ -1,0 +1,171 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "visit": "settings/general"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "connections/linear"
+        },
+        {
+          "report": "main label, main h2, main summary"
+        },
+        {
+          "measure": ".cx-mode, .cx-selection > summary"
+        },
+        {
+          "shot": "desktop-configure"
+        },
+        {
+          "chooseOptional": "Bring Your Own"
+        },
+        {
+          "revealSelector": ".cx-form"
+        },
+        {
+          "shot": "desktop-byo"
+        },
+        {
+          "chooseOptional": "API key"
+        },
+        {
+          "tap": ".go-verb"
+        },
+        {
+          "revealCenter": ".go-row"
+        },
+        {
+          "report": ".go-verb, main input[type=password], main [role=img]"
+        },
+        {
+          "measure": ".go-row, main input[type=password]"
+        },
+        {
+          "shot": "desktop-connect"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Connections"
+        },
+        {
+          "visit": "settings/general"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "connections/linear"
+        },
+        {
+          "report": "main label, main h2, main summary"
+        },
+        {
+          "measure": ".cx-mode, .cx-selection > summary"
+        },
+        {
+          "shot": "phone-configure"
+        },
+        {
+          "chooseOptional": "Bring Your Own"
+        },
+        {
+          "revealSelector": ".cx-form"
+        },
+        {
+          "shot": "phone-byo"
+        },
+        {
+          "chooseOptional": "API key"
+        },
+        {
+          "tap": ".go-verb"
+        },
+        {
+          "revealCenter": ".go-row"
+        },
+        {
+          "report": ".go-verb, main input[type=password], main [role=img]"
+        },
+        {
+          "measure": ".go-row, main input[type=password]"
+        },
+        {
+          "shot": "phone-connect"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-configure",
+      "width": 1280,
+      "title": "Linear \u2014 Provider authorization configuration \u2014 1280 \u00d7 900",
+      "caption": "Managed and Bring Your Own retain 44px controls. OAuth now exposes the public client ID and registered redirect; workspace identity is checked against the provider response.",
+      "before": "Modes 44px; workspace entered as configuration",
+      "after": "Modes 44px; workspace verified during authorization"
+    },
+    {
+      "shot": "desktop-byo",
+      "width": 1280,
+      "title": "Linear \u2014 Bring Your Own authentication \u2014 1280 \u00d7 900",
+      "caption": "The same Bring Your Own choice now offers the supported Linear authentication flows. Mode and authentication controls retain 44px rows.",
+      "before": "General configuration: OAuth / MCP / API key",
+      "after": "Linear authorization: OAuth / API key"
+    },
+    {
+      "shot": "desktop-connect",
+      "width": 1280,
+      "title": "Linear \u2014 Credential verification and completion \u2014 1280 \u00d7 900",
+      "caption": "The same form footer now verifies the account before activating the connector. These form comparisons make no provider requests and contain no test account data.",
+      "before": "Commit row 640 \u00d7 40px: Create Connector",
+      "after": "Commit row 640 \u00d7 40px: Verify and connect Linear"
+    },
+    {
+      "shot": "phone-configure",
+      "width": 390,
+      "title": "Linear \u2014 Provider authorization configuration \u2014 390 \u00d7 844",
+      "caption": "Managed and Bring Your Own retain 44px controls. OAuth now exposes the public client ID and registered redirect; workspace identity is checked against the provider response.",
+      "before": "Modes 44px; workspace entered as configuration",
+      "after": "Modes 44px; workspace verified during authorization"
+    },
+    {
+      "shot": "phone-byo",
+      "width": 390,
+      "title": "Linear \u2014 Bring Your Own authentication \u2014 390 \u00d7 844",
+      "caption": "The same Bring Your Own choice now offers the supported Linear authentication flows. Mode and authentication controls retain 44px rows.",
+      "before": "General configuration: OAuth / MCP / API key",
+      "after": "Linear authorization: OAuth / API key"
+    },
+    {
+      "shot": "phone-connect",
+      "width": 390,
+      "title": "Linear \u2014 Credential verification and completion \u2014 390 \u00d7 844",
+      "caption": "The same form footer now verifies the account before activating the connector. These form comparisons make no provider requests and contain no test account data.",
+      "before": "Commit row 358 \u00d7 44px: Create Connector",
+      "after": "Commit row 358 \u00d7 44px: Verify and connect Linear"
+    }
+  ]
+}

@@ -29,6 +29,7 @@ async fn state_with_webhook_secret(secret: &str) -> AppState {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -148,6 +149,7 @@ async fn missing_app_returns_not_found() {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -177,6 +179,7 @@ async fn state_without_webhook_secret() -> AppState {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();

@@ -7,7 +7,8 @@
  * A row per address, ICE server and carrier, each with one key; one field to
  * add each kind. Credentials a TURN server needs are asked beside its URL;
  * a NATS server's sign-in and session route beside its URL (ADR 0167); any
- * other carrier's credentials are written in the file.
+ * other carrier's credentials, and a TURN server's REST `secret`, are written
+ * in the file, which the key on the heading opens (ADR 0134).
  */
 
 import {
@@ -16,12 +17,14 @@ import {
   isAddress,
   isIceUrl,
 } from "@opensesame/app-core/lib/live/transport.js";
+import { TRANSPORT_FILE } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import { useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { OpenFileKey } from "../../sections/settings/files/OpenFileKey.js";
 import { GuideTarget } from "../../tutorial/registry/react.jsx";
 import { Carriers } from "./LiveCarriers.js";
 import { type Change, RemoveKey } from "./live-route-parts.js";
@@ -227,6 +230,12 @@ export function LiveRoutesPanel() {
           <div>
             <h2>Routes</h2>
           </div>
+          {loaded ? (
+            // Over a profile that will not read too: the file is where it is fixed.
+            <div className="actions">
+              <OpenFileKey path={TRANSPORT_FILE} name="transport.json" />
+            </div>
+          ) : null}
         </div>
         <div className="panel__body setup__stack">
           {!loaded ? (

@@ -7,7 +7,7 @@ export async function navigationTreeContract(page, tabTo) {
   await accessContract(page, tabTo);
   await identityContract(page, tabTo);
   console.log(
-    "PASS Access tab subtrees, Identity subtrees, connector selection/activation and focus retention",
+    "PASS Access and Identity record subtrees, list/detail/create navigation, connector selection/activation and focus retention",
   );
 }
 
@@ -27,16 +27,6 @@ function treeItem(page, name) {
     return page.getByRole("treeitem", { name });
   if (isObject(name) && "name" in name) return page.getByRole("treeitem", name);
   return name;
-}
-
-async function selectUntil(page, item, max) {
-  for (
-    let step = 0;
-    step < max && (await item.getAttribute("aria-selected")) !== "true";
-    step++
-  )
-    await page.keyboard.press("ArrowDown");
-  await expect(item).toHaveAttribute("aria-selected", "true");
 }
 
 async function expandNamed(page, _tree, name) {
@@ -70,7 +60,7 @@ async function accessContract(page, tabTo) {
     "Resources",
     "Policies",
   ]) {
-    // Every tab is the same kind of row: a sibling that opens onto its
+    // Every category is the same kind of row: a sibling that opens onto its
     // panels, never a caret-less row one indent left of the others.
     const row = page.getByRole("treeitem", { name, exact: true });
     await expect(row).toBeVisible();
@@ -86,24 +76,89 @@ async function accessContract(page, tabTo) {
     }),
   ).toBeVisible();
   await tabTo(page, tree);
-  // The panels in the order the Grants page draws them. A guest's book is
+  // The Grants subtree lists each record collection. A guest's book is
   // empty, so Portable grants is not drawn and not listed.
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/access\?view=grants#local-grants$/);
   await expect(
-    page.getByRole("tab", { name: "Grants", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
+    page.locator('.record-workspace[data-section="Access"]'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("tree", {
+      name: "Local application grants items",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".section__head, .access-tabs")).toHaveCount(0);
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/access\?view=grants#identity-shares$/);
+  const shares = page.getByRole("treeitem", {
+    name: "Identity shares",
+    exact: true,
+  });
+  await expect(shares).toHaveAttribute("aria-selected", "true");
+  await accessRecordContract(page, tabTo);
+  await tabTo(page, tree);
   const grants = page.getByRole("treeitem", { name: "Grants", exact: true });
+  for (
+    let step = 0;
+    step < 16 && (await grants.getAttribute("aria-selected")) !== "true";
+    step++
+  )
+    await page.keyboard.press("ArrowUp");
+  await expect(grants).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("ArrowLeft");
   await expect(grants).toHaveAttribute("aria-expanded", "false");
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/access\?view=requests$/);
   await expect(
-    page.getByRole("tab", { name: "Requests", exact: true }),
+    page.getByRole("treeitem", { name: "Requests", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("tree", { name: "Local requests items", exact: true }),
+  ).toBeVisible();
   await expect(tree).toBeFocused();
+}
+
+async function accessRecordContract(page, tabTo) {
+  const list = page.getByRole("tree", {
+    name: "Identity shares items",
+    exact: true,
+  });
+  await expect(list.getByRole("treeitem").first()).toBeVisible();
+  await tabTo(page, list);
+  await page.keyboard.press("Home");
+  await expect(page).toHaveURL(/\/access\?view=grants#share-/);
+  await expect(list.getByRole("treeitem", { selected: true })).toHaveCount(1);
+  await expect(
+    page.locator(".record-workspace .detail__head h1"),
+  ).toBeVisible();
+  await expect(page.locator(".record-workspace .frow").first()).toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(
+    page.locator(".record-workspace .detail__head h1"),
+  ).toBeVisible();
+  const create = page.getByRole("button", {
+    name: "Grant identity share",
+    exact: true,
+  });
+  await tabTo(page, create);
+  await expect(create).toBeEnabled();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(
+    /\/access\?view=grants&draft=new#identity-shares$/,
+  );
+  await expect(
+    page.getByRole("heading", { name: "New identity share", exact: true }),
+  ).toBeVisible();
+  const form = page.locator(".record-workspace .vault__detail form");
+  await expect(form).toBeVisible();
+  await tabTo(page, form.getByRole("button", { name: "Cancel", exact: true }));
+  await page.keyboard.press("Enter");
+  await expect(form).toHaveCount(0);
+  await expect(page).toHaveURL(/\/access\?view=grants#identity-shares$/);
+  await tabTo(page, list);
+  await expect(list).toBeFocused();
 }
 
 async function connectorsContract(page, tabTo) {
@@ -167,8 +222,15 @@ async function identityContract(page, tabTo) {
   await page.keyboard.press("ArrowDown");
   await expect(page).toHaveURL(/\/identity\?view=agents$/);
   await expect(
-    page.getByRole("tab", { name: "Agents", exact: true }),
+    page.getByRole("treeitem", { name: "Agents", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.locator('.record-workspace[data-section="Identity"]'),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("tree", { name: "Agents items", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".identity-tabs, .section__head")).toHaveCount(0);
   await expect(tree).toBeFocused();
   await page.screenshot({ path: "/tmp/opensesame-identity-tree.png" });
   await localDirectoryContract(page, tabTo);

@@ -7,10 +7,11 @@ import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import type { LocalAccessRequestRecord } from "@opensesame/contracts";
 import { mintVaultKey } from "@opensesame/vault-core";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalRequestsPanel } from "./LocalRequestsPanel.js";
+import { renderAccess as render } from "./workspace-test-support.js";
 
 let tomb: string;
 const now = 1788998400000;
@@ -80,13 +81,14 @@ it("does not offer a sign-in that is being consented to in its own window", asyn
     authorizationDigest: "A".repeat(43),
   });
   await refresh([asked, signIn]);
-  render(<LocalRequestsPanel tomb={tomb} />);
-  await screen.findByRole("button", { name: "Review request" });
+  render(
+    <LocalRequestsPanel tomb={tomb} />,
+    "/access?view=requests#local-requests",
+  );
+  await screen.findByRole("treeitem");
   // Two requests are stored and one is shown: the other is decided where it was
   // raised, and a decision made here would only make that one fail.
-  expect(
-    screen.getAllByRole("button", { name: "Review request" }),
-  ).toHaveLength(1);
+  expect(screen.getAllByRole("treeitem")).toHaveLength(1);
 });
 
 it.each(["expired", "revoked", "denied", "approved"] as const)(
@@ -94,10 +96,11 @@ it.each(["expired", "revoked", "denied", "approved"] as const)(
   async (status) => {
     const pending = await request();
     await refresh([pending]);
-    render(<LocalRequestsPanel tomb={tomb} />);
-    await userEvent.click(
-      await screen.findByRole("button", { name: "Review request" }),
+    render(
+      <LocalRequestsPanel tomb={tomb} />,
+      "/access?view=requests#local-requests",
     );
+    await userEvent.click(await screen.findByRole("treeitem"));
     expect(
       screen.getByRole("button", { name: "Approve with passkey" }),
     ).toBeTruthy();
@@ -137,10 +140,11 @@ it.each(["expired", "revoked", "denied", "approved"] as const)(
 
 it("closes a removed review and restores its reload fallback", async () => {
   await refresh([await request()]);
-  render(<LocalRequestsPanel tomb={tomb} />);
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Review request" }),
+  render(
+    <LocalRequestsPanel tomb={tomb} />,
+    "/access?view=requests#local-requests",
   );
+  await userEvent.click(await screen.findByRole("treeitem"));
   await refresh([]);
   await waitFor(() =>
     expect(

@@ -34,6 +34,7 @@ import {
   mapTransportError,
 } from "../claims/drop-open.js";
 import { dropSeams } from "./drop-transport.js";
+import { recordOutboundDrop } from "./outbound-drops.js";
 
 // Opening a drop is the recipient's side, always-on under
 // `identity.ceremonies` (ADR 0140 D2); re-exported for the sender's code.
@@ -181,6 +182,13 @@ export async function createDrop(input: {
       ? { keptCopy: keptCopyFromPayload(input.payload) }
       : undefined),
   };
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: input.name,
+    expiresAt: session.expiresAt,
+    vaultItemId: record.id,
+  });
   return {
     record,
     link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
@@ -193,12 +201,16 @@ export type SharedOnce = {
   link: string;
   userCode: string;
   expiresAt: string;
+  claimId: string;
+  bearerToken: string;
 };
 
 export async function shareOnce(input: {
   name: string;
   text: string;
   ttlMs: number;
+  /** Vault item this share was taken from, so trashing it kills the link. */
+  sourceItemId?: string;
 }): Promise<SharedOnce> {
   const { manifest, fragmentKey } = await sealDrop({
     kind: "text",
@@ -206,10 +218,19 @@ export async function shareOnce(input: {
     text: input.text,
   });
   const session = await createDropSession(manifest, input.ttlMs);
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: input.name,
+    expiresAt: session.expiresAt,
+    sourceItemId: input.sourceItemId ?? null,
+  });
   return {
     link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
     userCode: session.userCode,
     expiresAt: session.expiresAt,
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
   };
 }
 

@@ -110,17 +110,22 @@ export const VAULT_LIB_RULES = [
     "sharing.live",
     "live sessions: pairing codes, WebRTC peers, host and guest (ADR 0150)",
   ),
+  optional(
+    "src/lib/quorum/",
+    "sharing.trusted-contacts",
+    "trusted contacts: guardian policy, quorum approvals, SLIP-0039 shares, HPKE release (ADR 0187)",
+  ),
+  optional(
+    "src/lib/password-reset/",
+    "ai.password-reset",
+    "reset mailboxes as vault items, their JMAP reader and the ledger of messages acted on; the item editor reads only ../password-reset-mail",
+  ),
 ];
 
 export const TUTORIAL_RULES = [
   shared(
     `${T}support-context`,
     "nullable React context seam read by core sheets; imports the optional controller only as an erased type",
-  ),
-  optional(
-    `${T}password-workflow-tour.test`,
-    HELP,
-    "password workflow walkthrough runtime verification",
   ),
   shared(
     `${T}gate-seat`,
@@ -137,7 +142,7 @@ export const TUTORIAL_RULES = [
       "catalog-more",
       "capability-tutorials",
       "goals",
-      "password-workflow-goals",
+      "item-reference-help",
       "identity-catalog",
       "identity-goals",
       "setup-catalog",

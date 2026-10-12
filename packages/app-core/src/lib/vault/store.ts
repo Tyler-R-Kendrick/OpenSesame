@@ -53,20 +53,22 @@ import {
   writePlaintextFile,
 } from "../vfs.js";
 import {
+  appendFolder,
   appendItems,
   applyManifestPlan,
   bodyBeforeWrite,
   deleteFolder,
-  emptyTrash,
-  purgeItem,
+  newFolder,
   recordItemTypes,
   renameFolder,
   replaceItems,
   restoreItem,
   stampedEdit,
   toggleFavorite,
-  trashItem,
 } from "./body-edits.js";
+import type { EnvironmentsEdit } from "./body-environments.js";
+import { applyEnvironmentsEdit } from "./body-environments.js";
+import { commitDiscard, revokeTrashedShares } from "./drop-revoke.js";
 import { headerCarriesGate } from "./header-gate.js";
 import {
   type ItemReturn,
@@ -86,6 +88,7 @@ import {
 } from "./master-wrap.js";
 import {
   probePasskeyCeremony,
+  sealNewVaultWithPasskey,
   unlockVaultWithHeldPrf,
   unlockVaultWithPasskey,
   wrapVaultKeyWithCeremony,
@@ -102,6 +105,7 @@ import {
   defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
+import type { PasskeyCreateOptions } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
 import {
@@ -144,7 +148,11 @@ import {
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
-import { type ImportOptions, importSealedInto } from "./store-import.js";
+import {
+  type ImportOptions,
+  importSealedInto,
+  sealedVaultExport,
+} from "./store-import.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
@@ -433,6 +441,7 @@ export class VaultStore {
       items: resolveAccounts(this.#body.items),
       rawItems: this.#body.items,
       folders: this.#body.folders,
+      environments: this.#body.environments,
       prefs: this.#prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
       failedAttempts: attempts.fails,
@@ -491,27 +500,15 @@ export class VaultStore {
   }
 
   /** First-run seal under a passkey PRF wrap — no master password required. */
-  async createWithPasskey(signal?: AbortSignal): Promise<void> {
-    if (signal?.aborted) {
-      throw new DOMException("The operation was aborted.", "AbortError");
-    }
-    const { vaultKey, rawVaultKey } = await mintVaultKey();
-    try {
-      const ceremony = await createPasskeyUnlockCeremony(undefined, signal);
-      if (signal?.aborted) {
-        throw new DOMException("The operation was aborted.", "AbortError");
-      }
-      const record = await wrapVaultKeyWithCeremony(rawVaultKey, ceremony);
-      const header: VaultHeader = {
-        v: 1,
-        createdAt: new Date().toISOString(),
-        unlocks: { passkey: record },
-      };
-      await this.#persistNewVault(header, vaultKey, rawVaultKey);
-    } catch (error) {
-      rawVaultKey.fill(0);
-      throw error;
-    }
+  async createWithPasskey(
+    signal?: AbortSignal,
+    options?: PasskeyCreateOptions,
+  ): Promise<void> {
+    await sealNewVaultWithPasskey(
+      (header, key, raw) => this.#persistNewVault(header, key, raw),
+      signal,
+      options,
+    );
   }
 
   /**
@@ -902,10 +899,14 @@ export class VaultStore {
     return { vaultKey: this.#vaultKey, header: this.#header };
   }
 
-  async enrollPasskey(): Promise<void> {
+  async enrollPasskey(options?: PasskeyCreateOptions): Promise<void> {
     const { header } = this.#requireUnlocked();
     const raw = this.#requireRaw();
-    const ceremony = await createPasskeyUnlockCeremony();
+    const ceremony = await createPasskeyUnlockCeremony(
+      undefined,
+      undefined,
+      options,
+    );
     const record = await wrapVaultKeyWithCeremony(raw, ceremony);
     const unlocks: VaultUnlocks = { ...header.unlocks, passkey: record };
     await this.#persistHeader({ ...header, unlocks });
@@ -1315,33 +1316,30 @@ export class VaultStore {
   async installItemTypeDefinition(text: string): Promise<InstallResult> {
     const result = installItemType(text);
     if (!result.ok) return result;
-    const added = [result.definition.metadata.id];
-    try {
-      await this.#mutate((body) => {
-        recordItemTypes(body, installedDefinitions(), { added });
-      });
-    } catch (error) {
-      // `#mutate` rolls the body back on a failed seal, but the registry is
-      // module state it cannot reach. Put it back by hand, or this device
-      // would offer a type the vault does not carry until the next unlock.
-      syncInstalledTypes(this.#body.itemTypes);
-      throw error;
-    }
+    await this.#recordTypes({ added: [result.definition.metadata.id] });
     return result;
   }
 
   /** Drop a definition. Items of that type keep their values. */
   async uninstallItemTypeDefinition(id: string): Promise<boolean> {
     if (!uninstallItemType(id)) return false;
+    await this.#recordTypes({ removed: [id] });
+    return true;
+  }
+
+  async #recordTypes(
+    change: Parameters<typeof recordItemTypes>[2],
+  ): Promise<void> {
     try {
       await this.#mutate((body) => {
-        recordItemTypes(body, installedDefinitions(), { removed: [id] });
+        recordItemTypes(body, installedDefinitions(), change);
       });
     } catch (error) {
+      // A failed seal rolls the body back, not the registry (module state):
+      // put it back, or this device offers a type the vault does not carry.
       syncInstalledTypes(this.#body.itemTypes);
       throw error;
     }
-    return true;
   }
 
   // —— items ————————————————————————————————————————————————
@@ -1363,7 +1361,7 @@ export class VaultStore {
   }
 
   async trashItem(id: string): Promise<void> {
-    await this.#mutate((body) => trashItem(body, id));
+    await this.#discard("trash", id);
   }
 
   async restoreItem(id: string): Promise<void> {
@@ -1371,11 +1369,22 @@ export class VaultStore {
   }
 
   async purgeItem(id: string): Promise<void> {
-    await this.#mutate((body) => purgeItem(body, id));
+    await this.#discard("purge", id);
   }
 
   async emptyTrash(): Promise<void> {
-    await this.#mutate((body) => emptyTrash(body));
+    await this.#discard("empty", "");
+  }
+
+  /** A trashed drop that synced here still has its claim on this device. */
+  reconcileTrashedShares(): Promise<void> {
+    const items = this.getSnapshot().items;
+    return revokeTrashedShares(items, (change) => this.#mutate(change));
+  }
+
+  #discard(kind: "trash" | "purge" | "empty", id: string): Promise<void> {
+    const items = this.getSnapshot().items;
+    return commitDiscard(kind, items, id, (change) => this.#mutate(change));
   }
 
   /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0171). */
@@ -1390,6 +1399,10 @@ export class VaultStore {
 
   async toggleFavorite(id: string): Promise<void> {
     await this.#mutate((body) => toggleFavorite(body, id));
+  }
+
+  async editEnvironments(edit: EnvironmentsEdit): Promise<void> {
+    await this.#mutate((body) => applyEnvironmentsEdit(body, edit));
   }
 
   async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
@@ -1433,14 +1446,8 @@ export class VaultStore {
   // —— folders ——————————————————————————————————————————————
 
   async addFolder(name: string): Promise<Folder> {
-    const folder: Folder = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    await this.#mutate((body) => {
-      body.folders = [...body.folders, folder];
-    });
+    const folder = newFolder(name);
+    await this.#mutate((body) => appendFolder(body, folder));
     return folder;
   }
 
@@ -1456,21 +1463,7 @@ export class VaultStore {
 
   /** Encrypted export — the sealed body plus its header, portable to another device. */
   exportSealed(): string {
-    if (!this.#header) throw new Error("There is no vault to export.");
-    const body = readSealedFile(this.#scope.tomb, BODY_PATH);
-    if (!body) throw new Error("There is nothing stored to export yet.");
-    return JSON.stringify(
-      {
-        format: "opensesame-vault-export",
-        v: 1,
-        exportedAt: new Date().toISOString(),
-        tomb: this.#scope.tomb,
-        header: this.#header,
-        body,
-      },
-      null,
-      2,
-    );
+    return sealedVaultExport(this.#header, this.#scope.tomb);
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */

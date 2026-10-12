@@ -13,7 +13,7 @@
 //   A. Settings › General draws no "sign out of Identity" row: the device has
 //      no session yet, so there is nothing to sign out of (ADR 0158).
 //   B. The connectivity status reads "This device", before and after Connect.
-//   C. Connect from the Identity sheet ("Continue as guest") opens a device
+//   C. Connect from the Identity sheet ("Use this device") opens a device
 //      session whose principal is `prn_` + a 43-character thumbprint, and
 //      Refresh keeps the same principal: it is the vault's key, not a dice
 //      roll.
@@ -55,6 +55,7 @@ import {
 import {
   WIDTHS,
   chooseCapability,
+  clearCapability,
   configureScenarios,
   connect,
   go,
@@ -69,7 +70,9 @@ import { waitOpen } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.resolve(here, "..", "dist");
+const DIST = path.resolve(
+  process.env.PAGES_VERIFY_DIST ?? path.join(here, "..", "dist"),
+);
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
@@ -148,6 +151,7 @@ for (const width of WIDTHS) {
   // F
   setStep(`${label}-access`);
   await chooseCapability(page, "Access authority");
+  await clearCapability(page, "Browser-local IAM");
   await walkAccess(page, `${label}-no-iam`, { receipts: false });
   await chooseCapability(page, "Browser-local IAM");
   await walkAccess(page, `${label}-iam`, { receipts: true });

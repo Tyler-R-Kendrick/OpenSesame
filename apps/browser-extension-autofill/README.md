@@ -72,7 +72,8 @@ sha256sum apps/browser-extension-autofill/.output/browser-autofill-0.1.0-chrome.
    and press the fill key or `Alt+Shift+O`.
 
 Entries are read from the sealed store (`opensesame pass`); an entry matches a
-page only through a `url:` line with exactly its scheme, host and port.
+page only when a `url:` line (or a `uris` entry of an account the vault wrote)
+has exactly its scheme, host and port.
 
 ## Develop
 

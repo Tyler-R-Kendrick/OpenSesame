@@ -14,11 +14,14 @@
  *
  * Egress this module wraps, none of it at activation and all of it started
  * by the person: a WebRTC peer connection to the other browser once the
- * sealed pairing codes have crossed (`lib/live/pairing.ts`,
- * `lib/live/peer.ts`) — directly by default, with no ICE server; the
- * clipboard on a copy. Only what the owner names in Routes adds more, and
- * only for the owner's sessions and joiners who agree to the hosts the link
- * lists: the STUN and TURN servers named, and the carriers named
+ * sealed pairing codes have crossed (`lib/live/pairing.ts`, the transport
+ * `lib/live/webrtc.ts` behind `lib/live/p2p.ts`, composed in
+ * `live-hooks.ts`) — directly by default, with no ICE server; the
+ * clipboard on a copy under Show values or Can edit. Copy only does not
+ * place a concealed value on the joiner's clipboard. Only what the owner
+ * names in Routes adds more, and only for the owner's sessions and joiners
+ * who agree to the hosts the link lists: the STUN and TURN servers named,
+ * and the carriers named
  * (`carriers/`: a Nostr relay, an MQTT broker or NATS server over wss, an
  * ntfy server over https, or BroadcastChannel), each client loaded only then
  * and only if the installation allows it: ntfy fetches through this module's
@@ -30,6 +33,7 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
+import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
 import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import {
   LIVE_GOALS,
@@ -42,6 +46,11 @@ import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveSettings } from "./LiveSettings.js";
 import { carrierFactory, carriersUnavailable } from "./carriers/index.js";
 import { liveUiSeams } from "./live-hooks.js";
+import {
+  clearLiveHostAskingNotices,
+  noteDeviceAsking,
+  noteGuestAsking,
+} from "./live-host-tray.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 export const CAPABILITY = "sharing.live";
@@ -60,9 +69,18 @@ export const capabilityRuntime: CapabilityRuntime = {
       plan: () => compositionStore.getSnapshot().plan,
     });
     liveUiSeams.carriers = carriers;
+    const priorHostState = liveSeams.onHostState;
+    const priorHostingEnded = liveSeams.onHostingEnded;
+    liveSeams.onHostState = (state) => {
+      noteGuestAsking(state);
+      noteDeviceAsking(state);
+    };
+    liveSeams.onHostingEnded = clearLiveHostAskingNotices;
     activation.onDispose(() => {
       if (liveUiSeams.carriers === carriers)
         liveUiSeams.carriers = carriersUnavailable;
+      liveSeams.onHostState = priorHostState;
+      liveSeams.onHostingEnded = priorHostingEnded;
     });
 
     activation.register("route", {

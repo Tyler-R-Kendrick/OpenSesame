@@ -9,9 +9,13 @@ and reload the app. A website cannot enable a browser flag. No JavaScript
 polyfill can register tools in Chrome's native pane.
 
 Support reports acknowledged registrations, not catalog size or pending
-promises. On the sign-in/locked screen expect 3 tools. In an unlocked vault
-expect 20. Application > WebMCP lists these tools and can invoke them.
-The counts do not include remote MCP servers: these are in-page WebMCP tools.
+promises. A device that has not chosen the WebMCP tools capability exposes no
+tool at all ([ADR 0130](../adr/0130-operator-controlled-capability-composition.md)).
+Once it is chosen, the sign-in/locked screen has 4 tools,
+and an unlocked vault with the capabilities the gate chooses (`CHOSEN` in
+`apps/pages/scripts/verify-webmcp.mjs`) has 24. Application > WebMCP lists
+these tools and can invoke them. The counts do not include remote MCP servers:
+these are in-page WebMCP tools.
 
 ## Reproduce against shipped bytes
 
@@ -29,11 +33,15 @@ from `storage.googleapis.com/chrome-for-testing-public/` and point
 
 The test serves `dist/` under the production HTTPS origin without a backend.
 It listens to native `WebMCP.toolsAdded`/`toolsRemoved`, invokes tools with
-`WebMCP.invokeTool`, and inspects actual rendered state. It covers all 23
-authored destinations, seven built-in new-item ceremonies, metadata creation,
+`WebMCP.invokeTool`, and inspects actual rendered state. It covers every
+authored destination (it requires at least 23), six built-in new-item
+ceremonies (account, secret, note, card, certificate, passkey), metadata creation,
 rename/favorite/read, forbidden input, human reveal handoff, Support, lock,
 existing-item edit navigation, and reload. Missing native support fails; it never silently skips.
 The existing Bundle budgets CI job runs the same test using installed Chrome.
+
+The figures below are what those dated local runs observed; the gate's current
+expectations are the ones above.
 
 Local validation on 2026-09-09 used Chromium 151.0.7922.10: 3 boot tools,
 20 unlocked tools, 23 destinations and 44 CDP invocations passed. The full

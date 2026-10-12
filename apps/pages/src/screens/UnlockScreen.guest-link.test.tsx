@@ -1,8 +1,9 @@
 /** @vitest-environment jsdom */
 /**
  * `/guest` (ADR 0140 D12): the alias opens the guest road that is already
- * on the screen and lands the keyboard on it — on the front door's sign-in
- * panel and on the unlock form's footer alike. It points, never presses, and
+ * on the screen and lands the keyboard on it — the front door's Skip, and
+ * "Skip to the guest vault" on the unlock form beside a sealed vault. It
+ * points, never presses, and
  * it cannot bring back a road the operator's "Allow guests" switch took away
  * (ADR 0135): with guests off the link opens the ordinary screen, and the
  * screen's own landing stands.
@@ -25,7 +26,8 @@ afterEach(async () => {
   await setGuestsAllowed(true);
 });
 
-const guest = () => screen.queryByRole("button", { name: "Continue as guest" });
+const guest = () =>
+  screen.queryByRole("button", { name: "Skip to the guest vault" });
 
 function sealed() {
   v.state = {

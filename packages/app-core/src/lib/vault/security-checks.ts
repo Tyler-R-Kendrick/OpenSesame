@@ -32,6 +32,11 @@ import {
   producePassword,
   unboundCredentials,
 } from "@opensesame/vault-core";
+import {
+  type BreachWatch,
+  type BreachWatchLine,
+  publishBreachWatch,
+} from "./health.js";
 
 export const PWNED_RANGE_URL = "https://api.pwnedpasswords.com/range/";
 export const TWO_FACTOR_LIST_URL = "https://api.2fa.directory/v3/totp.json";
@@ -57,6 +62,133 @@ export type SecurityReport = {
   checked: number;
   findings: SecurityFinding[];
 };
+
+/** Shown in Settings and on Password health while the capability is on and no check has finished. */
+export const SECURITY_CHECKS_IDLE =
+  "Breach and two-step checks are on. Not checked yet.";
+
+function noun(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** The sentence Password health and Settings show for one finished check. */
+export function securityWatchLabel(report: SecurityReport): string {
+  const breached = report.findings.filter((f) => f.breaches > 0).length;
+  const twoStep = report.findings.filter((f) => f.twoFactorAvailable).length;
+  const checked = report.checked;
+  if (breached > 0 && twoStep > 0) {
+    return `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.`;
+  }
+  if (breached > 0) {
+    return `${breached} of ${checked} passwords found in known breaches.`;
+  }
+  if (twoStep > 0) {
+    return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
+  }
+  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.`;
+}
+
+/** Visible sentences for one login, breach first, then a missing authenticator code. */
+export function findingSentences(
+  breaches: number,
+  twoFactorAvailable: boolean,
+): string[] {
+  const sentences: string[] = [];
+  if (breaches > 0) {
+    sentences.push(
+      `Found in breaches ${noun(breaches, "time", "times")}: change this password`,
+    );
+  }
+  if (twoFactorAvailable) {
+    sentences.push("This site takes an authenticator code; none is stored");
+  }
+  return sentences;
+}
+
+function watchLine(finding: SecurityFinding): BreachWatchLine {
+  const site =
+    finding.item.kind === "account" ? hostOf(finding.item.uris[0]?.uri) : "";
+  return {
+    id: finding.item.id,
+    name: finding.item.name,
+    site,
+    breaches: finding.breaches,
+    twoFactorAvailable: finding.twoFactorAvailable,
+    sentences: findingSentences(finding.breaches, finding.twoFactorAvailable),
+  };
+}
+
+function checkedWatch(report: SecurityReport): BreachWatch {
+  const breached = report.findings.filter((f) => f.breaches > 0).length;
+  const twoStep = report.findings.filter((f) => f.twoFactorAvailable).length;
+  return {
+    phase: "checked",
+    label: securityWatchLabel(report),
+    checked: report.checked,
+    breached,
+    twoStep,
+    lines: report.findings.map(watchLine),
+  };
+}
+
+let checkedScope: string | null = null;
+
+function securityWatchScope(tomb: string, items: readonly VaultItem[]): string {
+  return `${tomb}\0${logins(items)
+    .map((item) => item.updatedAt)
+    .sort()
+    .join("|")}`;
+}
+
+export type SecurityWatchNote =
+  | { phase: "off" }
+  | { phase: "idle" }
+  | { phase: "checking" }
+  | { phase: "error"; message: string }
+  | { phase: "checked"; report: SecurityReport };
+
+/** Publish the standing Password health and the settings panel both read. */
+export function noteSecurityWatch(note: SecurityWatchNote): void {
+  switch (note.phase) {
+    case "off":
+      checkedScope = null;
+      publishBreachWatch({ phase: "off" });
+      return;
+    case "idle":
+      checkedScope = null;
+      publishBreachWatch({ phase: "idle", label: SECURITY_CHECKS_IDLE });
+      return;
+    case "checking":
+      publishBreachWatch({
+        phase: "checking",
+        label: "Checking logins against known breaches and two-step sites.",
+      });
+      return;
+    case "error":
+      publishBreachWatch({ phase: "error", label: note.message });
+      return;
+    case "checked":
+      publishBreachWatch(checkedWatch(note.report));
+      return;
+  }
+}
+
+export function reconcileSecurityWatchWithVault(
+  tomb: string,
+  items: readonly VaultItem[],
+): void {
+  if (
+    checkedScope !== null &&
+    checkedScope !== securityWatchScope(tomb, items)
+  ) {
+    noteSecurityWatch({ phase: "idle" });
+  }
+}
+
+/** Capability off: Password health drops the breach block. */
+export function clearSecurityWatch(): void {
+  noteSecurityWatch({ phase: "off" });
+}
 
 async function sha1Hex(text: string): Promise<string> {
   const digest = await crypto.subtle.digest(
@@ -193,6 +325,7 @@ export async function runSecurityChecks(
   fetchRange: CheckFetch,
   fetchList: CheckFetch,
   now: () => Date = () => new Date(),
+  watchTomb?: string,
 ): Promise<SecurityReport> {
   const checked = logins(items);
   const counts = await breachCounts(checked.map(wholePassword), fetchRange);
@@ -218,5 +351,12 @@ export async function runSecurityChecks(
   findings.sort(
     (a, b) => b.breaches - a.breaches || a.item.name.localeCompare(b.item.name),
   );
-  return { checkedAt: now().toISOString(), checked: checked.length, findings };
+  if (watchTomb !== undefined) {
+    checkedScope = securityWatchScope(watchTomb, items);
+  }
+  return {
+    checkedAt: now().toISOString(),
+    checked: checked.length,
+    findings,
+  };
 }

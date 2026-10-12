@@ -36,6 +36,7 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/local_authority.rs"),
     include_str!("../src/vault_migration.rs"),
     include_str!("../src/vault_file.rs"),
+    include_str!("../src/vault_area/circle.rs"),
     include_str!("../src/vault_area.rs"),
     include_str!("../src/access_area.rs"),
     include_str!("../src/identity_area.rs"),

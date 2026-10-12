@@ -5,6 +5,7 @@ export * from "./authority-templates/index.js";
 export * from "./cohort/index.js";
 export * from "./canonical-origin.js";
 export * from "./types.js";
+export * from "./org-vault-ref.js";
 export * from "./errors.js";
 export * from "./endpoint-display.js";
 export * from "./endpoints.js";

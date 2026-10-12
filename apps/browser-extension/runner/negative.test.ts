@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type Rig, enqueue, rig } from "./test-support/rig";
 import { RP } from "./test-support/site";
 
@@ -83,6 +83,81 @@ describe("runs the runner does not claim", () => {
       true,
     );
     expect(r.host.claims).toBe(0);
+  });
+
+  it("does not claim the next step when getRun names another origin", async () => {
+    const r = await rig();
+    const other = "https://other.example";
+    await r.settings.arm(other);
+    r.granted.add(other);
+    await r.vault.putEntry({
+      origin: other,
+      username: "other",
+      password: "other-secret",
+    });
+    r.host.openRun("run:1", RP);
+    r.host.presentView = (view, read) =>
+      read === 1 ? view : { ...view, id: "run:other", origin: other };
+    // Dispatch deadlines follow this test's clock, while vault and page work
+    // still run normally. Parallel crypto work must not expire the first step.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const navigate = enqueue(r, "run:1", {
+        step: "navigate",
+        url: `${RP}/x`,
+      });
+      const submit = enqueue(r, "run:1", { step: "submit" }, 50);
+      const report = await r.runner.tick();
+      expect((await navigate)?.outcome).toBe("done");
+      await vi.advanceTimersByTimeAsync(50);
+      expect(await submit).toBeNull();
+      expect(r.host.claims).toBe(1);
+      expect(r.host.settled.map((row) => row.request.step)).toEqual([
+        "navigate",
+      ]);
+      expect(report.skipped).toContainEqual({
+        runId: "run:1",
+        reason: "origin_refused",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops with not_armed when the opened origin expires before the next claim", async () => {
+    const r = await rig();
+    r.host.openRun("run:1", RP);
+    r.host.presentView = async (view, read) => {
+      if (read > 1) await r.settings.arm(RP, -1);
+      return view;
+    };
+    // Dispatch expiry waits for observed runner completion. Keep Date.now real
+    // so the authority arm still expires, and keep vault/page crypto unchanged.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const navigate = enqueue(r, "run:1", {
+        step: "navigate",
+        url: `${RP}/x`,
+      });
+      const submit = enqueue(r, "run:1", { step: "submit" }, 50);
+      const report = await r.runner.tick();
+      expect((await navigate)?.outcome).toBe("done");
+      expect(r.host.claims).toBe(1);
+      expect(report.settled).toBe(1);
+      expect(await r.settings.isArmed(RP)).toBe(false);
+      expect(r.host.settled.map((row) => row.request.step)).toEqual([
+        "navigate",
+      ]);
+      expect(report.skipped).toContainEqual({
+        runId: "run:1",
+        reason: "not_armed",
+      });
+      await vi.advanceTimersByTimeAsync(50);
+      expect(await submit).toBeNull();
+      expect(r.host.claims).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("an arm that ran out drives nothing and gives its grant back", async () => {
@@ -203,13 +278,28 @@ describe("steps the runner will not run", () => {
   it("a ceremony capture is answered as a failure, never as something sealed", async () => {
     const r = await rig();
     r.host.openRun("run:1", RP);
-    const pending = enqueue(r, "run:1", {
-      step: "capture_credential",
-      slot: "client_secret",
-      selector: "#secret",
-      recipient: "host-key",
-    });
-    await r.runner.tick();
-    expect(await pending).toEqual({ outcome: "failed", error: "transport" });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const pending = enqueue(r, "run:1", {
+        step: "capture_credential",
+        slot: "client_secret",
+        selector: "#secret",
+        recipient: "host-key",
+      });
+      const ticking = r.runner.tick();
+      expect(await pending).toEqual({ outcome: "failed", error: "transport" });
+      // Stop after the observed settlement, rather than racing a dispatch
+      // deadline against real encryption and the runner's idle polling.
+      r.host.handOff("run:1");
+      const report = await ticking;
+      expect(report.settled).toBe(1);
+      expect(r.host.claims).toBe(1);
+      expect(r.host.settled.map((row) => row.request.step)).toEqual([
+        "capture_credential",
+      ]);
+      expect(r.host.blobs.size).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

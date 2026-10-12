@@ -1,0 +1,78 @@
+.section--records {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.record-workspace {
+  position: relative;
+}
+.record-workspace__commands {
+  display: contents;
+}
+.record-workspace__add {
+  position: absolute;
+  right: calc(1rem + env(safe-area-inset-right));
+  bottom: calc(3rem + env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  color: var(--canvas);
+  background: var(--ink);
+}
+.record-workspace__add:disabled {
+  opacity: 0.45;
+}
+.record-workspace .vault__detail > .panel {
+  max-width: 44rem;
+  padding: 1.5rem 1.75rem;
+  border: 0;
+  background: transparent;
+}
+
+.record-workspace .identity-row {
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+}
+
+.record-workspace__view,
+.record-workspace__back {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .record-workspace__commands {
+    display: none;
+  }
+  .record-workspace__commands--utility {
+    display: contents;
+  }
+  .record-workspace .vtree__rows {
+    padding-bottom: 5rem;
+  }
+  .record-workspace__view {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    min-height: 3rem;
+    color: var(--ink);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .record-workspace__back {
+    display: inline-grid;
+    margin: 0.75rem 1rem 0;
+  }
+
+  .record-workspace .vault__detail > .panel {
+    padding: 1rem;
+  }
+}

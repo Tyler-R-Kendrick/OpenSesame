@@ -1,7 +1,8 @@
 # The app's relay (`apps/pages/server`, `apps/pages/api`)
 
 The server half of the one web deployment: a Connect callback relay and
-management proxy for Vercel Connect, and the GitHub App manifest relay. It
+management proxy for Vercel Connect, the GitHub App manifest relay and the
+git-backup forge proxy. It
 ships with the app, so a Vercel deployment of `apps/pages` serves the relay
 on the app's own origin; GitHub Pages serves the app without it (ADR 0090). The
 callback path holds no provider tokens or sessions. Management routes hold
@@ -11,7 +12,7 @@ the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
 | Path | What it holds |
 |------|---------------|
-| `server/` | The relay itself: the callback, management and GitHub App handlers, the `return_to` allowlist, the forge host guard, the pinned fetch, and the JSON boundary checks the connector handlers parse their input with (`json-boundary.mjs`). `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App handlers directly (`scripts/github-app-relay-plugin.mjs`). |
+| `server/` | The relay itself: the callback, management, GitHub App and git-backup handlers, the `return_to` allowlist, the forge host guard, the pinned fetch, and the JSON boundary checks the connector handlers parse their input with (`json-boundary.mjs`). `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App and git-backup handlers directly (`scripts/github-app-relay-plugin.mjs`). |
 | `api/` | Vercel serverless routes, one file per route. Each is a thin adapter over a handler in `server/`. |
 | `server/test/` | `node --test` suites (`pnpm --filter @opensesame/pages test:relay`, also part of `test`). |
 
@@ -32,9 +33,9 @@ GitHub App Manifest registration uses the same relay shape:
   this for localhost, GitHub Pages, and Vercel — one callback URL formula,
   no Host.
 
-`return_to` allowlist: loopback http(s), the relay's own origin, and
-`OPENSESAME_CONNECT_APP_ORIGINS` (comma-separated https origins). Anything
-else gets a 400.
+`return_to` allowlist: loopback http(s), the relay's own origin when it is
+https, and `OPENSESAME_CONNECT_APP_ORIGINS` (comma-separated https origins).
+Anything else gets a 400.
 
 ## Who may manage connectors
 
@@ -47,6 +48,8 @@ client can write. So the Origin allowlist is CORS, never authorization:
 | `POST /api/connect/connectors` | Origin allowlist **and** `Authorization: Bearer <OPENSESAME_CONNECT_MANAGE_KEY>` |
 | `POST /api/connect/authorize` | same, and `callbackUrl` must be this relay's own `/api/connect/callback` carrying only an allowlisted `return_to` (400 `invalid_callback` otherwise) |
 | `POST /api/connect/revoke` | same |
+| `POST /api/connect/connector/read`, `POST /api/connect/connector/update` | same |
+| `POST /api/connect/token-check` | same. Proves a token can be acquired for a subject and answers its fingerprint, expiry, scopes and the service's verdict on it — never the token. |
 
 The key is compared in constant time. With `OPENSESAME_CONNECT_MANAGE_KEY`
 unset (or shorter than 32 characters) every mutation answers 403
@@ -56,7 +59,7 @@ unset (or shorter than 32 characters) every mutation answers 403
 Pages sends the key only when the operator has provided it: it rides in the
 sealed Vercel Connect record (`config/vercel-connect-auth`, field
 `manageKey`) inside the vault, never in plaintext storage, and only on the
-three mutations. A visitor without it can still list, and a create,
+mutation routes above. A visitor without it can still list, and a create,
 authorize or revoke from their session is refused.
 
 If the relay sits behind a proxy that rewrites `Host` (the dev proxy below
@@ -93,8 +96,11 @@ node apps/pages/server/server.mjs        # :8789
 ```
 
 Pages talks to this relay for managed connectors (GitHub included). Set
-`VITE_CONNECT_CALLBACK_BASE=http://127.0.0.1:8789` in `apps/pages/.env.local`.
-There is no browser arm-token form — the relay holds the Vercel token.
+`VITE_CONNECT_CALLBACK_BASE=http://127.0.0.1:8789` in `apps/pages/.env.local`
+(a git-ignored file you create).
+With this relay there is no browser arm-token form — the relay holds the Vercel
+token; a page with no relay asks for a Vercel access token and team and uses
+them straight from the browser (ADR 0147).
 
 ## Deploy it
 

@@ -105,6 +105,24 @@ describe("AppShell rail navigation", () => {
     expect(filterLink(container, "/vault", "all").className).toContain(
       "is-active",
     );
+    expect(container.querySelector('a[href="/vault/health"]')).toBeNull();
+  });
+  it("keeps password health out of the tree; on its page the cursor stands on the vault row", () => {
+    const onVault = renderShell("/vault");
+    expect(
+      onVault.container.querySelector('a[href="/vault/health"]'),
+    ).toBeNull();
+    onVault.unmount();
+
+    const onHealth = renderShell("/vault/health");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    expect(
+      filterLink(onHealth.container, "/vault", "all").className,
+    ).not.toContain("is-active");
+    const cursor = document.getElementById(
+      tree.getAttribute("aria-activedescendant") ?? "",
+    );
+    expect(cursor?.getAttribute("aria-label")).toBe("Vault");
   });
   it("handles vaults with no folders and no items", () => {
     vault.items = [];

@@ -1,14 +1,17 @@
+import { isAiModelProvider } from "@opensesame/app-core/lib/ai-model-provider.js";
 import { connectFormDraws } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { canConfigureAutomatically } from "@opensesame/app-core/lib/connector-guidance.js";
+import { docLink } from "@opensesame/app-core/lib/doc-link.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import {
   readLocalGithubApp,
   subscribeLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
+import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import {
   hasConnectRoute,
   isVercelCatalogId,
@@ -38,19 +41,24 @@ import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
+import { nativeConnectorHeaderStatus } from "./SettingsPageNativeStatus.js";
 import {
   AuthorizedAccount,
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
-import { ConnectPanels } from "./connect/ConnectPanels.js";
+import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
+import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
+import {
+  NativeConnectorPanels,
+  nativeSettingsDescriptor,
+} from "./connect/NativeConnectorPanels.js";
 
 /**
- * Where Vercel Connect's plan sits on this page (ADR 0147). A registry
- * service gets the plan-built panels. A key or a configuration also seals
- * on this device, and those panels stay beside that form. Git forges and
- * other bundled rows keep their own road beside Connect. GitHub keeps its
- * App flow. A refused service (ADR 0086 §6) gets no Connect road.
+ * Registry services get the provider configuration experience. Existing
+ * device key/configuration and forge flows keep their working local road;
+ * imported hosted connections retain their management panels. GitHub keeps
+ * its App flow. A refused service (ADR 0086 §6) gets no Connect road.
  */
 function connectOwned(providerId: string): "only" | "beside" | null {
   if (!hasConnectRoute(providerId)) return null;
@@ -105,10 +113,22 @@ export function ConnectorSettingsPage({
     () => null,
   );
   const roads = useConnectorRoads();
+  const nativeDescriptor = provider ? nativeSettingsDescriptor(provider) : null;
+  const nativeExperience =
+    nativeDescriptor !== null && !isConnectConnection(connection);
+  const headerDocs = provider
+    ? docLink(
+        provider.displayName,
+        nativeExperience
+          ? (nativeDescriptor.docsUrl ?? provider.docsUrl)
+          : provider.docsUrl,
+      )
+    : null;
   useEffect(() => {
     // A completed local App registration must not leave a failure glyph up.
-    if (localGithubApp !== null && flash?.tone === "err") onFlash(null);
-  }, [localGithubApp, flash, onFlash]);
+    if (!nativeExperience && localGithubApp !== null && flash?.tone === "err")
+      onFlash(null);
+  }, [nativeExperience, localGithubApp, flash, onFlash]);
   if (!provider) {
     return (
       <div className="section__inner">
@@ -135,6 +155,17 @@ export function ConnectorSettingsPage({
     );
   }
 
+  const nativeHeader =
+    nativeConnectorHeaderStatus(connection, provider) ??
+    (nativeExperience
+      ? {
+          tone: "idle" as const,
+          label: nativeDescriptor.methods.some((method) => method.available)
+            ? "Not connected"
+            : "Not available here",
+          sentence: `${provider.id === "github" ? "Personal access token" : authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`,
+        }
+      : null);
   const automatic = canConfigureAutomatically(provider);
   const onConnect = connectOwned(provider.id);
   // A key or a configuration is collected on this page, including when
@@ -160,14 +191,15 @@ export function ConnectorSettingsPage({
           <div className="conn-settings__name">
             <h1>{provider.displayName}</h1>
             <StatusMark
-              {...githubConnectorStatus(
-                provider,
-                connection,
-                connections,
-                backupReady,
-                localGithubApp !== null,
-                roads.acts(provider),
-              )}
+              {...(nativeHeader ??
+                githubConnectorStatus(
+                  provider,
+                  connection,
+                  connections,
+                  backupReady,
+                  localGithubApp !== null,
+                  roads.acts(provider),
+                ))}
             />
             {canBackupEnable(provider.id) ? (
               <BackupEnableSwitch
@@ -175,24 +207,30 @@ export function ConnectorSettingsPage({
                 displayName={provider.displayName}
               />
             ) : null}
-            {provider.id === "github" && localGithubApp !== null ? (
+            {provider.id === "github" &&
+            localGithubApp !== null &&
+            !nativeExperience ? (
               <GithubAppForgetButton />
             ) : null}
           </div>
           <p>
-            {connection
-              ? statusSentence(connection, provider)
-              : `${authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`}
+            {nativeHeader?.sentence ??
+              (connection
+                ? statusSentence(connection, provider)
+                : `${authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`)}
           </p>
         </div>
-        <a
-          className="btn btn--sm btn--ghost"
-          href={provider.docsUrl}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          Docs <IconExternal size={14} />
-        </a>
+        {headerDocs ? (
+          <a
+            className="btn btn--sm btn--ghost"
+            href={headerDocs.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            title={headerDocs.label}
+          >
+            {headerDocs.short} <IconExternal size={14} />
+          </a>
+        ) : null}
       </header>
 
       {flash ? (
@@ -204,7 +242,7 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {providerId === "github" ? (
+      {providerId === "github" && !nativeExperience ? (
         <GithubAppPresence
           connection={connection}
           online={online}
@@ -213,7 +251,9 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {providerId !== "github" && isGitBackupProvider(providerId) ? (
+      {providerId !== "github" &&
+      !nativeExperience &&
+      isGitBackupProvider(providerId) ? (
         <section className="panel" data-testid="forge-backup-sync">
           <div className="panel__head">
             <h2>Backup</h2>
@@ -232,7 +272,7 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {automatic ? (
+      {nativeExperience ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
@@ -240,12 +280,10 @@ export function ConnectorSettingsPage({
             </div>
           </div>
           <div className="panel__body">
-            <p className="hint">
-              {provider.displayName} is built in. Nothing to authorize.
-            </p>
+            <p className="hint">Built in.</p>
           </div>
         </section>
-      ) : connection ? (
+      ) : isSelfHostedConnector(connection) ? null : connection ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <h2>Authorization</h2>
@@ -325,7 +363,27 @@ export function ConnectorSettingsPage({
           }
         />
       )}
-      {onConnect ? (
+      {nativeExperience ? (
+        <>
+          <NativeConnectorPanels
+            key={`${provider.id}/${connection?.connectionId ?? "new"}`}
+            provider={provider}
+            connection={connection}
+            onFlash={onFlash}
+            onChanged={onChanged}
+          />
+          {connection?.status === "active" && isAiModelProvider(provider) ? (
+            <ModelKeysPanel
+              providerId={provider.id}
+              providerName={provider.displayName}
+              connectionId={connection.connectionId}
+            />
+          ) : null}
+        </>
+      ) : onConnect &&
+        (!deviceSeal ||
+          isSelfHostedConnector(connection) ||
+          isConnectConnection(connection)) ? (
         <ConnectPanels
           provider={provider}
           connection={connection}

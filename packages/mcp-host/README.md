@@ -1,7 +1,9 @@
 # @opensesame/mcp-host
 
-The host-facing MCP server, binary `opensesame-mcp-host`, over stdio or
-loopback Streamable HTTP. It gives a model task tools on the Host API — start
+The host-facing MCP server, over stdio or loopback Streamable HTTP. The package
+declares the bin `opensesame-mcp-host` (entry `src/server.ts`), and
+[`@opensesame/cli`](../cli) serves the same `main()` as `opensesame-id mcp
+host`. It gives a model task tools on the Host API — start
 a task under an immutable capability ceiling, freeze an intent, execute it,
 terminate — plus sync and health tools. Every authenticated call carries a
 short-lived agent capability from an approved local launch; it never carries
@@ -9,7 +11,8 @@ the operator token, and there is no tool that reads a secret.
 
 ## Where it fits
 
-- **Used by:** MCP-capable agents on the host. Setup:
+- **Used by:** MCP-capable agents on the host, and [`@opensesame/cli`](../cli)
+  (`mcp host`). Setup:
   [skills/opensesame-mcps](../../skills/opensesame-mcps/SKILL.md).
 - **Builds on:** [`@opensesame/agent-client`](../../packages/agent-client),
   [`@opensesame/api-client`](../../packages/api-client),
@@ -40,7 +43,7 @@ the operator token, and there is no tool that reads a secret.
 | Variable | Meaning |
 |---|---|
 | `OPENSESAME_MCP_TRANSPORT` | `stdio` (default) or `http` |
-| `OPENSESAME_MCP_HTTP_LISTEN`, `OPENSESAME_MCP_HTTP_TOKEN` | HTTP listener (default `127.0.0.1:18791`) and its bearer |
+| `OPENSESAME_MCP_HTTP_LISTEN`, `OPENSESAME_MCP_HTTP_TOKEN` | HTTP listener (default `127.0.0.1:18791`, loopback host required) and its bearer (required, at least 16 characters) |
 | `OPENSESAME_HOST_API` | Host API base (default `http://127.0.0.1:8787`) |
 | `OPENSESAME_DAEMON_API` | Daemon base, loopback only (default `http://127.0.0.1:18790`) |
 | `OPENSESAME_TELEMETRY_KEY`, `OPENSESAME_TELEMETRY_HOST` | Optional tool-call telemetry; off unless the key is set |

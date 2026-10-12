@@ -1,5 +1,10 @@
 # Credential surrogates: prior art and what OpenSesame takes from it
 
+> Status (2026-10-08): the two adapters this note points at now exist as the
+> optional plugins of ADR 0150 §7: the proxy (`crates/surrogate-proxy`, binary
+> `opensesame-surrogate-proxy`) and the companion autofill extension
+> (`apps/browser-extension-autofill`). The survey below is as of 2026-09-28.
+
 Research behind [ADR 0150](../adr/0150-surrogate-credentials-at-the-last-hop.md).
 Surveyed 2026-09-28. This note covers one pattern: the untrusted side holds a
 stand-in, and a trusted boundary puts the real credential on the wire.
@@ -15,9 +20,9 @@ stand-in, and a trusted boundary puts the real credential on the wire.
 | E2B `network.rules` (beta) | nothing | gateway header injection | host match | — | Plain environment variables are documented as "not private in the OS". |
 | Infisical Agent Vault | `__NAME__` placeholder | proxy rewrites URL path or query | single-level wildcard hosts | none | Trust-the-proxy; HTTP/2 disabled. |
 | Fly.io Tokenizer | secret sealed to the proxy's Curve25519 key, sent in `Proxy-Tokenizer` | stateless proxy | per-secret allowed hosts or regex | — | Processors cover header injection, HMAC signing and JWT-bearer exchange. The client must be modified. |
-| 1Password Secure Agentic Autofill (Browserbase) | the agent never holds it | headless 1Password extension fills after human approval over a Noise channel | per-item human approval | — | Fill, not substitution: the value does reach the page. |
+| 1Password Secure Agentic Autofill (Browserbase) | the agent never holds it | the 1Password extension in the remote browser fills after human approval over a Noise-based channel | per-item human approval | — | Fill, not substitution: the value does reach the page. |
 | Horcrux (Li & Evans, arXiv:1706.05085) | dummy credentials autofilled into the DOM | trusted component rewrites the POST before encryption | form submission | — | Works on over 98% of tested forms. Fails where the page transforms the field client-side. |
-| Nonce replacement (arXiv:2509.02289) | random nonce autofilled | the *browser* swaps it before transmission | submission | — | Proposes a browser change. Counts 1,410 extensions that can read any request body. |
+| Nonce replacement (arXiv:2509.02289) | random nonce autofilled | the *browser* swaps it before transmission | submission | — | Proposes a browser change. Counts 4,169 extensions that can read any request body, 1,410 of them unable to inject scripts. |
 
 ## Where they disagree, and why it matters
 
@@ -54,10 +59,12 @@ stand-in, and a trusted boundary puts the real credential on the wire.
   is a local TLS-terminating proxy the whole browser trusts, and ADR 0150 §6.4
   rejects that.
 - DOM-based extension clickjacking (Marek Tóth, DEF CON 33, August 2025) hid
-  password-manager autofill UI under page overlays. It extracted credentials,
-  cards and TOTP from eleven managers with about 40 million installs. The
-  lesson for an autofill that has not been built yet: the trusted gesture
-  must happen on UI the page cannot draw over.
+  password-manager autofill UI under page overlays. All eleven managers
+  tested were vulnerable, across about 40 million installs, and depending on
+  the manager the attack extracted credentials, cards, TOTP codes and
+  personal data. The lesson for autofill, which had not been built when this
+  was surveyed: the trusted gesture must happen on UI the page cannot draw
+  over.
 
 ## Sources
 

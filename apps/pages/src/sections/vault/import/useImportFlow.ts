@@ -1,3 +1,4 @@
+import { STALE_BUILD } from "@opensesame/app-core/lib/chunk-load.js";
 import {
   dismissNotice,
   setStatusNotice,
@@ -25,6 +26,7 @@ import {
   planStoreManifest,
 } from "@opensesame/app-core/sections/vault/import/store-manifest.js";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { checkForAppUpdate } from "../../../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../../../lib/vault/hooks.js";
 
 const NOTICE = "vault-import";
@@ -47,11 +49,26 @@ export type ImportFlow = Readonly<{
 }>;
 
 /**
+ * A failure is a status notice in the tray; a clean outcome clears the last
+ * one. A page older than the host's is also asked for the build it lacks, so
+ * the reload the message names brings the person to it.
+ */
+function announce(error: string | null): void {
+  if (error === STALE_BUILD) void checkForAppUpdate();
+  if (error === null) {
+    dismissNotice(NOTICE);
+    return;
+  }
+  setStatusNotice({ id: NOTICE, tone: "err", title: "Import", body: error });
+}
+
+/**
  * The sheet's React binding over the import model: one transition at a
  * time, each outcome landing in one place. A failure is a mark in the sheet
- * and a status notice in the tray — never a box in the page.
+ * and a status notice in the tray — never a box in the page. `onDone` runs
+ * once, when a merge or a restore has been written.
  */
-export function useImportFlow(file: File): ImportFlow {
+export function useImportFlow(file: File, onDone?: () => void): ImportFlow {
   const { items, folders } = useVault();
   const store = useVaultStore();
   const [stage, setStage] = useState<ImportStage>({
@@ -76,16 +93,9 @@ export function useImportFlow(file: File): ImportFlow {
     current.current = next;
     setStage(next);
     setError(outcome.error);
-    if (outcome.error !== null) {
-      setStatusNotice({
-        id: NOTICE,
-        tone: "err",
-        title: "Import",
-        body: outcome.error,
-      });
-    } else {
-      dismissNotice(NOTICE);
-    }
+    // Whoever opened the sheet may need to know the items are in the vault.
+    if (next.step === "done" && before.step !== "done") onDone?.();
+    announce(outcome.error);
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new file is the only thing that starts a new read

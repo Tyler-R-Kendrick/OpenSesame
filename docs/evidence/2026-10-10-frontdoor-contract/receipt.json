@@ -1,0 +1,341 @@
+{
+  "mainRevision": "83883018e9ffba7c599ce2a1e261cd8f0fb6fe09",
+  "brandChange": "4ce98a580c5644f347fd6af71b3d7b017ec1ec34 (#1012)",
+  "origin": "http://127.0.0.1:5182/",
+  "capture": "Real isolated VITE_BASE=/ Pages production build; fresh Chromium contexts; service workers blocked; no provider fixtures or screenshot masks.",
+  "baselineProvenance": "Before columns are the previously committed .impeccable/screenshots/pages baselines, not a new before-build capture. Middle columns are actual failed pre-wait captures from this build. After columns are reviewed actual completed-cipher captures.",
+  "budgets": {
+    "pixels": 0.015,
+    "content": 0.05,
+    "pixelmatchThreshold": 0.1
+  },
+  "sourceByteIdenticalToMain": [
+    {
+      "path": "apps/pages/src/assets/fonts/os-logo.ttf",
+      "headBlob": "e80395150ec2a623e6021088465dd9e098020a62",
+      "worktreeBlob": "e80395150ec2a623e6021088465dd9e098020a62",
+      "sha256": "630aac631f066cb298b03229c225424220beeefa93f6e04c4d391c5b1861bbb2"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/CipherWordmark.test.tsx",
+      "headBlob": "cf37946a5ce351c067a89fff1ca6699131cbfc5a",
+      "worktreeBlob": "cf37946a5ce351c067a89fff1ca6699131cbfc5a",
+      "sha256": "ca73a47ecbb222c768c5407026e490861328873a976d52ab536f43a02275896a"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/CipherWordmark.tsx",
+      "headBlob": "117503c6740998f17b120cfd906e15f12d3090e6",
+      "worktreeBlob": "117503c6740998f17b120cfd906e15f12d3090e6",
+      "sha256": "41ec00fbd39ac41e9004aa3e6d476f61eb2084b728cafa9f890c5250149fa0dd"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/canvas-context.ts",
+      "headBlob": "9797fe796a49da2e64be1495fecb6fbe748af6bd",
+      "worktreeBlob": "9797fe796a49da2e64be1495fecb6fbe748af6bd",
+      "sha256": "39e0e28f0375f6314b32f12c25fe93b1c69bf5da34ca66e430c2ce2ea0dae473"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/cipher-frame.ts",
+      "headBlob": "8af304c86f33b7f401c45108520ef68e9d0d249c",
+      "worktreeBlob": "8af304c86f33b7f401c45108520ef68e9d0d249c",
+      "sha256": "4ee52e29c1374936bf27ed84145c80db2dec89d2f2b97f00c2adb8ca710e4b3d"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/cipher-resize.ts",
+      "headBlob": "ff048f7fa9a29d31deaab833ae4ec93ee2a5d98f",
+      "worktreeBlob": "ff048f7fa9a29d31deaab833ae4ec93ee2a5d98f",
+      "sha256": "67707aa754f440ffb2b0599b9ae70e30519653861f39536432f9a27e0fa75730"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/cipher-timings.ts",
+      "headBlob": "5cc82b6ed996e7f7259a4a89a52f57ca5e8e86e8",
+      "worktreeBlob": "5cc82b6ed996e7f7259a4a89a52f57ca5e8e86e8",
+      "sha256": "11371bece1c36e4275b71e95d4147c0eb297430b21a2b30fcf0a537ababc92a7"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/cipher.ts",
+      "headBlob": "40c882ccfc466cb2dba3ec5377b3a1100ae99102",
+      "worktreeBlob": "40c882ccfc466cb2dba3ec5377b3a1100ae99102",
+      "sha256": "5c71371b2fcd21b8d1a084a51c3c3c8017dfa911503edc5c14e6a89f46f1ca51"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/index.ts",
+      "headBlob": "0ed0467baf66bfa959661e27a618880d60ca7ec8",
+      "worktreeBlob": "0ed0467baf66bfa959661e27a618880d60ca7ec8",
+      "sha256": "1add3fdec8ca86026dd0cb5567699a3501c7dd9cdc7f2807b03918f8918793a5"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/injected-clock.ts",
+      "headBlob": "4932542b8c9f8cf80b4e85718729b91b88b705db",
+      "worktreeBlob": "4932542b8c9f8cf80b4e85718729b91b88b705db",
+      "sha256": "146041f50cc61100f968527c43152dd6c73b19c59e222843fbc24801643eb16e"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/mark-geometry.test.ts",
+      "headBlob": "c2e21ad3b1a128e2bfa5cbcbed19d63ade8f2491",
+      "worktreeBlob": "c2e21ad3b1a128e2bfa5cbcbed19d63ade8f2491",
+      "sha256": "d08b2c6d786cc54302cc61aeb1f81eec7ab9450d43b6afda9bb7509d45362ade"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/mark-geometry.ts",
+      "headBlob": "8dcab9f6d3e45121b3ef13cd23dbe8712650d84c",
+      "worktreeBlob": "8dcab9f6d3e45121b3ef13cd23dbe8712650d84c",
+      "sha256": "241f1ecb528f2819908d275255c2d534a5363882e5ea7f5ef53bc89b69e8a95b"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/particles-draw.ts",
+      "headBlob": "6aa41c12c80cb415393899cc8f15a2cff75e87f2",
+      "worktreeBlob": "6aa41c12c80cb415393899cc8f15a2cff75e87f2",
+      "sha256": "700122be56dfe5e7a7e5eab9cbf1da09fdadafa95dfcaf6283b0affd35698eaa"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/particles-layout.ts",
+      "headBlob": "68a0c66ade2ab1979d8c098767e3b8316944f114",
+      "worktreeBlob": "68a0c66ade2ab1979d8c098767e3b8316944f114",
+      "sha256": "5db14a0e55a1d0e2d1a618a3eba3ec06562062cb3215a54b0f633ab5f7221d7b"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/particles-model.ts",
+      "headBlob": "925c9d8a6e9ae98d280060de861111a9e6d70127",
+      "worktreeBlob": "925c9d8a6e9ae98d280060de861111a9e6d70127",
+      "sha256": "d057fe2be8a75d4d9d9edbc84c0e62b29fad44dc3f5a1b61fa0ee67cc7157766"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/particles.draw.test.ts",
+      "headBlob": "4baf9c83cca1ad4b548c1b2d1c4886e026edbaae",
+      "worktreeBlob": "4baf9c83cca1ad4b548c1b2d1c4886e026edbaae",
+      "sha256": "f9e826cb4d9e6a84f32c5ae91d07db1dd585205e3033e3ac5aa6bd04218731da"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/particles.ts",
+      "headBlob": "aed6e1ef5c0aa4d97362bc32bee30a03d85466e0",
+      "worktreeBlob": "aed6e1ef5c0aa4d97362bc32bee30a03d85466e0",
+      "sha256": "2244f0f2129fed7b4f8f224112c406258e99f616d8b25603a1916bbb2009f1ca"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/test-canvas.ts",
+      "headBlob": "edeab92dd2bf22b722f8c36e0d9f107f4ec634b6",
+      "worktreeBlob": "edeab92dd2bf22b722f8c36e0d9f107f4ec634b6",
+      "sha256": "d797daebc553d53d18aac52bdcd91c9ed15fe5a6889a2e3115dc6d147ff7a006"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/use-cipher-boot.ts",
+      "headBlob": "993e93a280e6b486deca5290e3ab19ab7b968150",
+      "worktreeBlob": "993e93a280e6b486deca5290e3ab19ab7b968150",
+      "sha256": "fd1de2ac8831eee0090b90efaab54dfe05f31722d9fc5e93a0fbaa92f982f3e4"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/use-cipher-lifecycle.ts",
+      "headBlob": "c918d6c192cbb5f821d88fd206c10306ce2df484",
+      "worktreeBlob": "c918d6c192cbb5f821d88fd206c10306ce2df484",
+      "sha256": "081dd4f605e0ab6cd84f06ce222706cf534cbca96db56cae849f62b7ea6742a7"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/use-cipher-paint.ts",
+      "headBlob": "8fae3e9f710960141cf05a115c555baa50922c8c",
+      "worktreeBlob": "8fae3e9f710960141cf05a115c555baa50922c8c",
+      "sha256": "3e6d98d02a1fe4f32d02f07c5c5fe6216f9c3837e61b04527f2caa3c7eced88a"
+    },
+    {
+      "path": "apps/pages/src/components/CipherWordmark/use-cipher-runs.ts",
+      "headBlob": "17ee2f0837754921b43af68c58481d7d286a2e6c",
+      "worktreeBlob": "17ee2f0837754921b43af68c58481d7d286a2e6c",
+      "sha256": "366df7cadbf7a38bfecc574ab8f7054557f04644fc109ffcebce662de1051faf"
+    },
+    {
+      "path": "apps/pages/src/components/Wordmark.tsx",
+      "headBlob": "cb58353aaecdcdc9b750553eaab9a933d158ed70",
+      "worktreeBlob": "cb58353aaecdcdc9b750553eaab9a933d158ed70",
+      "sha256": "8f39f7da986a93efacf6c074b9f315483b57c7c72719d584f90cd2371da83143"
+    },
+    {
+      "path": "apps/pages/src/components/wordmark.css",
+      "headBlob": "0fc879f980fde26f17f261f601225ab75a13e089",
+      "worktreeBlob": "0fc879f980fde26f17f261f601225ab75a13e089",
+      "sha256": "e749521646aa122cb03d64068191a9e97b74ff4100bce7cfa82a5d48cdb4a2a6"
+    },
+    {
+      "path": "apps/pages/src/screens/FrontDoor.tsx",
+      "headBlob": "f1c4835774c41a4b8902459bafc825e33f587e54",
+      "worktreeBlob": "f1c4835774c41a4b8902459bafc825e33f587e54",
+      "sha256": "e073b4de3dacc539aa1bfac0069ffffd1a4f3c5968565e59542d1f1981c8a1e2"
+    },
+    {
+      "path": "apps/pages/src/screens/door.css",
+      "headBlob": "4e3e67e2240f1ae82b7fb261824b3e37b403d486",
+      "worktreeBlob": "4e3e67e2240f1ae82b7fb261824b3e37b403d486",
+      "sha256": "0aee400d40ae3c231b0616cb2a48e0672779394eafb181b8d588a4fc2e114c34"
+    },
+    {
+      "path": "apps/pages/src/screens/unlock.css",
+      "headBlob": "4ab87d17601c83a410a5a5d924ef295b67e27380",
+      "worktreeBlob": "4ab87d17601c83a410a5a5d924ef295b67e27380",
+      "sha256": "b89ee403d0820f4305da29467820ac172e8b1ef37c4db140db2b4716caba336e"
+    },
+    {
+      "path": "apps/pages/src/styles.css",
+      "headBlob": "64e673cb9d7d82b845af2856dd24cc73ada617f6",
+      "worktreeBlob": "64e673cb9d7d82b845af2856dd24cc73ada617f6",
+      "sha256": "4a9fbed7ec5688c770096cdacf37ba6b5937f0a817e7fd27b9ed37232be2bc6f"
+    }
+  ],
+  "measurements": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "wordmark": {
+        "x": 184,
+        "y": 355.640625,
+        "width": 480,
+        "height": 65.828125
+      },
+      "canvas": {
+        "x": 184,
+        "y": 355.640625,
+        "width": 480,
+        "height": 65.828125
+      },
+      "firstRoad": {
+        "x": 184,
+        "y": 479.953125,
+        "width": 236,
+        "height": 77.1875
+      },
+      "releaseNotes": {
+        "x": 720,
+        "y": 0,
+        "width": 720,
+        "height": 900
+      },
+      "settled": true,
+      "cursor": "-1"
+    },
+    {
+      "name": "phone",
+      "width": 390,
+      "height": 844,
+      "wordmark": {
+        "x": 20,
+        "y": 84,
+        "width": 350,
+        "height": 50.171875
+      },
+      "canvas": {
+        "x": 20,
+        "y": 84,
+        "width": 350,
+        "height": 50.171875
+      },
+      "firstRoad": {
+        "x": 20,
+        "y": 192.65625,
+        "width": 350,
+        "height": 81.96875
+      },
+      "releaseNotes": {
+        "x": 20,
+        "y": 384.59375,
+        "width": 350,
+        "height": 143.5
+      },
+      "settled": true,
+      "cursor": "-1"
+    }
+  ],
+  "previousBaselineVersusSettled": [
+    {
+      "name": "pages-desktop",
+      "previousBaselineSha256": "4eb187df3d021335e20d22806c27fd1987b776a55ead457cbb4b7e2c7f929c54",
+      "matched": false,
+      "diffPixelCount": 22215,
+      "diffRatio": 0.017141203703703704,
+      "totalPixels": 1296000,
+      "contentPixels": 614297,
+      "contentDiffRatio": 0.036163289093060845
+    },
+    {
+      "name": "pages-mobile",
+      "previousBaselineSha256": "df2b8bba50c34914a6ddde338f6cb0e38db3249f502c37d3fa3d1e04f70a7eaa",
+      "matched": false,
+      "diffPixelCount": 20548,
+      "diffRatio": 0.062425568112771904,
+      "totalPixels": 329160,
+      "contentPixels": 142376,
+      "contentDiffRatio": 0.1443220767545092
+    }
+  ],
+  "finalComparisons": [
+    {
+      "name": "pages-desktop",
+      "baselineSha256": "a862c0fb1f7edf28b94654393b032423407fbdee6c3e56d614410a6087a9e174",
+      "capturedSha256": "df370409da483ce36e03138fa1ca6b213fa37791f702860029030ecbc440cbc4",
+      "matched": true,
+      "diffPixelCount": 220,
+      "diffRatio": 0.00016975308641975308,
+      "totalPixels": 1296000,
+      "contentPixels": 602666,
+      "contentDiffRatio": 0.00036504465159806595
+    },
+    {
+      "name": "pages-mobile",
+      "baselineSha256": "e7b9e9aca6e08a43371d7510abdf1c8e304f354f950c87ccd14b41e55161ce37",
+      "capturedSha256": "e7b9e9aca6e08a43371d7510abdf1c8e304f354f950c87ccd14b41e55161ce37",
+      "matched": true,
+      "diffPixelCount": 0,
+      "diffRatio": 0,
+      "totalPixels": 329160,
+      "contentPixels": 120855,
+      "contentDiffRatio": 0
+    },
+    {
+      "name": "vault-unlock-desktop",
+      "baselineSha256": "2382bd90884a5a0f24c0052dd8a59d0396d5fa3bfb345c21e088b6d3d690d9de",
+      "capturedSha256": "11532540d4da6bcc2f1b83a9b5221abad35d395d9a3cfbd52f509626892833c7",
+      "matched": true,
+      "diffPixelCount": 7954,
+      "diffRatio": 0.006137345679012345,
+      "totalPixels": 1296000,
+      "contentPixels": 642137,
+      "contentDiffRatio": 0.012386764818099565
+    },
+    {
+      "name": "vault-unlock-mobile",
+      "baselineSha256": "0a0b05f2dab51fc17f68e493ca765079c73ef950ae57fa76ee48c079ef7c8577",
+      "capturedSha256": "1ad7f309cc26fbb969dcb591dc79a1e4bdcad1c97a17c4b578980c5a4996800e",
+      "matched": true,
+      "diffPixelCount": 3588,
+      "diffRatio": 0.010900473933649289,
+      "totalPixels": 329160,
+      "contentPixels": 85204,
+      "contentDiffRatio": 0.04211069902821464
+    },
+    {
+      "name": "vault-list-desktop",
+      "baselineSha256": "41fbbb79ddc93575a09448199e041f446924f0abda2c884a49c934407ef3c2be",
+      "capturedSha256": "10fabdb244dfdcb7cd83e2fa6591e8a248a61f58c7ab6e19598b73a78b04a5d8",
+      "matched": true,
+      "diffPixelCount": 18729,
+      "diffRatio": 0.014451388888888889,
+      "totalPixels": 1296000,
+      "contentPixels": 385821,
+      "contentDiffRatio": 0.048543236371270615
+    },
+    {
+      "name": "vault-list-mobile",
+      "baselineSha256": "355b9f775bc87790c8fc72d34c720c6c3789163a98db0ee9a6e76e68e0abc9f2",
+      "capturedSha256": "aae3701dcf074de6a9de306b8a6a243dd6392065e16b08ba0daf82f2efda335c",
+      "matched": true,
+      "diffPixelCount": 0,
+      "diffRatio": 0,
+      "totalPixels": 329160,
+      "contentPixels": 52714,
+      "contentDiffRatio": 0
+    }
+  ],
+  "verification": {
+    "visual": "All six comparisons pass (34.1s), VISUAL_UPDATE unset",
+    "unit": "3 files / 22 tests pass",
+    "typecheck": "tsc --noEmit passes"
+  }
+}

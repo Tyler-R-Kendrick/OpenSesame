@@ -25,6 +25,13 @@ export type GuideGoalDescriptor = {
    */
   readonly requires?: readonly string[];
   /**
+   * Optional capabilities of which at least one must be approved before this
+   * goal is offered. Omitted, the goal does not depend on an optional
+   * capability. A caller that omits `installed` treats every capability as
+   * installed.
+   */
+  readonly capabilities?: readonly string[];
+  /**
    * A checked-in GuideLang program. Runs verbatim when no model can answer,
    * and is parsed and validated by exactly the same pipeline model output
    * goes through — an authored guide gets no privileged path.

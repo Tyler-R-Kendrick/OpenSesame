@@ -1,0 +1,71 @@
+{
+  "run_id": "OpenSesame-run-8",
+  "repo": "OpenSesame",
+  "target": "/tmp/wt-run8-stack",
+  "source_ref": {
+    "commit": "cfa60722e1c26403c0d833fb230c48a5db07bd44",
+    "branch": "cursor/cf-audit-wallet-custom-scheme-d641",
+    "artifact_branch": "cursor/cf-audit-run-8-artifacts-d641",
+    "artifact_branch_base": "cursor/cf-audit-run-7-artifacts-d641",
+    "worktree": "/tmp/wt-run8-stack",
+    "origin_main": "ecb3c424e481b80b31accd71ea8c8f255266266a"
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "count_status": "in_progress",
+  "run_status": "in_progress",
+  "current_phase": "2_hunting",
+  "hunter_platform": "cursor_composer_2.5_subagents",
+  "hunter_model_policy": "Composer 2.5 for recon, hunt, validate, fix; grok-4.7 only as optional Cursor subagent when required. No XAI_API_KEY or AI Gateway.",
+  "started_at": "2026-10-08T17:27:33Z",
+  "phase_log": [
+    {
+      "phase": "1_reconnaissance",
+      "started_at": "2026-10-08T17:27:33Z",
+      "completed_at": "2026-10-08T17:28:14Z",
+      "agents": [
+        "recon-8a",
+        "recon-8b",
+        "recon-8c",
+        "recon-8d"
+      ]
+    },
+    {
+      "phase": "2_hunting",
+      "started_at": "2026-10-08T17:28:14Z",
+      "completed_at": null,
+      "agents": [
+        "h-run8-gateway",
+        "h-run8-pages",
+        "h-run8-app-core",
+        "h-run8-control-plane",
+        "h-run8-cli",
+        "h-run8-misc"
+      ],
+      "worktrees": [
+        "/tmp/wt-run8-stack"
+      ]
+    }
+  ],
+  "prior_run_paths": [
+    "docs/security/cloudflare-audit/run-7"
+  ],
+  "prior_counted_run": "run-7",
+  "coverage_ledger_units": 54,
+  "shared_file_owners": [
+    "parent"
+  ],
+  "notes": "Counted run 8 (clean run 2 of 2 if run 7 holds). Product tip cfa60722 includes #839\u2013#846 fixes.",
+  "completed_at": null,
+  "coverage_ledger_md5": "0f49e77bc4a95c913b5bd6aabc44e2e4"
+}

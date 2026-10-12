@@ -1,6 +1,6 @@
 # ADR 0094: Browser authority requires pairing and purpose-bound proof
 
-Status: accepted
+Status: Accepted
 
 ## Context
 

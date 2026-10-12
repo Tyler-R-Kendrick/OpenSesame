@@ -1,4 +1,4 @@
-import { readFile, readdir, rm, stat } from "node:fs/promises";
+import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { processFixture } from "./fixtures/password-agent/process.js";
@@ -92,29 +92,41 @@ describe("2password CLI process gauntlet", { timeout: 120_000 }, () => {
       0,
     );
     expect(
-      (await cli(["env", "resolve", template, "--output", target, "--desktop"]))
-        .code,
-    ).toBe(0);
-    expect(await readFile(target, "utf8")).toContain('API="private-canary"');
-    expect((await stat(target)).mode & 0o777).toBe(0o600);
-    expect(
-      (await readdir(directory)).some((name) => name.endsWith(".tmp")),
-    ).toBe(false);
+      (
+        await cli([
+          "env",
+          "resolve",
+          template,
+          "--output",
+          target,
+          "--desktop",
+          "--reveal",
+        ])
+      ).code,
+    ).toBe(1);
     expect(
       (
         await cli([
-          "read",
-          "op://v/i/f",
+          "env",
+          "resolve",
+          template,
+          "--output",
+          target,
           "--desktop",
-          "--account",
-          "selected.account",
+          "--reveal",
         ])
-      ).stdout,
-    ).toBe("private-canary\n");
-    expect((await calls()).at(-1)?.args.slice(-2)).toEqual([
+      ).stderr,
+    ).toMatch(/stdin and stdout/);
+    const readAttempt = await cli([
+      "read",
+      "op://v/i/f",
+      "--desktop",
+      "--reveal",
       "--account",
       "selected.account",
     ]);
+    expect(readAttempt.code).toBe(1);
+    expect(readAttempt.stderr).toMatch(/stdin and stdout/);
     env.OP_SERVICE_ACCOUNT_TOKEN = TOKEN;
     const script =
       "process.stdout.write(JSON.stringify({secret:process.env.API,token:process.env.OP_SERVICE_ACCOUNT_TOKEN,args:process.argv.slice(1)}));process.exit(7)";

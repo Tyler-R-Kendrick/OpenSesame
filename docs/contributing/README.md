@@ -11,7 +11,8 @@ the rules themselves are [`AGENTS.md`](../../AGENTS.md).
    (`pnpm --filter @opensesame/<name> test`).
 2. **Commit.** The pre-commit hook lints staged files, runs Clippy when Rust
    is staged, scans for secrets and checks the design contract.
-3. **Push.** The pre-push hook runs `pnpm typecheck && pnpm test` by default
+3. **Push.** The pre-push hook runs the anti-slop lint and plugin tests, then
+   `pnpm typecheck && pnpm test`, by default
    (`OPENSESAME_PREPUSH=off|fast|full`).
 4. **Open a pull request.** CI reports three required checks. A user-visible
    change carries before/after evidence
@@ -47,12 +48,23 @@ a scoping rule that dropped a check fails there.
 
 mTLS is not a required check. It runs when the diff touches the transport
 crates, the gateway, ingress or NATS config, or the Pages transport scripts.
+The Android and Apple native builds are jobs of their own that the Rust check
+waits on, so a failure there fails Rust. They run when the diff touches
+`apps/android`, `crates/authenticator-core`, the root Cargo files, the
+toolchain, `ci.yml` or a `scripts/test/mobile-*.sh` script
+([`scripts/test/mobile-changed.sh`](../../scripts/test/mobile-changed.sh)).
 
 `.github/workflows/deploy-pages.yml` publishes `apps/pages` on every push to
-`main`. Branch protection is kept as code in [`ops/github`](../../ops/github).
+`main`. Two more workflows are not required checks:
+`.github/workflows/full-suite.yml` runs the whole TypeScript workspace on `main`
+every night and on demand, and `.github/workflows/password-parity.yml` runs the
+2password parity gauntlet on pull requests that touch the CLI, Pages, the
+extension, the crates or the packages it exercises. Branch protection is kept as
+code in [`ops/github`](../../ops/github).
 
-CI is deliberately thin. Heavier checks run locally (`pnpm verify`) and on a
-schedule through [agent routines](agent-routines.md).
+CI is the merge gate, not the whole story. Heavier checks run locally
+(`pnpm verify`, the `pnpm audit:*` gates) and on a schedule through
+[agent routines](agent-routines.md).
 
 ## The gates, and why each exists
 
@@ -62,9 +74,9 @@ schedule through [agent routines](agent-routines.md).
 | Anti-slop | `pnpm lint:anti-slop` | No unsafe casts, no `unknown` leaking through APIs, no module mocking. | Type holes are where security bugs hide. |
 | Structure | `pnpm quality:gate` | Files ≤ 400 lines; function length, parameters and nesting within budget; the ledger only falls. | [ADR 0093](../adr/0093-structural-quality-gates.md); [guide](../validation/code-quality-gates.md). |
 | Coupling | `pnpm quality:packages` | No dependency cycles, no undeclared workspace imports, coupling debt only falls. | Packages that can be understood alone. |
-| Client core | `pnpm quality:app-core` | `app-core` and `vault-core` reach into no app and no platform global. | [ADR 0133](../adr/0133-shared-app-core.md): the PWA, CLI and Android share it. |
+| Client core | `pnpm quality:app-core` | `app-core` and `vault-core` reach into no app and read no platform global outside `app-core`'s host adapters. | [ADR 0133](../adr/0133-shared-app-core.md): the PWA and the CLI share it. |
 | Design | `pnpm lint:design` | No verb painted on a button, no status pills, no explainer captions. | [DESIGN.md](../../DESIGN.md), [controls](../design/controls.md). |
-| Docs index | part of `pnpm quality` | The ADR and audit indexes match the files. | So the indexes can be trusted. Fix with `pnpm docs:index`. |
+| Docs index | part of `pnpm quality` | The ADR, audit and evidence indexes match the files. | So the indexes can be trusted. Fix with `pnpm docs:index`. |
 | Types | `pnpm typecheck` | Strict TypeScript everywhere. | — |
 | Tests | `pnpm test`, `cargo test` | Every suite locally. CI runs the affected packages and crates, plus their dependents. | — |
 | Rust lint | `pnpm audit:clippy` | rustfmt, and Clippy pedantic with the complexity limits in `clippy.toml`. | Same budgets as TypeScript. |
@@ -82,8 +94,8 @@ change through.
 - **pre-commit** — Biome and anti-slop on staged files; rustfmt and Clippy when
   Rust or Cargo configuration is staged; the design lint and `impeccable
   detect` on UI files; gitleaks when installed.
-- **pre-push** — `OPENSESAME_PREPUSH=fast` (default: typecheck + test),
-  `full` (`pnpm verify`) or `off`.
+- **pre-push** — `OPENSESAME_PREPUSH=fast` (default: anti-slop lint and plugin
+  tests, typecheck, test), `full` (`pnpm verify`) or `off`.
 
 ## Team runbooks
 
@@ -92,4 +104,4 @@ change through.
 | [Agent routines](agent-routines.md) | Scheduled sessions that run audits, fuzz batches and drift checks outside CI, each in a copy-on-write worktree with a workflow swarm and stacked pull requests. |
 | [Linear workflow](linear-workflow.md) | Setting up and using the Linear workspace. |
 | [PostHog setup](posthog-setup.md) | Setting up product analytics. |
-| [AI automation roadmap](ai-automation-roadmap.md) | Where AI tooling is used in the development process and where it is going. |
+| [AI automation roadmap](ai-automation-roadmap.md) | A dated (2026-08-09) assessment of where AI tooling was used in the development process and where it was meant to go; its status note says what has since changed. |

@@ -1,0 +1,152 @@
+/* The editor's title row is one path control: `folder/` `name` `.type`.
+
+   The folder leads and the type ends, each in the accent so it reads as
+   structure rather than as part of the name; the name between them keeps the
+   title's own size and ink. One rule runs under the whole row and darkens
+   when any part of it holds focus. The two special parts are comboboxes
+   (PathSegment.tsx) that only ever hold a value from their list. */
+
+.pathfield {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.pathfield:focus-within {
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
+}
+
+.pathfield__seg {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  max-width: 40%;
+}
+
+.pathfield__input,
+.pathfield__ext {
+  min-width: 0;
+  min-height: 0;
+  padding: 0.15rem 0.25rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  /* Secondary ink: the folder and type read as the path around the name, not
+     as the name. The accent is ink now, so it would draw them alike. */
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: max(0.9375rem, var(--field-min));
+  font-weight: 500;
+  text-overflow: ellipsis;
+}
+
+.pathfield__input {
+  max-width: 100%;
+  cursor: pointer;
+}
+
+.pathfield__input:hover,
+.pathfield__input:focus-visible {
+  background: var(--accent-wash);
+}
+
+.pathfield__input:focus-visible {
+  outline: none;
+  cursor: text;
+}
+
+/* A type the route or the item fixed is a label, not a field. */
+.pathfield__ext {
+  flex: none;
+  max-width: 40%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pathfield__list {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  left: 0;
+  min-width: 12rem;
+  max-width: min(28rem, 100%);
+  max-height: 14rem;
+  margin: 0;
+  padding: 0.2rem 0;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+/* The type list hangs from the right edge, under the word it picks. */
+.pathfield__list--type {
+  right: 0;
+  left: auto;
+}
+
+.pathfield__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.pathfield__option.is-active {
+  background: var(--accent-wash);
+}
+
+.pathfield__label {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pathfield__detail {
+  margin-left: auto;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* Every key is 44px under a finger or a narrow window, and a field's type does
+   not shrink below the size that keeps iOS from zooming it. */
+@media (pointer: coarse), (max-width: 900px) {
+  .editor__name,
+  .pathfield__input,
+  .pathfield__ext {
+    min-height: 2.75rem;
+  }
+
+  /* The name is the item's identity: on a phone a long folder yields to it
+     instead of leaving it a few characters of a scrolling field. */
+  .pathfield__seg--folder {
+    max-width: 30%;
+  }
+
+  .pathfield__ext {
+    display: flex;
+    align-items: center;
+    padding-inline: 0.5rem;
+  }
+
+  /* A folder that reads `./` is two characters wide; the key is still 44. */
+  .pathfield__input {
+    min-width: 2.75rem;
+    padding-inline: 0.5rem;
+  }
+
+  .pathfield__option {
+    min-height: 2.75rem;
+    font-size: max(0.9375rem, var(--field-min));
+  }
+}

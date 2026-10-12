@@ -9,7 +9,7 @@ to carry. The other vaults leave the device whole and come back afterwards.
 ## Before you leave
 
 1. Open a vault you will carry. The open vault always travels.
-2. Go to **Settings › Vaults › Travel** and press **Turn on travel mode**.
+2. Go to **Settings › Security › Travel** and press **Turn on travel mode**.
    A sheet opens with the list of vaults. Switch on **Safe for travel** for
    each vault you will carry. Any vault you leave off stays home.
 3. Press **Pack the rest for travel**. Nothing is removed yet.
@@ -47,7 +47,7 @@ Travel mode above moves whole vaults. If you must unlock the vault you carry,
 choose which of **its items** stay home instead ([ADR 0171](../adr/0171-hide-items-while-traveling.md);
 audit in [`travel-hidden-items.md`](../research/travel-hidden-items.md)).
 
-1. Open the vault. In **Settings › Vaults › Travel** press **Choose items to
+1. Open the vault. In **Settings › Security › Travel** press **Choose items to
    leave at home**. Switch on **Stays home** for each item. Press **Pack the
    items for travel**. Nothing is removed yet.
 2. Save the **travel bundle** and write down the **return code**, as above.
@@ -64,7 +64,9 @@ audit in [`travel-hidden-items.md`](../research/travel-hidden-items.md)).
 
 It refuses, and says why, while any of these is on:
 
-- a **backup target** or a history remote (the remote keeps every older copy);
+- a **backup target**, a **history backup** (one bound to a remote, or any
+  history entry held on this device), or a queued offline write for this vault
+  (each keeps an older copy or would hand the items back);
 - a **paired drive** (its next sync would bring the items back);
 - a **share** of the item (end it first);
 - a duress incident, a guest or decoy session, or a browser that keeps no

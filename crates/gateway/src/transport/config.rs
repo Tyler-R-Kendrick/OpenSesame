@@ -180,7 +180,8 @@ impl TransportConfig {
             // upstream-connector receiver of its own.
             BindingPurpose::WorkerClient
             | BindingPurpose::IdentityMappingClient
-            | BindingPurpose::UpstreamConnector => false,
+            | BindingPurpose::UpstreamConnector
+            | BindingPurpose::VaultRelay => false,
         }
     }
 

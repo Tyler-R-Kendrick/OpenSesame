@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; the Identity API stops being
+a required plane).
+
 ## Context
 OpenSesame is a dual-plane system (ADR 0007): TypeScript Identity API and Rust Host/Authority API. Product surfaces (daemon, toolbar, extension, PWA, MCP, CLIs) need a clear host vs client split with a polyglot core.
 

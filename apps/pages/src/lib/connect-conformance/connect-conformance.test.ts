@@ -34,6 +34,7 @@ import {
 } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { handleCallback } from "../../../server/callback.mjs";
+import { VERIFY_TARGETS } from "../../../server/connect-verify-targets.generated.mjs";
 import { handleManage } from "../../../server/manage.mjs";
 import { CONNECT_ORIGIN, ConnectEmulator } from "./connect-emulator.js";
 import {
@@ -140,6 +141,19 @@ const cases = connectPlans()
     ([, plan, kind]) => !(kind === "managed" && VERCEL_ONLY.has(plan.id)),
   );
 
+function expectedAccount(
+  plan: ConnectPlan,
+  kind: ConnectMethodKind,
+  profile: ProviderProfile,
+): string {
+  const conditions =
+    kind === "api-key" ? VERIFY_TARGETS[plan.id]?.apiKey?.success : undefined;
+  const condition = conditions?.find(
+    (item) => item.field === profile.verify?.accountField,
+  );
+  return String(condition?.equals ?? CONFORMANCE_ACCOUNT);
+}
+
 describe("every connector acquires a person's token", () => {
   it.each(cases)("%s", async (_label, plan, kind) => {
     const { profile, state } = scenario(plan, kind);
@@ -204,7 +218,9 @@ describe("every connector acquires a person's token", () => {
         ok: true,
       });
       if (profile.verify.accountField)
-        expect(check.verified?.account).toBe(CONFORMANCE_ACCOUNT);
+        expect(check.verified?.account).toBe(
+          expectedAccount(plan, kind, profile),
+        );
     }
     rows.push({
       service: plan.id,

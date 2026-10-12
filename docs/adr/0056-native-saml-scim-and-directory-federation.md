@@ -1,7 +1,9 @@
 # ADR 0056: Native SAML SP, SCIM provisioning, and directory federation
 
 ## Status
-Accepted. **Supersedes ADR 0016 for the SAML service-provider half.**
+Accepted
+
+**Supersedes [ADR 0016](0016-keycloak-upstream-broker.md) for the SAML service-provider half.**
 
 ADR 0016 decided that OpenSesame would not implement SAML and that an optional external
 Keycloak would broker enterprise directories to OIDC. That is superseded here for the SP

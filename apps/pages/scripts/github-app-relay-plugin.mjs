@@ -25,25 +25,18 @@ import {
   handleGithubAppInstallations,
   handleGithubAppLookup,
 } from "../server/github-app.mjs";
+import { isPayloadTooLarge, readRawBody } from "../server/read-body.mjs";
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
-    req.on("end", () => {
-      const raw = Buffer.concat(chunks).toString("utf8");
-      if (raw.trim() === "") {
-        resolve({});
-        return;
-      }
-      try {
-        resolve(JSON.parse(raw));
-      } catch (error) {
-        reject(error);
-      }
-    });
-    req.on("error", reject);
-  });
+async function readBody(req) {
+  const raw = await readRawBody(req);
+  if (raw.trim() === "") return {};
+  return JSON.parse(raw);
+}
+
+function endBodyTooLarge(res) {
+  res.statusCode = 413;
+  res.setHeader("content-type", "text/plain; charset=utf-8");
+  res.end("body_too_large");
 }
 
 function requestHost(req) {
@@ -80,7 +73,11 @@ async function handleGitBackupRoute(req, res) {
   let body = {};
   try {
     body = await readBody(req);
-  } catch {
+  } catch (error) {
+    if (isPayloadTooLarge(error)) {
+      endBodyTooLarge(res);
+      return;
+    }
     res.statusCode = 400;
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ error: "invalid_json" }));
@@ -107,7 +104,11 @@ async function handleGithubAppJsonRoute(req, res, path) {
   let body = {};
   try {
     body = await readBody(req);
-  } catch {
+  } catch (error) {
+    if (isPayloadTooLarge(error)) {
+      endBodyTooLarge(res);
+      return;
+    }
     res.statusCode = 400;
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ error: "invalid_json" }));
@@ -151,7 +152,11 @@ function attachGithubAppRelay(server) {
         let body = {};
         try {
           body = await readBody(req);
-        } catch {
+        } catch (error) {
+          if (isPayloadTooLarge(error)) {
+            endBodyTooLarge(res);
+            return;
+          }
           body = {};
         }
         writeRelayOutcome(res, handleGithubAppWebhook(body, req.headers));

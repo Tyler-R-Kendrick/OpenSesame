@@ -10,11 +10,12 @@ truncated to 256 characters.
 
 - **Used by:** [`packages/control-plane`](../../packages/control-plane) (appends events
   and builds its chained sink), [`packages/app-core`](../app-core) (imports
-  only `@opensesame/audit/redact` for the browser-local activity log and
-  local access audit) and the Jazzer.js fuzz targets in
+  only `@opensesame/audit/redact`, for the browser-local activity log, local
+  access audit and device receipts) and the Jazzer.js fuzz targets in
   [`tests/fuzz/jazzer`](../../tests/fuzz/jazzer).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (`AuditEvent` and the
-  JSON guards).
+  JSON guards) and [`@opensesame/log-scrub`](../log-scrub) (`scrubText` runs
+  over every string value before it is cut).
 - A digest is not a signature. The chain makes an in-place edit or deletion
   visible to anyone who cannot recompute every later link; a writer that can
   is a different threat (see the comment at the top of `src/chain.ts`).

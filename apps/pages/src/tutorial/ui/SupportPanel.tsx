@@ -19,6 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useComposition } from "../../bindings/capabilities.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconSupport, IconTrash, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
@@ -119,6 +120,15 @@ export function SupportPanel(): ReactElement {
   const [tab, setTab] = useState<"ask" | "tutorials">("ask");
 
   const gate = useTutorialGate();
+  const { plan } = useComposition();
+  // Ask when this installation approved local or remote AI. Search when the
+  // written help is all this build can offer. The composer's verb stays
+  // Search until a model is actually ready to answer.
+  const askTab =
+    plan?.capabilities["support.local-ai"]?.approved === true ||
+    plan?.capabilities["support.remote-ai"]?.approved === true
+      ? "Ask"
+      : "Search";
   const topics = useMemo(
     () =>
       topicsHere(
@@ -210,7 +220,7 @@ export function SupportPanel(): ReactElement {
                   document.getElementById(`support-tab-${next}`)?.focus();
                 }}
               >
-                {id === "ask" ? "Ask" : "Tutorials"}
+                {id === "ask" ? askTab : "Tutorials"}
               </button>
             ))}
           </div>

@@ -13,7 +13,9 @@ Better Auth user ids.
 - **Used by:** nearly every TypeScript package and app in the workspace
   (Identity, Client and SDK packages, `packages/control-plane`, `apps/pages`, the
   MCP servers, the examples and the test suites).
-- **Builds on:** nothing. It has no runtime dependencies.
+- **Builds on:** nothing. No module in `src/` imports another package;
+  `package.json` declares `@gdp-ts/core` as its only dependency, which `src/`
+  does not import.
 - It **must not** import Better Auth, oidc-provider, Hono, Drizzle or React
   ([CONTRIBUTING.md](../../CONTRIBUTING.md), AGENTS.md §5).
 - The browser entry (`src/browser.ts`, chosen by the `browser` export
@@ -41,6 +43,7 @@ Better Auth user ids.
 | `interaction*.ts`, `approval-ceremony.ts`, `presentation.ts` | The cross-device interaction envelope and approval proof binding |
 | `notifications.ts`, `trust.ts` | Channel kinds and the closed capability record, settlement evaluation, trust and assurance |
 | `access-domain/`, `authority-*.ts`, `permission-*.ts`, `authorization-details.ts`, `cohort/` | Realms and access domains, generalized authority grants, membership lineage, permission scopes |
+| `proofs/` | `sealApprovalProof` and the `SealedApprovalProof` brand `interactionMachine.approve` requires ([ADR 0178](../../docs/adr/0178-authorization-checks-are-proofs-the-compiler-can-see.md)) |
 | `wallet/`, `duress/`, `transport-security/` | Payment intents, duress semantic types, transport policy, bindings, selectors and status views |
 
 `fixtures` (from `src/__tests__/fixtures.ts`) is also exported from the main

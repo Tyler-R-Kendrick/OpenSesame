@@ -1,5 +1,15 @@
 # opensesame-tailnet-admin
 
+Tailnet device management through the daemon
+([ADR 0169](../../docs/adr/0169-tailnet-device-management.md)): the Tailscale
+credential, origin-bound role pairings, the upstream client and the audit
+trail. The daemon (`crates/daemon`, the `/v1/tailnet/*` routes) serves it and
+`opensesame daemon tailnet` configures it; it builds on
+[`opensesame-invoke-through`](../invoke-through) (every device and key call),
+[`opensesame-plugin-settings`](../plugin-settings) (the pairing-origin rule) and
+[`opensesame-sealed-log`](../sealed-log) (the credential envelope and the sealed
+audit lines). The rest of this file is how the credential rests.
+
 The managed OAuth client secret or API key rests in `tailnet-admin.secret` as an
 `osev2.` wrapped-DEK envelope. Each write generates a fresh data key. Both AEAD
 operations bind the trusted canonical admin directory, tailnet, credential

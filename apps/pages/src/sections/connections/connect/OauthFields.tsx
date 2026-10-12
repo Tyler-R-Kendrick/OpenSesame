@@ -102,7 +102,7 @@ export function OauthClientFields(props: Props) {
 }
 
 /** The authorization server, as Vercel's connector settings lay it out. */
-export function OauthServerFields(props: Props) {
+export function OauthServerFields(props: Props & { showScopes?: boolean }) {
   const o = props.state.oauth;
   const url = (label: string, key: keyof OauthDraft, value: string) => (
     <FieldShell
@@ -157,11 +157,13 @@ export function OauthServerFields(props: Props) {
           setOauth(props, { authorizationParams })
         }
       />
-      <ScopeFields
-        plan={props.plan}
-        state={props.state}
-        onState={props.onState}
-      />
+      {props.showScopes === false ? null : (
+        <ScopeFields
+          plan={props.plan}
+          state={props.state}
+          onState={props.onState}
+        />
+      )}
     </fieldset>
   );
 }

@@ -18,6 +18,20 @@
 import type { WorkerContext } from "./context.js";
 import { isolated, isolatedWorkerScript } from "./isolation.js";
 
+const STATIC_AUTH_PAGES = [
+  "linear.html",
+  "native-connector.html",
+  "native-implicit.html",
+  "native-google.html",
+  "redirect.html",
+] as const;
+
+function isStaticAuthPage(ctx: WorkerContext, url: URL): boolean {
+  return STATIC_AUTH_PAGES.some(
+    (page) => url.pathname === `${ctx.scopePath}auth/${page}`,
+  );
+}
+
 async function releaseCache(ctx: WorkerContext): Promise<Cache> {
   return ctx.caches.open(ctx.releaseCacheName);
 }
@@ -112,6 +126,13 @@ export function respondTo(
   if (request.method !== "GET") return null;
   const url = new URL(request.url);
   if (url.origin !== new URL(ctx.scopeUrl).origin) return null;
+  // Auth documents must never replace the app shell or boot it on a failed
+  // callback. Fetch every time, including non-navigation requests; an offline
+  // callback fails rather than consuming a cached response from an old attempt.
+  if (isStaticAuthPage(ctx, url))
+    return ctx
+      .fetch(new Request(request, { cache: "no-store" }))
+      .then((response) => isolated(response, url, ctx.scopePath));
   if (request.mode === "navigate") return navigation(ctx, request);
   if (url.pathname.endsWith("/os-runtime-config.json"))
     return runtimeConfig(ctx, request);

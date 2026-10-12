@@ -27,6 +27,10 @@ import type {
   WatchTrigger,
 } from "@opensesame/app-core/lib/local-notifications/watch.js";
 import {
+  setDesktopRinging,
+  showToast,
+} from "@opensesame/app-core/lib/notice-toast.js";
+import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
@@ -98,6 +102,19 @@ export function browserDeliveries(navigate: (to: string) => void): Deliveries {
       });
     },
     tabTitle: markTab,
+    toast(notice, waiting) {
+      const words = noticeWords(waiting);
+      // The tray keeps the request; the toast only says it arrived, and a
+      // click on it goes where the tray's own button goes.
+      showToast({
+        id: notice.ref,
+        tone: "warn",
+        title: words.title,
+        body: words.body,
+        open: { to: NOTICE_ROUTE, label: "Review requests" },
+      });
+    },
+    desktop: setDesktopRinging,
     system(notice, waiting) {
       close();
       const words = noticeWords(waiting);

@@ -4,6 +4,8 @@ Status: Accepted
 Date: 2026-08-19
 Supplements: ADR 0047 (daemon connector discovery); amended by ADR 0049
 (derived short-lived materialization)
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; §5 here: process isolation
+becomes crate isolation).
 
 ## Context
 

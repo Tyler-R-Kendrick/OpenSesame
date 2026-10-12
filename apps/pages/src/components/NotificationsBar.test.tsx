@@ -1,8 +1,15 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { setDesktopRinging } from "@opensesame/app-core/lib/notice-toast.js";
 import {
   clearNotices,
   pushNotice,
@@ -159,5 +166,54 @@ describe("NotificationsBar", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(bell);
+  });
+});
+
+describe("an arrival that a toast or a desktop ring already announced", () => {
+  function setHidden(hidden: boolean) {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      get: () => hidden,
+    });
+  }
+
+  afterEach(() => {
+    setHidden(false);
+    setDesktopRinging(false);
+  });
+
+  it("does not also open the sheet while the person is here", () => {
+    render(
+      <MemoryRouter>
+        <NotificationsBar />
+      </MemoryRouter>,
+    );
+    act(() => {
+      pushNotice({
+        kind: "status",
+        tone: "err",
+        title: "Host unreachable",
+        body: "Retry when it is back.",
+      });
+    });
+    expect(screen.queryByRole("dialog", { name: "Notifications" })).toBeNull();
+  });
+
+  it("opens the sheet when away with desktop off, so it is there on return", () => {
+    setHidden(true);
+    render(
+      <MemoryRouter>
+        <NotificationsBar />
+      </MemoryRouter>,
+    );
+    act(() => {
+      pushNotice({
+        kind: "status",
+        tone: "err",
+        title: "Host unreachable",
+        body: "Retry when it is back.",
+      });
+    });
+    expect(screen.getByRole("dialog", { name: "Notifications" })).toBeTruthy();
   });
 });

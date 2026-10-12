@@ -1,0 +1,46 @@
+{
+  "source_base": "f48efc4e2006f02f634a7e92ef19756c26545fa5",
+  "status": "passed",
+  "artifact_tree_sha256": "64cc4a571e783ebad4682643a39b2e6cf7bc1688241662a1c1bcb0397b2c350f",
+  "artifact_files": 240,
+  "checks": {
+    "native_public_protocol_assertions": 307,
+    "native_connector_assertions": 2170,
+    "linear_assertions": 477,
+    "audited_provider_identities": 225,
+    "viewports": ["desktop", "phone"],
+    "service_worker_cases": 15,
+    "real_service_gate": "passed",
+    "unexpected_browser_errors": 0,
+    "bundle_profiles": ["canonical", "minimal", "family"],
+    "quality_or_policy_limits_changed": false
+  },
+  "real_services": [
+    "Vault 1.21.4",
+    "OpenBao 2.3.2",
+    "oidc-provider 9.11.2",
+    "MinIO RELEASE.2025-09-07T16-13-09Z"
+  ],
+  "fixture_scope": "Linear and other cloud-provider protocol contracts and Google SDK/CORS are disclosed fixtures; no live customer grants are claimed. Vault, OpenBao and MinIO run actual provider services without HTTP interception.",
+  "receipt_sha256": {
+    "linear": {
+      "sha256": "c9b0caae5197aa8ccfcb657736d662682205afe85e8e8acb86af710937667c81"
+    },
+    "real_providers": {
+      "sha256": "5aae1b964f06bced3d13bd725d911654d9ca3b8d6e71db54a3274eab9f5c987d"
+    },
+    "artifact": {
+      "sha256": "a746369b89a252d782647f3786aa000156817b4780c56b02bcf88b0a59666434"
+    }
+  },
+  "screenshots": [
+    {
+      "path": "desktop-linear-narrowed-consent.png",
+      "sha256": "62ed25f1f638fd07ef54e9835a8ed6c6724fab5bf1791a22415591dc5012817b"
+    },
+    {
+      "path": "phone-linear-created-issue.png",
+      "sha256": "2383341e90785d7efecaa5803162a8b4c7182c4adfd39f74346b06634b78508b"
+    }
+  ]
+}

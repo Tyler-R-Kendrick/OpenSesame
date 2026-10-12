@@ -21,15 +21,16 @@ import { describe, expect, it } from "vitest";
 import { capabilityRuntime } from "../../../modules/identity.ceremonies/runtime.js";
 import { createTestContext } from "../../../modules/test-context.js";
 import { MODULE_OWNERSHIP } from "../ownership.js";
-import { approved, profilePlan } from "./vault-profiles.js";
+import { approved, profilePlanWithPwaDefaults } from "./vault-profiles.js";
 
 describe("minimal-local serves the ceremony routes", () => {
   it("approves identity.ceremonies with no optional capability beside it", () => {
-    const plan = profilePlan("minimal-local");
+    const plan = profilePlanWithPwaDefaults("minimal-local");
     expect(coreCapabilityIds()).toContain("identity.ceremonies");
     expect(approved(plan, "identity.ceremonies")).toBe(true);
+    const pwaDefaults = new Set(["access.authority", "identity.local-iam"]);
     for (const id of optionalCapabilityIds()) {
-      expect(approved(plan, id), id).toBe(false);
+      expect(approved(plan, id), id).toBe(pwaDefaults.has(id));
     }
     const module = runtimeModule("identity.ceremonies");
     expect(plan.approvedModules).toContain(module);
@@ -39,7 +40,7 @@ describe("minimal-local serves the ceremony routes", () => {
   });
 
   it("resolves every ceremony route from the module the plan approves", async () => {
-    const plan = profilePlan("minimal-local");
+    const plan = profilePlanWithPwaDefaults("minimal-local");
     expect(approved(plan, "sharing.drops")).toBe(true);
     const t = createTestContext();
     const handle = await capabilityRuntime.activate(t.ctx);

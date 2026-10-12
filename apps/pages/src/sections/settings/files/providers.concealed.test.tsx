@@ -18,7 +18,7 @@ const careless: VirtualFileProvider = {
   list: () => [
     { path: KEY, language: "json", readOnly: false, removable: true },
     {
-      path: "settings/capabilities/plugins/x.json",
+      path: "settings/features/plugins/x.json",
       language: "json",
       readOnly: false,
       removable: false,
@@ -43,16 +43,16 @@ describe("the files a category offers (ADR 0134)", () => {
     revoke = registerContributionForTest("settings-panel", {
       id: "careless",
       label: "Careless",
-      category: "capabilities.feature-careless",
+      category: "features.feature-careless",
       Panel: () => null,
       order: 10,
       files: careless,
     });
-    const { result } = renderHook(() => useCategoryFiles("capabilities"));
+    const { result } = renderHook(() => useCategoryFiles("features"));
     const provider = result.current;
     expect(provider?.list().map((file) => file.path)).not.toContain(KEY);
     expect(provider?.list().map((file) => file.path)).toContain(
-      "settings/capabilities/plugins/x.json",
+      "settings/features/plugins/x.json",
     );
     await expect(provider?.read(KEY)).rejects.toThrow();
     await expect(provider?.write(KEY, "{}")).resolves.toMatchObject({

@@ -1,7 +1,7 @@
 /**
  * What a device session is bound to (ADR 0160): the key, not the tomb's name;
- * what happens when no key can be had; and the claim routes while a vault is
- * shut.
+ * what happens when no key can be had; and which claim routes answer while
+ * a vault is shut.
  */
 
 /** @vitest-environment jsdom */
@@ -161,7 +161,7 @@ describe("a tomb whose key changed under a live bearer", () => {
 describe("claims while a vault is shut", () => {
   const claimBody = JSON.stringify({ targetManifest: { kind: "drop" } });
 
-  it("refuses create, poll and present for a session minted before any vault existed", async () => {
+  it("refuses to seal a claim for a session minted before any vault existed", async () => {
     const early = await session();
     await open();
     harness.view = { kind: "locked" };
@@ -172,15 +172,55 @@ describe("claims while a vault is shut", () => {
     });
     expect(create.status).toBe(423);
     expect(overlapCast(await create.json()).error).toBe("locked");
-    const poll = await deviceIdentityFetch("/v1/claims/c1/poll", {
-      headers: { "x-claim-token": "t" },
+  });
+
+  it("polls and presents a sealed claim while the vault is locked", async () => {
+    const early = await session();
+    await open();
+    const create = await deviceIdentityFetch("/v1/claims", {
+      method: "POST",
+      headers: { authorization: `Bearer ${early.accessToken}` },
+      body: JSON.stringify({
+        targetManifest: { kind: "drop", digest: "abc" },
+      }),
     });
-    expect(poll.status).toBe(423);
+    expect(create.status).toBe(201);
+    const claim = overlapCast(await create.json());
+    const pollPath = `/v1/claims/${encodeURIComponent(String(claim.claimId))}/poll`;
+    const tokenHeaders = { "x-claim-token": String(claim.claimToken) };
+
+    const openPoll = await deviceIdentityFetch(pollPath, {
+      headers: tokenHeaders,
+    });
+    expect(openPoll.status).toBe(200);
+    expect(overlapCast(await openPoll.json()).status).toBe("pending");
+
+    harness.view = { kind: "locked" };
+
+    const lockedPoll = await deviceIdentityFetch(pollPath, {
+      headers: tokenHeaders,
+    });
+    expect(lockedPoll.status).toBe(200);
+    expect(overlapCast(await lockedPoll.json()).status).toBe("pending");
+
     const present = await deviceIdentityFetch("/v1/claims/present", {
       method: "POST",
-      body: JSON.stringify({ token: "t", userCode: "u" }),
+      body: JSON.stringify({
+        token: claim.claimToken,
+        userCode: claim.userCode,
+      }),
     });
-    expect(present.status).toBe(423);
+    expect(present.status).toBe(200);
+    expect(overlapCast(await present.json()).targetManifest).toEqual({
+      kind: "drop",
+      digest: "abc",
+    });
+
+    const after = await deviceIdentityFetch(pollPath, {
+      headers: tokenHeaders,
+    });
+    expect(after.status).toBe(200);
+    expect(overlapCast(await after.json()).status).toBe("consumed");
   });
 
   it("still creates a claim for that same session once the vault is open", async () => {

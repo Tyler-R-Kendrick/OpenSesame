@@ -343,7 +343,7 @@ internal inline fun<T, reified E: Throwable> uniffiTraitInterfaceCallWithError(
         }
     }
 }
-// Initial value and increment amount for handles.
+// Initial value and increment amount for handles. 
 // These ensure that Kotlin-generated handles always have the lowest bit set
 private const val UNIFFI_HANDLEMAP_INITIAL = 1.toLong()
 private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
@@ -353,7 +353,7 @@ private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
 // This is used pass an opaque 64-bit handle representing a foreign object to the Rust code.
 internal class UniffiHandleMap<T: Any> {
     private val map = ConcurrentHashMap<Long, T>()
-    // Start
+    // Start 
     private val counter = java.util.concurrent.atomic.AtomicLong(UNIFFI_HANDLEMAP_INITIAL)
 
     val size: Int
@@ -672,30 +672,38 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+    external fun uniffi_opensesame_authenticator_core_checksum_func_validate_credential_offer_scheme_handoff(
+    ): Int
     external fun uniffi_opensesame_authenticator_core_checksum_func_validate_platform_invocation(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_validate_presentation_scheme_handoff(
     ): Int
     external fun ffi_opensesame_authenticator_core_uniffi_contract_version(
     ): Int
 
-
+        
 }
 
 internal object UniffiLib {
-
+    
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "opensesame_authenticator_core"))
-
+        
     }
-    external fun uniffi_opensesame_authenticator_core_fn_func_validate_platform_invocation(`authenticatorOrigin`: RustBuffer.ByValue,`raw`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_opensesame_authenticator_core_fn_func_validate_credential_offer_scheme_handoff(`authenticatorOrigin`: RustBuffer.ByValue,`raw`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_opensesame_authenticator_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_opensesame_authenticator_core_fn_func_validate_platform_invocation(`authenticatorOrigin`: RustBuffer.ByValue,`raw`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_opensesame_authenticator_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_opensesame_authenticator_core_fn_func_validate_presentation_scheme_handoff(`authenticatorOrigin`: RustBuffer.ByValue,`raw`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_opensesame_authenticator_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_opensesame_authenticator_core_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    ): RustBuffer.ByValue
+    external fun ffi_opensesame_authenticator_core_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun ffi_opensesame_authenticator_core_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -703,7 +711,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_u8(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
     external fun ffi_opensesame_authenticator_core_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -711,7 +719,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_i8(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     external fun ffi_opensesame_authenticator_core_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -719,7 +727,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_u16(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
     external fun ffi_opensesame_authenticator_core_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -727,7 +735,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_i16(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Short
     external fun ffi_opensesame_authenticator_core_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -735,7 +743,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_u32(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
     external fun ffi_opensesame_authenticator_core_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -743,7 +751,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_i32(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
     external fun ffi_opensesame_authenticator_core_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -751,7 +759,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_u64(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun ffi_opensesame_authenticator_core_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -759,7 +767,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_i64(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun ffi_opensesame_authenticator_core_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -767,7 +775,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_f32(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Float
     external fun ffi_opensesame_authenticator_core_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -775,7 +783,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_f64(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Double
     external fun ffi_opensesame_authenticator_core_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -783,7 +791,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
     external fun ffi_opensesame_authenticator_core_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -791,10 +799,10 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_opensesame_authenticator_core_rust_future_free_void(`handle`: Long,
     ): Unit
-    external fun ffi_opensesame_authenticator_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    external fun ffi_opensesame_authenticator_core_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
 
-
+        
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -808,7 +816,13 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_validate_credential_offer_scheme_handoff() != 52732) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_opensesame_authenticator_core_checksum_func_validate_platform_invocation() != 29577) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_validate_presentation_scheme_handoff() != 62984) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -886,7 +900,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
         }
     }
 
-/**
+/** 
  * Placeholder object used to signal that we're constructing an interface with a FFI handle.
  *
  * This is the first argument for interface constructors that input a raw handle. It exists is that
@@ -897,7 +911,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
  * */
 object UniffiWithHandle
 
-/**
+/** 
  * Used to instantiate an interface without an actual pointer, for fakes in tests, mostly.
  *
  * @suppress
@@ -969,20 +983,20 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
  */
 data class PlatformInvocation (
     var `kind`: InvocationKind
-    ,
+    , 
     var `payload`: kotlin.String
-    ,
+    , 
     /**
      * Standard protocol URI passed to Multipaz after policy validation.
      */
     var `protocolUri`: kotlin.String
-
+    
 ){
+    
 
+    
 
-
-
-
+    
     companion object
 }
 
@@ -1016,76 +1030,76 @@ public object FfiConverterTypePlatformInvocation: FfiConverterRustBuffer<Platfor
 
 
 sealed class AuthenticatorException: kotlin.Exception() {
-
+    
     class InvalidAuthenticatorOrigin(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class UnverifiedInvocationOrigin(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class UnsupportedInvocation(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class ForbiddenInvocationParameter(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class InvalidInvocationPayload(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class InvalidInvocationPayloadValue(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class InsecureRequestUri(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class PrivateRequestUri(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class UserVerificationRequired(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
-
+    
     class WrongDevice(
         ) : AuthenticatorException() {
         override val message
             get() = ""
     }
+    
 
-
-
+    
 
 
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<AuthenticatorException> {
         override fun lift(error_buf: RustBuffer.ByValue): AuthenticatorException = FfiConverterTypeAuthenticatorError.lift(error_buf)
     }
 
-
+    
 }
 
 /**
@@ -1093,7 +1107,7 @@ sealed class AuthenticatorException: kotlin.Exception() {
  */
 public object FfiConverterTypeAuthenticatorError : FfiConverterRustBuffer<AuthenticatorException> {
     override fun read(buf: ByteBuffer): AuthenticatorException {
-
+        
 
         return when(buf.getInt()) {
             1 -> AuthenticatorException.InvalidAuthenticatorOrigin()
@@ -1206,12 +1220,12 @@ public object FfiConverterTypeAuthenticatorError : FfiConverterRustBuffer<Authen
 
 
 enum class InvocationKind {
-
+    
     MFA_APPROVAL,
     OID4VP,
     OID4VCI;
 
-
+    
 
 
     companion object
@@ -1237,6 +1251,26 @@ public object FfiConverterTypeInvocationKind: FfiConverterRustBuffer<InvocationK
 
 
         /**
+         * Validate a custom-scheme credential-offer handoff before wallet provisioning.
+         *
+         * # Errors
+         *
+         * Rejects inline offers, forbidden parameters, and private request URIs.
+         */
+    @Throws(AuthenticatorException::class) fun `validateCredentialOfferSchemeHandoff`(`authenticatorOrigin`: kotlin.String, `raw`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(AuthenticatorException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_validate_credential_offer_scheme_handoff(
+    
+        
+        FfiConverterString.lower(`authenticatorOrigin`),
+        FfiConverterString.lower(`raw`),_status)
+}
+    )
+    }
+    
+
+        /**
          * Validate and classify a native invocation using the shared policy engine.
          *
          * # Errors
@@ -1247,10 +1281,33 @@ public object FfiConverterTypeInvocationKind: FfiConverterRustBuffer<InvocationK
             return FfiConverterTypePlatformInvocation.lift(
     uniffiRustCallWithError(AuthenticatorException) { _status ->
     UniffiLib.uniffi_opensesame_authenticator_core_fn_func_validate_platform_invocation(
-
-
+    
+        
         FfiConverterString.lower(`authenticatorOrigin`),
         FfiConverterString.lower(`raw`),_status)
 }
     )
     }
+    
+
+        /**
+         * Validate a custom-scheme OID4VP handoff before presentment.
+         *
+         * # Errors
+         *
+         * Rejects forbidden parameters and private request URIs.
+         */
+    @Throws(AuthenticatorException::class) fun `validatePresentationSchemeHandoff`(`authenticatorOrigin`: kotlin.String, `raw`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(AuthenticatorException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_validate_presentation_scheme_handoff(
+    
+        
+        FfiConverterString.lower(`authenticatorOrigin`),
+        FfiConverterString.lower(`raw`),_status)
+}
+    )
+    }
+    
+
+

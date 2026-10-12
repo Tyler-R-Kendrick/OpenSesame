@@ -33,6 +33,15 @@ afterEach(() => {
 });
 
 describe("parseRuntimeConfig", () => {
+  it("keeps the public Linear app ID outside core endpoints and excludes secrets", () => {
+    const parsed = parseRuntimeConfig({
+      linearClientId: " registered-linear-client ",
+      linearClientSecret: "must-not-ship",
+    });
+    expect(parsed.linearClientId).toBe("registered-linear-client");
+    expect(parsed.endpoints).toEqual({});
+    expect(JSON.stringify(parsed)).not.toContain("must-not-ship");
+  });
   it("reads endpoints and leaves the optional sections as data", () => {
     const parsed = parseRuntimeConfig({
       identityApi: " https://id.example.com ",

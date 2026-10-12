@@ -276,6 +276,13 @@ const COMMANDS: readonly KeymapCommand[] = [
     defaults: ["@"],
     counts: true,
   },
+  {
+    id: "session.join",
+    label: "Join a session",
+    group: "go",
+    kind: "navigate",
+    defaults: ["g j"],
+  },
 ];
 
 /** The two jumps the core shell always has; the rest arrive as contributions. */
@@ -347,15 +354,7 @@ export function commandById(
   return commands.find((command) => command.id === id);
 }
 
-/**
- * Keys the keymap never gives away. Each keeps the keyboard-only road open:
- * Tab and Shift-Tab walk the controls, Enter activates, Escape leaves a field
- * or a pane, F6 switches listings, Shift-F10 / Shift-Enter / the Menu key open
- * the actions menu, and 1–9 start a count. The browser keeps its own tab and
- * window keys: switching, closing and reopening tabs, new windows, reload,
- * full screen and the developer tools. A Shift-held printed character is
- * folded (`Control+T` is Ctrl+Shift+t), as the notation spells it.
- */
+/** Fixed keys: Tab, Enter, Escape, F6, counts, and the browser's tab and window keys. */
 const reserved = new Map([
   ["Tab", "Next control"],
   ["Shift+Tab", "Previous control"],

@@ -49,14 +49,10 @@ function KeyNameField({
         spellCheck={false}
         placeholder={help.placeholder}
         title={help.help}
-        aria-describedby={`${keyId}-help`}
         value={form.keyName}
         readOnly={locked}
         onChange={(event) => onChange("keyName", event.target.value)}
       />
-      <p className="hint" id={`${keyId}-help`}>
-        {help.help}
-      </p>
     </div>
   );
 }

@@ -79,11 +79,21 @@ export const SHELL_RULES = [
   core("src/bootstrap/", null, "core-only boot (S05)"),
   core("src/host/", null, "installs the app-core host before boot (ADR 0133)"),
   core("src/host", null, "the app-core host and its ports (ADR 0133)"),
+  core(
+    "src/lib/zod-jitless",
+    null,
+    "zod runs jitless under the CSP, set by the host boot before anything parses (ADR 0193)",
+  ),
   core("src/test-host", null, "the app-core test host (ADR 0133)"),
   core("src/ports", null, "the app-core port accessors (ADR 0133)"),
   core("src/no-host-import", null, "proof the core loads with no host"),
   core("src/memory-storage", null, "in-memory Web Storage for hosts"),
   core("src/browser/", null, "the browser host's ports (ADR 0133)"),
+  optional(
+    "src/browser/native-",
+    "connectors.external",
+    "provider consent browser ports loaded only by native connector runtime",
+  ),
   core("src/node/", null, "the CLI host; never in a Pages build"),
   core("src/sandbox/", null, "the isolate host; never in a Pages build"),
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
@@ -99,6 +109,16 @@ export const SHELL_RULES = [
     "src/screens/capabilities/",
     "settings.core",
     "purpose cards, capability cards, review (S09)",
+  ),
+  optional(
+    "auth/native-",
+    "connectors.external",
+    "native public provider consent return document",
+  ),
+  optional(
+    "auth/linear",
+    "connectors.external",
+    "Linear public PKCE return document",
   ),
   optional(
     "auth/",
@@ -171,6 +191,9 @@ export const SHELL_RULES = [
   ),
 
   // --- components: the shell by default ------------------------------------
+  ...each("src/lib/", ["notices", "notice-toast", "notice-desktop"], (p) =>
+    core(p, null, "the notice tray and its toasts, always on (ADR 0162)"),
+  ),
   core("src/components/", SHELL, "rail, chrome, controls, status"),
   ...each("src/components/", ["InstallMark", "InstallOffer"], (p) =>
     core(p, "install.pwa", "install offer surface"),
@@ -256,6 +279,11 @@ export const SHELL_RULES = [
     "setup connectors tab",
   ),
   optional(
+    "src/screens/setup/steps/StorageStep",
+    "connectors.external",
+    "setup storage tab (the S3-compatible bucket)",
+  ),
+  optional(
     "src/screens/setup/steps/AiStep",
     "support.local-ai",
     "setup AI tab; MIXED — remote",
@@ -276,11 +304,6 @@ export const SHELL_RULES = [
     "broker popup for relying sites",
   ),
   optional("src/screens/broker", "identity.site-broker", "broker stylesheet"),
-  optional(
-    "src/screens/LocalAuthorize",
-    "identity.local-iam",
-    "local application sign-in",
-  ),
   optional(
     "src/screens/useLocalConsent",
     "identity.local-iam",
@@ -311,6 +334,11 @@ export const SHELL_RULES = [
     "src/lib/bundled-provider-ids",
     "settings.core",
     "bundled catalog ids the capabilities page draws",
+  ),
+  core(
+    "src/lib/ai-model-provider-ids.generated",
+    "settings.core",
+    "the catalog's model-provider ids, which the bundled catalog labels above read (ADR 0192)",
   ),
   shared(
     "src/lib/connect-callback",

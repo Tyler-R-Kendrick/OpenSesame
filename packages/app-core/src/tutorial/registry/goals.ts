@@ -15,20 +15,20 @@ import { contributionsSnapshot } from "../../lib/contributions.js";
 import { ACCESS_HELP } from "./access-goals.js";
 import { AUTHORITY_HELP } from "./authority-help.js";
 import { CONNECTIONS_HELP } from "./connections-goals.js";
+import { ENVIRONMENTS_GOAL } from "./environments-goal.js";
 import { FEATURE_GOALS } from "./feature-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 import { HEALTH_REVIEW_GOAL } from "./health-goal.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
-import {
-  PASSWORD_WORKFLOW_GOALS,
-  PASSWORD_WORKFLOW_HELP,
-} from "./password-workflow-goals.js";
+import { INTEGRATION_GOALS } from "./integration-goals.js";
+import { ITEM_REFERENCE_HELP } from "./item-reference-help.js";
 import { type GuideRouteId, scopeApplies } from "./routes.js";
 import { SETUP_GOALS, SETUP_HELP, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
 import { isKnownGuidePredicate, readGuidePredicate } from "./state.js";
 export { CAPABILITY_TUTORIALS } from "./capability-tutorials.js";
 export { FEATURE_TUTORIALS } from "./feature-goals.js";
+export { INTEGRATION_TUTORIALS } from "./integration-goals.js";
 export type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 
 /**
@@ -101,6 +101,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   HEALTH_REVIEW_GOAL,
+  ENVIRONMENTS_GOAL,
   {
     id: "settings.security.review",
     title: "Review the security settings",
@@ -122,6 +123,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     id: "vault.recovery-codes",
     title: "Save the recovery codes",
     routes: [],
+    requires: ["vault.recovery-made"],
     guide: [
       "guide/1",
       'goal "vault.recovery-codes"',
@@ -137,6 +139,11 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     id: "vault.item-types.install",
     title: "Install a vault item type",
     routes: [],
+    capabilities: [
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ],
     guide: [
       "guide/1",
       'goal "vault.item-types.install"',
@@ -192,7 +199,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   ...SHELL_GOALS,
   ...FEATURE_GOALS,
-  ...PASSWORD_WORKFLOW_GOALS,
+  ...INTEGRATION_GOALS,
 ];
 
 /** Authored help whose walkthrough is a core goal. */
@@ -220,7 +227,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.health",
     title: "How do I tell whether OpenSesame is healthy?",
     answer:
-      "Vault health, under Vault, lists weak, reused and aging credentials.",
+      "Password health, in the vault's right-click menu, lists weak, reused and aging credentials.",
     routes: [],
     goal: "host.health.check",
     keywords: [
@@ -264,7 +271,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
     id: "help.vault.health.review",
     title: "Which of my passwords are weak or reused?",
     answer:
-      "Vault → Health scores every stored password for strength, reuse and age. It runs entirely on this device over the already-decrypted collection: no password, and no hash of one, is sent anywhere.",
+      "Right-click the vault and choose Password health. It scores every stored password for strength, reuse and age. It runs entirely on this device over the already-decrypted collection: no password, and no hash of one, is sent anywhere.",
     routes: [],
     goal: "vault.health.review",
     keywords: [
@@ -304,7 +311,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
   },
   ...SETUP_HELP,
   ...SHELL_HELP,
-  ...PASSWORD_WORKFLOW_HELP,
+  ...ITEM_REFERENCE_HELP,
 ];
 
 /**

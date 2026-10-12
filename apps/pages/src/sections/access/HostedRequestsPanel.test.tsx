@@ -61,6 +61,7 @@ function show() {
     <MemoryRouter initialEntries={["/access/requests"]}>
       <Routes>
         <Route path="/access/:tab" element={<HostedRequestsPanel />} />
+        <Route path="/access" element={<HostedRequestsPanel />} />
         <Route path="/approve/:ref" element={<p>review route</p>} />
       </Routes>
     </MemoryRouter>,
@@ -82,7 +83,7 @@ afterEach(() => {
 describe("Access › Requests' hosted rows", () => {
   it("is the control the requests tutorial points at, while it is drawn", async () => {
     const { unmount } = show();
-    await screen.findByText("Deploy the billing service");
+    await screen.findByRole("treeitem", { name: /Deploy the billing service/ });
     expect(isMountedGuideTarget("access.relay")).toBe(true);
     expect(resolveGuideTargetElement("access.relay")?.id).toBe(
       "hosted-requests",
@@ -93,7 +94,14 @@ describe("Access › Requests' hosted rows", () => {
 
   it("links each row to its review, and decides nothing on the list", async () => {
     show();
-    expect(await screen.findByText("Deploy the billing service")).toBeTruthy();
+    expect(
+      await screen.findByRole("treeitem", {
+        name: /Deploy the billing service/,
+      }),
+    ).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("treeitem", { name: /Deploy the billing service/ }),
+    );
     const open = screen.getByRole("link", { name: "Review request" });
     expect(open.getAttribute("href")).toBe(`/approve/${AREQ}`);
     for (const name of [/approve/i, /deny/i, /recognize/i]) {
@@ -110,7 +118,10 @@ describe("Access › Requests' hosted rows", () => {
     server.state.requireActivation = false;
     server.state.requireComparison = false;
     show();
-    await screen.findByText("Deploy the billing service");
+    await screen.findByRole("treeitem", { name: /Deploy the billing service/ });
+    await userEvent.click(
+      screen.getByRole("treeitem", { name: /Deploy the billing service/ }),
+    );
     expect(
       screen.getByRole("link", { name: "Review request" }).getAttribute("href"),
     ).toBe(`/approve/${AREQ}`);

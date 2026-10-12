@@ -41,6 +41,14 @@ T0–T3 and T5 are on by default. T4 needs one-time consent plus a per-domain
 opt-in. Nothing improvises: a target with no recipe and no well-known URL goes
 to T5.
 
+That is the policy of ADR 0076 §2 (the ADR is still Proposed), not a function in
+this checkout: `execute_rotation` dispatches on the target kind, and the Host
+records every web-login run it starts as tier `t3`
+(`crates/gateway/src/web_login/launch.rs`). Nothing here starts a T4 run, so the
+T4 consent and per-domain opt-in are not enforced anywhere yet.
+`crates/ceremony`'s `resolve` applies the same ladder shape to registration
+ceremonies.
+
 T0 sits above rotation on purpose. On a passkey-capable relying party,
 enrol-and-retire removes the credential rather than refreshing it, and no
 plaintext exists during the ceremony. Rotating a password there is a bug.
@@ -63,16 +71,21 @@ agent  --fill_credential(ref, "#new-password")-->  controller
 agent  <---------------- {ok: true} ------------------ browser
 ```
 
-Tools available in the sandbox:
+Tools available in the sandbox (`BrowserTransport` in `crates/rotation-web`):
 
 | Tool | Returns |
 |---|---|
-| `fill_credential(ref, selector)` | `{ok}` — never the value |
-| `generate_candidate(composition_policy)` | a **handle**, never a value |
-| `navigate(url)` | page state |
-| `submit(selector)` | outcome |
-| `read_dom_redacted()` | DOM with password values stripped |
-| `screenshot_redacted()` | image with credential fields masked |
+| `fill_credential(ref, selector)` | `Filled` — whether it landed, never the value |
+| `assert_present(ref, selector)` | `Presence` (`Present`, `Absent`, `Mismatch`) — answered by the controller, which knows both sides |
+| `navigate(url)`, `wait_for(selector)` | ok, or a typed `StepError` |
+| `submit(selector)` | ok, or a typed `StepError` |
+| `read_dom_redacted()` | `RedactedDom` — DOM with credential values stripped |
+| `screenshot_redacted(mask)` | an admitted frame, or nothing when no mask covers the layout |
+| `verify_login(ref)` | `Verified` (`Works`, `Rejected`, `Indeterminate`) |
+
+Generating a candidate is not a sandbox tool: the vault does it
+(`CandidateVault::generate_candidate`) and hands the tools a **handle**
+(`CandidateHandle`), never a value.
 
 There is no `read_field_value` and no `get_secret`. Not denied — absent, the
 way `spec/wit/connector/world.wit` has no `secrets.get`.
@@ -107,6 +120,14 @@ The short version, because it is the first idea everyone has:
 - It protects the password while the sandbox still holds the session, which is
   the more valuable thing. See below.
 
+[ADR 0150](../adr/0150-surrogate-credentials-at-the-last-hop.md) §6.3 later
+admitted one narrower thing, for logging in only and never for a field that
+sets a password: a recipe may declare the one field of the one login POST, and
+the runner types a surrogate (`osr_…`) that its egress hook re-places with the
+credential through the body format's own encoder. It is an optional, default-off
+plugin feature (`login-surrogate` in `crates/rotation-web`, see its README), and
+the rejection above stands for rotation itself.
+
 ## The residual risk
 
 To change a password the sandbox must log in first. It then holds a live
@@ -120,10 +141,12 @@ changes that, so the claim to make is:
 - supportable: the secret is never in the transcript, the logs, or a screenshot
 - **not** supportable: the sandbox cannot take the account
 
-Mitigations are operational, not cryptographic: T4 sandboxes are attested and
-OpenSesame-operated or self-hosted; every run ends with a diff of account
-security state (recovery address, phone, MFA enrolments, active sessions, API
-keys) surfaced in the receipt; every run ends with sign-out-everywhere.
+Mitigations are operational, not cryptographic. ADR 0076 §7 names them: T4
+sandboxes are attested and OpenSesame-operated or self-hosted; every run ends
+with a diff of account security state (recovery address, phone, MFA enrolments,
+active sessions, API keys) surfaced in the receipt; every run ends with
+sign-out-everywhere. No code in this checkout produces that diff or signs the
+account out yet.
 
 ## State machine mapping
 
@@ -312,19 +335,18 @@ license against the `deny.toml` allowlist. ADR 0052 §3 draws the line
 ADR 0048 §9 records the license trap that makes this worth checking rather than
 assuming.
 
-## Intended code homes
+## Code homes
 
-Where each piece lives. The rows from `crates/rotation-web` onward are built, and the
-hooked path above is wired in `crates/gateway/src/web_login`.
+Where each piece lives. The hooked path above is wired in `crates/gateway/src/web_login`.
 
 | Change | Where |
 |---|---|
 | `RotationTarget::WebLogin` + `from_parts` + DDL `CHECK` | `crates/connection-broker/src/rotation.rs`, `store.rs` |
-| Tier resolution, recipe evaluation, step IR, runner trait | new crate, e.g. `crates/rotation-web` |
-| Web-login executor dispatch | `execute_rotation` in `crates/connection-broker/src/rotation.rs` |
-| Routes for policies, teaching sessions, recordings | `crates/gateway/src/routes/rotation.rs` |
-| Live observation lanes, frame admission, control lease | `crates/session-observe` (exists; ADR 0081) |
-| Sealed observation log, attach ceremony, WSS relay | `crates/storage`, `crates/gateway/src/routes/rotation.rs` |
+| Recipe evaluation, step IR, runner trait | `crates/rotation-web` |
+| Web-login executor dispatch | `execute_rotation` in `crates/connection-broker/src/rotation.rs` (parks the job when no runner exists) and `rotation_web_login*.rs` (the hosted run's job life) |
+| Routes for rotation policies and jobs | `crates/gateway/src/routes/rotation.rs` |
+| Live observation lanes, frame admission, control lease | `crates/session-observe` (ADR 0081) |
+| Sealed observation log, observe/control routes | `crates/storage/src/observation.rs`, `crates/gateway/src/routes/agent_runs.rs` |
 | Registry entries | `packages/capability-registry/src/index.ts`, `agent-hooks.ts`, `web-login-recipes.ts`, `extension-runner.ts`, then regenerate `capabilities.json` |
 | Hooked executor, signed recipe document | `crates/rotation-web/src/hooks`, `crates/rotation-web/src/recipe_doc` (ADR 0159) |
 | Runner, claim, reaper, settle route, recipe and signer routes | `crates/gateway/src/web_login`, `crates/gateway/src/routes/{agent_runs,web_login_recipes}*`, `crates/storage/src/web_login_runs*` |

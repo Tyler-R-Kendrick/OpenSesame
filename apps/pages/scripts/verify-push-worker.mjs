@@ -2,7 +2,7 @@
 //
 // Approving "Push notifications" is the person's consent to the push variant
 // of the service worker. This walks that consent the way a person gives it —
-// front door, guest, Settings › Capabilities, the capability's switch — on a
+// front door, guest, Settings › Features, the capability's switch — on a
 // device that already holds the core worker, and proves what the unit tests
 // cannot: that the browser ends up running `sw-push.js` over the same scope,
 // that nothing reloaded under the person on the way, that it is the only
@@ -38,13 +38,16 @@ import {
   openSettingsCategory,
   waitOpen,
 } from "./lib/pages-journey.mjs";
+import { openGuestAgain } from "./lib/push-worker-guest.mjs";
 import {
   notificationsOf as notificationsFrom,
+  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,
   until,
   untilBornControlled,
+  untilWorkerHeld,
 } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
@@ -52,16 +55,6 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
-
-/**
- * The same worker script: origin and path. A replacement the controller had to
- * ask for again carries `?r=<n>` in its URL and is still the variant's script.
- */
-const same = (a, b) =>
-  a !== null &&
-  b !== null &&
-  new URL(a).origin === new URL(b).origin &&
-  new URL(a).pathname === new URL(b).pathname;
 
 const failures = [];
 const check = (condition, what) => {
@@ -141,12 +134,7 @@ try {
   };
 
   /** Wait for `script` to hold this scope for the page, with no help. */
-  const untilHeld = (script, what) =>
-    until(
-      () => scriptsFrom(page, base),
-      (s) => same(s.active, script) && same(s.controller, script),
-      what,
-    );
+  const untilHeld = (script, what) => untilWorkerHeld(page, base, script, what);
 
   /**
    * Deliver until `ok` holds of what the registration shows, as a push service
@@ -207,7 +195,7 @@ try {
     (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
-  await other.getByRole("button", { name: "Continue as guest" }).click();
+  await openGuestAgain(other);
   await waitOpen(other);
   await other.waitForTimeout(500);
   const otherBefore = await other.evaluate(() => performance.timeOrigin);
@@ -325,9 +313,9 @@ try {
 
   // Taking the capability away reverts to the core worker. A load locks the
   // vault, so come back in as the guest the walk began as.
-  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await openGuestAgain(page);
   await waitOpen(page);
-  await openSettingsCategory(page, "Capabilities");
+  await openSettingsCategory(page, "Features");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });
   // The browser holds a push subscription made under the push worker.
   shim.held = true;

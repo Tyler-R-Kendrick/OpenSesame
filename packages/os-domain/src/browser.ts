@@ -6,6 +6,8 @@ export * from "./json.js";
 export * from "./fnv1a.js";
 export * from "./canonical-origin.js";
 export * from "./types.js";
+// Published vault address owner/slug (ADR 0181). A pure parser, no I/O.
+export * from "./org-vault-ref.js";
 export * from "./errors.js";
 export * from "./endpoint-display.js";
 export * from "./endpoints.js";
@@ -38,3 +40,18 @@ export {
   sha256Hex,
 } from "./crypto/digest-browser.js";
 export * from "./transport-security/index.js";
+// Resource selectors and the authority grant with its attenuation rules are
+// pure. Model keys (ADR 0192) narrow a grant in the browser with exactly the
+// functions every other plane uses, so they ride on this entry too.
+export {
+  type ResourceScope,
+  parseResourceScope,
+  scopeContains,
+  scopeMatches,
+} from "./permission-scope.js";
+export {
+  type AuthorityGrant,
+  type AuthorityGrantConstraints,
+  resourcesAttenuate,
+  validateAuthorityGrantAttenuation,
+} from "./authority-grant.js";

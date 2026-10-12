@@ -29,7 +29,7 @@ compiler and its YAML/JSON import and export.
 
 | Entry | What it holds |
 |---|---|
-| `@opensesame/contracts` | Every schema module re-exported from `src/index.ts`: `principals`, `projects`, `agents`, `agent-auth`, `organizations`, `oauth-clients`, `claims`, `authorization-requests`, `interactions`, `transaction`, `audit`, `trust`, `notifications`, `webhooks`, `authentication-service`, `authority-grant`, `local-access-requests`, `federated-providers`, `connections`, `secret-configs`, `sync-targets`, `sync_blobs`, `taskbus` (plus `taskBusOpenApi`), `transport-security` |
+| `@opensesame/contracts` | Every schema module re-exported from `src/index.ts`: `principals`, `projects`, `agents`, `agent-auth`, `organizations`, `oauth-clients`, `claims`, `authorization-requests`, `interactions`, `transaction`, `audit`, `trust`, `notifications`, `webhooks`, `authentication-service`, `authority-grant`, `local-access-requests`, `federated-providers`, `connections`, `secret-configs`, `sync-targets`, `sync_blobs`, `taskbus` (plus `taskBusOpenApi`), `transport-security`, and the `duress` module below (also re-exported from the root) |
 | `@opensesame/contracts/duress` | The duress policy schema, `compileDuressPolicy`, `dryRunDuressPolicy`, `parseDuressWire`, `serializeDuressPolicy`, `importDuressPolicyPreview`, `diffDuressPolicies`, scenarios and attack trees; test data under `src/duress/testdata/` |
 
 ## Develop

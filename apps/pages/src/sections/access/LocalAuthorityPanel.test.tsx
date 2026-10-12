@@ -12,10 +12,11 @@ import {
 } from "@opensesame/app-core/lib/local-sessions.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { LocalAuthorityPanel } from "./LocalAuthorityPanel.js";
+import { renderAccess as render } from "./workspace-test-support.js";
 
 beforeEach(() => {
   vi.spyOn(directory, "readLocalDirectory").mockResolvedValue({
@@ -85,7 +86,9 @@ afterEach(() => {
 
 it("lists local records without a backend and cancels with keyboard focus restored", async () => {
   render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
-  await screen.findByText("Test person → Test application");
+  await screen.findByRole("heading", {
+    name: "Test person → Test application",
+  });
   const button = screen.getByRole("button", { name: "Revoke grant" });
   button.focus();
   await userEvent.keyboard("{Enter}");
@@ -106,7 +109,9 @@ it("restores focus even when a frame fires before the confirmation's removal com
     return 0;
   });
   render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
-  await screen.findByText("Test person → Test application");
+  await screen.findByRole("heading", {
+    name: "Test person → Test application",
+  });
   const button = screen.getByRole("button", { name: "Revoke grant" });
   button.focus();
   await userEvent.keyboard("{Enter}");
@@ -116,16 +121,18 @@ it("restores focus even when a frame fires before the confirmation's removal com
 
 it("shows only application grants and revokes through the same encrypted-store operation", async () => {
   render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
-  await screen.findByText("Test person → Test application");
+  await screen.findByRole("heading", {
+    name: "Test person → Test application",
+  });
   expect(
-    screen.getByRole("heading", { name: "Local application grants" }),
+    screen.getByRole("tree", { name: "Local application grants items" }),
   ).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Revoke session" })).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Revoke grant" }));
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm revocation" }),
   );
-  await screen.findByText("No unexpired local application grants.");
+  await screen.findByText("No grants.");
   expect(revokeRecordedLocalGrant).toHaveBeenCalledExactlyOnceWith(
     "vault-a",
     "grant-record",
@@ -136,7 +143,10 @@ it("shows only application grants and revokes through the same encrypted-store o
 it.each(["session", "grant"] as const)(
   "confirms only the selected %s and recovers focus",
   async (kind) => {
-    render(<LocalAuthorityPanel tomb="vault-a" records={kind} />);
+    render(
+      <LocalAuthorityPanel tomb="vault-a" records={kind} />,
+      `/access?view=${kind === "grant" ? "grants" : "sessions"}#${kind === "grant" ? "local-grants/grant-record" : "local-sessions/session-record"}`,
+    );
     await userEvent.click(
       await screen.findByRole("button", { name: `Revoke ${kind}` }),
     );
@@ -176,15 +186,15 @@ it("does not turn a failed read into an empty list", async () => {
   render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
   await waitFor(() => expect(trayFailures()).toHaveLength(1));
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(
-    screen.queryByText("No unexpired local application grants."),
-  ).toBeNull();
+  expect(screen.queryByText("No grants.")).toBeNull();
   expect(document.body.textContent).not.toContain("private diagnostic");
   expect(JSON.stringify(listNotices())).not.toContain("private diagnostic");
   await userEvent.click(
     screen.getByRole("button", { name: "Reload local access records" }),
   );
-  await screen.findByText("Test person → Test application");
+  await screen.findByRole("heading", {
+    name: "Test person → Test application",
+  });
   await waitFor(() => expect(trayFailures()).toHaveLength(0));
 });
 
@@ -216,11 +226,14 @@ it("retains confirmation on failed writes and never claims revocation succeeded"
 });
 
 it("refreshes external changes to one empty line, never a dash counter", async () => {
-  render(<LocalAuthorityPanel tomb="vault-a" records="session" />);
+  render(
+    <LocalAuthorityPanel tomb="vault-a" records="session" />,
+    "/access?view=sessions#local-sessions/session-record",
+  );
   await screen.findByRole("button", { name: "Revoke session" });
   vi.mocked(listLocalIdentitySessions).mockResolvedValue([]);
   act(() => notifyLocalIamChange());
-  await screen.findByText("No unexpired local sessions.");
+  await screen.findByText("No sessions.");
   expect(screen.queryByText(/: -/)).toBeNull();
   // Sessions never lists the Grants tab's records.
   expect(screen.queryByText("Test person → Test application")).toBeNull();

@@ -1,0 +1,42 @@
+[
+  {
+    "providerId": "github",
+    "phase": "after",
+    "device": "desktop",
+    "header": "GitHub\n\nPersonal access token · Backup/recovery\n\nDocs",
+    "docsUrl": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  },
+  {
+    "providerId": "s3",
+    "phase": "after",
+    "device": "desktop",
+    "header": "S\nS3-compatible bucket\n\nConfiguration · Local storage\n\nDocs",
+    "docsUrl": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  },
+  {
+    "providerId": "github",
+    "phase": "after",
+    "device": "phone",
+    "header": "GitHub\n\nPersonal access token · Backup/recovery\n\nDocs",
+    "docsUrl": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  },
+  {
+    "providerId": "s3",
+    "phase": "after",
+    "device": "phone",
+    "header": "S\nS3-compatible bucket\n\nConfiguration · Local storage\n\nDocs",
+    "docsUrl": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  }
+]

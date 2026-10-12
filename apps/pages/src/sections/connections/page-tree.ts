@@ -9,8 +9,10 @@ import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
   FEATURE_BINDING_CATEGORIES,
+  belongsToConnectedList,
   connectorPath,
   isFeatureBindingCategory,
+  isListedInCatalog,
 } from "@opensesame/app-core/sections/connections/shared.js";
 import {
   type PageTreeLeaf,
@@ -74,26 +76,41 @@ export function catalogPageSections(
     });
   }
   for (const category of CATEGORY_ORDER) {
-    if (isFeatureBindingCategory(category)) continue;
+    if (!isListedInCatalog(category)) continue;
     if (!grouped.has(category)) continue;
     groups.push({
       id: category,
       label: CATEGORY_LABELS[category],
       href: `/connections#catalog-${category}`,
-      items: (grouped.get(category) ?? []).map((provider) =>
-        leaf(
-          provider.id,
-          provider.displayName,
-          connectorPath(provider.id),
-          "catalog",
-        ),
+      items: inCatalogOrder(category, grouped.get(category) ?? []).map(
+        (provider) =>
+          leaf(
+            provider.id,
+            provider.displayName,
+            connectorPath(provider.id),
+            "catalog",
+          ),
       ),
     });
   }
   return groups;
 }
 
-/** Feature bindings live under Settings → Connections, not Add a connection. */
+/**
+ * Source order, except the model providers: eighty-odd tiles are found by
+ * name, so they are listed by it (ADR 0192).
+ */
+function inCatalogOrder(
+  category: Provider["category"],
+  providers: readonly Provider[],
+): readonly Provider[] {
+  if (category !== "ai_model_provider") return providers;
+  return [...providers].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
+  );
+}
+
+/** Feature bindings live under Settings → Integrations, not Add a connection. */
 export function featureBindingSections(
   providers: readonly Provider[],
 ): PageTreeSource[] {
@@ -113,7 +130,7 @@ export function featureBindingSections(
     groups.push({
       id: category,
       label: CATEGORY_LABELS[category],
-      href: `/settings/connections#${category}`,
+      href: `/settings/integrations#${category}`,
       items: items.map((provider) =>
         leaf(
           provider.id,
@@ -138,7 +155,7 @@ export function connectedPageItems(
   connections: readonly Connection[],
 ): PageTreeLeaf[] {
   return connections
-    .filter((connection) => connection.status !== "revoked")
+    .filter(belongsToConnectedList)
     .map((connection) =>
       leaf(
         connection.connectionId,

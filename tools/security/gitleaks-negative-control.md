@@ -37,7 +37,7 @@ clean and reads as a broken gate when nothing is wrong.
 
 ## How the exemptions are written
 
-Two mechanisms, and the choice between them is not stylistic.
+Three mechanisms, and the choice between them is not stylistic.
 
 **Preferred — a trailing `// gitleaks:allow` on the offending line.** Only that
 line is exempt; the rest of the file stays scanned.
@@ -81,9 +81,12 @@ inherited through `[extend] useDefault` in gitleaks 8.28** — verified by
 running the same scan with and without it and getting the same 12 findings
 both times. There is no per-rule scoping available for default rules.
 
-So a genuine credential pasted into one of those four fixtures would not be
-caught. Keep the list to files whose entire contents someone has read, and
-reach for the inline comment anywhere it is possible.
+So a genuine credential pasted into a file on a path list would not be
+caught. `.gitleaks.toml` has two such lists beside the build-output pruning:
+the four files named above (three Bitwarden JSON fixtures and `Cargo.lock`) and
+a longer list of synthetic fixtures the default rules flag. Keep the lists to
+files whose entire contents someone has read, and reach for the inline comment
+anywhere it is possible.
 
 Also note `.gitleaks.toml` uses the plural `[[allowlists]]` form throughout:
 gitleaks refuses to load a config that mixes it with the deprecated singular
@@ -91,7 +94,9 @@ gitleaks refuses to load a config that mixes it with the deprecated singular
 
 ## What was exempted, and why it is safe
 
-Every value was decoded and read before being listed:
+The first set of exemptions, with every value decoded and read before being
+listed. Later ones are in `.gitleaks.toml` (anchored exact-value regexes and
+path lists) and in trailing `gitleaks:allow` comments (`rg 'gitleaks:allow'`):
 
 | Where | Value | Verdict |
 | --- | --- | --- |
@@ -108,7 +113,8 @@ to change the fixtures.
 
 ## Git history
 
-The gate warns on history findings and gates only on the working tree. History
-currently reports ~70, from commits already recorded as remediated in
-`.gitleaks.toml`. Rewriting history to clear them is a separate decision that
-has not been taken.
+The gate warns on history findings and gates only on the working tree;
+`OPENSESAME_GITLEAKS_HISTORY_FAIL=1` makes history findings fail it too.
+`.gitleaks.toml` records the remediated commits it knows about (two today).
+Rewriting history to clear any that remain is a separate decision that has not
+been taken.

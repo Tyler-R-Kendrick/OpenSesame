@@ -8,11 +8,14 @@ import {
   type VaultHeader,
   WrongPasswordError,
   importVaultKey,
+  mintVaultKey,
 } from "@opensesame/vault-core";
+import type { PasskeyCreateOptions } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { protectorToUnlockRecord } from "./protection/adapters/webauthn-prf-ops.js";
 import { capsuleRecordsFor } from "./protection/unlock-protector-methods.js";
 import {
   type PasskeyCeremony,
+  createPasskeyUnlockCeremony,
   getPasskeyUnlockCeremony,
   getPasskeyUnlockCeremonyFor,
   unwrapVaultKeyWithPrf,
@@ -43,6 +46,43 @@ export function wrapVaultKeyWithCeremony(
     ceremony.credential.rawId,
     ceremony.userId,
   );
+}
+
+/**
+ * First-run seal under a passkey PRF wrap — no master password required. A
+ * refused or cancelled ceremony persists nothing and zeroes the minted key.
+ */
+export async function sealNewVaultWithPasskey(
+  persist: (
+    header: VaultHeader,
+    vaultKey: CryptoKey,
+    rawVaultKey: Uint8Array,
+  ) => Promise<void>,
+  signal?: AbortSignal,
+  options?: PasskeyCreateOptions,
+): Promise<void> {
+  const aborted = () =>
+    new DOMException("The operation was aborted.", "AbortError");
+  if (signal?.aborted) throw aborted();
+  const { vaultKey, rawVaultKey } = await mintVaultKey();
+  try {
+    const ceremony = await createPasskeyUnlockCeremony(
+      undefined,
+      signal,
+      options,
+    );
+    if (signal?.aborted) throw aborted();
+    const record = await wrapVaultKeyWithCeremony(rawVaultKey, ceremony);
+    const header: VaultHeader = {
+      v: 1,
+      createdAt: new Date().toISOString(),
+      unlocks: { passkey: record },
+    };
+    await persist(header, vaultKey, rawVaultKey);
+  } catch (error) {
+    rawVaultKey.fill(0);
+    throw error;
+  }
 }
 
 /**

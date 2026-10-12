@@ -1,7 +1,14 @@
 # ADR 0044 — Claimable connection delegation (shareable connector auth)
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-19
+Implementation: the Host side is built: `/api/v1/delegations` (mint, list,
+`present`, `claim`, `offers`, revoke, `{id}/narrow`) in
+`crates/gateway/src/routes/delegations.rs`, over the
+`connection_delegation_offers`, `connection_delegation_offer_items` and
+`connection_delegations` tables
+(`crates/storage/migrations/0012_connection_delegations.sql`). The claim
+ceremony runs in Pages (ADR 0136, ADR 0140), not in a separate app.
 Amended by: ADR 0045 (decision 10's ceremony host moved to the standalone
 ceremonies app; every other property of that decision stands);
 ADR 0046 (offer items gain an `execution_mode`, and post-claim controls —

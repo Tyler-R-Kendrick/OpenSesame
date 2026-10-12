@@ -8,7 +8,10 @@ import {
  * the payload decrypted under the key the link carried. A refusal is a mark
  * and a tray notice; one the link cannot come back from settles it.
  */
-import { CLAIM_NOTICE } from "@opensesame/app-core/lib/claims/route-model.js";
+import {
+  CLAIM_NOTICE,
+  DROP_FAILURE_MARK_WITH_TRAY,
+} from "@opensesame/app-core/lib/claims/route-model.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { sealDrop } from "@opensesame/app-core/lib/vault/drop.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -21,7 +24,7 @@ const original = dropOpenSeams.presentClaim;
 const onSettled = vi.fn();
 
 function trayed() {
-  return listNotices().find((notice) => notice.id === CLAIM_NOTICE);
+  return listNotices().find((notice) => notice.id.startsWith(CLAIM_NOTICE));
 }
 
 beforeEach(() => {
@@ -73,9 +76,61 @@ describe("DropClaimScreen", () => {
     await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
     await waitFor(() => expect(trayed()?.title).toBe("Drop"));
     expect(
-      screen.getByRole("img", { name: trayed()?.body ?? "" }),
+      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
     ).toBeTruthy();
+    expect(trayed()?.body).toBe("That code did not match.");
     expect(container.querySelector(".note")).toBeNull();
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("trays how many tries are left after a wrong code", async () => {
+    dropOpenSeams.presentClaim = vi.fn(async () => {
+      throw new DropTransportError(
+        "invalid_code",
+        "That code does not match this drop. 3 tries left.",
+        3,
+      );
+    });
+    render(
+      <DropClaimScreen
+        token={TOKEN}
+        fragmentKey="a2V5"
+        onSettled={onSettled}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
+    await waitFor(() =>
+      expect(trayed()?.body).toBe(
+        "That code does not match this drop. 3 tries left.",
+      ),
+    );
+    expect(
+      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
+    ).toBeTruthy();
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("warns in the tray before the last try is spent", async () => {
+    dropOpenSeams.presentClaim = vi.fn(async () => {
+      throw new DropTransportError(
+        "invalid_code",
+        "That code does not match this drop. This is your last try.",
+        1,
+      );
+    });
+    render(
+      <DropClaimScreen
+        token={TOKEN}
+        fragmentKey="a2V5"
+        onSettled={onSettled}
+      />,
+    );
+    await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
+    await waitFor(() =>
+      expect(trayed()?.body).toBe(
+        "That code does not match this drop. This is your last try.",
+      ),
+    );
     expect(onSettled).not.toHaveBeenCalled();
   });
 

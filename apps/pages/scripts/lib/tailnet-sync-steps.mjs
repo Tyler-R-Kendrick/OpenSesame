@@ -2,6 +2,7 @@
 // Networking on, saving an account item, and waiting for the panel to say the
 // device is in step.
 import { expect } from "@playwright/test";
+import { chooseType } from "./editor-type.mjs";
 import { toTheList } from "./phone-vault.mjs";
 
 /** The steps for an app served under `base`. */
@@ -15,7 +16,7 @@ export function syncSteps(base) {
   }
 
   async function networkingOn(page) {
-    await visit(page, "settings/capabilities");
+    await visit(page, "settings/features");
     await page.getByRole("switch", { name: "Networking", exact: true }).click();
     await page
       .getByTestId("capability-review")
@@ -48,7 +49,7 @@ export function syncSteps(base) {
       .getByRole("link", { name: "New item", exact: true })
       .first()
       .click();
-    await page.getByLabel("Type", { exact: true }).selectOption("account");
+    await chooseType(page, "account");
     await page.getByLabel("Name", { exact: true }).fill(name);
     await page
       .getByLabel("Username / ID", { exact: true })

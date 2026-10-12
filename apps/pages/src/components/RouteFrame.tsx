@@ -19,12 +19,20 @@ import { keyboardIsIdle, landFocus } from "../lib/focus.js";
 export function Framed({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLElement>(null);
   const location = useLocation();
+  const records = /^\/(?:identity$|wallet(?:\/|$)|access(?:\/|$))/.test(
+    location.pathname,
+  );
   // biome-ignore lint/correctness/useExhaustiveDependencies: location.key is the arrival itself; the effect runs once per navigation
   useEffect(() => {
-    if (keyboardIsIdle()) landFocus(ref.current);
-  }, [location.key]);
+    if (!records && keyboardIsIdle()) landFocus(ref.current);
+  }, [location.key, records]);
   return (
-    <main id="main" className="section" ref={ref} tabIndex={-1}>
+    <main
+      id="main"
+      className={records ? "section section--records" : "section"}
+      ref={ref}
+      tabIndex={-1}
+    >
       {children}
     </main>
   );

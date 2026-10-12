@@ -3,17 +3,24 @@
 ## Hermetic commands
 
 ```bash
+pnpm --filter @opensesame/app-core test
 pnpm --filter @opensesame/pages test
 pnpm --filter @opensesame/sdk-browser test
 pnpm --filter @opensesame/pages verify:ambient-sso
 ```
 
 `verify:ambient-sso` requires a Pages `dist/` build (`VITE_BASE=/OpenSesame/`
-and, separately, origin root). When `PLAYWRIGHT_CHROMIUM` is unset, the
-script still asserts the MSAL bridge asset and reports the browser journey as
-skipped.
+and, separately, origin root). When no Chromium is found (`PLAYWRIGHT_CHROMIUM`
+unset and none in the Playwright cache), the script still asserts the MSAL
+bridge asset and reports the browser journey as skipped.
 
 ## Deterministic cases
+
+The test files below are under `packages/app-core/src/lib/ambient-auth/`,
+except `federation.test.ts`, `session-exit.test.ts` and `opener-policy.test.ts`
+(directly in `packages/app-core/src/lib/`), `bridge-asset.test.ts`
+(`apps/pages/src/lib/ambient-auth/`) and `FederationReturn.test.tsx`
+(`apps/pages/src/screens/`).
 
 | ID | Where |
 | --- | --- |

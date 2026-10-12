@@ -2,8 +2,10 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import {
   STATUS_CHIP,
+  belongsToConnectedList,
   connectorPath,
   statusSentence,
 } from "@opensesame/app-core/sections/connections/shared.js";
@@ -15,6 +17,8 @@ import { IconPlus, IconSettings } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
+import { InstalledConnectorActions } from "./InstalledConnectorActions.js";
+import { catalogConnectorAction } from "./catalog-connector-action.js";
 import { CONNECTIONS_PAGE_SIZE, nextPageCount } from "./page-cap.js";
 
 const READ_FAILED = "Connections could not be read.";
@@ -98,7 +102,7 @@ export function ConnectedPanel({
   const panelRef = useGuideTarget<HTMLElement>("connections.connected");
   const [limit, setLimit] = useState(CONNECTIONS_PAGE_SIZE);
   const [pending, startTransition] = useTransition();
-  const live = (connections ?? []).filter((c) => c.status !== "revoked");
+  const live = (connections ?? []).filter(belongsToConnectedList);
   const shown = live.slice(0, limit);
   const more = nextPageCount(live.length, limit);
 
@@ -140,6 +144,7 @@ export function ConnectedPanel({
                   connection={connection}
                   provider={
                     providers.find((p) => p.id === connection.providerId) ??
+                    catalogProvider(connection.providerId) ??
                     null
                   }
                 />
@@ -186,14 +191,40 @@ function AuthorizedConnection({
       </div>
       <div className="conn-service__actions">
         <StatusMark tone={statusTone(chip.tone)} label={chip.label} />
-        <Link
-          className="btn btn--sm"
-          to={connectorPath(connection.providerId, connection.connectionId)}
-          aria-label={`Settings for ${connection.displayName}`}
-        >
-          <IconSettings size={16} /> Settings
-        </Link>
+        <ConnectedConnectionActions
+          connection={connection}
+          provider={provider}
+        />
       </div>
     </li>
+  );
+}
+
+function ConnectedConnectionActions({
+  connection,
+  provider,
+}: {
+  connection: Connection;
+  provider: Provider | null;
+}) {
+  if (
+    provider &&
+    catalogConnectorAction(provider, connection).kind === "configure"
+  )
+    return (
+      <InstalledConnectorActions
+        provider={provider}
+        connectionId={connection.connectionId}
+        layout="service"
+      />
+    );
+  return (
+    <Link
+      className="btn btn--sm"
+      to={connectorPath(connection.providerId, connection.connectionId)}
+      aria-label={`Settings for ${connection.displayName}`}
+    >
+      <IconSettings size={16} /> Settings
+    </Link>
   );
 }

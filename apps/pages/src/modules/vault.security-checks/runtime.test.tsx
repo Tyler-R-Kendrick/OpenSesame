@@ -1,11 +1,15 @@
 /** @vitest-environment jsdom */
 import {
   PWNED_PURPOSE,
+  SECURITY_CHECKS_SUMMARY,
   TWO_FACTOR_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
+import { breachWatchSnapshot } from "@opensesame/app-core/lib/vault/health.js";
 import {
   PWNED_RANGE_URL,
+  SECURITY_CHECKS_IDLE,
   TWO_FACTOR_LIST_URL,
+  clearSecurityWatch,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
@@ -56,17 +60,27 @@ const ITEMS = [
 
 const originalHooks = { ...vaultHooksSeams };
 let status = "unlocked";
+let tomb = "personal";
+let items = ITEMS;
 
 beforeEach(() => {
   status = "unlocked";
+  tomb = "personal";
+  items = ITEMS;
   Object.assign(vaultHooksSeams, {
-    useVault: () => ({ ...vaultStore.getSnapshot(), status, items: ITEMS }),
+    useVault: () => ({
+      ...vaultStore.getSnapshot(),
+      status,
+      tomb,
+      items,
+    }),
   });
 });
 
 afterEach(() => {
   cleanup();
   Object.assign(vaultHooksSeams, originalHooks);
+  clearSecurityWatch();
 });
 
 async function mountedPanel() {
@@ -95,8 +109,8 @@ async function mountedPanel() {
   const [entry] = t.entries("settings-panel");
   if (!entry) throw new Error("no panel registered");
   const Panel: ComponentType = entry.Panel;
-  render(<Panel />);
-  return { t, handle };
+  const view = render(<Panel />);
+  return { t, handle, Panel, view };
 }
 
 describe("vault.security-checks runtime", () => {
@@ -106,18 +120,34 @@ describe("vault.security-checks runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers only its Settings › Vaults panel", async () => {
+  it("registers the check on Settings › Vaults and in its Capabilities section", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.security-checks",
       kinds: ["settings-panel"],
-      count: 1,
+      count: 2,
     });
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    expect(breachWatchSnapshot()).toMatchObject({
+      phase: "idle",
+      label: SECURITY_CHECKS_IDLE,
+    });
+    expect(
+      t
+        .entries("settings-panel")
+        .map((panel) => panel.category)
+        .sort(),
+    ).toEqual(["features.feature-security-checks", "vaults"]);
+    await handle.dispose();
+    expect(breachWatchSnapshot().phase).toBe("off");
   });
 
   it("sends nothing until the key is pressed, then only what it declared", async () => {
     const { t, handle } = await mountedPanel();
     expect(t.egressCalls).toEqual([]);
     expect(screen.getByText("Not checked")).toBeTruthy();
+    expect(screen.getByText(SECURITY_CHECKS_SUMMARY)).toBeTruthy();
+    expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy();
 
     fireEvent.click(
       screen.getByRole("button", {
@@ -127,6 +157,17 @@ describe("vault.security-checks runtime", () => {
     await waitFor(() =>
       expect(screen.getByText("2 logins checked")).toBeTruthy(),
     );
+    expect(
+      screen.getByText(
+        "1 of 2 passwords found in known breaches. 1 login could add an authenticator code.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Found in breaches 42 times: change this password"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("This site takes an authenticator code; none is stored"),
+    ).toBeTruthy();
     expect(t.egressCalls).toEqual([
       {
         input: `${PWNED_RANGE_URL}5BAA6`,
@@ -159,6 +200,42 @@ describe("vault.security-checks runtime", () => {
       "This site takes an authenticator code; none is stored",
     );
     expect(screen.queryByText("Shop")).toBeNull();
+    await handle.dispose();
+  });
+
+  it("clears a finished check when vault logins change", async () => {
+    const { handle, Panel, view } = await mountedPanel();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Check logins against breaches and two-step sites",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("2 logins checked")).toBeTruthy(),
+    );
+    items = [...ITEMS, login("Added", "fresh-secret", "https://added.example")];
+    view.rerender(<Panel />);
+    await waitFor(() =>
+      expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy(),
+    );
+    await handle.dispose();
+  });
+
+  it("clears a finished check when the active vault changes", async () => {
+    const { handle, Panel, view } = await mountedPanel();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Check logins against breaches and two-step sites",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("2 logins checked")).toBeTruthy(),
+    );
+    tomb = "project-other";
+    view.rerender(<Panel />);
+    await waitFor(() =>
+      expect(screen.getByText(SECURITY_CHECKS_IDLE)).toBeTruthy(),
+    );
     await handle.dispose();
   });
 

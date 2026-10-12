@@ -24,7 +24,7 @@ shell reload.
 | Trust model | Per-provider (age recipients, cloud IAM, PM unlock, …) |
 | Sync | Git for encrypted values; remotes for cloud providers |
 | Agent story | `fnox exec` injects env — still process-visible secrets |
-| License | OSS (see upstream) |
+| License | MIT |
 
 ## Feature surface
 
@@ -34,8 +34,11 @@ shell reload.
 - Password managers: 1Password, Bitwarden, Proton Pass, password-store, …
 - CLI: `init`, `provider add`, `set`/`get`, `exec`, shell hooks.
 
-OpenSesame’s Pages/Host embedded catalog imports Fnox-parity provider coverage
-(`spec/connectors/fnox-parity.json`) so operators see the same connector universe.
+`spec/connectors/fnox-parity.json` is a snapshot of fnox's provider, lease and
+CLI names (dated 2026-08-10). Every provider and lease id in it is a row (or
+alias) of the one catalog, `spec/connectors/catalog.json`, which a test in
+`crates/connector-host` enforces, and Pages seeds its bundled catalog order from
+the snapshot's provider list, so operators see the same connector universe.
 
 ## Differentiators (why operators still pick fnox)
 
@@ -47,7 +50,8 @@ OpenSesame’s Pages/Host embedded catalog imports Fnox-parity provider coverage
 
 - Authorization fabric and receipts, not only secret resolution.
 - Agent-safe ConnectionRef (no default env materialization for agents).
-- Pages vault + capability connectors (encryption / git history) as product UI.
+- Pages vault with vault key protectors and a git history capability as product
+  UI.
 - Native `opensesame pass` sealed store (`.osseal` / classic tree).
 
 ## OpenSesame mapping
@@ -56,7 +60,7 @@ OpenSesame’s Pages/Host embedded catalog imports Fnox-parity provider coverage
 |--------------|------------|
 | Provider type ids | Host catalog provider ids (Fnox parity) |
 | `fnox exec` | Craft bar for humans/devs; agents use ConnectionRef |
-| age / password-store providers | Sealed-store + encryption capability connectors |
+| age / password-store providers | Sealed store (`.age-recipients`, `.gpg-id`) and vault key protectors such as `age-recipient` ([ADR 0129](../../adr/0129-vault-key-protection-manifest.md)); catalog ids `age`, `password-store`, `sealed-local` |
 | `fnox.toml` | Not adopted as Host config — `.env.schema` / settings instead |
 
 Related: [`spec/connectors/fnox-parity.json`](../../../spec/connectors/fnox-parity.json),

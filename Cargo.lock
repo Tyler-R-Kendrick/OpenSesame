@@ -3711,6 +3711,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "bytes",
  "chrono",
  "clap",
  "crossterm 0.29.0",
@@ -3721,10 +3722,12 @@ dependencies = [
  "hyper-util",
  "insta",
  "jsonwebtoken",
+ "libc",
  "opensesame-agent-hooks",
  "opensesame-authn",
  "opensesame-bitwarden-server",
  "opensesame-ceremony",
+ "opensesame-cli-app-integration",
  "opensesame-connector-host",
  "opensesame-credential-helpers",
  "opensesame-daemon",
@@ -3733,10 +3736,12 @@ dependencies = [
  "opensesame-gateway",
  "opensesame-host-core",
  "opensesame-human-vault",
+ "opensesame-invoke-through",
  "opensesame-kdbx-bridge",
  "opensesame-plugin-settings",
  "opensesame-pm-bridges",
  "opensesame-provider-bitwarden",
+ "opensesame-quorum-recovery",
  "opensesame-redaction",
  "opensesame-rotation-web",
  "opensesame-sealed-log",
@@ -3744,6 +3749,7 @@ dependencies = [
  "opensesame-session-observe",
  "opensesame-storage",
  "opensesame-tailnet-admin",
+ "opensesame-transport-security",
  "opensesame-vault-item-types",
  "opensesame-worker",
  "qr2term",
@@ -3751,16 +3757,34 @@ dependencies = [
  "ratatui",
  "regex",
  "reqwest",
+ "rustls",
  "secrecy",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "sqlx",
  "tempfile",
  "tokio",
+ "tokio-rustls",
  "tracing",
  "tracing-subscriber",
+ "url",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "opensesame-cli-app-integration"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "hex",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.19",
+ "url",
 ]
 
 [[package]]
@@ -3865,6 +3889,7 @@ dependencies = [
  "bytes",
  "chrono",
  "http",
+ "opensesame-cli-app-integration",
  "opensesame-domain",
  "opensesame-invoke-through",
  "opensesame-sealed-store",
@@ -3924,7 +3949,9 @@ dependencies = [
  "chrono",
  "clap",
  "ecdsa",
+ "hex",
  "insta",
+ "opensesame-cli-app-integration",
  "opensesame-connection-detect",
  "opensesame-host-core",
  "opensesame-invoke-through",
@@ -4464,6 +4491,28 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.19",
  "tokio",
+]
+
+[[package]]
+name = "opensesame-quorum-recovery"
+version = "0.1.0"
+dependencies = [
+ "aes-gcm 0.10.3",
+ "base64 0.22.1",
+ "chacha20poly1305",
+ "ed25519-dalek",
+ "hex",
+ "hkdf",
+ "hmac 0.12.1",
+ "pbkdf2 0.12.2",
+ "rand 0.8.7",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.19",
+ "url",
+ "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]
@@ -5806,6 +5855,7 @@ checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",

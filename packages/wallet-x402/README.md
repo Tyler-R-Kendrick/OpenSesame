@@ -3,15 +3,25 @@
 Bounded **x402 exact-payment** profile for OpenSesame wallet spending
 ([ADR 0123](../../docs/adr/0123-wallet-spending-authority.md)).
 
-This package is foundation-only:
+This package is a bounded profile, not a production payment path:
 
-- Pure profile types and `assess()` that refuse `upto`, Permit2, and implicit refill.
-- Pure challenge matching that rejects wrong chain / token / recipient before any
-  signing path exists.
-- An adapter surface that stays **`evidenceStatus: "blocked"`** for
-  `local_execution` until a local merchant/facilitator harness lands under
-  `docs/evidence/wallet/`.
-- **No mainnet, no real facilitator accounts, no production enablement.**
+- Pure profile types and `assessExactPayment()` (also exported as
+  `assessX402Adapter`) that refuse `upto`, Permit2, allowance paths and
+  implicit refill. Every constraint is reported `approval_only` and the
+  assessment's `evidenceStatus` stays `blocked`.
+- Pure challenge matching (`matchChallenge`) that rejects wrong chain / token /
+  recipient before any signing path.
+- A local-only prepare / execute path (`prepareX402Payment`,
+  `executeX402Payment`, `reconcileX402Payment`; `settleExactPayment` in
+  `exact-settle.ts`) that signs and settles an Exact EIP-3009 payment through
+  `@x402/core`, `@x402/evm` and `viem`. It needs a `LocalExactRuntime` the
+  caller passes in (Pages never does) and refuses any chain but 31337 or any RPC
+  but `http://127.0.0.1`. A prepared ref is single-use, expires after 60 s, and
+  at most 1,024 may wait. `reconcileX402Payment` answers `unknown`.
+  `describeX402Adapter()` reports `evidenceStatus: "blocked"` unless it is told
+  `localExecutionVerified`, and `productionEnabled` is always `false`.
+- **No mainnet** (`MAINNET_CHAIN_IDS` are refused), **no real facilitator
+  accounts, no production enablement.**
 
 ## What is enforced here vs residual risk
 
@@ -46,11 +56,15 @@ Notes for the future browser harness (QAB-06 / X402-02):
    where the profile requires resource binding. Missing binding is reported as
    local/merchant-evidence, not on-chain enforcement.
 4. Limit challenge size, alternative count, nesting, and billable attempts.
-   Unbounded challenge alternatives are refused by `assess()`.
+   Unbounded challenge alternatives are refused by `assessExactPayment()`.
 
-Browser CORS success/failure tests are intentionally **out of this package’s
-unit suite**; they belong to the Pages / Playwright harness once a local
-merchant exists.
+The pure gate for the CORS and redirect rules is `assessExactPaymentCors`
+(`cors.ts`, WAL-E12): it refuses a missing, wildcard, `null` or mismatched
+`Access-Control-Allow-Origin`, an `Access-Control-Expose-Headers` that lacks
+`payment-required` or `payment-signature`, and a signed authorization forwarded
+across a redirect. Real-browser CORS success/failure tests are intentionally
+**out of this package’s unit suite**; they belong to the Pages / Playwright
+harness once a local merchant exists.
 
 ## Scripts
 

@@ -49,6 +49,14 @@ const SECRET_MARKERS = [
   "ghp_",
 ] as const;
 
+/**
+ * Credentials a substring cannot name. A model key is `osk_` and exactly 43
+ * base64url characters (ADR 0192); `osk_` alone sits inside `kiosk_mode`, so it
+ * is matched by its shape, on the text as written (the body is case-sensitive).
+ * The same pattern as the `model-key` rule in `spec/log-scrub/log-scrub.json`.
+ */
+export const SECRET_PATTERNS: readonly RegExp[] = [/osk_[A-Za-z0-9_-]{43}/];
+
 function localSecrets(env: NodeJS.ProcessEnv = process.env): string[] {
   pruneSecrets(Date.now());
   const configured = [
@@ -79,7 +87,10 @@ export function scrubLocalSecrets(
 
 export function looksLikeCredential(text: string): boolean {
   const lower = text.toLowerCase();
-  return SECRET_MARKERS.some((marker) => lower.includes(marker));
+  return (
+    SECRET_MARKERS.some((marker) => lower.includes(marker)) ||
+    SECRET_PATTERNS.some((pattern) => pattern.test(text))
+  );
 }
 
 export class AgentPayloadRefused extends Error {

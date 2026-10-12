@@ -19,11 +19,13 @@
       "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": ["VITEST_MAX_WORKERS"]
     },
     "test:integration": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["VITEST_MAX_WORKERS"]
     },
     "test:e2e": {
       "dependsOn": ["^build"],

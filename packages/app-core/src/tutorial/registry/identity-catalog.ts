@@ -12,7 +12,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.agents",
     description:
-      "The Agents tab: register proof-bound agents, rename them and revoke registrations you own.",
+      "The Agents branch: register proof-bound agents, rename them and revoke registrations you own.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.agent.register",
@@ -20,7 +20,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.people",
     description:
-      "The People tab: who you are here, the identities linked to you, the access you hold, and the members of your organizations.",
+      "The People branch: who you are here, the identities linked to you, the access you hold, and the members of your organizations.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.whoami",
@@ -28,7 +28,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.providers",
     description:
-      "The Providers tab: the identity providers registered to vouch for people in this deployment.",
+      "The Providers branch: the identity providers registered to vouch for people in this deployment.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.admin",
@@ -36,7 +36,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.devices",
     description:
-      "The Devices tab: the tailnet's machines, when a daemon is paired for device management, and the browsers and installs that have unlocked this vault.",
+      "The Devices branch: the tailnet's machines, when a daemon is paired for device management, and the browsers and installs that have unlocked this vault.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.device.approve",
@@ -44,7 +44,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.service-accounts",
     description:
-      "The Applications tab: register OIDC clients, manage exact redirect URIs and revoke client registrations.",
+      "The Applications branch: register OIDC clients, manage exact redirect URIs and revoke client registrations.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.admin",
@@ -52,7 +52,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.organization",
     description:
-      "The Organization tab: the organization this session acts in, and its settings.",
+      "The Organizations branch: the organization this session acts in, and its settings.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.admin",

@@ -17,6 +17,9 @@ import {
   currentHostCarriers,
   endHosting,
 } from "@opensesame/app-core/lib/live/session.js";
+import { useState } from "react";
+import { CeremonySheet } from "../../components/CeremonySheet.js";
+import { CeremonyShell } from "../../components/CeremonyShell.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -26,20 +29,34 @@ import {
 import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import { DeviceRequests } from "./LiveHostDevices.js";
 import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
 
-function Log({ state }: { state: HostState }) {
+function Log({ host, state }: { host: LiveHost; state: HostState }) {
   const { items } = useVault();
   if (state.log.length === 0) return null;
   const names = new Map(state.guests.map((guest) => [guest.key, guest.name]));
+  // A line is about an item of the vault, or — a device's call — a connection.
+  const connections = host.devices?.offered() ?? [];
   const itemName = (id: string) =>
-    items.find((item) => item.id === id)?.name ?? id;
+    items.find((item) => item.id === id)?.name ??
+    connections.find((connection) => connection.id === id)?.label ??
+    id;
+  // Calls on one connection in one millisecond are lines that read alike: the
+  // nth of a kind is told apart by its place among them.
+  const kinds = new Map<string, number>();
+  const lines = state.log.map((entry) => {
+    const kind = `${entry.at}:${entry.guest}:${entry.what}:${entry.item}:${entry.field}`;
+    const nth = (kinds.get(kind) ?? 0) + 1;
+    kinds.set(kind, nth);
+    return { entry, key: `${kind}:${nth}` };
+  });
   return (
     <ul className="live-log" aria-label="Handed out">
-      {[...state.log].reverse().map((entry) => (
-        <li key={`${entry.at}:${entry.guest}:${entry.item}:${entry.field}`}>
+      {lines.reverse().map(({ entry, key }) => (
+        <li key={key}>
           <StatusMark
             tone={entry.what === "denied" ? "err" : "idle"}
             label={`${new Date(entry.at).toLocaleTimeString()} · ${names.get(entry.guest) ?? "?"} · ${entry.what} · ${itemName(entry.item)} ${entry.field}`}
@@ -54,6 +71,7 @@ export function LiveHostSession({
   host,
   state,
 }: { host: LiveHost; state: HostState }) {
+  const [endAsk, setEndAsk] = useState(false);
   const { copied, failed, copy } = useCopyFeedback();
   const left = useRemaining(host.expiresAt);
   const link = formatLiveLink(liveUiSeams.joinUrl(), host.link);
@@ -70,11 +88,34 @@ export function LiveHostSession({
           className="icon-btn"
           aria-label="End the session for everyone"
           title="End the session for everyone"
-          onClick={endHosting}
+          onClick={() => setEndAsk(true)}
         >
           <IconX size={16} />
         </button>
       </div>
+      {endAsk ? (
+        <CeremonySheet
+          title="End for everyone"
+          mark={<IconX size={20} />}
+          onClose={() => setEndAsk(false)}
+        >
+          <CeremonyShell
+            name="Live session"
+            facts={[
+              { key: "Guests", value: "lose access immediately" },
+              { key: "This tab", value: "stops hosting" },
+            ]}
+            primary={{
+              label: "End for everyone",
+              tone: "danger",
+              onClick: () => {
+                setEndAsk(false);
+                endHosting();
+              },
+            }}
+          />
+        </CeremonySheet>
+      ) : null}
       <FieldRow
         label="Link"
         actions={
@@ -112,7 +153,8 @@ export function LiveHostSession({
       {state.guests.map((guest) => (
         <GuestRow key={guest.key} host={host} guest={guest} />
       ))}
-      <Log state={state} />
+      <DeviceRequests host={host} state={state} />
+      <Log host={host} state={state} />
     </div>
   );
 }

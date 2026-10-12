@@ -6,11 +6,5 @@
  * failed operation, so it never goes to the tray.
  */
 export function NoPrimaryNote() {
-  return (
-    <p className="hint">
-      This vault has an authenticator code but no passkey, PIN or password to
-      open it with, so nothing here can unlock it. Delete it and seal it again,
-      or continue as a guest.
-    </p>
-  );
+  return <p className="hint">No key opens it.</p>;
 }

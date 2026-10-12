@@ -18,12 +18,16 @@ opensesame-ceremony = { path = "../../crates/ceremony" }
 opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
+opensesame-cli-app-integration = { path = "../../crates/cli-app-integration" }
+opensesame-invoke-through = { path = "../../crates/invoke-through" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }
 opensesame-bitwarden-server = { path = "../../crates/bitwarden-server", optional = true }
 opensesame-sealed-store = { path = "../../crates/sealed-store" }
 opensesame-human-vault = { path = "../../crates/human-vault" }
+# The native reader of a trusted-contacts recovery (ADR 0187): `vault circle`.
+opensesame-quorum-recovery = { path = "../../crates/quorum-recovery" }
 opensesame-vault-item-types = { path = "../../crates/vault-item-types" }
 opensesame-pm-bridges = { path = "../../crates/pm-bridges" }
 opensesame-credential-helpers = { path = "../../crates/credential-helpers" }
@@ -44,7 +48,7 @@ opensesame-session-observe = { path = "../../crates/session-observe" }
 anyhow = { workspace = true }
 clap = { workspace = true }
 jsonwebtoken = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 sqlx = { workspace = true }
 secrecy = { workspace = true }
 serde = { workspace = true }
@@ -53,16 +57,21 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 chrono = { workspace = true }
+url = { workspace = true }
 crossterm = { workspace = true }
 ratatui = { workspace = true }
 uuid = { workspace = true }
 zeroize = { workspace = true }
 hex = { workspace = true }
+sha2 = { workspace = true }
 rand = { workspace = true }
 directories = "6.0.0"
 qr2term = "0.3.3"
 regex = "1.11.1"
 tempfile = "3.20.0"
+# `dev run` catches SIGTERM and SIGHUP (src/dev_signal.rs) and signals its child;
+# the journey tests also sit a person at a real terminal via openpty.
+libc = { workspace = true }
 
 [dev-dependencies]
 # The dev-run tests point the CLI at their own settings file, which a shipped
@@ -72,6 +81,12 @@ insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+# The proxied-run end-to-end test (`tests/proxied_run_e2e.rs`) stands a
+# recording TLS server in for the provider's API, with disposable PKI.
+bytes = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26.4", default-features = false, features = ["ring", "tls12"] }
+opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
 
 [features]
 default = []

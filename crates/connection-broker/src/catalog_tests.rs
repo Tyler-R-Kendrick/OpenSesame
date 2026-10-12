@@ -3,15 +3,15 @@ use super::*;
 #[test]
 fn embedded_catalog_is_valid_and_versioned() {
     let catalog = load().expect("embedded catalog");
-    assert_eq!(catalog.revision(), "2026-10-05.1");
-    assert_eq!(catalog.providers().len(), 111);
+    assert_eq!(catalog.revision(), "2026-10-12.1");
+    assert_eq!(catalog.providers().len(), 178);
     assert_eq!(
         catalog
             .providers()
             .iter()
             .filter(|provider| provider.id != "mock")
             .count(),
-        110
+        177
     );
     assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
 }
@@ -179,7 +179,10 @@ fn catalog_includes_required_llm_providers() {
     ];
     let catalog = load().expect("embedded catalog");
     for id in expected {
-        assert_eq!(catalog.find(id).unwrap().category, Category::AgentHarnesses);
+        assert_eq!(
+            catalog.find(id).unwrap().category,
+            Category::AiModelProvider
+        );
     }
 }
 

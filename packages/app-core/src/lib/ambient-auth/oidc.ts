@@ -11,6 +11,7 @@ import {
   randomString,
   verifyBrowserIdTokenClaims,
 } from "@opensesame/sdk-browser";
+import { endpointBelongsToIssuer } from "../federation-endpoint-origin.js";
 import { FederationError, type UpstreamIdentity } from "../federation.js";
 import { currentAuthGeneration } from "./generation.js";
 import {
@@ -112,6 +113,17 @@ export async function exchangeAmbientCode(
 ) {
   if (transaction.intent.kind !== "ambient") {
     throw new FederationError("invalid_request", "Not an ambient transaction.");
+  }
+  // Discovery endpoints live in the transaction, which is origin storage.
+  // The code and verifier leave the browser only for the issuer origin.
+  if (
+    !endpointBelongsToIssuer(transaction.tokenEndpoint, transaction.issuer) ||
+    !endpointBelongsToIssuer(transaction.jwksUri, transaction.issuer)
+  ) {
+    throw new FederationError(
+      "untrusted_issuer",
+      "Discovery endpoints are not the issuer.",
+    );
   }
   const body = new URLSearchParams({
     grant_type: "authorization_code",

@@ -70,7 +70,7 @@ function toResponse(project: Project, role: ProjectRole) {
 }
 
 /** Hierarchy response plus opaque tomb/vault binding metadata (WP-B). */
-function projectDetailResponse(project: Project, role: ProjectRole) {
+export function projectDetailResponse(project: Project, role: ProjectRole) {
   return {
     ...toResponse(project, role),
     sealedStoreTombName: project.sealedStoreTombName ?? null,

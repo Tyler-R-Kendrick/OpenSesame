@@ -1,0 +1,1560 @@
+{
+  "schema_version": 1,
+  "audited_origin": "https://tyler-r-kendrick.github.io",
+  "checked_date": "2026-10-12",
+  "qualification": "Unauthenticated TLS-verified requests only, no account grant or credential, from the audited origin. A provider's answer to this origin is not a statement about any other origin or about authenticated access. Errors and 5xx do not establish provider CORS refusal, so they never produce a refusal here. Only providers with no compiled browser connection contract appear; every other provider's browser admission is in browser-policy.json.",
+  "kinds": {
+    "built-in": "This vault already does what the integration is for.",
+    "companion": "Reached only through a native client or process (a command-line tool, the operating system, a device). A browser page cannot run it.",
+    "refuses-browser": "The provider's own servers answer a request from the audited origin without admitting it. Needs a probe.",
+    "driver-pending": "The provider's API answers the audited origin, so a browser connection is possible; OpenSesame has not built it. Needs a probe.",
+    "no-key-check": "The provider answers the audited origin, but the only call the catalog names is public, so it cannot prove a key. Needs an unauthenticated-get probe that returned 200.",
+    "policy": "Refused by OpenSesame's own rules."
+  },
+  "dispositions": [
+    {
+      "provider_id": "bitwarden",
+      "kind": "companion",
+      "summary": "Bitwarden reads vault items through its command-line client. Its Vault Management API is the bw serve local server, which blocks any request that carries a browser Origin header unless it is started with --disable-origin-protection. Its cloud Public API manages organizations (members, collections, groups, events), not vault items, and Bitwarden's servers send no CORS headers to this site, so a page here cannot call it. Importing an export copies items into this vault as a local snapshot; it is not a live Bitwarden connection.",
+      "sources": [
+        {
+          "label": "Bitwarden APIs",
+          "url": "https://bitwarden.com/help/bitwarden-apis/"
+        },
+        {
+          "label": "bw serve and origin protection",
+          "url": "https://bitwarden.com/help/cli/"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://identity.bitwarden.com/connect/token",
+          "method": "POST",
+          "request_header_names": ["content-type"],
+          "status": 204,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:45+00:00"
+        },
+        {
+          "stage": "preflight",
+          "url": "https://api.bitwarden.com/public/collections",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 204,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:45+00:00"
+        },
+        {
+          "stage": "preflight",
+          "url": "https://identity.bitwarden.com/connect/token",
+          "method": "POST",
+          "request_header_names": ["content-type"],
+          "status": 204,
+          "allow_origin": "https://vault.bitwarden.com",
+          "allow_methods": "POST",
+          "allow_headers": "content-type",
+          "checked_at": "2026-10-12T13:24:45+00:00",
+          "origin": "https://vault.bitwarden.com",
+          "note": "Control: the same request from Bitwarden's own web vault origin is admitted, so the missing header above is an allow-list, not a probe failure."
+        },
+        {
+          "stage": "preflight",
+          "url": "https://api.bitwarden.com/public/collections",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 204,
+          "allow_origin": "https://vault.bitwarden.com",
+          "allow_methods": "GET",
+          "allow_headers": "authorization",
+          "checked_at": "2026-10-12T13:24:45+00:00",
+          "origin": "https://vault.bitwarden.com",
+          "note": "Control: the same request from Bitwarden's own web vault origin is admitted."
+        }
+      ],
+      "alternative": {
+        "label": "Open Vault to import a supported export",
+        "to": "/vault?f=all"
+      }
+    },
+    {
+      "provider_id": "bitwarden-sm",
+      "kind": "companion",
+      "summary": "Bitwarden Secrets Manager is used through its web app, its command-line client or its SDK. Its cloud servers send no CORS headers to this site, so a page here cannot call them.",
+      "sources": [
+        {
+          "label": "Secrets Manager overview",
+          "url": "https://bitwarden.com/help/secrets-manager-overview/"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://identity.bitwarden.com/connect/token",
+          "method": "POST",
+          "request_header_names": ["content-type"],
+          "status": 204,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:45+00:00"
+        },
+        {
+          "stage": "preflight",
+          "url": "https://api.bitwarden.com/public/collections",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 204,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:45+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "vaultwarden",
+      "kind": "companion",
+      "summary": "Vaultwarden is a Bitwarden-compatible server, so vault items are reached the way Bitwarden's are: through a Bitwarden client that holds your master key, such as its command-line client. This catalog entry configures that client, which a browser page cannot run. Importing a Bitwarden-format export copies items into this vault as a local snapshot; it is not a live connection.",
+      "sources": [
+        {
+          "label": "Bitwarden APIs",
+          "url": "https://bitwarden.com/help/bitwarden-apis/"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open Vault to import a supported export",
+        "to": "/vault?f=all"
+      }
+    },
+    {
+      "provider_id": "1password",
+      "kind": "companion",
+      "summary": "This catalog entry configures 1Password's command-line tool (op), which reads items on the computer it runs on. A browser page cannot run it. Importing an export copies items into this vault as a local snapshot; it is not a live 1Password connection.",
+      "sources": [
+        {
+          "label": "1Password CLI",
+          "url": "https://www.1password.dev/cli"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open Vault to import a supported export",
+        "to": "/vault?f=all"
+      }
+    },
+    {
+      "provider_id": "keychain",
+      "kind": "companion",
+      "summary": "The operating system's keychain can be read only by native code on the machine that owns it. A web page has no API for it.",
+      "sources": [
+        {
+          "label": "fnox's keychain provider",
+          "url": "https://fnox.jdx.dev/providers/keychain.html"
+        }
+      ],
+      "probes": []
+    },
+    {
+      "provider_id": "password-store",
+      "kind": "companion",
+      "summary": "pass keeps GPG-encrypted files in a directory on your computer, and this catalog entry points at that directory. A browser page cannot read a directory by path or run GPG.",
+      "sources": [
+        {
+          "label": "pass, the standard Unix password manager",
+          "url": "https://www.passwordstore.org/"
+        }
+      ],
+      "probes": []
+    },
+    {
+      "provider_id": "keepass",
+      "kind": "companion",
+      "summary": "This catalog entry points at a KeePass database file by path. A browser page cannot open a path, but it can open a file you choose: Vault → Import reads a KeePass database into this vault as a local snapshot.",
+      "sources": [
+        {
+          "label": "KeePass help",
+          "url": "https://keepass.info/help/base/index.html"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open Vault to import a supported export",
+        "to": "/vault?f=all"
+      }
+    },
+    {
+      "provider_id": "custom-command",
+      "kind": "companion",
+      "summary": "This integration runs a command you name on the machine that holds the credential. A web page cannot start a process.",
+      "sources": [
+        {
+          "label": "fnox's providers",
+          "url": "https://fnox.jdx.dev/providers/overview.html"
+        }
+      ],
+      "probes": []
+    },
+    {
+      "provider_id": "tailscale",
+      "kind": "companion",
+      "summary": "Tailscale device enrollment requires tailscaled and the OpenSesame native daemon, which a browser cannot run; a saved auth key alone would not enroll a device. Tailscale's management API also sends no CORS headers to this site.",
+      "sources": [
+        {
+          "label": "Tailscale auth keys",
+          "url": "https://tailscale.com/kb/1085/auth-keys"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.tailscale.com/api/v2/tailnet/-/devices",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "infisical",
+      "kind": "refuses-browser",
+      "summary": "Infisical Cloud's API answers browsers only on Infisical's own origin, so a page here cannot call it. A self-hosted Infisical can be configured to allow other origins, but OpenSesame has no Infisical connection contract yet.",
+      "sources": [
+        {
+          "label": "Infisical self-hosting: CORS settings",
+          "url": "https://infisical.com/docs/self-hosting/configuration/envars"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://app.infisical.com/api/v1/auth/token/",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 204,
+          "allow_origin": "https://app.infisical.com",
+          "allow_methods": "GET,HEAD,POST",
+          "allow_headers": "authorization",
+          "checked_at": "2026-10-12T13:24:45+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "proton-pass",
+      "kind": "refuses-browser",
+      "summary": "The Proton Pass endpoint checked (pass.proton.me/api/pass/v1/user/access) answers a browser preflight from this site without CORS headers, so a page here cannot call it. Importing an export copies items into this vault as a local snapshot; it is not a live Proton Pass connection.",
+      "sources": [
+        {
+          "label": "Proton Pass support",
+          "url": "https://proton.me/support/pass"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://pass.proton.me/api/pass/v1/user/access",
+          "method": "POST",
+          "request_header_names": ["content-type"],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ],
+      "alternative": {
+        "label": "Open Vault to import a supported export",
+        "to": "/vault?f=all"
+      }
+    },
+    {
+      "provider_id": "plivo",
+      "kind": "refuses-browser",
+      "summary": "Plivo's API answers a browser preflight from this site without CORS headers, so a page here cannot call it.",
+      "sources": [
+        {
+          "label": "Plivo messaging API",
+          "url": "https://www.plivo.com/docs/messaging/api/overview"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.plivo.com/v1/Account/x/",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "aws-sts",
+      "kind": "driver-pending",
+      "summary": "AWS STS answers browser requests from this site (CORS allows any origin and the signing headers). Leasing credentials needs an IAM access key and AWS Signature Version 4 signing, which OpenSesame has not built for this service yet.",
+      "sources": [
+        {
+          "label": "AWS STS",
+          "url": "https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://sts.us-east-1.amazonaws.com/",
+          "method": "POST",
+          "request_header_names": [
+            "content-type",
+            "x-amz-date",
+            "authorization",
+            "x-amz-content-sha256"
+          ],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "POST",
+          "allow_headers": "content-type,x-amz-date,authorization,x-amz-content-sha256",
+          "checked_at": "2026-10-12T13:24:45+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "azure-ac",
+      "kind": "driver-pending",
+      "summary": "Azure App Configuration answers browser preflights from this site (CORS allows any origin). Calls need a store's access key or a Microsoft Entra token, and OpenSesame has not built that connection yet.",
+      "sources": [
+        {
+          "label": "Azure App Configuration",
+          "url": "https://learn.microsoft.com/en-us/azure/azure-app-configuration/overview"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://example.azconfig.io/kv",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "GET, PUT, POST, DELETE, PATCH, OPTIONS",
+          "allow_headers": "DNT, If-Modified-Since, Keep-Alive, X-Requested-With, Cache-Control, Content-Type, Authorization, Correlation-Context, x-ms-client-request-id, x-ms-correlation-request-id, x-ms-useragent, x-ms-content-sha256, x-ms-date, Host, Accept, Accept-Datetime, Date, If-Match, If-None-Match, Sync-Token, x-ms-return-client-request-id, ETag, Last-Modified, Memento-Datetime, x-ms-request-id, x-ms-client-session-id, x-ms-effective-locale, traceparent, tracestate",
+          "checked_at": "2026-10-12T13:24:46+00:00",
+          "note": "Probed an arbitrary store name: the answer comes from the shared Azure App Configuration front end, not from one tenant."
+        }
+      ]
+    },
+    {
+      "provider_id": "gcp",
+      "kind": "driver-pending",
+      "summary": "Google Cloud Secret Manager's API answers browser requests from this site. Calls need a Google access token, and OpenSesame has no way to obtain one here yet: its Google sign-in popup cannot run under this deployment's enforced cross-origin isolation.",
+      "sources": [
+        {
+          "label": "Secret Manager",
+          "url": "https://docs.cloud.google.com/secret-manager/docs/overview"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://secretmanager.googleapis.com/v1/projects/x/secrets",
+          "method": "GET",
+          "request_header_names": ["authorization"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT",
+          "allow_headers": "authorization",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "gcp-iam",
+      "kind": "driver-pending",
+      "summary": "Google Cloud's IAM Credentials API (the source of IAM credentials) answers browser requests from this site. Calls need a Google access token, and OpenSesame has no way to obtain one here yet: its Google sign-in popup cannot run under this deployment's enforced cross-origin isolation.",
+      "sources": [
+        {
+          "label": "IAM Service Account Credentials API",
+          "url": "https://cloud.google.com/iam/docs/reference/credentials/rest"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/x:generateAccessToken",
+          "method": "POST",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "letsencrypt",
+      "kind": "driver-pending",
+      "summary": "Let's Encrypt's ACME directory answers browser requests from this site, so a browser can create an account and an order. Finishing an order needs a DNS or HTTP challenge answered, which OpenSesame has not built.",
+      "sources": [
+        {
+          "label": "How Let's Encrypt works",
+          "url": "https://letsencrypt.org/how-it-works/"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://acme-v02.api.letsencrypt.org/directory",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "webcrypto",
+      "kind": "built-in",
+      "summary": "This vault already seals every item with WebCrypto keys that never leave this device, so there is nothing to connect.",
+      "sources": [
+        {
+          "label": "Web Crypto API",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open Settings › Security",
+        "to": "/settings/security"
+      }
+    },
+    {
+      "provider_id": "sealed-local",
+      "kind": "built-in",
+      "summary": "Your vault is a sealed local store: every item is encrypted on this device before it is written.",
+      "sources": [
+        {
+          "label": "How OpenSesame stores things",
+          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open Settings › Vaults",
+        "to": "/settings/vaults"
+      }
+    },
+    {
+      "provider_id": "fido2",
+      "kind": "built-in",
+      "summary": "A passkey or security key can seal this vault, so a FIDO2 key needs no integration here.",
+      "sources": [
+        {
+          "label": "FIDO Alliance specifications",
+          "url": "https://fidoalliance.org/specifications/"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open Settings › Security",
+        "to": "/settings/security"
+      }
+    },
+    {
+      "provider_id": "vault-self",
+      "kind": "built-in",
+      "summary": "This vault generates its own authenticator codes, so there is nothing to connect.",
+      "sources": [
+        {
+          "label": "How OpenSesame stores things",
+          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
+        }
+      ],
+      "probes": [],
+      "alternative": {
+        "label": "Open the vault",
+        "to": "/vault?f=all"
+      }
+    },
+    {
+      "provider_id": "plain",
+      "kind": "policy",
+      "summary": "OpenSesame never keeps secrets in the clear on this device, so it offers no plain-text store.",
+      "sources": [
+        {
+          "label": "Nothing the client stores rests in the clear (ADR 0149)",
+          "url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/adr/0149-nothing-stored-in-the-clear.md"
+        }
+      ],
+      "probes": []
+    },
+    {
+      "provider_id": "abacus",
+      "kind": "no-key-check",
+      "summary": "Abacus's model list is public: GET https://routellm.abacus.ai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Abacus documentation",
+          "url": "https://abacus.ai/help/api"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://routellm.abacus.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "GET, PUT, POST, OPTIONS",
+          "allow_headers": "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,reai-ui,x-abacus-org-host,x-abacus-external-application-id,x-abacus-page-session-id,APIKEY,DEVICECODE,MOBILE-DEVICE-ID,MOBILE-DEVICE-SECRET,SESSION-TOKEN,x-stainless-runtime-version,x-stainless-runtime,x-stainless-retry-count,x-stainless-package-version,x-stainless-lang,x-stainless-arch,x-stainless-os",
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://routellm.abacus.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "ai21",
+      "kind": "no-key-check",
+      "summary": "AI21 Labs's model list is public: GET https://api.ai21.com/studio/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "AI21 Labs documentation",
+          "url": "https://docs.ai21.com/docs/jamba-foundation-models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.ai21.com/studio/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.ai21.com/studio/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "aihubmix",
+      "kind": "no-key-check",
+      "summary": "AIHubMix's model list is public: GET https://aihubmix.com/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "AIHubMix documentation",
+          "url": "https://docs.aihubmix.com"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://aihubmix.com/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://aihubmix.com/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "berget",
+      "kind": "no-key-check",
+      "summary": "Berget.AI's model list is public: GET https://api.berget.ai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Berget.AI documentation",
+          "url": "https://api.berget.ai"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.berget.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
+          "allow_headers": "Content-Type,Authorization,X-Requested-With,Accept,User-Agent,Origin,X-API-Key,X-Request-Id",
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.berget.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "chutes",
+      "kind": "no-key-check",
+      "summary": "Chutes's model list is public: GET https://llm.chutes.ai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Chutes documentation",
+          "url": "https://llm.chutes.ai/v1/models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://llm.chutes.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "GET, POST, OPTIONS",
+          "allow_headers": "*, Authorization",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://llm.chutes.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "deepinfra",
+      "kind": "no-key-check",
+      "summary": "Deep Infra's model list is public: GET https://api.deepinfra.com/v1/openai/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Deep Infra documentation",
+          "url": "https://deepinfra.com/models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.deepinfra.com/v1/openai/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.deepinfra.com/v1/openai/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "edenai",
+      "kind": "no-key-check",
+      "summary": "Eden AI's model list is public: GET https://api.edenai.run/v3/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Eden AI documentation",
+          "url": "https://docs.edenai.co"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.edenai.run/v3/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.edenai.run/v3/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "friendli",
+      "kind": "refuses-browser",
+      "summary": "Friendli's API answers GET https://api.friendli.ai/serverless/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "Friendli documentation",
+          "url": "https://friendli.ai/docs/guides/serverless_endpoints/introduction"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.friendli.ai/serverless/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 400,
+          "allow_origin": null,
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.friendli.ai/serverless/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "helicone",
+      "kind": "refuses-browser",
+      "summary": "Helicone's API answers GET https://ai-gateway.helicone.ai/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "Helicone documentation",
+          "url": "https://helicone.ai/models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://ai-gateway.helicone.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 405,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://ai-gateway.helicone.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "inception",
+      "kind": "refuses-browser",
+      "summary": "Inception's API answers GET https://api.inceptionlabs.ai/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "Inception documentation",
+          "url": "https://docs.inceptionlabs.ai/get-started/models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.inceptionlabs.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:48+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.inceptionlabs.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:48+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "io-net",
+      "kind": "refuses-browser",
+      "summary": "IO.NET's API answers GET https://api.intelligence.io.solutions/api/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "IO.NET documentation",
+          "url": "https://io.net/docs/guides/intelligence/io-intelligence"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.intelligence.io.solutions/api/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 400,
+          "allow_origin": null,
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:49+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.intelligence.io.solutions/api/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "kilo",
+      "kind": "refuses-browser",
+      "summary": "Kilo Gateway's API answers GET https://api.kilo.ai/api/gateway/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "Kilo Gateway documentation",
+          "url": "https://kilo.ai"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.kilo.ai/api/gateway/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.kilo.ai/api/gateway/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "llmgateway",
+      "kind": "refuses-browser",
+      "summary": "LLM Gateway's API answers GET https://api.llmgateway.io/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "LLM Gateway documentation",
+          "url": "https://llmgateway.io/docs"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.llmgateway.io/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": null,
+          "allow_methods": "POST,GET,OPTIONS,PUT,PATCH,DELETE",
+          "allow_headers": "Content-Type,Authorization,Cache-Control,x-api-key,mcp-session-id,MCP-Protocol-Version",
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.llmgateway.io/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "minimax",
+      "kind": "driver-pending",
+      "summary": "MiniMax (minimax.io)'s API answers this site and requires a key (GET https://api.minimax.io/anthropic/v1/models returns HTTP 401 without one), so an API-key contract is possible, but OpenSesame has not authored one yet.",
+      "sources": [
+        {
+          "label": "MiniMax (minimax.io) documentation",
+          "url": "https://platform.minimax.io/docs/guides/quickstart"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.minimax.io/anthropic/v1/models",
+          "method": "GET",
+          "request_header_names": [
+            "x-api-key",
+            "anthropic-version",
+            "content-type"
+          ],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "GET,POST,OPTIONS,PUT,DELETE",
+          "allow_headers": "request-id,Trace-Id,DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,Token,Userid,Origin,Accept,X-Requested-With,X-Request-From-Mark,X-Group-Id,X-Traffic-Tag,bedrock-lane,bedrock_lane,language",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.minimax.io/anthropic/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 401,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "nanogpt",
+      "kind": "no-key-check",
+      "summary": "NanoGPT's model list is public: GET https://nano-gpt.com/api/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "NanoGPT documentation",
+          "url": "https://docs.nano-gpt.com"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://nano-gpt.com/api/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "GET, POST, DELETE, OPTIONS",
+          "allow_headers": "Authorization, Content-Type",
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://nano-gpt.com/api/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "nearai",
+      "kind": "no-key-check",
+      "summary": "NEAR AI Cloud's model list is public: GET https://cloud-api.near.ai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "NEAR AI Cloud documentation",
+          "url": "https://docs.near.ai/"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://cloud-api.near.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "*",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:49+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://cloud-api.near.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:49+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "novita",
+      "kind": "no-key-check",
+      "summary": "Novita AI's model list is public: GET https://api.novita.ai/openai/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Novita AI documentation",
+          "url": "https://novita.ai/docs/guides/introduction"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.novita.ai/openai/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": "Authorization,Content-Type",
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.novita.ai/openai/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "nvidia",
+      "kind": "refuses-browser",
+      "summary": "Nvidia's API answers GET https://integrate.api.nvidia.com/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "Nvidia documentation",
+          "url": "https://docs.api.nvidia.com/nim/"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://integrate.api.nvidia.com/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://integrate.api.nvidia.com/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "ollama-cloud",
+      "kind": "refuses-browser",
+      "summary": "Ollama Cloud's API answers GET https://ollama.com/v1/models without CORS headers (HTTP 200), so a browser on this site cannot read its responses.",
+      "sources": [
+        {
+          "label": "Ollama Cloud documentation",
+          "url": "https://docs.ollama.com/cloud"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://ollama.com/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 405,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://ollama.com/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": null,
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "opencode-zen",
+      "kind": "no-key-check",
+      "summary": "OpenCode Zen's model list is public: GET https://opencode.ai/zen/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "OpenCode Zen documentation",
+          "url": "https://opencode.ai/zen"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://opencode.ai/zen/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "GET, POST, OPTIONS",
+          "allow_headers": "Content-Type, Authorization",
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://opencode.ai/zen/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "ovhcloud",
+      "kind": "no-key-check",
+      "summary": "OVHcloud AI Endpoints's model list is public: GET https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "OVHcloud AI Endpoints documentation",
+          "url": "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS,TRACE,CONNECT",
+          "allow_headers": "*",
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:48+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "poe",
+      "kind": "no-key-check",
+      "summary": "Poe's model list is public: GET https://api.poe.com/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Poe documentation",
+          "url": "https://creator.poe.com/docs/external-applications/openai-compatible-api"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.poe.com/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "POST,GET,OPTIONS",
+          "allow_headers": "Accept, Authorization, Content-Type, X-Api-Key, X-Poe-Canvas-Request-Token, anthropic-version, anthropic-beta",
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.poe.com/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "requesty",
+      "kind": "no-key-check",
+      "summary": "Requesty's model list is public: GET https://router.requesty.ai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Requesty documentation",
+          "url": "https://requesty.ai/solution/llm-routing/models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://router.requesty.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "GET",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://router.requesty.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "sarvam",
+      "kind": "no-key-check",
+      "summary": "Sarvam AI's model list is public: GET https://api.sarvam.ai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Sarvam AI documentation",
+          "url": "https://docs.sarvam.ai/api-reference-docs/getting-started/models"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.sarvam.ai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:48+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.sarvam.ai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:48+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "synthetic",
+      "kind": "no-key-check",
+      "summary": "Synthetic's model list is public: GET https://api.synthetic.new/openai/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Synthetic documentation",
+          "url": "https://synthetic.new/pricing"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.synthetic.new/openai/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "*",
+          "allow_methods": "GET,POST,PUT,DELETE,OPTIONS",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:52+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.synthetic.new/openai/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:51+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "tinfoil",
+      "kind": "no-key-check",
+      "summary": "Tinfoil's model list is public: GET https://inference.tinfoil.sh/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Tinfoil documentation",
+          "url": "https://docs.tinfoil.sh"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://inference.tinfoil.sh/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "GET, PUT, POST, HEAD, DELETE, OPTIONS",
+          "allow_headers": "authorization,content-type",
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://inference.tinfoil.sh/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:50+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "venice",
+      "kind": "no-key-check",
+      "summary": "Venice AI's model list is public: GET https://api.venice.ai/api/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Venice AI documentation",
+          "url": "https://docs.venice.ai"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.venice.ai/api/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+          "allow_headers": "*",
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.venice.ai/api/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "*",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "vercel-ai-gateway",
+      "kind": "no-key-check",
+      "summary": "Vercel AI Gateway's model list is public: GET https://ai-gateway.vercel.sh/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Vercel AI Gateway documentation",
+          "url": "https://vercel.com/docs/ai-gateway"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://ai-gateway.vercel.sh/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+          "allow_headers": "Content-Type, Authorization, ai-gateway-auth-method, ai-gateway-protocol-version, ai-model-id, ai-language-model-id, ai-language-model-specification-version, ai-image-model-specification-version, ai-embedding-model-specification-version, ai-decision-model-specification-version, ai-evaluation-model-specification-version, ai-language-model-streaming, ai-reporting-tags, ai-reporting-user, http-referer, x-title, x-ai-gateway-api-key, x-api-key, anthropic-beta, anthropic-version, idempotency-key, x-vercel-ai-gateway-team, x-vercel-gateway-extended-time, x-session-id, x-session-affinity",
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://ai-gateway.vercel.sh/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "vultr",
+      "kind": "no-key-check",
+      "summary": "Vultr's model list is public: GET https://api.vultrinference.com/v1/models answers this site without a key (HTTP 200), so listing models cannot prove a key works. OpenSesame saves only keys it has proven, and the catalog names no authenticated call to prove this one.",
+      "sources": [
+        {
+          "label": "Vultr documentation",
+          "url": "https://api.vultrinference.com/"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.vultrinference.com/v1/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 204,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "GET, POST, PUT, PATCH, DELETE",
+          "allow_headers": "*",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.vultrinference.com/v1/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:47+00:00"
+        }
+      ]
+    },
+    {
+      "provider_id": "zai",
+      "kind": "driver-pending",
+      "summary": "Z.AI's API answers this site and requires a key (GET https://api.z.ai/api/paas/v4/models returns HTTP 401 without one), so an API-key contract is possible, but OpenSesame has not authored one yet.",
+      "sources": [
+        {
+          "label": "Z.AI documentation",
+          "url": "https://docs.z.ai/guides/overview/pricing"
+        }
+      ],
+      "probes": [
+        {
+          "stage": "preflight",
+          "url": "https://api.z.ai/api/paas/v4/models",
+          "method": "GET",
+          "request_header_names": ["authorization", "content-type"],
+          "status": 200,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": "GET",
+          "allow_headers": "authorization, content-type",
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        },
+        {
+          "stage": "unauthenticated-get",
+          "url": "https://api.z.ai/api/paas/v4/models",
+          "method": "GET",
+          "request_header_names": [],
+          "status": 401,
+          "allow_origin": "https://tyler-r-kendrick.github.io",
+          "allow_methods": null,
+          "allow_headers": null,
+          "checked_at": "2026-10-12T13:24:46+00:00"
+        }
+      ]
+    }
+  ]
+}

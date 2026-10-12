@@ -11,7 +11,9 @@ transition persisted by compare-and-swap on the session version.
 
 - **Used by:** [`packages/control-plane`](../../packages/control-plane) (the claim
   routes and a database-backed `ClaimStore` in `src/repos/claim-store.ts`) and
-  [`packages/identity-worker`](../../packages/identity-worker) (expiry cleanup).
+  [`packages/identity-worker`](../../packages/identity-worker), whose cleanup
+  tick can take a `ClaimEngine` to expire claims; the standalone worker process
+  does not construct one, so it expires none.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain), which owns the claim
   state machine, the manifest digest, token and user-code generation and
   verification.

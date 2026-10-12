@@ -19,6 +19,7 @@ import {
   unlockWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
+import { openGuestAgain } from "./push-worker-guest.mjs";
 
 const SIGN_OUT = "Also sign out of Identity when the vault locks";
 const PRINCIPAL = /\bprn_[A-Za-z0-9_-]{43}\b/;
@@ -111,8 +112,8 @@ export async function connect(page, label) {
     /No session/.test(await sheet.innerText()),
     `${label}: the sheet starts with no session`,
   );
-  // Continuing as guest closes the sheet when the session is open.
-  await sheet.getByRole("button", { name: "Continue as guest" }).click();
+  // Use this device closes the sheet when the session is open.
+  await sheet.getByRole("button", { name: "Use this device" }).click();
   await sheet.waitFor({ state: "detached", timeout: 15000 });
   await (await identityTile(page)).click();
   await sheet.getByText("Session active").waitFor({ timeout: 15000 });
@@ -131,8 +132,10 @@ export async function connect(page, label) {
 }
 
 export async function chooseCapability(page, title) {
-  await go(page, "/settings/capabilities");
+  await go(page, "/settings/features");
   await awaitCapabilitySections(page);
+  const on = capabilityOnSwitch(page, title);
+  if ((await on.count()) === 1) return;
   const add = capabilityOffSwitch(page, title);
   await add.waitFor({ timeout: 15000 });
   await add.click();
@@ -141,6 +144,18 @@ export async function chooseCapability(page, title) {
     timeout: 15000,
   });
   await capabilityOnSwitch(page, title).waitFor({ timeout: 15000 });
+}
+
+/** Turn an optional capability off when a walk needs the absent state first. */
+export async function clearCapability(page, title) {
+  await go(page, "/settings/capabilities");
+  await awaitCapabilitySections(page);
+  const off = capabilityOffSwitch(page, title);
+  if ((await off.count()) === 1) return;
+  const on = capabilityOnSwitch(page, title);
+  await on.waitFor({ timeout: 15000 });
+  await on.click();
+  await capabilityOffSwitch(page, title).waitFor({ timeout: 15000 });
 }
 
 export async function walkAccess(page, label, { receipts }) {
@@ -152,7 +167,9 @@ export async function walkAccess(page, label, { receipts }) {
       `${label}: Access ${tab} rendered`,
     );
     if (tab === "sessions") {
-      const drawn = (await page.locator("#access-receipts").count()) > 0;
+      await go(page, "/access?view=sessions#access-receipts");
+      const drawn =
+        (await page.getByRole("tree", { name: "Receipts items" }).count()) > 0;
       env.check(
         drawn === receipts,
         `${label}: Receipts ${receipts ? "is" : "is not"} drawn on Sessions`,
@@ -256,7 +273,7 @@ export async function memberVault(browser) {
 
   // A guest beside the sealed vault: another tomb, another key.
   await lockVault(page);
-  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await page.getByRole("button", { name: "Skip to the guest vault" }).click();
   await waitOpen(page);
   const guest = await hostCall(page, "/v1/principals/provisional", mintInit);
   env.check(
@@ -296,6 +313,12 @@ export async function lateActivation(browser) {
   await doorGuest(page).click();
   await waitOpen(page);
   await chooseCapability(page, "Access authority");
+  await clearCapability(page, "Browser-local IAM");
+  // Reload from the app root: a reload on /settings/capabilities is a document
+  // request the static harness cannot answer (404).
+  await page.goto(`${env.ORIGIN}${env.BASE}`, { waitUntil: "networkidle" });
+  await openGuestAgain(page);
+  await waitOpen(page);
   await page.setViewportSize(WIDTHS[0].narrow);
   await connect(page, label);
   await page.setViewportSize(WIDTHS[0].size);
@@ -304,7 +327,7 @@ export async function lateActivation(browser) {
     await new Promise((resolve) => setTimeout(resolve, 6000));
     await route.fallback();
   });
-  await go(page, "/settings/capabilities");
+  await go(page, "/settings/features");
   await awaitCapabilitySections(page);
   const add = capabilityOffSwitch(page, "Browser-local IAM");
   await add.waitFor({ timeout: 15000 });
@@ -312,14 +335,16 @@ export async function lateActivation(browser) {
   await capabilityOnSwitch(page, "Browser-local IAM").waitFor({
     timeout: 15000,
   });
-  await go(page, "/access?view=sessions");
-  const early = await page.locator("#access-receipts").count();
+  await go(page, "/access?view=sessions#access-receipts");
+  const early = await page
+    .getByRole("tree", { name: "Receipts items" })
+    .count();
   await env.snap(page, `${label}-before-activation`);
   await page
-    .locator("#access-receipts")
+    .getByRole("tree", { name: "Receipts items" })
     .waitFor({ state: "attached", timeout: 20000 })
     .catch(() => undefined);
-  const late = await page.locator("#access-receipts").count();
+  const late = await page.getByRole("tree", { name: "Receipts items" }).count();
   env.check(
     early === 0,
     `${label}: Receipts is not drawn while the capability is still arriving`,

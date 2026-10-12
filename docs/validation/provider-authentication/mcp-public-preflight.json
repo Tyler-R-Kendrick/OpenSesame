@@ -1,0 +1,4848 @@
+{
+  "checkedAt": "2026-10-09T16:57:00Z",
+  "origin": "https://tyler-r-kendrick.github.io",
+  "qualification": "Unauthenticated TLS-verified public metadata and OPTIONS requests. Missing CORS alone is an observation, not proof of provider denial; registered-client or approved-origin policy may differ. No token, registration or customer grant requested. Transport/proxy errors are not CORS results.",
+  "results": [
+    {
+      "provider": "adobe",
+      "kind": "resource-metadata",
+      "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.76,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://express-mcp-service.adobe.io/mcp",
+        "authorization_servers": ["https://express-mcp-service.adobe.io"]
+      }
+    },
+    {
+      "provider": "adobe",
+      "kind": "authorization-metadata",
+      "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.63,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://express-mcp-service.adobe.io",
+        "authorization_endpoint": "https://express-mcp-service.adobe.io/authorize",
+        "token_endpoint": "https://ims-na1.adobelogin.com/ims/token/v3",
+        "registration_endpoint": "https://express-mcp-service.adobe.io/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "adobe",
+      "kind": "token-preflight",
+      "url": "https://ims-na1.adobelogin.com/ims/token/v3",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "POST, OPTIONS",
+      "allowHeaders": "content-type",
+      "duration": 0.26,
+      "tlsVerified": true
+    },
+    {
+      "provider": "adobe",
+      "kind": "resource-preflight",
+      "url": "https://express-mcp-service.adobe.io/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,OPTIONS,POST",
+      "allowHeaders": "authorization,x-api-key,x-request-id,Accept,Accept-Encoding,x-session-id,Content-Type,Mcp-Session-Id,traceparent,tracestate",
+      "duration": 0.6,
+      "tlsVerified": true
+    },
+    {
+      "provider": "agentmail",
+      "kind": "resource-metadata",
+      "url": "https://mcp.agentmail.to/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.32,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.agentmail.to/mcp",
+        "authorization_servers": ["https://clerk.console.agentmail.to"]
+      }
+    },
+    {
+      "provider": "agentmail",
+      "kind": "authorization-metadata",
+      "url": "https://clerk.console.agentmail.to/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.45,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://clerk.console.agentmail.to",
+        "authorization_endpoint": "https://clerk.console.agentmail.to/oauth/authorize",
+        "token_endpoint": "https://clerk.console.agentmail.to/oauth/token",
+        "registration_endpoint": "https://clerk.console.agentmail.to/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "none",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "agentmail",
+      "kind": "token-preflight",
+      "url": "https://clerk.console.agentmail.to/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "POST",
+      "allowHeaders": "Content-Type",
+      "duration": 0.8,
+      "tlsVerified": true
+    },
+    {
+      "provider": "agentmail",
+      "kind": "resource-preflight",
+      "url": "https://mcp.agentmail.to/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization,Content-Type,Accept,Mcp-Session-Id,mcp-protocol-version,*",
+      "duration": 0.35,
+      "tlsVerified": true
+    },
+    {
+      "provider": "airtable",
+      "kind": "resource-metadata",
+      "url": "https://mcp.airtable.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.39,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.airtable.com",
+        "authorization_servers": ["https://airtable.com/oauth2/v1"]
+      }
+    },
+    {
+      "provider": "airtable",
+      "kind": "authorization-metadata",
+      "url": "https://airtable.com/.well-known/oauth-authorization-server/oauth2/v1",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.42,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://airtable.com/oauth2/v1",
+        "authorization_endpoint": "https://airtable.com/oauth2/v1/authorize",
+        "token_endpoint": "https://airtable.com/oauth2/v1/token",
+        "registration_endpoint": "https://airtable.com/oauth2/v1/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "airtable",
+      "kind": "token-preflight",
+      "url": "https://airtable.com/oauth2/v1/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "airtable",
+      "kind": "resource-preflight",
+      "url": "https://mcp.airtable.com/mcp",
+      "method": "OPTIONS",
+      "status": 404,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.48,
+      "tlsVerified": true
+    },
+    {
+      "provider": "amplitude",
+      "kind": "resource-metadata",
+      "url": "https://mcp.amplitude.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS, DELETE",
+      "allowHeaders": "Content-Type, Authorization, MCP-Protocol-Version",
+      "duration": 0.28,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.amplitude.com",
+        "authorization_servers": ["https://mcp.amplitude.com"]
+      }
+    },
+    {
+      "provider": "amplitude",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.amplitude.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS, DELETE",
+      "allowHeaders": "Content-Type, Authorization, MCP-Protocol-Version",
+      "duration": 0.29,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.amplitude.com",
+        "authorization_endpoint": "https://mcp.amplitude.com/authorize",
+        "token_endpoint": "https://mcp.amplitude.com/token",
+        "registration_endpoint": "https://mcp.amplitude.com/register",
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          "urn:ietf:params:oauth:grant-type:token-exchange"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "amplitude",
+      "kind": "token-preflight",
+      "url": "https://mcp.amplitude.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,POST,PUT,OPTIONS,DELETE",
+      "allowHeaders": "Content-Type,Authorization,MCP-Protocol-Version,Mcp-Session-Id,X-Upload-Token",
+      "duration": 0.3,
+      "tlsVerified": true
+    },
+    {
+      "provider": "amplitude",
+      "kind": "resource-preflight",
+      "url": "https://mcp.amplitude.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,POST,PUT,OPTIONS,DELETE",
+      "allowHeaders": "Content-Type,Authorization,MCP-Protocol-Version,Mcp-Session-Id,X-Upload-Token",
+      "duration": 0.52,
+      "tlsVerified": true
+    },
+    {
+      "provider": "attio",
+      "kind": "resource-metadata",
+      "url": "https://mcp.attio.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.36,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.attio.com/mcp",
+        "authorization_servers": ["https://app.attio.com"]
+      }
+    },
+    {
+      "provider": "attio",
+      "kind": "authorization-metadata",
+      "url": "https://app.attio.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.36,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://app.attio.com",
+        "authorization_endpoint": "https://app.attio.com/oidc/authorize",
+        "token_endpoint": "https://app.attio.com/oidc/token",
+        "registration_endpoint": "https://app.attio.com/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "attio",
+      "kind": "token-preflight",
+      "url": "https://app.attio.com/oidc/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "OPTIONS,GET,PUT,POST,PATCH,DELETE,HEAD",
+      "allowHeaders": "content-type",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "attio",
+      "kind": "resource-preflight",
+      "url": "https://mcp.attio.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "OPTIONS,GET,PUT,POST,PATCH,DELETE,HEAD",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.33,
+      "tlsVerified": true
+    },
+    {
+      "provider": "aweber",
+      "kind": "resource-metadata",
+      "url": "https://mcp.aweber.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "*",
+      "duration": 0.68,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.aweber.com",
+        "authorization_servers": ["https://mcp.aweber.com"]
+      }
+    },
+    {
+      "provider": "aweber",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.aweber.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "*",
+      "duration": 0.48,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.aweber.com",
+        "authorization_endpoint": "https://mcp.aweber.com/oauth/authorize",
+        "token_endpoint": "https://mcp.aweber.com/oauth/token",
+        "registration_endpoint": "https://mcp.aweber.com/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "aweber",
+      "kind": "token-preflight",
+      "url": "https://mcp.aweber.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "*",
+      "duration": 0.61,
+      "tlsVerified": true
+    },
+    {
+      "provider": "aweber",
+      "kind": "resource-preflight",
+      "url": "https://mcp.aweber.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "*",
+      "duration": 0.53,
+      "tlsVerified": true
+    },
+    {
+      "provider": "axiom",
+      "kind": "resource-metadata",
+      "url": "https://mcp.axiom.co/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.16,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.axiom.co/mcp",
+        "authorization_servers": ["https://authorization.axiom.co"]
+      }
+    },
+    {
+      "provider": "axiom",
+      "kind": "authorization-metadata",
+      "url": "https://authorization.axiom.co/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.46,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://authorization.axiom.co",
+        "authorization_endpoint": "https://authorization.axiom.co/oauth2/authorize",
+        "token_endpoint": "https://authorization.axiom.co/oauth2/token",
+        "registration_endpoint": "https://authorization.axiom.co/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "axiom",
+      "kind": "token-preflight",
+      "url": "https://authorization.axiom.co/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.52,
+      "tlsVerified": true
+    },
+    {
+      "provider": "axiom",
+      "kind": "resource-preflight",
+      "url": "https://mcp.axiom.co/mcp",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "base44",
+      "kind": "resource-metadata",
+      "url": "https://app.base44.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.26,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://app.base44.com/mcp",
+        "authorization_servers": ["https://app.base44.com"]
+      }
+    },
+    {
+      "provider": "base44",
+      "kind": "authorization-metadata",
+      "url": "https://app.base44.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.25,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://app.base44.com",
+        "authorization_endpoint": "https://app.base44.com/oauth/authorize",
+        "token_endpoint": "https://app.base44.com/oauth/token",
+        "registration_endpoint": "https://app.base44.com/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "base44",
+      "kind": "token-preflight",
+      "url": "https://app.base44.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "content-type",
+      "duration": 0.38,
+      "tlsVerified": true
+    },
+    {
+      "provider": "base44",
+      "kind": "resource-preflight",
+      "url": "https://app.base44.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.36,
+      "tlsVerified": true
+    },
+    {
+      "provider": "beehiiv",
+      "kind": "resource-metadata",
+      "url": "https://mcp.beehiiv.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.beehiiv.com/mcp",
+        "authorization_servers": ["https://mcp.beehiiv.com"]
+      }
+    },
+    {
+      "provider": "beehiiv",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.beehiiv.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.55,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.beehiiv.com",
+        "authorization_endpoint": "https://mcp.beehiiv.com/authorize",
+        "token_endpoint": "https://mcp.beehiiv.com/token",
+        "registration_endpoint": "https://mcp.beehiiv.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "beehiiv",
+      "kind": "token-preflight",
+      "url": "https://mcp.beehiiv.com/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "beehiiv",
+      "kind": "resource-preflight",
+      "url": "https://mcp.beehiiv.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true
+    },
+    {
+      "provider": "better-stack",
+      "kind": "resource-metadata",
+      "url": "https://mcp.betterstack.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "content-type",
+      "duration": 0.31,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.betterstack.com",
+        "authorization_servers": ["https://betterstack.com"]
+      }
+    },
+    {
+      "provider": "better-stack",
+      "kind": "authorization-metadata",
+      "url": "https://betterstack.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.41,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://betterstack.com",
+        "authorization_endpoint": "https://betterstack.com/oauth/authorize",
+        "token_endpoint": "https://betterstack.com/oauth/token",
+        "registration_endpoint": "https://betterstack.com/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "better-stack",
+      "kind": "token-preflight",
+      "url": "https://betterstack.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.78,
+      "tlsVerified": true
+    },
+    {
+      "provider": "better-stack",
+      "kind": "resource-preflight",
+      "url": "https://mcp.betterstack.com",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true
+    },
+    {
+      "provider": "bitly",
+      "kind": "resource-metadata",
+      "url": "https://api-ssl.bitly.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "HEAD, GET, POST, PUT, PATCH, DELETE",
+      "allowHeaders": "*",
+      "duration": 0.3,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api-ssl.bitly.com/v4/mcp",
+        "authorization_servers": [
+          "https://api-ssl.bitly.com",
+          "https://api-ssl.bitly.com/.well-known/oauth-authorization-server",
+          "https://api-ssl.bitly.com/v4/mcp/.well-known/oauth-authorization-server"
+        ]
+      }
+    },
+    {
+      "provider": "bitly",
+      "kind": "authorization-metadata",
+      "url": "https://api-ssl.bitly.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "HEAD, GET, POST, PUT, PATCH, DELETE",
+      "allowHeaders": "*",
+      "duration": 0.38,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api-ssl.bitly.com",
+        "authorization_endpoint": "https://bitly.com/oauth/authorize",
+        "token_endpoint": "https://api-ssl.bitly.com/oauth/access_token",
+        "registration_endpoint": "https://api-ssl.bitly.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "bitly",
+      "kind": "token-preflight",
+      "url": "https://api-ssl.bitly.com/oauth/access_token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "HEAD, GET, POST, PUT, PATCH, DELETE",
+      "allowHeaders": "*",
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "bitly",
+      "kind": "resource-preflight",
+      "url": "https://api-ssl.bitly.com/v4/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "HEAD, GET, POST, PUT, PATCH, DELETE",
+      "allowHeaders": "*",
+      "duration": 0.3,
+      "tlsVerified": true
+    },
+    {
+      "provider": "brand24",
+      "kind": "resource-metadata",
+      "url": "https://mcp.brand24.com/.well-known/oauth-protected-resource/v1/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.77,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.brand24.com",
+        "authorization_servers": [
+          "https://oauth.brand24.com/resources/res_99790078397645058"
+        ]
+      }
+    },
+    {
+      "provider": "brand24",
+      "kind": "authorization-metadata",
+      "url": "https://oauth.brand24.com/.well-known/oauth-authorization-server/resources/res_99790078397645058",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.34,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://oauth.brand24.com/resources/res_99790078397645058",
+        "authorization_endpoint": "https://oauth.brand24.com/resources/res_99790078397645058/oauth/authorize",
+        "token_endpoint": "https://oauth.brand24.com/resources/res_99790078397645058/oauth/token",
+        "registration_endpoint": "https://oauth.brand24.com/api/v1/resources/res_99790078397645058/clients:register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "client_credentials",
+          "refresh_token"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "brand24",
+      "kind": "token-preflight",
+      "url": "https://oauth.brand24.com/resources/res_99790078397645058/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "POST",
+      "allowHeaders": "content-type",
+      "duration": 0.32,
+      "tlsVerified": true
+    },
+    {
+      "provider": "brand24",
+      "kind": "resource-preflight",
+      "url": "https://mcp.brand24.com/v1/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,POST,OPTIONS",
+      "allowHeaders": "Mcp-Protocol-Version,Content-Type,Authorization",
+      "duration": 1.25,
+      "tlsVerified": true
+    },
+    {
+      "provider": "brex",
+      "kind": "resource-metadata",
+      "url": "https://api.brex.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.35,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.brex.com",
+        "authorization_servers": [
+          "https://api.brex.com",
+          "https://accounts-api.brex.com/oauth2/default"
+        ]
+      }
+    },
+    {
+      "provider": "brex",
+      "kind": "authorization-metadata",
+      "url": "https://api.brex.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.53,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.brex.com",
+        "authorization_endpoint": "https://accounts-api.brex.com/oauth2/default/v1/authorize",
+        "token_endpoint": "https://accounts-api.brex.com/oauth2/default/v1/token",
+        "registration_endpoint": "https://api.brex.com/v3/clients",
+        "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "brex",
+      "kind": "token-preflight",
+      "url": "https://accounts-api.brex.com/oauth2/default/v1/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "POST",
+      "allowHeaders": "content-type,Content-Type",
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "brex",
+      "kind": "resource-preflight",
+      "url": "https://api.brex.com/mcp",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.27,
+      "tlsVerified": true
+    },
+    {
+      "provider": "checkly",
+      "kind": "resource-metadata",
+      "url": "https://api.checklyhq.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.37,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.checklyhq.com/mcp",
+        "authorization_servers": ["https://auth.checklyhq.com/"]
+      }
+    },
+    {
+      "provider": "checkly",
+      "kind": "authorization-metadata",
+      "url": "https://auth.checklyhq.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.67,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://auth.checklyhq.com/",
+        "authorization_endpoint": "https://auth.checklyhq.com/authorize",
+        "token_endpoint": "https://auth.checklyhq.com/oauth/token",
+        "registration_endpoint": "https://auth.checklyhq.com/oidc/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "private_key_jwt",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256", "plain"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "client_credentials",
+          "authorization_code",
+          "refresh_token",
+          "password",
+          "implicit",
+          "urn:ietf:params:oauth:grant-type:device_code",
+          "urn:ietf:params:oauth:grant-type:token-exchange",
+          "http://auth0.com/oauth/grant-type/password-realm",
+          "http://auth0.com/oauth/grant-type/passwordless/otp",
+          "http://auth0.com/oauth/grant-type/mfa-oob",
+          "http://auth0.com/oauth/grant-type/mfa-otp",
+          "http://auth0.com/oauth/grant-type/mfa-recovery-code",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": [
+          "code",
+          "token",
+          "id_token",
+          "code token",
+          "code id_token",
+          "token id_token",
+          "code token id_token"
+        ]
+      }
+    },
+    {
+      "provider": "checkly",
+      "kind": "token-preflight",
+      "url": "https://auth.checklyhq.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, PUT, POST, DELETE, PATCH, OPTIONS",
+      "allowHeaders": "Origin, Content-Type, Accept, X-Requested-With, Authorization, Auth0-Client, X-Request-Language, DPoP",
+      "duration": 0.61,
+      "tlsVerified": true
+    },
+    {
+      "provider": "checkly",
+      "kind": "resource-preflight",
+      "url": "https://api.checklyhq.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "clay",
+      "kind": "resource-metadata",
+      "url": "https://api.clay.com/.well-known/oauth-protected-resource/v3/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.45,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.clay.com",
+        "resource": "https://api.clay.com/v3/mcp",
+        "authorization_servers": ["https://api.clay.com"]
+      }
+    },
+    {
+      "provider": "clay",
+      "kind": "authorization-metadata",
+      "url": "https://api.clay.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.26,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.clay.com",
+        "authorization_endpoint": "https://app.clay.com/oauth/authorize",
+        "token_endpoint": "https://api.clay.com/oauth/token",
+        "registration_endpoint": "https://api.clay.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "clay",
+      "kind": "token-preflight",
+      "url": "https://api.clay.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.42,
+      "tlsVerified": true
+    },
+    {
+      "provider": "clay",
+      "kind": "resource-preflight",
+      "url": "https://api.clay.com/v3/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.23,
+      "tlsVerified": true
+    },
+    {
+      "provider": "clickhouse",
+      "kind": "resource-metadata",
+      "url": "https://mcp.clickhouse.cloud/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.43,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.clickhouse.cloud/mcp",
+        "authorization_servers": ["https://mcp.clickhouse.cloud"]
+      }
+    },
+    {
+      "provider": "clickhouse",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.clickhouse.cloud/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.53,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.clickhouse.cloud",
+        "authorization_endpoint": "https://mcp.clickhouse.cloud/authorize",
+        "token_endpoint": "https://mcp.clickhouse.cloud/token",
+        "registration_endpoint": "https://mcp.clickhouse.cloud/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "clickhouse",
+      "kind": "token-preflight",
+      "url": "https://mcp.clickhouse.cloud/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.51,
+      "tlsVerified": true
+    },
+    {
+      "provider": "clickhouse",
+      "kind": "resource-preflight",
+      "url": "https://mcp.clickhouse.cloud/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "cloudflare",
+      "kind": "resource-metadata",
+      "url": "https://mcp.cloudflare.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.29,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.cloudflare.com/mcp",
+        "authorization_servers": ["https://mcp.cloudflare.com"]
+      }
+    },
+    {
+      "provider": "cloudflare",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.cloudflare.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.19,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.cloudflare.com",
+        "authorization_endpoint": "https://mcp.cloudflare.com/authorize",
+        "token_endpoint": "https://mcp.cloudflare.com/token",
+        "registration_endpoint": "https://mcp.cloudflare.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none",
+          "private_key_jwt"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "cloudflare",
+      "kind": "token-preflight",
+      "url": "https://mcp.cloudflare.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.27,
+      "tlsVerified": true
+    },
+    {
+      "provider": "cloudflare",
+      "kind": "resource-preflight",
+      "url": "https://mcp.cloudflare.com/mcp",
+      "method": "OPTIONS",
+      "status": 403,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.25,
+      "tlsVerified": true
+    },
+    {
+      "provider": "cloudinary",
+      "kind": "resource-metadata",
+      "url": "https://asset-management.mcp.cloudinary.com/.well-known/oauth-protected-resource/sse",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-ID, mcp-protocol-version",
+      "duration": 0.57,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://asset-management.mcp.cloudinary.com/sse",
+        "authorization_servers": ["https://asset-management.mcp.cloudinary.com"]
+      }
+    },
+    {
+      "provider": "cloudinary",
+      "kind": "authorization-metadata",
+      "url": "https://asset-management.mcp.cloudinary.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-ID, mcp-protocol-version",
+      "duration": 0.43,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://asset-management.mcp.cloudinary.com",
+        "authorization_endpoint": "https://asset-management.mcp.cloudinary.com/authorize",
+        "token_endpoint": "https://asset-management.mcp.cloudinary.com/token",
+        "registration_endpoint": "https://asset-management.mcp.cloudinary.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256", "plain"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "cloudinary",
+      "kind": "token-preflight",
+      "url": "https://asset-management.mcp.cloudinary.com/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Client-ID, mcp-protocol-version",
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "cloudinary",
+      "kind": "resource-preflight",
+      "url": "https://asset-management.mcp.cloudinary.com/sse",
+      "method": "OPTIONS",
+      "status": 404,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "common-room",
+      "kind": "resource-metadata",
+      "url": "https://mcp.commonroom.io/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.commonroom.io/mcp",
+        "authorization_servers": ["https://login.commonroom.io/"]
+      }
+    },
+    {
+      "provider": "common-room",
+      "kind": "authorization-metadata",
+      "url": "https://login.commonroom.io/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.35,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://login.commonroom.io/",
+        "authorization_endpoint": "https://login.commonroom.io/authorize",
+        "token_endpoint": "https://login.commonroom.io/oauth/token",
+        "registration_endpoint": "https://login.commonroom.io/oidc/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "private_key_jwt",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256", "plain"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "client_credentials",
+          "authorization_code",
+          "refresh_token",
+          "password",
+          "implicit",
+          "urn:ietf:params:oauth:grant-type:device_code",
+          "urn:ietf:params:oauth:grant-type:token-exchange",
+          "http://auth0.com/oauth/grant-type/password-realm",
+          "http://auth0.com/oauth/grant-type/passwordless/otp",
+          "http://auth0.com/oauth/grant-type/mfa-oob",
+          "http://auth0.com/oauth/grant-type/mfa-otp",
+          "http://auth0.com/oauth/grant-type/mfa-recovery-code",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": [
+          "code",
+          "token",
+          "id_token",
+          "code token",
+          "code id_token",
+          "token id_token",
+          "code token id_token"
+        ]
+      }
+    },
+    {
+      "provider": "common-room",
+      "kind": "token-preflight",
+      "url": "https://login.commonroom.io/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, PUT, POST, DELETE, PATCH, OPTIONS",
+      "allowHeaders": "Origin, Content-Type, Accept, X-Requested-With, Authorization, Auth0-Client, X-Request-Language, DPoP",
+      "duration": 0.58,
+      "tlsVerified": true
+    },
+    {
+      "provider": "common-room",
+      "kind": "resource-preflight",
+      "url": "https://mcp.commonroom.io/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "http://localhost:6274",
+      "allowMethods": "GET,POST,OPTIONS",
+      "allowHeaders": "Content-Type,Authorization,Mcp-Method,Mcp-Name,Mcp-Protocol-Version,X-Community-ID",
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "coupler-io",
+      "kind": "resource-metadata",
+      "url": "https://mcp.coupler.io/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.35,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.coupler.io/mcp",
+        "authorization_servers": ["https://auth.coupler.io"]
+      }
+    },
+    {
+      "provider": "coupler-io",
+      "kind": "authorization-metadata",
+      "url": "https://auth.coupler.io/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.3,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://auth.coupler.io/",
+        "authorization_endpoint": "https://auth.coupler.io/oauth2/authorize",
+        "token_endpoint": "https://auth.coupler.io/oauth2/token",
+        "registration_endpoint": "https://auth.coupler.io/oauth2/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "coupler-io",
+      "kind": "token-preflight",
+      "url": "https://auth.coupler.io/oauth2/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.42,
+      "tlsVerified": true
+    },
+    {
+      "provider": "coupler-io",
+      "kind": "resource-preflight",
+      "url": "https://mcp.coupler.io/mcp",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.32,
+      "tlsVerified": true
+    },
+    {
+      "provider": "dex",
+      "kind": "resource-metadata",
+      "url": "https://mcp.getdex.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.31,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.getdex.com/mcp",
+        "authorization_servers": ["https://mcp.getdex.com/"]
+      }
+    },
+    {
+      "provider": "dex",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.getdex.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.36,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.getdex.com/",
+        "authorization_endpoint": "https://mcp.getdex.com/authorize",
+        "token_endpoint": "https://mcp.getdex.com/token",
+        "registration_endpoint": "https://mcp.getdex.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "dex",
+      "kind": "token-preflight",
+      "url": "https://mcp.getdex.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.35,
+      "tlsVerified": true
+    },
+    {
+      "provider": "dex",
+      "kind": "resource-preflight",
+      "url": "https://mcp.getdex.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.42,
+      "tlsVerified": true
+    },
+    {
+      "provider": "embat",
+      "kind": "resource-metadata",
+      "url": "https://tellme.embat.io/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.43,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://tellme.embat.io/mcp",
+        "authorization_servers": ["https://complete-book-76.authkit.app/"]
+      }
+    },
+    {
+      "provider": "embat",
+      "kind": "authorization-metadata",
+      "url": "https://complete-book-76.authkit.app/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.48,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://complete-book-76.authkit.app",
+        "authorization_endpoint": "https://complete-book-76.authkit.app/oauth2/authorize",
+        "token_endpoint": "https://complete-book-76.authkit.app/oauth2/token",
+        "registration_endpoint": "https://complete-book-76.authkit.app/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "embat",
+      "kind": "token-preflight",
+      "url": "https://complete-book-76.authkit.app/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.44,
+      "tlsVerified": true
+    },
+    {
+      "provider": "embat",
+      "kind": "resource-preflight",
+      "url": "https://tellme.embat.io/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.55,
+      "tlsVerified": true
+    },
+    {
+      "provider": "exa",
+      "kind": "resource-metadata",
+      "url": "https://mcp.exa.ai/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.25,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.exa.ai/mcp",
+        "authorization_servers": ["https://auth.exa.ai"]
+      }
+    },
+    {
+      "provider": "exa",
+      "kind": "authorization-metadata",
+      "url": "https://auth.exa.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.24,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://auth.exa.ai",
+        "authorization_endpoint": "https://auth.exa.ai/oauth/authorize",
+        "token_endpoint": "https://auth.exa.ai/api/oauth/token",
+        "registration_endpoint": "https://auth.exa.ai/api/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "exa",
+      "kind": "token-preflight",
+      "url": "https://auth.exa.ai/api/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.3,
+      "tlsVerified": true
+    },
+    {
+      "provider": "exa",
+      "kind": "resource-preflight",
+      "url": "https://mcp.exa.ai/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, DELETE, OPTIONS",
+      "allowHeaders": "Accept, Content-Type, Authorization, x-api-key, x-exa-source, Mcp-Session-Id, MCP-Protocol-Version, Last-Event-ID",
+      "duration": 0.23,
+      "tlsVerified": true
+    },
+    {
+      "provider": "fathom",
+      "kind": "resource-metadata",
+      "url": "https://api.fathom.ai/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Authorization, Content-Type, mcp-protocol-version",
+      "duration": 0.28,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.fathom.ai/mcp",
+        "authorization_servers": ["https://api.fathom.ai"]
+      }
+    },
+    {
+      "provider": "fathom",
+      "kind": "authorization-metadata",
+      "url": "https://api.fathom.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Authorization, Content-Type, mcp-protocol-version",
+      "duration": 0.34,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.fathom.ai",
+        "authorization_endpoint": "https://fathom.video/mcp/oauth/authorize",
+        "token_endpoint": "https://api.fathom.ai/mcp/oauth/token",
+        "registration_endpoint": "https://api.fathom.ai/mcp/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "fathom",
+      "kind": "token-preflight",
+      "url": "https://api.fathom.ai/mcp/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Authorization, Content-Type, mcp-protocol-version",
+      "duration": 0.32,
+      "tlsVerified": true
+    },
+    {
+      "provider": "fathom",
+      "kind": "resource-preflight",
+      "url": "https://api.fathom.ai/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Authorization, Content-Type, mcp-protocol-version",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "fireflies",
+      "kind": "resource-metadata",
+      "url": "https://api.fireflies.ai/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 2.1,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.fireflies.ai/mcp",
+        "authorization_servers": ["https://api.fireflies.ai/"]
+      }
+    },
+    {
+      "provider": "fireflies",
+      "kind": "authorization-metadata",
+      "url": "https://api.fireflies.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.fireflies.ai/",
+        "authorization_endpoint": "https://api.fireflies.ai/authorize",
+        "token_endpoint": "https://api.fireflies.ai/token",
+        "registration_endpoint": "https://api.fireflies.ai/register",
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "fireflies",
+      "kind": "token-preflight",
+      "url": "https://api.fireflies.ai/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,POST",
+      "allowHeaders": "content-type",
+      "duration": 0.3,
+      "tlsVerified": true
+    },
+    {
+      "provider": "fireflies",
+      "kind": "resource-preflight",
+      "url": "https://api.fireflies.ai/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,POST",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.3,
+      "tlsVerified": true
+    },
+    {
+      "provider": "granola",
+      "kind": "resource-metadata",
+      "url": "https://mcp.granola.ai/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Accept, x-user-id, x-mcp-token, X-Requested-With, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID",
+      "duration": 0.62,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.granola.ai/mcp",
+        "authorization_servers": ["https://mcp-auth.granola.ai"]
+      }
+    },
+    {
+      "provider": "granola",
+      "kind": "authorization-metadata",
+      "url": "https://mcp-auth.granola.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.4,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp-auth.granola.ai",
+        "authorization_endpoint": "https://mcp-auth.granola.ai/oauth2/authorize",
+        "token_endpoint": "https://mcp-auth.granola.ai/oauth2/token",
+        "registration_endpoint": "https://mcp-auth.granola.ai/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "granola",
+      "kind": "token-preflight",
+      "url": "https://mcp-auth.granola.ai/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "granola",
+      "kind": "resource-preflight",
+      "url": "https://mcp.granola.ai/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Accept, x-user-id, x-mcp-token, X-Requested-With, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID",
+      "duration": 0.46,
+      "tlsVerified": true
+    },
+    {
+      "provider": "harmonic",
+      "kind": "resource-metadata",
+      "url": "https://mcp.api.harmonic.ai/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.55,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.api.harmonic.ai/",
+        "authorization_servers": ["https://login.harmonic.ai/"]
+      }
+    },
+    {
+      "provider": "harmonic",
+      "kind": "authorization-metadata",
+      "url": "https://login.harmonic.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.97,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://login.harmonic.ai",
+        "authorization_endpoint": "https://login.harmonic.ai/oauth2/authorize",
+        "token_endpoint": "https://login.harmonic.ai/oauth2/token",
+        "registration_endpoint": "https://login.harmonic.ai/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "harmonic",
+      "kind": "token-preflight",
+      "url": "https://login.harmonic.ai/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.89,
+      "tlsVerified": true
+    },
+    {
+      "provider": "harmonic",
+      "kind": "resource-preflight",
+      "url": "https://mcp.api.harmonic.ai",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.62,
+      "tlsVerified": true
+    },
+    {
+      "provider": "honeycomb",
+      "kind": "resource-metadata",
+      "url": "https://mcp.honeycomb.io/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.6,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.honeycomb.io/mcp",
+        "authorization_servers": ["https://ui.honeycomb.io"]
+      }
+    },
+    {
+      "provider": "honeycomb",
+      "kind": "authorization-metadata",
+      "url": "https://ui.honeycomb.io/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.75,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://ui.honeycomb.io",
+        "authorization_endpoint": "https://ui.honeycomb.io/oauth/authorize",
+        "token_endpoint": "https://ui.honeycomb.io/oauth/token",
+        "registration_endpoint": "https://ui.honeycomb.io/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "honeycomb",
+      "kind": "token-preflight",
+      "url": "https://ui.honeycomb.io/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.55,
+      "tlsVerified": true
+    },
+    {
+      "provider": "honeycomb",
+      "kind": "resource-preflight",
+      "url": "https://mcp.honeycomb.io/mcp",
+      "method": "OPTIONS",
+      "status": 405,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true
+    },
+    {
+      "provider": "indeed",
+      "kind": "resource-metadata",
+      "url": "https://mcp.indeed.com/.well-known/oauth-protected-resource/claude/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.35,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.indeed.com/claude/mcp",
+        "authorization_servers": ["https://secure.indeed.com"]
+      }
+    },
+    {
+      "provider": "indeed",
+      "kind": "authorization-metadata",
+      "url": "https://secure.indeed.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.25,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://secure.indeed.com",
+        "authorization_endpoint": "https://secure.indeed.com/oauth/v2/authorize",
+        "token_endpoint": "https://apis.indeed.com/oauth/v2/tokens",
+        "registration_endpoint": "https://secure.indeed.com/oauth/v2/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "client_credentials"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "indeed",
+      "kind": "token-preflight",
+      "url": "https://apis.indeed.com/oauth/v2/tokens",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "POST,OPTIONS",
+      "allowHeaders": "content-type",
+      "duration": 0.23,
+      "tlsVerified": true
+    },
+    {
+      "provider": "indeed",
+      "kind": "resource-preflight",
+      "url": "https://mcp.indeed.com/claude/mcp",
+      "method": "OPTIONS",
+      "status": 400,
+      "allowOrigin": null,
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, QUERY",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.54,
+      "tlsVerified": true
+    },
+    {
+      "provider": "intuit-mailchimp",
+      "kind": "resource-metadata",
+      "url": "https://ai-inc.mailchimp.com/.well-known/oauth-protected-resource/claude/mcp/v2",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.83,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://ai-inc.mailchimp.com/claude/mcp/v2",
+        "authorization_servers": ["https://ai-inc.mailchimp.com/claude"]
+      }
+    },
+    {
+      "provider": "intuit-mailchimp",
+      "kind": "authorization-metadata",
+      "url": "https://ai-inc.mailchimp.com/.well-known/oauth-authorization-server/claude",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.71,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://ai-inc.mailchimp.com",
+        "authorization_endpoint": "https://ai-inc.mailchimp.com/claude/oauth/authorize",
+        "token_endpoint": "https://ai-inc.mailchimp.com/claude/oauth/token",
+        "registration_endpoint": "https://ai-inc.mailchimp.com/claude/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "intuit-mailchimp",
+      "kind": "token-preflight",
+      "url": "https://ai-inc.mailchimp.com/claude/oauth/token",
+      "method": "OPTIONS",
+      "error": "TimeoutError",
+      "duration": 9.12
+    },
+    {
+      "provider": "intuit-mailchimp",
+      "kind": "resource-preflight",
+      "url": "https://ai-inc.mailchimp.com/claude/mcp/v2",
+      "method": "OPTIONS",
+      "status": 403,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.54,
+      "tlsVerified": true
+    },
+    {
+      "provider": "jira",
+      "kind": "resource-metadata",
+      "url": "https://mcp.atlassian.com/.well-known/oauth-protected-resource/v1/mcp/authv2",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.31,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.atlassian.com/v1/mcp/authv2",
+        "authorization_servers": [
+          "https://auth.atlassian.com/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3"
+        ]
+      }
+    },
+    {
+      "provider": "jira",
+      "kind": "authorization-metadata",
+      "url": "https://auth.atlassian.com/.well-known/oauth-authorization-server/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.48,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://auth.atlassian.com/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3",
+        "authorization_endpoint": "https://auth.atlassian.com/authorize",
+        "token_endpoint": "https://auth.atlassian.com/oauth/token",
+        "registration_endpoint": "https://auth.atlassian.com/VCeDsk8ZHncYF1g234fKtc4lNipbBhu3/dcr/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "client_credentials",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:token-revoke",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          "urn:ietf:params:oauth:grant-type:token-exchange"
+        ],
+        "response_types_supported": ["code", "token"]
+      }
+    },
+    {
+      "provider": "jira",
+      "kind": "token-preflight",
+      "url": "https://auth.atlassian.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, HEAD, OPTIONS, POST",
+      "allowHeaders": "Origin, X-Requested-With, Content-Type, Accept, Key, Authorization, MCP-Protocol-Version",
+      "duration": 0.43,
+      "tlsVerified": true
+    },
+    {
+      "provider": "jira",
+      "kind": "resource-preflight",
+      "url": "https://mcp.atlassian.com/v1/mcp/authv2",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.47,
+      "tlsVerified": true
+    },
+    {
+      "provider": "jotform",
+      "kind": "resource-metadata",
+      "url": "https://mcp.jotform.com/.well-known/oauth-protected-resource/mcp-app",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.48,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.jotform.com/mcp-app",
+        "authorization_servers": ["https://oauth2.jotform.com"]
+      }
+    },
+    {
+      "provider": "jotform",
+      "kind": "authorization-metadata",
+      "url": "https://oauth2.jotform.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.45,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://oauth2.jotform.com",
+        "authorization_endpoint": "https://oauth2.jotform.com/authorize",
+        "token_endpoint": "https://oauth2.jotform.com/token",
+        "registration_endpoint": "https://oauth2.jotform.com/register-public-client",
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "jotform",
+      "kind": "token-preflight",
+      "url": "https://oauth2.jotform.com/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "POST, GET, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.45,
+      "tlsVerified": true
+    },
+    {
+      "provider": "jotform",
+      "kind": "resource-preflight",
+      "url": "https://mcp.jotform.com/mcp-app",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "Content-Type,Authorization,mcp-session-id,mcp-protocol-version,last-event-id",
+      "duration": 0.33,
+      "tlsVerified": true
+    },
+    {
+      "provider": "kernel",
+      "kind": "resource-metadata",
+      "url": "https://mcp.onkernel.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.51,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.onkernel.com/mcp",
+        "authorization_servers": ["https://auth.onkernel.com"],
+        "authorization_endpoint": "https://auth.onkernel.com/authorize",
+        "token_endpoint": "https://auth.onkernel.com/token",
+        "registration_endpoint": "https://auth.onkernel.com/register"
+      }
+    },
+    {
+      "provider": "kernel",
+      "kind": "authorization-metadata",
+      "url": "https://auth.onkernel.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.61,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://auth.onkernel.com",
+        "authorization_endpoint": "https://auth.onkernel.com/authorize",
+        "token_endpoint": "https://auth.onkernel.com/token",
+        "registration_endpoint": "https://auth.onkernel.com/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "kernel",
+      "kind": "token-preflight",
+      "url": "https://auth.onkernel.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.55,
+      "tlsVerified": true
+    },
+    {
+      "provider": "kernel",
+      "kind": "resource-preflight",
+      "url": "https://mcp.onkernel.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Accept, MCP-Protocol-Version, Mcp-Method, Mcp-Name, mcp-session-id",
+      "duration": 0.58,
+      "tlsVerified": true
+    },
+    {
+      "provider": "langsmith",
+      "kind": "resource-metadata",
+      "url": "https://api.smith.langchain.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.35,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.smith.langchain.com/mcp",
+        "authorization_servers": ["https://api.smith.langchain.com"]
+      }
+    },
+    {
+      "provider": "langsmith",
+      "kind": "authorization-metadata",
+      "url": "https://api.smith.langchain.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.42,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.smith.langchain.com",
+        "authorization_endpoint": "https://api.smith.langchain.com/oauth/authorize",
+        "token_endpoint": "https://api.smith.langchain.com/oauth/token",
+        "registration_endpoint": "https://api.smith.langchain.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "urn:ietf:params:oauth:grant-type:device_code",
+          "refresh_token"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "langsmith",
+      "kind": "token-preflight",
+      "url": "https://api.smith.langchain.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "langsmith",
+      "kind": "resource-preflight",
+      "url": "https://api.smith.langchain.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.28,
+      "tlsVerified": true
+    },
+    {
+      "provider": "linear",
+      "kind": "resource-metadata",
+      "url": "https://mcp.linear.app/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.18,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.linear.app/mcp",
+        "authorization_servers": ["https://mcp.linear.app"]
+      }
+    },
+    {
+      "provider": "linear",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.linear.app/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.27,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.linear.app",
+        "resource": "https://mcp.linear.app/mcp",
+        "authorization_endpoint": "https://mcp.linear.app/authorize",
+        "token_endpoint": "https://mcp.linear.app/token",
+        "registration_endpoint": "https://mcp.linear.app/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "linear",
+      "kind": "token-preflight",
+      "url": "https://mcp.linear.app/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.18,
+      "tlsVerified": true
+    },
+    {
+      "provider": "linear",
+      "kind": "resource-preflight",
+      "url": "https://mcp.linear.app/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.27,
+      "tlsVerified": true
+    },
+    {
+      "provider": "local-falcon",
+      "kind": "resource-metadata",
+      "url": "https://mcp.localfalcon.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.5,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.localfalcon.com",
+        "authorization_servers": ["https://mcp.localfalcon.com"]
+      }
+    },
+    {
+      "provider": "local-falcon",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.localfalcon.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.46,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.localfalcon.com",
+        "authorization_endpoint": "https://mcp.localfalcon.com/oauth/authorize",
+        "token_endpoint": "https://mcp.localfalcon.com/oauth/token",
+        "registration_endpoint": "https://mcp.localfalcon.com/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "local-falcon",
+      "kind": "token-preflight",
+      "url": "https://mcp.localfalcon.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "Content-Type,Authorization,mcp-session-id,last-event-id",
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "local-falcon",
+      "kind": "resource-preflight",
+      "url": "https://mcp.localfalcon.com",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "Content-Type,Authorization,mcp-session-id,last-event-id",
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "logrocket",
+      "kind": "resource-metadata",
+      "url": "https://mcp.logrocket.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.41,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.logrocket.com/mcp",
+        "authorization_servers": ["https://mcp.logrocket.com"]
+      }
+    },
+    {
+      "provider": "logrocket",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.logrocket.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.28,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.logrocket.com",
+        "authorization_endpoint": "https://mcp.logrocket.com/oauth/authorize",
+        "token_endpoint": "https://mcp.logrocket.com/oauth/token",
+        "registration_endpoint": "https://mcp.logrocket.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "logrocket",
+      "kind": "token-preflight",
+      "url": "https://mcp.logrocket.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "logrocket",
+      "kind": "resource-preflight",
+      "url": "https://mcp.logrocket.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.24,
+      "tlsVerified": true
+    },
+    {
+      "provider": "lovable",
+      "kind": "resource-metadata",
+      "url": "https://api.lovable.dev/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.31,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.lovable.dev",
+        "authorization_servers": ["https://lovable.dev/oauth"]
+      }
+    },
+    {
+      "provider": "lovable",
+      "kind": "authorization-metadata",
+      "url": "https://lovable.dev/.well-known/oauth-authorization-server/oauth",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.34,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://lovable.dev/oauth",
+        "authorization_endpoint": "https://lovable.dev/oauth/authorize",
+        "token_endpoint": "https://lovable.dev/oauth/token",
+        "registration_endpoint": "https://lovable.dev/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "lovable",
+      "kind": "token-preflight",
+      "url": "https://lovable.dev/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Authorization, Content-Type",
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "lovable",
+      "kind": "resource-preflight",
+      "url": "https://api.lovable.dev/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST, GET, OPTIONS, DELETE",
+      "allowHeaders": "Content-Type, Authorization, Lovable-API-Key, Mcp-Protocol-Version, Mcp-Session-Id",
+      "duration": 0.45,
+      "tlsVerified": true
+    },
+    {
+      "provider": "lucid",
+      "kind": "resource-metadata",
+      "url": "https://mcp.lucid.app/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "OPTIONS,HEAD,GET,PUT,DELETE,POST,PATCH",
+      "allowHeaders": "Content-Type, Authorization, Accept, Origin, X-Requested-With, mcp-protocol-version",
+      "duration": 0.6,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.lucid.app/mcp",
+        "authorization_servers": ["https://mcp.lucid.app"]
+      }
+    },
+    {
+      "provider": "lucid",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.lucid.app/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "OPTIONS,HEAD,GET,PUT,DELETE,POST,PATCH",
+      "allowHeaders": "Content-Type, Authorization, Accept, Origin, X-Requested-With, mcp-protocol-version",
+      "duration": 0.57,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.lucid.app",
+        "authorization_endpoint": "https://mcp.lucid.app/oauth/authorize",
+        "token_endpoint": "https://mcp.lucid.app/oauth/token",
+        "registration_endpoint": "https://mcp.lucid.app/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "lucid",
+      "kind": "token-preflight",
+      "url": "https://mcp.lucid.app/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "OPTIONS,HEAD,GET,PUT,DELETE,POST,PATCH",
+      "allowHeaders": "Content-Type, Authorization, Accept, Origin, X-Requested-With, mcp-protocol-version",
+      "duration": 0.48,
+      "tlsVerified": true
+    },
+    {
+      "provider": "lucid",
+      "kind": "resource-preflight",
+      "url": "https://mcp.lucid.app/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "OPTIONS,HEAD,GET,PUT,DELETE,POST,PATCH",
+      "allowHeaders": "Content-Type, Authorization, Accept, Origin, X-Requested-With, mcp-protocol-version",
+      "duration": 0.57,
+      "tlsVerified": true
+    },
+    {
+      "provider": "manufact",
+      "kind": "resource-metadata",
+      "url": "https://mcp.manufact.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.56,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.manufact.com/mcp",
+        "authorization_servers": ["https://cloud.manufact.com/api/auth"]
+      }
+    },
+    {
+      "provider": "manufact",
+      "kind": "authorization-metadata",
+      "url": "https://cloud.manufact.com/.well-known/oauth-authorization-server/api/auth",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.39,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://cloud.manufact.com/api/auth",
+        "authorization_endpoint": "https://cloud.manufact.com/api/auth/oauth2/authorize",
+        "token_endpoint": "https://cloud.manufact.com/api/auth/oauth2/token",
+        "registration_endpoint": "https://cloud.manufact.com/api/auth/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post",
+          "private_key_jwt"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "client_credentials",
+          "refresh_token"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "manufact",
+      "kind": "token-preflight",
+      "url": "https://cloud.manufact.com/api/auth/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      "allowHeaders": "Content-Type,Authorization,x-api-key,mcp-protocol-version,mcp-session-id,Mcp-Session-Id,x-mcp-creation-location,traceparent,tracestate",
+      "duration": 0.27,
+      "tlsVerified": true
+    },
+    {
+      "provider": "manufact",
+      "kind": "resource-preflight",
+      "url": "https://mcp.manufact.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization,Content-Type,Accept,Mcp-Session-Id,mcp-protocol-version,*",
+      "duration": 0.42,
+      "tlsVerified": true
+    },
+    {
+      "provider": "mixpanel",
+      "kind": "resource-metadata",
+      "url": "https://mcp.mixpanel.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.51,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.mixpanel.com/mcp",
+        "authorization_servers": ["https://mcp.mixpanel.com/mcp"]
+      }
+    },
+    {
+      "provider": "mixpanel",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.mixpanel.com/.well-known/oauth-authorization-server/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.mixpanel.com/mcp",
+        "authorization_endpoint": "https://mixpanel.com/oauth/authorize",
+        "token_endpoint": "https://mixpanel.com/oauth/token/",
+        "registration_endpoint": "https://mixpanel.com/oauth/mcp/register/",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "mixpanel",
+      "kind": "token-preflight",
+      "url": "https://mixpanel.com/oauth/token/",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, PATCH, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "authorization, content-type, x-webapp-python, x-query-api-python",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "mixpanel",
+      "kind": "resource-preflight",
+      "url": "https://mcp.mixpanel.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.51,
+      "tlsVerified": true
+    },
+    {
+      "provider": "motherduck",
+      "kind": "resource-metadata",
+      "url": "https://api.motherduck.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.45,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.motherduck.com/mcp",
+        "authorization_servers": ["https://mcp-auth.motherduck.com"]
+      }
+    },
+    {
+      "provider": "motherduck",
+      "kind": "authorization-metadata",
+      "url": "https://mcp-auth.motherduck.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.53,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp-auth.motherduck.com",
+        "authorization_endpoint": "https://mcp-auth.motherduck.com/authorize",
+        "token_endpoint": "https://mcp-auth.motherduck.com/token",
+        "registration_endpoint": "https://mcp-auth.motherduck.com/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "motherduck",
+      "kind": "token-preflight",
+      "url": "https://mcp-auth.motherduck.com/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Accept",
+      "duration": 0.48,
+      "tlsVerified": true
+    },
+    {
+      "provider": "motherduck",
+      "kind": "resource-preflight",
+      "url": "https://api.motherduck.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, MCP-Protocol-Version, Accept",
+      "duration": 0.54,
+      "tlsVerified": true
+    },
+    {
+      "provider": "netlify",
+      "kind": "resource-metadata",
+      "url": "https://netlify-mcp.netlify.app/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.39,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://netlify-mcp.netlify.app/mcp",
+        "authorization_servers": ["https://netlify-mcp.netlify.app/"]
+      }
+    },
+    {
+      "provider": "netlify",
+      "kind": "authorization-metadata",
+      "url": "https://netlify-mcp.netlify.app/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.37,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://netlify-mcp.netlify.app/",
+        "authorization_endpoint": "https://netlify-mcp.netlify.app/oauth-server/auth",
+        "token_endpoint": "https://netlify-mcp.netlify.app/oauth-server/token",
+        "registration_endpoint": "https://netlify-mcp.netlify.app/oauth-server/reg",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "netlify",
+      "kind": "token-preflight",
+      "url": "https://netlify-mcp.netlify.app/oauth-server/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "netlify",
+      "kind": "resource-preflight",
+      "url": "https://netlify-mcp.netlify.app/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "*",
+      "allowHeaders": "*",
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "new-relic",
+      "kind": "resource-metadata",
+      "url": "https://mcp.newrelic.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.51,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.newrelic.com/mcp/",
+        "authorization_servers": ["https://oauth2.service.newrelic.com"]
+      }
+    },
+    {
+      "provider": "new-relic",
+      "kind": "authorization-metadata",
+      "url": "https://oauth2.service.newrelic.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.47,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://oauth2.service.newrelic.com",
+        "authorization_endpoint": "https://oauth2.service.newrelic.com/oauth2/auth",
+        "token_endpoint": "https://oauth2.service.newrelic.com/oauth2/token",
+        "registration_endpoint": "https://dcr.service.newrelic.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "implicit",
+          "client_credentials",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": [
+          "code",
+          "code id_token",
+          "id_token",
+          "token id_token",
+          "token",
+          "token id_token code"
+        ]
+      }
+    },
+    {
+      "provider": "new-relic",
+      "kind": "token-preflight",
+      "url": "https://oauth2.service.newrelic.com/oauth2/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.51,
+      "tlsVerified": true
+    },
+    {
+      "provider": "new-relic",
+      "kind": "resource-preflight",
+      "url": "https://mcp.newrelic.com/mcp/",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.45,
+      "tlsVerified": true
+    },
+    {
+      "provider": "notion",
+      "kind": "resource-metadata",
+      "url": "https://mcp.notion.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.25,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.notion.com/mcp",
+        "authorization_servers": ["https://mcp.notion.com"]
+      }
+    },
+    {
+      "provider": "notion",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.notion.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.3,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.notion.com",
+        "authorization_endpoint": "https://mcp.notion.com/authorize",
+        "token_endpoint": "https://mcp.notion.com/token",
+        "registration_endpoint": "https://mcp.notion.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "notion",
+      "kind": "token-preflight",
+      "url": "https://mcp.notion.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "notion",
+      "kind": "resource-preflight",
+      "url": "https://mcp.notion.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.35,
+      "tlsVerified": true
+    },
+    {
+      "provider": "otter-ai",
+      "kind": "resource-metadata",
+      "url": "https://mcp.otter.ai/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.otter.ai/",
+        "authorization_servers": ["https://otter.ai/"]
+      }
+    },
+    {
+      "provider": "otter-ai",
+      "kind": "authorization-metadata",
+      "url": "https://otter.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.36,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://otter.ai",
+        "authorization_endpoint": "https://otter.ai/oauth2/authorize",
+        "token_endpoint": "https://otter.ai/oauth/token",
+        "registration_endpoint": "https://otter.ai/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "otter-ai",
+      "kind": "token-preflight",
+      "url": "https://otter.ai/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "otter-ai",
+      "kind": "resource-preflight",
+      "url": "https://mcp.otter.ai/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "paypal",
+      "kind": "resource-metadata",
+      "url": "https://mcp.paypal.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.27,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.paypal.com/mcp",
+        "authorization_servers": ["https://mcp.paypal.com"]
+      }
+    },
+    {
+      "provider": "paypal",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.paypal.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.29,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.paypal.com",
+        "authorization_endpoint": "https://mcp.paypal.com/authorize",
+        "token_endpoint": "https://mcp.paypal.com/token",
+        "registration_endpoint": "https://mcp.paypal.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": false,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "paypal",
+      "kind": "token-preflight",
+      "url": "https://mcp.paypal.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.28,
+      "tlsVerified": true
+    },
+    {
+      "provider": "paypal",
+      "kind": "resource-preflight",
+      "url": "https://mcp.paypal.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.32,
+      "tlsVerified": true
+    },
+    {
+      "provider": "pendo",
+      "kind": "resource-metadata",
+      "url": "https://app.pendo.io/.well-known/oauth-protected-resource/mcp/v0/shttp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.35,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://app.pendo.io/mcp/v0/shttp",
+        "authorization_servers": ["https://app.pendo.io"]
+      }
+    },
+    {
+      "provider": "pendo",
+      "kind": "authorization-metadata",
+      "url": "https://app.pendo.io/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://app.pendo.io",
+        "authorization_endpoint": "https://app.pendo.io/oauth/authorize",
+        "token_endpoint": "https://app.pendo.io/oauth/v1/token",
+        "registration_endpoint": "https://app.pendo.io/oauth/v1/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "none",
+          "private_key_jwt"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "client_credentials"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "pendo",
+      "kind": "token-preflight",
+      "url": "https://app.pendo.io/oauth/v1/token",
+      "method": "OPTIONS",
+      "status": 404,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "pendo",
+      "kind": "resource-preflight",
+      "url": "https://app.pendo.io/mcp/v0/shttp",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "posthog",
+      "kind": "resource-metadata",
+      "url": "https://mcp.posthog.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.21,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.posthog.com/mcp",
+        "authorization_servers": ["https://oauth.posthog.com"]
+      }
+    },
+    {
+      "provider": "posthog",
+      "kind": "authorization-metadata",
+      "url": "https://oauth.posthog.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.24,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://oauth.posthog.com",
+        "authorization_endpoint": "https://oauth.posthog.com/oauth/authorize/",
+        "token_endpoint": "https://oauth.posthog.com/oauth/token/",
+        "registration_endpoint": "https://oauth.posthog.com/oauth/register/",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "private_key_jwt"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:jwt-bearer"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "posthog",
+      "kind": "token-preflight",
+      "url": "https://oauth.posthog.com/oauth/token/",
+      "method": "OPTIONS",
+      "status": 404,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.2,
+      "tlsVerified": true
+    },
+    {
+      "provider": "posthog",
+      "kind": "resource-preflight",
+      "url": "https://mcp.posthog.com/mcp",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.16,
+      "tlsVerified": true
+    },
+    {
+      "provider": "postman",
+      "kind": "resource-metadata",
+      "url": "https://mcp.postman.com/.well-known/oauth-protected-resource/minimal",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.37,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.postman.com/minimal",
+        "authorization_servers": ["https://mcp.postman.com"]
+      }
+    },
+    {
+      "provider": "postman",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.postman.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.31,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.postman.com",
+        "authorization_endpoint": "https://mcp.postman.com/authorize",
+        "token_endpoint": "https://mcp.postman.com/token",
+        "registration_endpoint": "https://mcp.postman.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "postman",
+      "kind": "token-preflight",
+      "url": "https://mcp.postman.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "postman",
+      "kind": "resource-preflight",
+      "url": "https://mcp.postman.com/minimal",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "pylon",
+      "kind": "resource-metadata",
+      "url": "https://mcp.usepylon.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.3,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.usepylon.com",
+        "authorization_servers": ["https://o.auth.usepylon.com"]
+      }
+    },
+    {
+      "provider": "pylon",
+      "kind": "authorization-metadata",
+      "url": "https://o.auth.usepylon.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.53,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://o.auth.usepylon.com",
+        "authorization_endpoint": "https://o.auth.usepylon.com/oauth2/authorize",
+        "token_endpoint": "https://o.auth.usepylon.com/oauth2/token",
+        "registration_endpoint": "https://o.auth.usepylon.com/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "pylon",
+      "kind": "token-preflight",
+      "url": "https://o.auth.usepylon.com/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.37,
+      "tlsVerified": true
+    },
+    {
+      "provider": "pylon",
+      "kind": "resource-preflight",
+      "url": "https://mcp.usepylon.com/",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.27,
+      "tlsVerified": true
+    },
+    {
+      "provider": "quartr",
+      "kind": "resource-metadata",
+      "url": "https://mcp.quartr.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, DELETE, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name",
+      "duration": 0.82,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.quartr.com/mcp",
+        "authorization_servers": ["https://mcp.quartr.com"]
+      }
+    },
+    {
+      "provider": "quartr",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.quartr.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, DELETE, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name",
+      "duration": 0.82,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.quartr.com",
+        "authorization_endpoint": "https://mcp.quartr.com/oauth/authorize",
+        "token_endpoint": "https://mcp.quartr.com/oauth/token",
+        "registration_endpoint": "https://mcp.quartr.com/oauth/register",
+        "token_endpoint_auth_methods_supported": ["none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "quartr",
+      "kind": "token-preflight",
+      "url": "https://mcp.quartr.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, DELETE, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name",
+      "duration": 0.81,
+      "tlsVerified": true
+    },
+    {
+      "provider": "quartr",
+      "kind": "resource-preflight",
+      "url": "https://mcp.quartr.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, DELETE, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Mcp-Method, Mcp-Name",
+      "duration": 0.77,
+      "tlsVerified": true
+    },
+    {
+      "provider": "quicknode",
+      "kind": "resource-metadata",
+      "url": "https://mcp.quicknode.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.51,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.quicknode.com/",
+        "authorization_servers": ["https://mcp.quicknode.com/"]
+      }
+    },
+    {
+      "provider": "quicknode",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.quicknode.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.quicknode.com/",
+        "authorization_endpoint": "https://mcp.quicknode.com/authorize",
+        "token_endpoint": "https://mcp.quicknode.com/token",
+        "registration_endpoint": "https://mcp.quicknode.com/register",
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "quicknode",
+      "kind": "token-preflight",
+      "url": "https://mcp.quicknode.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "quicknode",
+      "kind": "resource-preflight",
+      "url": "https://mcp.quicknode.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.47,
+      "tlsVerified": true
+    },
+    {
+      "provider": "read-ai",
+      "kind": "resource-metadata",
+      "url": "https://api.read.ai/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.65,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.read.ai/mcp",
+        "authorization_servers": ["https://authn.read.ai/"]
+      }
+    },
+    {
+      "provider": "read-ai",
+      "kind": "authorization-metadata",
+      "url": "https://authn.read.ai/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.61,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://authn.read.ai/",
+        "authorization_endpoint": "https://authn.read.ai/oauth2/auth",
+        "token_endpoint": "https://authn.read.ai/oauth2/token",
+        "registration_endpoint": "https://api.read.ai/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "implicit",
+          "client_credentials",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": [
+          "code",
+          "code id_token",
+          "id_token",
+          "token id_token",
+          "token",
+          "token id_token code"
+        ]
+      }
+    },
+    {
+      "provider": "read-ai",
+      "kind": "token-preflight",
+      "url": "https://authn.read.ai/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST",
+      "allowHeaders": "content-type",
+      "duration": 0.54,
+      "tlsVerified": true
+    },
+    {
+      "provider": "read-ai",
+      "kind": "resource-preflight",
+      "url": "https://api.read.ai/mcp",
+      "method": "OPTIONS",
+      "status": 400,
+      "allowOrigin": null,
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.7,
+      "tlsVerified": true
+    },
+    {
+      "provider": "readwise",
+      "kind": "resource-metadata",
+      "url": "https://mcp2.readwise.io/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.64,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp2.readwise.io/mcp",
+        "authorization_servers": ["https://readwise.io/o/"]
+      }
+    },
+    {
+      "provider": "readwise",
+      "kind": "authorization-metadata",
+      "url": "https://readwise.io/.well-known/oauth-authorization-server/o",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.61,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://readwise.io/o/",
+        "authorization_endpoint": "https://readwise.io/o/authorize/",
+        "token_endpoint": "https://readwise.io/o/token/",
+        "registration_endpoint": "https://readwise.io/o/register/",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "implicit",
+          "refresh_token"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "readwise",
+      "kind": "token-preflight",
+      "url": "https://readwise.io/o/token/",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "DELETE, GET, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "accept, accept-encoding, authorization, content-type, dnt, origin, user-agent, x-csrftoken, x-requested-with, Books-Public-Token, Obsidian-Client, Readwise-Client-Version, Roam-Client, X-Client",
+      "duration": 0.49,
+      "tlsVerified": true
+    },
+    {
+      "provider": "readwise",
+      "kind": "resource-preflight",
+      "url": "https://mcp2.readwise.io/mcp",
+      "method": "OPTIONS",
+      "status": 405,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.54,
+      "tlsVerified": true
+    },
+    {
+      "provider": "resend",
+      "kind": "resource-metadata",
+      "url": "https://mcp.resend.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.47,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.resend.com",
+        "authorization_servers": ["https://api.resend.com"]
+      }
+    },
+    {
+      "provider": "resend",
+      "kind": "authorization-metadata",
+      "url": "https://api.resend.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.51,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.resend.com",
+        "authorization_endpoint": "https://api.resend.com/oauth/authorize",
+        "token_endpoint": "https://api.resend.com/oauth/token",
+        "registration_endpoint": "https://api.resend.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "resend",
+      "kind": "token-preflight",
+      "url": "https://api.resend.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "resend",
+      "kind": "resource-preflight",
+      "url": "https://mcp.resend.com",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.29,
+      "tlsVerified": true
+    },
+    {
+      "provider": "sanity",
+      "kind": "resource-metadata",
+      "url": "https://mcp.sanity.io/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.38,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.sanity.io",
+        "authorization_servers": ["https://mcp.sanity.io"]
+      }
+    },
+    {
+      "provider": "sanity",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.sanity.io/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.47,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.sanity.io",
+        "authorization_endpoint": "https://mcp.sanity.io/authorize",
+        "token_endpoint": "https://mcp.sanity.io/token",
+        "registration_endpoint": "https://mcp.sanity.io/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "sanity",
+      "kind": "token-preflight",
+      "url": "https://mcp.sanity.io/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "Content-Type,Authorization,Mcp-Session-Id,mcp-session-id",
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "sanity",
+      "kind": "resource-preflight",
+      "url": "https://mcp.sanity.io",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "Content-Type,Authorization,Mcp-Session-Id,mcp-session-id",
+      "duration": 0.34,
+      "tlsVerified": true
+    },
+    {
+      "provider": "sentry",
+      "kind": "resource-metadata",
+      "url": "https://mcp.sentry.dev/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.3,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.sentry.dev/mcp",
+        "authorization_servers": ["https://mcp.sentry.dev"]
+      }
+    },
+    {
+      "provider": "sentry",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.sentry.dev/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type",
+      "duration": 0.25,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.sentry.dev",
+        "authorization_endpoint": "https://mcp.sentry.dev/oauth/authorize",
+        "token_endpoint": "https://mcp.sentry.dev/oauth/token",
+        "registration_endpoint": "https://mcp.sentry.dev/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "sentry",
+      "kind": "token-preflight",
+      "url": "https://mcp.sentry.dev/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.28,
+      "tlsVerified": true
+    },
+    {
+      "provider": "sentry",
+      "kind": "resource-preflight",
+      "url": "https://mcp.sentry.dev/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.21,
+      "tlsVerified": true
+    },
+    {
+      "provider": "serpstat",
+      "kind": "resource-metadata",
+      "url": "https://mcp.serpstat.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, mcp-protocol-version",
+      "duration": 0.93,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.serpstat.com/mcp",
+        "authorization_servers": ["https://auth.serpstat.com"]
+      }
+    },
+    {
+      "provider": "serpstat",
+      "kind": "authorization-metadata",
+      "url": "https://auth.serpstat.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.97,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://auth.serpstat.com",
+        "authorization_endpoint": "https://auth.serpstat.com/oauth2/auth",
+        "token_endpoint": "https://auth.serpstat.com/oauth2/token",
+        "registration_endpoint": "https://auth.serpstat.com/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_post",
+          "client_secret_basic",
+          "private_key_jwt",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "implicit",
+          "client_credentials",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": [
+          "code",
+          "code id_token",
+          "id_token",
+          "token id_token",
+          "token",
+          "token id_token code"
+        ]
+      }
+    },
+    {
+      "provider": "serpstat",
+      "kind": "token-preflight",
+      "url": "https://auth.serpstat.com/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, POST, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization, mcp-protocol-version",
+      "duration": 0.92,
+      "tlsVerified": true
+    },
+    {
+      "provider": "serpstat",
+      "kind": "resource-preflight",
+      "url": "https://mcp.serpstat.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, POST, DELETE, OPTIONS",
+      "allowHeaders": "Authorization, Content-Type, Accept, mcp-protocol-version",
+      "duration": 0.84,
+      "tlsVerified": true
+    },
+    {
+      "provider": "signnow",
+      "kind": "resource-metadata",
+      "url": "https://mcp-server.signnow.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp-server.signnow.com/mcp",
+        "authorization_servers": ["https://mcp-server.signnow.com/"]
+      }
+    },
+    {
+      "provider": "signnow",
+      "kind": "authorization-metadata",
+      "url": "https://mcp-server.signnow.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.46,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp-server.signnow.com/",
+        "authorization_endpoint": "https://mcp-server.signnow.com/authorize",
+        "token_endpoint": "https://mcp-server.signnow.com/oauth2/token",
+        "registration_endpoint": "https://mcp-server.signnow.com/oauth2/register",
+        "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "signnow",
+      "kind": "token-preflight",
+      "url": "https://mcp-server.signnow.com/oauth2/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "content-type",
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "signnow",
+      "kind": "resource-preflight",
+      "url": "https://mcp-server.signnow.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.36,
+      "tlsVerified": true
+    },
+    {
+      "provider": "statsig",
+      "kind": "resource-metadata",
+      "url": "https://api.statsig.com/.well-known/oauth-protected-resource/v1/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.52,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.statsig.com/v1/mcp",
+        "authorization_servers": ["https://api.statsig.com"]
+      }
+    },
+    {
+      "provider": "statsig",
+      "kind": "authorization-metadata",
+      "url": "https://api.statsig.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.49,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.statsig.com",
+        "authorization_endpoint": "https://api.statsig.com/v1/oauth/authorize",
+        "token_endpoint": "https://api.statsig.com/v1/oauth/access_token",
+        "registration_endpoint": "https://api.statsig.com/v1/oauth/register",
+        "token_endpoint_auth_methods_supported": ["client_secret_post", "none"],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": [
+          "authorization_code",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "statsig",
+      "kind": "token-preflight",
+      "url": "https://api.statsig.com/v1/oauth/access_token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST, GET, DELETE, PATCH, PUT",
+      "allowHeaders": "content-type",
+      "duration": 0.48,
+      "tlsVerified": true
+    },
+    {
+      "provider": "statsig",
+      "kind": "resource-preflight",
+      "url": "https://api.statsig.com/v1/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST, GET, DELETE, PATCH, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.47,
+      "tlsVerified": true
+    },
+    {
+      "provider": "streak",
+      "kind": "resource-metadata",
+      "url": "https://api.streak.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, HEAD, PATCH, POST, PUT, DELETE",
+      "allowHeaders": null,
+      "duration": 0.42,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://api.streak.com/mcp",
+        "authorization_servers": ["https://api.streak.com/mcp"]
+      }
+    },
+    {
+      "provider": "streak",
+      "kind": "authorization-metadata",
+      "url": "https://api.streak.com/.well-known/oauth-authorization-server/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, HEAD, PATCH, POST, PUT, DELETE",
+      "allowHeaders": null,
+      "duration": 0.42,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://api.streak.com/mcp",
+        "authorization_endpoint": "https://api.streak.com/oauth2/start",
+        "token_endpoint": "https://api.streak.com/oauth2/token",
+        "registration_endpoint": "https://api.streak.com/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "streak",
+      "kind": "token-preflight",
+      "url": "https://api.streak.com/oauth2/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, HEAD, PATCH, POST, PUT, DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.41,
+      "tlsVerified": true
+    },
+    {
+      "provider": "streak",
+      "kind": "resource-preflight",
+      "url": "https://api.streak.com/mcp",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.23,
+      "tlsVerified": true
+    },
+    {
+      "provider": "superhuman-mail",
+      "kind": "resource-metadata",
+      "url": "https://mcp.mail.superhuman.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.5,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.mail.superhuman.com/mcp",
+        "authorization_servers": ["https://mcp.auth.mail.superhuman.com"]
+      }
+    },
+    {
+      "provider": "superhuman-mail",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.auth.mail.superhuman.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.64,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.auth.mail.superhuman.com",
+        "authorization_endpoint": "https://mcp.auth.mail.superhuman.com/oauth2/authorize",
+        "token_endpoint": "https://mcp.auth.mail.superhuman.com/oauth2/token",
+        "registration_endpoint": "https://mcp.auth.mail.superhuman.com/oauth2/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": [
+          "authorization_code",
+          "refresh_token",
+          "urn:ietf:params:oauth:grant-type:device_code"
+        ],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "superhuman-mail",
+      "kind": "token-preflight",
+      "url": "https://mcp.auth.mail.superhuman.com/oauth2/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "allowHeaders": "content-type",
+      "duration": 0.53,
+      "tlsVerified": true
+    },
+    {
+      "provider": "superhuman-mail",
+      "kind": "resource-preflight",
+      "url": "https://mcp.mail.superhuman.com/mcp",
+      "method": "OPTIONS",
+      "status": 404,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.49,
+      "tlsVerified": true
+    },
+    {
+      "provider": "ticktick",
+      "kind": "resource-metadata",
+      "url": "https://mcp.ticktick.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.21,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.ticktick.com/",
+        "authorization_servers": ["https://ticktick.com/"]
+      }
+    },
+    {
+      "provider": "ticktick",
+      "kind": "authorization-metadata",
+      "url": "https://ticktick.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.21,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://ticktick.com",
+        "authorization_endpoint": "https://ticktick.com/oauth/authorize",
+        "token_endpoint": "https://api.ticktick.com/oauth/token",
+        "registration_endpoint": "https://api.ticktick.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": ["authorization_code"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "ticktick",
+      "kind": "token-preflight",
+      "url": "https://api.ticktick.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "GET,POST,OPTIONS",
+      "allowHeaders": "content-type",
+      "duration": 0.39,
+      "tlsVerified": true
+    },
+    {
+      "provider": "ticktick",
+      "kind": "resource-preflight",
+      "url": "https://mcp.ticktick.com",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.4,
+      "tlsVerified": true
+    },
+    {
+      "provider": "todoist",
+      "kind": "resource-metadata",
+      "url": "https://ai.todoist.net/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.62,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://ai.todoist.net/mcp",
+        "authorization_servers": ["https://todoist.com"]
+      }
+    },
+    {
+      "provider": "todoist",
+      "kind": "authorization-metadata",
+      "url": "https://todoist.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,POST,PUT,DELETE,OPTIONS",
+      "allowHeaders": "Authorization,Content-Type",
+      "duration": 0.76,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://todoist.com",
+        "authorization_endpoint": "https://todoist.com/oauth/authorize",
+        "token_endpoint": "https://todoist.com/oauth/access_token",
+        "registration_endpoint": "https://todoist.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "client_id_metadata_document_supported": true,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "todoist",
+      "kind": "token-preflight",
+      "url": "https://todoist.com/oauth/access_token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET,POST,PUT,DELETE,OPTIONS",
+      "allowHeaders": "Authorization,Content-Type",
+      "duration": 0.68,
+      "tlsVerified": true
+    },
+    {
+      "provider": "todoist",
+      "kind": "resource-preflight",
+      "url": "https://ai.todoist.net/mcp",
+      "method": "OPTIONS",
+      "status": 404,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.53,
+      "tlsVerified": true
+    },
+    {
+      "provider": "webflow",
+      "kind": "resource-metadata",
+      "url": "https://mcp.webflow.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.38,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.webflow.com/mcp",
+        "authorization_servers": ["https://mcp.webflow.com"]
+      }
+    },
+    {
+      "provider": "webflow",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.webflow.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.25,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.webflow.com",
+        "authorization_endpoint": "https://mcp.webflow.com/oauth/authorize",
+        "token_endpoint": "https://mcp.webflow.com/oauth/token",
+        "registration_endpoint": "https://mcp.webflow.com/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "client_id_metadata_document_supported": false,
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "webflow",
+      "kind": "token-preflight",
+      "url": "https://mcp.webflow.com/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true
+    },
+    {
+      "provider": "webflow",
+      "kind": "resource-preflight",
+      "url": "https://mcp.webflow.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.33,
+      "tlsVerified": true
+    },
+    {
+      "provider": "whimsical",
+      "kind": "resource-metadata",
+      "url": "https://mcp.whimsical.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 1.42,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.whimsical.com",
+        "authorization_servers": ["https://mcp.whimsical.com"]
+      }
+    },
+    {
+      "provider": "whimsical",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.whimsical.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 1.39,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.whimsical.com",
+        "authorization_endpoint": "https://api.whimsical.com/v1/oauth.authorize",
+        "token_endpoint": "https://api.whimsical.com/v1/oauth.token",
+        "registration_endpoint": "https://api.whimsical.com/v1/oauth.register-mcp-client",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "whimsical",
+      "kind": "token-preflight",
+      "url": "https://api.whimsical.com/v1/oauth.token",
+      "method": "OPTIONS",
+      "status": 401,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.68,
+      "tlsVerified": true
+    },
+    {
+      "provider": "whimsical",
+      "kind": "resource-preflight",
+      "url": "https://mcp.whimsical.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "POST,GET,DELETE,OPTIONS",
+      "allowHeaders": "Content-Type,Authorization,Mcp-Session-Id",
+      "duration": 1.31,
+      "tlsVerified": true
+    },
+    {
+      "provider": "wix",
+      "kind": "resource-metadata",
+      "url": "https://mcp.wix.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.41,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.wix.com/mcp",
+        "authorization_servers": ["https://mcp.wix.com"]
+      }
+    },
+    {
+      "provider": "wix",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.wix.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.22,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.wix.com",
+        "authorization_endpoint": "https://mcp.wix.com/authorize",
+        "token_endpoint": "https://mcp.wix.com/token",
+        "registration_endpoint": "https://mcp.wix.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "client_secret_basic",
+          "client_secret_post",
+          "none"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "wix",
+      "kind": "token-preflight",
+      "url": "https://mcp.wix.com/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.36,
+      "tlsVerified": true
+    },
+    {
+      "provider": "wix",
+      "kind": "resource-preflight",
+      "url": "https://mcp.wix.com/mcp",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "*",
+      "allowHeaders": "Authorization, *",
+      "duration": 0.3,
+      "tlsVerified": true
+    },
+    {
+      "provider": "zapier",
+      "kind": "resource-metadata",
+      "url": "https://mcp.zapier.com/.well-known/oauth-protected-resource/api/v1/connect",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.63,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.zapier.com/api/v1/connect",
+        "authorization_servers": ["https://mcp.zapier.com"]
+      }
+    },
+    {
+      "provider": "zapier",
+      "kind": "authorization-metadata",
+      "url": "https://mcp.zapier.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "https://tyler-r-kendrick.github.io",
+      "allowMethods": "GET, OPTIONS",
+      "allowHeaders": "Content-Type, Authorization",
+      "duration": 0.6,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp.zapier.com",
+        "authorization_endpoint": "https://mcp.zapier.com/oauth/authorize",
+        "token_endpoint": "https://mcp.zapier.com/api/v1/oauth/token",
+        "registration_endpoint": "https://mcp.zapier.com/api/v1/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["plain", "S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "zapier",
+      "kind": "token-preflight",
+      "url": "https://mcp.zapier.com/api/v1/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": "GET, PATCH, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "content-type",
+      "duration": 0.97,
+      "tlsVerified": true
+    },
+    {
+      "provider": "zapier",
+      "kind": "resource-preflight",
+      "url": "https://mcp.zapier.com/api/v1/connect",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": null,
+      "allowMethods": "GET, PATCH, POST, PUT, DELETE, OPTIONS",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.58,
+      "tlsVerified": true
+    },
+    {
+      "provider": "zernio",
+      "kind": "resource-metadata",
+      "url": "https://mcp.zernio.com/.well-known/oauth-protected-resource/mcp",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.51,
+      "tlsVerified": true,
+      "metadata": {
+        "resource": "https://mcp.zernio.com/mcp",
+        "authorization_servers": ["https://zernio.com"]
+      }
+    },
+    {
+      "provider": "zernio",
+      "kind": "authorization-metadata",
+      "url": "https://zernio.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.47,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://zernio.com",
+        "authorization_endpoint": "https://zernio.com/oauth/authorize",
+        "token_endpoint": "https://zernio.com/api/oauth/token",
+        "registration_endpoint": "https://zernio.com/api/oauth/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_post",
+          "client_secret_basic"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "zernio",
+      "kind": "token-preflight",
+      "url": "https://zernio.com/api/oauth/token",
+      "method": "OPTIONS",
+      "status": 204,
+      "allowOrigin": "*",
+      "allowMethods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "allowHeaders": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization, x-api-key, Profile-Key, X-Connect-Token",
+      "duration": 0.48,
+      "tlsVerified": true
+    },
+    {
+      "provider": "zernio",
+      "kind": "resource-preflight",
+      "url": "https://mcp.zernio.com/mcp",
+      "method": "OPTIONS",
+      "status": 403,
+      "allowOrigin": null,
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.44,
+      "tlsVerified": true
+    },
+    {
+      "provider": "zomato",
+      "kind": "resource-metadata",
+      "url": "https://mcp-server.zomato.com/.well-known/oauth-protected-resource",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 1.33,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp-server.zomato.com/",
+        "authorization_endpoint": "https://mcp-server.zomato.com/authorize",
+        "token_endpoint": "https://mcp-server.zomato.com/token",
+        "registration_endpoint": "https://mcp-server.zomato.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "zomato",
+      "kind": "authorization-metadata",
+      "url": "https://mcp-server.zomato.com/.well-known/oauth-authorization-server",
+      "method": "GET",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": null,
+      "allowHeaders": null,
+      "duration": 0.77,
+      "tlsVerified": true,
+      "metadata": {
+        "issuer": "https://mcp-server.zomato.com/",
+        "authorization_endpoint": "https://mcp-server.zomato.com/authorize",
+        "token_endpoint": "https://mcp-server.zomato.com/token",
+        "registration_endpoint": "https://mcp-server.zomato.com/register",
+        "token_endpoint_auth_methods_supported": [
+          "none",
+          "client_secret_basic",
+          "client_secret_post"
+        ],
+        "code_challenge_methods_supported": ["S256"],
+        "grant_types_supported": ["authorization_code", "refresh_token"],
+        "response_types_supported": ["code"]
+      }
+    },
+    {
+      "provider": "zomato",
+      "kind": "token-preflight",
+      "url": "https://mcp-server.zomato.com/token",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "content-type",
+      "duration": 0.99,
+      "tlsVerified": true
+    },
+    {
+      "provider": "zomato",
+      "kind": "resource-preflight",
+      "url": "https://mcp-server.zomato.com/mcp",
+      "method": "OPTIONS",
+      "status": 200,
+      "allowOrigin": "*",
+      "allowMethods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+      "allowHeaders": "authorization,content-type,mcp-protocol-version,mcp-session-id",
+      "duration": 0.57,
+      "tlsVerified": true
+    }
+  ]
+}

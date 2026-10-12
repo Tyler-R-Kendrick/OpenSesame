@@ -1,0 +1,54 @@
+# Publish workspace packages to npm (manual).
+#
+# Tyler action: add repository secret NPM_TOKEN (Automation token with
+# publish access to @opensesame scope). Set `NPM_PACKAGES` variable to a
+# comma-separated list of package names to publish, e.g.
+# `@opensesame/os-domain,@opensesame/api-client`.
+name: Publish npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Comma-separated package names under packages/ to publish"
+        required: true
+        default: "@opensesame/os-domain"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: npm publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm exec turbo run build --filter='./packages/*'
+      - name: Publish selected packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "NPM_TOKEN secret is not configured on this repository."
+            exit 1
+          fi
+          IFS=',' read -ra PKGS <<< "${{ inputs.packages }}"
+          for pkg in "${PKGS[@]}"; do
+            trimmed="$(echo "$pkg" | xargs)"
+            [ -n "$trimmed" ] || continue
+            echo "Publishing $trimmed"
+            pnpm --filter "$trimmed" publish --access public --no-git-checks
+          done

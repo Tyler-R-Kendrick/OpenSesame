@@ -68,6 +68,23 @@ describe("ci gates", () => {
       new Set(ALL_GATES),
     );
   });
+});
+
+describe("ci gates, shards and drivers", () => {
+  it("runs the relay join walk when the gateway relay or its driver changes", () => {
+    expect(gatesOf("apps/pages/scripts/verify-relay-join.mjs")).toEqual([
+      "journeys",
+    ]);
+    expect(gatesOf("apps/pages/scripts/lib/vault-relay-http.mjs")).toEqual([
+      "journeys",
+    ]);
+    expect(gatesOf("crates/gateway/src/vault_relay.rs")).toEqual(["journeys"]);
+    expect(
+      gatesOf(
+        "apps/pages/src/modules/sharing.relay/OrgVaultDirectoryPanel.tsx",
+      ),
+    ).toContain("journeys");
+  });
 
   it("maps the split shards to their one gate", () => {
     expect(gateOfShard("journeys-2")).toBe("journeys");
@@ -76,6 +93,29 @@ describe("ci gates", () => {
     expect(
       bundleMatrix(["journeys"], loadShards(root)).map((leg) => leg.shard),
     ).toEqual(["journeys-1", "journeys-2"]);
+  });
+
+  it("selects the connector browser contract for its driver and shared provider metadata", async () => {
+    const { bundlePackageDirs, pushPackageDirs, selectGates } = await import(
+      "./ci-changed-areas.mjs"
+    );
+    const metadata = "spec/connectors/self-hosted-config.json";
+    expect(
+      gatesOf("apps/pages/scripts/verify-self-hosted-connectors.mjs"),
+    ).toEqual(["budgets"]);
+    expect(gatesOf(metadata)).toEqual([
+      "budgets",
+      "native-connectors",
+      "native-public-protocol",
+    ]);
+    expect([
+      ...selectGates(
+        root,
+        [metadata],
+        bundlePackageDirs(root),
+        pushPackageDirs(root),
+      ),
+    ]).toEqual(["budgets", "native-connectors", "native-public-protocol"]);
   });
 
   it("writes matrix legs in the shard file's order and only for wanted gates", () => {
@@ -147,4 +187,30 @@ describe("ci gate selection", () => {
     );
     expect([...gates].sort()).toEqual(["budgets", "journeys", "sign-in"]);
   });
+
+  it("starts journeys for the gateway relay, which is not a Pages bundle", async () => {
+    const { selectGates } = await import("./ci-changed-areas.mjs");
+    const gates = selectGates(
+      root,
+      ["crates/gateway/src/vault_relay.rs"],
+      [],
+      [],
+    );
+    expect([...gates]).toEqual(["journeys"]);
+  });
+});
+
+it("runs both native production journeys for provider configuration changes", () => {
+  for (const path of [
+    "apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx",
+    "apps/pages/src/sections/ConnectionsSection.tsx",
+    "packages/app-core/src/lib/native-api-connectors.ts",
+    "spec/connectors/connect-presets.json",
+  ]) {
+    expect(gatesOf(path)).toContain("native-connectors");
+    expect(gatesOf(path)).toContain("native-public-protocol");
+  }
+  expect(
+    gatesOf("apps/pages/scripts/verify-native-public-protocol.mjs"),
+  ).toEqual(["native-public-protocol"]);
 });

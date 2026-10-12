@@ -11,11 +11,18 @@
  * grants of kind `connection`.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
+import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
+import {
+  AccessDetail,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 import { ConnectorPicker, choiceId } from "./ConnectorPicker.js";
 import { ConnectorRows, bindButtonId } from "./ConnectorRows.js";
 import {
@@ -56,67 +63,67 @@ type Access = ReturnType<typeof useConnectorAccess>;
 /** Which form is open — the choices, a row's Bind, or a row's Configure —
     and where the keyboard goes when one closes. */
 function useAccessForms(state: Access) {
-  const [adding, setAdding] = useState(false);
+  const selection = useAccessRecord("local-connectors", "connectors");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const mode = new URLSearchParams(location.search).get("edit");
+  const bindingRow = mode === "bind" ? selection.id : null;
+  const settingsRow = mode === "settings" ? selection.id : null;
   const [chosen, setChosen] = useState<string | null>(null);
-  const [bindingRow, setBindingRow] = useState<string | null>(null);
-  const [settingsRow, setSettingsRow] = useState<string | null>(null);
   const focusAfter = useFocusAfter(state.busy);
-
-  function closePicker() {
-    setAdding(false);
-    setChosen(null);
-    focusAfter(byId("connector-access-add"));
-  }
-
+  const routeFocus = useRef<string | null>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the route key waits for navigation to remove the initiating form before restoring its control
+  useEffect(() => {
+    if (state.busy || selection.creating || mode || !routeFocus.current) return;
+    const target = document.getElementById(routeFocus.current);
+    if (!target) return;
+    routeFocus.current = null;
+    if (keyboardIsIdle()) landFocus(target);
+  }, [state.busy, selection.creating, mode, location.key]);
+  const edit = (row: ConnectorRow, mode: string) =>
+    navigate(
+      `/access?view=connectors&edit=${mode}#local-connectors/${encodeURIComponent(row.id)}`,
+    );
   return {
-    adding,
     chosen,
     bindingRow,
     settingsRow,
     setChosen,
-    closePicker,
-    togglePicker() {
-      if (adding) return closePicker();
-      setBindingRow(null);
-      setSettingsRow(null);
-      setAdding(true);
+    closePicker() {
+      setChosen(null);
+      routeFocus.current = "connector-access-add";
+      selection.close();
     },
     grantFromPicker(row: ConnectorRow, input: BindInput) {
       void state.bind(row, input).then((done) => {
         if (!done) return;
-        setAdding(false);
         setChosen(null);
-        // The connector is in the access list now; the keyboard follows it.
-        focusAfter(byId(bindButtonId(row.id)));
+        routeFocus.current = bindButtonId(row.id);
+        selection.select(row.id);
       });
     },
     cancelChoice() {
       const rowId = chosen;
       setChosen(null);
-      // The form under the choices closes; its choice keeps the keyboard.
       if (rowId) focusAfter(byId(choiceId(rowId)));
     },
     openBind(row: ConnectorRow) {
-      // One bind form at a time: the choices close when a row's opens.
-      setAdding(false);
       setChosen(null);
-      setSettingsRow(null);
-      setBindingRow(row.id);
+      edit(row, "bind");
     },
     closeBind() {
-      const rowId = bindingRow;
-      setBindingRow(null);
-      // The row's Bind steps aside while the form is open, so the button that
-      // opened it is gone by now; its replacement is where the keyboard lands.
-      if (rowId) focusAfter(byId(bindButtonId(rowId)));
+      if (selection.id) {
+        routeFocus.current = bindButtonId(selection.id);
+        selection.select(selection.id);
+      }
     },
     openSettings(row: ConnectorRow) {
-      setAdding(false);
       setChosen(null);
-      setBindingRow(null);
-      setSettingsRow(row.id);
+      edit(row, "settings");
     },
-    closeSettings: () => setSettingsRow(null),
+    closeSettings() {
+      if (selection.id) selection.select(selection.id);
+    },
   };
 }
 
@@ -124,9 +131,11 @@ function useAccessForms(state: Access) {
 function GrantedRows({
   state,
   forms,
+  selectedId,
 }: {
   state: Access;
   forms: ReturnType<typeof useAccessForms>;
+  selectedId?: string | null;
 }) {
   const mixedSources =
     state.granted.some((row) => row.source === "connections") &&
@@ -134,7 +143,7 @@ function GrantedRows({
   return (
     <ConnectorRows
       state={state}
-      rows={state.granted}
+      rows={state.granted.filter((row) => row.id === selectedId)}
       mixedSources={mixedSources}
       bindingRow={forms.bindingRow}
       settingsRow={forms.settingsRow}
@@ -160,33 +169,46 @@ function GrantedRows({
 export function ConnectorsPanel({ tomb }: { tomb: string }) {
   const state = useConnectorAccess(tomb);
   const forms = useAccessForms(state);
+  const selection = useAccessRecord("local-connectors", "connectors");
   return (
-    <section
-      className="panel"
-      id="local-connectors"
-      aria-label="Connectors"
-      aria-busy={state.busy}
-    >
-      <div className="panel__head">
-        <h2>Connectors</h2>
-        <fieldset className="vtree__keys" aria-label="Connector commands">
-          <AddKey
-            adding={forms.adding}
-            busy={state.busy}
-            onToggle={forms.togglePicker}
+    <AccessRecords
+      title="Connectors"
+      emptyMessage={
+        state.error
+          ? "Unavailable"
+          : !state.loaded
+            ? "Loading…"
+            : "No connector access"
+      }
+      selection={selection}
+      rows={state.granted.map((row) => ({
+        id: row.id,
+        label: row.label,
+        extension: "access",
+        to: selection.path(row.id),
+      }))}
+      commands={
+        <AddKey
+          adding={selection.creating}
+          busy={state.busy}
+          onToggle={() => selection.setCreating(!selection.creating)}
+        />
+      }
+      status={
+        <>
+          <FailureNotice
+            id="access:connectors"
+            title="Connectors"
+            message={state.error}
           />
-        </fieldset>
-      </div>
-      <div className="panel__body">
-        <FailureNotice
-          id="access:connectors"
-          title="Connectors"
-          message={state.error}
-        />
-        <StatusNote
-          message={state.message ? { tone: "ok", text: state.message } : null}
-        />
-        {forms.adding ? (
+          <StatusNote
+            message={state.message ? { tone: "ok", text: state.message } : null}
+          />
+        </>
+      }
+    >
+      {selection.creating ? (
+        <AccessDetail title="New connector access" kind="Access">
           <ConnectorPicker
             rows={state.rows}
             settingsFor={state.settingsFor}
@@ -198,14 +220,11 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
             onBind={forms.grantFromPicker}
             onClose={forms.closePicker}
           />
-        ) : null}
-        {!forms.adding && state.loaded && state.granted.length === 0 ? (
-          <div className="empty">
-            <h3>No connector access</h3>
-          </div>
-        ) : null}
-        <GrantedRows state={state} forms={forms} />
-      </div>
-    </section>
+        </AccessDetail>
+      ) : null}
+      {!selection.creating && selection.id ? (
+        <GrantedRows state={state} forms={forms} selectedId={selection.id} />
+      ) : null}
+    </AccessRecords>
   );
 }

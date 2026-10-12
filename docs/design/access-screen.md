@@ -5,6 +5,19 @@ Design contract for the Pages **Access** section. Decision record:
 structure of [ADR 0054](../adr/0054-access-screen-pam.md)). Parity target:
 [`docs/research/competitors/border0-tailscale-pam.md`](../research/competitors/border0-tailscale-pam.md).
 
+> Status (2026-10-08): the tab bodies below — Grants through Policies, and the
+> Test plan — are the Host-bound design brief of ADR 0061 (a delegation table,
+> a mint ceremony, a relay inbox, task termination). Pages does not draw them
+> as written. Its Access tabs read sealed local records and call none of the
+> Host routes named here (`/api/v1/delegations`, `/api/v1/relay/requests/pending`,
+> `/api/v1/tasks`); those routes exist on the Host and have a typed client
+> (`packages/api-client/src/delegations.ts`), but no Pages code calls them
+> ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md); Join,
+> [ADR 0136](../adr/0136-join-a-session-restored.md), calls the separate
+> `/api/v1/delegations/present` and `/claim`). What each
+> tab draws today is under *As built*; the hard rules and the first data rule
+> hold.
+
 Access is the grantor's PAM plane. It **does** privileged access management —
 grant, revoke, narrow, approve, terminate — it never *describes* connectors,
 secrets, or itself.
@@ -28,6 +41,20 @@ Route `/access`, nav label **Access** (`IconAuthority`), crumb `access`.
 Tabs, one mounted at a time (`role="tablist"/"tab"`, `aria-selected`):
 
 **Grants · Requests · Sessions · Connectors · Resources · Policies**
+
+## As built
+
+`apps/pages/src/sections/AccessSection.tsx`, panels in
+`apps/pages/src/sections/access/`:
+
+| Tab | Panels drawn |
+|---|---|
+| Grants | *Portable grants* (the grants in `access.book.v1`; drawn only when there are some), *Local application grants*, *Identity shares* (keys: Grant identity share, Reload shares, Revoke) |
+| Requests | Hosted rows addressed to the Identity session (only where an Identity API is configured; a row opens `/approve/<ref>` and decides nothing), then *Local requests* with a status filter |
+| Sessions | *Local sessions*, *Audience templates* (local UI selection, not a grant ledger), *Vault share sessions* (start issues time-boxed grants with a join code, stop revokes, restart reissues), and the receipts when an Identity receipts session exists |
+| Connectors | *Connectors* — see below |
+| Resources | *Local resources* |
+| Policies | *Local application policies* |
 
 ## Grants — the center of gravity (Border0: standing privilege = 0)
 
@@ -82,28 +109,25 @@ Steps, each its own view:
   `{expected_state_version}`. Empty state: `No live sessions.`
 - Receipt trail beneath (connection/agent audit events), terse rows.
 
-## Connectors — what this device knows, and who is bound (ADR 0115)
+## Connectors — who may use which connector (ADR 0115)
 
-Wholly local; no Host needed. One directory line above terse rows:
+Wholly local; no Host needed. The panel lists access, not connectors: each
+connector someone holds a grant on, with those grants beneath it
+(`ConnectorsPanel.tsx`).
 
-- **Directory line** — `api.nango.dev · 12 connectors · synced <time>`, with
-  icon keys in the panel head: **Sync the directory** (re-reads with the
-  sealed key), **Edit the directory** (reveals the endpoint + key form),
-  **Reload connectors**. No directory synced → the form is the panel, and
-  nothing reports a failure.
-- **Rows** — mark, name (`GitHub · octo@example.com`),
-  `integration · connection id`, chips: source (`directory` | `host`),
-  health (`Authorized` | `N errors`), `N bound`. Action: **Bind** → an inline
-  form under that row only: Identity (people + agents from the local
-  directory), Policy (`Use` | `Invoke`), Duration → **Bind** / **Cancel**.
-- **Bindings** under a row — `Name · Policy · until <time>` with **Revoke**.
-  A binding is a local share grant of kind `connection` (the same ledger the
-  Grants tab's Identity shares list), so revoking it there is the same act —
-  and, like that panel's Revoke, it asks nothing twice: a binding is
-  time-boxed already and the ledger records the revocation. (Sessions and
-  application grants confirm, because they are authority in use.)
-- **Bind** steps aside while its form is open: one verb per card.
-- Empty state: `No connectors yet — the directory holds none.`
+- **Head** — one icon key, **Add connector access** (it becomes **Close**
+  while open). It opens the connectors this device knows — configured on
+  Connections or imported there from a directory — to choose the one a new
+  grant is made on. The panel never asks for an endpoint, a key or a sync.
+- **Rows** — a connector with its grants beneath it; a row's **Bind** opens an
+  inline form under that row only, and steps aside while the form is open. A
+  row may also open its settings form.
+- **Bindings** — a local share grant of kind `connection` (the same ledger the
+  Grants tab's Identity shares list), so revoking one there is the same act.
+  Revoke asks nothing twice: a binding is time-boxed already and the ledger
+  records the revocation. (Sessions and application grants confirm, because
+  they are authority in use.)
+- Empty state: `No connector access`.
 
 ## Resources — what grants point at
 

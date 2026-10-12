@@ -6,7 +6,8 @@ import {
 import { useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconX } from "../../components/Icons.js";
+import { IconKey } from "../../components/IconKey.js";
+import { IconEye, IconX } from "../../components/Icons.js";
 
 type HostedDraftSave = {
   displayName: string;
@@ -168,11 +169,6 @@ function HostedApplicationForm(props: {
         props.onSubmit();
       }}
     >
-      <h3>Edit application</h3>
-      <p className="hint">
-        This is a hosted OIDC client on your sign-in service. Registration is
-        not consent. Pages is not a SAML IdP or LDAP server.
-      </p>
       <ApplicationFields
         name={props.name}
         redirects={props.redirects}
@@ -182,10 +178,6 @@ function HostedApplicationForm(props: {
         onRedirects={props.onRedirects}
         onWorkload={props.onWorkload}
       />
-      <p className="hint">
-        Authorization code with PKCE S256; exact redirects remain enforced.
-        Public clients cannot use client_credentials.
-      </p>
       <FailureNotice
         id={`identity:application:${props.client.id}`}
         title="Application"
@@ -217,9 +209,8 @@ function HostedApplicationActions(props: {
       label="Save application"
       disabled={props.busy || !props.online || !ready}
     >
-      <button
-        type="button"
-        className="btn btn--sm"
+      <IconKey
+        label="Preview claims"
         disabled={props.busy || !props.online}
         onClick={() => {
           void previewHostedClaims(props.client.id, {
@@ -239,8 +230,8 @@ function HostedApplicationActions(props: {
           );
         }}
       >
-        Preview claims
-      </button>
+        <IconEye size={16} />
+      </IconKey>
       <button
         type="button"
         className="icon-btn"

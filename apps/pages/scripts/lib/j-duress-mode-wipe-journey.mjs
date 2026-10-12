@@ -161,7 +161,7 @@ async function typeAtUnlock(page, secret) {
   // What the screen shows is read the moment the refusal lands, before the tray
   // is opened: a wipe that runs behind the sentence redraws the screen meanwhile.
   const guest = await page
-    .getByRole("button", { name: "Continue as guest" })
+    .getByRole("button", { name: "Skip to the guest vault" })
     .count();
   const body = await bodyText(page);
   return { text: await takeRefusal(page), ms, guest, body };
@@ -236,7 +236,9 @@ async function whole(context) {
   await addItem(page, "Passport scan");
   await reloadToUnlock(page);
 
-  const guestRoad = page.getByRole("button", { name: "Continue as guest" });
+  const guestRoad = page.getByRole("button", {
+    name: "Skip to the guest vault",
+  });
   await reachPin(page);
   check(
     (await guestRoad.count()) === 1,

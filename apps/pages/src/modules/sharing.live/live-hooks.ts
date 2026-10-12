@@ -1,9 +1,16 @@
 /**
  * The live session this tab hosts or has joined, as React state, and the
- * two browser pieces app-core does not touch: `RTCPeerConnection` and this
- * app's own address (ADR 0150).
+ * two browser pieces app-core does not touch: the transport sessions run
+ * over — WebRTC, built on this browser's `RTCPeerConnection` — and this app's
+ * own address (ADR 0150, ADR 0186).
  */
 
+import {
+  connectionPort,
+  offeredBy,
+  onConnectionPort,
+} from "@opensesame/app-core/lib/live/connection-port.js";
+import type { DeviceConnection } from "@opensesame/app-core/lib/live/device-messages.js";
 import type {
   GuestStatus,
   LiveGuest,
@@ -18,12 +25,25 @@ import {
   currentHost,
   onLiveSessionChange,
 } from "@opensesame/app-core/lib/live/session.js";
+import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { useEffect, useState } from "react";
 import type { StatusTone } from "../../components/StatusMark.js";
 import { carriersUnavailable } from "./carriers/index.js";
 
-/** A glyph's tone and the sentence it stands for. */
-export type Standing = Readonly<{ tone: StatusTone; label: string }>;
+/** A glyph's tone, its short page label, and the tray sentence. */
+export type Standing = Readonly<{
+  tone: StatusTone;
+  label: string;
+  tray: string;
+}>;
+
+export function standingMark(
+  tone: StatusTone,
+  label: string,
+  tray = label,
+): Standing {
+  return { tone, label, tray };
+}
 
 /** The session this tab joined, and where it stands. */
 export type LiveGuestView = Readonly<{
@@ -93,8 +113,8 @@ export function useDraftField(
 
 /** Seams, so a test can stand a fake network in for the browser's. */
 export const liveUiSeams = {
-  peers: (config: RTCConfiguration): RTCPeerConnection =>
-    new RTCPeerConnection(config),
+  /** What carries sessions; another `PeerTransport` would plug in here. */
+  transport: webRtc((config) => new RTCPeerConnection(config)),
   /**
    * The carrier clients, made by `runtime.ts` from this activation's egress
    * port and taken away again on dispose: until then nothing opens, and a
@@ -159,4 +179,18 @@ export function formatRemaining(ms: number): string {
   if (hours > 0) return `${hours} h ${minutes % 60} min left`;
   if (minutes > 0) return `${minutes} min left`;
   return `${Math.ceil(ms / 1000)} s left`;
+}
+
+/**
+ * The connections this app could let a device use (ADR 0196): read again when
+ * the capability that owns them comes or goes. Empty while it is off, and then
+ * nothing about devices is drawn.
+ */
+export function useOfferedConnections(): readonly DeviceConnection[] {
+  const [offered, setOffered] = useState(() => offeredBy(connectionPort()));
+  useEffect(
+    () => onConnectionPort(() => setOffered(offeredBy(connectionPort()))),
+    [],
+  );
+  return offered;
 }

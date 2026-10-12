@@ -134,27 +134,47 @@ async function opfsRead(key: string): Promise<string | null> {
   }
 }
 
-async function opfsWriteNow(key: string, value: string): Promise<void> {
+async function opfsWriteNow(
+  key: string,
+  value: string,
+  beforeCommit?: () => void,
+): Promise<void> {
   const atRest = await atRestReady();
   // No durable key: memory is all there is, and nothing reaches a file.
-  if (!atRest.durable) return;
+  if (!atRest.durable) {
+    beforeCommit?.();
+    return;
+  }
   if (unreadable.has(key)) {
     throw new Error("refusing to overwrite a file sealed under another key");
   }
   const root = await opfsRoot(true);
-  if (!root) return;
+  if (!root) {
+    beforeCommit?.();
+    return;
+  }
   const name = fileName(key);
   const sealed = sealOriginFile(atRest, name, value);
   const handle = await root.getFileHandle(name, { create: true });
   const writable = await handle.createWritable();
-  await writable.write(sealed);
-  await writable.close();
+  try {
+    await writable.write(sealed);
+    beforeCommit?.();
+    await writable.close();
+  } catch (error) {
+    await writable.abort().catch(() => undefined);
+    throw error;
+  }
 }
 
-function opfsWrite(key: string, value: string): Promise<void> {
+function opfsWrite(
+  key: string,
+  value: string,
+  beforeCommit?: () => void,
+): Promise<void> {
   // Refused before it starts, so nothing is in flight to wait for.
   if (storageWritesHalted()) return Promise.reject(haltedWriteError());
-  return track(opfsWriteNow(key, value));
+  return track(opfsWriteNow(key, value, beforeCommit));
 }
 
 /** Sync read from hydrated memory. */
@@ -183,8 +203,12 @@ export function kvSet(key: string, value: string): void {
  * unusable in that browser. `kvDurability()` reports which case you are in, and
  * the vault says so on screen.
  */
-async function kvSetDurableDefault(key: string, value: string): Promise<void> {
-  await opfsWrite(key, value);
+async function kvSetDurableDefault(
+  key: string,
+  value: string,
+  beforeCommit?: () => void,
+): Promise<void> {
+  await opfsWrite(key, value, beforeCommit);
   memory.set(key, value);
 }
 
@@ -198,8 +222,12 @@ export function kvGet(key: string): string | null {
   return kvSeams.kvGet(key);
 }
 
-export async function kvSetDurable(key: string, value: string): Promise<void> {
-  return kvSeams.kvSetDurable(key, value);
+export async function kvSetDurable(
+  key: string,
+  value: string,
+  beforeCommit?: () => void,
+): Promise<void> {
+  return kvSeams.kvSetDurable(key, value, beforeCommit);
 }
 
 export function kvDelete(key: string): void {

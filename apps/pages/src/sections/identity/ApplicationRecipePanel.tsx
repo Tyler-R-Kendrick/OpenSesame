@@ -62,7 +62,7 @@ export function ApplicationRecipePanel(props: {
             {preview.resources} resource(s). {preview.omissions[0]}
           </p>
         ) : (
-          <p className="hint">Register the application before exporting.</p>
+          <p className="hint">Not registered yet.</p>
         )}
         {recipe ? (
           <textarea

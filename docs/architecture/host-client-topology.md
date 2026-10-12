@@ -13,14 +13,15 @@ OpenSesame splits into **host** (machine-local privileged control) and **client*
 
 ```text
 core (WIT + Rust)
-  ├── host-core  → Host API, daemon, cli[host], host MCP
-  └── client-core (native + wasm)
-        └── api-client → extension, cli[client], PWA, client MCP
+  ├── host-core  → Host API, daemon, cli[host]
+  └── client-core (native + wasm; JS facade @opensesame/client-core)
+        └── api-client → extension, cli[client], PWA (via app-core),
+                         host MCP, client MCP
 
 Identity SDKs (sdk-browser/cli/server) → Identity API only
 PWA account factors → Identity API (passkey/TOTP step-up)
-toolbar → daemon only
-PWA optionally discovers daemon; degrades if absent
+extension toolbar popup → daemon health probe
+PWA reaches a daemon only when one is configured (empty by default)
 ```
 
 ## CLIs
@@ -36,5 +37,8 @@ PWA optionally discovers daemon; degrades if absent
 - `spec/wit/core/world.wit` — shared IR handles
 - `spec/wit/host/world.wit` — host capability world
 - `spec/wit/client/world.wit` — client vault/sync world
+- `spec/wit/mediation/world.wit` — mediation classification and ratchet acknowledgements
+- `spec/wit/proof/world.wit` — proof execution (task/intent binding required)
+- `spec/wit/task/world.wit` — task-scoped authority handles
 
 See ADR 0017.

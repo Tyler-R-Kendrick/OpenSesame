@@ -3,7 +3,7 @@
  *
  * `wallet.spending` is an optional capability (ADR 0130): a fresh device's
  * plan does not include it, so the rail has no Wallet link until someone
- * turns it on in Settings › Capabilities and applies the plan. A fixture
+ * turns it on in Settings › Features and applies the plan. A fixture
  * cannot write that choice — the consent receipt binds exposure digests and
  * a forged one is refused — so this walks the real switch and Apply, inside
  * the same session. A reload would lock the guest vault, so every step is a
@@ -18,11 +18,11 @@ import {
 
 const WALLET = "Wallet";
 
-/** Turn Wallet on through Settings › Capabilities and Apply. */
+/** Turn Wallet on through Settings › Features and Apply. */
 export async function chooseWallet(page, check) {
   await page.locator('a[href$="/settings"]').first().click();
   await page
-    .getByRole("link", { name: "Capabilities", exact: true })
+    .getByRole("link", { name: "Features", exact: true })
     .first()
     .click();
   await awaitCapabilitySections(page);
@@ -40,7 +40,7 @@ export async function chooseWallet(page, check) {
   await on.waitFor({ state: "attached", timeout: 20000 }).catch(() => {});
   check(
     (await on.count()) === 1,
-    "Wallet capability is approved through Settings › Capabilities",
+    "Wallet capability is approved through Settings › Features",
   );
 }
 

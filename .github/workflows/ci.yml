@@ -1,4 +1,4 @@
-# CI — required up-to-date pull-request checks (personal-account repository).
+# CI — required pull-request and merge-queue checks (personal-account repository).
 # Apply/verify the default-branch policy with ops/github/governance.mjs.
 #
 # The ruleset requires the check names TypeScript, Bundle budgets, and Rust.
@@ -9,11 +9,14 @@
 # A suite that runs tests the changed packages or crates and their
 # dependents (scripts/lib/ci-affected-tests.mjs), and of those the tests the
 # diff reaches (scripts/lib/ci-scoped-tests.mjs), not the whole workspace. A
-# push to main, or a manual run, has no diff and runs everything.
+# push to main, a merge_group with no usable base/head, or a manual run, has
+# no diff and runs everything. merge_group must fire these same check names
+# or queued PRs hang forever.
 name: CI
 
 on:
   pull_request:
+  merge_group:
   # A merged diff runs whole: a pull request runs only what its diff can reach
   # (the changed-areas and affected-tests scripts fall back to every area, every
   # gate and every package when they are given no base to diff against), so this
@@ -49,6 +52,7 @@ jobs:
       tutorials: ${{ steps.areas.outputs.tutorials }}
       device_inbox: ${{ steps.areas.outputs.device_inbox }}
       device_identity: ${{ steps.areas.outputs.device_identity }}
+      live_join: ${{ steps.areas.outputs.live_join }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -62,17 +66,23 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
         run: node scripts/release/check-pr-signatures.mjs "$GITHUB_REPOSITORY" "$PR_NUMBER" "$PR_HEAD"
+      - name: Verify merge-group commit signature
+        if: github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MERGE_HEAD: ${{ github.event.merge_group.head_sha }}
+        run: node scripts/release/check-merge-group-signature.mjs "$GITHUB_REPOSITORY" "$MERGE_HEAD"
       - name: Classify changed areas
         id: areas
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-changed-areas.mjs
       - name: Select native mobile checks
         id: native
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: bash scripts/test/mobile-changed.sh
 
   typescript-tests:
@@ -85,7 +95,9 @@ jobs:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
       postgres:
-        image: postgres:16
+        # Same Docker Official Image digest, served by the public ECR mirror.
+        # Anonymous Docker Hub pulls can exhaust the shared hosted-runner quota.
+        image: public.ecr.aws/docker/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
         env:
           POSTGRES_USER: opensesame
           POSTGRES_PASSWORD: opensesame
@@ -106,8 +118,8 @@ jobs:
       - name: Select affected packages
         id: affected
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs plan
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -129,8 +141,8 @@ jobs:
         run: pnpm quality
       - name: Typecheck and test affected packages
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs run-ts
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
@@ -234,6 +246,12 @@ jobs:
         run: |
           google-chrome --version
           pnpm --filter @opensesame/pages verify:webmcp
+      - name: Self-hosted provider configuration without hosted Connect
+        if: matrix.shard == 'budgets'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:
@@ -274,6 +292,28 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:local-iam
+      - name: Trusted contacts through the browser's own WebAuthn and PRF
+        if: matrix.shard == 'sign-in'
+        # Five people, five contexts, five virtual authenticators that do PRF,
+        # the real desk in each page and only packets between them. ADR 0187.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:quorum-browser
+      - name: Trusted contacts screens, five browsers, packets by clipboard
+        if: matrix.shard == 'trusted-contacts'
+        # ADR 0187: Settings › Trusted contacts walked through the real screens
+        # by an owner, three guardians and a recipient, each in their own
+        # context with a virtual security key that does PRF. Packets travel by
+        # the clipboard, the refusals are read as marks and tray notices, and
+        # one clock is moved for every page together. Desktop width, then the
+        # phone's.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          pnpm --filter @opensesame/pages verify:trusted-contacts
+          WIDTH=390 pnpm --filter @opensesame/pages verify:trusted-contacts
       - name: Self-Issued OpenID Provider v2 contract
         if: matrix.shard == 'keyboard'
         env:
@@ -313,6 +353,20 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: pnpm verify:customer-vault-browser
+      - name: Native provider configuration and encrypted reloads
+        if: matrix.shard == 'native-connectors'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:native-connectors
+      - name: Public OAuth and MCP authorization protocols
+        if: matrix.shard == 'native-public-protocol'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          pnpm --filter @opensesame/pages verify:native-public-protocol
+          pnpm --filter @opensesame/pages verify:provider-auth
       - name: Experience journeys
         # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
         if: startsWith(matrix.shard, 'journeys')
@@ -321,6 +375,40 @@ jobs:
           VITE_BASE: /OpenSesame/
           EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
+      # Rust 1.88, same action and toolchain as the Rust tests job. Only this
+      # shard builds the CLI the live relay walk spawns.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
+        if: matrix.shard == 'journeys-1'
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        if: matrix.shard == 'journeys-1'
+      - name: Build opensesame-cli
+        if: matrix.shard == 'journeys-1'
+        # Same cargo limits as the Rust tests job, so the link stays inside
+        # this shard's timeout. The binary lands in target/debug.
+        env:
+          CARGO_BUILD_JOBS: 2
+          CARGO_INCREMENTAL: 0
+          CARGO_PROFILE_DEV_DEBUG: 0
+        run: cargo +1.88.0 build -p opensesame-cli --locked
+      - name: Relay join
+        # ADR 0181. One leg only, so the walk runs once against the gateway
+        # relay profile (`opensesame host run --profile relay`).
+        if: matrix.shard == 'journeys-1'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: |
+          PATH="${GITHUB_WORKSPACE}/target/debug:/usr/local/cargo/bin:${PATH}" \
+            pnpm --filter @opensesame/pages verify:relay-join-live
+      - name: Same-machine live session
+        # Two browser contexts, no ICE servers; loopback hints only on one machine.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:live-local-pair
 
   device-inbox:
     name: Device inbox and local notifications
@@ -495,6 +583,94 @@ jobs:
           TUTORIALS_SHARD: ${{ matrix.shard }}
         run: pnpm --filter @opensesame/pages verify:tutorials
 
+  live-join-e2e:
+    # Live sessions browser to browser (ADR 0150), the walk a person takes to
+    # join somebody's vault: direct, a tunnel, every code carrier, relay only
+    # through TURN over UDP, TCP and TLS, TURN REST and NATS, each against
+    # real servers on loopback. Two people rarely hold the same browser, so
+    # each shard is one owner's browser and walks every joiner's: Chromium,
+    # Firefox and WebKit as the pinned Playwright installs them, every ordered
+    # pair across the three shards (apps/pages/scripts/lib/live-engines.mjs
+    # says what an engine cannot be told here and so does not walk). Its own
+    # job: two Pages builds, the servers and three browsers do not fit the
+    # bundle job. `bundle-check` below folds the result into the required
+    # "Bundle budgets" check, so it gates merges without another required name.
+    name: Live join (${{ matrix.owner }} owner)
+    needs: changes
+    if: needs.changes.outputs.live_join == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        owner: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      # live-turn and ntfy are built from pinned source (go.sum); the Go that
+      # builds them is the one live-turn's go.mod names.
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version-file: scripts/test/live-turn/go.mod
+          cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Pinned Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache the pinned browsers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-firefox-webkit-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Chromium, Firefox and WebKit at the pinned Playwright's builds
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Cache the live servers
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        with:
+          path: |
+            .cache/live-fixtures/bin
+            .cache/mtls-fixtures
+          key: live-fixtures-${{ hashFiles('scripts/test/live-fixtures.sh', 'scripts/test/live-turn/**', 'scripts/mtls/mtls-fixtures.sh') }}
+      - name: The servers the walk runs (nats-server, ntfy, live-turn)
+        # Fails, never skips: a missing server fails the walk that needs it.
+        run: pnpm test:live-fixtures
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: node scripts/lib/ci-pages-build.mjs
+      - name: Build Pages for a dedicated origin
+        # The carrier, relayed and NATS walks reach servers on loopback, which
+        # only a deployment of one's own may do (`mayPairLocalAuthority`).
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:live-dedicated
+      - name: Join a live session, ${{ matrix.owner }} owner, every joiner
+        env:
+          VITE_BASE: /OpenSesame/
+          LIVE_OWNER: ${{ matrix.owner }}
+          LIVE_JOINERS: chromium,firefox,webkit
+          # Each browser's own output, where a crashed content process says
+          # why; the walk writes it to browsers.log, not this log.
+          DEBUG: pw:browser
+        run: pnpm --filter @opensesame/pages verify:live-join
+      - name: Keep what the walk saw
+        # Screenshots of every open page, each channel's events and frame
+        # kinds (never a body) and the browsers' output, for the failure.
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: live-join-${{ matrix.owner }}
+          path: artifacts/live-join/
+          if-no-files-found: ignore
+          retention-days: 14
+
   rust:
     name: Rust tests
     needs: changes
@@ -514,8 +690,8 @@ jobs:
       - name: Select affected crates
         id: affected
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs cargo
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         if: steps.affected.outputs.scope != 'none'
@@ -526,8 +702,8 @@ jobs:
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: node scripts/lib/ci-affected-tests.mjs run-cargo
       - name: Test the Bitwarden bridge build (ADR 0148)
         # Default builds leave the bridge out; this compiles it in.
@@ -673,7 +849,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e]
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e, live-join-e2e]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -686,6 +862,7 @@ jobs:
           inbox="${{ needs.device-inbox.result }}"
           push="${{ needs.push-e2e.result }}"
           identity="${{ needs.device-identity-e2e.result }}"
+          live="${{ needs.live-join-e2e.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
@@ -705,6 +882,10 @@ jobs:
           case "$push" in
             success|skipped) ;;
             *) echo "push end to end result: $push"; exit 1 ;;
+          esac
+          case "$live" in
+            success|skipped) ;;
+            *) echo "live join result: $live"; exit 1 ;;
           esac
           case "$identity" in
             success|skipped) exit 0 ;;

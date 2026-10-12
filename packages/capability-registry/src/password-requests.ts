@@ -1,27 +1,33 @@
-import { ADR, HANDOFF, WALLET_ONLY } from "./password-workflows.js";
+import {
+  ADR,
+  HANDOFF,
+  NATIVE_ONLY,
+  WALLET_ONLY,
+} from "./password-workflows.js";
 import type { Capability } from "./types.js";
 
 const NATIVE_APPROVAL = {
   reason:
-    "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+    "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
   adr: ADR,
 };
 
-/** PWA exposure is an explicit human command handoff, never native execution. */
+/** Requests and leases belong to the native CLI; the browser has no custody of either. */
 export const passwordRequestCapabilities: readonly Capability[] = [
   {
     id: "password_provider.request",
-    title: "Send a bound native request (PWA command handoff)",
+    title: "Send a bound native request",
     plane: "client_local",
     kind: "act",
     surfaces: {
       cli: "opensesame-id request",
-      pwa: "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: NATIVE_ONLY,
       mcp_host: NATIVE_APPROVAL,
       mcp_client: NATIVE_APPROVAL,
       webmcp: NATIVE_APPROVAL,
@@ -31,17 +37,18 @@ export const passwordRequestCapabilities: readonly Capability[] = [
   },
   {
     id: "password_provider.lease_approve",
-    title: "Approve a bounded native lease (PWA command handoff)",
+    title: "Approve a bounded native lease",
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
       cli: "opensesame-id lease approve",
-      pwa: "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: NATIVE_ONLY,
       mcp_host: NATIVE_APPROVAL,
       mcp_client: NATIVE_APPROVAL,
       webmcp: NATIVE_APPROVAL,
@@ -51,17 +58,18 @@ export const passwordRequestCapabilities: readonly Capability[] = [
   },
   {
     id: "password_provider.lease_status",
-    title: "Inspect native lease metadata (PWA command handoff)",
+    title: "Inspect native lease metadata",
     plane: "client_local",
     kind: "read",
     surfaces: {
       cli: "opensesame-id lease status",
-      pwa: "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: NATIVE_ONLY,
       mcp_host: NATIVE_APPROVAL,
       mcp_client: NATIVE_APPROVAL,
       webmcp: NATIVE_APPROVAL,
@@ -71,17 +79,18 @@ export const passwordRequestCapabilities: readonly Capability[] = [
   },
   {
     id: "password_provider.lease_revoke",
-    title: "Revoke a native lease (PWA command handoff)",
+    title: "Revoke a native lease",
     plane: "client_local",
     kind: "admin",
     surfaces: {
       cli: "opensesame-id lease revoke",
-      pwa: "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: NATIVE_ONLY,
       mcp_host: NATIVE_APPROVAL,
       mcp_client: NATIVE_APPROVAL,
       webmcp: NATIVE_APPROVAL,

@@ -39,9 +39,9 @@ cargo +1.88.0 test -p opensesame-lifecycle
 ```
 
 The event names are frozen: subscribers match on them. Add a stage or event by
-extending the ladder and `LIFECYCLE_EVENT_TYPES` together, and check the
-storage watermark tests (`crates/storage/tests/lifecycle_watermarks.rs`), which
-test the schema against this crate's enum.
+extending the ladder and `LIFECYCLE_EVENT_TYPES` together; a new `SubjectKind`
+must also widen the watermark table's `CHECK`, which
+`crates/storage/tests/lifecycle_watermarks.rs` tests against `SubjectKind::ALL`.
 
 ## Related
 

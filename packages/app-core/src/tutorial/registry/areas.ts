@@ -71,11 +71,16 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.general.review",
       "settings.auto-lock.set",
       "settings.keybindings.review",
-      "settings.capabilities.review",
+      "settings.features.review",
+      "settings.integrations.review",
       "settings.vaults.review",
       "settings.danger.review",
       "vault.recovery.view",
       "settings.live.host",
+      "settings.trusted-contacts.circle",
+      "settings.trusted-contacts.owner",
+      "settings.trusted-contacts.guardian",
+      "settings.trusted-contacts.recovery",
     ],
   },
   {
@@ -83,10 +88,8 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     title: "Your vault",
     goals: [
       "vault.item.create",
-      "vault.password-workflows",
-      "vault.password-workflows.open",
-      "vault.item.credentials",
       "vault.item.find",
+      "vault.item.accounts",
       "vault.item.favorite",
       "vault.item.edit",
       "vault.item.copy",
@@ -94,6 +97,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "vault.item.share",
       "vault.health.review",
       "vault.item-types.install",
+      "vault.environments",
       "vault.import",
       "vault.export",
       "vaults.switch",
@@ -120,7 +124,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "vaults.duress-code",
       "vaults.travel",
       "identity.account-factors",
-      "feature.encryption",
+      "integration.encryption",
     ],
   },
   {
@@ -129,10 +133,11 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "settings.backup",
       "settings.tailnet-sync",
-      "feature.local-storage",
+      "integration.networking",
+      "integration.local-storage",
       "feature.encrypted-search",
-      "feature.cloud-secret-storage",
-      "feature.password-managers",
+      "integration.cloud-secret-storage",
+      "integration.password-managers",
     ],
   },
   {
@@ -156,7 +161,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "access.review",
       "access.connectors",
       "access.relay",
-      "access.private-request",
       "access.requests.hosted",
       "access.sessions.review",
       "agent.control",
@@ -194,6 +198,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "identity.local.siop.authorize",
       "identity.tailnet.devices.manage",
       "feature.identity",
+      "integration.identity",
       "feature.directory",
     ],
   },
@@ -210,7 +215,10 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "feature.password-reset",
       "feature.sharing",
       "feature.payments",
+      "feature.ai",
+      "integration.payments",
       "feature.certificates",
+      "integration.certificates",
       "feature.telemetry",
     ],
   },
@@ -274,27 +282,40 @@ export function tutorialStartsFrom(
   );
 }
 
-/** The Settings › Capabilities sections a walkthrough points at, by feature id. */
+/**
+ * The sections of Settings › Features and Settings › Integrations a
+ * walkthrough points at, by their full target ids: `feature.<id>` for a
+ * switch's section, `integration.<id>` for a third party's.
+ */
 export function goalSections(guide: string): readonly string[] {
-  return [...guide.matchAll(/^focus\s+"feature\.([a-z-]+)"/gm)].flatMap(
-    (match) => (match[1] === undefined ? [] : [match[1]]),
-  );
+  return [
+    ...guide.matchAll(/^focus\s+"((?:feature|integration)\.[a-z-]+)"/gm),
+  ].flatMap((match) => (match[1] === undefined ? [] : [match[1]]));
 }
 
 export type LibraryOptions = {
   /**
-   * Whether a section of Settings › Capabilities is drawn in this build and
-   * plan. A tutorial that points at a section that is not there would point at
-   * nothing, so it is not offered; omitted, every section counts as drawn.
+   * Whether a section of Settings › Features or Settings › Integrations is
+   * drawn in this build and plan, asked by its full target id
+   * (`feature.<id>`, `integration.<id>`). A tutorial that points at a section
+   * that is not there would point at nothing, so it is not offered; omitted,
+   * every section counts as drawn.
    */
-  readonly sectionDrawn?: (feature: string) => boolean;
+  readonly sectionDrawn?: (target: string) => boolean;
   /** Whether a state predicate holds now; omitted, every requirement is met. */
   readonly holds?: (predicate: string) => boolean;
+  /**
+   * Whether an optional capability is approved on the effective plan.
+   * Omitted, every capability counts as installed, so a list that does not
+   * know the plan still offers the tours the corpus names.
+   */
+  readonly installed?: (capability: string) => boolean;
 };
 
 /**
  * The one gate every list of walkthroughs shares — the library and the Ask
- * tab: the sections it points at are drawn, and what it requires holds.
+ * tab: the sections it points at are drawn, what it requires holds, and at
+ * least one capability it names is installed.
  */
 export function goalOffered(
   goal: GuideGoalDescriptor,
@@ -302,8 +323,12 @@ export function goalOffered(
 ): boolean {
   const drawn = options.sectionDrawn ?? (() => true);
   const holds = options.holds ?? (() => true);
+  const installed = options.installed ?? (() => true);
+  const capabilities = goal.capabilities ?? [];
   return (
-    goalSections(goal.guide).every(drawn) && (goal.requires ?? []).every(holds)
+    goalSections(goal.guide).every(drawn) &&
+    (goal.requires ?? []).every(holds) &&
+    (capabilities.length === 0 || capabilities.some(installed))
   );
 }
 

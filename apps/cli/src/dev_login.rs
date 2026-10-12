@@ -68,6 +68,13 @@ pub(crate) trait LoginSource {
     ///
     /// When the store cannot be opened or holds no such entry.
     fn read(&self, store_path: &str) -> anyhow::Result<StoredLogin>;
+
+    /// Whether the store holds an entry at `store_path`. Names are not
+    /// secret and listing them needs no unlock, so a run with nothing stored
+    /// asks for no passphrase. Nothing is held unless a source says so.
+    fn holds(&self, _store_path: &str) -> bool {
+        false
+    }
 }
 
 /// The person's sealed store, unlocked once, on first use, exactly as `pass
@@ -78,6 +85,13 @@ pub(crate) struct SealedStoreLogins {
 }
 
 impl LoginSource for SealedStoreLogins {
+    fn holds(&self, store_path: &str) -> bool {
+        let folder = store_path.rsplit_once('/').map_or("", |(folder, _)| folder);
+        Self::root()
+            .and_then(|root| root.ls(folder).ok())
+            .is_some_and(|names| names.iter().any(|name| name == store_path))
+    }
+
     fn read(&self, store_path: &str) -> anyhow::Result<StoredLogin> {
         let mut unlocked = self.unlocked.borrow_mut();
         if unlocked.is_none() {
@@ -94,6 +108,13 @@ impl LoginSource for SealedStoreLogins {
         let secret = Zeroizing::new(std::mem::take(&mut entry.secret));
         drop(Zeroizing::new(std::mem::take(&mut entry.trailer)));
         Ok(StoredLogin { secret, url })
+    }
+}
+
+impl SealedStoreLogins {
+    fn root() -> Option<StoreRoot> {
+        let path = crate::store::resolve_root(None, None).ok()?;
+        StoreRoot::open(&path).ok()
     }
 }
 
@@ -118,20 +139,25 @@ pub(crate) fn resolve(
     declared
         .iter()
         .map(|(env_var, login)| {
-            let declared_origin = origin_of(&login.origin)
-                .ok_or_else(|| anyhow::anyhow!("{env_var}: origin= is not an https origin"))?;
+            // The variable leads and no colon follows it: a message that begins
+            // `APP_PASSWORD: …` has the shape of a log line whose key is a
+            // credential, and the scrubber (ADR 0157) would replace the word
+            // after the colon, which is the part that says what to change.
+            let declared_origin = origin_of(&login.origin).ok_or_else(|| {
+                anyhow::anyhow!("{env_var} cannot be delivered: origin= is not an https origin")
+            })?;
             let stored = source.read(&login.store_path)?;
             let Some(bound) = stored.url.as_deref().and_then(origin_of) else {
                 anyhow::bail!(
-                    "{env_var}: the sealed entry {} names no 'url: https://…' line; add one so the \
-                     login's destination is the store's, not the schema's",
+                    "{env_var} cannot be delivered: the sealed entry {} names no 'url: https://…' \
+                     line; add one so the login's destination is the store's, not the schema's",
                     login.store_path
                 );
             };
             if bound != declared_origin {
                 anyhow::bail!(
-                    "{env_var}: origin={} is not the origin of the sealed entry's url; refusing to \
-                     send its password there",
+                    "{env_var} cannot be delivered: origin={} is not the origin of the sealed \
+                     entry's url; refusing to send its password there",
                     login.origin
                 );
             }

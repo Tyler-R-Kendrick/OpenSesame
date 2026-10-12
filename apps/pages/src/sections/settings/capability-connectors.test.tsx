@@ -12,16 +12,18 @@ import {
 } from "@opensesame/app-core/lib/device-connectors.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
+import { performHostedInference } from "@opensesame/app-core/lib/hosted-inference.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCapabilityFeature } from "../../lib/capability-feature-operation.js";
+import { bindNativeModelRuntime } from "../../modules/connectors.external/native-model-runtime.js";
+import { nativeConnectorController } from "../connections/connect/native-connector-controller.js";
 import {
-  installPanelFixture,
-  openConnectorPages,
-  renderPanel,
-} from "./capabilities-panel.test-support.js";
+  connectorIntegration,
+  installConnectorIntegration,
+} from "../connections/connect/native-connector-integration.test-support.js";
 import {
   displayName,
   expectedPublic,
@@ -30,9 +32,16 @@ import {
   saveListed,
   selectedScopes,
 } from "./capability-connector-harness.js";
+import {
+  installPanelFixture,
+  openConnectorPages,
+  renderIntegrationsPanel,
+  renderPanel,
+} from "./settings-panels.test-support.js";
 
 installDoublePorts();
 installPanelFixture();
+installConnectorIntegration();
 
 const originalIdentity = { ...identitySeams };
 
@@ -63,7 +72,7 @@ describe("capability connectors the page lists", () => {
     vi.restoreAllMocks();
   });
 
-  it("saves every listed connector and the feature operation uses that configuration", async () => {
+  it("preserves saved companion configurations and refuses legacy model inference", async () => {
     const listed = listedProviders();
     expect(listed.map((provider) => provider.id)).toContain("anthropic");
     expect(listed.map((provider) => provider.id)).toContain("tailscale");
@@ -88,6 +97,15 @@ describe("capability connectors the page lists", () => {
         expect(packed, provider.id).not.toContain(value);
       }
       const run = runCapabilityFeature(provider);
+      if (
+        provider.category === "agent_harnesses" ||
+        provider.category === "ai_model_provider"
+      ) {
+        expect(run).toEqual({ ok: false, providerId: provider.id });
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+        covered.push(provider.id);
+        continue;
+      }
       expect(run.ok, `${provider.id} ${provider.category}`).toBe(true);
       if (!run.ok) continue;
       const action = JSON.stringify(run.action);
@@ -116,9 +134,82 @@ describe("capability connectors the page lists", () => {
     expect(identitySeams.hostBase()).toBe("");
   });
 
+  it("uses a verified native model connection through the owning capability and refuses it after disposal", async () => {
+    const fixture = connectorIntegration();
+    bindNativeModelRuntime(fixture.activation);
+    const controller = nativeConnectorController({
+      id: "anthropic",
+      refused: false,
+    });
+    expect(controller.load()).toBeNull();
+    fixture.replies.push({ body: { data: [] } });
+    const view = await controller.configure({
+      method: "api-key",
+      displayName: "Verified Anthropic",
+      icon: "",
+      parameters: {},
+      credentials: { api_key: "private-native-anthropic-key" },
+      requestedScopes: {},
+      targetIds: {},
+    });
+    expect(view.status).toBe("connected");
+    expect(fixture.requests[0]?.url).toBe(
+      "https://api.anthropic.com/v1/models",
+    );
+    expect(JSON.stringify(view)).not.toContain("private-native-anthropic-key");
+    await fixture.reload();
+    expect(controller.load()?.status).toBe("connected");
+    const input = {
+      model: "claude-fixture",
+      messages: [{ role: "user" as const, content: "Where is Lock?" }],
+      maxOutputTokens: 100,
+    };
+    const runtime = {
+      fetch: globalThis.fetch,
+      assertCurrent() {},
+      signal: new AbortController().signal,
+    };
+    fixture.replies.push({
+      body: {
+        type: "message",
+        content: [{ type: "text", text: "Use the lock key." }],
+      },
+    });
+    const result = await performHostedInference(
+      view.connectionId,
+      input,
+      runtime,
+    );
+    expect(result).toEqual({
+      providerId: "anthropic",
+      model: "claude-fixture",
+      answer: "Use the lock key.",
+    });
+    expect(fixture.requests[1]?.url).toBe(
+      "https://api.anthropic.com/v1/messages",
+    );
+    expect(fixture.requests[1]?.headers.get("x-api-key")).toBe(
+      "private-native-anthropic-key",
+    );
+    expect(
+      fixture.requests[1]?.headers.get(
+        "anthropic-dangerous-direct-browser-access",
+      ),
+    ).toBe("true");
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    fixture.activation.dispose();
+    await expect(
+      performHostedInference(view.connectionId, input, runtime),
+    ).rejects.toThrow();
+    expect(fixture.requests).toHaveLength(2);
+  });
+
   it("turns a section on and off in place and keeps its connectors listed", async () => {
     openConnectorPages();
+    // The switch is on Features and the connectors are on Integrations: a
+    // connector is configured by reference, so the switch cannot take it away.
     renderPanel();
+    renderIntegrationsPanel();
     const ai = screen.getByRole("switch", { name: "AI" });
     expect(ai.getAttribute("aria-checked")).toBe("true");
     expect(screen.queryByTestId("capability-review")).toBeNull();
@@ -135,6 +226,7 @@ describe("capability connectors the page lists", () => {
         screen.getByRole("switch", { name: "AI" }).getAttribute("aria-checked"),
       ).toBe("false"),
     );
+    expect(screen.getByRole("list", { name: "AI providers" })).toBeTruthy();
     fireEvent.click(screen.getByRole("switch", { name: "AI" }));
     expect(screen.queryByTestId("capability-review")).toBeNull();
     await waitFor(() => expect(double.commits).toHaveLength(2));

@@ -59,8 +59,8 @@ async function session(net: FakeNet, bus: FakeBus, transport: LiveTransport) {
     policy: "read",
     admission: "invite",
     minutes: 30,
-    peers: net.factory(),
-    transport,
+    transport: net.transports(),
+    routes: transport,
     carriers: bus.factory(),
   });
   await settle();
@@ -69,7 +69,7 @@ async function session(net: FakeNet, bus: FakeBus, transport: LiveTransport) {
     code: owner.code,
     name: "Ada",
     note: "",
-    peers: net.factory(),
+    transport: net.transports(),
     useRoutes: true,
     carriers: bus.factory(),
   });
@@ -232,6 +232,26 @@ describe("a seat's channel", () => {
     other.send({ t: "hello" });
     await settle();
     expect(heard).toEqual(["hello"]);
+  });
+
+  it("has said goodbye by the time it is drained, so the carrier may close at once", async () => {
+    const { bus, host, guest } = await seat();
+    const heard: string[] = [];
+    host.onMessage((message) => heard.push(message.t));
+    let closed = false;
+    host.onClose(() => {
+      closed = true;
+    });
+    guest.send({ t: "hello" });
+    guest.close();
+    // Nothing has been sealed yet; the frames are still being made.
+    const before = bus.seen.length;
+    await guest.drained();
+    // Both the greeting and the goodbye are on the carrier.
+    expect(bus.seen.length - before).toBe(2);
+    await settle();
+    expect(heard).toEqual(["hello"]);
+    expect(closed).toBe(true);
   });
 
   it("refuses a frame heavier than a peer message may be", async () => {

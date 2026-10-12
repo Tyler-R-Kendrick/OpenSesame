@@ -21,10 +21,11 @@ rather than sealed.
 
 | Condition | Result |
 |---|---|
-| `OPENSESAME_LOG_FILE` is set and the file or key cannot be opened, created or read | the process exits; it never logs to stdout or a plaintext file instead |
+| `OPENSESAME_LOG_FILE` is set and the file or key cannot be opened, created or read (a key is never re-created beside a log that already holds sealed lines) | the process exits; it never logs to stdout or a plaintext file instead |
 | A networked or production Host has no `OPENSESAME_CONNECTION_KEY` | `host run` refuses; a development Host stores events unsealed and logs a warning |
 | A persistent Identity database has neither `OPENSESAME_EVENT_KEY` nor `OPENSESAME_CLAIM_PEPPER` | the control plane and the worker refuse |
 | `OPENSESAME_EVENT_KEY` is under 32 characters | the control plane refuses |
+| A Host with `OPENSESAME_CONNECTION_KEY` finds a Host event value (see "What is sealed, and under what") that is not a current `osev2.` envelope, and `OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION` is not `true` | `host run` refuses (see "One-time trusted legacy import") |
 | A sealed event does not open (wrong key, altered row) | a read is an error naming the column, never an empty event or ciphertext; in a queue claim the one row is quarantined (below) and the rest go on |
 | The audit trail's newest row does not open | appends fail until it can be read; the chain is never restarted at genesis |
 
@@ -68,14 +69,18 @@ dead until an operator clears the failure.
 ## What sealing does and does not prove
 
 Sealing is **confidentiality of event values at rest**: a copied database, a
-backup or a read-only account reads no event. It is not row-level integrity. The
-associated data names the table and column, not the row, so someone who can
-write the database but has no key cannot read or forge a value, yet can copy a
-sealed value into another row of the same column, or swap two rows' values, and
-the seal does not notice. Tamper evidence comes from elsewhere: the audit
-chain's digests cover the Identity plane's audit rows, and signed receipts
-cover the Host's receipts. Other event columns have no such cover. Binding a
-value to its row is a recorded limitation (ADR 0157).
+backup or a read-only account reads no event. It is not whole-database tamper
+evidence. A current (`osev2.`) envelope authenticates the column and, where the
+value has them, its owner and its row: the Host binds a tenant-owned value to
+its organization and row identity, and the Identity plane binds the record id
+under a scope (organization, principal, or the outbox event's aggregate). A
+sealed value copied into another row or another customer therefore does not
+open. A Host value written without an owner (some outbox payloads, for example)
+is bound to its column alone, so the seal would not notice two such values
+swapped. Tamper evidence for the rows as a whole comes from elsewhere: the audit
+chain's digests cover the Identity plane's audit rows, and signed receipts cover
+the Host's receipts. Other event columns have no such cover. ADR 0157 recorded
+the earlier column-only binding as a limitation.
 
 ## Reading a sealed log
 
@@ -91,13 +96,18 @@ this key]`. `daemon logs` never creates a key.
 
 ## Upgrading
 
-Nothing to do. When a log file is opened, lines an older build wrote in the clear
-are scrubbed and sealed in place (and a file left world-readable is narrowed to
-0600); when the Host or the Identity plane starts with a key, event rows an older
-build wrote in the clear are sealed in place, once, and failure text an older
-build stored unscrubbed (`last_error`, `status_detail`) is scrubbed in place.
-Each is idempotent. A legacy plaintext that begins with the exact lowercase
-`osev1.` prefix cannot be told from a sealed value and is not swept.
+When a log file is opened, lines an older build wrote in the clear are scrubbed
+and sealed in place (and a file left world-readable is narrowed to 0600), and
+sealed lines of an older format are rewritten as current ones. When the Host
+starts, failure text an older build stored unscrubbed (`last_error`,
+`status_detail`) is scrubbed in place; this needs no key and is idempotent.
+
+Event rows are different. Normal startup does not seal rows an older build
+wrote in the clear or under the earlier `osev1.` format: the Host and the
+Identity plane refuse them, and importing them is the one-time step below. On
+the Host, a legacy plaintext value that begins with `osev` is taken for a sealed
+one and the import refuses it as unreadable.
+
 Rolling back to a build before this change reads a sealed log or event as
 corrupt data.
 

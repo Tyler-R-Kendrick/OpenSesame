@@ -133,8 +133,30 @@ export function currentBindings(
   return map;
 }
 
+/**
+ * `/claim` leaves Ctrl-l and Cmd-l to the browser address bar. A claim or
+ * drop link is long, and that chord is how it is pasted from the bar. `:`
+ * still opens the command bar. This is a route exception, not a keymap
+ * context: contexts stay `vault` | `rail`. The path is `location`, so the
+ * check does not need a host.
+ */
+function onClaimRoute(): boolean {
+  const path = location.pathname.replace(/\/+$/, "") || "/";
+  return /\/claim$/.test(path);
+}
+
+function claimRouteYieldsAddressBar(event: KeyboardEvent): boolean {
+  if (event.altKey || event.shiftKey || event.isComposing) return false;
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "l") {
+    return false;
+  }
+  return onClaimRoute();
+}
+
 /** Ctrl-l reaches the command bar from a field too — while it is still bound. */
 function commandBarChordBound(event: KeyboardEvent): boolean {
+  // On `/claim` the chord is the browser's, even from the paste field.
+  if (claimRouteYieldsAddressBar(event)) return false;
   if (event.metaKey) return true;
   return (
     currentBindings(listingOf(event)).get("Control+l") === "command.palette"
@@ -213,6 +235,13 @@ export function createKeymapHandler(
     );
 
   const handle = (event: KeyboardEvent) => {
+    // Control+l is also a binding. On `/claim` neither the chord nor the
+    // binding may take it: the address bar has to win when nothing is typed.
+    if (claimRouteYieldsAddressBar(event)) {
+      chord.count = 0;
+      clearPending(chord);
+      return;
+    }
     if (heldElsewhere(event) || standsDown(event)) {
       chord.count = 0;
       clearPending(chord);

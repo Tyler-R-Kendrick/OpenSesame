@@ -23,14 +23,9 @@ afterEach(() => {
 });
 
 describe("application surfaces", () => {
-  it("shows exact callbacks and refuses to treat registration as a grant", () => {
+  it("shows exact callbacks and the test sign-in", () => {
     render(<ApplicationSetupCard registration={registration} />);
     expect(screen.getByText(/https:\/\/rp.example\/callback/)).toBeTruthy();
-    expect(
-      screen.getByText(
-        /Registration is not consent|not a grant|not authorization/i,
-      ),
-    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Test sign-in" })).toBeTruthy();
     expect(screen.getByText(/unsigned/i)).toBeTruthy();
   });

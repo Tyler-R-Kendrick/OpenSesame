@@ -1,11 +1,13 @@
 # Repository governance
 
-This personal-account public repository uses required, up-to-date PR checks,
-not a merge queue. The policy routes review with CODEOWNERS without requiring
+This personal-account public repository merges through a merge queue on the
+default branch. The policy routes review with CODEOWNERS without requiring
 the sole owner to approve their own PR. It requires resolved review threads,
-signed commits, squash-only linear history, and blocks force pushes/deletion.
-There are no bypass actors. GitHub Actions (app ID 15368) must report the three
-named checks; a third-party status with the same name cannot satisfy them.
+signed commits, squash-only linear history via the queue, and blocks force
+pushes/deletion. There are no bypass actors. GitHub Actions (app ID 15368)
+must report the three named checks on both `pull_request` and `merge_group`;
+a third-party status with the same name cannot satisfy them. "Require branch
+up to date" is off — the queue rebuilds against the tip of main.
 
 ```sh
 node ops/github/governance.mjs --dry-run

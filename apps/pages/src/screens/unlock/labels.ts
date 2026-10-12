@@ -78,3 +78,15 @@ export function unlockGoVerb(input: GoVerbInput): string {
   if (input.awaitingPasskeyDuressCode || input.guestUnlock) return "Unlock";
   return UNLOCK_VERB[input.activeMethod];
 }
+
+/** Heading for the unlock card. */
+export function unlockTitle(input: {
+  signIn: boolean;
+  firstRun: boolean;
+  awaitingSecondStep: boolean;
+}): string {
+  if (input.signIn) return "Sign in";
+  if (input.firstRun) return "Seal this device";
+  if (input.awaitingSecondStep) return "Confirm it is you";
+  return "Unlock";
+}

@@ -1,9 +1,12 @@
 import { searchPalette } from "../configuration/palette.js";
 import { lookupConfigResource } from "../configuration/registry.js";
 import { isSettingsCategory, settingsConfigRoute } from "../crumbs.js";
+import { retiredSettingsCategory } from "../settings-aliases.js";
 import {
   type AppCommand,
+  CLAIM_COMMAND_PATH,
   type InterpretResult,
+  JOIN_COMMAND_PATH,
   commandSections,
 } from "./types.js";
 
@@ -22,6 +25,14 @@ const SECTION_ALIASES: ReadonlyArray<{
   { path: "/access", words: ["access", "grants", "approvals", "sessions"] },
   { path: "/identity", words: ["identity", "account", "sign in", "signin"] },
   { path: "/settings", words: ["settings", "prefs", "preferences"] },
+  {
+    path: CLAIM_COMMAND_PATH,
+    words: ["claim", "claims", "drop", "drops"],
+  },
+  {
+    path: JOIN_COMMAND_PATH,
+    words: ["join", "join a session"],
+  },
 ];
 
 const FIELD_ALIASES: ReadonlyArray<{
@@ -42,6 +53,7 @@ function parseNavigate(lower: string): AppCommand | null {
         lower === word ||
         lower === `go to ${word}` ||
         lower === `open ${word}` ||
+        lower === `open a ${word}` ||
         lower === `show ${word}`
       ) {
         return { action: "navigate", path: section.path };
@@ -74,12 +86,16 @@ function refusePath(): AppCommand {
 
 function parseResourcePath(text: string): AppCommand | null {
   // A settings directory's own file, hidden in the rail but never closed.
+  // A retired name (`settings/capabilities/config.yaml`) opens its successor.
   const config = /^\/?settings\/([a-z-]+)\/config\.ya?ml$/.exec(text);
-  if (config?.[1] && isSettingsCategory(config[1])) {
+  const named = config?.[1];
+  const category =
+    named === undefined ? undefined : (retiredSettingsCategory(named) ?? named);
+  if (category !== undefined && isSettingsCategory(category)) {
     return {
       action: "open_path",
-      path: settingsConfigRoute(config[1]),
-      label: `settings/${config[1]}/config.yaml`,
+      path: settingsConfigRoute(category),
+      label: `settings/${category}/config.yaml`,
     };
   }
   const lookup = lookupConfigResource(text);

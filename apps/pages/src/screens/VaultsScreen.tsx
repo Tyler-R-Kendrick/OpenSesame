@@ -31,7 +31,7 @@ import { firstControl, landFocus } from "../lib/focus.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import { AccountRow } from "./unlock/AccountRow.js";
-import { ResetBrowser } from "./unlock/ResetBrowser.js";
+import { LockFoot } from "./unlock/LockFoot.js";
 import { ResetLeftNotice } from "./unlock/ResetLeftNotice.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 
@@ -172,6 +172,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
                     type="text"
                     value={name}
                     placeholder="Name"
+                    title="A separate key, a separate store"
                     autoComplete="off"
                     disabled={busy}
                     onChange={(event) => {
@@ -189,10 +190,6 @@ export function VaultsScreen({ providers, onPicked }: Props) {
                     <IconPlus size={16} />
                   </button>
                 </div>
-                <p className="hint">
-                  A separate key, a separate store. Its name is sealed inside it
-                  once you set a passkey, PIN or password.
-                </p>
               </form>
             ) : (
               <button
@@ -221,7 +218,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
         )}
 
         <div className="unlock__foot">
-          <ResetBrowser />
+          <LockFoot />
         </div>
       </div>
     </div>

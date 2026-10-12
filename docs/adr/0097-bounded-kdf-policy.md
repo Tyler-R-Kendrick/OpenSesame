@@ -1,6 +1,6 @@
 # ADR 0097: Bounded password-wrapper KDF work
 
-Status: accepted
+Status: Accepted
 
 ## Context
 

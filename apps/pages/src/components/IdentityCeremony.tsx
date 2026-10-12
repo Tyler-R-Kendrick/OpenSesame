@@ -189,8 +189,7 @@ export function IdentityCeremony({
           session || !guestsAllowed
             ? undefined
             : {
-                label:
-                  busy === "guest" ? "Starting guest…" : "Continue as guest",
+                label: busy === "guest" ? "Connecting…" : "Use this device",
                 choice: true,
                 busy: busy === "guest",
                 disabled: connecting,
@@ -225,7 +224,6 @@ function AdoptTokenPanel({ onDone }: { onDone: (flash: Flash) => void }) {
         placeholder="paste the bearer printed by opensesame login"
         value={token}
         onValueChange={setToken}
-        hint="Held in this tab only. No cookie is sent alongside it."
       />
       <div className="actions">
         <FormCommit

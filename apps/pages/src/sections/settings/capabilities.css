@@ -1,5 +1,5 @@
-/* Settings › Capabilities — the page body and its sections (drawn as the
-   Connections catalogue's groups). */
+/* Settings › Features and Integrations — the page body and its sections
+   (drawn as the Connections catalogue's groups). */
 
 /* The body is a grid with no list indent: a list inside it must not sit
    40px inside the heading it belongs to. */
@@ -55,6 +55,15 @@
   margin: 0;
   font: inherit;
   color: inherit;
+}
+
+/* What a capability does, under its switch, while its own panel is not drawn. */
+.capsection__summary {
+  margin: 0;
+  max-width: 68ch;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  line-height: 1.5;
 }
 
 .capsection__head > :last-child:not(.capsection__title) {

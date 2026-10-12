@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import {
   type CustomField,
   type VaultItem,
@@ -111,6 +112,7 @@ function CustomFields({
               value={field.name}
               placeholder="Field name"
               aria-label="Field name"
+              maxLength={FIELD_LIMITS.label}
               onChange={(event) =>
                 setField(field.id, { name: event.target.value })
               }
@@ -120,6 +122,7 @@ function CustomFields({
               value={field.value}
               placeholder="Value"
               aria-label="Field value"
+              maxLength={FIELD_LIMITS.text}
               onChange={(event) =>
                 setField(field.id, { value: event.target.value })
               }
@@ -175,6 +178,7 @@ export function EditorExtras({
           <label htmlFor="notes">Notes</label>
           <textarea
             id="notes"
+            maxLength={FIELD_LIMITS.text}
             value={draft.notes}
             rows={draft.kind === "note" ? 12 : 4}
             onChange={(event) => patch({ notes: event.target.value })}

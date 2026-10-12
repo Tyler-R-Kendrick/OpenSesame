@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; agent tokens come from the
+host).
+
 Supersedes ADR 0092 §3 only for provider `identity_assertion`. SET/provider events remain disabled and unadvertised.
 
 ## Context

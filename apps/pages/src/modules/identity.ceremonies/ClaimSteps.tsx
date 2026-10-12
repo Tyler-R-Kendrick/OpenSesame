@@ -10,7 +10,10 @@ import type {
   ClaimOpen,
   ClaimStep,
 } from "@opensesame/app-core/lib/claims/ceremony.js";
-import { CLAIM_ACCEPTED } from "@opensesame/app-core/lib/claims/route-model.js";
+import {
+  CLAIM_ACCEPTED,
+  CLAIM_FAILURE_MARK,
+} from "@opensesame/app-core/lib/claims/route-model.js";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconArrowRight, IconRefresh } from "../../components/Icons.js";
@@ -19,11 +22,18 @@ import type { ClaimTone } from "./useClaimCeremony.js";
 
 type Said = { tone: ClaimTone | null; words: string | null };
 
+function markLabel(said: Said): string | null {
+  if (!said.tone || !said.words) return null;
+  if (said.tone === "err") return CLAIM_FAILURE_MARK;
+  return "Waiting";
+}
+
 function Mark({ id, said }: { id: string; said: Said }) {
+  const label = markLabel(said);
   return (
     <output id={id} aria-live="polite">
-      {said.tone && said.words ? (
-        <StatusMark tone={said.tone} label={said.words} />
+      {said.tone && label ? (
+        <StatusMark tone={said.tone} label={label} />
       ) : null}
     </output>
   );
@@ -106,7 +116,10 @@ export function ClaimPaused({
         <h2>
           Claim waiting{" "}
           {tone && step.message ? (
-            <StatusMark tone={tone} label={step.message} />
+            <StatusMark
+              tone={tone}
+              label={tone === "err" ? CLAIM_FAILURE_MARK : "Waiting"}
+            />
           ) : null}
         </h2>
       </div>

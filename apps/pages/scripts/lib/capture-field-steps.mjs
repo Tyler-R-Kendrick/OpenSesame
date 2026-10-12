@@ -28,6 +28,13 @@ export function fieldSteps({ press }) {
       }
       await page.waitForTimeout(900);
     },
+    /** Press the tab with exactly this name, when this build draws one. */
+    async tabNamedOptional(page, name) {
+      const tab = page.getByRole("tab", { name, exact: true }).first();
+      if (!(await tab.count()) || !(await tab.isEnabled())) return;
+      await press(tab);
+      await page.waitForTimeout(500);
+    },
     /**
      * `fill`, for a field only one of the two builds has — a tab the base does
      * not draw is a legitimate difference, not a miss.
@@ -48,11 +55,11 @@ export function fieldSteps({ press }) {
     },
     /**
      * Connect the device to Identity the way a person does: the sheet's
-     * Continue as guest, which closes the sheet once the session is open.
+     * Use this device, which closes the sheet once the session is open.
      */
     async connectIdentity(page) {
       const sheet = await openIdentitySheet(page, press);
-      await press(sheet.getByRole("button", { name: "Continue as guest" }));
+      await press(sheet.getByRole("button", { name: "Use this device" }));
       await sheet.waitFor({ state: "detached", timeout: 15000 });
       await restoreWidth(page);
     },

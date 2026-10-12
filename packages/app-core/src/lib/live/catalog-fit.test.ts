@@ -11,7 +11,6 @@ import { LiveHost } from "./host.js";
 import { settle } from "./live-clock.fixture.js";
 import { FakeNet } from "./live-fakes.js";
 import type { Catalog } from "./messages.js";
-import { DIRECT_ONLY } from "./peer.js";
 import { CATALOG_BUDGET, vaultCatalog } from "./vault-share.js";
 
 function items(count: number, fields: number, text: string, label = "Field") {
@@ -134,11 +133,10 @@ describe("a catalog frame the channel cannot carry", () => {
     };
     const host = await LiveHost.start({
       admission: "open",
-      ice: DIRECT_ONLY,
       expiresAt: Date.now() + 60_000,
       catalog: () => oversize,
       readField: async () => null,
-      peers: net.factory(),
+      transport: net.transport(),
     });
     hosts.push(host);
     const guest = new LiveGuest({
@@ -146,8 +144,7 @@ describe("a catalog frame the channel cannot carry", () => {
       code: null,
       name: "Ada",
       note: "",
-      ice: DIRECT_ONLY,
-      peers: net.factory(),
+      transport: net.transport(),
     });
     guests.push(guest);
     const received = await host.receive(await guest.start());
@@ -164,7 +161,7 @@ describe("a catalog frame the channel cannot carry", () => {
 
 describe("a channel send", () => {
   it("reports a refusal instead of throwing it", async () => {
-    const { PeerChannel } = await import("./peer.js");
+    const { PeerChannel } = await import("./webrtc.js");
     const refusing = Object.assign(new EventTarget(), {
       readyState: "open" as const,
       send: () => {

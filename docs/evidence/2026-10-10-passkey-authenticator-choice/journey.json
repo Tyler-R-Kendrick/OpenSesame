@@ -1,0 +1,187 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "localSeal": null
+        },
+        {
+          "measure": ".unlock__methods"
+        },
+        {
+          "measure": ".unlock__methods .unlock__method"
+        },
+        {
+          "measure": ".unlock__card"
+        },
+        {
+          "shot": "1280-seal"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "localSeal": null
+        },
+        {
+          "tabNamedOptional": "Security key"
+        },
+        {
+          "measure": ".unlock__methods .unlock__method--active"
+        },
+        {
+          "shot": "1280-seal-key"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "localSeal": null
+        },
+        {
+          "measure": ".unlock__methods"
+        },
+        {
+          "measure": ".unlock__methods .unlock__method"
+        },
+        {
+          "measure": ".unlock__card"
+        },
+        {
+          "shot": "390-seal"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "localSeal": null
+        },
+        {
+          "tabNamedOptional": "Security key"
+        },
+        {
+          "measure": ".unlock__methods .unlock__method--active"
+        },
+        {
+          "shot": "390-seal-key"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "localSeal": null
+        },
+        {
+          "passkey": null
+        },
+        {
+          "confirmOptional": "I understand"
+        },
+        {
+          "pressNamedOptional": "Seal with passkey"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "measure": ".unlock__methods .unlock__method--active"
+        },
+        {
+          "shot": "1280-seal-stepped"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "localSeal": null
+        },
+        {
+          "passkey": null
+        },
+        {
+          "confirmOptional": "I understand"
+        },
+        {
+          "pressNamedOptional": "Seal with passkey"
+        },
+        {
+          "wait": 1
+        },
+        {
+          "measure": ".unlock__methods .unlock__method--active"
+        },
+        {
+          "shot": "390-seal-stepped"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-seal",
+      "width": 1280,
+      "title": "Seal this device \u2014 1280 \u00d7 800",
+      "caption": "Sealing with a passkey now says where the passkey lives. Left to the browser, a PC with Windows Hello offers Hello first and a security key beside it is never reached.",
+      "before": "1 tab row (Passkey, PIN); card 432\u00d7575",
+      "after": "2 tab rows, each 44px tall (+ This device, Security key); card 432\u00d7633"
+    },
+    {
+      "shot": "1280-seal-key",
+      "width": 1280,
+      "title": "Seal this device, security key chosen \u2014 1280 \u00d7 800",
+      "caption": "Choosing Security key asks the browser for a roaming authenticator only, so the key is the one that answers.",
+      "before": "no authenticator choice; the browser picks",
+      "after": "Security key selected: 94\u00d744 tab; asks for a roaming authenticator only"
+    },
+    {
+      "shot": "390-seal",
+      "width": 390,
+      "title": "Seal this device \u2014 390 \u00d7 844",
+      "caption": "The same choice on a phone.",
+      "before": "1 tab row (Passkey, PIN); card 350\u00d7520",
+      "after": "2 tab rows, each 44px tall; card 350\u00d7578"
+    },
+    {
+      "shot": "390-seal-key",
+      "width": 390,
+      "title": "Seal this device, security key chosen \u2014 390 \u00d7 844",
+      "caption": "The chosen state on a phone.",
+      "before": "no authenticator choice; the browser picks",
+      "after": "Security key selected: 94\u00d744 tab"
+    },
+    {
+      "shot": "1280-seal-stepped",
+      "width": 1280,
+      "title": "A device passkey that cannot seal \u2014 1280 \u00d7 800",
+      "caption": "A virtual platform authenticator that does not answer PRF, as Windows Hello is reported to behave. Pressing the seal key no longer leaves a key that seems to do nothing: the form moves itself to Security key, ready for the next press. No mark, no error.",
+      "before": "Passkey tab only; nothing changes on the form, the failure only in the tray",
+      "after": "Security key selected (94\u00d744), ready for the next press; no mark, no error notice"
+    },
+    {
+      "shot": "390-seal-stepped",
+      "width": 390,
+      "title": "A device passkey that cannot seal \u2014 390 \u00d7 844",
+      "caption": "A virtual platform authenticator that does not answer PRF, as Windows Hello is reported to behave. Pressing the seal key no longer leaves a key that seems to do nothing: the form moves itself to Security key, ready for the next press. No mark, no error.",
+      "before": "Passkey tab only; nothing changes on the form, the failure only in the tray",
+      "after": "Security key selected (94\u00d744), ready for the next press; no mark, no error notice"
+    }
+  ]
+}

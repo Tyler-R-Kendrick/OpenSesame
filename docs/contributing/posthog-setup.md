@@ -4,10 +4,11 @@ This is a manual runbook. Repo code cannot create a PostHog project or
 change PostHog org settings — a human operator (or an agent acting with the
 operator's real PostHog access) follows these steps by hand.
 
-Telemetry code lives in `packages/telemetry` (`@opensesame/telemetry`), part
-of this same build-out — it implements the allowlist filter documented in
-§2 below in code, not just as policy. This runbook covers the SaaS-side
-project the code sends events to.
+Telemetry code lives in `packages/telemetry` (`@opensesame/telemetry`), which
+implements the allowlist filter documented in §2 below in code, not just as
+policy, and in `packages/mcp-host/src/telemetry.ts`, the one place that sends
+anything (through `posthog-node`). This runbook covers the SaaS-side project
+the code sends events to.
 
 ## 1. Create a dedicated OpenSesame PostHog project
 
@@ -30,7 +31,9 @@ filter. This is the authoritative spec both the code and this runbook are
 built from — if the two ever disagree, that's a bug to fix, not a choice to
 make.
 
-**Allowed events** (exactly these nine, no others):
+**Allowed events** (exactly these nine, no others; today only `mcp_tool_call`
+is sent, by `packages/mcp-host`, and no code in the tree emits the other
+eight):
 
 - `app_opened`
 - `vault_unlocked`
@@ -61,8 +64,9 @@ make.
 - Prompts
 - User identifiers
 
-Telemetry is **fully anonymous** — `packages/telemetry` never calls
-PostHog's `identify()`. It is **off by default**: the client is a no-op
+Telemetry is **anonymous** — nothing in the tree calls PostHog's
+`identify()`, and `packages/mcp-host` captures under a random per-process id
+held only in memory. It is **off by default**: the client is a no-op
 unless a telemetry key environment variable is configured (§4). None of
 this is a paper policy the operator has to trust — it's enforced by the
 allowlist filter in `packages/telemetry`'s code, which drops any event name
@@ -93,20 +97,22 @@ telemetry (added alongside `packages/telemetry` in this same build-out —
 check the repo's root `.env.schema` for the exact current variable names if
 this runbook and the schema ever drift):
 
-- `VITE_OPENSESAME_TELEMETRY_KEY` / `OPENSESAME_TELEMETRY_KEY` — the
-  project API key. Set the `VITE_`-prefixed variant for browser-bundled apps
-  (it gets inlined into the shipped JS, same as other `VITE_*` vars in this
-  repo — see `docs/operators/local.md` on why that inlining matters for
-  secrets) and the unprefixed variant for server/CLI contexts.
-- `OPENSESAME_TELEMETRY_HOST` / `VITE_OPENSESAME_TELEMETRY_HOST` (optional)
-  — only needed if the project is **not** using PostHog's default US cloud
-  host (for example, if the operator chose the EU region in §3, or a
-  self-hosted PostHog instance).
+- `OPENSESAME_TELEMETRY_KEY` — the project API key, read by
+  `packages/mcp-host`.
+- `OPENSESAME_TELEMETRY_HOST` (optional) — only needed if the project is
+  **not** using PostHog's default US cloud host (`https://us.i.posthog.com`;
+  for example, if the operator chose the EU region in §3, or a self-hosted
+  PostHog instance).
+- `.env.schema` also declares `VITE_OPENSESAME_TELEMETRY_KEY` and
+  `VITE_OPENSESAME_TELEMETRY_HOST` for the Pages build (Vite inlines
+  `VITE_*` values into the shipped JS), but no Pages code reads them yet: the
+  `telemetry.external` capability has no Pages implementation.
 
 Put these in local `.env` files — never commit a real project key. Follow
 the same "commit the schema, not the secret" convention the rest of this
 repo's `.env.schema` uses (see `docs/operators/local.md`, "Developer
-`@env-spec`").
+`@env-spec`"). The key is a write-only capture key, which is why the schema
+marks it `@public` rather than `@sensitive`.
 
 Because telemetry is off-by-default no-op code, an environment with none of
 these variables set simply sends nothing — that's the expected state for

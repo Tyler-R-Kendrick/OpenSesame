@@ -1,3 +1,4 @@
+import "./access-record-choices.css";
 /**
  * Access › Connectors › Add — choose the connector a grant is made on, then
  * who may use it, under which policy, until when (ADR 0115).
@@ -13,9 +14,7 @@ import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settin
 import type { KeyboardEvent } from "react";
 import { Link } from "react-router";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
-import { IconPlus } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { ConnectorMark } from "../connections/ConnectorMark.js";
 import { ConnectorBindForm } from "./ConnectorBindForm.js";
 import "../connections.css";
 import type {
@@ -47,24 +46,19 @@ function Choice({
 }) {
   const name = setting.alias || row.name;
   return (
-    <li className="conn-tile">
+    <li>
       <button
         id={choiceId(row.id)}
         type="button"
-        className="conn-tile__link access-pick__choice"
+        className={`vtree__row choice access-record-choice${chosen ? " is-cursor" : ""}`}
         aria-pressed={chosen}
         disabled={busy || !setting.enabled}
         title={setting.enabled ? name : "Enable the connector first"}
         onClick={onChoose}
       >
-        <ConnectorMark
-          providerId={row.providerId}
-          displayName={name}
-          size={32}
-        />
-        <span className="conn-tile__copy">
-          <span className="conn-tile__name">{name}</span>
-          <span className="conn-tile__kind">{row.detail}</span>
+        <span className="vtree__name">
+          {name}
+          <span className="vtree__dim">.connection</span>
         </span>
         {setting.enabled ? null : <StatusMark tone="warn" label="Disabled" />}
       </button>
@@ -113,7 +107,7 @@ export function ConnectorPicker({
           <h3>No connectors configured</h3>
         </div>
       ) : null}
-      <ul className="conn-grid" aria-label="Choose a connector">
+      <ul className="access-record-choices" aria-label="Choose a connector">
         {rows.map((row) => (
           <Choice
             key={row.id}
@@ -125,14 +119,12 @@ export function ConnectorPicker({
           />
         ))}
         {pages ? (
-          <li className="conn-tile access-pick__new">
-            <Link className="conn-tile__link" to={NEW_CONNECTOR_PATH}>
-              <span className="access-pick__plus" aria-hidden="true">
-                <IconPlus size={18} />
-              </span>
-              <span className="conn-tile__copy">
-                <span className="conn-tile__name">New connector</span>
-              </span>
+          <li>
+            <Link
+              className="vtree__row access-record-choice"
+              to={NEW_CONNECTOR_PATH}
+            >
+              <span className="vtree__name">New connector</span>
             </Link>
           </li>
         ) : null}

@@ -1,5 +1,19 @@
 # Trust-broker implementation evidence
 
+> Status (2026-10-08): this is a record of the change at base `a1031d6`; its
+> scope statements, residual risks and counts describe that tree and were not
+> re-measured. The records it delivered are still here (`packages/os-domain/src/trust.ts`,
+> `presentation.ts`, `packages/trust-broker`, `packages/contracts/src/trust.ts`,
+> the eight protocol flags `.env.schema` declares `false`, read by
+> `packages/control-plane/src/config-protocol-features.ts`; when unset,
+> `OPENSESAME_OID4VP_ENABLED` and `OPENSESAME_OID4VCI_ENABLED` read as on
+> outside production). This checkout also has `apps/android` and the
+> `packages/openid4vp` and `packages/openid4vci` packages, so "no protocol or
+> Android module" and the Unsupported list no longer describe the repository as
+> a whole, and the static Pages federation storage risk it names predates the
+> sealing of client storage in
+> [ADR 0149](../adr/0149-nothing-stored-in-the-clear.md).
+
 ## Scope
 
 This checkout is the `feat/claim-guest-account` branch at base `a1031d6`.

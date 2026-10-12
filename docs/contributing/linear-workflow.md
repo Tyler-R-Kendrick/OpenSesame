@@ -48,15 +48,25 @@ source so a reader can verify the gap still exists before working it:
 
 1. **Playwright passkey virtual-authenticator full browser matrix is not run
    in the mandatory local suite.** (`docs/archive/2026-08-07-baseline/summary.md`, Residual)
-2. **Testcontainers-backed Postgres tests are skipped when Docker Engine is
-   unavailable on the host.** (`docs/archive/2026-08-07-baseline/summary.md`, Residual)
+2. **The real-Postgres suites run only where a Postgres is provided.**
+   `pnpm --filter @opensesame/database test:postgres` and
+   `pnpm --filter @opensesame/identity-worker test:postgres` exit unless
+   `DATABASE_URL` is set (to a role with `CREATEDB`); the database package's
+   default `pnpm test` uses PGlite. CI starts the server (`.github/workflows/ci.yml`,
+   `.github/workflows/full-suite.yml`); a local run does not.
+   (`packages/database/package.json`, `packages/identity-worker/package.json`;
+   the archived baseline's Residual list named Testcontainers, which no
+   package here depends on)
 3. **Live Google/GitHub/Entra IdP integration is untested beyond templates —
    only the mock IdP is exercised in CI/local runs.** (`docs/archive/2026-08-07-baseline/summary.md`,
    Residual)
-4. **ATProto and Nostr identity adapters exist but ship disabled by
-   default; they have no live-network test coverage.**
-   (`docs/archive/2026-08-07-baseline/summary.md`, Residual; also `docs/archive/brief-implementation-status.md`,
-   Feature gates)
+4. **ATProto and Nostr exist only as reserved identity kinds.** `atproto`
+   and `nostr` are values of `ExternalIdentityKindSchema`
+   (`packages/contracts/src/principals.ts`); no adapter for either is in the
+   tree, so there is nothing to enable or test against a live network.
+   (`docs/archive/2026-08-07-baseline/summary.md`, Residual, called them
+   "interfaces present, disabled by default"; also
+   `docs/archive/brief-implementation-status.md`, Feature gates)
 5. **Origin-profile clients, Dynamic Client Registration, and Client ID
    Metadata Documents are implemented but remain disabled by default** —
    decide whether/when to graduate each out of the feature gate.

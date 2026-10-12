@@ -28,6 +28,9 @@ type Props = {
   onContinue: (registration: ByoRegistration) => void;
 };
 
+const registeredVia = (registration: ByoRegistration) =>
+  registration.registrationSource === "dcr" ? "registered" : "your client";
+
 export function ByoProviderSheet({ disabled, onContinue }: Props) {
   const [issuer, setIssuer] = useState("");
   const [clientId, setClientId] = useState("");
@@ -158,16 +161,15 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
           <div className="identifier__org">
             <strong>{registration.label}</strong>
             <span className="hint">
-              OpenID Connect · discovery verified ·{" "}
-              {registration.registrationSource === "dcr"
-                ? "client registered automatically"
-                : "using your client"}
+              OpenID Connect · {registeredVia(registration)}
             </span>
           </div>
           <div className="field">
             <span className="label">Redirect URI for your provider</span>
             <div className="byo__uri">
-              <code>{registration.redirectUri}</code>
+              <code title="Your provider must allow this exact redirect URI">
+                {registration.redirectUri}
+              </code>
               <button
                 type="button"
                 className="icon-btn"
@@ -190,11 +192,7 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
                 </svg>
               </button>
             </div>
-            <p className="hint">
-              {copied
-                ? "Copied. Add it to your provider's allowed redirect URIs."
-                : "Make sure your provider allows this exact redirect URI."}
-            </p>
+            {copied ? <p className="hint">Copied.</p> : null}
           </div>
           <button
             type="button"

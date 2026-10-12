@@ -1,0 +1,506 @@
+{
+  "authority": "synthetic documented upstream protocol; no live credentials",
+  "canonicalProviderIdentities": 225,
+  "canonicalVisibleCatalogTiles": 160,
+  "viewports": [
+    {
+      "width": 1366,
+      "height": 1000
+    },
+    {
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "passedAssertions": 3150,
+  "failedAssertions": [],
+  "unexpectedBrowserErrors": [],
+  "hostedConnectRequests": [],
+  "concurrentEditProof": [
+    "competing edit reports the actual stale revision refusal before retry",
+    "cross-tab edit retains one complete human configuration",
+    "cold verification reads exactly one durable provider credential",
+    "public name and sealed credential remain atomically bound across competing edits"
+  ],
+  "results": [
+    {
+      "providerId": "algolia",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "datadog",
+      "connected": false,
+      "reason": "explicit browser refusal"
+    },
+    {
+      "providerId": "anthropic",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "notion",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "railway",
+      "connected": false,
+      "reason": "explicit browser refusal"
+    },
+    {
+      "providerId": "resend",
+      "connected": false,
+      "reason": "alternative browser route"
+    },
+    {
+      "providerId": "postmark",
+      "connected": false,
+      "reason": "explicit browser refusal"
+    },
+    {
+      "providerId": "gemini",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "vault",
+      "connected": true,
+      "removed": true,
+      "assurance": "synthetic documented token protocol; no live instance",
+      "documentation": "https://developer.hashicorp.com/vault/api-docs/auth/token#lookup-a-token-self"
+    },
+    {
+      "providerId": "openbao",
+      "connected": true,
+      "removed": true,
+      "assurance": "synthetic documented token protocol; no live instance",
+      "documentation": "https://openbao.org/api-docs/auth/token/#lookup-a-token-self"
+    },
+    {
+      "providerId": "algolia",
+      "label": "desktop",
+      "localForgetAfterReload": true
+    },
+    {
+      "providerId": "anthropic",
+      "label": "desktop",
+      "localForgetAfterReload": true
+    },
+    {
+      "providerId": "notion",
+      "label": "desktop",
+      "localForgetAfterReload": true
+    },
+    {
+      "providerId": "gemini",
+      "label": "desktop",
+      "localForgetAfterReload": true
+    },
+    {
+      "label": "desktop",
+      "catalogRows": 160,
+      "protocolCalls": 21
+    },
+    {
+      "providerId": "algolia",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "datadog",
+      "connected": false,
+      "reason": "explicit browser refusal"
+    },
+    {
+      "providerId": "anthropic",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "notion",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "railway",
+      "connected": false,
+      "reason": "explicit browser refusal"
+    },
+    {
+      "providerId": "resend",
+      "connected": false,
+      "reason": "alternative browser route"
+    },
+    {
+      "providerId": "postmark",
+      "connected": false,
+      "reason": "explicit browser refusal"
+    },
+    {
+      "providerId": "gemini",
+      "connected": true,
+      "readAfterReload": true,
+      "assurance": "synthetic protocol authority; no live account"
+    },
+    {
+      "providerId": "vault",
+      "connected": true,
+      "removed": true,
+      "assurance": "synthetic documented token protocol; no live instance",
+      "documentation": "https://developer.hashicorp.com/vault/api-docs/auth/token#lookup-a-token-self"
+    },
+    {
+      "providerId": "openbao",
+      "connected": true,
+      "removed": true,
+      "assurance": "synthetic documented token protocol; no live instance",
+      "documentation": "https://openbao.org/api-docs/auth/token/#lookup-a-token-self"
+    },
+    {
+      "providerId": "algolia",
+      "label": "phone",
+      "localForgetAfterReload": true
+    },
+    {
+      "providerId": "anthropic",
+      "label": "phone",
+      "localForgetAfterReload": true
+    },
+    {
+      "providerId": "notion",
+      "label": "phone",
+      "localForgetAfterReload": true
+    },
+    {
+      "providerId": "gemini",
+      "label": "phone",
+      "localForgetAfterReload": true
+    },
+    {
+      "label": "phone",
+      "catalogRows": 160,
+      "protocolCalls": 18
+    }
+  ],
+  "productionBuild": {
+    "sha256": "f6d2f85274532580ea5a96a99bf694b106ea05b7c0720686e5720e81f69f776f",
+    "fileCount": 236,
+    "algorithm": "SHA-256 of sorted relative path + NUL + per-file SHA-256 hex + newline"
+  },
+  "completeReceiptSha256": "4de00bc2db2b9cc1f8ef005d7b0dd3259593c394683f09e41b4e210cf414bd71",
+  "canonicalBuildManifestDigest": "3ebc65f2c2105073f32c88acaedd24c487e50b2699b4aaeea837c354ed749d95",
+  "sourceFiles": [
+    {
+      "path": "apps/pages/scripts/verify-native-connectors-journey.mjs",
+      "sha256": "eeb01bfc555f287133ff9a37ffcbb7ce7876fc213b095bfac84492d90dbf0043"
+    },
+    {
+      "path": "apps/pages/scripts/capture-evidence.mjs",
+      "sha256": "16231c4763af0f54ebec9300c5833e85944361442b668171afe022139fe496b4"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-api-authority.mjs",
+      "sha256": "c3ed7b97a8ed4fb96976b92a0ae2484223bb0706b6038f28ef4f2546e95011ef"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-api-guide.mjs",
+      "sha256": "155a5f32e3e6719faf2ac96cb6833def29ed44943e5b75f1d59b19b03ab24bdc"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-api-journey.mjs",
+      "sha256": "c50b657c5a5187837299168daa5f6b812af5ef9378553375c99ae67229f624f8"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-api-lifecycle.mjs",
+      "sha256": "b24df43adfb491c5af6c6a57df5432995019fbc5f68afbca777b7dcbc4e99878"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-cas-journey.mjs",
+      "sha256": "e15cceebb2b8204f93c357b2fac99b2a397645a962c3dec6ac1ec2aef4317bf8"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-catalog-journey.mjs",
+      "sha256": "3eab7b8a91774e51c20120bc351d995f01662af8d92cee4dadff45a008f3e0d9"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-catalog-projection.mjs",
+      "sha256": "29b9285a708deb57fa2f5cf7984ac4f664638d9bfe5459c9082d8e419bd58155"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-expected-failures.mjs",
+      "sha256": "bc8a5f5007001468436baa437ecbcbd2ea5af01614d68fd9bd9e519af7e769f6"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-gitlab-authority.mjs",
+      "sha256": "7fc19ecea60b24d21c9338d7ddc87728a9d7056e35a63dcb82d7daa576ea6754"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-gitlab-journey.mjs",
+      "sha256": "b1dbce8d252e86b269e712fa960fd7de46ef552efa7e1e38ee4d6c03d13d5379"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-instance-journey.mjs",
+      "sha256": "da9128bca64726a8b8473ebe15803c6d02a2f506338311ef0d22cbf789842514"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-mcp-auth.mjs",
+      "sha256": "98771737ce1373edd16237796ccae13430cd9bfc3ed0ded6222f61baa87e6d92"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-mcp-authority.mjs",
+      "sha256": "c1e447bc9eb1ad9e67efafae2540e177d6916a174b4d56dff2157c531e90cc89"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-mcp-rpc.mjs",
+      "sha256": "c8fbd9f33345d486bc17fe503c54ecc8dc5b3b641723ec7efadd3e96cbaf450e"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-provider-fixtures.mjs",
+      "sha256": "a30cf49ebc1ff496b466a03c68cc638c22effba365ea9fbf8c9be2c67ceb5753"
+    },
+    {
+      "path": "apps/pages/scripts/lib/native-browser-public-journey.mjs",
+      "sha256": "942dc4bc47900c94e937810ef202d5695997b1de0e4aaf2dad846836becdef32"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeBrowserProviderForm.test.tsx",
+      "sha256": "261a18b7272cd141f13492bbd270c8716ecb11d954d991aa8350a6d9f086ef0c"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorActions.tsx",
+      "sha256": "b0e56668f0733d93e62c889190e7d5ca51607834ce99a7fedf876416d1d1fabb"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorEdits.test.tsx",
+      "sha256": "5ca466017e832ec7bc0f416367257dbe956b9f105a99067cf1729b46a2228dab"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorFields.tsx",
+      "sha256": "55bfac22abbe24bca615deb0a270fc8ac69edb0fdb5d2e7eb12167c01abd6ad9"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorForm.test.tsx",
+      "sha256": "423e4e73c2d1227b32fb4f95ee6b0992cd04b7844ca4832e00213f280ec03650"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorForm.tsx",
+      "sha256": "75273f14d9071badc10501f5941f4d548830c94500adcc0370436633e0d28a8c"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorIcon.test.tsx",
+      "sha256": "0d47dfa1c130c5dac2d42c45a14211c6879a271b5c1f28b4eb7f6f04eb6e21a1"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorPanels.integration.test.tsx",
+      "sha256": "d4073a3008588a36076c4764d844bb0868163a8c705a843952ec2532285051b8"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorPanels.tsx",
+      "sha256": "ba42d225dc197c6b1489f4d42e7746ac8881692670864e2d651fee6e53658899"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorRecovery.test.tsx",
+      "sha256": "8b74158ebc8a662974bd5d98cec80899935208b6ed99b64f71104184a42a8970"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorRecovery.tsx",
+      "sha256": "8c1c2bf7a3478bb16c2a627aba681cfde1c8aa79a7ae4725b2b8565121664b05"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorRetention.test.tsx",
+      "sha256": "da09f186ede6100a0e7954ecf8a6d907e59f92567aa757d9c41f4fa497d92c5b"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorRevocation.test.tsx",
+      "sha256": "ce8017fb5a9bc7a0842936b46a0c51c6a75b04d3acf46a05ef897322d32b067f"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorScopes.test.tsx",
+      "sha256": "d77e620232a89e3e3b170755dd66692ab5fc43164867b15c21ba1af709a32deb"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorSummary.test.tsx",
+      "sha256": "a8297fe393e5c520b50d5420a99f175c3146d1349d2dad4b287477df43d22a0a"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorSummary.tsx",
+      "sha256": "10987a85894dcd9b6e60813c02238c8301fa1469d3d47f6766054c15e8079d7d"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeConnectorVariants.test.tsx",
+      "sha256": "dda5549353f70f7723d321f2d8b591b3749a8a42f975f3b6402ff32a780fa497"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeMcpArgumentGuide.test.tsx",
+      "sha256": "125e1012c0ab253735efb37ce42e233013eeaf365de1f94bee2c6e53ad40de64"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeMcpArgumentGuide.tsx",
+      "sha256": "25c295574c491447c1306213aee2da3f0b29894a31140fd5a189397b12dae52c"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeMcpTools.integration.test.tsx",
+      "sha256": "713d4e197e9e8edbf46c8d42208b187fe29b459a22add954faefa1a6861a6ebd"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeMcpTools.tsx",
+      "sha256": "478a0c906a4bbc1709b7fdaaecb7be221aaadbd96d46b4e92e8a1cbb6d0b9eaf"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeProviderInstructions.test.tsx",
+      "sha256": "8365cc551ed85181383609bb537ef1528710e076703c56ce097138ea0ba16d7f"
+    },
+    {
+      "path": "apps/pages/src/sections/connections/connect/NativeProviderInstructions.tsx",
+      "sha256": "0c8e6a5ecf9c0648b82c6c5136840ebc75aa1d177997bc5eebb4846408ac2f01"
+    },
+    {
+      "path": "spec/connectors/browser-policy.json",
+      "sha256": "f7611f733adf4457aed0c6d08afb90bde4ba7a514f3eeabe0ee28ac47a942a1c"
+    },
+    {
+      "path": "spec/connectors/connect-presets.json",
+      "sha256": "c50602ea497408881d37335eb79e27bfde0f11090f628eb4b0bda0e57f9b60c8"
+    },
+    {
+      "path": "spec/connectors/connect-services.json",
+      "sha256": "735b5cd91123558909dc43d3112561535e2e103c9f2686b5241cbb19a9eb77be"
+    },
+    {
+      "path": "spec/connectors/catalog.json",
+      "sha256": "caeb6d1403fa770440ba2527a2696bac34950a62e6a9c75a41d22480adb99ec3"
+    }
+  ],
+  "genuineBeforeCaptures": [
+    {
+      "path": "desktop-algolia-configure.png",
+      "sha256": "40161b3c52d153a7d194d05c2090bc3d216872baaefbfe4bd1af3a016e28b22a"
+    },
+    {
+      "path": "desktop-datadog-configure.png",
+      "sha256": "afcc11e6592f7e61e5be07630d46939b52eb48deccaeb094b33e28ec930c6d22"
+    },
+    {
+      "path": "desktop-keepass-configure.png",
+      "sha256": "0cf435fb027c42c44c0c5213c474a9c042100d3aa79bb564b453aa2da91c2f13"
+    },
+    {
+      "path": "desktop-linq-configure.png",
+      "sha256": "c86d4c65c2ad2ffecf5c660b37be4e85e5921dacc7ec3580648b9e007e48f24c"
+    },
+    {
+      "path": "desktop-railway-configure.png",
+      "sha256": "7947e099bf43d1259ebaa1dcb87a3b4136215089d5f7359f56563200e5fce48d"
+    },
+    {
+      "path": "desktop-vault-configure.png",
+      "sha256": "b8b54663fdb1500d9a85982332bbd3a462377d7612250cfb1232d08d29c9ef23"
+    },
+    {
+      "path": "phone-algolia-configure.png",
+      "sha256": "808cf3038dea3ebfacb97e00846c825f1b5ef1db1ae6403c410d945e51ba5b97"
+    },
+    {
+      "path": "phone-datadog-configure.png",
+      "sha256": "2b4b3873f73eb262324253b11f4ac8de6003edbac69753cb6049542a7babc632"
+    },
+    {
+      "path": "phone-keepass-configure.png",
+      "sha256": "4abf4e7a9963454a99f4e5b3c791fc47fe441f05e8da419999f1c69520cf35d5"
+    },
+    {
+      "path": "phone-linq-configure.png",
+      "sha256": "821b9ec310e2c626f5d6f77d6846c547f0613e24e3c8cad370c6bd23467fc037"
+    },
+    {
+      "path": "phone-railway-configure.png",
+      "sha256": "99ce4dd0957c71866ce04f4d91c3c9fcb2f848d76cd3ae397737033b2135f9a3"
+    },
+    {
+      "path": "phone-vault-configure.png",
+      "sha256": "2b9677c391567b95f124d7b322f1cf6a92c3a4f7525f48a845bb146c1186480e"
+    }
+  ],
+  "images": [
+    {
+      "path": "desktop-algolia-configure.png",
+      "sha256": "4ebbf255de778f308c27bb2d2a3a3a34f7dc88b876a7b5cb49fb6ed72ae7e940"
+    },
+    {
+      "path": "desktop-algolia-verified.png",
+      "sha256": "640fd3a8d177d62d654fb096a12a3836c223ce26fa495919a18ceb920149a5a3"
+    },
+    {
+      "path": "desktop-datadog-configure.png",
+      "sha256": "451c0c10279527eae9305497ecc3a8b05a9442910e729b3226a002a69835648c"
+    },
+    {
+      "path": "desktop-gemini-verified.png",
+      "sha256": "04128d664944831f373a20b318f0101f9d0dbab8e3b52c193417fdca2cd67507"
+    },
+    {
+      "path": "desktop-keepass-configure.png",
+      "sha256": "111d1ddc08705170c310193f8dbe2e52d100729bd9582ebd8da578166900f2ac"
+    },
+    {
+      "path": "desktop-linq-configure.png",
+      "sha256": "cffccbfec3af8413c0594fb18575f4acfc5a81253a37d6fe550b5c7a3cd44f3a"
+    },
+    {
+      "path": "desktop-railway-configure.png",
+      "sha256": "60ada597e0cdbd937e65538405a18e70eaa4bb3cc0c3b8bde80fec38f576e31b"
+    },
+    {
+      "path": "desktop-vault-configure.png",
+      "sha256": "23e6e02944f6aecad2640b8a675b16ad2ee397eaba23feb89776b8c9dfacf7c3"
+    },
+    {
+      "path": "desktop-vault-verified.png",
+      "sha256": "8520d731aa64a0ee560fbe64c352e67e8ecf4cbba4ed947ac76192de4d415f24"
+    },
+    {
+      "path": "phone-algolia-configure.png",
+      "sha256": "9cdb56f19db04f13951c654685b76908d9213692e5839ba8ba846d2005faa971"
+    },
+    {
+      "path": "phone-algolia-verified.png",
+      "sha256": "6ff0ec6fe1450cdb50deb6affbed1f95133d3ea3d57db9fee67c9a442c857d5a"
+    },
+    {
+      "path": "phone-datadog-configure.png",
+      "sha256": "d1fdf95224b11031f4b8702c69d704226dd1d47b82bfdda390b0cdceb27be026"
+    },
+    {
+      "path": "phone-gemini-verified.png",
+      "sha256": "f9b22a7cd7123728548365c52d9c6bf9ddd90da980c2f2c4a5d3b6d3c971a740"
+    },
+    {
+      "path": "phone-keepass-configure.png",
+      "sha256": "27889c20688eae99e0cce97717b7a64a7469969fb9eb6936fcf36a71b12da532"
+    },
+    {
+      "path": "phone-linq-configure.png",
+      "sha256": "ddebb1ccd7445fe328189464c06169b150627d38fe83538dc800f81ac7664f2d"
+    },
+    {
+      "path": "phone-railway-configure.png",
+      "sha256": "2fff5d5532124bb62815f788def2369875f990c6b7ff44bc8356cf7d69ff13ea"
+    },
+    {
+      "path": "phone-vault-configure.png",
+      "sha256": "2c280bfe3484b840c2b6039fbf277eabb909c29fc010e7d4a312f043985e6354"
+    },
+    {
+      "path": "phone-vault-verified.png",
+      "sha256": "373f5bc8d0c5841b003bb4409514cfa374a9fd48900f0a35215005ee639ca0fa"
+    }
+  ]
+}

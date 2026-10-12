@@ -1,0 +1,111 @@
+{
+  "mainSource": "f48efc4e2006f02f634a7e92ef19756c26545fa5",
+  "inheritedDesignCommit": "8fcb14769",
+  "mainCheckoutClean": true,
+  "connectorBase": "77f5d585fe87ffde004b89eeb5ea64b0bca34329",
+  "origin": "http://127.0.0.1:5182",
+  "base": "/",
+  "browser": "Chrome for Testing 153.0.8010.12",
+  "visualUpdate": false,
+  "budgets": {
+    "pixelDiffRatio": 0.015,
+    "contentDiffRatio": 0.05,
+    "pixelmatchThreshold": 0.1
+  },
+  "mainBuild": {
+    "fileCount": 232,
+    "indexSha256": "6b438e3dcc604e2ba60f3f27bf06fb302dc5bace7607d5f81fc1d7f4cd49d8af",
+    "manifestSha256": "9d97180ee1e608ac06f5c6bc97c0b4bf2724556fa03309160f7989e84d94fa86"
+  },
+  "connectorBuild": {
+    "fileCount": 239,
+    "indexSha256": "728eb76b9c05da2f790d30b423ef896c1034a171b4d7ec76b118b406434f03d5",
+    "manifestSha256": "ae178405d9ae576236328fd538b8805d0061cfbd3fe0a089da98ce352fd6cc89"
+  },
+  "mainReproduction": {
+    "failed": 4,
+    "passed": 2,
+    "durationSeconds": 16.7,
+    "failures": [
+      {
+        "screen": "pages-desktop",
+        "pixelDiffPercent": 47.41,
+        "contentDiffPercent": 91.74
+      },
+      {
+        "screen": "vault-unlock-desktop",
+        "pixelDiffPercent": 47.38,
+        "contentDiffPercent": 85.82
+      },
+      {
+        "screen": "pages-mobile",
+        "pixelDiffPercent": 9.68,
+        "contentDiffPercent": 27.14
+      },
+      {
+        "screen": "vault-unlock-mobile",
+        "pixelDiffPercent": 7.33,
+        "contentDiffPercent": 28.42
+      }
+    ]
+  },
+  "connectorNormalComparison": {
+    "passed": 6,
+    "failed": 0,
+    "durationSeconds": 12.8,
+    "screens": [
+      {
+        "name": "pages-desktop",
+        "matched": true,
+        "diffPixelCount": 0,
+        "diffRatio": 0,
+        "contentDiffRatio": 0
+      },
+      {
+        "name": "pages-mobile",
+        "matched": true,
+        "diffPixelCount": 77,
+        "diffRatio": 0.0002339287884311581,
+        "contentDiffRatio": 0.0006560226285207967
+      },
+      {
+        "name": "vault-unlock-desktop",
+        "matched": true,
+        "diffPixelCount": 0,
+        "diffRatio": 0,
+        "contentDiffRatio": 0
+      },
+      {
+        "name": "vault-unlock-mobile",
+        "matched": true,
+        "diffPixelCount": 121,
+        "diffRatio": 0.0003676023818203913,
+        "contentDiffRatio": 0.0014248872454927636
+      },
+      {
+        "name": "vault-list-desktop",
+        "matched": true,
+        "diffPixelCount": 16863,
+        "diffRatio": 0.013011574074074075,
+        "contentDiffRatio": 0.04372719705632959
+      },
+      {
+        "name": "vault-list-mobile",
+        "matched": true,
+        "diffPixelCount": 0,
+        "diffRatio": 0,
+        "contentDiffRatio": 0
+      }
+    ]
+  },
+  "images": {
+    "pages-desktop-main.png": "4eb187df3d021335e20d22806c27fd1987b776a55ead457cbb4b7e2c7f929c54",
+    "pages-desktop-previous.png": "7e5c26d36ca6d55d965667aaafdc562873998999f7a5efc558032da4c39a8bab",
+    "pages-mobile-main.png": "df2b8bba50c34914a6ddde338f6cb0e38db3249f502c37d3fa3d1e04f70a7eaa",
+    "pages-mobile-previous.png": "574f9cbb40a0b717694b7f7854b0244385f1ed1d9144d26621ee2b547f0f50f0",
+    "vault-unlock-desktop-main.png": "2382bd90884a5a0f24c0052dd8a59d0396d5fa3bfb345c21e088b6d3d690d9de",
+    "vault-unlock-desktop-previous.png": "f977a97bdb1a560e14513b7fea532eed49625ba53b5203ebc2209776facf3ada",
+    "vault-unlock-mobile-main.png": "0a0b05f2dab51fc17f68e493ca765079c73ef950ae57fa76ee48c079ef7c8577",
+    "vault-unlock-mobile-previous.png": "968681eed7e6f6c2598955d59c410b1aca30850795f52e9f5f7b5438c68d5fde"
+  }
+}

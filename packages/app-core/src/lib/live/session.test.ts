@@ -66,8 +66,8 @@ async function host() {
     policy: "read",
     admission: "invite",
     minutes: 5,
-    peers: net.factory(),
-    transport,
+    transport: net.transports(),
+    routes: transport,
     carriers,
   });
 }
@@ -79,7 +79,7 @@ async function join() {
     code: null,
     name: "Ada",
     note: "",
-    peers: net.factory(),
+    transport: net.transports(),
     useRoutes: true,
     carriers,
   });
@@ -172,7 +172,7 @@ describe("a session started after the plan withdrew Live sessions", () => {
       code: null,
       name: "Ada",
       note: "",
-      peers: net.factory(),
+      transport: net.transports(),
       useRoutes: true,
       carriers,
     });

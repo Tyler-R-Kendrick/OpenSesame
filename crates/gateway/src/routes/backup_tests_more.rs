@@ -9,12 +9,18 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 async fn state() -> AppState {
+    let guard = app_state::test_env::lock();
+    state_under_env_lock(&guard).await
+}
+
+async fn state_under_env_lock(_guard: &std::sync::MutexGuard<'_, ()>) -> AppState {
     let mut state = app_state::build_test(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -233,9 +239,9 @@ async fn resync_publishes_backup_wake_on_taskbus() {
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
-    let _guard = crate::app_state::test_env::lock();
+    let guard = crate::app_state::test_env::lock();
     std::env::set_var("OPENSESAME_TASKBUS", "memory");
-    let mut state = state().await;
+    let mut state = state_under_env_lock(&guard).await;
     let mem = Arc::new(InMemoryTaskBus::default());
     let as_dyn: Arc<dyn opensesame_task_bus::TaskBus> = mem.clone();
     state.task_bus = Arc::new(RwLock::new(as_dyn));

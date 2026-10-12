@@ -1,17 +1,26 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import { testWebsitePattern } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { type LoginUri, type UriMatch, newUri } from "@opensesame/vault-core";
 import { useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconPlus, IconX } from "../../components/Icons.js";
 
-const MATCHES: UriMatch[] = [
+const MATCHES = [
   "domain",
   "host",
   "exact",
   "wildcard",
   "regex",
   "never",
-];
+] as const satisfies readonly UriMatch[];
+
+/** What a rule matches, on the select that picks it — never a line under it. */
+const RULE_TITLES = {
+  wildcard:
+    "Whole hostname, case-insensitive. *.example.com matches subdomains; * matches any characters, ? matches one.",
+  regex:
+    "Whole hostname, case-insensitive. Use example\\.com or (.*\\.)?example\\.com, without / delimiters or flags.",
+} satisfies Partial<Record<UriMatch, string>>;
 
 function PatternTest({ uri }: { uri: LoginUri }) {
   const [website, setWebsite] = useState("");
@@ -19,15 +28,10 @@ function PatternTest({ uri }: { uri: LoginUri }) {
   const [busy, setBusy] = useState(false);
   return (
     <div>
-      <p className="hint">
-        Whole hostname only, case-insensitive.{" "}
-        {uri.match === "wildcard"
-          ? "*.example.com matches subdomains; * matches any characters, ? matches one."
-          : "Use example\\.com or (.*\\.)?example\\.com. No / delimiters or flags."}{" "}
-      </p>
       <div className="editor__inline">
         <input
           aria-label="Test website"
+          maxLength={FIELD_LIMITS.uri}
           value={website}
           placeholder="https://app.example.com"
           onChange={(event) => {
@@ -78,6 +82,7 @@ export function AccountWebsites({
             <input
               value={uri.uri}
               aria-label={`Address ${index + 1}`}
+              maxLength={FIELD_LIMITS.uri}
               placeholder={
                 uri.match === "wildcard"
                   ? "*.example.com"
@@ -92,6 +97,11 @@ export function AccountWebsites({
             <select
               value={uri.match}
               aria-label={`Match rule ${index + 1}`}
+              title={
+                uri.match === "wildcard" || uri.match === "regex"
+                  ? RULE_TITLES[uri.match]
+                  : undefined
+              }
               onChange={(event) => {
                 const match = MATCHES.find(
                   (candidate) => candidate === event.target.value,

@@ -1,8 +1,13 @@
 # ADR 0046 — Relayed execution and the authorization-request inbox
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-19
 Amends: ADR 0044 (post-claim controls; delegation items gain an execution mode)
+Implementation: the Host side is built: `/api/v1/relay/requests` (submit,
+`pending`, get, `approve`, `deny`, `result`) in
+`crates/gateway/src/routes/relay.rs` over the `relay_requests` table
+(`0012_connection_delegations.sql`), `crates/relay`, and
+`POST /api/v1/delegations/{id}/narrow`.
 
 ## Context
 

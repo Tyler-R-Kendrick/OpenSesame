@@ -250,8 +250,9 @@ const browser = await chromium.launch(launch);
     "the code is announced as step 2 before the PIN is typed",
   );
   check(
-    (await page.getByRole("button", { name: "Continue as guest" }).count()) ===
-      1,
+    (await page
+      .getByRole("button", { name: "Skip to the guest vault" })
+      .count()) === 1,
     "guest stays offered on the locked screen",
   );
   await page.getByLabel("PIN", { exact: true }).fill(PIN);

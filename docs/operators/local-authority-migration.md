@@ -41,9 +41,10 @@ remain available, but endpoint settings cannot unlock local pairing.
 Add only the exact eligible origin to the Host's
 `OPENSESAME_BROWSER_PAIRABLE_ORIGINS`. Do not include a URL path, wildcard,
 `null` or the author's shared GitHub origin. Restart with validated config.
-In the Pages Host panel explicitly start pairing and read the displayed user
-code. With the operator credential already supplied privately to the native
-process, run:
+In Pages, explicitly start pairing from the **Join a session** road (the one
+ceremony that speaks to a Host, [ADR 0136](../adr/0136-join-a-session-restored.md);
+Pages draws no Host panel) and read the displayed user code. With the operator
+credential already supplied privately to the native process, run:
 
 ```text
 opensesame --server <exact-host-origin> local-authority pair \
@@ -53,13 +54,14 @@ opensesame --server <exact-host-origin> local-authority pair \
 ```
 
 Inspect the native summary: exact browser origin, Host audience, proof-key
-thumbprint, principal, organization and ciphertext-sync capabilities. Type
+thumbprint, principal, organization and the requested capabilities. Type
 `approve` only when these match the intended request. Use `--deny` to record
 a refusal. Never paste the operator token into Pages or put it in a URL.
 
-Initial pairing permits only encrypted sync, not integration administration or
-browser control. For Identity authentication, configure Host
-`OPENSESAME_HOST_AUTHORIZATION_ISSUER` and its pinned public
+Initial pairing permits only what its ceiling names (`host.join` from Join a
+session; `host.sync.read` and `host.sync.write` for an encrypted-sync pairing),
+not integration administration or browser control. For Identity authentication,
+configure Host `OPENSESAME_HOST_AUTHORIZATION_ISSUER` and its pinned public
 `OPENSESAME_HOST_AUTHORIZATION_JWKS_JSON`, and Identity's explicit
 `OPENSESAME_HOST_AUTHORIZATION_AUDIENCES`. Follow the separate passkey ceremony
 for each purpose-bound control request. An ordinary session or recent pairing
@@ -106,7 +108,8 @@ Host project roles through the explicit native policy procedure in
 Retain original encrypted data and database backups during migration. Downgrading
 to a binary that lacks these checks is not a safe live rollback.
 
-Static-auth artifact version 1.0.3 in the integration tree is a release candidate;
+The static-auth artifact in the integration tree (version 1.0.4 in
+`apps/pages/public/static-auth/manifest.json`) is a release candidate;
 its presence does not establish that it has been published or independently
 verified. Use the actual release manifest and immutable bytes when distributing
 an SDK, and record final gate results separately.

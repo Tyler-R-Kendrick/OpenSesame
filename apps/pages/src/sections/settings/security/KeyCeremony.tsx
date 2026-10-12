@@ -86,11 +86,7 @@ export function KeyCard({
             }, `${KEY_TITLE[kind]} unlock removed.`),
         }}
       >
-        {lastKey ? (
-          <p className="hint">
-            This is the only key. Add another below first; then this one can go.
-          </p>
-        ) : null}
+        {lastKey ? <p className="hint">Your only key.</p> : null}
       </CeremonyShell>
     );
   }
@@ -128,9 +124,7 @@ export function KeyCard({
                 }
               : undefined
           }
-        >
-          <p className="hint">{host.reason}</p>
-        </CeremonyShell>
+        />
       );
     }
     return (
@@ -159,12 +153,7 @@ export function KeyCard({
               onDone();
             }, "Passkey unlock enrolled."),
         }}
-      >
-        <p className="hint">
-          The browser asks for your face, fingerprint or device PIN when you
-          press Create. Nothing is typed here.
-        </p>
-      </CeremonyShell>
+      />
     );
   }
 

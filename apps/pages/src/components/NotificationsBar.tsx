@@ -10,22 +10,28 @@ import {
   defaultUpstream,
 } from "@opensesame/app-core/lib/federation.js";
 import {
+  arrivalSurface,
+  desktopRinging,
+} from "@opensesame/app-core/lib/notice-toast.js";
+import {
   type Notice,
   dismissNotice,
   listNotices,
+  subscribeNoticeArrivals,
   subscribeNotices,
 } from "@opensesame/app-core/lib/notices.js";
 import { loadQueue } from "@opensesame/app-core/lib/queue.js";
 import { buildHealthReport } from "@opensesame/app-core/lib/vault/health.js";
 import {
   useCallback,
-  useMemo,
+  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 import { Link, useNavigate } from "react-router";
 import { useModalFocus } from "../lib/modal-focus.js";
+import { tabAway } from "../lib/notice-desktop.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { CeremonyLink } from "./CeremonyLauncher.js";
@@ -73,7 +79,7 @@ export type NoticesSnapshot = {
 export function useNotices(): NoticesSnapshot {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
   const { items } = notificationsBarDependencies.useVault();
-  const health = useMemo(() => buildHealthReport(items), [items]);
+  const health = buildHealthReport(items);
   const queued = loadQueue().length;
   const count = notices.length + queued + (health.findings.length > 0 ? 1 : 0);
   return { notices, health, queued, count };
@@ -90,6 +96,19 @@ function NotificationsBarDefault({
 }: { form?: NotificationsForm; onClose?: () => void }) {
   const { notices, health, queued, count } = useNotices();
   const [open, setOpen] = useState(form === "panel");
+
+  // An arrival that a toast or a desktop ring already announced does not also
+  // open this sheet. Only one that nothing could show (the tab is away and
+  // desktop is off) opens it, so the person finds it on their return.
+  useEffect(() => {
+    return subscribeNoticeArrivals((notice) => {
+      if (notice.kind !== "status") return;
+      if (notice.tone !== "err" && notice.tone !== "warn") return;
+      if (arrivalSurface({ away: tabAway(), desktop: desktopRinging() }))
+        return;
+      setOpen(true);
+    });
+  }, []);
   const healthPending = health.findings.length > 0;
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -112,11 +131,10 @@ function NotificationsBarDefault({
       {form === "panel" ? null : (
         <button
           type="button"
-          className={["cx__btn", count > 0 ? "cx__btn--attn" : "cx__btn--off"]
-            .filter(Boolean)
-            .join(" ")}
+          className={
+            count > 0 ? "cx__btn cx__btn--attn" : "cx__btn cx__btn--off"
+          }
           aria-label={label}
-          title={label}
           onClick={() => setOpen(true)}
         >
           <IconBell />
@@ -199,23 +217,11 @@ function NotificationsBarDefault({
                     ok={false}
                     top="Guest session"
                     name={notice.title}
-                    facts={(() => {
-                      const rows: { key: string; value: string }[] = [];
-                      if (notice.userCode) {
-                        rows.push({
-                          key: "Consent code",
-                          value: notice.userCode,
-                        });
-                      }
-                      if (notice.body.includes("backup account")) {
-                        rows.push({
-                          key: "Backups",
-                          value:
-                            "Provisional Postgres accounts claim with this sign-in",
-                        });
-                      }
-                      return rows;
-                    })()}
+                    facts={
+                      notice.userCode
+                        ? [{ key: "Consent code", value: notice.userCode }]
+                        : []
+                    }
                     primary={{
                       label: "Sign in to claim",
                       icon: <IconLogin size={18} />,
@@ -236,8 +242,7 @@ function NotificationsBarDefault({
               )}
               {queued > 0 ? (
                 <p className="hint">
-                  {queued} staged device or claim action
-                  {queued === 1 ? "" : "s"} wait on Identity.
+                  {queued} staged action{queued === 1 ? "" : "s"}
                 </p>
               ) : null}
             </div>

@@ -1,11 +1,13 @@
 /**
  * Design lint — copy that narrates instead of showing (DESIGN.md, `controls.md` § 0).
  *
- * Split from `design-lint.mjs`, which owns the sweep and the ledgers. Two
+ * Split from `design-lint.mjs`, which owns the sweep and the ledgers. Three
  * checks live here because they are one idea: a screen may not describe itself.
  *
  *   - `no-explainer` — a caption that narrates a panel instead of showing the
  *     row, field or receipt it stands for.
+ *   - `no-hint-caption` (`design-lint-hints.mjs`) — a `hint` that carries a
+ *     sentence instead of a fact, on any screen.
  *   - `status-is-symbol` — status painted as a word on a chip.
  *
  * `root`, `report` and `lineOf` are passed in rather than reached for, so this
@@ -13,6 +15,7 @@
  */
 
 import { relative } from "node:path";
+import { checkHintCaptions } from "./design-lint-hints.mjs";
 
 /** Captions that narrate a connector panel instead of showing the row. */
 const EXPLAINER =
@@ -63,8 +66,9 @@ function checkStatusPills(file, source, report, lineOf) {
   }
 }
 
-/** Both, in the order a reader meets them. */
+/** All three, in the order a reader meets them. */
 export function checkCopy(root, file, source, report, lineOf) {
   checkExplainers(root, file, source, report, lineOf);
+  checkHintCaptions(file, source, report, lineOf);
   checkStatusPills(file, source, report, lineOf);
 }

@@ -1,9 +1,7 @@
 import { isString } from "@opensesame/os-domain";
 /** Human workflow adapter; metadata discovery shares the native provider algorithms. */
 import {
-  type SecretItem,
   type VaultItem,
-  createItem,
   definitionFor,
   itemTypeId,
   outsideAccounts,
@@ -55,7 +53,9 @@ export function localInventory(
           : item.kind === "note"
             ? "secure-note"
             : itemTypeId(item),
-      tags: [],
+      // A folder is how this vault files an item; it stands where another
+      // store would keep a tag.
+      tags: item.folderId ? ["folder"] : [],
       urls: [...new Set(rawMetadataUrls(item).map(metadataOrigin))].filter(
         Boolean,
       ),
@@ -182,65 +182,6 @@ export async function passwordWorkflowFind(queries: readonly string[]) {
 export async function passwordWorkflowAudit() {
   return auditInventory(await passwordWorkflowInventory());
 }
-export type CredentialMetadata = { url?: string; notes?: string };
-export async function createPrivateCredential(
-  title: string,
-  sourceValue: string,
-  metadata: CredentialMetadata = {},
-) {
-  const state = unlocked();
-  const value = sourceValue.replace(/\r?\n$/, "");
-  if (
-    state.items.some(
-      (item) =>
-        item.deletedAt === null &&
-        item.name.trim().toLowerCase() === title.trim().toLowerCase(),
-    )
-  )
-    throw new Error(
-      "An item with this title already exists; nothing was created.",
-    );
-  if (!title.trim() || !value.trim())
-    throw new Error("A title and private credential are required.");
-  await assertShareReach(state.tomb, { kind: "vault" }, "write");
-  if (unlocked().tomb !== state.tomb)
-    throw new Error("The vault changed. Try again.");
-  const item = createItem("secret", title.trim());
-  if (item.kind !== "secret") throw new Error("Credential type unavailable.");
-  item.value = value;
-  item.notes = metadata.notes ?? "";
-  if (metadata.url)
-    item.fields = [
-      { id: "url", name: "Website", value: metadata.url, hidden: false },
-    ];
-  await savePrivateItem(item);
-  const saved = privateWriteSnapshot(state.tomb).items.find(
-    (candidate) => candidate.id === item.id,
-  );
-  verifyCredentialWrite(saved, item);
-  return {
-    verified: true,
-    id: item.id,
-    ref: localReference(state.tomb, item.id, "value"),
-  };
-}
-function verifyCredentialWrite(
-  saved: VaultItem | undefined,
-  expected: SecretItem,
-) {
-  if (
-    saved?.kind !== "secret" ||
-    saved.id !== expected.id ||
-    saved.name !== expected.name ||
-    saved.notes !== expected.notes ||
-    saved.value !== expected.value ||
-    JSON.stringify(saved.fields) !== JSON.stringify(expected.fields)
-  )
-    throw new Error(
-      "Credential write is unverified. Do not retry automatically.",
-    );
-}
-
 export async function comparePrivatePassword(
   id: string,
   candidate: string,

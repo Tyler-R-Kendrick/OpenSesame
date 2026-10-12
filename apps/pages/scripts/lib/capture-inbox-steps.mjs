@@ -69,7 +69,7 @@ async function seedVault(page, origin) {
 async function chooseIfOffered(context, width, title, base) {
   const probe = await context.newPage();
   await probe.setViewportSize({ width, height: 900 });
-  await probe.goto(`${base}/settings/capabilities`);
+  await probe.goto(`${base}/settings/features`);
   await unlockVault(probe);
   await awaitCapabilitySections(probe);
   const offered = (await capabilitySwitch(probe, title).count()) > 0;
@@ -128,7 +128,7 @@ async function seed(page, { origin, site }, { capabilities, optional = [] }) {
  * without the panel has no such key, which is the honest "before".
  */
 async function allowSystem({ main }, { site, origin }) {
-  await main.goto(`${site}/settings/capabilities`);
+  await main.goto(`${site}/settings/features`);
   await unlockVault(main);
   await awaitCapabilitySections(main);
   const allow = main.getByRole("button", {
@@ -187,9 +187,9 @@ const bringToTop = (heading) =>
     node.scrollIntoView({ block: "start", behavior: "instant" });
   });
 
-/** Open Settings › Capabilities in the front tab, at its notification section. */
+/** Open Settings › Features in the front tab, at its notification section. */
 async function capabilities({ main, width }, site) {
-  await main.goto(`${site}/settings/capabilities`);
+  await main.goto(`${site}/settings/features`);
   await unlockVault(main);
   await awaitCapabilitySections(main);
   const local = main.getByRole("heading", { name: /^Local notifications/i });

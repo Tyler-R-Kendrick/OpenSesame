@@ -56,6 +56,19 @@ describe("describeVaultRow — one line of truth", () => {
     expect(describeVaultRow(guest)).toBe(
       "no key · this tab only · nothing here is touched",
     );
+    expect(
+      describeVaultRow({
+        ...work,
+        address: { ownerKind: "organization", owner: "acme", slug: "ledger" },
+      }),
+    ).toMatch(/acme\/ledger$/);
+    const publishedUnnamed = {
+      ...unnamed,
+      label: "ada/personal",
+      address: { ownerKind: "user" as const, owner: "ada", slug: "personal" },
+    };
+    expect(describeVaultRow(publishedUnnamed)).not.toContain("ada/personal");
+    expect(publishedUnnamed.label).toBe("ada/personal");
   });
 });
 
@@ -114,5 +127,21 @@ describe("VaultList — a face for each vault", () => {
     const row = document.querySelector(".vault-row__body");
     expect(row?.querySelector(".glyph")).not.toBeNull();
     expect(row?.querySelector(".vault-row__name")?.textContent).toBe("Work");
+  });
+
+  it("shows each vault's name in the menu the picker opens, including the open one", () => {
+    render(
+      <VaultList vaults={[personal, work]} density="menu" onPick={() => {}} />,
+    );
+    const names = [
+      ...document.querySelectorAll(".vault-list--menu .vault-row__name"),
+    ].map((node) => node.textContent);
+    expect(names).toEqual(["personal", "Work"]);
+    expect(
+      document.querySelector(
+        ".vault-list--menu .vault-row--open .vault-row__name",
+      )?.textContent,
+    ).toBe("personal");
+    expect(screen.getByRole("button", { name: /Work/ })).toBeTruthy();
   });
 });

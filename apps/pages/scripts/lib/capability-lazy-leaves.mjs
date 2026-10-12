@@ -49,12 +49,58 @@ const LAZY_LEAVES = [
   ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
+  // Plugin pairing is reached by the tailnet sync and device-management
+  // runtimes. Its pure shared leaf can fold into the entry at the 12 KB
+  // merge floor when record navigation changes the surrounding chunks.
+  // Keep the optional pairing parser/store off the bootstrap (ADR 0130 §4).
+  [
+    "/packages/app-core/src/lib/tailnet-sync/plugin-pairing.ts",
+    "networking.tailnet",
+    "tailnet-plugin-pairing",
+  ],
+  // The relay's HTTP client (ADR 0181) is a small pure leaf reached only by
+  // the org-vault directory panels. At the 12 KB merge floor Rollup folds it
+  // into a neighbour whenever the Settings sections reshuffle the chunks
+  // around it, and the gate reads the fold as a static import of
+  // `sharing.relay` from the bootstrap (ADR 0130 §4). Pinned to the
+  // capability's own chunk, it loads with the module and stays off the entry.
+  [
+    "/packages/app-core/src/lib/vault-relay/client",
+    "sharing.relay",
+    "cap-sharing.relay",
+  ],
+  // Document enrolment (`push-browser`, `push-enrolment`, `push-seams`) is
+  // pure. `experimentalMinChunkSize` then folds that small chunk into `main`,
+  // which the gate reads as a static import of `notifications.web-push`
+  // (ADR 0130 §4). The capability chunk is the dynamic entry, so these files
+  // load with the module and stay off the bootstrap. `push.ts` is the worker
+  // half and is not matched here.
+  ["/src/lib/push-", "notifications.web-push", "cap-notifications.web-push"],
+  [
+    "/src/modules/identity.ceremonies/ClaimDifferentLink",
+    "identity.ceremonies",
+    "cap-identity.claim-different-link",
+  ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize-mint-proof",
+    "identity.local-iam",
+    "cli-authorize-mint",
+  ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize-proof-run",
+    "identity.local-iam",
+    "cli-authorize-mint",
+  ],
 ];
 
 export function lazyLeafChunk(id, entry) {
   const path = toPosix(id);
   for (const [dir, capability, name] of LAZY_LEAVES) {
-    if (path.includes(dir) && entry.capability === capability) return name;
+    if (!path.includes(dir)) continue;
+    const pinSharedVaultLeaf =
+      entry.classification === "shared" &&
+      dir.startsWith("/packages/app-core/src/lib/vault/");
+    if (entry.capability === capability || pinSharedVaultLeaf) return name;
   }
   return undefined;
 }

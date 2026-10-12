@@ -11,10 +11,10 @@ import { readLocalDirectory } from "../../lib/local-directory.js";
  * View-model logic for `LocalResourcesPanel` (ADR 0133 §8): the pure part of that
  * screen — no React, no DOM — so any shell can drive the same behaviour.
  */
+import { policyLabel } from "../../lib/local-share-grants-approvals.js";
 import {
   type LocalShare,
   listLocalShares,
-  policyLabel,
 } from "../../lib/local-share-grants.js";
 import { loadSettings } from "../../lib/settings.js";
 import { listDeviceVaults } from "../../lib/vaults.js";

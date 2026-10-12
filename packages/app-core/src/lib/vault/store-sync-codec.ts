@@ -19,6 +19,7 @@ import {
   type VaultItem,
   createItem,
   definitionFor,
+  parseItemEnvironments,
 } from "@opensesame/vault-core";
 import { accountFromEntry, describeAccount } from "./store-sync-account.js";
 import {
@@ -97,6 +98,8 @@ export function entryToVaultItem(
   if (isWholeItemMeta(meta)) {
     item.fields = customFieldsIn(meta.fields);
     item.favorite = meta.favorite === true;
+    const environments = parseItemEnvironments(overlapCast(meta.environments));
+    if (environments) item.environments = environments;
   }
   return item;
 }
@@ -152,6 +155,7 @@ export function itemToStoreEntry(
   meta.values ??= namedValues(item);
   meta.fields = customFieldsOut(item.fields);
   meta.favorite = item.favorite || undefined;
+  meta.environments = item.environments;
 
   const jsonTrailer = `${JSON.stringify(meta)}\n`;
   const trailer = mergeOtpauthIntoTrailer(jsonTrailer, otpauth);

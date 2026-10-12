@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type ParityCommand, parseParity } from "./parity-parse.js";
 import { leftover, takeOption } from "./parse-options.js";
 import { parseVaultSync } from "./parse-vault-sync.js";
+import { type SessionCommand, parseSession } from "./session-parse.js";
 
 export const GlobalFlagsSchema = z.object({
   json: z.boolean().default(false),
@@ -15,6 +16,7 @@ export type GlobalFlags = z.infer<typeof GlobalFlagsSchema>;
 
 export type ParsedCommand =
   | ParityCommand
+  | SessionCommand
   | { name: "help" }
   | {
       name: "login";
@@ -167,6 +169,8 @@ export function parseArgs(argv: string[]): ParsedCommand {
   }
 
   if (cmd === "vault") return parseVault(args, flags);
+  // session [<link>] list | invoke <connection> <operation>  (ADR 0196)
+  if (cmd === "session") return parseSession(args, flags);
 
   throw new Error(`Unknown command: ${cmd}`);
 }
@@ -322,7 +326,8 @@ Commands:
   inventory | audit           Metadata and organization checks, never values
   create api-credential --title <title> --vault <vault> --stdin|--clipboard
   password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference>        Explicit plaintext stdout
+  read <op://reference> [--reveal] [--desktop]
+                               Human-only plaintext stdout (TTY, no agent context)
   run --env NAME=op://reference -- <command...>
   env write <file> <NAME=op://reference...>
   env resolve <file> --output <file>|--in-place
@@ -356,6 +361,14 @@ Commands:
   vault share <item>           Share a secret once; prints the link and code
   vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
                                vault here, set it up from the drive first
+  session [<link>] list        Join a live session as a device (ADR 0196), wait
+                               for the host's approval, list what it granted
+  session [<link>] invoke <connection> <operation> [--input key=value]...
+                               Use one granted connection through the host's tab
+                               options: --code CODE, --name LABEL, --connection
+                               ID (a hint), --timeout SECONDS (default 900)
+                               The link and code are bearers: set
+                               OPENSESAME_LIVE_LINK / OPENSESAME_LIVE_CODE
   mcp host|client              Serve the host- or client-facing MCP tools
                                (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
 

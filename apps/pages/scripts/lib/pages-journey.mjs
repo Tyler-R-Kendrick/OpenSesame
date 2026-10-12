@@ -94,18 +94,23 @@ export async function openSection(page, label) {
 }
 
 /**
- * Choose capabilities the way a person does — Settings › Capabilities and
- * the capability's switch, which commits in place. A device that has approved nothing has no rail row for the sections
- * those capabilities contribute (ADR 0130), so a walk that needs one says
- * which it needs instead of pretending the row is there.
+ * Choose capabilities the way a person does — Settings › Features and the
+ * capability's switch, which commits in place. A device that has approved
+ * nothing has no rail row for the sections those capabilities contribute
+ * (ADR 0130), so a walk that needs one says which it needs instead of
+ * pretending the row is there.
  */
 export async function addCapabilities(page, titles) {
-  await openSettingsCategory(page, "Capabilities");
+  await openSettingsCategory(page, "Features");
   for (const title of titles) {
     // Always on (ADR 0135): in every plan, with no row to add it from.
     if (ALWAYS_ON_TITLES.has(title)) continue;
     await awaitCapabilitySections(page);
     const add = capabilityOffSwitch(page, title);
+    if ((await add.count()) === 0) {
+      await capabilityOnSwitch(page, title).waitFor({ timeout: 15000 });
+      continue;
+    }
     await add.waitFor({ timeout: 15000 });
     await add.click();
     await page.getByTestId("capability-review").waitFor({

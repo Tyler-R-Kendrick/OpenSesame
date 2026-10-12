@@ -67,9 +67,7 @@ export function MagicLinkStage({
             <IconMail size={16} />
           </IconKey>
         </div>
-        {linkSent ? (
-          <p className="hint">Check your email for a sign-in link.</p>
-        ) : null}
+        {linkSent ? <p className="hint">Link sent.</p> : null}
         <FailureNotice
           id="unlock:magic-link"
           title="Email link"

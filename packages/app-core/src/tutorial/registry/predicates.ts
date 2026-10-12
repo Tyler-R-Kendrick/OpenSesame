@@ -97,6 +97,18 @@ function pluginPanelDrawn(plugin: string): boolean {
   return pluginPanels.get(plugin)?.() === true;
 }
 
+/**
+ * Whether Settings draws the voice and inference picks. The shell says so,
+ * because that panel is the on-device model's contribution: the AI section
+ * can still be drawn (WebMCP, or the remote support model) while the picks
+ * are not. Absent, they are not drawn.
+ */
+let supportModelPicks: () => boolean = () => false;
+
+export function provideGuideSupportModelPicks(read: () => boolean): void {
+  supportModelPicks = read;
+}
+
 function currentRoute(): GuideRouteId {
   return guideRouteForPath(page().location.pathname);
 }
@@ -128,6 +140,17 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
       "The open vault holds at least one item outside the trash. False while it is locked.",
     read: () =>
       vaultStore.getSnapshot().items.some((item) => item.deletedAt === null),
+  },
+  {
+    id: "vault.has-account",
+    description:
+      "The open vault holds at least one account outside the trash. The accounts filter and the username and password copy keys exist only then. False while it is locked.",
+    read: () =>
+      vaultStore
+        .getSnapshot()
+        .items.some(
+          (item) => item.deletedAt === null && item.kind === "account",
+        ),
   },
   {
     id: "vault.has-trash",
@@ -245,14 +268,20 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
   {
     id: "plugin.surrogate-proxy.panel",
     description:
-      "Settings › Capabilities draws the surrogate proxy's panel: a daemon is paired, or this device may pair one.",
+      "Settings › Features draws the surrogate proxy's panel: a daemon is paired, or this device may pair one.",
     read: () => pluginPanelDrawn("surrogate-proxy"),
   },
   {
     id: "plugin.browser-autofill.panel",
     description:
-      "Settings › Capabilities draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
+      "Settings › Features draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
     read: () => pluginPanelDrawn("browser-autofill"),
+  },
+  {
+    id: "support.model-picks",
+    description:
+      "Settings › Integrations draws the voice and inference picks under AI. The on-device model contributes that panel, so the picks are absent while it is unapproved.",
+    read: () => supportModelPicks(),
   },
 ];
 

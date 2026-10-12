@@ -38,7 +38,7 @@ function planeSentence(plane: ResolvedModelPlane): string {
         ? "Running on this device, in this browser. Nothing leaves the page."
         : plane.kind === "local"
           ? "Running on this machine. Nothing crosses your network."
-          : "Running at the provider you named. Redacted frames cross to them.";
+          : "Hosted model selected. Answers require a verified connector and active Remote AI support and External connectors capabilities.";
     case "fell-back-to-browser":
       return "No provider set, so this device's own model is doing it. Nothing leaves the page — this is the narrowest arrangement available.";
     case "browser-not-ready":
@@ -72,7 +72,7 @@ function SaveFlash({ flash }: { flash: Flash | null }) {
  * this panel only chooses which slug each role uses.
  *
  * `embedded`: drawn inside a section that already has its subheader (AI on
- * Settings › Capabilities) — no second "Models" label that would read as a
+ * Settings › Integrations) — no second "Models" label that would read as a
  * section of its own; the plane's mark moves into the tile.
  */
 export function ModelProviderPanel({
@@ -170,7 +170,7 @@ export function ModelProviderPanel({
   );
 }
 
-/** The picker as the AI section of Settings › Capabilities draws it. */
+/** The picker as the AI section of Settings › Integrations draws it. */
 export function EmbeddedModelProviderPanel() {
   return <ModelProviderPanel embedded />;
 }

@@ -1,5 +1,6 @@
 import { createItem, emptyBody } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { FIELD_LIMITS } from "./field-limits.js";
 import { itemCreatePath, resolveItemPath, writeItem } from "./item-path.js";
 
 const folder = { id: "work", name: "Work", createdAt: "2026-01-01" };
@@ -31,6 +32,25 @@ describe("editor item paths", () => {
     "./bad\\path/name",
   ])("refuses malformed path %s", (name) => {
     expect(() => resolveItemPath(name, null, [])).toThrow();
+  });
+  it("caps a name and a new folder path, and says which", () => {
+    const longest = "n".repeat(FIELD_LIMITS.name);
+    expect(resolveItemPath(longest, null, []).name).toBe(longest);
+    expect(() => resolveItemPath(`${longest}n`, null, [])).toThrow(
+      `at most ${FIELD_LIMITS.name} characters`,
+    );
+    expect(() => resolveItemPath(`./a/${longest}n`, null, [])).toThrow(
+      `at most ${FIELD_LIMITS.name} characters`,
+    );
+    const segment = "s".repeat(FIELD_LIMITS.name);
+    expect(() => resolveItemPath(`./${segment}x/login`, null, [])).toThrow(
+      "each folder name",
+    );
+    const deep = Array.from({ length: 4 }, () => segment).join("/");
+    expect(deep.length).toBeGreaterThan(FIELD_LIMITS.folder);
+    expect(() => resolveItemPath(`./${deep}/login`, null, [])).toThrow(
+      `${FIELD_LIMITS.folder} characters`,
+    );
   });
   it("reuses an existing folder and rejects a deleted selection", () => {
     expect(

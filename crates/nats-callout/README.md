@@ -14,8 +14,9 @@ re-verifies everything else from the raw request JWT the bridge forwards.
   `src/routes/nats_callout.rs`) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`transport_callout_envelope`).
   The bridge binary is its own deployable.
-- **Builds on:** [`opensesame-authz`](../authz), [`opensesame-domain`](../domain)
-  and [`opensesame-transport-security`](../transport-security) (every TLS config;
+- **Builds on:** [`opensesame-authz`](../authz), [`opensesame-domain`](../domain),
+  [`opensesame-redaction`](../redaction) (the bridge binary's log scrubber) and
+  [`opensesame-transport-security`](../transport-security) (every TLS config;
   this crate builds none).
 - The bridge is high-trust, not compromise-resistant: a compromised bridge can
   replay server requests it has seen, never mint an allow decision.

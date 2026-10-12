@@ -31,36 +31,18 @@ import {
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
-import { IconClock, IconRefresh } from "../../components/Icons.js";
+import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useIdentityPlane } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 import { formatTime } from "./format.js";
 import { useReceiptNames } from "./use-receipt-names.js";
-
-/** One line of the trail: when, what, of whom, and how it came out. */
-function ReceiptRow({
-  event,
-  names,
-}: { event: AuditEvent; names: ReadonlyMap<string, string> }) {
-  const target = receiptTarget(event);
-  const named = target ? (names.get(target.id) ?? target.id) : null;
-  return (
-    <li>
-      <span className="access-trail__when">
-        <IconClock /> {formatTime(event.occurredAt)}
-      </span>
-      <span className="access-trail__type">
-        {receiptLabel(event.eventType)}
-        {named ? ` · ${named}` : ""}
-      </span>
-      <StatusMark
-        tone={statusTone(outcomeChip(event.outcome))}
-        label={event.outcome}
-      />
-    </li>
-  );
-}
 
 /** What a failed read says. The device's names no service; a remote one may. */
 function failure(refused: IdentityError | null, device: boolean): string {
@@ -162,58 +144,106 @@ export function Receipts({
   );
   const failed = reachable ? error : "Offline.";
 
+  const selection = useAccessRecord("access-receipts", "sessions");
+  const selected = events?.find((event) => event.id === selection.id);
   return (
-    <section className="panel" id="access-receipts">
-      <div className="panel__head">
-        <div>
-          <h2>Receipts</h2>
-        </div>
-        {pending > 0 ? (
-          <StatusMark
-            tone="warn"
-            label={`${pending} ${pending === 1 ? "receipt" : "receipts"} not written yet`}
-          />
-        ) : null}
-        {failed ? (
-          <StatusMark tone={reachable ? "err" : "warn"} label={failed} />
-        ) : null}
-        <button
-          type="button"
-          className="icon-btn icon-btn--sm"
-          onClick={() => void load()}
-          disabled={busy || !reachable}
-          title="Reload receipts"
-          aria-label="Reload receipts"
-        >
-          <IconRefresh size={15} />
-        </button>
-      </div>
-
-      <div className="panel__body panel__body--tight">
-        <FailureNotice
-          id="access:receipts"
-          title="Receipts"
-          message={failed}
-          tone={reachable ? "err" : "warn"}
+    <AccessRecords
+      title="Receipts"
+      emptyMessage={
+        failed
+          ? "Unavailable"
+          : busy && events === null
+            ? "Loading…"
+            : "No receipts yet."
+      }
+      selection={selection}
+      rows={(events ?? []).map((event) => {
+        const target = receiptTarget(event);
+        return {
+          id: event.id,
+          label: `${receiptLabel(event.eventType)}${target ? ` · ${names.get(target.id) ?? target.id}` : ""}`,
+          extension: "receipt",
+          to: selection.path(event.id),
+        };
+      })}
+      commands={
+        <ReceiptCommands
+          pending={pending}
+          failed={failed}
+          reachable={reachable}
+          busy={busy}
+          reload={() => void load()}
         />
-        {failed ? (
-          <p className="hint" aria-hidden="true">
-            —
-          </p>
-        ) : busy && events === null ? (
-          <output className="note">
-            {device ? "Reading receipts…" : "Asking Identity…"}
-          </output>
-        ) : events && events.length > 0 ? (
-          <ul className="access-trail">
-            {events.map((event) => (
-              <ReceiptRow key={event.id} event={event} names={names} />
-            ))}
-          </ul>
-        ) : (
-          <p className="hint">No receipts yet.</p>
-        )}
-      </div>
-    </section>
+      }
+      status={
+        <>
+          <FailureNotice
+            id="access:receipts"
+            title="Receipts"
+            message={failed}
+            tone={reachable ? "err" : "warn"}
+          />
+          {busy && events === null ? (
+            <output>{device ? "Reading receipts…" : "Asking Identity…"}</output>
+          ) : null}
+        </>
+      }
+    >
+      {selected ? (
+        <AccessDetail
+          title={receiptLabel(selected.eventType)}
+          kind="Receipt"
+          actions={
+            <StatusMark
+              tone={statusTone(outcomeChip(selected.outcome))}
+              label={selected.outcome}
+            />
+          }
+        >
+          <AccessFact label="Time" value={formatTime(selected.occurredAt)} />
+          <AccessFact label="Outcome" value={selected.outcome} />
+          <AccessFact
+            label="Target"
+            value={receiptTarget(selected)?.id ?? "—"}
+          />
+          <AccessFact label="Reference" value={selected.id} />
+        </AccessDetail>
+      ) : null}
+    </AccessRecords>
+  );
+}
+
+function ReceiptCommands({
+  pending,
+  failed,
+  reachable,
+  busy,
+  reload,
+}: {
+  pending: number;
+  failed: string | null;
+  reachable: boolean;
+  busy: boolean;
+  reload: () => void;
+}) {
+  return (
+    <>
+      {pending > 0 ? (
+        <StatusMark tone="warn" label={`${pending} receipts not written yet`} />
+      ) : null}
+      {failed ? (
+        <StatusMark tone={reachable ? "err" : "warn"} label={failed} />
+      ) : null}
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        onClick={reload}
+        disabled={busy || !reachable}
+        title="Reload receipts"
+        aria-label="Reload receipts"
+      >
+        <IconRefresh size={15} />
+      </button>
+    </>
   );
 }

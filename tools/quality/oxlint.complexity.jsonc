@@ -31,6 +31,7 @@
     ".cursor/**",
     ".deepsec/**",
     ".gemini/**",
+    ".grok/**",
     ".impeccable/**",
     ".opencode/**",
     ".pi/**",

@@ -17,11 +17,6 @@ export type ProviderBrand = {
   label: string;
   className: string;
   Icon: BrandIcon;
-  /**
-   * Honesty footnote when the button fronts a broker rather than the provider
-   * itself — shown under the buttons, never baked into the button label.
-   */
-  note?: string;
 };
 
 function GoogleG({ size = 18 }: { size?: number }): ReactElement {

@@ -1,0 +1,129 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "guardian-share",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Guardian share",
+    "plural": "Guardian shares",
+    "extension": ".share",
+    "summary": "A share of someone else's recovery key that you hold for them, wrapped so that only your own security key opens it.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "share",
+        "title": "Share",
+        "fields": [
+          {
+            "id": "owner",
+            "type": "string",
+            "label": "Held for",
+            "required": true
+          },
+          {
+            "id": "circleLabel",
+            "type": "string",
+            "label": "Circle"
+          },
+          {
+            "id": "status",
+            "type": "select",
+            "label": "State",
+            "options": ["held", "approved", "released", "retired"],
+            "default": "held"
+          },
+          {
+            "id": "epoch",
+            "type": "number",
+            "label": "Epoch"
+          },
+          {
+            "id": "circleId",
+            "type": "string",
+            "label": "Circle id"
+          },
+          {
+            "id": "guardianId",
+            "type": "string",
+            "label": "Your guardian id"
+          }
+        ]
+      },
+      {
+        "id": "record",
+        "title": "Record",
+        "fields": [
+          {
+            "id": "ownerKey",
+            "type": "string",
+            "label": "Owner key (pinned)"
+          },
+          {
+            "id": "policy",
+            "type": "multiline",
+            "label": "Signed policy"
+          },
+          {
+            "id": "wrapped",
+            "type": "key-material",
+            "label": "Wrapped share"
+          },
+          {
+            "id": "receivingKey",
+            "type": "key-material",
+            "label": "Receiving key"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "wrapped",
+      "trailer": [
+        {
+          "key": "held_for",
+          "field": "owner"
+        },
+        {
+          "key": "circle",
+          "field": "circleLabel"
+        },
+        {
+          "key": "state",
+          "field": "status"
+        },
+        {
+          "key": "epoch",
+          "field": "epoch"
+        },
+        {
+          "key": "circle_id",
+          "field": "circleId"
+        },
+        {
+          "key": "guardian_id",
+          "field": "guardianId"
+        },
+        {
+          "key": "owner_key",
+          "field": "ownerKey"
+        },
+        {
+          "key": "policy",
+          "field": "policy"
+        },
+        {
+          "key": "receiving_key",
+          "field": "receivingKey"
+        }
+      ]
+    },
+    "cxf": {
+      "credential": "custom-fields"
+    },
+    "subtitle": ["owner", "circleLabel"],
+    "search": ["owner", "circleLabel", "status"]
+  }
+}

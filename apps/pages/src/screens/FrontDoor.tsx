@@ -11,8 +11,8 @@
  * (AGENTS.md §5, governed only by the operator's "Allow guests" switch).
  *
  * The title is the wordmark itself, at hero scale: the same slot-reel every
- * gate runs, big enough to be the one authored moment of the screen. Nothing
- * else here moves.
+ * gate runs, big enough to be the one authored moment of the screen. Behind
+ * the card the cipher dial idles, as it does on every lock-v5 gate.
  *
  * The keyboard lands on the first road; Tab walks to the second, and Skip
  * sits in the card's corner where a skip always lives.
@@ -32,10 +32,15 @@ import { useSupportRoute } from "../tutorial/session.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { JoinRoadButton } from "./join/JoinRoad.js";
 import { GuestSkip } from "./unlock/GuestRoad.js";
+import { useIdleDial } from "./unlock/IdleDial.js";
+import { ImportRoadButton } from "./unlock/ImportRoad.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
 import "./unlock.css";
 import "./door.css";
+
+/** The door's hero: fitted to the card, at most 90px of em (DESIGN.md § Mark). */
+const HERO_FIT = { max: 90 };
 
 export function FrontDoor({
   onOpenSetup,
@@ -50,6 +55,7 @@ export function FrontDoor({
   useSupportRoute("/unlock/door");
   const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
   const firstRoad = useRef<HTMLButtonElement | null>(null);
+  const { paneRef, cardRef, notesRef, dial } = useIdleDial();
   const [busy, setBusy] = useState(false);
   const [guestFailed, setGuestFailed] = useState<string | null>(null);
 
@@ -73,14 +79,15 @@ export function FrontDoor({
   }
 
   return (
-    <div className="unlock door">
-      <div className="unlock__card door__card">
+    <div className="unlock unlock--lock-v5 door" ref={paneRef}>
+      {dial}
+      <div className="unlock__card door__card" ref={cardRef}>
         {/* The anonymous road, in the card's corner where a skip lives
             (AGENTS.md §5). */}
         <GuestSkip busy={busy} onGuest={startGuest} lands />
         <PendingLinkBanner />
         <header className="door__hero">
-          <Wordmark as="h1" className="door__wordmark" size={40} />
+          <Wordmark as="h1" className="door__wordmark" fit={HERO_FIT} />
           <p className="door__lede">Set up your own vault, or join one.</p>
         </header>
 
@@ -111,6 +118,9 @@ export function FrontDoor({
             </span>
           </button>
           <JoinRoadButton onOpen={onOpenJoin} />
+          {/* The third road: a vault that begins from a file, held until it
+              is sealed (ADR 0188). */}
+          <ImportRoadButton />
         </fieldset>
 
         <div className="door__theme">
@@ -124,7 +134,7 @@ export function FrontDoor({
           message={guestFailed}
         />
       </div>
-      <ReleaseNotes />
+      <ReleaseNotes ref={notesRef} />
     </div>
   );
 }

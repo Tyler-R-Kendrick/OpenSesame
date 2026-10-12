@@ -39,12 +39,13 @@ fn production_discovery_requires_the_host_operator() {
 
 #[tokio::test]
 async fn operator_can_select_org_but_session_cannot_spoof_it() {
-    let state = app_state::build_test(Args {
+    let state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -363,12 +364,13 @@ impl AuthServer {
 
 async fn harness() -> (AppState, AuthServer) {
     let server = AuthServer::start().await;
-    let state = app_state::build_test(Args {
+    let state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");
@@ -399,7 +401,6 @@ fn operator(state: &AppState) -> (&'static str, String) {
         format!("Bearer operator:{}", state.operator_token),
     )
 }
-
 async fn send(state: &AppState, request: Request<Body>) -> (StatusCode, String) {
     let response = super::super::router(state.clone())
         .oneshot(request)
@@ -411,7 +412,6 @@ async fn send(state: &AppState, request: Request<Body>) -> (StatusCode, String) 
         .expect("body");
     (status, String::from_utf8_lossy(&bytes).to_string())
 }
-
 async fn call(
     state: &AppState,
     method: &str,
@@ -434,7 +434,6 @@ async fn call(
     let parsed = serde_json::from_str(&raw).unwrap_or(Value::String(raw));
     (status, parsed)
 }
-
 /// The denylist in `crates/authz/src/authority_use.rs` in literal form: nothing a
 /// route emits may carry credential material or the values used to obtain it.
 fn assert_no_credential_material(label: &str, body: &str, verifier: &str) {
@@ -1528,12 +1527,13 @@ async fn github_api_server() -> String {
 
 /// Harness whose broker points its GitHub API base at the in-test server.
 async fn github_harness(api_base: &str) -> AppState {
-    let state = app_state::build_test(Args {
+    let state = app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().expect("listen"),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");

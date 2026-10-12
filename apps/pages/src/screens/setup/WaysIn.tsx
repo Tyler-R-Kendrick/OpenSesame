@@ -22,8 +22,8 @@
  *    magic links, guest sessions, and whatever its own catalog brokers.
  *
  * Remove everything and that is a real answer too: a local vault, sealed on
- * this device, with no accounts at all. Host API and daemon pairing are not
- * first-run questions — they live in Settings → Endpoints (ADR 0078 §4).
+ * this device, with no accounts at all. Host API and daemon are not Pages
+ * backends (ADR 0090); sessions are browser WebRTC.
  */
 
 import {

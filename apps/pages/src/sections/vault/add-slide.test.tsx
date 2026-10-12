@@ -259,7 +259,7 @@ describe("holding the Add button on a phone", () => {
       contextMenuSnapshot()
         ?.groups.flat()
         .map((entry) => entry.label),
-    ).toEqual(["Import items", "Export items", "Password workflows"]);
+    ).toEqual(["Import items", "Export items", "Open a claim"]);
     closeContextMenu();
   });
 
@@ -270,7 +270,7 @@ describe("holding the Add button on a phone", () => {
     expect(entries.map((entry) => entry.id)).toEqual([
       "import",
       "export",
-      "password-workflows",
+      "claim",
     ]);
     expect(
       document.querySelector('input[type="file"][aria-label]'),

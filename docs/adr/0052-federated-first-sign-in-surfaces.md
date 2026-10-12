@@ -1,7 +1,8 @@
 # ADR 0052: Federated sign-in on the first-run and hosted-login surfaces
 
 ## Status
-Accepted
+Accepted (partly superseded by [ADR 0057](0057-email-linking-better-auth-and-ldap.md):
+decision 6, "Better Auth is not mounted for this")
 
 > Numbering note: this ADR was drafted as "0051"; `0051-user-controlled-trust-broker-core.md`
 > already held that number, so it lands as 0052. There is no ADR 0040.

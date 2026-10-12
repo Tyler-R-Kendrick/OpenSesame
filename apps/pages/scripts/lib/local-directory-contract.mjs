@@ -2,6 +2,11 @@ import { expect } from "@playwright/test";
 import { localAgentContract } from "./local-agent-contract.mjs";
 import { localApplicationContract } from "./local-application-contract.mjs";
 import { localDeviceContract } from "./local-device-contract.mjs";
+import {
+  expectIdentityRefusal,
+  openIdentityRecord,
+  openIdentityView,
+} from "./local-directory-navigation.mjs";
 import { localMemberOrganizationsContract } from "./local-member-organizations-contract.mjs";
 import {
   localMembershipContract,
@@ -30,18 +35,19 @@ async function createDirectoryRecord(page, panel, tabTo, kind) {
   await expect(create).toBeEnabled();
   await tabTo(page, create);
   await page.keyboard.press("Enter");
-  await expect(
-    panel.getByRole("textbox", { name: "Name", exact: true }),
-  ).toBeFocused();
+  const name = panel.getByRole("textbox", { name: "Name", exact: true });
+  await expect(name).toBeFocused();
   if (kind === "person") {
     await page.keyboard.insertText("invalid\u202ename");
     await page.keyboard.press("Enter");
-    await expect(panel.getByRole("alert")).toHaveText(
+    await expectIdentityRefusal(
+      page,
+      tabTo,
       /without control characters/,
+      name,
     );
-    await expect(
-      panel.getByRole("textbox", { name: "Name", exact: true }),
-    ).toBeFocused();
+    await tabTo(page, name);
+    await expect(name).toBeFocused();
     await page.keyboard.press("ControlOrMeta+A");
   }
   await page.keyboard.type(`Keyboard ${kind}`);
@@ -52,21 +58,17 @@ async function createDirectoryRecord(page, panel, tabTo, kind) {
 }
 
 async function directoryRecordsContract(page, tabTo) {
-  for (const [tab, kind, heading] of [
-    ["People", "person", "people"],
-    ["Agents", "agent", "agents"],
-    ["Applications", "application", "applications"],
-    ["Organizations", "organization", "organizations"],
+  for (const [tab, kind] of [
+    ["People", "person"],
+    ["Agents", "agent"],
+    ["Applications", "application"],
+    ["Organizations", "organization"],
   ]) {
-    await tabTo(page, page.getByRole("tab", { name: tab, exact: true }));
-    await page.keyboard.press("Enter");
-    const panel = page.getByRole("region", {
-      name: `Local ${heading}`,
-      exact: true,
-    });
+    await openIdentityView(page, tabTo, tab);
+    const panel = page.locator('.record-workspace[data-section="Identity"]');
     await createDirectoryRecord(page, panel, tabTo, kind);
     let label = `Keyboard ${kind}`;
-    const row = () => panel.getByRole("listitem").filter({ hasText: label });
+    const row = () => panel.locator(".vault__detail");
     if (kind === "person") {
       await localPasskeyContract(page, row(), tabTo);
     }
@@ -78,14 +80,17 @@ async function directoryRecordsContract(page, tabTo) {
       row().getByRole("button", { name: `Edit ${label}`, exact: true }),
     );
     await page.keyboard.press("Enter");
+    const name = row().getByRole("textbox", { name: "Name", exact: true });
+    await expect(name).toBeFocused();
     await page.keyboard.press("ControlOrMeta+A");
     await page.keyboard.type(`Renamed ${kind}`);
+    await expect(name).toHaveValue(`Renamed ${kind}`);
     await expect(
       row().getByRole("button", { name: "Disable", exact: true }),
-    ).toBeDisabled();
+    ).toHaveCount(0);
     await expect(
       row().getByRole("button", { name: "Delete", exact: true }),
-    ).toBeDisabled();
+    ).toHaveCount(0);
     await page.keyboard.press("Enter");
     label = `Renamed ${kind}`;
     await expect(
@@ -96,17 +101,23 @@ async function directoryRecordsContract(page, tabTo) {
       row().getByRole("button", { name: "Disable", exact: true }),
     );
     await page.keyboard.press("Enter");
-    await expect(
-      row().getByRole("img", { name: "Disabled", exact: true }),
-    ).toBeVisible();
-    await tabTo(
-      page,
-      panel.getByRole("button", { name: "Reload directory", exact: true }),
-    );
-    await page.keyboard.press("Enter");
-    await expect(
-      row().getByRole("img", { name: "Disabled", exact: true }),
-    ).toBeVisible();
+    await expect(row().locator(".detail__meta")).toContainText("Disabled");
+    if (page.viewportSize().width <= 900) {
+      await openIdentityView(
+        page,
+        tabTo,
+        tab === "Agents" ? "People" : "Agents",
+      );
+      await openIdentityView(page, tabTo, tab);
+      await openIdentityRecord(page, tabTo, label);
+    } else {
+      await tabTo(
+        page,
+        panel.getByRole("button", { name: "Reload directory", exact: true }),
+      );
+      await page.keyboard.press("Enter");
+    }
+    await expect(row().locator(".detail__meta")).toContainText("Disabled");
     await tabTo(
       page,
       row().getByRole("button", { name: "Delete", exact: true }),
@@ -120,9 +131,10 @@ async function directoryRecordsContract(page, tabTo) {
     await expect(
       panel.getByRole("heading", { name: label, exact: true }),
     ).toHaveCount(0);
-    // The row left with the focused key; focus lands on the add key.
-    await expect(
-      panel.getByRole("button", { name: `New ${kind}`, exact: true }),
-    ).toBeFocused();
+    const nextFocus =
+      page.viewportSize().width <= 900
+        ? panel.getByRole("tree", { name: `${tab} items` })
+        : panel.getByRole("button", { name: `New ${kind}`, exact: true });
+    await expect(nextFocus).toBeFocused();
   }
 }

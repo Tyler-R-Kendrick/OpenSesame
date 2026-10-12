@@ -26,7 +26,7 @@ export const identifierFieldDependencies = {
 };
 
 /** The realm route's uniform words — anti-enumeration, so this is all we know. */
-const NO_ORG_MESSAGE = "No organization uses that email domain.";
+const NO_ORG_MESSAGE = "No organization found.";
 
 type Props = {
   disabled?: boolean;
@@ -166,10 +166,7 @@ export function IdentifierField({
               </span>
             </div>
             {tenant.authMethods.length === 0 ? (
-              <p className="hint">
-                This organization has no sign-in methods configured yet. Ask its
-                owner to finish setup.
-              </p>
+              <p className="hint">No sign-in methods.</p>
             ) : (
               <div className="identifier__methods">
                 {tenant.authMethods.map((method, index) => (
@@ -194,10 +191,7 @@ export function IdentifierField({
 
         {fallbackEmail && !linkSent ? (
           <div className="identifier__fallback">
-            <p className="hint">
-              {NO_ORG_MESSAGE} That's fine — you can still sign in with this
-              address.
-            </p>
+            <p className="hint">{NO_ORG_MESSAGE}</p>
             <button
               type="button"
               className="btn btn--primary btn--block choice"

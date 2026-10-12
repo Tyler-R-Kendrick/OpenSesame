@@ -1,8 +1,9 @@
 # OpenSesame TaskBus
 
-CloudEvents-shaped bus events behind a Rust trait. Default adapter is
-**in-memory** (unit tests). Optional **NATS JetStream** adapter when built with
-`--features jetstream`.
+CloudEvents-shaped bus events behind a Rust trait. The runtime default is the
+**in-memory** adapter (unit tests). The **NATS JetStream** adapter is the
+`jetstream` cargo feature, on by default, and is used only when
+`OPENSESAME_TASKBUS=nats` or `NATS_URL` is set.
 
 ## Subject / stream conventions
 
@@ -74,8 +75,10 @@ export NATS_URL=nats://127.0.0.1:4222
 export NATS_URL=nats://nats:4222
 ```
 
-Gateway (`opensesame-gateway`) and the identity outbox worker read the same
-variables. Compose wires `NATS_URL=nats://nats:4222` on gateway/worker.
+Gateway (`opensesame-gateway`) and the identity outbox worker
+(`packages/identity-worker`) read the same variables. The compose file sets
+`OPENSESAME_TASKBUS=nats` and `NATS_URL=nats://nats:4222` on its `gateway`
+service.
 
 ## Verify
 

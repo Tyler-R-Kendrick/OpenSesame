@@ -12,8 +12,10 @@ import { TransportRefused } from "@opensesame/app-core/lib/live/transport-store.
 import {
   DIRECT_TRANSPORT,
   type LiveTransport,
+  type TransportRead,
 } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { TRANSPORT_FILE } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import { createItem } from "@opensesame/vault-core";
 import {
   cleanup,
@@ -24,6 +26,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { SettingsFileContext } from "../../sections/settings/files/context.js";
 import { LiveHostForm } from "./LiveHostForm.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { liveUiSeams } from "./live-hooks.js";
@@ -51,7 +54,7 @@ beforeEach(() => {
   });
   Object.assign(liveSeams, { items: () => [github] });
   Object.assign(liveUiSeams, {
-    peers: new FakeNet().factory(),
+    transport: new FakeNet().transports(),
     carriers: new FakeBus().factory(),
   });
   Object.assign(transportSeams, {
@@ -60,8 +63,14 @@ beforeEach(() => {
       if (readError) throw readError;
       return stored;
     },
-    write: async (_tomb: string, next: LiveTransport) => {
-      stored = next;
+    edit: async (
+      _tomb: string,
+      apply: (current: LiveTransport) => TransportRead,
+    ) => {
+      if (readError) throw readError;
+      const next = apply(stored);
+      if (next.ok) stored = next.transport;
+      return next;
     },
   });
 });
@@ -151,6 +160,36 @@ describe("the Routes panel", () => {
     ).toBeNull();
   });
 
+  it("opens its file from the heading, where a TURN REST secret is written", async () => {
+    const openFile = vi.fn();
+    const panel = within(
+      render(
+        <SettingsFileContext.Provider value={{ openFile }}>
+          <LiveRoutesPanel />
+        </SettingsFileContext.Provider>,
+      ).container,
+    );
+    fireEvent.click(
+      await panel.findByRole("button", { name: "Open transport.json" }),
+    );
+    expect(openFile).toHaveBeenCalledWith(TRANSPORT_FILE);
+  });
+
+  it("offers the file over a profile it cannot read, where it is fixed", async () => {
+    readError = new TransportRefused("The profile is not valid JSON.");
+    const openFile = vi.fn();
+    const panel = within(
+      render(
+        <SettingsFileContext.Provider value={{ openFile }}>
+          <LiveRoutesPanel />
+        </SettingsFileContext.Provider>,
+      ).container,
+    );
+    await panel.findByRole("img", { name: "The profile is not valid JSON." });
+    fireEvent.click(panel.getByRole("button", { name: "Open transport.json" }));
+    expect(openFile).toHaveBeenCalledWith(TRANSPORT_FILE);
+  });
+
   it("says when the profile's credentials travel in the link, and only then", async () => {
     const view = render(<LiveRoutesPanel />);
     const panel = within(view.container);
@@ -174,7 +213,7 @@ describe("the start form", () => {
     fireEvent.click(form.getByRole("checkbox", { name: "GitHub" }));
   }
   const start = (form: ReturnType<typeof within>) =>
-    form.getByRole("button", { name: "Start the live session" });
+    form.getByRole("button", { name: /^Start the live session/ });
 
   it("does not start on a profile it cannot read, and says why", async () => {
     readError = new TransportRefused("relay needs at least one TURN server.");

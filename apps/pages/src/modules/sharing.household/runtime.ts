@@ -6,6 +6,12 @@
  * loader has one module per approved capability; it registers nothing and
  * returns a handle whose dispose is a no-op.
  *
+ * Settings draws no switch for it until a plan already approves it
+ * (`NO_SURFACE` in `lib/capabilities/feature-surface.ts`, ADR 0158). A
+ * switch while this module registers nothing would promise a household it
+ * does not share with. When a household surface exists, register it here
+ * and take the id out of `NO_SURFACE`.
+ *
  * Egress: none of its own. A future transport (a local peer road) would be
  * a sibling capability in the slot, never code added here.
  */

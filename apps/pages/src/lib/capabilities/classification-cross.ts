@@ -21,7 +21,7 @@
  * tie with the same prefix in `classification-lib.ts` or `-sections.ts`.
  */
 
-import { shared } from "./classification-rule.js";
+import { optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const S = "src/sections/identity/";
@@ -60,6 +60,9 @@ const LOCAL_RECORDS = [
   "local-share-grants",
   // Who may write a share (ADR 0178): the proofs local-share-grants takes.
   "proofs/share-write",
+  // A circle of trusted contacts approving a grant while the owner is away
+  // (ADR 0187): minted from plain data, imports nothing optional.
+  "proofs/quorum-approved",
   // Core vault workflows and WebMCP enforce standing shares even while the
   // optional Access administration surface is absent.
   "local-share-reach",
@@ -67,6 +70,9 @@ const LOCAL_RECORDS = [
   "local-vault-sessions",
   "pages-dogfood",
   "standing-connection-grants",
+  // The Danger zone's Transfer ownership reads and writes the local directory
+  // from core Settings (ADR 0195).
+  "vault-ownership",
 ];
 
 /** The Identity panels the Access and federation surfaces draw. */
@@ -74,6 +80,10 @@ const IDENTITY_PIECES = [
   "ApplicationDiagnostics",
   "ApplicationRecipePanel",
   "ApplicationSetupCard",
+  // Shared record chrome and the directory's publication seam: hosted
+  // provisioning publishes here; the local Identity tree only reads it.
+  "HostedRecordParts",
+  "hosted-identity-rail",
   "LocalAgentAuthentication",
   "LocalAgentEnrollment",
   "LocalAgentKeys",
@@ -99,10 +109,13 @@ const CONNECTOR_RECORDS = [
   "connect-create",
   "connect-plan",
   "connect-presets.generated",
+  "connect-provider-auth-schema",
   "connect-update",
   "connections",
   "connections-integrations",
   "connections-local-git",
+  "model-api",
+  "provider-category",
   "connector-directory",
   "connector-settings",
   "nango-directory",
@@ -115,6 +128,85 @@ const CONNECTOR_RECORDS = [
 ];
 
 export const CROSS_RULES = [
+  shared(
+    `${L}model-provider-record`,
+    "model selections shared by local and remote AI without provider implementations",
+  ),
+  shared(
+    `${L}hosted-model-authority`,
+    "provider authority port shared by model selection and optional provider runtimes",
+  ),
+  ...[
+    "hosted-inference",
+    "saved-model-agent",
+    "hosted-model-protocol",
+    "hosted-model.test-support",
+  ].map((name) =>
+    optional(
+      `${L}${name}`,
+      "support.remote-ai",
+      "closed hosted model protocols and their test fixtures",
+    ),
+  ),
+  optional(
+    `${L}native-`,
+    "connectors.external",
+    "native provider authorization and connection runtime",
+  ),
+  // The seam between two optional capabilities: the connections an app holds
+  // offer themselves to a live session through it, and neither owns the words.
+  shared(
+    `${L}live/connection-port`,
+    "the port a live session reaches the app's connections through, and its binding (ADR 0196)",
+  ),
+  shared(
+    `${L}live/connection-wire`,
+    "how a connection is spelled to a device: ids, operation names, bounds (ADR 0196)",
+  ),
+  optional(
+    `${L}session-connections`,
+    "connectors.external",
+    "the closed read-only operations a device may ask of the connections a live session lends (ADR 0196)",
+  ),
+  optional(
+    `${L}model-keys/`,
+    "connectors.external",
+    "model keys: the broker, the RFC 8693 exchange, the last-hop check and their test fixtures (ADR 0192)",
+  ),
+  optional(
+    `${L}ai-model-provider`,
+    "connectors.external",
+    "which catalogue rows are model providers and how each is spoken to (ADR 0192)",
+  ),
+  optional(
+    `${L}proofs/model-grant-approval`,
+    "connectors.external",
+    "the proof that a person approved this exact model key grant (ADR 0178, ADR 0192)",
+  ),
+  optional(
+    `${L}connector-action-capability`,
+    "connectors.external",
+    "connector catalogue actions derived from actual browser routes and verified connections",
+  ),
+  optional(
+    `${L}browser-disposition`,
+    "connectors.external",
+    "why a provider has no browser road, with its dated evidence, and the reasons a tile names (ADR 0197)",
+  ),
+  optional(
+    `${L}browser-dispositions`,
+    "connectors.external",
+    "the authored dispositions, embedded as packed JSON with the spec's drift test (ADR 0197)",
+  ),
+  optional(
+    `${L}doc-link`,
+    "connectors.external",
+    "what a provider link honestly is: documentation, a website, or fnox's page (ADR 0197)",
+  ),
+  shared(
+    `${L}generated-json`,
+    "public JSON fragment codec shared by the connector catalogue and browser admission metadata",
+  ),
   ...LOCAL_RECORDS.map((name) =>
     shared(`${L}${name}`, "local directory records Access and Identity share"),
   ),

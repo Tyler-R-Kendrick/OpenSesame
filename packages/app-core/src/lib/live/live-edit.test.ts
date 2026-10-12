@@ -4,7 +4,6 @@ import { LiveGuest } from "./guest.js";
 import { LiveHost } from "./host.js";
 import { FakeNet } from "./live-fakes.js";
 import type { Catalog, SharePolicy } from "./messages.js";
-import { DIRECT_ONLY } from "./peer.js";
 
 const SECRET_VALUE = "correct horse battery staple";
 
@@ -53,12 +52,11 @@ async function hosted(policy: SharePolicy, writer: boolean) {
   };
   const base = {
     admission: "invite" as const,
-    ice: DIRECT_ONLY,
     expiresAt: Date.now() + 60_000,
     catalog: () => catalog(policy),
     readField: async (item: string, field: string) =>
       item === "item-1" && field === "password" ? SECRET_VALUE : null,
-    peers: net.factory(),
+    transport: net.transport(),
   };
   const host = await LiveHost.start(writer ? { ...base, writeField } : base);
   hosts.push(host);
@@ -71,8 +69,7 @@ function joiner(net: FakeNet, host: LiveHost): LiveGuest {
     code: host.code,
     name: "Ada",
     note: "from design",
-    ice: DIRECT_ONLY,
-    peers: net.factory(),
+    transport: net.transport(),
   });
 }
 

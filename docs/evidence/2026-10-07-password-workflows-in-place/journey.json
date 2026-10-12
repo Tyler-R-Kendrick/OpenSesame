@@ -1,0 +1,121 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "secrets": [
+            {
+              "name": "Stripe key",
+              "secret": "sk_live_EXAMPLE_ONLY"
+            }
+          ]
+        },
+        {
+          "measure": ".detail fieldset"
+        },
+        {
+          "measure": ".detail input, .detail textarea, .detail select"
+        },
+        {
+          "shot": "desktop-item"
+        },
+        {
+          "visit": "vault/health"
+        },
+        {
+          "shot": "desktop-health"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "report": ".vtree__pathbar button[aria-label], .vtree__pathbar a[aria-label]"
+        },
+        {
+          "shot": "desktop-list"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "secrets": [
+            {
+              "name": "Stripe key",
+              "secret": "sk_live_EXAMPLE_ONLY"
+            }
+          ]
+        },
+        {
+          "measure": ".detail fieldset"
+        },
+        {
+          "measure": ".detail input, .detail textarea, .detail select"
+        },
+        {
+          "shot": "phone-item"
+        },
+        {
+          "visit": "vault/health"
+        },
+        {
+          "shot": "phone-health"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-item",
+      "width": 1280,
+      "title": "An item \u2014 desktop",
+      "caption": "What an item adds for a reference: a form before, two toolbar keys after.",
+      "before": "1 fieldset, 640\u00d7293, holding an input and a checkbox",
+      "after": "No fieldset, no form control; two keys on the toolbar"
+    },
+    {
+      "shot": "phone-item",
+      "width": 390,
+      "title": "An item \u2014 phone",
+      "caption": "The same at phone width.",
+      "before": "1 fieldset, 358\u00d7377, holding an input and a checkbox",
+      "after": "No fieldset, no form control; two 44px keys on the toolbar"
+    },
+    {
+      "shot": "desktop-health",
+      "width": 1280,
+      "title": "Password health \u2014 desktop",
+      "caption": "Items to file or rename are findings like the others, each a link to its item.",
+      "before": "Headings with a None under each, and a count of items reviewed",
+      "after": "One finding per item, each reason a mark"
+    },
+    {
+      "shot": "phone-health",
+      "width": 390,
+      "title": "Password health \u2014 phone",
+      "caption": "The same findings at phone width.",
+      "before": "Headings with a None under each, and a count of items reviewed",
+      "after": "One finding per item, each reason a mark"
+    },
+    {
+      "shot": "desktop-list",
+      "width": 1280,
+      "title": "The vault's toolbar \u2014 desktop",
+      "caption": "The list's keys: new, import, export. Nothing opens a second password screen.",
+      "before": "A fourth key opens the Password workflows sheet",
+      "after": "New, import, export"
+    }
+  ]
+}

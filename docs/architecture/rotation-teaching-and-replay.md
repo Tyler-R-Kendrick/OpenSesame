@@ -8,6 +8,18 @@ Overall flow: [web-login rotation](web-login-rotation.md).
 Output format: [rotation recipe schema](rotation-recipe-schema.md).
 While it runs: [live session observation](live-session-observation.md).
 
+> Status (2026-10-08): this page is the loop ADR 0076 §4 specifies, and that ADR
+> is still Proposed. In this checkout there are the signed recipe document with
+> its pinned signers and canary-verified trust (`opensesame rotate recipe` and
+> `rotate signer`, [web-login recipes](../operators/web-login-recipes.md)); the
+> observation log's storage, its observe/log/control routes and the control lease
+> ([live session observation](live-session-observation.md)); and value-blind
+> field classification and masking in `crates/rotation-web` (`capture.rs`). There
+> is no replay overlay, no capture of a demonstration into a candidate recipe, no
+> teaching-session route or notification, no bundle binding, no shared corpus,
+> and nothing yet appends to the sealed log in production. Read the sections
+> below as the design those pieces are built toward.
+
 ## Why this exists
 
 ADR 0052 §11 refused programmatic third-party password change with a specific

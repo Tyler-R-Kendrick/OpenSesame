@@ -14,11 +14,12 @@ import {
 } from "@opensesame/app-core/lib/settings.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectInTray } from "../../components/tray.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { Receipts } from "./receipts.js";
+import { renderAccess as render } from "./workspace-test-support.js";
 
 const at = "2026-10-04T10:00:00.000Z";
 const SESSION: IdentitySession = {
@@ -92,17 +93,31 @@ afterEach(() => {
 
 describe("Receipts on the device plane (ADR 0162)", () => {
   it("says each decision in words, names the application, and leaves out what is not a receipt", async () => {
-    render(<Receipts online={true} sessionKey={tomb} />);
+    render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     expect(
-      await screen.findByText("Application sign-in ended · Test application"),
+      await screen.findByRole("treeitem", {
+        name: /Application\ sign\-in\ ended\ ·\ Test\ application.*receipt/,
+      }),
     ).toBeTruthy();
-    expect(screen.getByText("Request denied · Test application")).toBeTruthy();
+    expect(
+      screen.getByRole("treeitem", {
+        name: /Request\ denied\ ·\ Test\ application.*receipt/,
+      }),
+    ).toBeTruthy();
     expect(screen.queryByText("auth.login")).toBeNull();
   });
 
   it("mints the device's own session to read with when the page has none yet", async () => {
-    render(<Receipts online={true} sessionKey={tomb} />);
-    await screen.findByText("Request denied · Test application");
+    render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
+    await screen.findByRole("treeitem", {
+      name: /Request\ denied\ ·\ Test\ application.*receipt/,
+    });
     expect(connectProvisional).toHaveBeenCalled();
   });
 
@@ -115,27 +130,43 @@ describe("Receipts on the device plane (ADR 0162)", () => {
         },
       ],
     });
-    render(<Receipts online={true} sessionKey={tomb} />);
+    render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     expect(
-      await screen.findByText("Request raised · local_unnamed"),
+      await screen.findByRole("treeitem", {
+        name: /Request\ raised\ ·\ local_unnamed.*receipt/,
+      }),
     ).toBeTruthy();
   });
 
   it("reads the vault's own trail offline: nothing here needs a network", async () => {
-    render(<Receipts online={false} sessionKey={tomb} />);
-    await screen.findByText("Request denied · Test application");
+    render(
+      <Receipts online={false} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
+    await screen.findByRole("treeitem", {
+      name: /Request\ denied\ ·\ Test\ application.*receipt/,
+    });
     expect(screen.queryByText("Offline.")).toBeNull();
     expect(identityJson).toHaveBeenCalledWith("/v1/audit/events?limit=50");
   });
 
   it("names no service while it reads, and none when it cannot", async () => {
     identityJson.mockReturnValue(new Promise(() => undefined));
-    const { container } = render(<Receipts online={true} sessionKey={tomb} />);
+    const { container } = render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     expect(container.textContent).toContain("Reading receipts…");
     expect(container.textContent).not.toMatch(/Identity|service/i);
     cleanup();
     identityJson.mockRejectedValue(new Error("boom"));
-    const failed = render(<Receipts online={true} sessionKey={tomb} />);
+    const failed = render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     await waitFor(() => expect(listNotices()).not.toHaveLength(0));
     const tray = listNotices().map((n) => `${n.title} ${n.body}`);
     expect(tray.join(" ")).not.toMatch(/Identity|service|unreachable|http/i);
@@ -146,7 +177,10 @@ describe("Receipts on the device plane (ADR 0162)", () => {
 
   it("marks the panel and trays the sentence when the trail cannot be read", async () => {
     identityJson.mockRejectedValue(new Error("boom"));
-    const { container } = render(<Receipts online={true} sessionKey={tomb} />);
+    const { container } = render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     const sentence = "Receipts did not load. Reload to read them again.";
     await expectInTray(sentence);
     expect(screen.getByRole("img", { name: sentence })).toBeTruthy();
@@ -155,8 +189,13 @@ describe("Receipts on the device plane (ADR 0162)", () => {
   });
 
   it("reads again when a decision lands, in this tab", async () => {
-    render(<Receipts online={true} sessionKey={tomb} />);
-    await screen.findByText("Request denied · Test application");
+    render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
+    await screen.findByRole("treeitem", {
+      name: /Request\ denied\ ·\ Test\ application.*receipt/,
+    });
     identityJson.mockResolvedValue({
       events: [event("e4", "access.request.approved")],
     });
@@ -164,7 +203,9 @@ describe("Receipts on the device plane (ADR 0162)", () => {
       notifyLocalIamChange();
     });
     expect(
-      await screen.findByText("Request approved · Test application"),
+      await screen.findByRole("treeitem", {
+        name: /Request\ approved\ ·\ Test\ application.*receipt/,
+      }),
     ).toBeTruthy();
   });
 
@@ -176,7 +217,9 @@ describe("Receipts on the device plane (ADR 0162)", () => {
     const { container, rerender } = render(
       <Receipts online={true} sessionKey={tomb} />,
     );
-    await screen.findByText("Request denied · Test application");
+    await screen.findByRole("treeitem", {
+      name: /Request\ denied\ ·\ Test\ application.*receipt/,
+    });
     expect(
       container.querySelector('[aria-label="2 receipts not written yet"]'),
     ).not.toBeNull();
@@ -188,7 +231,9 @@ describe("Receipts on the device plane (ADR 0162)", () => {
       notifyLocalIamChange();
     });
     rerender(<Receipts online={true} sessionKey={tomb} />);
-    await screen.findByText("Request denied · Test application");
+    await screen.findByRole("treeitem", {
+      name: /Request\ denied\ ·\ Test\ application.*receipt/,
+    });
     expect(
       container.querySelector('[aria-label$="not written yet"]'),
     ).toBeNull();
@@ -203,15 +248,23 @@ describe("Receipts on the device plane (ADR 0162)", () => {
         },
       ],
     });
-    render(<Receipts online={true} sessionKey={tomb} />);
+    render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     expect(
-      await screen.findByText("Session ended · Test application"),
+      await screen.findByRole("treeitem", {
+        name: /Session\ ended\ ·\ Test\ application.*receipt/,
+      }),
     ).toBeTruthy();
   });
 
   it("says there are none when there are none", async () => {
     identityJson.mockResolvedValue({ events: [] });
-    render(<Receipts online={true} sessionKey={tomb} />);
+    render(
+      <Receipts online={true} sessionKey={tomb} />,
+      "/access?view=sessions#access-receipts",
+    );
     expect(await screen.findByText("No receipts yet.")).toBeTruthy();
   });
 });
@@ -230,7 +283,7 @@ describe("Receipts on a remote Identity plane", () => {
   it("mints no session of its own: it is asked with the one it holds", async () => {
     identitySeams.currentSession = () => SESSION;
     render(<Receipts online={true} sessionKey="prn_a" />);
-    await screen.findByText(/^Application sign-in ended/);
+    await screen.findByRole("treeitem", { name: /^Application sign-in ended/ });
     expect(connectProvisional).not.toHaveBeenCalled();
   });
 
@@ -246,6 +299,10 @@ describe("Receipts on a remote Identity plane", () => {
       ],
     });
     render(<Receipts online={true} sessionKey="prn_a" />);
-    expect(await screen.findByText("agent.invoke.finished")).toBeTruthy();
+    expect(
+      await screen.findByRole("treeitem", {
+        name: /agent\.invoke\.finished.*receipt/,
+      }),
+    ).toBeTruthy();
   });
 });

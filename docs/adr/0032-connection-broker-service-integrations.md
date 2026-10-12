@@ -3,6 +3,9 @@
 ## Status
 Accepted
 
+Amended by: [ADR 0049](0049-derived-short-lived-materialization.md) (§6: a derived short-lived token is not "credential
+material"; the sealed stored credential still never crosses the API boundary).
+
 ## Context
 ADR 0005 defined `ConnectionRef` and the invariant that a handle is not a capability, and
 ADR 0006 defined how a connection is projected into a workload. Both assumed a connection

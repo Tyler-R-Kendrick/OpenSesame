@@ -6,7 +6,11 @@ deployed Identity service. Email is never a join key.
 Set `OPENSESAME_IDENTITY_API` to the canonical Identity
 origin and provide a dedicated `OPENSESAME_MAPPING_RESOLVE_TOKEN`. The NATS
 callout secret is not a fallback. The credential must authorize only mapping
-resolution on Identity; it is not a browser or operator credential.
+resolution on Identity; it is not a browser or operator credential. This is the
+shared-secret mode, which is in force when only the token is set. With
+`OPENSESAME_MAPPING_AUTH=mtls` the Host presents a client certificate and sends
+no bearer at all (see [mTLS](mtls.md#host--identity-mapping)); the egress and
+response limits below apply to both, and mTLS requires HTTPS even on loopback.
 
 The endpoint must have no path prefix, user information, query, or fragment.
 HTTPS is required for networked or production deployment, including networked

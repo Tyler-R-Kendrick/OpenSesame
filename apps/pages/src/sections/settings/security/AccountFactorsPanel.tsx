@@ -69,11 +69,9 @@ export function AccountFactorsPanel({
           <div className="panel__head">
             <div>
               <h2>Your account</h2>
-              <p className="hint">
-                {account ? `Signed in as ${account.name}. ` : ""}What your
-                sign-in service asks for after sign-in. None of these open this
-                vault.
-              </p>
+              {account ? (
+                <p className="hint">Signed in as {account.name}.</p>
+              ) : null}
             </div>
             {refusal ? <StatusMark tone="err" label={refusal} /> : null}
           </div>

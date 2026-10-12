@@ -237,7 +237,7 @@ permanent hole.
 `INV-GA-05` requires an expiry to be detected by the lifecycle scanner and
 published on `lifecycle.*`, with no private due-check. This crate holds up its
 end by running no scheduler at all, but it is **not yet wired to the feed**:
-`lifecycle::SubjectKind` is a closed enum (`ALL: [Self; 7]`) in a crate ADR 0074
+`lifecycle::SubjectKind` is a closed enum (`ALL: [Self; 8]`) in a crate ADR 0074
 describes as frozen vocabulary, and a DNS allowance has no variant there.
 
 Adding one is GA-H's call, not this swarm's, so per the escalation rule in
@@ -249,8 +249,14 @@ whatever the caller drives, and that is the honest description of it.
 
 | Suite | Count | Needs Blocky |
 |---|---|---|
-| `cargo test -p opensesame-dns-enforcement --lib` | 51 | no |
+| `cargo test -p opensesame-dns-enforcement --lib` | 52 | no |
 | `--test blocky_protocol` | 6 | 5 of 6 |
+| `--test family_blocky` | 1 | starts the launcher itself |
+
+`family_blocky_dns_is_measured_or_the_launcher_failure_is_recorded` always runs:
+it starts `harness/blocky-env.sh up`, queries the resolver if that succeeds, and
+otherwise asserts the launcher printed a reason (for example `go is not on
+PATH`). It is not a skip and not a mocked allow.
 
 `a_bare_disable_is_unconstructible` runs either way, because the guarantee it
 checks is structural rather than behavioural.
@@ -276,7 +282,7 @@ returns "not blocked".
 ## 6. Gates run
 
 ```bash
-cargo +1.88.0 test -p opensesame-dns-enforcement -- --test-threads=1   # 51 + 6 pass
+cargo +1.88.0 test -p opensesame-dns-enforcement -- --test-threads=1   # 51 + 6 pass when measured; 52 + 6 + 1 tests by source count now
 cargo +1.88.0 clippy -p opensesame-dns-enforcement --all-targets --all-features \
   -- -D warnings -D clippy::pedantic -D clippy::complexity                # clean
 cargo +1.88.0 fmt -p opensesame-dns-enforcement -- --check                # clean

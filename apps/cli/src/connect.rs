@@ -3,7 +3,10 @@
 //! Create, attach, list, and remove Host connections by `service/name`. Runtime
 //! output is a `ConnectionRef` — never a provider token (ADR 0005).
 
+mod browser;
+
 use anyhow::{anyhow, bail, Context};
+use browser::open_url;
 use clap::{Parser, Subcommand};
 use serde_json::{json, Value};
 use std::{
@@ -1349,25 +1352,6 @@ fn summarize_cli_probe(bin: &str, ok: bool, stdout: &str, stderr: &str) -> Strin
         .find(|row| !row.is_empty())
         .unwrap_or(if ok { "signed in" } else { "not signed in" });
     format!("{bin}: {line}")
-}
-
-fn open_url(url: &str) {
-    let commands = if cfg!(target_os = "macos") {
-        vec!["open"]
-    } else if cfg!(target_os = "windows") {
-        vec!["cmd", "/C", "start"]
-    } else {
-        vec!["xdg-open"]
-    };
-    let mut iter = commands.into_iter();
-    let Some(program) = iter.next() else {
-        return;
-    };
-    let mut cmd = Command::new(program);
-    for arg in iter {
-        cmd.arg(arg);
-    }
-    let _ = cmd.arg(url).spawn();
 }
 
 #[cfg(test)]

@@ -62,6 +62,8 @@ secrets and appears as a Host catalog provider (`bitwarden-sm`).
 | Bitwarden JSON import | Pages import path (lossy for identity types) |
 | Secrets Manager / `bws` | Catalog connector `bitwarden-sm` / `bitwarden` |
 | Vaultwarden | Study / self-host prior art ([docs/reference/reuse.md](../../reference/reuse.md)) |
+| Bitwarden's own clients against a self-hosted server (vaultwarden's role) | `crates/bitwarden-server`, mounted at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on`; compiled in only with the `bitwarden-compat` cargo feature, off by default ([ADR 0141](../../adr/0141-bitwarden-compatible-server.md), [ADR 0148](../../adr/0148-bitwarden-bridge-and-importer.md)) |
+| Reading a Bitwarden or vaultwarden vault from the Host | `crates/provider-bitwarden` consume-client, human plane only ([ADR 0052](../../adr/0052-password-manager-ecosystem-bridging.md)); `opensesame bridge bitwarden import` moves a vaultwarden server or live account over (ADR 0148) |
 
 Related: [DESIGN.md](../../../DESIGN.md), Pages import notes in
 [`apps/pages/README.md`](../../../apps/pages/README.md).

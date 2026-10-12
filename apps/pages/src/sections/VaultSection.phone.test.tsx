@@ -144,21 +144,15 @@ describe("the vault on a phone", () => {
     ).toBeNull();
   });
 
-  it("keeps workflows in the keyboard menu and import/export in the hold zones", async () => {
+  it("keeps import and export in the hold zones and the keyboard menu", () => {
     renderVault("/vault");
     const plus = screen.getByRole("link", { name: "New item" });
     fireEvent.contextMenu(plus);
     expect(
       screen.getAllByRole("menuitem").map((entry) => entry.textContent),
-    ).toEqual(["Import items", "Export items", "Password workflows"]);
+    ).toEqual(["Import items", "Export items", "Open a claim"]);
     expect(slideZones().up?.id).toBe("import");
     expect(slideZones().down?.id).toBe("export");
-    fireEvent.click(
-      screen.getByRole("menuitem", { name: "Password workflows" }),
-    );
-    expect(
-      await screen.findByRole("dialog", { name: "Password workflows" }),
-    ).toBeTruthy();
   });
 
   it("the list's header is back and the view it shows, named; nothing else is a key", () => {

@@ -51,8 +51,38 @@ fn a_provider_parameter_header_reaches_only_its_own_provider() {
 }
 
 #[test]
+fn a_vercel_upload_names_its_body_in_headers_that_reach_only_vercel() {
+    let fence = EgressFence::new(
+        vec![
+            EgressRule {
+                provider_id: "vercel",
+                scheme: "https",
+                hosts: &["api.vercel.com"],
+                auth: AuthStyle::Bearer,
+            },
+            EgressRule {
+                provider_id: "other",
+                scheme: "https",
+                hosts: &["api.other.test"],
+                auth: AuthStyle::Bearer,
+            },
+        ],
+        1024,
+    );
+    for header in ["x-vercel-digest", "X-Now-Digest", "x-now-size"] {
+        fence
+            .preflight(request("vercel", "api.vercel.com", header))
+            .unwrap_or_else(|error| panic!("{header}: {error}"));
+        let err = fence
+            .preflight(request("other", "api.other.test", header))
+            .expect_err("another provider never receives it");
+        assert!(matches!(err, InvokeError::HeaderNotAllowed(_)), "{header}");
+    }
+}
+
+#[test]
 fn no_provider_parameter_names_a_credential_a_session_or_an_encoding() {
-    for provider in ["github", "other", "unknown"] {
+    for provider in ["github", "vercel", "other", "unknown"] {
         for banned in [
             "authorization",
             "proxy-authorization",

@@ -6,6 +6,12 @@ import {
 } from "@opensesame/app-core/lib/access-book.js";
 import { useSyncExternalStore } from "react";
 import { IconTrash } from "../../components/Icons.js";
+import {
+  AccessDetail,
+  AccessFact,
+  AccessRecords,
+  useAccessRecord,
+} from "./AccessRecords.js";
 
 /**
  * Grants this device holds in `access.book.v1` — independent of Host
@@ -24,40 +30,43 @@ export function AccessBookPanel() {
   useSyncExternalStore(subscribeAccessBook, accessBookVersion);
   const grants = listLocalGrants();
 
-  if (grants.length === 0) return null;
+  const selection = useAccessRecord("access-book", "grants");
+  const selected = grants.find((grant) => grant.id === selection.id);
   return (
-    <section className="panel" id="access-book" aria-label="Portable grants">
-      <div className="panel__head">
-        <div>
-          <h2>Portable grants</h2>
-        </div>
-      </div>
-      <div className="panel__body">
-        <ul className="access-resources" aria-label="Portable grants">
-          {grants.map((grant) => (
-            <li className="access-resource" key={grant.id}>
-              <div className="access-resource__main">
-                <div className="access-resource__id">
-                  <h3>{grant.title}</h3>
-                  <code className="access-ref">{grant.resource}</code>
-                </div>
-                <span className="access-resource__meta">{grant.mode}</span>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  aria-label={`Remove ${grant.title}`}
-                  title={`Remove ${grant.title}`}
-                  onClick={() => {
-                    removeLocalGrant(grant.id);
-                  }}
-                >
-                  <IconTrash />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+    <AccessRecords
+      title="Portable grants"
+      selection={selection}
+      rows={grants.map((grant) => ({
+        id: grant.id,
+        label: grant.title,
+        extension: "grant",
+        to: selection.path(grant.id),
+      }))}
+    >
+      {selected ? (
+        <AccessDetail
+          title={selected.title}
+          kind="Portable grant"
+          actions={
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={`Remove ${selected.title}`}
+              title={`Remove ${selected.title}`}
+              onClick={() => {
+                removeLocalGrant(selected.id);
+                selection.close();
+              }}
+            >
+              <IconTrash />
+            </button>
+          }
+        >
+          <AccessFact label="Resource" value={selected.resource} />
+          <AccessFact label="Mode" value={selected.mode} />
+          <AccessFact label="Reference" value={selected.id} />
+        </AccessDetail>
+      ) : null}
+    </AccessRecords>
   );
 }

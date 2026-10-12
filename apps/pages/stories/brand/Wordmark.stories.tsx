@@ -1,0 +1,50 @@
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Wordmark } from "../../src/components/Wordmark.js";
+import { figma } from "../figma.js";
+
+/**
+ * The brand line: the mark and the name punched out of ink plates on the
+ * canvas (`CipherWordmark/particles-model.ts`): the particle field at every
+ * size, 16px em the floor — every gate's hero, the rail, the drawer and the
+ * setup bar.
+ * Every slot shows a cipher glyph from the first frame; a cursor walks the
+ * slots one at a time and locks each on its letter. The decrypt runs once per
+ * session; `replay` runs it again on mount. After it settles the particle
+ * field keeps its shimmer for as long as it is on screen (reduced motion holds
+ * it still).
+ */
+const meta = {
+  title: "Brand/Wordmark",
+  component: Wordmark,
+  tags: ["autodocs", "ai-generated"],
+  parameters: { layout: "centered", ...figma("wordmark") },
+  argTypes: {
+    size: { control: { type: "number", min: 10, max: 80, step: 1 } },
+    as: { control: "radio", options: ["p", "h1"] },
+  },
+} satisfies Meta<typeof Wordmark>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+/** The chrome's wordmark (rail, drawer, setup bar): the field at its 16px floor. */
+export const Chrome: Story = {
+  args: { size: 16, replay: true },
+};
+
+/** The front door's title: the particle field at 62px, as the page's `h1`. */
+export const Field: Story = {
+  args: { size: 62, as: "h1", replay: true },
+};
+
+/** Fitted to its column instead of a fixed em (the door's card at 390). */
+export const Fitted: Story = {
+  args: { fit: { max: 45 }, as: "h1", replay: true },
+  decorators: [
+    (Story) => (
+      <div style={{ width: 350 }}>
+        <Story />
+      </div>
+    ),
+  ],
+};

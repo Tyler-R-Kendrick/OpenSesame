@@ -74,8 +74,8 @@ async function host(specs: CarrierSpec[]) {
     policy: "read",
     admission: "invite",
     minutes: 5,
-    peers: net.factory(),
-    transport,
+    transport: net.transports(),
+    routes: transport,
     carriers,
   });
   await settle();
@@ -163,8 +163,8 @@ describe("a policy that changes under a running session", () => {
       policy: "read",
       admission: "invite",
       minutes: 5,
-      peers: net.factory(),
-      transport: {
+      transport: net.transports(),
+      routes: {
         addresses: [],
         ice: [],
         relay: false,
@@ -210,8 +210,8 @@ describe("a policy that changes under a running session", () => {
       policy: "read",
       admission: "invite",
       minutes: 5,
-      peers: net.factory(),
-      transport,
+      transport: net.transports(),
+      routes: transport,
       carriers: slow,
     });
     await settle();

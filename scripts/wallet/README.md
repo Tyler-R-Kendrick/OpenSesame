@@ -3,7 +3,9 @@
 Fail-closed verification for ADR 0123 spending authority. Never point these at
 mainnet or real funds. Default `CHAIN_ID=31337` for local Anvil/forge suites.
 
-Requires Foundry (`forge`/`anvil`) on `PATH` (e.g. `~/.config/.foundry/bin`).
+Requires Foundry (`forge`/`anvil`) on `PATH`; the contracts and protocols harnesses also look in
+`~/.local/foundry`, `~/.local/foundry/bin`, `~/.config/.foundry/bin` and
+`~/.foundry/bin`.
 
 ## Commands
 
@@ -14,7 +16,8 @@ pnpm wallet:test:domain             # os-domain wallet + wallet-budget + wallet-
 pnpm wallet:test:contracts          # forge enforcer suites + wallet-evm Vitest
 pnpm wallet:test:protocols          # Anvil Exact EIP-3009 settle + x402/consent fixtures
 pnpm wallet:test:browser            # Pages Wallet vitest + Playwright QAB (incl. B03/B05)
-pnpm wallet:test:security           # domain targets + deny-mainnet + wallet-evm
+pnpm wallet:test:security           # domain targets + deny-mainnet + wallet-evm + wallet-consent + wallet-x402
+pnpm wallet:evidence                # refresh last-run.json from discovery; claims no pass
 pnpm wallet:evidence:blocked-adapters
 ```
 
@@ -24,7 +27,7 @@ pnpm wallet:evidence:blocked-adapters
 |---|---|---|
 | contracts | `forge` MetaMask pin `bff4b08` enforcer suites (WAL-E01–E06/E09) | `productionEnabled` / target deployment |
 | protocols | Anvil Exact EIP-3009 settle + replay refuse (WAL-E11/E13/E14) | Live merchant/mainnet facilitator |
-| browser | Vitest + Playwright static QAB-01/03 + WAL-B03/B05 | Full SW-update / SR matrix (B09/B20) |
+| browser | Vitest + Playwright static QAB-01/03 + WAL-B03/B05 + the WAL-B20 narrow-wallet touch check | Full SW-update / SR matrix (B09, and B20 beyond the narrow-wallet check) |
 | security | Conservation + policy + domain + mainnet deny | Hostile-owner / cross-device money |
 
 `local_execution_verified` is written into `docs/evidence/wallet/claims.json` only

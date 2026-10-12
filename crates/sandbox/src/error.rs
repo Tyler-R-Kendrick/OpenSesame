@@ -63,6 +63,10 @@ pub enum SandboxError {
     #[error("grant permits raw credential export; a sandbox never materializes a secret")]
     RawExportDenied,
 
+    /// The grant's validity window closed while the revocation fence stayed live.
+    #[error("grant expired")]
+    GrantExpired,
+
     /// The authority behind the run was revoked (before or during it).
     #[error("authority revoked: profile generation {expected}, ledger at {observed}")]
     Revoked {

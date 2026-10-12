@@ -45,8 +45,10 @@ open; close them again afterwards.
 
 ## Move people over from vaultwarden or Bitwarden
 
-The importer moves accounts with their master passwords, keys and vaults
-unchanged ([ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)). The Host
+The importer (`opensesame bridge bitwarden import`, in the same
+`--features bitwarden-compat` build) moves accounts with their master
+passwords, keys and vaults unchanged
+([ADR 0148](../adr/0148-bitwarden-bridge-and-importer.md)). The Host
 never sees a password or a decrypted value on the way. Each device signs in
 once more afterwards; nobody picks a new password.
 
@@ -233,5 +235,5 @@ features as they do against a server that has them turned off.
 ## Verify
 
 ```bash
-pnpm test:bitwarden-oracle   # drives the pinned official bw CLI against the surface
+pnpm test:bitwarden-oracle   # drives the pinned official bw CLI and SignalR client against the surface
 ```

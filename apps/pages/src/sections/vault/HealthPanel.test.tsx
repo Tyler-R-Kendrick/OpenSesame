@@ -26,6 +26,7 @@ const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
+import { publishBreachWatch } from "@opensesame/app-core/lib/vault/health.js";
 import { HealthPanel } from "./HealthPanel.js";
 import {
   type AccountSeed,
@@ -57,6 +58,7 @@ function renderPanel() {
 describe("HealthPanel", () => {
   beforeEach(() => {
     vault.current = { items: [] };
+    publishBreachWatch({ phase: "off" });
   });
 
   afterEach(() => {
@@ -67,9 +69,11 @@ describe("HealthPanel", () => {
   it("shows the empty state when nothing is scored", () => {
     renderPanel();
     expect(screen.getByText("No passwords to review")).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: /New account/i }).getAttribute("href"),
-    ).toBe("/vault/new/account");
+    const add = screen.getByRole("link", { name: "New account" });
+    expect(add.getAttribute("href")).toBe("/vault/new/account");
+    // An action is an icon key: the verb is its label, never painted on it.
+    expect(add.classList.contains("icon-btn")).toBe(true);
+    expect(add.textContent).toBe("");
   });
 
   it("ignores trashed and password-less accounts", () => {
@@ -157,5 +161,63 @@ describe("HealthPanel", () => {
     expect(
       screen.getByRole("link", { name: /All items/i }).getAttribute("href"),
     ).toBe("/vault");
+  });
+
+  it("hides breach and two-step results while that capability is off", () => {
+    renderPanel();
+    expect(
+      screen.queryByRole("heading", { name: "Breach and two-step checks" }),
+    ).toBeNull();
+  });
+
+  it("shows breach and two-step outcomes when the capability has checked", () => {
+    vault.current = {
+      items: [makeAccount({ id: "itm_gh", name: "GitHub" })],
+    };
+    publishBreachWatch({
+      phase: "checked",
+      label:
+        "1 of 1 passwords found in known breaches. 1 login could add an authenticator code.",
+      checked: 1,
+      breached: 1,
+      twoStep: 1,
+      lines: [
+        {
+          id: "itm_gh",
+          name: "GitHub",
+          site: "github.com",
+          breaches: 42,
+          twoFactorAvailable: true,
+          sentences: [
+            "Found in breaches 42 times: change this password",
+            "This site takes an authenticator code; none is stored",
+          ],
+        },
+      ],
+    });
+    renderPanel();
+    expect(screen.getByText(/1 reviewed · 1 clean/)).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Breach and two-step checks" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        "1 of 1 passwords found in known breaches. 1 login could add an authenticator code.",
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Found in breaches 42 times: change this password"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("This site takes an authenticator code; none is stored"),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: "Open breach and two-step checks" })
+        .getAttribute("href"),
+    ).toBe("/settings/features#feature-security-checks");
+    expect(
+      screen.getByRole("link", { name: "GitHub" }).getAttribute("href"),
+    ).toBe("/vault/itm_gh");
   });
 });

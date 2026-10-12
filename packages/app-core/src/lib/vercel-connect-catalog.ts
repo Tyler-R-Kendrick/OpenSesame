@@ -65,7 +65,8 @@ function toProvider(plan: ConnectPlan): Provider {
     id: plan.id,
     displayName: plan.name,
     category: plan.category,
-    docsUrl: plan.docsUrl ?? `https://vercel.com/connect/${plan.id}`,
+    // A registry page on Vercel's site is not this provider's documentation.
+    docsUrl: plan.docsUrl,
     authKind:
       method?.kind === "api-key" ? "api_key" : "oauth2_authorization_code",
     supportsRefresh: preset?.refreshTokens ?? method?.kind !== "api-key",
@@ -141,7 +142,7 @@ export function catalogTileNote(
   provider: Provider,
   connection: Connection | null,
 ): CatalogTileNote | null {
-  if (isVercelCatalogId(provider.id) && isRefusedPlan(provider.id)) {
+  if (isRefusedPlan(provider.id)) {
     return { label: "Not connectable", tone: "chip--err" };
   }
   const live =

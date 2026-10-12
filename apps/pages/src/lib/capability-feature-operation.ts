@@ -20,6 +20,7 @@ import {
 
 interface FeatureOwners {
   readonly agent_harnesses: (provider: Provider) => FeatureOperation;
+  readonly ai_model_provider: (provider: Provider) => FeatureOperation;
   readonly networking: (provider: Provider) => FeatureOperation;
   readonly backup_recovery: (provider: Provider) => FeatureOperation;
   readonly cloud_secret_storage: (provider: Provider) => FeatureOperation;
@@ -33,6 +34,7 @@ interface FeatureOwners {
 
 const OWNERS: FeatureOwners = {
   agent_harnesses: (provider) => savedRemoteModel(provider),
+  ai_model_provider: (provider) => savedRemoteModel(provider),
   networking: (provider) => savedTailnetOperation(provider),
   backup_recovery: (provider) => savedGitBackupOperation(provider),
   cloud_secret_storage: (provider) => savedStorageOperation(provider),
@@ -44,10 +46,11 @@ const OWNERS: FeatureOwners = {
   local_storage: (provider) => savedLocalStorageOperation(provider),
 };
 
-/** The owning feature's operation for one connector the Capabilities page lists. */
+/** The owning feature's operation for one connector the Integrations page lists. */
 export function runCapabilityFeature(provider: Provider): FeatureOperation {
   switch (provider.category) {
     case "agent_harnesses":
+    case "ai_model_provider":
     case "networking":
     case "backup_recovery":
     case "cloud_secret_storage":

@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "migrationHint": "Use `opensesame-id run` (or `os run`) with `--env NAME=op://vault/item/field` or `os://vault/item/field`, or `env run <file> -- <cmd>`, instead of read or env resolve. Secret references stay in the 1Password-style scheme://vault/item/field form.",
+  "cases": [
+    {
+      "id": "refuse-piped-stdout",
+      "stdinTty": true,
+      "stdoutTty": false,
+      "reveal": true,
+      "desktop": true,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-without-reveal-flag",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": false,
+      "desktop": true,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "refuse-op-without-desktop",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": false,
+      "reference": "op://v/i/f",
+      "expect": "refuse"
+    },
+    {
+      "id": "allow-human-op-reveal",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": true,
+      "reference": "op://v/i/f",
+      "expect": "allow"
+    },
+    {
+      "id": "allow-pass-reveal-no-desktop",
+      "stdinTty": true,
+      "stdoutTty": true,
+      "reveal": true,
+      "desktop": false,
+      "reference": null,
+      "expect": "allow"
+    }
+  ]
+}

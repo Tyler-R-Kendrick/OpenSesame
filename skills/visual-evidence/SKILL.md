@@ -107,10 +107,12 @@ every screen the app has.
 }
 ```
 
-Steps are `guest`, `tab`, `press`, `open`, `visit` (an in-app route), `arrive`
+A screen is captured in a phone context unless it sets `"desktop": true`, which
+gives it a mouse. Steps include `guest`, `tab`, `press`, `open`, `visit` (an in-app route), `arrive`
 (a cold load of an address under the base, a link's fragment included),
 `pickFileOptional` (answer the file picker a key opens with a fixture),
-`escape` and `shot`. `EVIDENCE_ORIGIN` serves the build from another origin —
+`escape` and `shot`; `STEPS` in the script and the `apps/pages/scripts/lib/capture-*-steps.mjs`
+modules it spreads hold the rest. `EVIDENCE_ORIGIN` serves the build from another origin —
 evidence of a dedicated deployment. `EVIDENCE_DIST` captures a build other
 than `apps/pages/dist` — the base, built in its own `git worktree`, so the
 branch's sources are never swapped in a checkout someone else is using. Add a verb to
@@ -144,10 +146,10 @@ being deleted.
 
 **Do not try to embed the images in the PR body itself.** The GitHub tooling
 available here strips `!` from image embeds and wraps bare URLs in backticks —
-a deliberate anti-injection measure — so a pasted `![alt](url)` renders as a
-plain link at best. Verify whatever you post by reading the PR back and
-checking the markup survived; a body that looks right in the tool call is not
-evidence that it looks right on GitHub.
+a deliberate anti-injection measure — so a pasted image embed (a link with a
+leading `!`) renders as a plain link at best. Verify whatever you post by
+reading the PR back and checking the markup survived; a body that looks right
+in the tool call is not evidence that it looks right on GitHub.
 
 If a change is visible and you cannot capture it — the surface has no harness,
 the flow needs a backend this environment lacks — say so plainly in the PR,

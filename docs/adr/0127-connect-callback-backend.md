@@ -4,6 +4,12 @@
 
 Accepted.
 
+Implementation: the relay is no longer a standalone app: `apps/connect-backend`
+does not exist in this checkout. Its callback and management routes live in
+`apps/pages/api/connect/` and `apps/pages/server/` and ship with Pages
+([ADR 0138](0138-self-issued-identity-one-native-host.md)); the local HTTPS
+proxy is `scripts/dev/connect-dev-proxy.mjs`.
+
 ## Context
 
 Vercel Connect brokers provider OAuth without a Host, but the approval ends

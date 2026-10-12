@@ -112,7 +112,7 @@ try {
     const view = url.searchParams.get("view");
     if (url.pathname.endsWith("/access") && view) {
       await page
-        .getByRole("tab", { selected: true })
+        .locator('.record-workspace[data-section="Access"] .vtree__crumbs')
         .filter({ hasText: new RegExp(view, "i") })
         .waitFor();
     }
@@ -121,7 +121,7 @@ try {
       if (await later.isVisible()) await later.click();
       const label = view === "service-accounts" ? "Applications" : view;
       await page
-        .getByRole("tab", { selected: true })
+        .locator('.record-workspace[data-section="Identity"] .vtree__crumbs')
         .filter({ hasText: new RegExp(label, "i") })
         .waitFor();
     }

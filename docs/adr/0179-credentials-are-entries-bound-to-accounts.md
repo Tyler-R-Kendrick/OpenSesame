@@ -38,6 +38,15 @@ other, never mapped to an account. Binding and releasing are writes to the
 credential (Account on its editor), never a move: its values, name and folder
 are untouched.
 
+**Amended 2026-10-07: a password's form names no account.** One password may
+open many accounts, so the Password editor (new or edit) draws no Account row
+and never writes `accountId`; a password already bound keeps its binding when
+it is saved. The Account row stays on the other credential types, which are
+still one-to-one. `accountId` itself is single-valued, so a password still cannot
+be bound to a second account from the account side; lifting that is a change to
+the binding model (a reference held by the account, not an owner held by the
+credential) and is not made here.
+
 ### 3. The account is a view
 
 `AccountItem.methods` stays as the shape every reader knows, but a sealed body

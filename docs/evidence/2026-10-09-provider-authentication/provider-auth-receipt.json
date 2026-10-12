@@ -1,0 +1,227 @@
+{
+  "status": "passed",
+  "deploymentProfile": "dedicated_origin",
+  "protocol": [
+    {
+      "service": "HashiCorp Vault 1.21.4",
+      "issuer": "oidc-provider 9.11.2",
+      "pkce": "S256",
+      "realTokenIssued": true,
+      "authorizedRead": true,
+      "policyDenial": true,
+      "callbackReplayDenied": true,
+      "revokedTokenDenied": true
+    },
+    {
+      "service": "OpenBao 2.3.2",
+      "issuer": "oidc-provider 9.11.2",
+      "pkce": "S256",
+      "realTokenIssued": true,
+      "authorizedRead": true,
+      "policyDenial": true,
+      "callbackReplayDenied": true,
+      "revokedTokenDenied": true
+    }
+  ],
+  "ui": [
+    {
+      "label": "desktop",
+      "productionUi": true,
+      "locallyRunningRealServices": true,
+      "fabricatedProviderResponses": 0,
+      "concurrentOriginators": 2,
+      "strictCoop": true,
+      "providerOpenerNull": true,
+      "userCancellationBeforeConsent": true,
+      "lockedOwnerCannotActivate": true,
+      "wrongStateNoExchange": true,
+      "wrongSourceNoExchange": true,
+      "replayNoExchange": true,
+      "actualKvRead": true,
+      "sealedColdReload": true,
+      "actualIssuedGrantRevokedOnRemoval": true,
+      "browserErrors": 0
+    },
+    {
+      "label": "phone",
+      "productionUi": true,
+      "locallyRunningRealServices": true,
+      "fabricatedProviderResponses": 0,
+      "concurrentOriginators": 2,
+      "strictCoop": true,
+      "providerOpenerNull": true,
+      "userCancellationBeforeConsent": true,
+      "lockedOwnerCannotActivate": true,
+      "wrongStateNoExchange": true,
+      "wrongSourceNoExchange": true,
+      "replayNoExchange": true,
+      "actualKvRead": true,
+      "sealedColdReload": true,
+      "actualIssuedGrantRevokedOnRemoval": true,
+      "browserErrors": 0
+    }
+  ],
+  "manualTokenUi": [
+    {
+      "label": "desktop",
+      "locallyRunningRealServices": true,
+      "realProviderIssuedRestrictedTokens": true,
+      "actualManualTokenKvRead": true,
+      "sealedColdReload": true,
+      "tokenInputNeverPrefilled": true,
+      "localRemovalPreservesUserToken": true,
+      "removedTokenBindingAbsentAfterReload": true,
+      "browserErrors": 0
+    },
+    {
+      "label": "phone",
+      "locallyRunningRealServices": true,
+      "realProviderIssuedRestrictedTokens": true,
+      "actualManualTokenKvRead": true,
+      "sealedColdReload": true,
+      "tokenInputNeverPrefilled": true,
+      "localRemovalPreservesUserToken": true,
+      "removedTokenBindingAbsentAfterReload": true,
+      "browserErrors": 0
+    }
+  ],
+  "googleSdkContract": {
+    "proof": "Google SDK contract intercepted in an approved header-less callback fixture; no live customer grant",
+    "freshSecondClick": true,
+    "publicFragmentScrubbed": true,
+    "encryptedReturnToInitiator": true,
+    "journalBeforeAcknowledgement": true,
+    "cancelWithoutMintedGrant": true,
+    "staleLeaseDuringRetentionKeepsIssuedCredentials": true,
+    "plaintextBearerOnChannel": false,
+    "providerCorsVerificationFixture": true
+  },
+  "callbackWorkerIsolation": {
+    "success": [
+      {
+        "filename": "linear.html",
+        "success": true
+      },
+      {
+        "filename": "native-connector.html",
+        "success": true
+      },
+      {
+        "filename": "native-implicit.html",
+        "success": true
+      },
+      {
+        "filename": "native-google.html",
+        "success": true
+      },
+      {
+        "filename": "redirect.html",
+        "success": true
+      }
+    ],
+    "failures": [
+      {
+        "filename": "linear.html",
+        "missing": true
+      },
+      {
+        "filename": "native-connector.html",
+        "missing": true
+      },
+      {
+        "filename": "native-implicit.html",
+        "missing": true
+      },
+      {
+        "filename": "native-google.html",
+        "missing": true
+      },
+      {
+        "filename": "redirect.html",
+        "missing": true
+      },
+      {
+        "filename": "linear.html",
+        "offline": true
+      },
+      {
+        "filename": "native-connector.html",
+        "offline": true
+      },
+      {
+        "filename": "native-implicit.html",
+        "offline": true
+      },
+      {
+        "filename": "native-google.html",
+        "offline": true
+      },
+      {
+        "filename": "redirect.html",
+        "offline": true
+      }
+    ],
+    "shellUnchanged": true,
+    "offlineAppShell": true,
+    "refusedNetworkRequests": 17
+  },
+  "s3": {
+    "provider": "minio version RELEASE.2025-09-07T16-13-09Z (commit-id=07c3a429bfed433e49018cb0f78a52145d4bedeb)",
+    "packageSha256": "eeda08f699f6592d1b868ac8bda864ae2cacdb5ee1b888663366e8c8ff566249",
+    "origin": "https://provider-auth.opensesame.test:33837",
+    "noRelay": true,
+    "headers": "COOP same-origin; COEP require-corp",
+    "receipts": [
+      {
+        "label": "desktop",
+        "incorrectCredentialRefused": true,
+        "actualBucketVerified": true,
+        "objectRead": true,
+        "coldReload": true,
+        "removal": true,
+        "responses": [
+          {
+            "path": "/browser-verified-bucket/",
+            "status": 403
+          },
+          {
+            "path": "/browser-verified-bucket/",
+            "status": 200
+          },
+          {
+            "path": "/browser-verified-bucket/",
+            "status": 200
+          }
+        ]
+      },
+      {
+        "label": "phone",
+        "incorrectCredentialRefused": true,
+        "actualBucketVerified": true,
+        "objectRead": true,
+        "coldReload": true,
+        "removal": true,
+        "responses": [
+          {
+            "path": "/browser-verified-bucket/",
+            "status": 403
+          },
+          {
+            "path": "/browser-verified-bucket/",
+            "status": 200
+          },
+          {
+            "path": "/browser-verified-bucket/",
+            "status": 200
+          }
+        ]
+      }
+    ]
+  },
+  "staticServerOriginatorRouting": false,
+  "providerObservations": {
+    "authorizations": 10,
+    "tokens": 6,
+    "logins": 10
+  }
+}

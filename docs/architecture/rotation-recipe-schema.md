@@ -57,13 +57,20 @@ belong in a recipe.
 ```
 
 **What the Host implements today** is the executor's half of this: the document
-in [Web-login recipes](../operators/web-login-recipes.md) — one origin, an
-expiry, the change-password page and its selectors, an optional `canary`
-attestation and the `signature` above (Ed25519 over the RFC 8785 canonical form,
-domain-tagged, hex-encoded, with the key id derived from the public key). The
-members this schema describes beyond that (`rp`, `bundle_binding`,
+in [Web-login recipes](../operators/web-login-recipes.md) — `schema_version`, a
+`recipe_id` (`rcp_…`), one `origin`, an `expires_at`, a `change_password` object
+(`change_url` and the field selectors), an optional `canary` attestation and the
+`signature` above (Ed25519 over the RFC 8785 canonical form, domain-tagged,
+hex-encoded, with the key id derived from the public key). The members this
+schema describes beyond that (`rp`, `change_password_url`, `bundle_binding`,
 `composition`, `steps`, `success`) are not read by the executor and are refused
-by the Host's closed parser rather than stored unread.
+by the Host's closed parser rather than stored unread. The executor does not
+interpret a `steps` list either: it runs the fixed ordering of
+`run_change_password` over the eight `BrowserTransport` verbs (`navigate`,
+`wait_for`, `fill_credential`, `assert_present`, `submit`, `read_dom_redacted`,
+`screenshot_redacted`, `verify_login`), and the document names each field with
+one selector string. The step IR, fingerprint targets and drift escalation below
+are the schema ADR 0076 describes, not code in this checkout.
 
 `max_length` and `forbidden_symbols` are not decoration. A generator that emits
 a 40-character password for a site that silently truncates at 16, or that emits
@@ -164,9 +171,17 @@ Promotion from `canary_verified` to `corpus` is an explicit ceremony, reviewed
 on the same terms as ADR 0052 §12's relying-party data. Nothing is contributed
 by default. Recordings are never shared — only derived recipes.
 
+In the Host's store `trust` is derived by the Host and never supplied: a recipe
+with no verified signature is `candidate`, and one with a verified signature from
+a pinned signer plus a passing canary (the signer's attested canary, or a passing
+Host run of the same steps) is `canary_verified`. `corpus` is accepted
+as a replayable value (`REPLAYABLE_TRUST`), but nothing in this checkout sets it.
+
 ## Distribution
 
-Corpus recipes ship **checked in and refreshed by a routine**, per ADR 0052 §12:
+No recipe corpus is checked in in this checkout and no routine in `ops/routines/`
+refreshes one. The design is that corpus recipes ship **checked in and refreshed
+by a routine**, per ADR 0052 §12:
 "the vault does not call a capability service… a lookup is a disclosure". A
 runtime fetch of "the recipe for example.com" tells whoever serves it which
 sites the user holds accounts on.

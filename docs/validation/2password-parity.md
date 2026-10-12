@@ -41,17 +41,18 @@ retry and never claim verification; readback mismatch is a failure. Discovery
 and resolution batch work. Broken saved authentication fails closed. Child
 processes receive selected credentials but not the authentication token.
 
-Browser surfaces expose core discovery, inventory, audit, credential creation,
-password comparison/update, reference templates and explicit resolution.
-Provider administration and protected local token storage are verified on the
-native CLI. Browser workflows operate on the unlocked local sealed vault using
-`os://` references; native 1Password workflows use `op://` references. The browser
-does not administer 1Password service accounts or execute provider processes.
+The browser draws no password-workflow screen. Its surfaces are the places the
+vault already shows what each capability acts on: the item's toolbar (a
+reference-only template, and a plaintext `.env` that asks twice), a login's password row (compare by a mark, replace through the verified
+write), Password health (items to file or rename, as findings) and New item. The
+list is the inventory, and a field's own reveal and copy are the explicit read.
+They operate on the unlocked local sealed vault using `os://` references;
+native 1Password workflows use `op://` references. The browser does not
+administer 1Password service accounts, hold the native lease store or execute
+provider processes, and the Access section draws no form for native requests.
 Service tokens never enter these browser workflows. Native process execution
-is verified on the CLI; the browser exposes reference templates and resolution.
-The desktop
-webview shares the Pages/PWA workflow and the browser extension hands off to
-it. Those shared workflows and handoffs still require runtime assertions.
+is verified on the CLI. The desktop webview shares the Pages/PWA surface. The
+browser extension has no password workflow and is not a parity surface.
 
 Pages WebMCP metadata handlers have their own runtime assertions. Sensitive
 operations are exposed as deliberate human workflow handoffs, with the actual
@@ -73,22 +74,24 @@ duplicate creation checks are not an atomic lock, and the CLI help describes
 `--repair-imported-fields` as requiring `--apply` without enforcing that pair.
 OpenSesame should keep its stronger concurrency and validation protections.
 
-The [canonical report](2password-parity-result.json) covers 53 scenarios and
-237 surface checks. All nine upstream PRs and both issues are pinned in the
+The [canonical report](2password-parity-result.json) covers 52 scenarios and
+197 surface checks. All nine upstream PRs and both issues are pinned in the
 upstream review. The matrix includes contextual Account actions, selected
-login methods, organization Health, native request handoff, travel withdrawal,
-and private-prompt withdrawal without account resurrection.
+login methods, organization Health, travel withdrawal, and private-prompt
+withdrawal without account resurrection. Native requests and leases are a CLI
+contract (`request.*`, `lease.*`); the browser draws nothing for them.
 
-The seven runtime suites contain 49 core, 35 client CLI, 29 native CLI,
-20 real-browser, 32 shared adapter/write-path, 13 human UI and two extension
-assertions. The browser exercises both 1280px and 390px, including actual
-clipboard, downloads, Health navigation, native command preparation and
-preservation of sibling Account methods. The 237 surface checks bind 397
-primary and supporting assertions; a meaningful runtime scenario may support
-more than one surface.
+The six runtime suites contain 49 core, 35 client CLI, 29 native CLI,
+12 real-browser, 29 shared adapter/write-path and 11 human UI assertions. The
+browser exercises both 1280px and 390px, including actual clipboard, downloads,
+Health navigation, the item toolbar's template and twice-asked plaintext file,
+the password row's compare mark and verified update, an abandoned account draft
+leaving no credential type switched on, and preservation of sibling Account
+methods. The 197 surface checks bind 316 primary and supporting assertions; a
+meaningful runtime scenario may support more than one surface.
 
 The exact matrix SHA-256 is
-`f25ae178d2be8681b037faaccb001e93c5d35f50a659aa8909da19ca3cbf1777`.
+`3315679d5fc6da83b61251598e2ccb37f588a791a691daa3b40ba11adfff4cf6`.
 The implementation integrates OpenSesame main
 `22ec373ab59a85271040b3341d5474a862a8a905`, including Account login methods,
 the shared password production facade, current copy/gesture/tray controls, one-line credential editing, Settings pages,
@@ -133,3 +136,17 @@ The new cancellation tests were verified in an isolated copy: removing only the 
 Final local verification on October 6 completed with `pnpm verify` exit 0: all 70 workspace test tasks, integration checks, the full Rust workspace/all-target suite and all battle tests pass. The freshly rebuilt seven-suite parity run against the latest integrated main passes and exactly matches the canonical report. AST, working-tree secret and advisory gates pass. Latest-main CI contract tests and installed dependency regressions pass. Android JVM crypto/FFI, app assembly and four-architecture APK checks pass in CI; Swift envelope tests, iOS package compilation and simulator XCTest checks pass too. The implementation preserves main’s native-wallet storage and platform CI gates. Required CI on each final signed PR head still gates its squash merge; actual merge results belong in the PR review.
 
 After the implementation squash, main advanced to `aaa15658eca44aabf9d2f8087fc96c6264868fbe` with secret-envelope downgrade rejection and customer-isolated encrypted indexes. The verification PR preserves those changes unchanged. Its dedicated parity and required repository checks run again on the restacked signed head; the earlier full local verification receipt remains the completed pre-restack run. Final current-head results are recorded in the PR self-review before merging.
+
+## Correction, 2026-10-07
+
+The matrix above was rewritten when the standalone password-workflow screen was
+removed (ADR 0177, amendment). Everything stated earlier about that screen, the
+Access request-command form, the extension handoff and the 53-scenario /
+237-check totals describes the superseded matrix. Rerun for this correction:
+the full six-suite gauntlet (fresh native and PWA builds, canonical result
+regenerated), the app-core, Pages, capability-registry, MCP client and CLI unit
+suites, the structural, anti-slop and design gates, and the real-browser
+verifier at 1280 and 390. The all-tutorials, six-width mobile, WebMCP-count and
+bundle-budget walks recorded above were not rerun by this change. The
+local PWA build skipped `tsc --noEmit`, which already reports eight
+duplicate-`@types/react` errors on the untouched base in this environment.

@@ -29,6 +29,7 @@
       "**/skills/install-anti-slop/**",
       ".agents/skills/**",
       ".claude/skills/**",
+      ".grok/skills/**",
       "skills-lock.json",
       "**/sbom/**",
       "tests/fixtures/kdbx/roundtrip.expected.json",
@@ -36,6 +37,7 @@
       "docs/design/**",
       "spec/connectors/catalog.view.json",
       "spec/agent-hooks/conformance/**",
+      "spec/conformance/slip39/vectors.json",
       "spec/conformance/pepper-position-vectors.json",
       "packages/vault-item-types/src/**/*.generated.ts"
     ]

@@ -21,12 +21,13 @@ pub(crate) struct Actor {
 }
 
 pub(crate) async fn state() -> AppState {
-    app_state::build_test(Args {
+    app_state::test_env::build(Args {
         listen: "127.0.0.1:0".parse().unwrap(),
         resource: "https://opensesame.local".into(),
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("state builds")
@@ -411,7 +412,6 @@ async fn discovery_advertises_a_name_and_nothing_else() {
         "discovery named the operator"
     );
 }
-
 #[tokio::test]
 async fn discovery_refuses_to_default_to_listing_anything() {
     let st = state().await;

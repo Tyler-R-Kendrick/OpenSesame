@@ -14,7 +14,8 @@ for each alert standard. It does no I/O.
   the sinks in [`src/security`](../../crates/gateway/src/security)),
   [`opensesame-lifecycle`](../lifecycle), [`opensesame-breach-intel`](../breach-intel)
   and [`opensesame-agent-events`](../agent-events).
-- **Builds on:** no workspace crates (`chrono`, `serde`, `serde_json`, `sha2`).
+- **Builds on:** [`opensesame-redaction`](../redaction) (`SecurityNotice::scrubbed`);
+  `chrono`, `serde`, `serde_json`, `sha2`.
 - A detector does not get its own notification path; it converts into
   `SecurityNotice` and inherits the rest.
 - Nothing here can carry a credential: `SecurityNotice` has no field able to

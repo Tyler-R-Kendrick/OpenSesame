@@ -758,7 +758,7 @@
         "kind": "api_key",
         "value_prefix": "Bearer "
       },
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "display_name": "OpenAI",
       "docs_url": "https://platform.openai.com/docs/api-reference/authentication",
       "egress": {
@@ -772,6 +772,10 @@
       "scopes": [],
       "verify": {
         "path": "/v1/models"
+      },
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.openai.com/v1"
       }
     },
     {
@@ -780,7 +784,7 @@
         "kind": "api_key",
         "value_prefix": ""
       },
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "display_name": "Anthropic",
       "docs_url": "https://docs.anthropic.com/en/api/getting-started",
       "egress": {
@@ -791,7 +795,11 @@
       "id": "anthropic",
       "operations": ["message.create", "model.list"],
       "provenance_url": "https://docs.anthropic.com/en/api/getting-started",
-      "scopes": []
+      "scopes": [],
+      "model_api": {
+        "protocol": "anthropic_messages",
+        "base_url": "https://api.anthropic.com/v1"
+      }
     },
     {
       "auth": {
@@ -838,7 +846,7 @@
     {
       "id": "cohere",
       "display_name": "Cohere",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://docs.cohere.com/reference/about",
       "provenance_url": "https://docs.cohere.com/reference/about",
       "auth": {
@@ -852,12 +860,16 @@
         "authorities": ["api.cohere.com"],
         "path_prefixes": []
       },
-      "operations": ["chat.create", "embedding.create", "model.list"]
+      "operations": ["chat.create", "embedding.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.cohere.com/compatibility/v1"
+      }
     },
     {
       "id": "mistral",
       "display_name": "Mistral AI",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
       "provenance_url": "https://docs.mistral.ai/admin/identity-access/api-keys",
       "auth": {
@@ -871,12 +883,16 @@
         "authorities": ["api.mistral.ai"],
         "path_prefixes": []
       },
-      "operations": ["chat.create", "embedding.create", "model.list"]
+      "operations": ["chat.create", "embedding.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.mistral.ai/v1"
+      }
     },
     {
       "id": "groq",
       "display_name": "Groq",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://console.groq.com/docs/api-reference",
       "provenance_url": "https://console.groq.com/docs/api-reference",
       "auth": {
@@ -890,12 +906,16 @@
         "authorities": ["api.groq.com"],
         "path_prefixes": []
       },
-      "operations": ["chat.create", "audio.transcribe", "model.list"]
+      "operations": ["chat.create", "audio.transcribe", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.groq.com/openai/v1"
+      }
     },
     {
       "id": "perplexity",
       "display_name": "Perplexity",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://docs.perplexity.ai/docs/getting-started/api-groups",
       "provenance_url": "https://docs.perplexity.ai/docs/getting-started/api-groups",
       "auth": {
@@ -909,12 +929,16 @@
         "authorities": ["api.perplexity.ai"],
         "path_prefixes": []
       },
-      "operations": ["response.create", "search.create", "model.list"]
+      "operations": ["response.create", "search.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.perplexity.ai"
+      }
     },
     {
       "id": "together",
       "display_name": "Together AI",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://docs.together.ai/docs/authentication",
       "provenance_url": "https://docs.together.ai/docs/authentication",
       "auth": {
@@ -928,12 +952,16 @@
         "authorities": ["api.together.xyz"],
         "path_prefixes": []
       },
-      "operations": ["chat.create", "image.create", "embedding.create"]
+      "operations": ["chat.create", "image.create", "embedding.create"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.together.xyz/v1"
+      }
     },
     {
       "id": "replicate",
       "display_name": "Replicate",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://replicate.com/docs/topics/security/api-tokens",
       "provenance_url": "https://replicate.com/docs/topics/security/api-tokens",
       "auth": {
@@ -947,12 +975,16 @@
         "authorities": ["api.replicate.com"],
         "path_prefixes": []
       },
-      "operations": ["prediction.create", "prediction.read", "model.read"]
+      "operations": ["prediction.create", "prediction.read", "model.read"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://api.replicate.com/v1"
+      }
     },
     {
       "id": "huggingface",
       "display_name": "Hugging Face",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://huggingface.co/docs/inference-providers/en/index",
       "provenance_url": "https://huggingface.co/docs/inference-providers/en/index",
       "auth": {
@@ -966,12 +998,16 @@
         "authorities": ["router.huggingface.co"],
         "path_prefixes": []
       },
-      "operations": ["chat.create", "model.list", "inference.run"]
+      "operations": ["chat.create", "model.list", "inference.run"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://router.huggingface.co/v1"
+      }
     },
     {
       "id": "elevenlabs",
       "display_name": "ElevenLabs",
-      "category": "developer",
+      "category": "ai_model_provider",
       "docs_url": "https://elevenlabs.io/docs/api-reference/authentication",
       "provenance_url": "https://elevenlabs.io/docs/api-reference/authentication",
       "auth": {
@@ -985,12 +1021,16 @@
         "authorities": ["api.elevenlabs.io"],
         "path_prefixes": []
       },
-      "operations": ["speech.create", "transcription.create", "voice.list"]
+      "operations": ["speech.create", "transcription.create", "voice.list"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://api.elevenlabs.io/v1"
+      }
     },
     {
       "id": "stability",
       "display_name": "Stability AI",
-      "category": "developer",
+      "category": "ai_model_provider",
       "docs_url": "https://platform.stability.ai/docs/api-reference",
       "provenance_url": "https://platform.stability.ai/docs/api-reference",
       "auth": {
@@ -1004,12 +1044,16 @@
         "authorities": ["api.stability.ai"],
         "path_prefixes": []
       },
-      "operations": ["image.create", "engine.list", "account.read"]
+      "operations": ["image.create", "engine.list", "account.read"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://api.stability.ai/v1"
+      }
     },
     {
       "id": "deepgram",
       "display_name": "Deepgram",
-      "category": "developer",
+      "category": "ai_model_provider",
       "docs_url": "https://developers.deepgram.com/docs/authenticating",
       "provenance_url": "https://developers.deepgram.com/docs/authenticating",
       "auth": {
@@ -1023,12 +1067,16 @@
         "authorities": ["api.deepgram.com"],
         "path_prefixes": []
       },
-      "operations": ["transcription.create", "speech.create", "project.read"]
+      "operations": ["transcription.create", "speech.create", "project.read"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://api.deepgram.com/v1"
+      }
     },
     {
       "id": "assemblyai",
       "display_name": "AssemblyAI",
-      "category": "developer",
+      "category": "ai_model_provider",
       "docs_url": "https://www.assemblyai.com/docs/api-reference/overview/",
       "provenance_url": "https://www.assemblyai.com/docs/api-reference/overview/",
       "auth": {
@@ -1042,12 +1090,16 @@
         "authorities": ["api.assemblyai.com"],
         "path_prefixes": []
       },
-      "operations": ["transcript.create", "transcript.read", "upload.create"]
+      "operations": ["transcript.create", "transcript.read", "upload.create"],
+      "model_api": {
+        "protocol": "rest_json",
+        "base_url": "https://api.assemblyai.com/v2"
+      }
     },
     {
       "id": "gemini",
       "display_name": "Google Gemini",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://ai.google.dev/gemini-api/docs/api-key",
       "provenance_url": "https://ai.google.dev/gemini-api/docs/api-key",
       "auth": {
@@ -1061,12 +1113,16 @@
         "authorities": ["generativelanguage.googleapis.com"],
         "path_prefixes": []
       },
-      "operations": ["content.generate", "embedding.create", "model.list"]
+      "operations": ["content.generate", "embedding.create", "model.list"],
+      "model_api": {
+        "protocol": "gemini_generate_content",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta"
+      }
     },
     {
       "id": "fireworks",
       "display_name": "Fireworks AI",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://docs.fireworks.ai/api-reference/post-responses",
       "provenance_url": "https://docs.fireworks.ai/api-reference/post-responses",
       "auth": {
@@ -1080,7 +1136,11 @@
         "authorities": ["api.fireworks.ai"],
         "path_prefixes": []
       },
-      "operations": ["chat.create", "embedding.create", "model.list"]
+      "operations": ["chat.create", "embedding.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.fireworks.ai/inference/v1"
+      }
     },
     {
       "aliases": ["cloudflare-api-token"],
@@ -1433,7 +1493,7 @@
       "id": "plivo",
       "display_name": "Plivo",
       "category": "communication",
-      "docs_url": "https://www.plivo.com/docs/sms/api/overview/",
+      "docs_url": "https://www.plivo.com/docs/messaging/api/overview",
       "provenance_url": "https://www.plivo.com/docs/sms/api/overview/",
       "auth": {
         "kind": "configuration"
@@ -1769,7 +1829,7 @@
       "id": "1password",
       "display_name": "1Password",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/1password.html",
+      "docs_url": "https://www.1password.dev/cli",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1803,7 +1863,7 @@
       "id": "age",
       "display_name": "age",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/age.html",
+      "docs_url": "https://github.com/FiloSottile/age",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1833,7 +1893,7 @@
       "id": "aws",
       "display_name": "AWS Secrets Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-sm.html",
+      "docs_url": "https://docs.aws.amazon.com/secretsmanager/latest/userguide/intro.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1877,7 +1937,7 @@
       "id": "aws-kms",
       "display_name": "AWS KMS",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-kms.html",
+      "docs_url": "https://docs.aws.amazon.com/kms/latest/developerguide/overview.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1922,7 +1982,7 @@
       "id": "aws-ps",
       "display_name": "AWS Parameter Store",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/aws-ps.html",
+      "docs_url": "https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -1967,7 +2027,7 @@
       "id": "azure-kms",
       "display_name": "Azure Key Vault Keys",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-kms.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2012,7 +2072,7 @@
       "id": "azure-sm",
       "display_name": "Azure Key Vault Secrets",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-sm.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/key-vault/secrets/about-secrets",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2057,7 +2117,7 @@
       "id": "azure-ac",
       "display_name": "Azure App Configuration",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/azure-ac.html",
+      "docs_url": "https://learn.microsoft.com/en-us/azure/azure-app-configuration/overview",
       "provenance_url": "https://fnox.jdx.dev/providers/overview",
       "auth": {
         "kind": "configuration"
@@ -2102,7 +2162,7 @@
       "id": "gcp",
       "display_name": "Google Cloud Secret Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/gcp-sm.html",
+      "docs_url": "https://docs.cloud.google.com/secret-manager/docs/overview",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2136,7 +2196,7 @@
       "id": "gcp-kms",
       "display_name": "Google Cloud KMS",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/gcp-kms.html",
+      "docs_url": "https://docs.cloud.google.com/kms/docs/key-management-service",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2180,7 +2240,7 @@
       "id": "fido2",
       "display_name": "FIDO2",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/fido2.html",
+      "docs_url": "https://fidoalliance.org/specifications/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2214,7 +2274,7 @@
       "id": "bitwarden",
       "display_name": "Bitwarden",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/bitwarden.html",
+      "docs_url": "https://bitwarden.com/help/bitwarden-apis/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2289,7 +2349,7 @@
       "id": "foks",
       "display_name": "FOKS",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/foks.html",
+      "docs_url": "https://foks.pub/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2319,7 +2379,7 @@
       "id": "bitwarden-sm",
       "display_name": "Bitwarden Secrets Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/bitwarden-sm.html",
+      "docs_url": "https://bitwarden.com/help/secrets-manager-overview/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2358,7 +2418,7 @@
       "id": "infisical",
       "display_name": "Infisical",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/infisical.html",
+      "docs_url": "https://infisical.com/docs/documentation/getting-started/introduction",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2397,7 +2457,7 @@
       "id": "keepass",
       "display_name": "KeePass",
       "category": "local_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/keepass.html",
+      "docs_url": "https://keepass.info/help/base/index.html",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2460,7 +2520,7 @@
       "id": "password-store",
       "display_name": "password-store",
       "category": "local_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/password-store.html",
+      "docs_url": "https://www.passwordstore.org/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2523,7 +2583,7 @@
       "id": "passwordstate",
       "display_name": "Passwordstate",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/cli/provider/add",
+      "docs_url": "https://www.clickstudios.com.au/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2581,7 +2641,7 @@
       "id": "proton-pass",
       "display_name": "Proton Pass",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/proton-pass.html",
+      "docs_url": "https://proton.me/support/pass",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2610,7 +2670,7 @@
       "id": "vault",
       "display_name": "HashiCorp Vault",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/vault.html",
+      "docs_url": "https://developer.hashicorp.com/vault/docs",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2649,7 +2709,7 @@
       "id": "openbao",
       "display_name": "OpenBao",
       "category": "cloud_secret_storage",
-      "docs_url": "https://fnox.jdx.dev/providers/openbao.html",
+      "docs_url": "https://openbao.org/docs/",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
       "auth": {
         "kind": "configuration"
@@ -2688,7 +2748,7 @@
       "id": "vaultwarden",
       "display_name": "Vaultwarden",
       "category": "password_managers",
-      "docs_url": "https://fnox.jdx.dev/providers/vaultwarden.html",
+      "docs_url": "https://github.com/dani-garcia/vaultwarden/wiki",
       "provenance_url": "https://fnox.jdx.dev/providers/overview.html",
       "auth": {
         "kind": "configuration"
@@ -2784,7 +2844,7 @@
     {
       "id": "azure-openai",
       "display_name": "Azure OpenAI",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://learn.microsoft.com/azure/ai-services/openai/reference",
       "provenance_url": "https://learn.microsoft.com/azure/ai-services/openai/reference",
       "auth": {
@@ -2818,12 +2878,15 @@
         "authorities": [],
         "path_prefixes": []
       },
-      "operations": ["model.invoke"]
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "rest_json"
+      }
     },
     {
       "id": "aws-bedrock",
       "display_name": "Amazon Bedrock",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started-api.html",
       "provenance_url": "https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html",
       "auth": {
@@ -2862,12 +2925,15 @@
         "authorities": [],
         "path_prefixes": []
       },
-      "operations": ["model.invoke"]
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "rest_json"
+      }
     },
     {
       "id": "openrouter",
       "display_name": "OpenRouter",
-      "category": "agent_harnesses",
+      "category": "ai_model_provider",
       "docs_url": "https://openrouter.ai/docs/guides/overview/auth/oauth",
       "provenance_url": "https://openrouter.ai/docs/guides/overview/auth/oauth",
       "auth": {
@@ -2881,13 +2947,17 @@
         "authorities": ["openrouter.ai"],
         "path_prefixes": ["/api/v1/"]
       },
-      "operations": ["model.invoke"]
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://openrouter.ai/api/v1"
+      }
     },
     {
       "id": "yubikey",
       "display_name": "YubiKey",
       "category": "encryption",
-      "docs_url": "https://fnox.jdx.dev/providers/yubikey.html",
+      "docs_url": "https://docs.yubico.com/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -3461,6 +3531,60 @@
       "operations": ["git.fetch", "git.push"]
     },
     {
+      "id": "s3",
+      "display_name": "S3-compatible bucket",
+      "category": "local_storage",
+      "docs_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+      "provenance_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "endpoint",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "bucket",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "access_key_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "secret_access_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["s3.get", "s3.put"]
+    },
+    {
       "id": "vault-self",
       "display_name": "This vault (authenticator codes)",
       "category": "password_managers",
@@ -3476,8 +3600,1599 @@
         "path_prefixes": []
       },
       "operations": ["otp.generate"]
+    },
+    {
+      "id": "xai",
+      "display_name": "xAI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.x.ai/docs/models",
+      "provenance_url": "https://docs.x.ai/docs/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.x.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.x.ai/v1"
+      }
+    },
+    {
+      "id": "meta",
+      "display_name": "Meta",
+      "category": "ai_model_provider",
+      "docs_url": "https://dev.meta.ai/docs",
+      "provenance_url": "https://dev.meta.ai/docs",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.meta.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.meta.ai/v1"
+      }
+    },
+    {
+      "id": "zai",
+      "display_name": "Z.AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.z.ai/guides/overview/pricing",
+      "provenance_url": "https://docs.z.ai/guides/overview/pricing",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.z.ai"],
+        "path_prefixes": ["/api/paas/v4/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.z.ai/api/paas/v4"
+      }
+    },
+    {
+      "id": "deepseek",
+      "display_name": "DeepSeek",
+      "category": "ai_model_provider",
+      "docs_url": "https://api-docs.deepseek.com/quick_start/pricing",
+      "provenance_url": "https://api-docs.deepseek.com/quick_start/pricing",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.deepseek.com"],
+        "path_prefixes": []
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.deepseek.com"
+      }
+    },
+    {
+      "id": "nvidia",
+      "display_name": "Nvidia",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.api.nvidia.com/nim/",
+      "provenance_url": "https://docs.api.nvidia.com/nim/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["integrate.api.nvidia.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://integrate.api.nvidia.com/v1"
+      }
+    },
+    {
+      "id": "minimax",
+      "display_name": "MiniMax (minimax.io)",
+      "category": "ai_model_provider",
+      "docs_url": "https://platform.minimax.io/docs/guides/quickstart",
+      "provenance_url": "https://platform.minimax.io/docs/guides/quickstart",
+      "auth": {
+        "kind": "api_key",
+        "header": "x-api-key",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.minimax.io"],
+        "path_prefixes": ["/anthropic/v1/"]
+      },
+      "operations": ["message.create", "model.list"],
+      "model_api": {
+        "protocol": "anthropic_messages",
+        "base_url": "https://api.minimax.io/anthropic/v1"
+      }
+    },
+    {
+      "id": "moonshotai",
+      "display_name": "Moonshot AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://platform.moonshot.ai/docs/api/chat",
+      "provenance_url": "https://platform.moonshot.ai/docs/api/chat",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.moonshot.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.moonshot.ai/v1"
+      }
+    },
+    {
+      "id": "alibaba",
+      "display_name": "Alibaba",
+      "category": "ai_model_provider",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "provenance_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["dashscope-intl.aliyuncs.com"],
+        "path_prefixes": ["/compatible-mode/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+      }
+    },
+    {
+      "id": "baseten",
+      "display_name": "Baseten",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.baseten.co/inference/model-apis/overview",
+      "provenance_url": "https://docs.baseten.co/inference/model-apis/overview",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["inference.baseten.co"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://inference.baseten.co/v1"
+      }
+    },
+    {
+      "id": "cerebras",
+      "display_name": "Cerebras",
+      "category": "ai_model_provider",
+      "docs_url": "https://inference-docs.cerebras.ai/models/overview",
+      "provenance_url": "https://inference-docs.cerebras.ai/models/overview",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.cerebras.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.cerebras.ai/v1"
+      }
+    },
+    {
+      "id": "chutes",
+      "display_name": "Chutes",
+      "category": "ai_model_provider",
+      "docs_url": "https://llm.chutes.ai/v1/models",
+      "provenance_url": "https://llm.chutes.ai/v1/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["llm.chutes.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://llm.chutes.ai/v1"
+      }
+    },
+    {
+      "id": "deepinfra",
+      "display_name": "Deep Infra",
+      "category": "ai_model_provider",
+      "docs_url": "https://deepinfra.com/models",
+      "provenance_url": "https://deepinfra.com/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.deepinfra.com"],
+        "path_prefixes": ["/v1/openai/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.deepinfra.com/v1/openai"
+      }
+    },
+    {
+      "id": "digitalocean-ai",
+      "display_name": "DigitalOcean AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "provenance_url": "https://docs.digitalocean.com/products/gradient-ai-platform/details/models/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["inference.do-ai.run"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://inference.do-ai.run/v1"
+      }
+    },
+    {
+      "id": "thinking-machines",
+      "display_name": "Thinking Machines",
+      "category": "ai_model_provider",
+      "docs_url": "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/",
+      "provenance_url": "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/",
+      "auth": {
+        "kind": "api_key",
+        "header": "x-api-key",
+        "value_prefix": ""
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["tinker.thinkingmachines.dev"],
+        "path_prefixes": ["/services/tinker-prod/anthropic/api/v1/"]
+      },
+      "operations": ["message.create", "model.list"],
+      "model_api": {
+        "protocol": "anthropic_messages",
+        "base_url": "https://tinker.thinkingmachines.dev/services/tinker-prod/anthropic/api/v1"
+      }
+    },
+    {
+      "id": "poolside",
+      "display_name": "Poolside",
+      "category": "ai_model_provider",
+      "docs_url": "https://platform.poolside.ai",
+      "provenance_url": "https://platform.poolside.ai",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["inference.poolside.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://inference.poolside.ai/v1"
+      }
+    },
+    {
+      "id": "siliconflow",
+      "display_name": "SiliconFlow",
+      "category": "ai_model_provider",
+      "docs_url": "https://cloud.siliconflow.com/models",
+      "provenance_url": "https://cloud.siliconflow.com/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.siliconflow.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.siliconflow.com/v1"
+      }
+    },
+    {
+      "id": "vultr",
+      "display_name": "Vultr",
+      "category": "ai_model_provider",
+      "docs_url": "https://api.vultrinference.com/",
+      "provenance_url": "https://api.vultrinference.com/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.vultrinference.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.vultrinference.com/v1"
+      }
+    },
+    {
+      "id": "venice",
+      "display_name": "Venice AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.venice.ai",
+      "provenance_url": "https://docs.venice.ai",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.venice.ai"],
+        "path_prefixes": ["/api/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.venice.ai/api/v1"
+      }
+    },
+    {
+      "id": "vercel-ai-gateway",
+      "display_name": "Vercel AI Gateway",
+      "category": "ai_model_provider",
+      "docs_url": "https://vercel.com/docs/ai-gateway",
+      "provenance_url": "https://vercel.com/docs/ai-gateway",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["ai-gateway.vercel.sh"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://ai-gateway.vercel.sh/v1"
+      }
+    },
+    {
+      "id": "xiaomi",
+      "display_name": "Xiaomi",
+      "category": "ai_model_provider",
+      "docs_url": "https://platform.xiaomimimo.com/#/docs",
+      "provenance_url": "https://platform.xiaomimimo.com/#/docs",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.xiaomimimo.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.xiaomimimo.com/v1"
+      }
+    },
+    {
+      "id": "ai21",
+      "display_name": "AI21 Labs",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.ai21.com/docs/jamba-foundation-models",
+      "provenance_url": "https://docs.ai21.com/docs/jamba-foundation-models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.ai21.com"],
+        "path_prefixes": ["/studio/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.ai21.com/studio/v1"
+      }
+    },
+    {
+      "id": "nebius",
+      "display_name": "Nebius Token Factory",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.tokenfactory.nebius.com/",
+      "provenance_url": "https://docs.tokenfactory.nebius.com/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.tokenfactory.nebius.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.tokenfactory.nebius.com/v1"
+      }
+    },
+    {
+      "id": "novita",
+      "display_name": "Novita AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://novita.ai/docs/guides/introduction",
+      "provenance_url": "https://novita.ai/docs/guides/introduction",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.novita.ai"],
+        "path_prefixes": ["/openai/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.novita.ai/openai"
+      }
+    },
+    {
+      "id": "scaleway",
+      "display_name": "Scaleway",
+      "category": "ai_model_provider",
+      "docs_url": "https://www.scaleway.com/en/docs/generative-apis/",
+      "provenance_url": "https://www.scaleway.com/en/docs/generative-apis/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.scaleway.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.scaleway.ai/v1"
+      }
+    },
+    {
+      "id": "ovhcloud",
+      "display_name": "OVHcloud AI Endpoints",
+      "category": "ai_model_provider",
+      "docs_url": "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//",
+      "provenance_url": "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["oai.endpoints.kepler.ai.cloud.ovh.net"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"
+      }
+    },
+    {
+      "id": "friendli",
+      "display_name": "Friendli",
+      "category": "ai_model_provider",
+      "docs_url": "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+      "provenance_url": "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.friendli.ai"],
+        "path_prefixes": ["/serverless/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.friendli.ai/serverless/v1"
+      }
+    },
+    {
+      "id": "upstage",
+      "display_name": "Upstage",
+      "category": "ai_model_provider",
+      "docs_url": "https://developers.upstage.ai/docs/apis/chat",
+      "provenance_url": "https://developers.upstage.ai/docs/apis/chat",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.upstage.ai"],
+        "path_prefixes": ["/v1/solar/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.upstage.ai/v1/solar"
+      }
+    },
+    {
+      "id": "sarvam",
+      "display_name": "Sarvam AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.sarvam.ai/api-reference-docs/getting-started/models",
+      "provenance_url": "https://docs.sarvam.ai/api-reference-docs/getting-started/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.sarvam.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.sarvam.ai/v1"
+      }
+    },
+    {
+      "id": "stepfun",
+      "display_name": "StepFun (Global)",
+      "category": "ai_model_provider",
+      "docs_url": "https://platform.stepfun.ai/docs/en/overview/concept",
+      "provenance_url": "https://platform.stepfun.ai/docs/en/overview/concept",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.stepfun.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.stepfun.ai/v1"
+      }
+    },
+    {
+      "id": "zhipuai",
+      "display_name": "Zhipu AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.z.ai/guides/overview/pricing",
+      "provenance_url": "https://docs.z.ai/guides/overview/pricing",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["open.bigmodel.cn"],
+        "path_prefixes": ["/api/paas/v4/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4"
+      }
+    },
+    {
+      "id": "moonshotai-cn",
+      "display_name": "Moonshot AI (China)",
+      "category": "ai_model_provider",
+      "docs_url": "https://platform.moonshot.cn/docs/api/chat",
+      "provenance_url": "https://platform.moonshot.cn/docs/api/chat",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.moonshot.cn"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.moonshot.cn/v1"
+      }
+    },
+    {
+      "id": "alibaba-cn",
+      "display_name": "Alibaba (China)",
+      "category": "ai_model_provider",
+      "docs_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "provenance_url": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["dashscope.aliyuncs.com"],
+        "path_prefixes": ["/compatible-mode/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1"
+      }
+    },
+    {
+      "id": "volcengine",
+      "display_name": "Volcengine Ark",
+      "category": "ai_model_provider",
+      "docs_url": "https://www.volcengine.com/docs/82379/1330310",
+      "provenance_url": "https://www.volcengine.com/docs/82379/1330310",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["ark.cn-beijing.volces.com"],
+        "path_prefixes": ["/api/v3/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://ark.cn-beijing.volces.com/api/v3"
+      }
+    },
+    {
+      "id": "inception",
+      "display_name": "Inception",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.inceptionlabs.ai/get-started/models",
+      "provenance_url": "https://docs.inceptionlabs.ai/get-started/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.inceptionlabs.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.inceptionlabs.ai/v1"
+      }
+    },
+    {
+      "id": "arcee",
+      "display_name": "Arcee",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.arcee.ai",
+      "provenance_url": "https://docs.arcee.ai",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.arcee.ai"],
+        "path_prefixes": ["/api/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.arcee.ai/api/v1"
+      }
+    },
+    {
+      "id": "amazon-nova",
+      "display_name": "Amazon Nova",
+      "category": "ai_model_provider",
+      "docs_url": "https://nova.amazon.com/dev/documentation",
+      "provenance_url": "https://nova.amazon.com/dev/documentation",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.nova.amazon.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.nova.amazon.com/v1"
+      }
+    },
+    {
+      "id": "clarifai",
+      "display_name": "Clarifai",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.clarifai.com/compute/inference/",
+      "provenance_url": "https://docs.clarifai.com/compute/inference/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.clarifai.com"],
+        "path_prefixes": ["/v2/ext/openai/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.clarifai.com/v2/ext/openai/v1"
+      }
+    },
+    {
+      "id": "modal",
+      "display_name": "Modal",
+      "category": "ai_model_provider",
+      "docs_url": "https://modal.com/docs/guide/endpoints",
+      "provenance_url": "https://modal.com/docs/guide/endpoints",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["inference.us-west.modal.direct"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://inference.us-west.modal.direct/v1"
+      }
+    },
+    {
+      "id": "coreweave",
+      "display_name": "CoreWeave",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.wandb.ai/inference",
+      "provenance_url": "https://docs.wandb.ai/inference",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.inference.wandb.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.inference.wandb.ai/v1"
+      }
+    },
+    {
+      "id": "crusoe",
+      "display_name": "Crusoe",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.crusoecloud.com/managed-inference/overview",
+      "provenance_url": "https://docs.crusoecloud.com/managed-inference/overview",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.inference.crusoecloud.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.inference.crusoecloud.com/v1"
+      }
+    },
+    {
+      "id": "hetzner",
+      "display_name": "Hetzner",
+      "category": "ai_model_provider",
+      "docs_url": "https://experiments.hetzner.com/docs/inference",
+      "provenance_url": "https://experiments.hetzner.com/docs/inference",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["inference.hetzner.com"],
+        "path_prefixes": ["/api/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://inference.hetzner.com/api/v1"
+      }
+    },
+    {
+      "id": "nearai",
+      "display_name": "NEAR AI Cloud",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.near.ai/",
+      "provenance_url": "https://docs.near.ai/",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["cloud-api.near.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://cloud-api.near.ai/v1"
+      }
+    },
+    {
+      "id": "io-net",
+      "display_name": "IO.NET",
+      "category": "ai_model_provider",
+      "docs_url": "https://io.net/docs/guides/intelligence/io-intelligence",
+      "provenance_url": "https://io.net/docs/guides/intelligence/io-intelligence",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.intelligence.io.solutions"],
+        "path_prefixes": ["/api/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.intelligence.io.solutions/api/v1"
+      }
+    },
+    {
+      "id": "gmicloud",
+      "display_name": "GMI Cloud",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "provenance_url": "https://docs.gmicloud.ai/inference-engine/api-reference/llm-api-reference",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.gmi-serving.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.gmi-serving.com/v1"
+      }
+    },
+    {
+      "id": "tinfoil",
+      "display_name": "Tinfoil",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.tinfoil.sh",
+      "provenance_url": "https://docs.tinfoil.sh",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["inference.tinfoil.sh"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://inference.tinfoil.sh/v1"
+      }
+    },
+    {
+      "id": "berget",
+      "display_name": "Berget.AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://api.berget.ai",
+      "provenance_url": "https://api.berget.ai",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.berget.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.berget.ai/v1"
+      }
+    },
+    {
+      "id": "ollama-cloud",
+      "display_name": "Ollama Cloud",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.ollama.com/cloud",
+      "provenance_url": "https://docs.ollama.com/cloud",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["ollama.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://ollama.com/v1"
+      }
+    },
+    {
+      "id": "helicone",
+      "display_name": "Helicone",
+      "category": "ai_model_provider",
+      "docs_url": "https://helicone.ai/models",
+      "provenance_url": "https://helicone.ai/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["ai-gateway.helicone.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://ai-gateway.helicone.ai/v1"
+      }
+    },
+    {
+      "id": "requesty",
+      "display_name": "Requesty",
+      "category": "ai_model_provider",
+      "docs_url": "https://requesty.ai/solution/llm-routing/models",
+      "provenance_url": "https://requesty.ai/solution/llm-routing/models",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["router.requesty.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://router.requesty.ai/v1"
+      }
+    },
+    {
+      "id": "edenai",
+      "display_name": "Eden AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.edenai.co",
+      "provenance_url": "https://docs.edenai.co",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.edenai.run"],
+        "path_prefixes": ["/v3/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.edenai.run/v3"
+      }
+    },
+    {
+      "id": "poe",
+      "display_name": "Poe",
+      "category": "ai_model_provider",
+      "docs_url": "https://creator.poe.com/docs/external-applications/openai-compatible-api",
+      "provenance_url": "https://creator.poe.com/docs/external-applications/openai-compatible-api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.poe.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.poe.com/v1"
+      }
+    },
+    {
+      "id": "302ai",
+      "display_name": "302.AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://doc.302.ai",
+      "provenance_url": "https://doc.302.ai",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.302.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.302.ai/v1"
+      }
+    },
+    {
+      "id": "nanogpt",
+      "display_name": "NanoGPT",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.nano-gpt.com",
+      "provenance_url": "https://docs.nano-gpt.com",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["nano-gpt.com"],
+        "path_prefixes": ["/api/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://nano-gpt.com/api/v1"
+      }
+    },
+    {
+      "id": "kilo",
+      "display_name": "Kilo Gateway",
+      "category": "ai_model_provider",
+      "docs_url": "https://kilo.ai",
+      "provenance_url": "https://kilo.ai",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.kilo.ai"],
+        "path_prefixes": ["/api/gateway/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.kilo.ai/api/gateway"
+      }
+    },
+    {
+      "id": "llmgateway",
+      "display_name": "LLM Gateway",
+      "category": "ai_model_provider",
+      "docs_url": "https://llmgateway.io/docs",
+      "provenance_url": "https://llmgateway.io/docs",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.llmgateway.io"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.llmgateway.io/v1"
+      }
+    },
+    {
+      "id": "abacus",
+      "display_name": "Abacus",
+      "category": "ai_model_provider",
+      "docs_url": "https://abacus.ai/help/api",
+      "provenance_url": "https://abacus.ai/help/api",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["routellm.abacus.ai"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://routellm.abacus.ai/v1"
+      }
+    },
+    {
+      "id": "opencode-zen",
+      "display_name": "OpenCode Zen",
+      "category": "ai_model_provider",
+      "docs_url": "https://opencode.ai/zen",
+      "provenance_url": "https://opencode.ai/docs/zen",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["opencode.ai"],
+        "path_prefixes": ["/zen/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://opencode.ai/zen/v1"
+      }
+    },
+    {
+      "id": "aihubmix",
+      "display_name": "AIHubMix",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.aihubmix.com",
+      "provenance_url": "https://docs.aihubmix.com",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["aihubmix.com"],
+        "path_prefixes": ["/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://aihubmix.com/v1"
+      }
+    },
+    {
+      "id": "synthetic",
+      "display_name": "Synthetic",
+      "category": "ai_model_provider",
+      "docs_url": "https://synthetic.new/pricing",
+      "provenance_url": "https://synthetic.new/pricing",
+      "auth": {
+        "kind": "api_key",
+        "header": "Authorization",
+        "value_prefix": "Bearer "
+      },
+      "scopes": [],
+      "egress": {
+        "scheme": "https",
+        "authorities": ["api.synthetic.new"],
+        "path_prefixes": ["/openai/v1/"]
+      },
+      "operations": ["chat.create", "model.list"],
+      "model_api": {
+        "protocol": "openai_chat",
+        "base_url": "https://api.synthetic.new/openai/v1"
+      }
+    },
+    {
+      "id": "google-vertex",
+      "display_name": "Google Vertex AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://cloud.google.com/vertex-ai/generative-ai/docs/start/api-keys",
+      "provenance_url": "https://cloud.google.com/vertex-ai/generative-ai/docs/start/api-keys",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "project",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "location",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "service_account_json",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "rest_json"
+      }
+    },
+    {
+      "id": "cloudflare-ai-gateway",
+      "display_name": "Cloudflare AI Gateway",
+      "category": "ai_model_provider",
+      "docs_url": "https://developers.cloudflare.com/ai-gateway/",
+      "provenance_url": "https://developers.cloudflare.com/ai-gateway/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "account_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "gateway_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat"
+      }
+    },
+    {
+      "id": "cloudflare-workers-ai",
+      "display_name": "Cloudflare Workers AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://developers.cloudflare.com/workers-ai/models/",
+      "provenance_url": "https://developers.cloudflare.com/workers-ai/models/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "account_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat"
+      }
+    },
+    {
+      "id": "databricks-ai-gateway",
+      "display_name": "Databricks AI Gateway",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.databricks.com/aws/en/machine-learning/foundation-models/",
+      "provenance_url": "https://docs.databricks.com/aws/en/machine-learning/foundation-models/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "host",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat"
+      }
+    },
+    {
+      "id": "snowflake-cortex",
+      "display_name": "Snowflake Cortex",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api",
+      "provenance_url": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-rest-api",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "account",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat"
+      }
+    },
+    {
+      "id": "watsonx",
+      "display_name": "IBM watsonx.ai",
+      "category": "ai_model_provider",
+      "docs_url": "https://www.ibm.com/docs/en/watsonx/saas?topic=solutions-supported-foundation-models",
+      "provenance_url": "https://www.ibm.com/docs/en/watsonx/saas?topic=solutions-supported-foundation-models",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "project_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": true
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat"
+      }
+    },
+    {
+      "id": "litellm",
+      "display_name": "LiteLLM",
+      "category": "ai_model_provider",
+      "docs_url": "https://docs.litellm.ai/docs/proxy/virtual_keys",
+      "provenance_url": "https://docs.litellm.ai/docs/proxy/virtual_keys",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "api_key",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["model.invoke"],
+      "model_api": {
+        "protocol": "openai_chat"
+      }
     }
   ],
-  "revision": "2026-10-05.1",
+  "revision": "2026-10-12.1",
   "schema_version": 1
 }

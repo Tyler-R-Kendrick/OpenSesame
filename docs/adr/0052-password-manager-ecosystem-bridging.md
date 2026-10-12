@@ -1,7 +1,13 @@
 # ADR 0052 — Password-manager ecosystem bridging
 
-Status: Accepted (strategy; roadmap rows are explicitly not built)
+Status: Accepted (strategy; partly superseded by ADR 0076 §11 and §14; the roadmap rows other than Bitwarden server API compat are not built)
 Date: 2026-08-22
+Implementation: the "Bitwarden server API compat" roadmap row of §4 is built, by
+[ADR 0141](0141-bitwarden-compatible-server.md) and [ADR
+0148](0148-bitwarden-bridge-and-importer.md): `crates/bitwarden-server`, the
+`bitwarden-compat` cargo feature of the gateway and `opensesame`, off by default.
+Superseded in part by: [ADR 0076](0076-autonomous-web-login-rotation.md) (§11
+and §14, only their refusal of programmatic third-party password change)
 Supplements: ADR 0005 (ConnectionRef over SecretRef), ADR 0017 (host/client
 topology), ADR 0037 (git sealed store), ADR 0047 / ADR 0048 (connector
 discovery and capability modes), ADR 0049 (derived short-lived

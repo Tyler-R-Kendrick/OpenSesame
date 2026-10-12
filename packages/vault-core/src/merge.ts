@@ -8,6 +8,8 @@
  * travels as a tombstone so the other side's older copy cannot bring it back.
  */
 import { mergeDeviceKeyFields } from "./device-key.js";
+import { withoutRemovedCells } from "./environment-purge.js";
+import { mergeEnvironments } from "./environments.js";
 import { changedAt, mergeItem } from "./item-merge.js";
 import type {
   Folder,
@@ -50,6 +52,7 @@ export function mergeVaultBodies(
     tombstones?.itemTypes ?? {},
   );
   const masterWrap = laterWrap(left.masterWrap, right.masterWrap);
+  const environments = mergeEnvironments(left.environments, right.environments);
   const deviceIdentityKey = mergeDeviceKeyFields(
     left.deviceIdentityKey,
     right.deviceIdentityKey,
@@ -59,7 +62,8 @@ export function mergeVaultBodies(
     items: mergeItems(left.items, right.items)
       .filter((item) => !purgedSince(deadItems[item.id], item))
       .filter((item) => !orphanedByPurge(item, deadItems))
-      .map((item) => rehomed(item, deadFolders)),
+      .map((item) => rehomed(item, deadFolders))
+      .map((item) => withoutRemovedCells(item, environments)),
     folders: newest(left.folders, right.folders, folderVersion).filter(
       (folder) => deadFolders[folder.id] === undefined,
     ),
@@ -68,6 +72,7 @@ export function mergeVaultBodies(
     ...(tombstones ? { tombstones } : undefined),
     ...(deviceIdentityKey ? { deviceIdentityKey } : undefined),
     ...(masterWrap ? { masterWrap } : undefined),
+    ...(environments ? { environments } : undefined),
     rev: Math.max(left.rev ?? 0, right.rev ?? 0),
   };
 }
@@ -264,5 +269,8 @@ function contentKey(body: VaultBody): string {
     ...TOMBSTONE_KINDS.map((kind) => sortedEntries(body.tombstones?.[kind])),
     body.deviceIdentityKey ?? null,
     body.masterWrap ?? null,
+    Object.entries(body.environments ?? {}).sort(([a], [b]) =>
+      a.localeCompare(b),
+    ),
   ]);
 }

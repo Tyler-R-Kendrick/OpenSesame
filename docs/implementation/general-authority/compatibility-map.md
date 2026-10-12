@@ -1,5 +1,16 @@
 # General authority — compatibility map
 
+> Status (2026-10-08): both questions are settled and this map is a record of
+> the constraints. Naming: the stored record is Grant / `AuthorityGrant`
+> (decision at the foot of this file, 2026-09-17); `AccessLease` survives only as
+> an alias of the same schema (`AccessLeaseSchema` in
+> `packages/contracts/src/authority-grant.ts`). Model: `spec/openfga/model.fga`
+> now adds `access_domain` to the types in `spec/openfga/baseline.fga`, and
+> `packages/policy/src/__tests__/authority-additivity.test.ts` checks the delta
+> is additive. `completion-matrix.json` marks GA-F-01 to GA-F-04 and GA-O-03
+> `verified`, so the two "Status: Open" paragraphs and the "AccessLease does not
+> appear anywhere" row below describe the baseline when this was written.
+
 Two questions get conflated whenever a hierarchical authority model is
 proposed. This document separates them and records where each one stands.
 

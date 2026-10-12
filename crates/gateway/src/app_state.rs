@@ -277,6 +277,12 @@ pub mod test_env {
 
     static LOCK: Mutex<()> = Mutex::new(());
 
+    /// Build a fixture while process-global deployment settings are stable.
+    pub async fn build(args: super::Args) -> anyhow::Result<super::AppState> {
+        let _guard = lock();
+        super::build_test(args).await
+    }
+
     /// Serialize tests that mutate process env (`OPENSESAME_*`, `NATS_URL`, …).
     pub fn lock() -> std::sync::MutexGuard<'static, ()> {
         LOCK.lock()
@@ -329,6 +335,7 @@ pub async fn test_demo_state() -> AppState {
         issuer: "https://identity.test".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();

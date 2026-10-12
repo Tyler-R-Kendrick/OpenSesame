@@ -1,9 +1,15 @@
 # ADR 0047 — Daemon connector discovery with consented promotion
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-19
+Implementation: discovery and consented promotion are built: value-blind
+detection in `crates/connection-detect` and the daemon's `discovery.rs` and
+`promote.rs` (`crates/daemon/src`).
 Supplemented by ADR 0048 (capability-moded discovery) and ADR 0049
 (derived short-lived materialization).
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed,
+partly implemented; §6 here: process isolation
+becomes crate isolation).
 
 ## Context
 

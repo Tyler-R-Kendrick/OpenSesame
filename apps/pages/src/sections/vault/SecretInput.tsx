@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import { useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
@@ -26,6 +27,7 @@ export function SecretControl({
         type={reveal ? "text" : "password"}
         autoComplete="off"
         spellCheck={false}
+        maxLength={FIELD_LIMITS.secret}
         placeholder={placeholder}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -58,6 +60,7 @@ export function TextControl({
       id={id}
       autoComplete="off"
       spellCheck={false}
+      maxLength={FIELD_LIMITS.line}
       placeholder={placeholder}
       value={value}
       onChange={(event) => onChange(event.target.value)}

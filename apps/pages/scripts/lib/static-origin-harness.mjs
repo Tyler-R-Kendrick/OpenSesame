@@ -178,7 +178,12 @@ async function newPage(
     ...(device ?? {}),
   });
   const shooCalls = [];
-  await context.route("**/*", async (route) => {
+  // Every request but a blob or data URL, which is the page's own bytes and
+  // never a file of the deployment: WebKit offers them to a route ("**/*"
+  // matches them; Chromium never routes them) and a blob URL's origin is the
+  // page's, so the router would answer one from dist with a 404.
+  const routed = (url) => url.protocol !== "blob:" && url.protocol !== "data:";
+  await context.route(routed, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin === origin) {
@@ -283,6 +288,8 @@ export function createHarness({ dist, origin, base, out }) {
     failures,
     record,
     setStep,
+    /** Where the walk is standing now, for a failure that is not a check. */
+    step: () => step,
     check(condition, what) {
       if (!condition) failures.push(`[${step}] ${what}`);
       record(condition ? "PASS" : "FAIL", what);

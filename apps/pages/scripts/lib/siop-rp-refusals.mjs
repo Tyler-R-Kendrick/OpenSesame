@@ -106,7 +106,7 @@ export async function lockedVault(env) {
   const mark = harness.log.length;
   await page.goto(login.url.href);
   await expect(
-    page.getByRole("button", { name: "Continue as guest", exact: true }),
+    page.getByRole("button", { name: "Skip to the guest vault", exact: true }),
   ).toBeVisible();
   await page.waitForTimeout(1500);
   expect(new URL(page.url()).origin).toBe(origin);

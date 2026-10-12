@@ -1,5 +1,19 @@
 # Hooks as an extensibility mechanism — ecosystem research
 
+> Status (2026-10-08): [ADR 0065](../adr/0065-connector-hook-architecture.md)
+> is accepted and most of what this research led to has landed. §1 and the
+> "Today" column of §5 describe the repository when the research was done
+> (2026-08-30); since then the manifest parser
+> (`crates/connector-host/src/manifest.rs`), the Wasm component runtime
+> (`crates/connector-host/src/wasm.rs`, behind the default-off
+> `wasm-connectors` feature), OCI pull by pinned digest
+> (`crates/gateway/src/oci_component.rs`), the connector backup target
+> (`ConnectorSnapshotTarget`, `crates/gateway/src/backup_target.rs`), the
+> certificate issuer registry (`crates/gateway/src/cert_issuers/registry.rs`)
+> and the ciphertext-only `ObjectStore`
+> (`crates/sealed-store/src/object_store.rs`) exist. ADR 0065 §8 records what
+> has landed and what is still deferred.
+
 Research input for [ADR 0065](../adr/0065-connector-hook-architecture.md).
 This document records *what other ecosystems did and what happened to them*,
 maps their lessons onto OpenSesame's existing surfaces, and derives the
@@ -23,7 +37,8 @@ as contracts and enforcement:
   already defines the value-blind guest interface: exports `describe`/`invoke`
   over opaque `connection-handle`/`credential-handle` resources; imports only
   `host-http.authorized-request`, purpose-bound `host-crypto.sign`, and
-  `host-oauth.acquire`. There is intentionally no `secrets.get` import, and
+  `host-oauth` (`acquire`, `authenticated-request`). There is intentionally no
+  `secrets.get` import, and
   `crates/connector-sdk` plus `crates/host-core` carry structural tests that
   fail the build if one appears.
 - `crates/connector-host` — `trait Connector`, `HostRuntime` with
@@ -76,10 +91,13 @@ tier: an enterprise `allowManagedHooksOnly` switch, an egress allowlist for
 HTTP hooks, and an env-var allowlist gating what may be interpolated into
 headers.
 
-Incidents: CVE-2025-59536 — a repo's `.claude/settings.json` defined hooks
-that executed on project open, i.e. cloning a repository was remote code
-execution; a sibling flaw let project files override the API base URL and
-exfiltrate keys. A 2026 marketplace audit found 76 malicious skill payloads.
+Incidents: a repo's `.claude/settings.json` defined hooks that executed on
+project open (GHSA-ph6w-f82w-28w6), and its MCP auto-approval settings ran a
+server's command before the trust dialog (CVE-2025-59536), i.e. cloning a
+repository was remote code execution; a sibling flaw (CVE-2026-21852) let
+project files override the API base URL and exfiltrate keys. A 2026 audit of
+the ClawHub skills registry (Snyk's ToxicSkills) confirmed 76 malicious
+payloads.
 Plugins bundle skills + MCP servers + hooks + binaries under one consent
 click with no capability declaration.
 
@@ -117,10 +135,12 @@ payloads (ID + event type, receiver fetches with its own credentials) beat
 fat payloads: the fetch re-authorizes the read.
 
 OpenSesame already implements almost all of this (ADR 0046 D12,
-`packages/webhooks`); the one gap found during this research is that webhook
-registration validates only `https://` and lacks a private-IP/DNS-rebind
-fence — `connector-host`'s `is_blocked_host` exists but is not applied
-there.
+`packages/webhooks`); the one gap found during this research was that webhook
+delivery lacked a private-IP/DNS-rebind fence — `connector-host`'s
+`is_blocked_host` existed but was not applied there. `postWebhook`
+(`packages/webhooks/src/delivery.ts`) now resolves the destination, refuses
+non-public addresses and connects to the verified address; registration
+(`RegisterWebhookEndpointSchema`) still checks only for `https://`.
 
 **Lesson: thin, digest-shaped payloads make a hook channel structurally
 incapable of exfiltration; the receiver's own credentials re-authorize
@@ -328,7 +348,7 @@ migration order:
 | Password managers | Bespoke by design (ADR 0052/0053), plaintext human plane | Split: agent-safe metadata ops (WIT) vs native bridge trait | 3 for metadata ops; Tier X for plaintext | Plaintext is the product; never enters a guest |
 
 Client-side, `packages/app-core/src/lib/vault/import/types.ts` (`ImportAdapter`,
-13 registered adapters) is already a genuine community-shaped TS plugin
+18 registered adapters in `ADAPTERS`) is already a genuine community-shaped TS plugin
 interface for password-manager *imports* — plaintext stays inside the
 user's browser vault, which is the one place it belongs. It is the
 template for client-plane community surfaces.
@@ -360,7 +380,7 @@ into decisions:
 Claude Code / marketplaces: code.claude.com/docs/en/hooks;
 research.checkpoint.com (CVE-2025-59536);
 sonarsource.com/blog/claude-arbitrary-code-execution;
-sentinelone.com (marketplace skills audit).
+snyk.io (ToxicSkills).
 Git/npm: wiz.io (CVE-2026-3854); safedep.io (axios compromise);
 infoworld.com (npm install-script removal).
 Webhooks: docs.stripe.com/webhooks; webhooks.fyi; svix.com webhook security.

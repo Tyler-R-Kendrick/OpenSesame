@@ -23,34 +23,47 @@ import {
 import type { VaultItem } from "@opensesame/vault-core";
 import { compositionStore } from "../capabilities/store.js";
 import { persistedRestoreRefuses } from "../document-lifecycle.js";
+import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
-import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
-import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
+import type { Admission, LiveHost } from "./host.js";
+import type { HostState } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
-import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
+import {
+  LIVE_VAULT_LOCKED_TRAY,
+  reportLiveOutcome,
+} from "./outcome-notices.js";
+import {
+  DIRECT_ROUTING,
+  type PeerRouting,
+  type TransportFactory,
+} from "./p2p.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
-import {
-  guestCarriersFor,
-  hostRoutes,
-  openCarriers,
-  poster,
-  rtcServers,
-} from "./session-carriers.js";
-import {
-  type CarrierSpec,
-  DIRECT_TRANSPORT,
-  type LiveTransport,
-} from "./transport.js";
-import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
+import { type RelaySource, buildLiveHost } from "./session-build-host.js";
+import { guestCarriersFor, openCarriers, poster } from "./session-carriers.js";
+import type { CarrierSpec, LiveTransport } from "./transport.js";
+import type { ShareScope } from "./vault-share.js";
 
-export const liveSeams = {
+type LiveSessionSeams = {
+  items: () => readonly VaultItem[];
+  onLock: (handler: () => void) => () => void;
+  onHostState: ((state: HostState) => void) | null;
+  onHostingEnded: (() => void) | null;
+  plan: () => EffectivePlan | null;
+  onPlan: (handler: () => void) => () => void;
+};
+
+export const liveSeams: LiveSessionSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
   onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
+  /** Tray/UI when the hosted session's guest list changes (Pages sets this). */
+  onHostState: null,
+  /** Clear host-only tray rows when hosting ends (Pages sets this). */
+  onHostingEnded: null,
   /** The page's resolved plan; null until the composition store has one. */
   plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
   /** Hear the composition store publish, on every re-plan and activity note. */
@@ -126,54 +139,15 @@ export type HostInput = Readonly<{
   admission: Admission;
   /** Minutes; the host clamps it to eight hours. */
   minutes: number;
-  peers: PeerFactory;
-  /** The owner's transport profile; direct only when absent. */
-  transport?: LiveTransport;
+  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
+  transport: TransportFactory;
+  /** The owner's routes profile (Settings › Routes); direct when absent. */
+  routes?: LiveTransport;
   /** The shell's carrier clients, for a profile that names carriers. */
   carriers?: CarrierFactory;
+  /** Let devices ask to use the owner's connections (ADR 0196). */
+  devices?: boolean;
 }>;
-
-/** Where an admission asks for a seat's relay, once the carriers are open. */
-type RelaySource = { carriers: Rendezvous | null };
-
-/** The session's host and the routes its link carries, built but not yet live. */
-async function buildHost(
-  input: HostInput,
-  post: (code: string) => void,
-  source: RelaySource,
-) {
-  // The host clamps the lifetime; the catalog states the clamped one.
-  const expiresAt = Math.min(
-    Date.now() + input.minutes * 60_000,
-    Date.now() + MAX_SESSION_MS,
-  );
-  const items = liveSeams.items;
-  const transport = input.transport ?? DIRECT_TRANSPORT;
-  const { secret, routes, own, ice } = await hostRoutes(transport, expiresAt);
-  const next = await LiveHost.start({
-    admission: input.admission,
-    ice,
-    routes,
-    secret,
-    relay: (name) => source.carriers?.seat(name) ?? null,
-    post,
-    expiresAt,
-    catalog: () =>
-      vaultCatalog({
-        title: input.title,
-        policy: input.policy,
-        expiresAt,
-        scope: input.scope,
-        items,
-      }),
-    readField: vaultField({ scope: input.scope, items }),
-    writeField: vaultWrite({ scope: input.scope, items }, (item) =>
-      vaultStore.saveItem(item),
-    ),
-    peers: input.peers,
-  });
-  return { next, routes, own };
-}
 
 function authorityStands(): boolean {
   return host !== null || guest !== null;
@@ -216,23 +190,35 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
   let locked = false;
   const stopWatch = liveSeams.onLock(() => {
     locked = true;
-    if (started && host === started) endHosting();
+    if (started && host === started) {
+      reportLiveOutcome("Live session", LIVE_VAULT_LOCKED_TRAY);
+      endHosting();
+    }
   });
   let post: ((code: string) => Promise<void>) | null = null;
   const source: RelaySource = { carriers: null };
   try {
-    const built = await buildHost(input, (code) => void post?.(code), source);
+    const built = await buildLiveHost(
+      input,
+      liveSeams.items,
+      (code) => void post?.(code),
+      source,
+    );
     const made = built.next;
     started = made;
     // A session another start installed while this one was building ends.
     endHosting();
     if (locked) {
+      reportLiveOutcome("Live session", LIVE_VAULT_LOCKED_TRAY);
       made.end("owner");
       stopWatch();
       return made;
     }
     host = made;
     stopLockWatch = stopWatch;
+    made.subscribe((state) => {
+      liveSeams.onHostState?.(state);
+    });
     watchPlan();
     // The plan may already have withdrawn Live sessions while this was built.
     if (host !== made) return made;
@@ -303,8 +289,10 @@ export function endHosting(): void {
   hostCarriers?.close();
   hostCarriers = null;
   if (!host) return;
+  noteLiveSessionEnded(host.id);
   host.end("owner");
   host = null;
+  liveSeams.onHostingEnded?.();
   unwatchPlanIfIdle();
   changed();
 }
@@ -314,7 +302,8 @@ export type JoinInput = Readonly<{
   code: string | null;
   name: string;
   note: string;
-  peers: PeerFactory;
+  /** The shell's transport (`p2p.ts`); WebRTC in Pages. */
+  transport: TransportFactory;
   /**
    * Whether to use what the link names — its ICE servers and carriers. The
    * person agreed to the hosts it lists; without that, direct only.
@@ -333,9 +322,9 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   leaveLive();
   // The join screen refuses a link whose routes do not read; direct here.
   const routes = linkRoutes(input.link) ?? NO_ROUTES;
-  const ice: IceSettings = input.useRoutes
-    ? { iceServers: rtcServers(routes.ice), relay: routes.relay, addresses: [] }
-    : DIRECT_ONLY;
+  const routing: PeerRouting = input.useRoutes
+    ? { servers: routes.ice, relay: routes.relay, addresses: [] }
+    : DIRECT_ROUTING;
   let next: LiveGuest | null = null;
   const carriers = input.useRoutes
     ? openCarriers(
@@ -351,8 +340,7 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     code: input.code,
     name: input.name,
     note: input.note,
-    ice,
-    peers: input.peers,
+    transport: input.transport(routing),
     carriers: carriers ? guestCarriersFor(carriers) : null,
   });
   guest = next;

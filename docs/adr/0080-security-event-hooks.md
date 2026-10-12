@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-08-31
 - Supersedes: nothing. Generalizes [ADR 0074](0074-expiry-lifecycle-hooks.md).
+- Amended by: [ADR 0157](0157-logs-and-events-carry-no-secrets.md) (the notice
+  envelope scrubs its own text and payload)
 
 ## Context
 

@@ -109,7 +109,6 @@ export function ConnectorImport({
       {source === "directory" ? (
         <ConnectorDirectoryForm
           tomb={tomb || null}
-          terse
           onSynced={() => onImported()}
         />
       ) : null}

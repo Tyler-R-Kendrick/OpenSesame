@@ -206,3 +206,94 @@ fn the_shared_vectors_decide_what_is_an_http_method() {
         }
     }
 }
+
+fn vercel_line(credentials: &serde_json::Value) -> Vec<u8> {
+    serde_json::to_vec(&serde_json::json!({
+        "run_id": "dev-v",
+        "ttl_secs": 60,
+        "entries": [{
+            "env_var": "VERCEL_TOKEN",
+            "provider_id": "vercel",
+            "connection_ref": "conn://acme/vercel",
+            "site": "authorization",
+            "methods": ["GET"],
+            "path_prefixes": ["/v2/user"],
+        }],
+        "credentials": credentials,
+        "notices_path": "/tmp/n",
+    }))
+    .unwrap()
+}
+
+fn credential(connection_ref: &str) -> serde_json::Value {
+    serde_json::json!([{ "connection_ref": connection_ref, "secret": "tok-dummy-1" }])
+}
+
+#[test]
+fn a_provider_with_no_local_tool_is_served_only_when_its_connection_carries_a_credential() {
+    let with = parse_request(&vercel_line(&credential("conn://acme/vercel"))).unwrap();
+    let (spec, unserved) = to_run_spec(&with).unwrap();
+    assert_eq!(spec.grants.len(), 1);
+    assert_eq!(spec.grants[0].provider_id, "vercel");
+    assert_eq!(spec.grants[0].connection_ref, "conn://acme/vercel");
+    assert!(unserved.is_empty());
+
+    let without = parse_request(&vercel_line(&serde_json::json!([]))).unwrap();
+    let (spec, unserved) = to_run_spec(&without).unwrap();
+    assert!(spec.grants.is_empty());
+    assert_eq!(unserved, vec!["VERCEL_TOKEN".to_owned()]);
+}
+
+#[test]
+fn a_credential_for_another_connection_serves_nothing() {
+    let other = parse_request(&vercel_line(&credential("conn://acme/other-team/vercel"))).unwrap();
+    let (spec, unserved) = to_run_spec(&other).unwrap();
+    assert!(spec.grants.is_empty());
+    assert_eq!(unserved, vec!["VERCEL_TOKEN".to_owned()]);
+}
+
+#[test]
+fn a_credential_does_not_make_a_provider_without_an_egress_rule_servable() {
+    let mut request = parse_request(&vercel_line(&credential("conn://acme/vercel"))).unwrap();
+    request.entries[0].provider_id = "workos".into();
+    let (spec, unserved) = to_run_spec(&request).unwrap();
+    assert!(spec.grants.is_empty());
+    assert_eq!(unserved, vec!["VERCEL_TOKEN".to_owned()]);
+}
+
+#[test]
+fn a_malformed_credential_row_is_refused() {
+    for credentials in [
+        serde_json::json!([{ "connection_ref": "", "secret": "tok" }]),
+        serde_json::json!([{ "connection_ref": "conn://acme/vercel", "secret": "" }]),
+        serde_json::json!([
+            { "connection_ref": "conn://acme/vercel", "secret": "a" },
+            { "connection_ref": "conn://acme/vercel", "secret": "b" },
+        ]),
+    ] {
+        assert_eq!(
+            parse_request(&vercel_line(&credentials)).unwrap_err(),
+            SpecError::Credential,
+            "{credentials}"
+        );
+    }
+}
+
+#[test]
+fn a_credential_row_with_a_stray_field_is_refused_not_ignored() {
+    let credentials = serde_json::json!([{
+        "connection_ref": "conn://acme/vercel", "secret": "tok", "header": "x-other",
+    }]);
+    assert_eq!(
+        parse_request(&vercel_line(&credentials)).unwrap_err(),
+        SpecError::Malformed
+    );
+}
+
+#[test]
+fn a_debug_of_the_request_names_the_connection_and_never_the_secret() {
+    let request = parse_request(&vercel_line(&credential("conn://acme/vercel"))).unwrap();
+    let rendered = format!("{request:?}");
+    assert!(rendered.contains("conn://acme/vercel"), "{rendered}");
+    assert!(!rendered.contains("tok-dummy-1"), "{rendered}");
+}

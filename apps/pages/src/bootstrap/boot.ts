@@ -18,6 +18,7 @@ import {
   vaultIdOf,
 } from "@opensesame/app-core/lib/capabilities/invalidation.js";
 import { vaultSelectionKey } from "@opensesame/app-core/lib/capabilities/keys.js";
+import { applyPersonalLocalPwaDefaults } from "@opensesame/app-core/lib/capabilities/store-pwa-defaults.js";
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { captureAliasArrivalFromPage } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import {
@@ -57,6 +58,7 @@ import {
   tombFileKey,
 } from "@opensesame/app-core/lib/vfs.js";
 import { bootstrapTheme } from "../lib/theme.js";
+import { bootBucket } from "./bucket.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
 
 export type CoreBoot = Readonly<{
@@ -86,7 +88,8 @@ export async function bootCore(): Promise<CoreBoot> {
   // fragment the same way; the route behind unlock takes them from memory
   // (ADR 0140 plan step 8).
   captureClaimArrivalFromPage();
-  // Every lock purges it (ADR 0140 D6), whatever is on screen.
+  // A lock purges an ownership claim (ADR 0140 D6), whatever is on screen.
+  // A drop's key stays in memory so present and poll can finish while locked.
   bindClaimLockReset();
   // `/i/<ref>` and `/approve/<ref>` keep their reference in the path (it
   // authorizes nothing, ADR 0086 §3); a fragment or query that rode along
@@ -111,6 +114,7 @@ export async function bootCore(): Promise<CoreBoot> {
   // static deploy still knows its Identity API without a rebuild.
   const runtimeConfig = await loadRuntimeConfig();
   await kvHydrate([...CORE_BOOT_KEYS]);
+  await bootBucket();
   // The item types this device switched on come back from their sealed copy,
   // with no request, before anything draws a type (ADR 0165).
   await restorePacks();
@@ -159,6 +163,7 @@ export async function bootCore(): Promise<CoreBoot> {
       now: bootSeams.now(),
     }),
   });
+  await applyPersonalLocalPwaDefaults(compositionStore);
   const stopInvalidation = startInvalidationWatch(compositionStore);
   const stopWatching = () => {
     stopTypes();

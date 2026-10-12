@@ -17,7 +17,9 @@ at a key other than the one that checks the signature.
 - **Builds on:** [`opensesame-domain`](../domain) (`InvocationReceipt`,
   `digest_json`) and [`opensesame-redaction`](../redaction) (`redact_event`).
 - `sign_receipt` refuses a receipt whose summary fails
-  `assert_no_secret_leak()`, and one that fails the domain's schema invariants.
+  `assert_no_secret_leak()`, and one that fails the domain's schema invariants;
+  it then scrubs secret-shaped values out of `safe_result_summary` before the
+  digest is taken, so the signature covers exactly what is stored.
 - An unknown key is reported as unknown, not as a bad signature: a rotated or
   ephemeral key is a key-management fact, not tamper evidence.
 

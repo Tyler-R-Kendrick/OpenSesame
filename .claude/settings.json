@@ -34,5 +34,18 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "google-labs-code-stitch-skills": {
+      "source": {
+        "source": "github",
+        "repo": "google-labs-code/stitch-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "stitch-design@google-labs-code-stitch-skills": true,
+    "stitch-build@google-labs-code-stitch-skills": true,
+    "stitch-utilities@google-labs-code-stitch-skills": true
   }
 }

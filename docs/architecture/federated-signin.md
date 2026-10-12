@@ -70,15 +70,19 @@ Two more properties shape the client:
   OIDC Core §3.1.3.7 allows), claims are checked locally, and
   **`POST /session/check`** (CORS-enabled, id_token as bearer) is the
   signature- and revocation-backed answer to "is this user actually
-  authorized" — anything other than an explicit active result refuses sign-in.
-  The loopback compatibility SDK uses that pinned active-session contract too;
-  it never tries a browser JWKS request or accepts response-supplied metadata.
+  authorized". The Pages client treats an explicit `401` from it as a refusal;
+  a missing endpoint or a transport failure does not invalidate a token that
+  just arrived from the same broker's token endpoint. The loopback
+  compatibility SDK (§3) is stricter: anything other than an explicit
+  `status: active` refuses sign-in, and it never tries a browser JWKS request
+  or accepts response-supplied metadata.
 - **The round trip may finish in a different browsing context** than it
   started in (an installed PWA hands out-of-scope navigation to a browser
   tab). The PKCE record and the resulting session therefore live in
-  `localStorage` — where shoo's own clients keep theirs — with a ten-minute
-  ceiling on the pending record and `exp`-bounded, trust-checked reads of the
-  session.
+  `localStorage` — where shoo's own clients keep theirs; in Pages it is the
+  `local` port, which seals every value under the device key (ADR 0149) —
+  with a ten-minute ceiling on the pending record and `exp`-bounded,
+  trust-checked reads of the session.
 
 ### The ceremony
 
@@ -101,7 +105,7 @@ The hop that matters is the second one. A broker that renders **its own login
 page** there is asking the visitor to choose a provider their relying party
 already chose, and that is the one thing that made an OpenSesame deployment feel
 unlike the public brokers static sites already use. It does not: a sign-in
-carrying a provider hint goes straight through (§8.6 and
+carrying a provider hint goes straight through (§8.5a and
 `OPENSESAME_INTERACTION_AUTO_CONTINUE`, on by default). A sign-in that names no
 provider still gets the full page, because then there is a real choice to make.
 
@@ -154,14 +158,19 @@ Configured entries:
 | `https://shoo.dev` | Production | `origin:{deployment origin}` |
 | `http://127.0.0.1:9090` | Tests and local dev | `origin:{deployment origin}` |
 
+Beyond these compiled-in entries the Pages client also trusts the configured
+Identity API's issuer (brokered sign-in) and the issuers an operator saved in
+Settings (ADR 0078); a runtime-discovered issuer never becomes trusted by
+completing a flow.
+
 ### id_token claims consumed
 
 | Claim | Use |
 | --- | --- |
 | `iss` | Must equal a configured trusted issuer |
-| `aud` | Must equal `origin:{broker origin}` |
-| `exp`, `iat` | Freshness |
-| `pairwise_sub` | The identity; per-origin and stable |
+| `aud` | Must include the client id the exchange used: `origin:{this app's origin}`, or the operator-registered client id for an operator's own provider |
+| `exp` | Freshness: the Pages client refuses an expired token (the relying-party profiles of §2 and §3 also check `iat` and `nbf`) |
+| `pairwise_sub` | The identity; per-origin and stable. For the configured Identity API and an operator's own provider, which mint no such claim, `sub` stands in |
 | `email`, `name`, `picture` | Optional, only when the human consented to PII |
 
 ## 2. Static relying-party profiles
@@ -251,7 +260,7 @@ This section adds only what differs because a server is present.
 
 | Route | Purpose |
 | --- | --- |
-| `POST /interaction/:uid/federated/start` | Begin an authorization-code + PKCE S256 flow against a trusted issuer; respond with a redirect to the upstream `authorization_endpoint` |
+| `POST /interaction/:uid/federated/start` | Begin an authorization-code + PKCE S256 flow against a trusted issuer; respond with a hop page (a `meta refresh` and a Continue link, not a `303`, because Chromium refuses a cross-origin redirect of a form submission under `form-action 'self'`) that sends the browser to the upstream `authorization_endpoint` |
 | `GET /interaction/:uid/federated/callback` | **Resume**: take `code`/`state`, exchange, resolve a principal, complete the oidc-provider interaction |
 | `POST /interaction/:uid/federated/callback` | `response_mode=form_post` re-materialization: copies the allowlisted parameters into a 303 to the GET above and completes nothing |
 | `GET` and `POST /v1/federated/callback` | **Receive**: the stable, deployment-wide redirect URI every upstream returns to. Completes nothing; 303s to the interaction callback above — see §8.6 |
@@ -283,7 +292,7 @@ There is one value, for every leg, for the life of the deployment. A per-interac
 existed briefly for the two rows a human registers by hand; it was removed because the IdPs
 those rows point at — a tenant's Okta or Entra, a visitor's Keycloak — match a registered
 redirect URI byte for byte, so a URI naming one interaction admits exactly one sign-in. The
-BYO form and the console's organization page both display this value for that reason.
+BYO form and Pages' organization sign-in panel both display this value for that reason.
 
 ### 7.2 Pending-state cookie
 
@@ -293,7 +302,7 @@ server memory and never in the URL:
 | Attribute | Value |
 | --- | --- |
 | Name | `os.fed.<uid>` — one per interaction |
-| Contents | `issuer`, `state`, `nonce`, PKCE `code_verifier` |
+| Contents | `issuer`, `state`, `nonce`, PKCE `code_verifier`, and where they apply `kind`, `providerId`, `byoId`, `orgId` |
 | `HttpOnly` | Yes — script must not read the verifier |
 | `SameSite` | `Lax` — the callback is a top-level cross-site GET redirect, which `Lax` permits and `Strict` would drop |
 | `Path` | `/interaction/<uid>` — one interaction's pending state is never sent with another's request |
@@ -354,17 +363,19 @@ already required to be HTTPS, so the combination cannot slip through either way.
 
 Before any principal is touched, in this order:
 
-1. `state` from the callback equals `state` from the `os.fed.<uid>` cookie.
-2. The `id_token` signature verifies against the issuer's published JWKS, discovered from
-   `/.well-known/openid-configuration` — never from a hardcoded key.
-3. `iss` equals the pending issuer, **and** that issuer resolves through the trust fence
-   (§8.2). A signature only proves who signed; the fence decides who is trusted
-   (ADR 0033 §2). In production every allowlist entry and every registry issuer must be
-   https, enforced at boot by `assertSecureConfig`, and the allowlist must be non-empty.
-4. `aud` matches the client id actually used for the exchange.
-5. `nonce` equals the pending `nonce`.
-6. `exp` is in the future.
-7. The subject claim is present and a string.
+1. The pending issuer resolves through the trust fence (§8.2), before any network
+   call. A signature only proves who signed; the fence decides who is trusted
+   (ADR 0033 §2). In production every allowlist entry and every registry issuer
+   must be https, enforced at boot by `assertSecureConfig`; an empty allowlist is
+   valid and trusts nobody.
+2. The code exchange (openid-client) checks that `state` from the callback equals
+   `state` from the `os.fed.<uid>` cookie, presents the PKCE verifier, and checks
+   the returned `id_token`'s `aud` (the client id actually used for the exchange),
+   `nonce` (the pending `nonce`) and `exp` (in the future).
+3. The `id_token` signature verifies against the issuer's published JWKS,
+   discovered from `/.well-known/openid-configuration` — never from a hardcoded
+   key; only RS256 and ES256 are accepted — and `iss` equals the pending issuer.
+4. The subject (`pairwise_sub`, else `sub`) is present and a string.
 
 Any failure ends the interaction with an error. There is no partial admission.
 
@@ -379,8 +390,8 @@ links nothing (ADR 0033, `docs/architecture/identity-linking.md`).
 | --- | --- |
 | Tuple already bound to a principal | Reuse that principal unchanged. No new principal, no re-linking, `principalId` stable. |
 | No tuple, no principal | Mint a principal `state: "provisional"` / `assurance: "provisional"`, bind the tuple, then promote **in place** to `state: "active"` / `assurance: "verified"` with `principalId` unchanged. |
-| Bound principal is `suspended` or `closed` | Refuse. A valid assertion does not reinstate a principal an operator disabled; reinstatement is an operator action. |
-| Tuple bound to a *different* principal than the interaction's current one | `409` conflict. Do not echo the bound `principalId` — that would let a caller enumerate which principal owns an upstream identity. Merging requires dual authentication. |
+| Bound principal is not `active` (`suspended` or `closed`) | Refuse. A valid assertion does not reinstate a principal an operator disabled; reinstatement is an operator action. |
+| Tuple bound to a *different* principal than the one a caller is linking it to (`POST /v1/principals/link-identities`, an organization join) | `409` conflict. Do not echo the bound `principalId` — that would let a caller enumerate which principal owns an upstream identity. Merging requires dual authentication. |
 | Concurrent callbacks racing to bind the same tuple | The losing write is a conflict and is surfaced as one. Never retried into a second principal for the same tuple. |
 
 The mint-then-promote pair is one logical admission, not two steps a caller can drive: a
@@ -415,19 +426,24 @@ form POST because the hosted pages run under `default-src 'none'` with no `scrip
 
 | Step | Behaviour |
 | --- | --- |
-| URL fence | Both the issuer and the `registration_endpoint` its discovery document names pass `assertSafeMetadataUrl`: loopback, private, link-local, cloud-metadata and their decimal/IPv6-mapped spellings are refused, and `https` is mandatory. A deployment running with dev defaults additionally accepts a loopback IP **literal** (127/8, `::1`) so the local reference IdP works; names such as `localhost` and `*.localhost` are refused in every mode. |
+| URL fence | Both the issuer and the `registration_endpoint` its discovery document names pass `assertSafeUpstreamUrl` (built on `assertSafeMetadataUrl`): loopback, private, link-local, cloud-metadata and their decimal/IPv6-mapped spellings are refused, and `https` is mandatory. The name is also resolved and the connection pinned to an address that passed (`guardedFetch`), so a public name answering with a private address is refused, not dialled. A deployment running with dev defaults additionally accepts a loopback IP **literal** (127/8, `::1`) so the local reference IdP works; names such as `localhost` and `*.localhost` are refused in every mode. |
 | Abuse fence | A module-local per-fingerprint budget — 5 registrations per 10 minutes — spent by every submission that passes URL validation, ahead of the provisional-mint budget. Exhaustion re-renders the form; nothing is fetched. |
 | Discovery | `{issuer}/.well-known/openid-configuration`, redirects refused, 5s timeout, and the document's own `issuer` must match what was typed. |
 | Credentials | A supplied `client_id` is stored as given (`client_secret_post` when a secret came with it, otherwise a public client). With no `client_id`, RFC 7591 dynamic client registration is attempted when — and only when — discovery advertises a `registration_endpoint`, preferring `client_secret_post` and falling back to `none`, registering the deployment-wide `{publicUrl}/v1/federated/callback` as the `redirect_uri` (§8.6). With neither, the submission is refused and the visitor is asked for a client id. |
 | Persistence | One `byo_upstreams` row per trailing-slash-normalized issuer, `state: "active"`. The client secret is stored verbatim: it must be presented to the token endpoint as issued, so it cannot be hashed. It is never logged, never audited and never returned by any API. |
 | Re-entry | A second submission naming the same issuer reuses the existing row unchanged — no re-registration, and a submitted credential never overwrites the stored one. The answer is identical whether or not the row already existed: which issuers a deployment has seen is not something an unauthenticated page reveals. |
 | Refusals | Re-render the login page with **422** and a **fresh** CSRF token — the submitted one was consumed by the verify — with the rejected issuer echoed back into the field. |
-| Success | Sets the §7.2 pending cookie (`byoId` recorded on it) and 303s to the upstream. From there the flow is §7.3–§7.6 unchanged; the issuer is admitted by the bring-your-own branch of trust resolution, and completing the leg stamps the record's `lastUsedAt`. |
+| Success | Sets the §7.2 pending cookie (`byoId` recorded on it) and hands the browser to the upstream with the same hop page as §7.1. From there the flow is §7.3–§7.6 unchanged; the issuer is admitted by the bring-your-own branch of trust resolution, and completing the leg stamps the record's `lastUsedAt`. |
 
 The client mode is the record's own — the visitor's `client_id` at their IdP, never this
 deployment's origin profile, and never the pinned `Origin` header that mode carries (§7.4).
 An operator can disable a record afterwards (`byo_upstreams.state`), and a disabled record
 resolves for nobody and cannot be re-created around.
+
+The same registration is available as JSON at `POST /v1/federated/byo-upstreams`
+(unauthenticated, same fences and budget): `invalid_issuer`, `discovery_failed` and
+`registration_unsupported` answer `422`, `rate_limited` answers `429`, and a success names the
+`redirectUri` to register and never the client secret.
 
 ## 8. Provider registry and trust resolution (ADR 0055)
 
@@ -447,8 +463,10 @@ by `OPENSESAME_PROVIDER_X_*` variables (id uppercased):
 | `_LABEL` | Button text — "Sign in with {label}". Defaults to the built-in label, else the id. |
 | `_KIND` | `oidc` (default) or `oauth2`. |
 | `_CLIENT_ID` / `_CLIENT_SECRET` | Client credentials at that provider. `_CLIENT_SECRET` is `@sensitive` and requires `_CLIENT_ID`. |
-| `_SCOPES` | Space-separated scopes. Defaults to `openid email profile` for oidc. |
+| `_SCOPES` | Space-separated scopes. Defaults to `openid email profile` for oidc; the built-ins carry their own (Apple `openid email name`, GitHub `read:user user:email`). |
 | `_AUTHORIZE_URL` / `_TOKEN_URL` / `_USERINFO_URL` / `_SUBJECT_FIELD` | oauth2 only; all four required. |
+| `_EMAILS_URL` | oauth2 only: a second authenticated read that lists the addresses the provider has itself confirmed (GitHub's is built in). |
+| `_EMAIL_AUTHORITATIVE` | `true` lets the provider's verified-email claim join accounts (§14.3). Built in for `google`, `microsoft`, `github` and `apple`; off for anything else until an operator sets it. |
 | `_TENANT` | Microsoft only: the tenant id or verified domain the issuer is built from. |
 | `_TEAM_ID` / `_KEY_ID` / `_PRIVATE_KEY` / `_PRIVATE_KEY_FILE` | Apple only: the ES256 signing material (see §8.3). |
 
@@ -471,6 +489,12 @@ The legacy `OPENSESAME_UPSTREAM_ISSUER` / `_CLIENT_ID` / `_CLIENT_SECRET` triple
 honoured: when all three are set they are absorbed into the registry as one credentialed
 provider, unless an explicit entry already claims that id or issuer.
 
+Descriptors can also be loaded from `*.provider.json` manifest files in
+`OPENSESAME_PROVIDER_MANIFEST_DIR` ([ADR 0065](../adr/0065-connector-hook-architecture.md) §6). They join the static set under the same
+one-issuer-one-provider rule and may not shadow an id or issuer the environment configures;
+unknown keys, an inline `clientSecret` (a manifest carries `clientSecretEnv`, a reference to an
+environment variable) and an Apple descriptor all refuse the boot.
+
 ### 8.2 `resolveTrustedIssuer` — the fence
 
 Every leg asks one question before it touches a network, and gets one of four answers:
@@ -491,10 +515,10 @@ configured with `OPENSESAME_TRUSTED_UPSTREAMS=https://shoo.dev` and no `OPENSESA
 must keep working unchanged. `staticProviders` therefore walks the allowlist first and, for
 any issuer the registry does not describe, synthesizes a descriptor: the legacy confidential
 credential when `OPENSESAME_UPSTREAM_*` names exactly that issuer, otherwise a public
-origin-profile client (`clientAuth: "none"`). Synthesized ids and labels match §7's
-`describeUpstream` and the Pages `TRUSTED_UPSTREAMS` table — `https://shoo.dev` is
-`shoo`/"Google", a loopback issuer is `mock`/"a local test account", anything else is named
-by its host.
+origin-profile client (`clientAuth: "none"`). Synthesized ids and labels are §7's
+`describeUpstream` (its ids also match the Pages `TRUSTED_UPSTREAMS` table) —
+`https://shoo.dev` is `shoo`/"Google (via shoo.dev)", a loopback issuer is
+`mock`/"a local test account", anything else is named by its host.
 
 Resolution reads storage on every call and is deliberately not cached: a disabled BYO record
 or a removed organization issuer has to stop signing people in immediately.
@@ -511,7 +535,8 @@ configuration, never negotiated at runtime.
 | `static`, `clientAuth: "client_secret_post"` | the configured id | `client_secret_post` | No |
 | `static`, `clientAuth: "apple_es256"` | the Services ID | `client_secret_post` carrying a freshly minted ES256 JWT | No |
 | `byo` | the record's `clientId` | `client_secret_post` when the record holds a secret, else none | No |
-| `org` | `origin:<publicUrl origin>` | none (public) | **Yes** |
+| `org`, tenant credentials set (§11.2) | the tenant's `sso_client_id` | `client_secret_post` when the tenant has a secret, else none (a registered public client) | No |
+| `org`, no tenant credentials | `origin:<publicUrl origin>` | none (public) | **Yes** |
 
 The pinned `Origin` header belongs to exactly one mode — the secret-less client whose id
 encodes our own origin. A confidential client that also claimed a browser origin is a mode
@@ -536,8 +561,8 @@ discovery deletes its own entry so a failure does not poison later attempts.
 `GET /v1/federated/providers` (unauthenticated) answers
 `{ providers: [{ id, label, kind, browserCapable }] }` and deliberately carries **no**
 issuers, endpoints, client ids, secrets or tenant ids. Both Pages unlock screens — first run
-and a returning device with a sealed vault (§7.7) — and the console's sign-in page render it
-before anyone has an identity; the leg itself runs server-side, where the registry already
+and a returning device with a sealed vault (§7.7) — render it before anyone has an
+identity; the leg itself runs server-side, where the registry already
 knows the rest.
 
 `browserCapable` is true only for a secret-less OIDC provider whose issuer is `https://shoo.dev`
@@ -552,9 +577,10 @@ re-fenced inside the leg by §8.2 — the rendered buttons are a convenience, ne
 
 A client may hint a provider through `kc_idp_hint` or `login_hint_provider`. Precedence is
 frozen at **id > issuer > host > label**, so the day a genuine `google` registry id sits
-beside shoo.dev's "Google" label, the id wins. A matched hint is rendered first and primary
-and is **never** auto-submitted: an upstream error 303s back to the login page, so a page
-that redirected itself would loop forever. An unknown hint is ignored and never echoed.
+beside shoo.dev's "Google (via shoo.dev)" label, the id wins; a label of that shape still
+answers to its bare account kind (`google`) when no first-party `google` id is configured.
+A matched hint is rendered first and primary; whether the interaction also follows it
+without a click is §8.5a's rule. An unknown hint is ignored and never echoed.
 
 ### 8.5a A hinted sign-in does not render a page
 
@@ -736,8 +762,9 @@ create or PATCH pass the private-host guard outside dev; `samlMetadataUrl` and
 
 A tenant registers this deployment as a client in *their* IdP's console and configures what it
 issued: `sso_client_id`, and `sso_client_secret` when the IdP issues one. Both are set through
-the owner-gated org PATCH surface, which the console's *Organization sign-in* page drives; it
-also displays `{publicUrl}/v1/federated/callback` (§8.6) as the redirect URI to register.
+the owner-gated org PATCH surface, which Pages' organization sign-in panels drive
+(`apps/pages/src/sections/identity/org-signin/`); they also display
+`{publicUrl}/v1/federated/callback` (§8.6) as the redirect URI to register.
 
 The secret is **write-only**. It is stored verbatim, because it must reach the tenant's token
 endpoint as issued and a digest could never substitute, and no read surface returns it — the
@@ -884,7 +911,8 @@ on somebody else's ceremony.
    or one that is not native-SAML → refuse.
 4. Resolve that tenant's IdP metadata (inline XML parsed directly; a URL fetched through the
    SSRF guard with redirects refused and cached for 10 minutes). A configured `samlIssuer`
-   entityID is authoritative over the document that claims a different one.
+   entityID is authoritative: a document that declares a different one is refused, and with
+   none configured the document's own entityID is adopted.
 5. Verify with `@node-saml/node-saml`: assertion signature (`wantAssertionsSigned`),
    `Audience` equal to our SP entityID, and the condition window with 30 seconds of skew and a
    5-minute maximum assertion age. The library accepts a signature only as a **direct child**
@@ -944,10 +972,12 @@ Base URL per tenant: `{publicUrl}/v1/organizations/{organizationId}/scim/v2`.
 | `GET /scim/v2/Users/:id` | Read. |
 | `PATCH /scim/v2/Users/:id` | Fold PatchOps; `active` accepts both a boolean and the string `"False"` (Okta sends the first, Entra the second). |
 | `DELETE /scim/v2/Users/:id` | Deactivation, per SCIM's intent. |
-| `PATCH /scim/v2/Groups/:groupId` | Minimal role mapping: a group whose trailing word is `owner(s)`/`admin(s)`/`member(s)` maps membership to that org role. Everything else is accepted and ignored. |
+| `PATCH /scim/v2/Groups/:groupId` | Upserts the group and applies `add`/`remove` member operations (a bulk member replace is refused). A member's organization role comes only from an owner-set group-to-role mapping, never from the group's name. |
 
 Owner-gated token management sits beside it: `POST /scim/tokens` (mint),
-`GET /scim/tokens` (list metadata), `DELETE /scim/tokens/:tokenId` (revoke).
+`GET /scim/tokens` (list metadata), `DELETE /scim/tokens/:tokenId` (revoke), and
+`GET /scim/mappings` / `PUT /scim/mappings/:groupId` (body `{ "role": "owner" | "admin" |
+"member" }`) list and set the group-to-role mappings. A group with no mapping confers no role.
 
 Rules that are contract rather than implementation detail:
 
@@ -956,9 +986,11 @@ Rules that are contract rather than implementation detail:
   log or an audit row. A missing bearer, a wrong bearer, an unknown organization and a
   suspended one all answer the same 401 — anything else is an org-existence oracle.
 - **No principal is minted at provision time.** A row is the tenant's standing answer to "may
-  this subject join when it signs in?". The subject a row matches is `externalId ?? userName`.
+  this subject join when it signs in?". The subject a row matches is its `externalId`, else
+  its `userName`.
 - **Deactivation revokes membership and every session it authorized**, for every principal
-  that has signed in to this tenant as that subject — resolved only through the
+  that has signed in to this tenant as that subject (including a `userName` or `externalId`
+  the row held before a rename) — resolved only through the
   organization's own issuers, so a SCIM row never reaches an identity minted at an unrelated
   upstream that happens to use the same subject string.
 - Errors use the `urn:ietf:params:scim:api:messages:2.0:Error` envelope and
@@ -968,10 +1000,12 @@ Rules that are contract rather than implementation detail:
 
 | Route | Behaviour |
 | --- | --- |
+| `GET /v1/organizations/:id/domains` | Owner-gated list of the organization's claims. |
 | `POST /v1/organizations/:id/domains` | Owner-gated claim. The domain is lowercased, IDNA-normalized and must be multi-label; a re-claim re-rolls the token. A domain held by another organization answers 409 without naming the holder — domains are globally unique, first claim wins. |
 | `POST /v1/organizations/:id/domains/:domain/verify` | Resolves TXT through `node:dns/promises` only and looks for `opensesame-domain-verify=<token>`, joining multi-chunk records first and comparing in constant time over digests. Every failure — no record, somebody else's token, NXDOMAIN, SERVFAIL — answers the same 422 sentence. |
 | `DELETE /v1/organizations/:id/domains/:domain` | Release. |
 | `POST /interaction/:uid/federated/realm` | The login page's "Continue with your work email" field, CSRF-protected. |
+| `GET /v1/organizations/by-domain/:domain` | The JSON twin for a client app: the tenant record (slug, display name, `authMethods`) for a **verified** domain. Malformed input, an unknown or unverified domain, and a suspended or deleted organization all answer the same `404`. |
 
 DNS and only DNS: fetching `https://<domain>/.well-known/…` would hand an org owner a
 server-side request to an arbitrary host, which is the SSRF gadget the rest of this document
@@ -1029,7 +1063,8 @@ about any subject; an exhausted budget answers `429`.
 ### 14.1 Email magic-link
 
 Better Auth is mounted for exactly one method. The mount is an **allowlist of one path**:
-`POST /v1/auth/sign-in/magic-link`. Every other path under `/v1/auth/*` answers `404` — social
+`POST /v1/auth/sign-in/magic-link`. Every other path under `/v1/auth/*` that Better Auth would
+serve answers `404` — social
 sign-in is unreachable (Better Auth drops secret-less providers, which is every origin-profile
 broker, so the registry owns social), and Better Auth's own `/magic-link/verify` and
 `/get-session` are not served because they answer with its user record.
@@ -1038,7 +1073,7 @@ broker, so the registry owns social), and Better Auth's own `/magic-link/verify`
 | --- | --- |
 | `POST /interaction/:uid/federated/email` | Hosted login page, CSRF-protected. Requests a link and re-renders "check your email" — the same answer for a known and an unknown address. Budget: 5 links per address per 10 minutes, keyed by a digest, because the fence protects the person being mailed rather than the person mailing. |
 | `GET /interaction/:uid/federated/email/verify?token=…` | Where a link started from the hosted page lands. A top-level same-site GET, so it carries the interaction cookie. |
-| `POST /v1/auth/sign-in/magic-link` | The first-party client entry (Pages, console). |
+| `POST /v1/auth/sign-in/magic-link` | The first-party client entry (Pages). |
 | `GET /v1/auth/magic-link/complete?token=…` | Where a link started by a first-party client lands; answers `{ principalId, accessToken }`, a first-party `pst_` bearer adopted exactly as in §11.6. |
 
 The token is single-use, stored hashed, consumed atomically inside verification, and
@@ -1164,12 +1199,14 @@ principal than the caller passed in, every admission callsite binds the session 
 equals the principal it just minted. Handing over the minted principal's bearer would leave
 the browser holding a session for an account the sign-in did not complete as.
 
-Which legs can reach it: `oidc` (when the id_token carries `email_verified: true`), `oauth2`
-(only when the descriptor names an `emailVerifiedField` — the shipped GitHub descriptor does
-not), `email` (always — the address is what was proved), and `ldap` **only when the
-organization has DNS-verified that address's domain** (§13.2), because a directory is
+Which legs can reach it: `oidc` (when the id_token carries `email_verified: true` and the table
+above clears the trust source), `oauth2` (only when the provider itself confirmed the address —
+through the descriptor's `emailsEndpoint`, as GitHub's `/user/emails` does, or an
+`emailVerifiedField` — and the provider is `emailAuthoritative`), `email` (always — the
+address is what was proved), and `saml` and `ldap` **only when the organization has
+DNS-verified that address's domain** (§13.2), because a SAML attribute and a directory are
 configured by an org owner and an owner who could assert `victim@example.com` as verified
-would be able to walk onto that person's principal. `saml` never reaches it (§12.4).
+would be able to walk onto that person's principal.
 
 This attaches an identity at admission. It never fuses two already-durable principals:
 `principal.merge` stays behind the policy fence, and explicit cross-principal linking through

@@ -51,9 +51,10 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 ## Hard rules (apply on every invocation, no exceptions)
 
 - **This review never becomes a GitHub Actions job.** `.github/workflows/`
-  holds only `ci.yml` (the merge-queue gate) and `deploy-pages.yml`; model-backed
-  review does not belong there. You are an ordinary Claude Code session running
-  `git`/`gh` yourself — nothing here is an Actions job.
+  holds `ci.yml` (the required pull-request checks), `deploy-pages.yml`,
+  `full-suite.yml` and `password-parity.yml`; model-backed review does not
+  belong there. You are an ordinary Claude Code session running `git`/`gh`
+  yourself — nothing here is an Actions job.
 - **No new paid dependencies or services.**
 - **Never commit secrets** — and specifically here: if the diff itself
   contains what looks like a real secret value, **do not quote the value**

@@ -164,6 +164,11 @@ export function resetAgUiEndpointForTest(): void {
 }
 
 /** Boot-time: read the deploy config, validate it, and remember the result. */
-export async function loadAgUiEndpoint(): Promise<AgUiEndpoint | null> {
-  return applyAgUiEndpoint(await agUiEndpointSeams.fetchAgUiConfig());
+export async function loadAgUiEndpoint(
+  signal?: AbortSignal,
+): Promise<AgUiEndpoint | null> {
+  if (signal?.aborted) return null;
+  const config = await agUiEndpointSeams.fetchAgUiConfig();
+  if (signal?.aborted) return null;
+  return applyAgUiEndpoint(config);
 }

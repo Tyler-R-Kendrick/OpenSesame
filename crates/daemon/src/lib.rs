@@ -7,7 +7,6 @@
 //! tailscale` a read-only tailnet listener authorizes callers by whois identity.
 #![allow(clippy::result_large_err)] // axum handlers return Response in Err
 use axum::{
-    body::Bytes,
     extract::{connect_info::ConnectInfo, DefaultBodyLimit, Request, State},
     http::{header, HeaderMap, HeaderName, StatusCode},
     response::{IntoResponse, Response},
@@ -28,14 +27,16 @@ mod agent_capability;
 mod args;
 pub use args::Args;
 pub use plugin_routes::recent_notices as plugin_notices;
+mod cli_app_integration;
 mod cli_probe;
 mod discovery;
 mod duress_receiver;
 mod duress_routes;
 mod fill;
 use duress_routes::{duress_peer_envelope, duress_peer_health};
+mod proxy_loopback;
 mod proxy_path;
-use proxy_path::{has_dot_segment, is_local_session_path};
+use proxy_loopback::proxy_loopback;
 mod invoke_through;
 mod keychain;
 mod mint;
@@ -99,6 +100,7 @@ struct App {
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
     /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
     plugins: plugin_routes::PluginHost,
+    cli_app_integration: cli_app_integration::SharedCliAppIntegration,
     /// Tailnet device management (ADR 0169).
     tailnet: tailnet_admin_routes::TailnetAdminHost,
 }
@@ -427,84 +429,6 @@ async fn proxy_identity(State(st): State<App>, req: Request) -> Response {
     proxy_loopback(&st, &base, "/identity", req).await
 }
 
-const MAX_PROXY_BODY: usize = 2 * 1024 * 1024;
-
-async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Response {
-    if !opensesame_host_core::daemon::base_url_is_local(base) {
-        return StatusCode::FORBIDDEN.into_response();
-    }
-    let path = req.uri().path();
-    let rest = path.strip_prefix(prefix).unwrap_or(path);
-    if prefix == "/host" && is_local_session_path(rest) {
-        return StatusCode::FORBIDDEN.into_response();
-    }
-    if has_dot_segment(rest) {
-        return StatusCode::BAD_REQUEST.into_response();
-    }
-    let query = req
-        .uri()
-        .query()
-        .map(|q| format!("?{q}"))
-        .unwrap_or_default();
-    let url = format!("{}{}{}", base.trim_end_matches('/'), rest, query);
-    let method = req.method().clone();
-    let headers = req.headers().clone();
-    let Ok(body) = axum::body::to_bytes(req.into_body(), MAX_PROXY_BODY).await else {
-        return StatusCode::PAYLOAD_TOO_LARGE.into_response();
-    };
-    let mut forward = st.http.request(
-        reqwest::Method::from_bytes(method.as_str().as_bytes()).unwrap_or(reqwest::Method::GET),
-        &url,
-    );
-    for (name, value) in &headers {
-        if skip_hop_header(name) || name == "x-opensesame-operator" {
-            continue;
-        }
-        if let (Ok(n), Ok(v)) = (
-            reqwest::header::HeaderName::from_bytes(name.as_str().as_bytes()),
-            reqwest::header::HeaderValue::from_bytes(value.as_bytes()),
-        ) {
-            forward = forward.header(n, v);
-        }
-    }
-    match forward.body(body.to_vec()).send().await {
-        Ok(upstream) => {
-            if upstream
-                .content_length()
-                .is_some_and(|len| len > MAX_PROXY_BODY as u64)
-            {
-                return StatusCode::PAYLOAD_TOO_LARGE.into_response();
-            }
-            let status =
-                StatusCode::from_u16(upstream.status().as_u16()).unwrap_or(StatusCode::BAD_GATEWAY);
-            let mut response = Response::builder().status(status);
-            for (name, value) in upstream.headers() {
-                let (Ok(name), Ok(value)) = (
-                    HeaderName::from_bytes(name.as_str().as_bytes()),
-                    axum::http::HeaderValue::from_bytes(value.as_bytes()),
-                ) else {
-                    continue;
-                };
-                if !skip_hop_header(&name) {
-                    response = response.header(name, value);
-                }
-            }
-            let bytes = upstream.bytes().await.unwrap_or_else(|_| Bytes::new());
-            if bytes.len() > MAX_PROXY_BODY {
-                return StatusCode::PAYLOAD_TOO_LARGE.into_response();
-            }
-            response
-                .body(axum::body::Body::from(bytes))
-                .unwrap_or_else(|_| StatusCode::BAD_GATEWAY.into_response())
-        }
-        Err(_) => (
-            StatusCode::BAD_GATEWAY,
-            Json(json!({"error": "upstream_unreachable"})),
-        )
-            .into_response(),
-    }
-}
-
 fn router(state: App) -> Router {
     Router::new()
         .route("/health", get(daemon_health))
@@ -532,6 +456,7 @@ fn router(state: App) -> Router {
             "/v1/mint",
             post(mint::mint_via_daemon).layer(DefaultBodyLimit::max(mint::MAX_BODY_BYTES)),
         )
+        .merge(cli_app_integration::routes(&state))
         .route("/v1/toolbar/status", get(toolbar::toolbar_status))
         .route("/v1/toolbar/approve_device", post(approve_device))
         .route("/v1/toolbar/approve_claim", post(approve_claim))
@@ -877,15 +802,14 @@ async fn revoke(
 }
 
 #[cfg(test)]
-fn test_operator_token() -> &'static str {
-    static TOKEN: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
-        format!("{}{}", Uuid::new_v4().simple(), Uuid::new_v4().simple())
-    });
-    &TOKEN
-}
+mod test_fixtures;
+
+#[cfg(test)]
+pub(crate) use test_fixtures::test_operator_token;
 
 #[cfg(test)]
 mod tests {
+    pub(crate) use super::test_fixtures::{test_operator_token, test_state};
     use super::*;
 
     #[tokio::test]
@@ -950,8 +874,9 @@ mod tests {
 
     #[test]
     fn production_proxy_strips_forwarding_headers_before_upstream() {
+        let proxy = include_str!("proxy_loopback.rs");
         opensesame_host_core::pact::assert_source_order(
-            include_str!("lib.rs"),
+            proxy,
             &["skip_hop_header", "forward.header"],
         );
         let src = include_str!("lib.rs");
@@ -959,40 +884,13 @@ mod tests {
         assert!(src.contains("is_safe_path_id"));
         assert!(src.contains("upstream_unreachable"));
         opensesame_host_core::pact::assert_source_order(
-            include_str!("lib.rs"),
+            proxy,
             &[
                 "if has_dot_segment(rest)",
                 "BAD_REQUEST",
                 "upstream_unreachable",
             ],
         );
-    }
-
-    pub(crate) fn test_state(host_api: &str) -> App {
-        let http = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_millis(400))
-            .connect_timeout(std::time::Duration::from_millis(200))
-            .build()
-            .unwrap();
-        App {
-            sessions: Arc::new(Mutex::new(HashMap::new())),
-            capabilities: Arc::new(Mutex::new(HashMap::new())),
-            host_api: host_api.to_string(),
-            identity_api: "http://127.0.0.1:1".into(),
-            http,
-            operator_token: test_operator_token().into(),
-            allowed_uids: opensesame_uds_authn::default_allowed_uids(),
-            discover_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            promote_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            invoke_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            mint_limiter: Arc::new(ratelimit::TokenBucket::default()),
-            invoker: Arc::new(opensesame_invoke_through::Invoker::new()),
-            token_source_factory: Arc::new(|_| None),
-            duress_peer: None,
-            vault_drive: None,
-            plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
-            tailnet: tailnet_admin_routes::TailnetAdminHost::detached(),
-        }
     }
 
     fn test_app(host_api: &str) -> (Router, App) {
@@ -1126,6 +1024,9 @@ mod tests {
             "/host/api/v1/session/local",
             "/host//api/v1/session/local/",
             "/host/api/v1/%73ession/local",
+            "/host/api/v1/session/.\\local",
+            "/host/api/v1/foo/..\\session/local",
+            "/host/api/v1/session/.\\.\\local",
         ] {
             let (app, _) = test_app("http://127.0.0.1:1");
             let res = app
@@ -1134,6 +1035,44 @@ mod tests {
                 .unwrap();
             assert_eq!(res.status(), StatusCode::FORBIDDEN, "{path}");
         }
+    }
+
+    #[tokio::test]
+    async fn proxy_rejects_a_raw_backslash_that_is_not_the_local_session() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:1");
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/host/api/v1/health\\check")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn proxy_does_not_treat_percent_encoded_backslash_as_a_separator() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:1");
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/host/api/v1/session/%5Clocal")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
     }
 
     #[tokio::test]

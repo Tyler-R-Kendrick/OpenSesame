@@ -114,15 +114,18 @@ export function ImportSheet({
   file,
   onRepick,
   onClose,
+  onImported,
 }: {
   file: File;
   onRepick: () => void;
   onClose: () => void;
+  /** Called once when what the file held has been written to the vault. */
+  onImported?: () => void;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   useModalFocus(true, sheetRef, closeRef, onClose);
-  const flow = useImportFlow(file);
+  const flow = useImportFlow(file, onImported);
   return (
     <div className="sheet-layer">
       <button

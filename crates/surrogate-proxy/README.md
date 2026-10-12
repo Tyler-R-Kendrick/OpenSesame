@@ -19,8 +19,13 @@ surrogate text never becomes the credential; it only selects one.
   `pnpm audit:plugin-boundary` fails if either does, so ADR 0048 §5's budget
   is unchanged.
 - **Builds on:** [`opensesame-invoke-through`](../invoke-through) — the ledger,
-  the fence, the invoker and the reflection scrub. `opensesame-transport-security`
-  (with `testkit`) is a dev-dependency only, for the loopback TLS upstream.
+  the fence, the invoker and the reflection scrub;
+  [`opensesame-session-observe`](../session-observe) (the run lease),
+  [`opensesame-rotation-web`](../rotation-web) (login substitution),
+  [`opensesame-plugin-settings`](../plugin-settings) (the install gate and the
+  login switch) and [`opensesame-agent-events`](../agent-events) (the
+  `surrogate.*` notices). `opensesame-transport-security` (with `testkit`) is a
+  dev-dependency only, for the loopback TLS upstream.
 - One listener per run on `127.0.0.1:0`, one in-memory CA per run, one random
   proxy credential per run, one ledger across runs.
 
@@ -67,7 +72,8 @@ certificate reaches the child only through its own trust variables
 | `RunObserver`, `Tripped`, `LoginEvent` | What the embedder hears: a tripwire that revoked a run, a login substituted or refused |
 | `RunHandle` | `proxy_url()` (secret), `ca_pem()`, `surrogates()`, `child_env(ca_file)`; `Debug` names neither secret |
 | `ProxyConfig` | Invoker, `TokenSources`, `RefusalSink`; optional `ReceiptSink`, `Clock`, `PassthroughClient`, CA validity, `RunObserver`, and the plugin's `PluginState` that arms login substitution |
-| `TokenSources`, `ProviderSources` | Pick the credential source for an admission (per provider by default) |
+| `TokenSources`, `ProviderSources`, `ConnectionSources` | Pick the credential source for an admission: per provider by default, per connection first when the connection carries its own credential |
+| `providers` | The plugin's own egress table: invoke-through's shared one (`github`) plus the connection-credential providers (`vercel`), restated from `spec/connectors/catalog.json` with a drift test. The shared table the daemon serves is not widened |
 | `RefusalSink`, `ReceiptSink`, `Clock`, `SystemClock` | The embedder's ports |
 | `env` | The trust, proxy and `NO_PROXY` variable names; `is_reserved`, `is_valid_name` |
 | `plugin::main_entry` | The plugin binary: gate, then one run over stdio |
@@ -75,7 +81,9 @@ certificate reaches the child only through its own trust variables
 | `plugin::wire` | The control protocol: one spec line in (logins' passwords ride only here), one reply line out |
 | `plugin::serve::serve` | Start the run, reply, write event lines while serving until stdin EOF, a signal or the TTL, then `end_and_revoke` and remove the CA file |
 | `plugin::source::CliTokenSource` | invoke-through's `source_tool` per provider, scrubbed env, timeout, capped capture |
-| `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`, capped and rotated |
+| `plugin::source::StaticCredential` | A connection's token the parent read from the person's sealed store and sent in the run spec's `credentials` row; held in memory for the run, never written or printed |
+| `plugin::upstream_override` | Cargo feature `upstream-override` only: aims the broker's upstream at a loopback server (`OPENSESAME_SURROGATE_TEST_UPSTREAM`). Absent from a shipped build, down to the variable's name |
+| `plugin::notices::NoticeLog` | `RefusalSink` writing vetted `surrogate.*` notices as JSON lines, `0600`: noise to `notices.jsonl` (capped, rotated once), evidence to `tripwires.jsonl` (capped, never rotated) |
 
 ## The run lease and the tripwire (ADR 0150 §6.2)
 
@@ -115,6 +123,7 @@ identity-encoded, and scrubbed by `ResponseScrub` before the child sees it.
 
 ```bash
 cargo +1.88.0 test -p opensesame-surrogate-proxy
+cargo +1.88.0 test -p opensesame-surrogate-proxy --features upstream-override --test upstream_override
 ```
 
 `tests/end_to_end.rs` is ADR 0150's acceptance run against a loopback TLS
@@ -126,6 +135,13 @@ misdirected surrogate and proves the next, correct use is refused as revoked;
 `tests/plugin_login.rs` runs it against a loopback HTTPS login site and
 proves the password crossed the wire once, in its field, and appears in no
 file, argv, environment, notice, stdout or stderr of the plugin.
+`tests/connection_credential.rs` redeems two connections of one provider for
+their own credentials on real sockets, and `tests/plugin_credentials.rs` runs
+the built plugin with a `credentials` row and proves the token is in nothing it
+writes. `tests/upstream_override.rs` (feature `upstream-override`) runs the
+built plugin against a loopback TLS upstream standing in for `api.vercel.com`
+and reads the real credential off that wire; `tests/shipped_build.rs` proves a
+build without the feature contains no trace of the override.
 `tests/plugin_process.rs` runs the built plugin binary as a person's machine
 does: the install gate (not installed, off, forced off, pin mismatch), the
 reply, the TTL, `SIGTERM`, stdin close, and a misdirected surrogate becoming

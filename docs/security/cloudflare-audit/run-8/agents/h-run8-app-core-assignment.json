@@ -1,0 +1,124 @@
+[
+  {
+    "coverage_id": "apps%2Fbrowser-extension%2Frunner%2Fhost.ts::apps%2Fbrowser-extension%2Frunner%2Fhost-base.ts::apps%2Fbrowser-extension::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "apps/browser-extension/runner/host.ts",
+    "boundary": "apps/browser-extension/runner/host-base.ts",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/browser-extension/runner/host.ts",
+      "apps/browser-extension/runner/host-base.ts",
+      "apps/browser-extension-autofill/entrypoints/background.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/app-core/src/lib/federation-callback.ts",
+    "boundary": "packages/app-core/src/lib/federation-callback.ts#assertSafeReturnTo",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/federation-callback.ts",
+      "apps/pages/src/screens/FederationReturn.tsx"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23completeSignInDefault::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23readIdentity::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/app-core/src/lib/federation.ts#completeSignInDefault",
+    "boundary": "packages/app-core/src/lib/federation.ts#readIdentity",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/federation.ts",
+      "packages/app-core/src/lib/federation-pending.ts",
+      "packages/app-core/src/lib/ambient-auth/oidc.ts",
+      "packages/app-core/src/lib/deployment-profile.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23guestsAllowed::packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23assertGuestsAllowed::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/app-core/src/lib/guest-access.ts#guestsAllowed",
+    "boundary": "packages/app-core/src/lib/guest-access.ts#assertGuestsAllowed",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/guest-access.ts",
+      "packages/app-core/src/lib/guest-auth.ts",
+      "packages/app-core/src/lib/local-rbac.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Fs3.ts%23makeWire::packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Ffiles.ts%23checkPath::packages%2Fapp-core::Resource%20and%20file%20handling",
+    "surface": "packages/app-core/src/lib/secret-fs/s3.ts#makeWire",
+    "boundary": "packages/app-core/src/lib/secret-fs/files.ts#checkPath",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "packages/app-core/src/lib/secret-fs/s3.ts",
+      "packages/app-core/src/lib/secret-fs/files.ts",
+      "packages/app-core/src/lib/secret-fs/filesystem-guard.ts",
+      "packages/app-core/src/lib/secret-fs/s3-config.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core::ATTACK-CLASSES.md%23Injection",
+    "surface": "packages/app-core/src/sections/vault/import/model.ts",
+    "boundary": "packages/app-core/src/sections/vault/import/model.ts",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "packages/app-core/src/sections/vault/import/model.ts",
+      "packages/app-core/src/lib/vault/import"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fpassword-workflow-tools.ts::packages%2Fapp-core%2Fsrc%2Flib%2Fvault%2Fpassword-workflows.ts%23reachableItems::packages%2Fapp-core::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "surface": "packages/app-core/src/webmcp/password-workflow-tools.ts",
+    "boundary": "packages/app-core/src/lib/vault/password-workflows.ts#reachableItems",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "packages/app-core/src/lib/vault/password-workflows.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fvault-tools.ts::packages%2Fapp-core%2Fsrc%2Fwebmcp%2Ftool-shared.ts%23reachedItem::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/app-core/src/webmcp/vault-tools.ts",
+    "boundary": "packages/app-core/src/webmcp/tool-shared.ts#reachedItem",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/webmcp/vault-tools.ts",
+      "packages/app-core/src/webmcp/tool-shared.ts",
+      "packages/app-core/src/webmcp/tools.ts",
+      "packages/app-core/src/webmcp/wallet-tools.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fbin.ts::packages%2Fcli%2Fsrc%2Fidentity-session.ts::packages%2Fcli::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "surface": "packages/cli/src/bin.ts",
+    "boundary": "packages/cli/src/identity-session.ts",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "packages/cli/src/bin.ts",
+      "packages/cli/src/identity-session.ts",
+      "packages/cli/src/run.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "surface": "packages/cli/src/parity-node.ts",
+    "boundary": "packages/cli/src/parity-node.ts",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "packages/cli/src/parity-node.ts",
+      "packages/cli/src/parity-credentials.ts",
+      "packages/cli/src/vault-clipboard.ts",
+      "packages/cli/src/parse.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fmcp-host%2Fsrc%2Ftransports%2Fstreamable-http.ts::packages%2Fmcp-host%2Fsrc%2Fhost-api.ts::packages%2Fmcp-host::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/mcp-host/src/transports/streamable-http.ts",
+    "boundary": "packages/mcp-host/src/host-api.ts",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/mcp-host/src/transports/streamable-http.ts",
+      "packages/mcp-host/src/host-api.ts",
+      "packages/agent-client/src/index.ts"
+    ]
+  }
+]

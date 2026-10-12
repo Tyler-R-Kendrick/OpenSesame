@@ -1,0 +1,61 @@
+[
+  {
+    "provider": "codeberg-token",
+    "url": "https://codeberg.org/login/oauth/access_token",
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Content-Type",
+      "access-control-allow-methods": "POST",
+      "access-control-allow-origin": "*",
+      "access-control-max-age": "600"
+    },
+    "tls_verified": true
+  },
+  {
+    "provider": "codeberg-user",
+    "url": "https://codeberg.org/api/v1/user",
+    "status": 200,
+    "headers": {
+      "access-control-allow-headers": "Authorization",
+      "access-control-allow-methods": "GET",
+      "access-control-allow-origin": "*",
+      "access-control-max-age": "600"
+    },
+    "tls_verified": true
+  },
+  {
+    "provider": "x-token",
+    "url": "https://api.x.com/2/oauth2/token",
+    "status": 404,
+    "headers": {},
+    "tls_verified": true
+  },
+  {
+    "provider": "x-user",
+    "url": "https://api.x.com/2/users/me",
+    "status": 405,
+    "headers": {},
+    "tls_verified": true
+  },
+  {
+    "provider": "salesforce-token",
+    "url": "https://login.salesforce.com/services/oauth2/token",
+    "status": 200,
+    "headers": {},
+    "tls_verified": true
+  },
+  {
+    "provider": "salesforce-user",
+    "url": "https://login.salesforce.com/services/oauth2/userinfo",
+    "status": 200,
+    "headers": {},
+    "tls_verified": true
+  },
+  {
+    "provider": "auth0-management",
+    "url": "https://auth0.com/docs/api/management/v2",
+    "status": 405,
+    "headers": {},
+    "tls_verified": true
+  }
+]

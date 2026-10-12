@@ -30,10 +30,19 @@ verifiers and never from a header or body) is resolved to exactly one
 operator-written service binding, and the operation is then authorized by the
 same PEPs, grants and ConnectionRef checks as before. Identity sources are PEM
 files, an ADR 0075 managed certificate (Host-sealed, exportable to the Host
-process), or a SPIFFE Workload API SVID (key delivered to the workload;
-process-level granularity). The daemon keeps its serde + std budget and gains
+process), a SPIFFE Workload API SVID (key delivered to the workload;
+process-level granularity), or a certificate the browser or OS holds
+(browser-managed; its key is never the vault's). The daemon keeps its serde + std budget and gains
 no TLS; browser packages carry only the pure TypeScript mirror of the
 contracts. Two TLS hops through an ingress are two hops, not one session.
+
+A process started with `OPENSESAME_GATEWAY_PROFILE=relay` is not this map.
+It draws the health listener and the vault-relay slot routes only
+(`GET /health/live`, `GET /health/relay`, snapshot read and write, `GET` and `POST /v1/org-vaults`).
+It does not open the Host database, and it does not serve Identity, NATS, or
+`/api/v1/sync/*`. The authority it installs when
+`OPENSESAME_SERVICE_BINDINGS_FILE` is unset is an empty `vault_relay` binding
+set. Operator steps are in `docs/operators/local.md`.
 
 - Operator reference: `docs/operators/mtls.md`
 - Trust boundaries and abuse cases: `docs/security/mtls-threat-model.md`

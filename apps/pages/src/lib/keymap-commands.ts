@@ -6,6 +6,7 @@
  * macro can only ever do what a key already could.
  */
 
+import { JOIN_COMMAND_PATH } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   type KeymapCommand,
   MACRO_PREFIX,
@@ -128,6 +129,7 @@ const VERBS: ReadonlyMap<string, (run: CommandRun) => void> = new Map<
   ["item.favorite", () => currentVaultTarget()?.favorite()],
   ["item.trash", () => currentVaultTarget()?.trash()],
   ["item.share", () => currentVaultTarget()?.share()],
+  ["session.join", ({ navigate }) => navigate(JOIN_COMMAND_PATH)],
   ["item.restore", () => currentVaultTarget()?.restore?.()],
   ["item.purge", () => currentVaultTarget()?.purge?.()],
 ]);

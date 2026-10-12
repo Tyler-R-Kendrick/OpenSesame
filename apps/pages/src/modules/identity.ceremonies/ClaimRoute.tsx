@@ -12,11 +12,19 @@
  * Identity session — the Connect note and the guest road are on the route.
  * The shell's notifications tray is not mounted there, so every refusal is
  * also the mark on the page, in the model's words.
+ *
+ * With nothing arrived, the field takes a full claim or drop link, or a bare
+ * `osc_clm_…` token. What was pasted is held in memory the same way a link
+ * that arrived is, so leaving this page and coming back in the same sitting
+ * still has it. The fragment stays scrubbed from the address. Vault is a
+ * client-side link: a full load would lock an open vault.
  */
 
 import {
   captureClaimArrivalFromPage,
+  forgetClaim,
   peekClaimArrival,
+  rememberClaimArrival,
   takeClaimArrival,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { CLAIM_WORDS } from "@opensesame/app-core/lib/claims/ceremony.js";
@@ -30,7 +38,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { firstControl, keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { useOnline } from "../../lib/use-online.js";
 import { ConnectIdentityNote } from "../../sections/identity/ConnectIdentityNote.js";
@@ -40,12 +48,16 @@ import {
   ClaimPaused,
   ClaimReviewForm,
 } from "./ClaimSteps.js";
-import { useClaimCeremony } from "./useClaimCeremony.js";
+import { claimHookSeams, useClaimCeremony } from "./useClaimCeremony.js";
 
-// The drop opener and the decryption it runs arrive only when a drop does:
-// a claim, a paste or a refusal never loads them.
 const DropClaimScreen = lazy(() =>
   import("./DropClaimScreen.js").then((m) => ({ default: m.DropClaimScreen })),
+);
+
+const ClaimDifferentLink = lazy(() =>
+  import("./ClaimDifferentLink.js").then((m) => ({
+    default: m.ClaimDifferentLink,
+  })),
 );
 
 /** An ownership claim, step by step; with nothing arrived, a place to paste. */
@@ -64,9 +76,6 @@ function ClaimFlow({
   const said = { tone, words: step.message };
   const { phase } = step;
 
-  // A step that arrives after a load replaces the one that held the focus;
-  // when nothing holds it now — or only the page's own landmark, which the
-  // frame focuses on arrival — it lands on the new step's first key.
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new step is the trigger
   useEffect(() => {
     const onLandmark = document.activeElement === root.current?.closest("main");
@@ -114,7 +123,10 @@ function ClaimFlow({
         const entry = claimEntry(raw);
         if (entry === null) return;
         if (entry.kind === "none") view.say(CLAIM_WORDS.notAToken);
-        else onArrival(entry);
+        else {
+          rememberClaimArrival(entry);
+          onArrival(entry);
+        }
       }}
     />
   );
@@ -124,13 +136,10 @@ export function ClaimRoute() {
   const location = useLocation();
   const navigate = useNavigate();
   const root = useRef<HTMLDivElement | null>(null);
-  // An in-app navigation to `/claim#token=…` never passed through boot: read
-  // it here, the same way. What boot took waits in memory until spent.
   const [arrival, setArrival] = useState<ClaimArrival>(() => {
     captureClaimArrivalFromPage();
     return peekClaimArrival();
   });
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on arrival
   useEffect(() => {
     if (location.search || location.hash) {
@@ -140,21 +149,44 @@ export function ClaimRoute() {
 
   const drop = arrival.kind === "drop" ? arrival : null;
   return (
-    <div className="section__inner" ref={root}>
-      <div className="section__head">
-        <h1>{drop ? "Open a drop" : "Accept a claim"}</h1>
+    <div className="section__inner">
+      <div ref={root}>
+        <div className="section__head">
+          <h1>{drop ? "Open a drop" : "Accept a claim"}</h1>
+        </div>
+        {drop ? (
+          <Suspense fallback={null}>
+            <DropClaimScreen
+              token={drop.token}
+              fragmentKey={drop.key}
+              onSettled={() => takeClaimArrival()}
+            />
+          </Suspense>
+        ) : (
+          <ClaimFlow
+            key={
+              arrival.kind === "claim" || arrival.kind === "drop"
+                ? arrival.token
+                : arrival.kind
+            }
+            arrival={arrival}
+            onArrival={setArrival}
+            root={root}
+          />
+        )}
       </div>
-      {drop ? (
+      {arrival.kind !== "none" ? (
         <Suspense fallback={null}>
-          <DropClaimScreen
-            token={drop.token}
-            fragmentKey={drop.key}
-            onSettled={() => takeClaimArrival()}
+          <ClaimDifferentLink
+            onChoose={() => {
+              forgetClaim();
+              claimHookSeams.ceremony().forget();
+              setArrival({ kind: "none" });
+            }}
           />
         </Suspense>
-      ) : (
-        <ClaimFlow arrival={arrival} onArrival={setArrival} root={root} />
-      )}
+      ) : null}
+      <Link to="/vault">Vault</Link>
     </div>
   );
 }

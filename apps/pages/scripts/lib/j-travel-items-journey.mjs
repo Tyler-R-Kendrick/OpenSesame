@@ -70,6 +70,10 @@ async function trashFirst(page, base, name) {
     .getByRole("button", { name: "Move to trash", exact: true })
     .first()
     .click();
+  await page
+    .getByRole("button", { name: "Really move to trash?", exact: true })
+    .first()
+    .click();
   await page.waitForTimeout(900);
 }
 

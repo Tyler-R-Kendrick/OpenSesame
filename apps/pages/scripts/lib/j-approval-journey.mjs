@@ -11,11 +11,8 @@ export async function walkJApproval({ page, origin, base, check, snap }) {
   // Access belongs to a capability: choose it before its rail row exists.
   await addCapabilities(page, ["Access authority"]);
   await openSection(page, "access/");
-  await page.getByRole("tab", { name: "Requests", exact: true }).click();
-  const panel = page.getByRole("region", {
-    name: "Local requests",
-    exact: true,
-  });
+  await page.getByRole("treeitem", { name: "Requests", exact: true }).click();
+  const panel = page.locator('.record-workspace[data-section="Access"]');
   await panel.waitFor({ timeout: 15000 });
   const filter = panel.getByLabel("Local request status filter");
   await filter.waitFor({ timeout: 8000 });

@@ -1,10 +1,13 @@
 # Credential helpers (ADR 0049)
 
-Four helper binaries let standard tooling (git, docker, the AWS CLI, kubectl)
+Four helpers let standard tooling (git, docker, the AWS CLI, kubectl)
 authenticate through OpenSesame **derived tokens** — provider-minted,
 short-lived, revocable — instead of a long-lived token sitting in a plaintext
-file. They are thin Unix-socket clients of the daemon's mint passthrough and
-carry no crypto, storage, or credential handling of their own.
+file. They are not separate binaries: `opensesame` answers as each one when it
+is started under the helper's name, and `opensesame helpers link [--dir <dir>]`
+creates those names as links to it (default: the binary's own directory). They
+are thin Unix-socket clients of the daemon's mint passthrough and carry no
+crypto, storage, or credential handling of their own.
 
 **Mint mode only.** Every helper requires a connection whose owner opted into
 `materialization = derived_short_lived` (see `POST /v1/promote` with
@@ -21,20 +24,27 @@ helper (git/docker/aws/kubectl)
       → gateway mints a derived token (github App installation token in v1)
 ```
 
-Authentication is the socket itself: the daemon authorizes UDS callers by
-kernel-attested peer UID (`OPENSESAME_DAEMON_ALLOWED_UIDS`, default
-same-user), so helpers need **no token**. Any non-200 from the daemon is a
-hard failure: non-zero exit, nothing on stdout, only a failure class on
-stderr.
+The helpers send **no token**: they rely on the socket, where the daemon reads
+the kernel-attested peer UID and allows only the UIDs in
+`OPENSESAME_DAEMON_ALLOWED_UIDS` (default: the daemon's own UID). The daemon's
+`/v1/mint` route, however, runs the same `require_operator` check as its other
+operator routes, which also demands the operator token
+(`X-OpenSesame-Operator`, from `OPENSESAME_OPERATOR_TOKEN`) on every transport
+(`crates/daemon/src/mint.rs`, `crates/daemon/src/lib.rs`). A token-less helper
+call is therefore answered `401 operator_unauthorized` (or `503
+operator_token_unconfigured` when the daemon holds none), not forwarded. Any
+non-200 from the daemon is a hard failure: non-zero exit, nothing on stdout,
+only a failure class on stderr.
 
 ## Socket location
 
 The helpers read `OPENSESAME_AGENT_SOCK`; when unset they default to
 `$XDG_RUNTIME_DIR/opensesame/agent.sock`, then `~/.opensesame/agent.sock`.
-Run the daemon with a matching `--sock`:
+Run the daemon with a matching `--sock` (or set `OPENSESAME_AGENT_SOCK`):
 
 ```bash
-opensesame-daemon --sock "${XDG_RUNTIME_DIR:-$HOME/.opensesame}/opensesame/agent.sock"
+opensesame daemon run --sock "$XDG_RUNTIME_DIR/opensesame/agent.sock"
+# no XDG_RUNTIME_DIR: --sock "$HOME/.opensesame/agent.sock"
 ```
 
 v1 is unix-only (ADR 0048 §8: Windows has no UDS daemon mode).

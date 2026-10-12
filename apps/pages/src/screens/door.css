@@ -36,16 +36,11 @@
 }
 
 .door__wordmark {
-  /* Eleven 1.05em cells + icon must stay inside the card (mobile gate). */
-  font-size: clamp(1.05rem, 6cqi, 2.6rem);
+  /* The hero fits its column (`fit`): em = width / 7.78, at most 90. A phone
+     and a desktop both get the particle field. */
   letter-spacing: 0;
   color: var(--ink);
   max-width: 100%;
-}
-
-.door__wordmark > svg {
-  width: 1.15em;
-  height: 1.15em;
 }
 
 .door__lede {
@@ -65,6 +60,12 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
+}
+
+/* The third road — a vault that begins from a file — sits under the pair,
+   across both columns: it is another kind of road, not a third of a row. */
+.road--wide {
+  grid-column: 1 / -1;
 }
 
 .road {

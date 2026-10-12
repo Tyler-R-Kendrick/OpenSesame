@@ -30,6 +30,8 @@
       "notifications.web-push",
       "sharing.household",
       "sharing.live",
+      "sharing.relay",
+      "sharing.trusted-contacts",
       "storage.encrypted-search",
       "support.local-ai",
       "support.remote-ai",

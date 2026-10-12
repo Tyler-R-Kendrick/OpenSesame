@@ -87,6 +87,50 @@
   border-bottom-color: color-mix(in srgb, var(--err) 22%, var(--line));
 }
 
+/* The vault's row runs the panel's width, so its key ends where the rule
+   and the trash rows' keys end, not at the prose measure. */
+.set__danger .keyed-row {
+  max-width: none;
+}
+
+/* Transfer ownership: the recipients are choice objects, square, one pressed. */
+.transfer-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.transfer-choice {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.transfer-choice[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+
+.transfer-choice:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .transfer-choice {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
+
 .set__danger-target {
   flex: 1;
   min-width: 0;
@@ -196,6 +240,22 @@
 }
 .set__security .panel__body {
   gap: 0;
+}
+
+.set__security .set__lead,
+.set__security .set__status {
+  margin: 0 0 0.8rem;
+  max-width: 68ch;
+  line-height: 1.5;
+}
+
+.set__security .set__finding {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 /* Ten recovery codes: a two-column mono list, because they are data to be

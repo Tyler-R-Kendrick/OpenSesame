@@ -14,11 +14,16 @@ import {
   type McpInfo,
   fillTemplate,
 } from "@opensesame/app-core/lib/connect-plan.js";
+import { type JsonValue, isJsonObject } from "@opensesame/os-domain";
 import {
   VERIFY_TARGETS,
   type VerifyTarget,
 } from "../../../server/connect-verify-targets.generated.mjs";
-import type { ProviderProfile } from "./provider-emulator.js";
+import {
+  CONFORMANCE_ACCOUNT,
+  type ProviderProfile,
+  accountReplyFor,
+} from "./provider-emulator.js";
 
 export const PARAM = "acme.example";
 
@@ -27,6 +32,28 @@ type Scenario = { profile: ProviderProfile; state: DraftState };
 const BASE = { registerPath: "/register", cimd: false, requiredParams: {} };
 
 const path = (url: string) => new URL(url).pathname;
+
+function put(value: JsonValue, parts: string[], next: JsonValue): JsonValue {
+  const [head, ...tail] = parts;
+  if (!head) return next;
+  if (/^\d+$/.test(head)) {
+    const array = Array.isArray(value) ? [...value] : [];
+    array[Number(head)] = put(array[Number(head)] ?? null, tail, next);
+    return array;
+  }
+  const object = isJsonObject(value) ? { ...value } : {};
+  object[head] = put(object[head] ?? null, tail, next);
+  return object;
+}
+
+function verificationReply(target: VerifyTarget): JsonValue {
+  let reply = accountReplyFor(target.accountField, CONFORMANCE_ACCOUNT);
+  for (const field of target.requiredFields ?? [])
+    reply = put(reply, field.split("."), CONFORMANCE_ACCOUNT);
+  for (const condition of target.success ?? [])
+    reply = put(reply, condition.field.split("."), condition.equals);
+  return reply;
+}
 
 /** Every placeholder filled with the test value; `{key}` stays. */
 export const fill = (url: string) =>
@@ -62,6 +89,7 @@ function verifyProfile(
     keyQuery: keyQueryOf(fill(target.url)),
     accountField: target.accountField,
     mcp: false,
+    reply: verificationReply(target),
   };
 }
 

@@ -159,7 +159,7 @@ export function agentRunsApi(ctx: HostRequestContext) {
       const res = await ctx.request(runPath(id));
       if (!res.ok) throw await failure("agent_run", res);
       const run = decodeAgentRun(await jsonBody("agent_run", res));
-      if (!run)
+      if (!run || run.id !== id)
         throw new RunnerApiError(
           "agent_run",
           res.status,

@@ -90,8 +90,7 @@ describe("the setup ceremony", () => {
 
   it("never asks for a Host API or a mobile MFA app", () => {
     // Both were setup questions in earlier shapes of this screen; neither is
-    // one a first-time visitor has. Settings → Endpoints owns them. The
-    // daemon address on the backups tab is a suggestion, not a pairing.
+    // a Pages backend (ADR 0090). Sessions are browser WebRTC.
     openSetup();
     expect(screen.queryByLabelText("Host API")).toBeNull();
     expect(screen.queryByLabelText("Mobile MFA app")).toBeNull();

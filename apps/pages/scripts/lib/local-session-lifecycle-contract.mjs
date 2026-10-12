@@ -1,4 +1,8 @@
 import { expect } from "@playwright/test";
+import {
+  openIdentityRecord,
+  openIdentityView,
+} from "./local-directory-navigation.mjs";
 
 export async function localSessionLifecycleContract(page, panel, tabTo) {
   async function activate(target) {
@@ -18,8 +22,10 @@ export async function localSessionLifecycleContract(page, panel, tabTo) {
   await activate(summary);
   await activate(summary);
   await expect(signOut).toBeEnabled();
-  await activate(page.getByRole("tab", { name: "Agents", exact: true }));
-  await activate(page.getByRole("tab", { name: "People", exact: true }));
+  const person = await panel.getByRole("heading", { level: 1 }).innerText();
+  await openIdentityView(page, tabTo, "Agents");
+  await openIdentityView(page, tabTo, "People");
+  await openIdentityRecord(page, tabTo, person);
   await activate(summary);
   await expect(signOut).toBeEnabled();
   await activate(panel.getByRole("button", { name: "Disable", exact: true }));

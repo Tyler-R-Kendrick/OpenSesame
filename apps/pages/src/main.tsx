@@ -10,6 +10,7 @@ import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
+import { bootTrayNotices } from "./lib/tray-boot.js";
 import { ResetGate } from "./screens/unlock/ResetGate.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
 // their stylesheets stay in the first bundle, ahead of styles.css: a
@@ -21,7 +22,10 @@ import "./components/connections-tree.css";
 import "./components/statusline.css";
 import "./components/wordmark.css";
 import "./sections/vault.css";
+import "./sections/vault/path-field.css";
 import "./styles.css";
+
+bootTrayNotices();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("missing #root");

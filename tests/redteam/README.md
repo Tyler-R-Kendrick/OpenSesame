@@ -17,10 +17,14 @@ not claim to validate a live deployment or constitute a model-backed scan.
 
 This package is part of the default `pnpm test` run (`vitest` covers the
 corpus PACT plus a live `packages/mcp-host` structural pass of confused-deputy,
-credential-exfiltration, malformed-input, and prompt-injection-as-data). The
-full promptfoo eval, including the Anthropic prompt-injection class, still
-runs on its own via `pnpm --filter @opensesame/redteam redteam` and the
-root-level `pnpm test:redteam` alias.
+credential-exfiltration, malformed-input, and prompt-injection-as-data); that
+structural pact suite (`src/structural.pact.test.ts`) is also the package's
+`test:integration` script. `src/duress/` adds Vitest suites for the duress
+attack trees (`attack-trees.test.ts`, `compiler-fuzz.test.ts`,
+`gaps.honest.test.ts`). The full promptfoo eval, including the Anthropic
+prompt-injection class, still runs on its own via
+`pnpm --filter @opensesame/redteam redteam` and the root-level
+`pnpm test:redteam` alias.
 
 ## What this tests, and why
 
@@ -30,7 +34,7 @@ documented in this repo's audit history:
 | Class | File | Grounded in |
 | --- | --- | --- |
 | Prompt injection via relayed tool results | [`tests/prompt-injection.yaml`](tests/prompt-injection.yaml) | [`docs/security/audits/2026-08-08-mcp-agent-boundary.md`](../../docs/security/audits/2026-08-08-mcp-agent-boundary.md) and the commit `f012c71` bug class: an upstream response body used to be relayed to the model verbatim. |
-| Confused-deputy / scope-widening via tool params | [`tests/confused-deputy.yaml`](tests/confused-deputy.yaml) | [`docs/security/audits/2026-08-08-mcp-resource-scope.md`](../../docs/security/audits/2026-08-08-mcp-resource-scope.md) ("a resource is not an origin") and the `operator_invoke_l1` design: the model supplies only `connection_ref` — operation, resource, and the intent digest are whatever the server itself froze earlier, never restated by the caller. |
+| Confused-deputy / scope-widening via tool params | [`tests/confused-deputy.yaml`](tests/confused-deputy.yaml) | [`docs/security/audits/2026-08-08-mcp-resource-scope.md`](../../docs/security/audits/2026-08-08-mcp-resource-scope.md) ("a resource is not an origin") and the `task_invoke_l1` design: the tool takes no arguments — operation, resource, arguments and the intent digest are whatever the server itself froze earlier, never restated by the caller. |
 | Credential exfiltration via an echoing upstream | [`tests/credential-exfiltration.yaml`](tests/credential-exfiltration.yaml) | [`docs/security/audits/2026-08-08-mcp-agent-boundary.md`](../../docs/security/audits/2026-08-08-mcp-agent-boundary.md) and [`docs/security/audits/2026-08-22-mcp-response-minimization.md`](../../docs/security/audits/2026-08-22-mcp-response-minimization.md): per-tool response allowlists plus `forAgent`/`scrubLocalSecrets`. |
 | Malformed / oversized inputs against the zod schemas | [`tests/malformed-input.yaml`](tests/malformed-input.yaml) | The `capabilities`/`ttl_seconds` bounds declared in [`packages/mcp-host/src/tools.ts`](../../packages/mcp-host/src/tools.ts). |
 
@@ -52,8 +56,9 @@ no accidental cross-product):
   TypeScript harness. For each test case it spawns the real `packages/mcp-host`
   over stdio using `@modelcontextprotocol/sdk`'s `StdioClientTransport` /
   `Client` (the client-side mirror of
-  [`packages/mcp-host/src/transports/stdio.ts`](../../packages/mcp-host/src/transports/stdio.ts),
-  same SDK version: 1.30.0), optionally starts a private, ephemeral stub Host
+  [`packages/mcp-host/src/transports/stdio.ts`](../../packages/mcp-host/src/transports/stdio.ts);
+  this package pins `@modelcontextprotocol/sdk` 1.30.0 and `packages/mcp-host`
+  is on 1.31.0), starts a private, ephemeral stub Host
   API / daemon on an OS-assigned port ([`src/mock-upstream.ts`](src/mock-upstream.ts))
   primed with the upstream response the test wants to probe, makes the exact
   tool calls the test specifies, and returns the raw MCP responses (plus every
@@ -143,7 +148,7 @@ pnpm --filter @opensesame/redteam redteam:mock-upstream
   fast, readable per-test failure instead of a stuck `promptfoo eval`.
 - **No model credentials available**: `pnpm --filter @opensesame/redteam
   redteam:eval` still runs the confused-deputy, credential-exfiltration, and
-  malformed-input classes cleanly (12+ cases, zero model dependency). Only the
+  malformed-input classes cleanly (14 cases, zero model dependency). Only the
   prompt-injection cases — and the llm-rubric grading calls within them — will
   report a provider auth error, which is expected and self-explanatory in
   promptfoo's output.
@@ -161,7 +166,9 @@ case share task context, exactly like a real multi-turn agent session would).
 `vars.mockRoutes` primes that case's private stub upstream; `vars.env` sets
 extra environment variables (e.g. a fixture `OPENSESAME_OPERATOR_TOKEN`) on
 the spawned process; `vars.includeToolSchemas: true` also returns
-`tools/list` output for schema-introspection assertions. See
+`tools/list` output for schema-introspection assertions;
+`vars.wrongAgentAudience: true` makes the harness's capability grant name a
+different audience than the one `packages/mcp-host` expects. See
 [`src/mcp-provider.ts`](src/mcp-provider.ts)'s `RedteamVars` interface for the
 exact shape, and any existing test file for a worked example.
 
@@ -174,34 +181,41 @@ prompt-injection class.
 
 ## Scheduled runs
 
-The nightly dependency-triage and weekly-security-audit Claude Code Routines
-described in [`docs/contributing/agent-routines.md`](../../docs/contributing/agent-routines.md)
-may invoke this suite (`pnpm test:redteam`) as part of their scheduled run —
-see that doc for the exact schedule and how failures are surfaced.
+None of the Routines in [`ops/routines/`](../../ops/routines) invokes this
+suite, and no GitHub Actions workflow does. `pnpm test:redteam` runs locally or
+inside a Claude Code session; see
+[`docs/contributing/ai-automation-roadmap.md`](../../docs/contributing/ai-automation-roadmap.md)
+for how it is meant to be authenticated there, and
+[`docs/contributing/agent-routines.md`](../../docs/contributing/agent-routines.md)
+for the Routines that do run on a schedule.
 
 ## Verification status
 
-This suite was built and self-reviewed without a completed `pnpm install`
-(per this build's constraints), so `promptfoo eval` itself has not been run
-end-to-end here. What *was* verified directly against the real, unmodified
-`packages/mcp-host` server while writing it:
+The confused-deputy, credential-exfiltration, malformed-input and structural
+prompt-injection cases also exist as Vitest tests in
+`src/structural.pact.test.ts`, which drive the real, unmodified
+`packages/mcp-host` through the same probe (`src/structural-probe.ts` over
+`src/mcp-provider.ts`) and assert on its raw MCP responses and on the requests
+its stub upstream received, so `pnpm test` checks them against the live server:
 
-- Every zod validation error string asserted on in `tests/malformed-input.yaml`
-  was captured live from a real `task_start` call via the MCP client SDK.
+- The zod validation error strings asserted on in `tests/malformed-input.yaml`
+  (for example `Array must contain at most 64 element(s) at capabilities`) are
+  asserted against a real `task_start` call.
 - The confused-deputy digest-substitution case (`tests/confused-deputy.yaml`)
-  was verified by actually freezing an intent, then calling `operator_invoke_l1`
-  with a forged `intent_digest`/`operation`, and inspecting the real HTTP
-  request the server sent to the (stubbed) daemon: the forged fields never
-  appeared; the server's own frozen digest did.
-- The credential-exfiltration refusal and scrub-vs-refuse split in
-  `tests/credential-exfiltration.yaml` were verified by having a stub upstream
-  echo the process's real fixture `OPENSESAME_OPERATOR_TOKEN` back in both a
-  credential-shaped field (refused) and a plain field (redacted, not refused).
-- All assertion logic in the three structural test files was replayed against
-  those captured, real outputs with a throwaway harness and passed.
+  freezes an intent, calls `task_invoke_l1` with a forged
+  `intent_digest`/`operation`, and inspects the HTTP request the server sent to
+  the stub: the forged fields never appear; the server's own frozen digest does.
+- The credential-exfiltration refusal-vs-omission split in
+  `tests/credential-exfiltration.yaml` is asserted by having the stub upstream
+  echo the process's fixture `OPENSESAME_OPERATOR_TOKEN` back as a bearer
+  (refused) and in an unrecognized plain field (omitted, call still succeeds).
 
-What to run once the workspace is fully installed and either auth path above
-is available:
+The model-backed `claude-live-mcp` class (`tests/prompt-injection.yaml`) is not
+part of `pnpm test`; it needs live model access (see "Auth") and runs only
+through the promptfoo eval.
+
+To run the full promptfoo eval once the workspace is installed and either auth
+path above is available:
 
 ```bash
 pnpm install
@@ -210,9 +224,7 @@ pnpm --filter @opensesame/redteam redteam                       # full suite
 ```
 
 The `claude-live-mcp` provider's `config.mcp` field names (`enabled`,
-`server.command`/`args`/`name`) were checked against promptfoo's public docs
-current as of writing; if `promptfoo eval` reports an unrecognized config key
-under `mcp`, or the tool-calling loop doesn't actually execute against the
-live server, check the current `providers/anthropic` and `integrations/mcp`
-docs on promptfoo.dev — this is the one part of the config that couldn't be
-exercised end-to-end here.
+`server.command`/`args`/`name`) follow promptfoo's public docs; if
+`promptfoo eval` reports an unrecognized config key under `mcp`, or the
+tool-calling loop doesn't actually execute against the live server, check the
+current `providers/anthropic` and `integrations/mcp` docs on promptfoo.dev.

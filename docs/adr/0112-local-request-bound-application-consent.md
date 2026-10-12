@@ -1,6 +1,6 @@
 # ADR 0112: Request-bound browser application consent
 
-Status: accepted
+Status: Accepted
 
 Extends ADR 0111. The existing browser-local application popup now creates an
 encrypted request, obtains a fresh request-bound passkey decision, consumes it

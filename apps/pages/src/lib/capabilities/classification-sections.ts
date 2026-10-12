@@ -253,7 +253,7 @@ export const SECTION_RULES = [
   optional(
     "src/sections/settings/local-notifications-files",
     "notifications.local",
-    "Settings › Capabilities' local-notifications.json (ADR 0134, 0162)",
+    "Settings › Features' local-notifications.json (ADR 0134, 0162)",
   ),
   optional(
     "src/sections/settings/FeatureBindingsPanel",

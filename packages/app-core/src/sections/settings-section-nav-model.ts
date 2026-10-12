@@ -22,9 +22,10 @@ export type SettingsTab = Readonly<{
 }>;
 
 /**
- * The categories the core Settings page always has. `connections` is not
- * one: the connectors capability registers it as a `settings-category`
- * contribution, and the tab exists only while that capability is in the plan.
+ * The categories the core Settings page always has. A capability may add a
+ * tab of its own as a `settings-category` contribution (Live sessions,
+ * Trusted contacts, Notification routing); it exists only while that
+ * capability is in the plan.
  */
 export const settingsTabs: readonly SettingsTab[] = [
   { id: "general", label: "General", guideId: "settings.general", order: 0 },
@@ -42,10 +43,16 @@ export const settingsTabs: readonly SettingsTab[] = [
   },
   { id: "vaults", label: "Vaults", guideId: "settings.vaults", order: 200 },
   {
-    id: "capabilities",
-    label: "Capabilities",
-    guideId: "settings.capabilities",
+    id: "features",
+    label: "Features",
+    guideId: "settings.features",
     order: 400,
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    guideId: "settings.integrations",
+    order: 450,
   },
   { id: "danger", label: "Danger", guideId: "settings.danger", order: 1000 },
 ];

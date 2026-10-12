@@ -5,6 +5,8 @@ Date: 2026-08-22
 Supplements: ADR 0052 (password-manager ecosystem bridging — the strategy
 this ADR implements), ADR 0048 §5 (dependency quarantine), ADR 0049 §4
 (helper binaries as thin clients), ADR 0037 (git sealed store)
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; process isolation becomes
+crate isolation).
 
 ## Context
 

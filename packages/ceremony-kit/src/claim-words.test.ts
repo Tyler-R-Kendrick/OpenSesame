@@ -72,6 +72,10 @@ describe("drop refusals", () => {
     });
     expect(dropRefusal("too_many_attempts", 429).code).toBe("invalid_code");
     expect(dropRefusal("EXPIRED", 410).code).toBe("expired");
+    expect(dropRefusal("REVOKED", 410)).toEqual({
+      code: "revoked",
+      words: "This drop was revoked.",
+    });
     expect(dropRefusal("", 410).code).toBe("expired");
     expect(dropRefusal("INVALID_TRANSITION", 422)).toEqual({
       code: "already_opened",

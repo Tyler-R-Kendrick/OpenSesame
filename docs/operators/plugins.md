@@ -87,7 +87,7 @@ opensesame plugins list                  # also lists pairings: origin and time,
 
 `pair` prints a code (`opensesame-plugins:v1:…`, the wire form is
 `spec/conformance/plugin-pairing.json`). Paste it into the pairing field of
-the plugin's tile in Settings › Capabilities. The code:
+the plugin's tile in Settings › Features. The code:
 
 - works **once**, within **five minutes**, and only from the page at exactly
   `--origin` (`https://host[:port]`, or `http://localhost:port`). A code
@@ -124,8 +124,10 @@ is answered for that origin alone.
 
 `OPENSESAME_PLUGIN_<ID>=off` turns a plugin off for any process that sees it,
 whatever the settings file says. `<ID>` is the id uppercased, with `-` changed
-to `_`, for example `OPENSESAME_PLUGIN_SURROGATE_PROXY=off`. The values `off`,
-`0`, `false`, `no` and `disabled` all count. **No value turns a plugin on.** An
+to `_`, for example `OPENSESAME_PLUGIN_SURROGATE_PROXY=off`. The override fails
+toward off: any value that is not empty and not `on`, `1`, `true` or `yes`
+counts (`off`, `0`, `false`, `no` and `disabled` among them), and those four
+words only leave the settings file in charge. **No value turns a plugin on.** An
 operator can withdraw a plugin from a process, but no environment can enable
 something a person did not. `PluginState.forced_off` reports it.
 
@@ -149,10 +151,11 @@ something a person did not. `PluginState.forced_off` reports it.
 
 | What | Where |
 |---|---|
-| Settings file (which plugins are installed, pinned, on) | `<config dir>/plugins.json`, or `OPENSESAME_PLUGINS_FILE` |
+| Settings file (which plugins are installed, pinned, on) | `<config dir>/plugins.json`. A shipped build reads no environment variable for this path; `OPENSESAME_PLUGINS_FILE` is honoured only by test builds (cargo feature `path-override`) |
 | Installed native plugin | `<data dir>/plugins/<id>/<version>/<binary>`, or under `OPENSESAME_PLUGINS_DIR` |
 | Installed extension package | `<data dir>/plugins/<id>/<version>/<id>.zip` |
 | Plugin state: notices | `<dir of plugins.json>/plugin-state/<id>/notices.jsonl` (`0600`, capped at 1 MiB, rotated once to `notices.jsonl.1`) |
+| Plugin state: tripwires | `<dir of plugins.json>/plugin-state/<id>/tripwires.jsonl` (`0600`, Error-severity refusals only, capped at 512 KiB, never rotated: once full it drops new lines) |
 | One run's CA certificate | `<dir of plugins.json>/plugin-state/<id>/runs/<run id>/ca.pem` (`0600`, removed when the run ends) |
 
 `<config dir>` and `<data dir>` are the platform directories for
@@ -165,14 +168,26 @@ so a tampered settings file cannot aim `remove` at an arbitrary path.
 
 ## The surrogate-proxy run
 
-`opensesame dev run --agent -- <cmd>` with the plugin active:
+The commands in order, with their output, are in the
+[Proxied run quickstart](proxied-run-quickstart.md). `opensesame dev run
+--agent -- <cmd>` with the plugin active:
 
 1. It collects the env-spec entries delivered as `Placeholder`, the
    legacy-token projections, placed in one header, and the web logins
    (below), each with the scope its env-spec entry declared ([Scope](#scope-of-a-surrogate)).
 2. It spawns the plugin in its own process group and writes one JSON line to
    its stdin:
-   `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], logins:[{env_var, origin, action, field, secret, ca_pem?}], passthrough_hosts, watched, notices_path}`.
+   `{run_id, ttl_secs, entries:[{env_var, provider_id, connection_ref, site, methods, path_prefixes}], logins:[{env_var, origin, action, field, secret, ca_pem?}], credentials:[{connection_ref, secret}], passthrough_hosts, watched, notices_path}`.
+   A provider the catalog lists under `stored_credential_providers` (`vercel`)
+   takes its token from the sealed store: the CLI reads
+   `connections/<org>/<name>` for `conn://<org>/<name>` and sends it as that
+   connection's `credentials` row, in this line only. A connection with no
+   entry is named on stderr and keeps its placeholder. A provider the plugin
+   has no egress rule for (`aws`) is never read from the store whatever the
+   store holds; stderr says the plugin brokers no such connection, and it
+   keeps its placeholder. The catalog is where the CLI, which links no
+   plugin, learns which providers those are, and the plugin's own egress
+   table has a drift test against it.
 3. The plugin answers with one line: `{proxy_url, ca_pem_path, env, unserved}`.
    `env` carries the surrogates, the run CA's trust variables
    (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`, `REQUESTS_CA_BUNDLE`,
@@ -188,10 +203,11 @@ so a tampered settings file cannot aim `remove` at an arbitrary path.
 5. While the child runs, the plugin writes one JSON line per event:
    `{"event":"tripwire",…}` or `{"event":"login",…}` (next two sections).
 6. The run ends when the child exits and the CLI closes the plugin's stdin.
-   It also ends when the CLI is killed, because the kernel closes the pipe;
-   when the plugin gets `SIGTERM` or `SIGINT`; or at the run's TTL. At the end
-   every surrogate and login is revoked, the listener stops and the CA file is
-   deleted.
+   It also ends when the CLI gets `SIGTERM` or `SIGHUP` (it revokes the run,
+   stops the child, then closes the pipe); when the CLI is killed in a way it
+   cannot catch, because the kernel closes the pipe; when the plugin gets
+   `SIGTERM` or `SIGINT`; or at the run's TTL. At the end every surrogate and
+   login is revoked, the listener stops and the CA file is deleted.
 
 ### Scope of a surrogate
 
@@ -237,8 +253,9 @@ GITHUB_TOKEN=opensesameConnection(conn://org/github, projection=legacy-token, pa
   and is not inspected for scope.
 
 Every refused surrogate becomes a vetted `surrogate.*` notice line in
-`notices.jsonl`. A notice carries the run, the provider and the fence, never
-the surrogate. The daemon's notices route drops any line that names the
+`notices.jsonl`, or in `tripwires.jsonl` when it is evidence (Error severity
+and up, such as `surrogate.misdirected` and `surrogate.revoked`). A notice
+carries the run, the provider and the fence, never the surrogate. The daemon's notices route drops any line that names the
 `osr_` marker at all.
 
 ### A misdirected surrogate stops the run

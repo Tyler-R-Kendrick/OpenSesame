@@ -16,10 +16,12 @@ import {
 } from "./parity-node.js";
 import { type ParityCommand, option, toggle } from "./parity-parse.js";
 
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import { dispatchParity } from "./parity-commands.js";
 
 export interface ParityDependencies {
   requestTransport?: Pick<RequestPorts, "addresses" | "send">;
+  appIntegration?: CliAppIntegrationPort;
   parityPort?: PasswordAgentPort;
   privateInput?: typeof readPrivateInput;
   privateFile?: typeof writePrivateFile;
@@ -40,6 +42,7 @@ export async function runParity(
       ? childArgs(args)
       : [];
   const desktop = toggle(args, "--desktop");
+  const reveal = toggle(args, "--reveal");
   const account = option(args, "--account");
   const vault = option(args, "--vault");
   const scope: Scope = {};
@@ -67,6 +70,7 @@ export async function runParity(
     args,
     child,
     scope,
+    reveal,
     store,
     raw,
     port,
@@ -74,6 +78,7 @@ export async function runParity(
     privateInput,
     privateFile,
     requestTransport: deps.requestTransport,
+    appIntegration: deps.appIntegration,
   });
 }
 

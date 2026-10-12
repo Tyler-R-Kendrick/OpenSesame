@@ -35,7 +35,6 @@ import {
 import { BlobInput, BlobRow } from "./BlobField.js";
 import { OptionalField } from "./EditorExtras.js";
 import {
-  Hint,
   RecordInput,
   RepeatingInput,
   ScalarInput,
@@ -136,7 +135,7 @@ export function TypedFieldInputs({
                 }
               >
                 <div className="field">
-                  <label htmlFor={field.id}>
+                  <label htmlFor={field.id} title={field.help}>
                     {field.label}
                     {field.required === true ? " *" : ""}
                   </label>
@@ -147,7 +146,6 @@ export function TypedFieldInputs({
                     toggle={toggle}
                     onChange={onChange}
                   />
-                  <Hint field={field} />
                 </div>
               </OptionalField>
             );
@@ -319,10 +317,7 @@ export function UnknownTypeRows({
     <section className="detail__group">
       <h2 className="detail__grouphead">Stored fields</h2>
       <p className="hint">
-        The definition for <code>{typeId}</code> is not installed on this
-        device. Nothing has been lost — every value is here, concealed because
-        this device cannot tell which of them the type meant to hide. Install
-        the definition and the record renders in full.
+        <code>{typeId}</code> not installed.
       </p>
       {entries.map(([id, value]) => {
         const text = isString(value) ? value : JSON.stringify(value);

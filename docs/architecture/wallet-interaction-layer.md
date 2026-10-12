@@ -5,7 +5,7 @@ pass, a QR code, a phone notification and a CLI link are all the same thing
 wearing different clothes.
 
 Design decision: [ADR 0086](../adr/0086-wallet-native-interaction-layer.md).
-Threat surface: [threat model](../security/threat-model.md#cross-device-interaction-layer-adr-0083).
+Threat surface: [threat model](../security/threat-model.md#cross-device-interaction-layer-adr-0086).
 
 ## The one-sentence version
 
@@ -88,7 +88,7 @@ device" without that ever being wired to consent.
 
 `denied`, `consumed`, `expired` and `revoked` are terminal and never reopen.
 This is what makes a photographed QR useless after the fact: the reference
-still resolves, and it resolves to a receipt.
+still resolves, and it resolves to a terminal status.
 
 `approved → revoked` is legal. Between approving and executing there is a
 window, and a user who changes their mind inside it must be able to close it.
@@ -98,16 +98,17 @@ Revocation only removes authority, so admitting the edge cannot widen anything.
 
     displayed operation == approved operation == executed operation
 
-`canonicalRequestDigest` covers the kind, approver, requester,
-`authorization_details`, binding message, resource, **and the expiry window** —
-each field length-prefixed so text cannot be moved across a boundary to forge a
-collision. `approve()` refuses any proof whose `boundDigest` is not this value.
+`canonicalRequestDigest` covers the kind, the ceremony it settles (`subject`),
+approver, requester, `authorization_details`, binding message, resource, **and
+the expiry** (`expiresAt`) — each field length-prefixed so text cannot be moved
+across a boundary to forge a collision. `approve()` refuses any proof whose
+`boundDigest` is not this value.
 
 An assertion proves a key was touched. A presentation proves a credential was
 held. Only the digest proves *what was agreed to*. This is PSD2 dynamic linking
 (EU 2018/389 RTS Art. 5) generalized past payments.
 
-The window is inside the digest because an approval is for an operation *and*
+The expiry is inside the digest because an approval is for an operation *and*
 for how long it stays good.
 
 ## Transaction authorization
@@ -159,17 +160,19 @@ of blast radius.
 ## Configuring Google Wallet
 
 All values are explicit; partial configuration is rejected at startup rather
-than half-working. No issuer id or environment URL is hard-coded, and the
-service-account key never reaches a frontend bundle.
+than half-working: none of the variables set means the wallet is off, and any
+other combination that is not complete and valid is a `WalletConfigError`. No
+issuer id or environment URL is hard-coded, and the service-account key never
+reaches a frontend bundle.
 
-| Setting | Meaning |
+| Variable (`OPENSESAME_WALLET_GOOGLE_…`) | Meaning |
 |---------|---------|
-| enabled | Off by default. |
-| issuerId | Your Google Wallet issuer id. |
-| classId | The Generic Pass class. |
-| serviceAccountEmail | Signs the Save-to-Wallet JWT. |
-| serviceAccountKeyPem | Private key. Never committed; supplied via the existing secret/config path. |
-| publicBaseUrl | The origin interaction URLs are built against. |
+| `ISSUER_ID` | Your Google Wallet issuer id (numeric). |
+| `CLASS_ID` | The Generic Pass class. |
+| `SERVICE_ACCOUNT_EMAIL` | Signs the Save-to-Wallet JWT. |
+| `SERVICE_ACCOUNT_KEY` | PKCS#8 PEM private key. Never committed; supplied via the existing secret/config path. |
+| `PUBLIC_BASE_URL` | The https origin interaction URLs are built against. |
+| `ORIGINS` | Comma-separated https origins allowed to present the Save link (the JWT `origins` claim). |
 
 The pass carries a barcode whose value is the canonical interaction URL and
 display rows chosen for being non-secret. `assertPassPayloadSafe` runs on every
@@ -179,8 +182,8 @@ serialized object.
 
 ## Adding another wallet provider
 
-Implement `WalletPassProvider`. Three methods, no vendor types in the
-signature:
+Implement `WalletPassProvider`. Two required methods and two optional ones, no
+vendor types in the signature:
 
 ```ts
 capabilities(): WalletCapabilities;

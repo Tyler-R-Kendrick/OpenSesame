@@ -1,0 +1,163 @@
+import { expect } from "@playwright/test";
+
+/**
+ * Read a row's position and use the listing's real count-prefixed motion,
+ * until the row holds the cursor. A tree still settling after a route change
+ * can move its rows or its cursor between the read and the keys, and Enter
+ * then opens whatever row the cursor is on. The cursor is the tree's
+ * `aria-activedescendant`, or, where a preview remounted the tree and it fell
+ * back to the route, the row's own `aria-selected`; a preview that replaced
+ * the tree on a phone counts as arriving.
+ */
+async function moveTo(page, tree, row) {
+  const id = await row.getAttribute("id");
+  const quick = { timeout: 200 };
+  const read = (locator, name) =>
+    locator.getAttribute(name, quick).catch(() => null);
+  const arrived = async () =>
+    !(await tree.isVisible()) ||
+    (await read(tree, "aria-activedescendant")) === id ||
+    (await read(row, "aria-selected")) === "true";
+  let typed = false;
+  await expect(async () => {
+    // A retry types again only while the row is still to reach: once a
+    // preview has replaced the tree, keys would land in the listing.
+    if (typed && (await arrived())) return;
+    const index = await row.evaluate(
+      (node) =>
+        [
+          ...node
+            .closest('[role="tree"]')
+            .querySelectorAll('[role="treeitem"]'),
+        ].indexOf(node),
+      undefined,
+      { timeout: 1000 },
+    );
+    await page.keyboard.type(`${index + 1}gg`);
+    typed = true;
+    if (!id) return;
+    await expect.poll(arrived, { timeout: 750 }).toBe(true);
+  }).toPass({ timeout: 10_000 });
+}
+
+async function chooseRow(page, tree, row, tabTo, activate = true) {
+  await expect(row).toBeVisible();
+  await tabTo(page, tree);
+  await expect(tree).toBeFocused();
+  await moveTo(page, tree, row);
+  if (activate) await page.keyboard.press("Enter");
+}
+
+export async function openIdentityView(page, tabTo, name) {
+  const narrow = page.viewportSize().width <= 900;
+  const workspace = page.locator('.record-workspace[data-section="Identity"]');
+  const beforeEscape = page.url();
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Escape");
+  // Wait only when Escape moved a pane. A tray close may legitimately leave
+  // focus on the shell's More key, outside the previous record pane.
+  if (page.url() !== beforeEscape)
+    await settledIdentityPane(page, workspace, narrow);
+  await page.keyboard.press("g");
+  await page.keyboard.press("i");
+  // The jump must finish at the root before taking a row index. On a phone,
+  // a list/detail route hides the section tree; the shell's drawer also has
+  // a tree named Sections, so use the workspace's actual navigation pane.
+  await expect(page).toHaveURL(/\/identity\/?$/);
+  await settledIdentityPane(page, workspace, narrow);
+  const tree = (narrow ? workspace.locator(".vault__tree") : page)
+    .getByRole("tree", { name: "Sections", exact: true })
+    .filter({ visible: true })
+    .first();
+  await tabTo(page, tree);
+  const identity = tree.getByRole("treeitem", { name: /^Identity/i });
+  if ((await identity.getAttribute("aria-expanded")) !== "true") {
+    await moveTo(page, tree, identity);
+    await page.keyboard.press("ArrowRight");
+  }
+  const category = tree.getByRole("treeitem", { name, exact: true });
+  const destination = new URL(await category.getAttribute("href"), page.url());
+  const expanded = (await category.getAttribute("aria-expanded")) === "true";
+  // Expanded directories preview on motion; collapsed ones need Enter. On a
+  // phone, that preview replaces the tree, so a second Enter could open a file.
+  await chooseRow(page, tree, category, tabTo, !expanded);
+  await expect(page).toHaveURL(destination.href);
+  await expect(
+    workspace.getByRole("tree", { name: `${name} items`, exact: true }),
+  ).toBeVisible();
+  await settledIdentityPane(page, workspace, narrow);
+}
+
+export async function openIdentityRecord(page, tabTo, name) {
+  const tree = page.locator('.record-workspace .vtree__rows[role="tree"]');
+  const row = tree.getByRole("treeitem").filter({ hasText: name }).first();
+  await chooseRow(page, tree, row, tabTo);
+  await expect(
+    page.locator(".vault__detail").getByRole("heading", { name, exact: true }),
+  ).toBeVisible();
+}
+
+export async function identityList(page, tabTo) {
+  const back = page
+    .locator(".record-workspace__back")
+    .filter({ visible: true });
+  if (await back.count()) {
+    await tabTo(page, back);
+    await page.keyboard.press("Enter");
+  }
+}
+
+export async function expectIdentityRefusal(page, tabTo, text, returnedFocus) {
+  // The refusal and its focus restoration finish asynchronously. Starting
+  // Tab navigation first can let that restoration take focus from the bell.
+  if (returnedFocus) {
+    await expect(returnedFocus).toBeEnabled();
+    await expect(returnedFocus).toBeFocused();
+  }
+  const bell = page
+    .getByRole("button", { name: /^Notifications/ })
+    .filter({ visible: true });
+  if (!(await bell.count())) {
+    await tabTo(
+      page,
+      page
+        .getByRole("button", { name: /^More/ })
+        .filter({ visible: true })
+        .first(),
+    );
+    await page.keyboard.press("Enter");
+  }
+  await tabTo(
+    page,
+    page
+      .getByRole("button", { name: /^Notifications/ })
+      .filter({ visible: true })
+      .first(),
+  );
+  await page.keyboard.press("Enter");
+  const sheet = page.getByRole("dialog", { name: "Notifications" });
+  await expect(sheet).toContainText(text);
+  await tabTo(page, sheet.getByRole("button", { name: "Close", exact: true }));
+  await page.keyboard.press("Enter");
+  await expect(sheet).toBeHidden();
+}
+
+/** Await the pane rendered for the route before another chord or row motion. */
+async function settledIdentityPane(page, workspace, narrow) {
+  if (!narrow || !(await workspace.count())) return;
+  const url = new URL(page.url());
+  const pane =
+    url.hash || url.searchParams.has("action")
+      ? "detail"
+      : url.search
+        ? "list"
+        : "tree";
+  await expect(workspace).toHaveAttribute("data-pane", pane);
+  const target =
+    pane === "tree"
+      ? workspace.locator('.vault__tree [role="tree"]')
+      : pane === "list"
+        ? workspace.locator('.vtree__rows[role="tree"]')
+        : workspace.locator(".vault__detail");
+  await expect(target).toBeVisible();
+}

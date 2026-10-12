@@ -1,27 +1,34 @@
 # Structural quality gates
 
-Three gates measure the *shape* of the code, alongside the coverage and
-security gates that measure its behaviour. The decision behind them, and why
-each threshold is what it is, is [ADR 0093](../adr/0093-structural-quality-gates.md).
+These gates measure the *shape* of the code, alongside the coverage and
+security gates that measure its behaviour. The decision behind the structural
+ones, and why each threshold is what it is, is
+[ADR 0093](../adr/0093-structural-quality-gates.md).
 
 | Gate | Command | In `pnpm verify` | In CI |
 | --- | --- | --- | --- |
 | Gate self-tests | `pnpm quality:test` | yes | yes (TypeScript job) |
 | Module size + complexity | `pnpm quality:gate` | yes | yes (TypeScript job) |
+| Log hygiene | `pnpm quality:log-hygiene` | yes | yes (TypeScript job) |
 | Component coupling | `pnpm quality:packages` | yes | yes (TypeScript job) |
+| Shared core | `pnpm quality:app-core` | yes | yes (TypeScript job) |
 | Bundle budgets | `pnpm quality:bundle` | no (needs builds) | yes (its own job) |
 
-`pnpm quality` runs the first three together in about a second.
-`pnpm quality:report` prints the measurements without gating.
+`pnpm quality` runs the first five together; bundle budgets need a build and
+run apart. `pnpm quality:report` prints the structure, coupling and bundle
+measurements without gating.
 
-`pnpm quality:test` covers `scripts/lib/martin-metrics.mjs` — the Tarjan cycle
-search and the coupling arithmetic. A gate that silently stops detecting is
-worse than no gate, so the detection logic is tested like any other code.
+`pnpm quality:test` runs the Vitest suites under `scripts/lib` and the
+`node --test` suites under `scripts/security`. They include
+`scripts/lib/martin-metrics.test.mjs` — the Tarjan cycle search and the
+coupling arithmetic. A gate that silently stops detecting is worse than no
+gate, so the detection logic is tested like any other code.
 
 ## 1. Module size and complexity — `pnpm quality:gate`
 
-Budgets, deliberately mirroring `clippy.toml` so one contract covers both
-planes:
+Budgets. The function-length, parameter and nesting values deliberately
+mirror `clippy.toml` (`too-many-lines-threshold`, `too-many-arguments-threshold`,
+`excessive-nesting-threshold`) so one contract covers both planes:
 
 | Budget | Value | Enforced on |
 | --- | --- | --- |
@@ -117,7 +124,7 @@ progress counts. Every other rule records occurrences.
 
 ## 2. Component coupling — `pnpm quality:packages`
 
-Scores all 115 components — pnpm workspace packages and Cargo crates — against
+Scores all 137 components — pnpm workspace packages and Cargo crates — against
 Robert C. Martin's component principles. See `scripts/lib/martin-metrics.mjs`
 for the definitions.
 
@@ -125,8 +132,9 @@ for the definitions.
 
 - **ADP — a dependency cycle.** Components in a cycle cannot be built, tested,
   versioned or released independently.
-- **A phantom dependency** — source imports `@opensesame/x` but the manifest
-  does not declare it. It works only while pnpm's store hoists it.
+- **A phantom dependency** — source imports `@opensesame/<name>` but the manifest
+  does not declare it. It works only while pnpm's store hoists it. Checked for
+  the TypeScript plane; rustc already refuses an undeclared crate.
 
 **Ratcheted against `tools/quality/package-metrics-baseline.json`** (same tighten-or-fail
 rule as above, via `pnpm quality:packages --update`):
@@ -163,6 +171,10 @@ is a hard failure except the lazy-cycle ledger, which only shrinks.
   loop is recorded in `packages/app-core/layering-baseline.json`; a new one
   fails, and one that disappears fails until it is struck
   (`node scripts/quality/app-core-boundary.mjs --update`).
+- **Restricted seams.** Checked over the whole repository, not one package: a
+  seam a module exports for its owner and tests alone
+  (`RESTRICTED_SEAMS` in `scripts/lib/app-core-seams.mjs`, ADR 0160 §5a) may
+  be imported by no one else, in any package or app.
 
 Two tests hold the runtime side: `packages/app-core/src/no-host-import.test.ts`
 imports every module with no host installed (a port read at import fails),
@@ -216,6 +228,18 @@ each file. The gate therefore splits the file list across one single-threaded
 Oxlint process per core; `ANTI_SLOP_JOBS=<n>` overrides the number of
 processes. The comparison logic is tested in
 `scripts/lib/anti-slop-ledger.test.mjs`, which `pnpm quality:test` runs.
+
+## 6. Log hygiene — `pnpm quality:log-hygiene`
+
+Keeps every log line behind the shared scrubber (ADR 0157).
+`scripts/quality/log-hygiene-gate.mjs` counts, per production file, the ways
+code goes around the shared logger: `console.*`, a hand-built `pino(...)`, a
+direct `process.stdout`/`process.stderr` write, and a tracing subscriber or
+fmt layer built without the scrubbing writer. A file or kind with no entry in
+`tools/quality/log-hygiene-baseline.json` is allowed zero, and a recorded
+number only falls: `pnpm quality:log-hygiene --update` records improvements and
+refuses to raise a number. `--update --accept-new-debt` records only the sites
+a widened detector newly counts (a file or kind with no entry yet).
 
 ## Working with the gates
 

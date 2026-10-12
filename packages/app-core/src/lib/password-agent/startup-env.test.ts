@@ -9,6 +9,7 @@ it("rejects every shared startup variable before provider assignment or template
     run: execute,
     runEnvFile: execute,
   };
+  expect(passwordAgentPolicy.credentialStartupEnvKeys).toContain("LD_AUDIT");
   for (const name of passwordAgentPolicy.credentialStartupEnvKeys) {
     await expect(
       run(port, [{ name, reference: "op://vault/item/field" }], ["node"]),

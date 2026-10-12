@@ -1,7 +1,13 @@
 # ADR 0069 — Certificate syncs to external destinations
 
-Status: Accepted
+Status: Accepted (not implemented beyond storage; see Implementation)
 Date: 2026-08-30
+Implementation: the `cert_syncs` and `sync_runs` tables and their storage
+accessors exist (`0016_certificate_manager.sql`,
+`crates/storage/src/cert_alerts.rs`); there is no `cert_syncs` module or
+`routes/certmgr_syncs.rs` in the gateway, no destination driver and no
+capability-registry entry, so the §2 supersession of ADR 0052's refusal of
+automatic deployment is not in effect in code.
 Supplements: ADR 0005 (ConnectionRef / authority handles),
 ADR 0032 §3 (catalog is data), ADR 0039 (outbox and compensating retries),
 ADR 0053 ([pm-bridge binaries](0053-pm-bridge-binaries.md), feature-gated

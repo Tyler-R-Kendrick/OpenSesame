@@ -26,6 +26,7 @@ import { useMenuFlip } from "./use-menu-flip.js";
 import { useVaultSearch } from "./use-vault-search.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
+import { guideBlocks } from "./vault-tree-blocks.js";
 
 export type { VaultTreeActions } from "./vault-menu.js";
 
@@ -307,64 +308,78 @@ export function VaultTree({
           );
         }}
       >
-        {rows.map((row) => {
-          const isCursor = row.key === cursor;
-          const shared = {
-            id: rowId(row.key),
-            className: `vtree__row${row.type === "item" && row.child ? " vtree__row--child" : ""}${isCursor ? " is-cursor" : ""}`,
-            "aria-level": row.type === "item" && row.child ? 2 : 1,
-            "aria-selected": isCursor,
-          };
-          let content: ReactNode;
-          if (row.type === "dir") {
-            content = (
-              <>
-                <IconChevronRight
-                  size={12}
-                  className={`vtree__caret${row.expanded ? " is-open" : ""}`}
-                />
-                <span className="vtree__name">
-                  <Highlight text={row.name} query={needle} />
-                  <span className="vtree__dim">/</span>
-                </span>
-                <span className="vtree__count">{row.count}</span>
-              </>
+        {guideBlocks(rows).map((block) => {
+          const list = Array.isArray(block) ? block : [block];
+          const drawn = list.map((row) => {
+            const isCursor = row.key === cursor;
+            const shared = {
+              id: rowId(row.key),
+              className: `vtree__row${row.type === "item" && row.child ? " vtree__row--child" : ""}${isCursor ? " is-cursor" : ""}`,
+              "aria-level": row.type === "item" && row.child ? 2 : 1,
+              "aria-selected": isCursor,
+            };
+            let content: ReactNode;
+            if (row.type === "dir") {
+              content = (
+                <>
+                  <IconChevronRight
+                    size={12}
+                    className={`vtree__caret${row.expanded ? " is-open" : ""}`}
+                  />
+                  <span className="vtree__name">
+                    <Highlight text={row.name} query={needle} />
+                    <span className="vtree__dim">/</span>
+                  </span>
+                  <span className="vtree__count">{row.count}</span>
+                </>
+              );
+            } else {
+              content = (
+                <>
+                  <span className="vtree__name">
+                    <Highlight text={row.name} query={needle} />
+                    <span className="vtree__dim">{row.ext}</span>
+                  </span>
+                  <Decorations item={row.item} />
+                  <VaultRowMenu
+                    actions={actions}
+                    listRef={listRef}
+                    menuAbove={menuAbove}
+                    menuFor={menuFor}
+                    onClose={onMenuClose}
+                    row={row}
+                    setCursor={setCursor}
+                    setMenuFor={setMenuFor}
+                  />
+                </>
+              );
+            }
+            return (
+              <div
+                key={row.key}
+                role="treeitem"
+                data-vtree-key={row.key}
+                {...shared}
+                {...(row.type === "dir"
+                  ? { "aria-expanded": row.expanded }
+                  : {})}
+                onClick={() => {
+                  setCursor(row.key);
+                  if (row.type === "item") actions.open(row.item);
+                  else toggleDirRef.current(row);
+                }}
+              >
+                {content}
+              </div>
             );
-          } else {
-            content = (
-              <>
-                <span className="vtree__name">
-                  <Highlight text={row.name} query={needle} />
-                  <span className="vtree__dim">{row.ext}</span>
-                </span>
-                <Decorations item={row.item} />
-                <VaultRowMenu
-                  actions={actions}
-                  listRef={listRef}
-                  menuAbove={menuAbove}
-                  menuFor={menuFor}
-                  onClose={onMenuClose}
-                  row={row}
-                  setCursor={setCursor}
-                  setMenuFor={setMenuFor}
-                />
-              </>
-            );
-          }
+          });
+          if (!Array.isArray(block)) return drawn[0] ?? null;
           return (
             <div
-              key={row.key}
-              role="treeitem"
-              data-vtree-key={row.key}
-              {...shared}
-              {...(row.type === "dir" ? { "aria-expanded": row.expanded } : {})}
-              onClick={() => {
-                setCursor(row.key);
-                if (row.type === "item") actions.open(row.item);
-                else toggleDirRef.current(row);
-              }}
+              key={`kids:${list[0]?.key ?? "items"}`}
+              className="vtree__kids"
             >
-              {content}
+              {drawn}
             </div>
           );
         })}

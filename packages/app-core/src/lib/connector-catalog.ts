@@ -11,7 +11,7 @@
  */
 import { ProviderSchema } from "@opensesame/contracts";
 import type { BoundaryValue } from "@opensesame/os-domain";
-import type { Provider } from "./connections.js";
+import type { ModelApi, Provider } from "./connections.js";
 import {
   CATALOG_ALIASES,
   CATALOG_REVISION,
@@ -23,7 +23,7 @@ export { CATALOG_REVISION };
 /** A provider view as the Host API serves it, mapped to the app's shape. */
 export function providerFromView(value: BoundaryValue): Provider {
   const raw = ProviderSchema.parse(value);
-  return {
+  const provider: Provider = {
     id: raw.id,
     displayName: raw.display_name,
     category: raw.category,
@@ -48,6 +48,12 @@ export function providerFromView(value: BoundaryValue): Provider {
         .replace(/^./, (letter) => letter.toUpperCase()),
     })),
   };
+  if (raw.model_api) {
+    const modelApi: ModelApi = { protocol: raw.model_api.protocol };
+    if (raw.model_api.base_url) modelApi.baseUrl = raw.model_api.base_url;
+    provider.modelApi = modelApi;
+  }
+  return provider;
 }
 
 let rows: readonly Provider[] | null = null;
@@ -58,11 +64,27 @@ export function catalogProviders(): readonly Provider[] {
   return rows;
 }
 
+function isAlias(name: string): name is keyof typeof CATALOG_ALIASES {
+  return Object.hasOwn(CATALOG_ALIASES, name);
+}
+
 /** The catalog id an id or alias names, or `undefined` for neither. */
 export function canonicalProviderId(idOrAlias: string): string | undefined {
-  const id = CATALOG_ALIASES[idOrAlias] ?? idOrAlias;
+  const id = isAlias(idOrAlias) ? CATALOG_ALIASES[idOrAlias] : idOrAlias;
   return catalogProviders().some((provider) => provider.id === id)
     ? id
+    : undefined;
+}
+
+/**
+ * Where a row came from, which is not always the provider itself (fnox, for
+ * the rows it listed). `undefined` for an id the catalog does not list.
+ */
+export function catalogProvenanceUrl(idOrAlias: string): string | undefined {
+  const id = canonicalProviderId(idOrAlias);
+  const json = CATALOG_ROW_JSON.find((row) => JSON.parse(row).id === id);
+  return json
+    ? ProviderSchema.parse(JSON.parse(json)).provenance_url
     : undefined;
 }
 

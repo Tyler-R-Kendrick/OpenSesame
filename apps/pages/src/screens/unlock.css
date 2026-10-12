@@ -1,3 +1,78 @@
+.unlock--lock-v5 {
+  position: relative;
+  overflow: visible;
+}
+
+.unlock--lock-v5.unlock--doors {
+  overflow: hidden;
+}
+
+.unlock--lock-v5.unlock--doors .unlock__hero {
+  transform: translate3d(calc(-1 * var(--unlock-door-shift, 0%)), 0, 0);
+  will-change: transform;
+}
+
+@media (max-width: 1099px) {
+  .unlock--lock-v5.unlock--doors .unlock__hero {
+    transform: translate3d(calc(-0.5 * var(--unlock-door-shift, 0%)), 0, 0);
+  }
+}
+
+/* The dial makes no stacking context of its own, so its two layers sit on
+   either side of the panes: the rings behind the card and notes, the cipher
+   key (index and readout) in front of them. */
+.unlock--lock-v5 .cipher-dial {
+  z-index: auto;
+}
+
+.unlock--lock-v5 .cipher-dial__rings {
+  z-index: 0;
+}
+
+.unlock--lock-v5 .cipher-dial__overlay {
+  z-index: 4;
+}
+
+.unlock--lock-v5 .unlock__notes {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+.unlock--lock-v5 .unlock__card {
+  position: relative;
+  z-index: 3;
+}
+
+/* Hero CipherWordmark above the card (lock-v5.html absolute `.hero`). */
+.unlock__hero {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  /* font-size drives CipherWordmark em; kill the strut so the box is the canvas. */
+  line-height: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.unlock__hero-wordmark {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 400;
+  line-height: 0;
+}
+
+/* Hero mark is canvas `includeMark` at plate height — no separate SVG. */
+
+/* Reserve the brand-row height the in-card wordmark used to occupy. */
+.unlock__wordmark--reserve {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 1.55rem;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .unlock {
   min-height: 100dvh;
   display: grid;
@@ -276,7 +351,7 @@
   flex: 1 1 auto;
   min-width: 0;
   font-size: clamp(0.9rem, 3.2vw, 1.55rem);
-  font-weight: 400;
+  font-weight: 800;
   color: var(--ink);
   max-width: 100%;
 }
@@ -742,12 +817,6 @@
   background: #f5f5f5;
 }
 
-.signin__provider-note {
-  text-align: left;
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
 .signin__divider {
   display: flex;
   align-items: center;
@@ -873,6 +942,20 @@
 .unlock__outcome-dismiss {
   width: 1.75rem;
   height: 1.75rem;
+}
+
+/* The file a vault is waiting to be given: its name, and the key that lets it go. */
+.unlock__import {
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.unlock__import-name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
 }
 
 /* "No identity service yet" — one sentence and the road into setup, where a

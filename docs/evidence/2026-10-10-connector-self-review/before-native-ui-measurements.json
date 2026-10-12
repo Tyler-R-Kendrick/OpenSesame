@@ -1,0 +1,42 @@
+[
+  {
+    "providerId": "github",
+    "phase": "before",
+    "device": "desktop",
+    "header": "GitHub\n\nOAuth · Backup/recovery\n\nDocs",
+    "docsUrl": "https://docs.github.com/apps/oauth-apps",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  },
+  {
+    "providerId": "s3",
+    "phase": "before",
+    "device": "desktop",
+    "header": "S\nS3-compatible bucket\n\nConfiguration · Local storage\n\nDocs",
+    "docsUrl": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  },
+  {
+    "providerId": "github",
+    "phase": "before",
+    "device": "phone",
+    "header": "GitHub\n\nOAuth · Backup/recovery\n\nDocs",
+    "docsUrl": "https://docs.github.com/apps/oauth-apps",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  },
+  {
+    "providerId": "s3",
+    "phase": "before",
+    "device": "phone",
+    "header": "S\nS3-compatible bucket\n\nConfiguration · Local storage\n\nDocs",
+    "docsUrl": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+    "githubAppRegistrationButtons": 0,
+    "saveConfigurationButtons": 0,
+    "horizontalOverflow": false
+  }
+]

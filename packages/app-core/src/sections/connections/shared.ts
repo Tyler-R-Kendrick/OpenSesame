@@ -9,6 +9,7 @@ import type {
   Provider,
   ProviderCategory,
 } from "../../lib/connections.js";
+import { isNativeDeviceConnection } from "../../lib/device-connector-view.js";
 import { VERB_CHIP, VERB_LABEL } from "../../lib/identity-graph.js";
 
 export type Flash = { tone: "ok" | "warn" | "err"; text: string };
@@ -25,6 +26,7 @@ export const CATEGORY_LABELS = {
   encryption: "Encryption (secrets in git)",
   password_managers: "Password managers",
   agent_harnesses: "Agent harnesses",
+  ai_model_provider: "AI model providers",
   networking: "Networking",
   wallet: "Wallet",
   custom: "Custom connectors",
@@ -46,6 +48,7 @@ export const FEATURE_BINDING_CATEGORIES = [
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "ai_model_provider",
   "networking",
   "wallet",
   "cloud_secret_storage",
@@ -61,12 +64,29 @@ export function isFeatureBindingCategory(category: ProviderCategory): boolean {
   return FEATURE_BINDING_SET.has(category);
 }
 
+/**
+ * Bound in Settings and also a catalog of their own: a person adds an AI model
+ * provider from "Add a connection" the same way as any other connector
+ * (ADR 0192), and the AI section of Capabilities still lists it as a binding.
+ */
+const CATALOG_LISTED_BINDINGS = new Set<ProviderCategory>([
+  "ai_model_provider",
+]);
+
+/** Does "Add a connection" draw this category as a group of its own? */
+export function isListedInCatalog(category: ProviderCategory): boolean {
+  return (
+    !isFeatureBindingCategory(category) || CATALOG_LISTED_BINDINGS.has(category)
+  );
+}
+
 export const CATEGORY_ORDER: ProviderCategory[] = [
   "identity",
   "backup_recovery",
   "encryption",
   "password_managers",
   "agent_harnesses",
+  "ai_model_provider",
   "networking",
   "wallet",
   "custom",
@@ -183,7 +203,15 @@ function gitStatusSentence(connection: Connection): string {
     : "Git remote configured.";
 }
 
-export function statusSentence(
+/** Native configurations enter Connected only after the active provider runtime verifies them. */
+export function belongsToConnectedList(connection: Connection): boolean {
+  return (
+    connection.status !== "revoked" &&
+    (!isNativeDeviceConnection(connection) || connection.status === "active")
+  );
+}
+
+function legacyStatusSentence(
   connection: Connection,
   provider?: Provider | null,
 ): string {
@@ -215,4 +243,19 @@ export function statusSentence(
     case "error":
       return connection.statusDetail ?? "The provider returned an error.";
   }
+}
+
+/** Native rows describe provider verification rather than a legacy consent approval. */
+export function statusSentence(
+  connection: Connection,
+  provider?: Provider | null,
+): string {
+  if (isNativeDeviceConnection(connection))
+    return (
+      connection.statusDetail ??
+      (connection.status === "active"
+        ? "Connection verified on this device."
+        : "Provider authorization or verification required before using this connection.")
+    );
+  return legacyStatusSentence(connection, provider);
 }

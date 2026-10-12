@@ -22,32 +22,36 @@ import {
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useLandOnChange, useLandWhenSettled } from "./live-focus.js";
-import type { Standing } from "./live-hooks.js";
+import { type Standing, standingMark } from "./live-hooks.js";
 
 const GUEST_MARK = {
-  asking: { tone: "warn", label: "Asking to join" },
-  replied: { tone: "idle", label: "Let in: hand back the reply code" },
-  joined: { tone: "ok", label: "In the session" },
-  refused: { tone: "err", label: "Turned away" },
-  gone: { tone: "idle", label: "Left" },
+  asking: standingMark("warn", "Asking to join"),
+  replied: standingMark("idle", "Let in: hand back the reply code"),
+  joined: standingMark("ok", "In the session"),
+  refused: standingMark("err", "Turned away"),
+  gone: standingMark("idle", "Left"),
 } satisfies Record<Guest["state"], Standing>;
 
 /** What pasting a code did, as the field's glyph says it; null for a guest. */
 function outcome(received: Received): Standing | null {
   switch (received.kind) {
     case "not-a-request":
-      return { tone: "err", label: "Not a request code" };
+      return standingMark("err", "Not a request code");
     case "not-this-session":
-      return {
-        tone: "err",
-        label: `Not for this session (${received.misses} of ${MAX_MISSES})`,
-      };
+      return standingMark(
+        "err",
+        `Not for this session (${received.misses} of ${MAX_MISSES})`,
+      );
     case "full":
-      return { tone: "warn", label: "The session is full" };
+      return standingMark("warn", "The session is full");
+    case "no-devices":
+      return standingMark("warn", "This session does not let devices ask");
+    case "no-relay":
+      return standingMark("warn", "This session has no relay for a device");
     case "ended":
-      return { tone: "idle", label: "The session has ended" };
+      return standingMark("idle", "The session has ended");
     case "locked":
-      return { tone: "warn", label: "The session is locked" };
+      return standingMark("warn", "The session is locked");
     default:
       return null;
   }
@@ -168,6 +172,9 @@ export function GuestRow({ host, guest }: { host: LiveHost; guest: Guest }) {
       <div className="vault-row__body">
         <span className="vault-row__text">
           <span className="vault-row__name">{guest.name}</span>
+          {guest.kind === "device" ? (
+            <span className="vault-row__meta">A device</span>
+          ) : null}
           {guest.note ? (
             <span className="vault-row__meta">{guest.note}</span>
           ) : null}

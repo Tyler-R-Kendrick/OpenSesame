@@ -28,6 +28,7 @@ import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
 import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { sizesToWalk } from "./lib/mobile-sizes.mjs";
+import { trustedContactsStops } from "./lib/mobile-trusted-contacts.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
 import {
   backOutStops,
@@ -123,7 +124,7 @@ async function openOverflowRow(page, pattern, label) {
   await page.waitForTimeout(350);
 }
 
-/** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
+/** The front door: its three roads, and the guest road in the corner (ADR 0150 §1, ADR 0188). */
 async function frontDoor(page, stop) {
   await helpKey(page, stop("front-door"), harness);
   await audit(page, stop("front-door"));
@@ -157,16 +158,18 @@ async function sections(page, stop) {
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;
-  const far = page.locator(".access-tab", { hasText: /^Policies/ }).first();
-  if ((await far.count()) === 0) {
+  const policies = page
+    .getByRole("treeitem", { name: "Policies", exact: true })
+    .and(page.locator('[aria-level="2"]'));
+  if ((await policies.count()) === 0) {
     harness.check(
       false,
       `${stop("access-policies")}: the Policies tab is missing`,
     );
     return;
   }
-  await far.scrollIntoViewIfNeeded();
-  await far.tap();
+  await policies.scrollIntoViewIfNeeded();
+  await policies.tap();
   await page.waitForTimeout(500);
   await audit(page, stop("access-policies"));
 }
@@ -269,6 +272,22 @@ async function protectorUnlock(browser, phone) {
   await context.close();
 }
 
+/** Settings › Trusted contacts: the tab, its five sheets and a refused paste. */
+async function trustedContacts(browser, phone) {
+  const { page, context } = await harness.newPage(browser, {
+    device: phoneContext(phone),
+  });
+  await trustedContactsStops(page, {
+    harness,
+    audit,
+    openTab,
+    stop: (name) => `${phone.name}-${name}`,
+    origin,
+    base,
+  });
+  await context.close();
+}
+
 /**
  * A finger above 900px: the arrangement the phone roads never reach.
  *
@@ -348,6 +367,7 @@ try {
   for (const phone of walked.phones) {
     await walk(browser, phone);
     await protectorUnlock(browser, phone);
+    await trustedContacts(browser, phone);
   }
   for (const size of walked.tablets) await tablet(browser, size);
 } finally {

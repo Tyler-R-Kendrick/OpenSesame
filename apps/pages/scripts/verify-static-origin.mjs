@@ -8,13 +8,15 @@
 // Google return leg. The run fails on any page error, any console error
 // other than the SPA-fallback 404, any request to a loopback address, any
 // missing asset, or any failed check below.
-//   A. first screen: the front door — the two roads, the compiled broker +
+//   A. first screen: the front door — the three roads, the compiled broker +
 //      guest, no setup wall (ADR 0115)
-//   B. guest → inside the app → every section, and every tab within Access,
+//   B. guest → inside the app → every section, and every subtree within Access,
 //      by in-app navigation
 //   C. Google via Shoo: the authorize request, then the return leg against a
 //      mocked /token + /session/check, landing unlocked with the person named
 //   D. deep link: the icon resolves under the base, not under the route
+//   F. a vault that begins from a file: a backup opened by its own PIN, a
+//      .env file, and changing one's mind (ADR 0188)
 // After B and C, nothing the app stored may rest in the clear (ADR 0149).
 import fs from "node:fs";
 import path from "node:path";
@@ -28,14 +30,19 @@ import {
 import { checkEditorPaths } from "./lib/editor-path-contract.mjs";
 import { checkEditorRoutes } from "./lib/editor-routes-contract.mjs";
 import { checkEditorTabOrder } from "./lib/editor-tab-order-contract.mjs";
+import { walkFirstRunImport } from "./lib/first-run-import-contract.mjs";
 import {
   checkFrontDoor,
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
+import { tabToAccessControl } from "./lib/local-access-journey.mjs";
+import { openIdentityView } from "./lib/local-directory-navigation.mjs";
 import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
+import { checkStaticAccess } from "./lib/static-access-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
+import { walkUnlockHero } from "./lib/unlock-hero-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
 import { checkWordmark } from "./lib/wordmark-contract.mjs";
 
@@ -55,12 +62,13 @@ if (!fs.existsSync(path.join(DIST, "index.html"))) {
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
-const { log, failures, check, setStep, launch, newPage, snap } = createHarness({
+const h = createHarness({
   dist: DIST,
   origin: ORIGIN,
   base: BASE,
   out: OUT,
 });
+const { log, failures, check, setStep, launch, newPage, snap } = h;
 
 const browser = await launch();
 // ---- A + B: first screen, then guest through every section
@@ -87,6 +95,8 @@ const browser = await launch();
     "the local seal landed inside the app",
   );
   check(!/Claim this guest session/.test(inApp), "no claim notice");
+  setStep("B-unlock-hero");
+  await walkUnlockHero(page, check);
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
   // What this installation carries, and how it changes (ADR 0130). This runs
@@ -144,60 +154,16 @@ const browser = await launch();
       `${name} shows no alert`,
     );
 
-    // Sections with tabs hide their regressions one click in: the whole of
-    // Access was once gated on a Host, which hid the Sites — Identity-plane
-    // clients plus wholly local snippets, domain rules and consents. A walk
-    // that only ever saw each section's first tab could not see it.
-    if (name === "B-access") {
-      for (const tab of [
-        "Grants",
-        "Requests",
-        "Sessions",
-        "Connectors",
-        "Resources",
-        "Policies",
-      ]) {
-        setStep(`${name}-${tab}`);
-        await page.getByRole("tab", { name: tab }).click();
-        await page.waitForTimeout(700);
-        const tabText = await snap(page, `${name}-${tab}`);
-        check(
-          !/Something went wrong|Uncaught/i.test(tabText),
-          `Access › ${tab} rendered`,
-        );
-        check(
-          (await page.locator('[role="alert"]').count()) === 0,
-          `Access › ${tab} shows no alert`,
-        );
-      }
-      // Connectors is wholly local and lists access, never a directory form:
-      // its one key adds access, with no Host and no failure (ADR 0115).
-      await page.getByRole("tab", { name: "Connectors" }).click();
-      await page.waitForTimeout(700);
-      check(
-        (await page.getByLabel("Directory endpoint").count()) === 0 &&
-          (await page
-            .getByRole("button", { name: "Add connector access" })
-            .count()) === 1 &&
-          (await page.getByRole("heading", { name: "Connectors" }).count()) > 0,
-        "Access › Connectors lists access without a Host",
-      );
-      // Resources is served by the Identity API and this browser, never the
-      // Host, so it must render its own panel rather than a Host note.
-      await page.getByRole("tab", { name: "Resources" }).click();
-      await page.waitForTimeout(700);
-      check(
-        (await page.getByRole("heading", { name: "Resources" }).count()) > 0,
-        "Access › Resources renders without a Host",
-      );
-    }
+    if (name === "B-access")
+      await checkStaticAccess(page, check, snap, setStep);
   }
   for (const category of [
     "general",
     "security",
     "data",
     "vaults",
-    "connectivity",
+    "features",
+    "integrations",
     "danger",
   ]) {
     setStep(`B-settings-${category}`);
@@ -213,6 +179,28 @@ const browser = await launch();
         `settings/${category} shows no alert`,
       );
     }
+  }
+  // A link to the retired Capabilities page lands on the page that holds what
+  // it named (ADR 0189): a switch's section stays on Features, a built-in
+  // function's moved to Integrations, each under its new anchor.
+  for (const [from, to] of [
+    ["settings/capabilities", `${BASE}settings/features`],
+    [
+      "settings/capabilities#feature-backups",
+      `${BASE}settings/integrations#integration-backups`,
+    ],
+  ]) {
+    setStep("B-settings-retired");
+    await page.evaluate((href) => {
+      history.pushState(null, "", href);
+      dispatchEvent(new PopStateEvent("popstate"));
+    }, `${BASE}${from}`);
+    await page.waitForTimeout(900);
+    const now = new URL(page.url());
+    check(
+      `${now.pathname}${now.hash}` === to,
+      `${from} lands on ${to} (at ${now.pathname}${now.hash})`,
+    );
   }
   await context.close();
 }
@@ -296,7 +284,7 @@ const browser = await launch();
   await addCapability(page, check, snap, "Operator identity providers");
   setStep("C-provider-registration");
   await openSection(page, "identity/");
-  await page.getByRole("tab", { name: "Providers", exact: true }).click();
+  await openIdentityView(page, tabToAccessControl, "Providers");
   await page
     .getByRole("button", { name: "Register an IdP", exact: true })
     .first()
@@ -346,6 +334,9 @@ const browser = await launch();
   );
   await context.close();
 }
+
+// ---- F: a vault that begins from a file (ADR 0188)
+await walkFirstRunImport({ h, browser, ORIGIN, BASE, OUT });
 
 await browser.close();
 fs.writeFileSync(path.join(OUT, "log.json"), JSON.stringify(log, null, 2));

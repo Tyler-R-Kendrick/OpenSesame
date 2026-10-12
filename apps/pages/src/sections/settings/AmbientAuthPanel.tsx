@@ -46,7 +46,7 @@ export function AmbientAuthPanel() {
 
   // Nothing to choose from and nothing deployed: the panel would be a
   // sentence and a key with no effect, so it is not drawn. Adding a provider
-  // (Capabilities › Identity providers) is what brings it in.
+  // (Integrations › Identity) is what brings it in.
   if (!deployed && providers.length === 0) return null;
 
   return (
@@ -72,19 +72,13 @@ export function AmbientAuthPanel() {
       </div>
       <div className="panel__body">
         {deployed ? (
-          <p className="hint">
-            This deployment is configured to sign you in with{" "}
-            {decision.connection?.displayName ?? "your organization"} when the
-            provider can complete silently. That is operator configuration, not
-            proof that this device is managed.
+          <p
+            className="hint"
+            title="Operator configuration, not proof that this device is managed."
+          >
+            {decision.connection?.displayName ?? "Set by deployment."}
           </p>
         ) : (
-          <p className="hint">
-            OpenSesame can retry the provider you choose when you return. This
-            never unlocks a vault and never attaches a guest account.
-          </p>
-        )}
-        {deployed ? null : (
           <ul className="stack">
             {providers.map((idp) => (
               <li key={idp.issuer} className="keyed-row keyed-row--field">

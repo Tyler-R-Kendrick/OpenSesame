@@ -42,6 +42,7 @@ export type ProviderProfile = {
     keyQuery: string | null;
     accountField: string | null;
     mcp: boolean;
+    reply?: JsonValue;
   } | null;
   /** Accept any https client id without registration (CIMD). */
   cimd: boolean;
@@ -379,7 +380,7 @@ export class ProviderEmulator {
         },
       });
     }
-    return json(accountReplyFor(verify.accountField, ACCOUNT));
+    return json(verify.reply ?? accountReplyFor(verify.accountField, ACCOUNT));
   }
 }
 

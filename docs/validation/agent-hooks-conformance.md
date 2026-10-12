@@ -370,7 +370,11 @@ at `agent_startup` → `transform_target_forbidden`), AH-CTK-061 (zero
 interceptors fail closed), AH-CTK-074 (§6.1a startup deny, shutdown still
 emitted). Every skip is `missing capabilities: ["model_calls"]` (AH-CTK-091
 also `bigint_json`). The golden identity vectors pass against
-`agent_hooks::context_identity`.
+`agent_hooks::context_identity`, with one exception in how they are read: for
+`G-15-rfc8785-numbers` the test compares against RFC 8785 Appendix B's digits
+(`9.999999999999997e+22`) rather than the vendored fixture's
+`9.999999999999996e+22`, because this build parses every number as the nearest
+double (`agent_hooks_ctk.rs`; ADR 0159's limits).
 
 **100% of the vectors applicable to the declared surface pass — 4 of 4.**
 
@@ -397,6 +401,8 @@ are not part of either claim:
 | `tests/hooked_records.rs` | What the session keeps (no sink: all; sink: none unless asked; a limit), and that each per-emission emitter carries the session's approval redactor and identity provider. |
 | `tests/hooked_labels.rs` | §5.4: a permit's labels resurface under the interceptor's namespace on every later emission, accumulate without duplicates, and are never resurfaced for a deny, an unapplied transform, a label the combined verdict dropped, or an unnamed or reserved namespace. |
 | `tests/hooked_dynamic.rs` | The engine's untyped surface: a proposed call's own id on both emissions, a pre transform reaching the tool and a deny keeping it from running, an error staying an error through a post transform, model points in the same ordered session, model points and named tools refused without an emission outside a turn, a `post_model_call` refused without an emission unless a `pre_model_call` that proceeded is still open to pair with (§3.1.4), two posts in flight for one open pre leaving exactly one paired, a transform that leaves a model message, a model response or a tool's arguments off §4.2's shape refused as `transform_invalid`, and input that is off-shape to begin with refused as `context_invalid` without an emission (§6.3). |
+| `tests/hooked_boundary_cut.rs` | A boundary emission (`agent_startup` or `agent_shutdown`) cut off by the run's deadline leaves a synthetic `host_error:interceptor_timeout` deny and still moves the session: a cut startup is followed by exactly one `error` shutdown, a cut shutdown by none. |
+| `tests/hooked_shutdown_reason.rs` | `agent_shutdown`'s `summary.reason` follows how the run ended: a hook-refused step or a run blocked by recipe drift is `error`, a run that stood down for a person is `cancelled`, and neither is `completed`. |
 
 ## Limits
 

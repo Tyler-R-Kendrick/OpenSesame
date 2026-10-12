@@ -2,6 +2,10 @@
 
 - Status: Accepted
 - Date: 2026-09-22
+- Amended by: [ADR 0135](0135-always-on-capabilities-and-feature-rollups.md)
+  (always-on capabilities and feature rollups)
+- Supersedes in part: [ADR 0114](0114-tabbed-setup-ceremony.md) (§5: the fixed
+  tab list is derived)
 - Supplements: [ADR 0090](0090-static-frontend-complete-without-backend.md)
   (the static front end is complete without a backend), [ADR 0065](0065-agent-surface-parity.md)
   (the operation registry), [ADR 0114](0114-tabbed-setup-ceremony.md) (the

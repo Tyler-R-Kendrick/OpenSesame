@@ -10,9 +10,9 @@ configured.
 ## Where it fits
 
 - **Used by:** [`packages/mcp-host`](../../packages/mcp-host) (`src/telemetry.ts`, which sends `mcp_tool_call` to PostHog when `OPENSESAME_TELEMETRY_KEY` is set).
-- **Builds on:** [`@opensesame/observability`](../observability) (`SENSITIVE_KEY_PATTERN`), [`@opensesame/os-domain`](../os-domain).
+- **Builds on:** [`@opensesame/observability`](../observability) (`isSensitiveKey`), [`@opensesame/log-scrub`](../log-scrub) (`scrubText`), [`@opensesame/os-domain`](../os-domain).
 - Additive only: a new event or prop key is an edit to this package, never something a call site can do.
-- A prop whose key or stringified value contains a forbidden term (`token`, `secret`, `authorization`, `cookie`, `pepper`, `key`, `pin`, `prompt`, `email`, `sub`) is dropped whole, not redacted. The check runs before truncation, so a term past the cut-off is still caught.
+- A prop whose key or stringified value contains a forbidden term (`token`, `secret`, `authorization`, `cookie`, `pepper`, `key`, `pin`, `prompt`, `email`, `sub`) is dropped whole, not redacted. The check runs before truncation, so a term past the cut-off is still caught. A value shaped like a credential (a JWT, a bearer, a `#token=` URL) is dropped whole too ([ADR 0157](../../docs/adr/0157-logs-and-events-carry-no-secrets.md)).
 - Values become primitives; strings are truncated to 64 characters.
 
 ## Surface

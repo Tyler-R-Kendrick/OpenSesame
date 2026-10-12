@@ -193,6 +193,14 @@ directory new files may be created in. `itemTypeFiles`
   an Endpoints panel on the page. The file's content is still defined in
   `settings-files.ts` and `settings-config.ts`; only its view changed.
 
+- **2026-10-10 note — the live profile opens from Routes.** Live sessions'
+  `settings/live/transport.json` is a file kept for authoring: a TURN server's
+  REST `secret` and a carrier's credentials are written only there, the Form
+  having no field for them (ADR 0150 §6). It had been reached by opening the
+  directory's `config.yaml`, which the note above made the page, so nothing
+  led to it. The Routes heading now carries its open key, as the routing and
+  marketplace panels do; `verify:live-join` writes a REST secret through it.
+
 ### 5. Consent and egress
 
 The read belongs to the core `vault.passwords` capability. That

@@ -1,5 +1,8 @@
 import { expect } from "@playwright/test";
-import { openLocalAccessPage } from "./local-access-journey.mjs";
+import {
+  accessWorkspace,
+  openLocalAccessPage,
+} from "./local-access-journey.mjs";
 
 export async function localPolicyJourney({
   width,
@@ -20,15 +23,16 @@ export async function localPolicyJourney({
   await page.getByRole("button", { name: "Check session" }).click();
   await expect(page.locator("output")).toHaveText("Session active");
   const management = await openLocalAccessPage(context, width, "policies");
-  const panel = management.getByRole("region", {
-    name: "Local application policies",
+  const panel = accessWorkspace(management);
+  const entry = panel.getByRole("treeitem", {
+    name: /^Test application.*policy$/,
   });
-  const heading = panel.getByRole("heading", {
-    name: "Test application",
-    exact: true,
-  });
-  await expect(heading).toBeVisible();
-  const row = heading.locator("..");
+  await entry.focus();
+  await management.keyboard.press("Enter");
+  await expect(
+    panel.getByRole("heading", { name: "Test application", exact: true }),
+  ).toBeVisible();
+  const row = panel.locator(".vault__detail .detail");
   await row.getByText("Application registration", { exact: true }).click();
   const owner = row.getByRole("checkbox", { name: "records:read: owner" });
   await expect(owner).toBeChecked();

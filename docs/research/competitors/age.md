@@ -4,8 +4,11 @@
 > SOPS, fnox, password-store forks, and OpenSesame sealed-store interop.
 
 **Stance: primitive / prior art** — not a product competitor. age is a building
-block OpenSesame reads/writes (`.age`). In Pages it is a Settings encryption
-key SOP (typage / `age-encryption`), not a Connections catalog connector.
+block OpenSesame reads/writes (`.age`). In Pages it is an optional vault key
+protector (an age recipient or an age passkey) enrolled under Settings ›
+Security › Vault key protection, using the `age-encryption` (typage) library;
+the `age` catalog row only configures recipients and an identity
+(`secret.configure`), it is not a brokered connection.
 
 ## Overview
 
@@ -20,13 +23,13 @@ file to these people” without the OpenPGP web of trust.
 | Trust model | Recipient public keys (age1… or SSH) |
 | Sync | None — ciphertext moves via git/USB/etc. |
 | Agent story | None — decrypt reveals plaintext to caller |
-| License | BSD-style (reference implementations) |
+| License | BSD-3-Clause (Go `age`); Apache-2.0 or MIT (`rage`) |
 
 ## Feature surface
 
 - `age -r` / `age -d` encrypt/decrypt; armor optional.
 - Native SSH recipient support (common DX win).
-- Plugin ecosystem (e.g. YubiKey, cloud KMS plugins in community).
+- Plugin ecosystem (e.g. `age-plugin-yubikey`, `age-plugin-pq`).
 - Library embeddings in SOPS, fnox, and many secret tools.
 
 ## Differentiators (why operators still pick raw age)
@@ -39,18 +42,20 @@ file to these people” without the OpenPGP web of trust.
 
 - Product needs vault UI, Host connectors, and agent-safe authority.
 - Sealed store may prefer `.osseal` while still reading classic `.age`.
-- Encryption **capability** can select WebCrypto, age, YubiKey, cloud KMS —
-  age is a key SOP under Settings, not a Connections broker.
+- Vault key protection can enroll a passkey, an age recipient, an age passkey,
+  AWS KMS or Google Cloud KMS protector; a YubiKey through age is native-client
+  only ([ADR 0152](../../adr/0152-browser-key-protector-enrollment.md)). age is
+  a key protector, not a Connections broker.
 
 ## OpenSesame mapping
 
 | age concept | OpenSesame |
 |-------------|------------|
-| Recipient | Sealed-store / capability encryption recipient |
-| `.age` file | Classic sealed-store ciphertext (interop) |
+| Recipient | Sealed-store recipient (`.age-recipients`) or an `age-recipient` / `age-webauthn` vault key protector |
+| `.age` file | Classic sealed-store ciphertext (interop): X25519 recipients from `.age-recipients`, identity from `OPENSESAME_AGE_IDENTITY`, through the Rust `age` crate |
 | `age` CLI | Optional; Host/Pages must not require it for core paths |
-| Settings | Encryption key SOP `age` (browser: typage) |
+| Settings | Vault key protection: Age key and Age passkey protectors (browser: `age-encryption`, i.e. typage) |
 
 Related: [sops.md](sops.md), [fnox.md](fnox.md),
-[ADR 0037](../../adr/0037-git-sealed-store.md), Pages capability connectors
-(encryption).
+[ADR 0037](../../adr/0037-git-sealed-store.md),
+[ADR 0129](../../adr/0129-vault-key-protection-manifest.md).

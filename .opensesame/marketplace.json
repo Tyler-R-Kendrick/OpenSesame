@@ -24,6 +24,14 @@
         "sha256": "2e6a7bf6243037703680c657c20ef246c16d906f0096dab08c98f7cc6f10ed91"
       },
       {
+        "path": "marketplace/item-types/optional/guardian-share.json",
+        "sha256": "2dbc6a7d52007e146d38c5701a46dde4098924ae94e8a6eda067b336c1f600e1"
+      },
+      {
+        "path": "marketplace/item-types/optional/trusted-circle.json",
+        "sha256": "6b26b854b0000b6177af10b2be5a96cc8d850c1d44fc72231608f44243b0f8ef"
+      },
+      {
         "path": "marketplace/item-types/optional/vehicle.json",
         "sha256": "8d7931f7f9aeee6adf6e8bc36b4c26bd248064f0c3164c9234531551d2fb9443"
       }

@@ -357,7 +357,7 @@ async function fulfillToken(route, captured, privateKey) {
     "POL-ENTERPRISE: verified account shown without an app sign-in click",
   );
   check(
-    /Continue as guest/i.test(body),
+    /Skip to the guest vault/i.test(body),
     "guest road remains after ambient SSO",
   );
   check(counts.link === 0, "ID-HISTORY: no link/history/join network calls");

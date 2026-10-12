@@ -16,6 +16,7 @@ import {
   liveSeams,
 } from "@opensesame/app-core/lib/live/session.js";
 import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
+import { webRtc } from "@opensesame/app-core/lib/live/webrtc.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
@@ -65,7 +66,7 @@ beforeEach(() => {
     items: () => [github, bank],
   });
   Object.assign(liveUiSeams, {
-    peers: net.factory(),
+    transport: net.transports(),
     joinUrl: () => "https://example.test/OpenSesame/",
   });
 });
@@ -81,7 +82,10 @@ afterEach(() => {
   Object.assign(transportSeams, originalTransport);
 });
 
-async function startHosting(admission: "invite" | "open" = "invite") {
+async function startHosting(
+  admission: "invite" | "open" = "invite",
+  values: "read" | "use" | "edit" = "read",
+) {
   const { container } = render(<LiveHostPanel />);
   const owner = container;
   const panel = within(owner);
@@ -92,7 +96,7 @@ async function startHosting(admission: "invite" | "open" = "invite") {
   });
   fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
   fireEvent.change(panel.getByLabelText("Values"), {
-    target: { value: "read" },
+    target: { value: values },
   });
   fireEvent.change(panel.getByLabelText("Who gets in"), {
     target: { value: admission },
@@ -179,10 +183,14 @@ describe("a live session, owner to joiner, paired by hand", () => {
     await panel.findByRole("list", { name: "Handed out" });
 
     // Ending it drops everything the joiner held.
+    const ownerPanel = within(owner);
     fireEvent.click(
-      within(owner).getByRole("button", {
+      ownerPanel.getByRole("button", {
         name: "End the session for everyone",
       }),
+    );
+    fireEvent.click(
+      ownerPanel.getByRole("button", { name: "End for everyone" }),
     );
     await joiner.findByRole("img", { name: "The session ended" });
     expect(joiner.queryByText(SECRET)).toBeNull();
@@ -217,6 +225,54 @@ describe("a live session, owner to joiner, paired by hand", () => {
     await joiner.findByRole("img", {
       name: "That reply is not for this request",
     });
+  });
+
+  it("copy only does not write secret plaintext to the guest clipboard", async () => {
+    const written: string[] = [];
+    Object.assign(vaultHooksSeams, {
+      useVault: () => ({
+        ...vaultStore.getSnapshot(),
+        status: "unlocked" as const,
+        items: [github, bank],
+      }),
+      useCopySecret: () => async (value: string) => {
+        written.push(value);
+        return "copied" as const;
+      },
+    });
+    const { panel } = await startHosting("invite", "use");
+    await panel.findByRole("img", { name: "Live" });
+    const host = currentHost();
+    holdLiveLink(host?.link ?? null);
+    const joiner = within(openJoin());
+    fireEvent.change(joiner.getByLabelText("Code"), {
+      target: { value: host?.code ?? "" },
+    });
+    const request = await ask(joiner, "Ada Lovelace");
+    paste(panel, "A request code", "Read the request", request);
+    fireEvent.click(
+      await panel.findByRole("button", { name: "Let Ada Lovelace in" }),
+    );
+    await panel.findByRole("button", {
+      name: "Copy the reply code for Ada Lovelace",
+    });
+    paste(
+      joiner,
+      "The owner's reply code",
+      "Connect",
+      currentHost()?.state.guests[0]?.reply ?? "",
+    );
+    await joiner.findByRole("img", { name: "Joined Team" });
+    expect(joiner.queryByText(SECRET)).toBeNull();
+    const copyPassword = joiner.queryByRole("button", {
+      name: "Copy GitHub Password",
+    });
+    if (copyPassword) fireEvent.click(copyPassword);
+    expect(copyPassword).toBeNull();
+    expect(
+      joiner.queryByRole("button", { name: "Reveal GitHub Password" }),
+    ).toBeNull();
+    expect(written).not.toContain(SECRET);
   });
 
   it("asks for no code in an open session, and replies at once", async () => {
@@ -269,7 +325,7 @@ describe("a live session, owner to joiner, paired by hand", () => {
     );
     expect(
       again
-        .getByRole("button", { name: "Ask to join" })
+        .getByRole("button", { name: /^Ask to join$/ })
         .hasAttribute("disabled"),
     ).toBe(false);
   });
@@ -278,9 +334,9 @@ describe("a live session, owner to joiner, paired by hand", () => {
     const { panel } = await startHosting();
     await panel.findByRole("img", { name: "Live" });
     holdLiveLink(currentHost()?.link ?? null);
-    liveUiSeams.peers = () => {
+    liveUiSeams.transport = webRtc(() => {
       throw new Error("no WebRTC here");
-    };
+    });
     const joiner = within(openJoin());
     fireEvent.change(joiner.getByLabelText("Code"), {
       target: { value: currentHost()?.code ?? "" },
@@ -307,10 +363,9 @@ describe("a live session, owner to joiner, paired by hand", () => {
     expect(
       joiner.getByRole("img", { name: "Not a live-session link" }),
     ).toBeTruthy();
-    expect(
-      joiner
-        .getByRole("button", { name: "Ask to join" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
+    const ask = joiner.getByRole("button", {
+      name: /Ask to join\. Paste a live-session link that parses/,
+    });
+    expect(ask.hasAttribute("disabled")).toBe(true);
   });
 });

@@ -92,9 +92,7 @@ export function SupportQuestions({
   return (
     <section className="support__help" aria-label="Questions">
       <p className="support__section-label">Questions</p>
-      {questions.length === 0 ? (
-        <p className="hint">Nothing written matches that yet.</p>
-      ) : null}
+      {questions.length === 0 ? <p className="hint">No matches.</p> : null}
       {questions.map((question) => (
         <article key={question.id} className="support__topic">
           <button

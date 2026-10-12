@@ -14,8 +14,8 @@ business.
 [Nango](https://nango.dev/) is an integration platform: embed auth so end users
 connect external APIs; run TypeScript **Functions** (actions, syncs, webhooks)
 on Nango’s infrastructure; expose tools to agents via schemas/MCP. Supports
-hundreds of APIs with templates; handles token refresh, retries, rate limits,
-and tenant isolation. Open-source self-host path plus cloud.
+1,000+ APIs with templates; handles token refresh, retries, rate limits,
+and tenant isolation. Self-host path (limited feature set upstream) plus cloud.
 
 | Dimension | Nango |
 |-----------|-------|
@@ -23,12 +23,12 @@ and tenant isolation. Open-source self-host path plus cloud.
 | Trust model | Nango-stored end-user credentials per connection |
 | Sync | Continuous syncs + action triggers |
 | Agent story | Strong — MCP / tool schemas over Functions |
-| License | OSS + commercial cloud |
+| License | Elastic License (source-available) + commercial cloud |
 
 ## Feature surface
 
 - Frontend/backend SDKs for `nango.auth(...)` OAuth and API-key connects.
-- 900+ API catalog; reusable templates and custom Functions.
+- 1,000+ API catalog; reusable templates and custom Functions.
 - Unified APIs (optional): code-owned models mapping many providers.
 - Schedules, webhooks, retries, observability, environments.
 - MCP / agent tool exposure for selected actions.
@@ -46,7 +46,9 @@ and tenant isolation. Open-source self-host path plus cloud.
 - Dual Host/Identity planes, device login, Pages vault, git sealed store.
 - ConnectionRef emphasizes capability invocation and receipts over syncing CRM
   records into a cache.
-- Study only — no incompatible source copy ([docs/reference/reuse.md](../../reference/reuse.md)).
+- Nango's source is studied only — no incompatible source copy
+  ([docs/reference/reuse.md](../../reference/reuse.md)); its public listing
+  routes are read, not depended on (see the mapping).
 
 ## OpenSesame mapping
 
@@ -57,6 +59,7 @@ and tenant isolation. Open-source self-host path plus cloud.
 | Action / Function | Host invoke op + MCP tools |
 | Sync/cache | Out of core scope (not a sync platform) |
 | MCP tools | `packages/mcp-host` / `packages/mcp-client` |
+| Environment with connections already authorized | A **Nango-compatible directory**, read by reference ([ADR 0115](../../adr/0115-front-door-and-connector-directory.md)): `packages/app-core/src/lib/nango-directory.ts` calls `GET /integrations` and `GET /connections` (older servers: `/connection`) with an environment key and keeps integration, connection id, end user and health. It never calls the route that returns credentials (`GET /connection/{id}`, now `GET /connections/{connectionId}` upstream) and depends on no Nango package. Setup's connectors tab and Connections › Import connectors read it; Access › Connectors binds grants to what it lists |
 
 Related: [oomol-open-connector.md](oomol-open-connector.md),
 [vercel-connect.md](vercel-connect.md), [docs/reference/reuse.md](../../reference/reuse.md).

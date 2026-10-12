@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { accountSeams } from "../../lib/account.js";
-import { FEATURES } from "../../lib/capabilities/features.js";
 import {
   TUTORIAL_AREAS,
   goalOffered,
@@ -8,12 +7,7 @@ import {
   tutorialStartsFrom,
   tutorialStepCount,
 } from "./areas.js";
-import {
-  FEATURE_TUTORIALS,
-  describeGuideGoals,
-  guideGoal,
-  mergedGuideGoals,
-} from "./goals.js";
+import { describeGuideGoals, guideGoal, mergedGuideGoals } from "./goals.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "./predicates.js";
 import { GUIDE_OVERLAY_ROUTES, guideRouteWithin } from "./routes.js";
@@ -50,23 +44,6 @@ describe("the tutorial library", () => {
     expect(tutorialLibrary("/vault").some((group) => group.id === "more")).toBe(
       false,
     );
-  });
-
-  it("opens a tutorial for every section of Settings › Capabilities", () => {
-    for (const feature of FEATURES) {
-      const goal = FEATURE_TUTORIALS[feature.id];
-      expect(goal, `${feature.id} has no tutorial`).toBeDefined();
-      expect(guideGoal(goal ?? ""), `${feature.id}: ${goal}`).not.toBeNull();
-    }
-  });
-
-  it("walks every feature tutorial through the one page its sections are on", () => {
-    for (const goal of Object.values(FEATURE_TUTORIALS)) {
-      const descriptor = guideGoal(goal);
-      if (!goal.startsWith("feature.")) continue;
-      expect(descriptor?.guide).toContain('navigate "/settings/capabilities"');
-      expect(descriptor?.guide).toContain(`focus "${goal}"`);
-    }
   });
 });
 
@@ -254,15 +231,55 @@ describe("what a tutorial needs before it is offered", () => {
     expect(ids({ holds: () => true })).toContain("vault.second-step.code");
   });
 
+  it("offers the model tour only while the on-device model draws the picks", () => {
+    const holds = (predicate: string) => predicate !== "support.model-picks";
+    const sectionDrawn = () => true;
+    expect(ids({ holds, sectionDrawn })).not.toContain(
+      "settings.model-provider",
+    );
+    expect(ids({ holds: () => true, sectionDrawn })).toContain(
+      "settings.model-provider",
+    );
+  });
+
   it("points the model and tailnet tours at their sections, so an undrawn one hides them", () => {
-    const sectionDrawn = (feature: string) =>
-      feature !== "ai" && feature !== "networking";
+    const sectionDrawn = (id: string) =>
+      id !== "integration.ai" && id !== "feature.networking";
     const withheld = ids({ sectionDrawn });
     expect(withheld).not.toContain("settings.model-provider");
     expect(withheld).not.toContain("settings.tailnet-sync");
     const drawn = ids({ sectionDrawn: () => true });
     expect(drawn).toContain("settings.model-provider");
     expect(drawn).toContain("settings.tailnet-sync");
+  });
+
+  it("hides a tour until one capability it names is installed", () => {
+    const health = guideGoal("vault.health.review");
+    const install = guideGoal("vault.item-types.install");
+    expect(health).not.toBeNull();
+    expect(install).not.toBeNull();
+    if (!health || !install) return;
+    expect(health.capabilities).toEqual(["vault.security-checks"]);
+    expect(install.capabilities).toEqual([
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ]);
+    const absent = () => false;
+    expect(goalOffered(health, { installed: absent })).toBe(false);
+    expect(
+      goalOffered(health, {
+        installed: (id) => id === "vault.security-checks",
+      }),
+    ).toBe(true);
+    expect(goalOffered(install, { installed: absent })).toBe(false);
+    expect(
+      goalOffered(install, {
+        installed: (id) => id === "vault.passkey-records",
+      }),
+    ).toBe(true);
+    expect(goalOffered(health)).toBe(true);
+    expect(goalOffered(install)).toBe(true);
   });
 
   it("applies one gate to the library and to any other list of goals", () => {
@@ -272,6 +289,8 @@ describe("what a tutorial needs before it is offered", () => {
     expect(goalOffered(tour, { sectionDrawn: () => false })).toBe(false);
     expect(goalOffered(tour, { sectionDrawn: () => true })).toBe(true);
     expect(goalOffered(tour)).toBe(true);
+    expect(tour.capabilities).toEqual(["support.local-ai"]);
+    expect(goalOffered(tour, { installed: () => false })).toBe(false);
   });
 });
 

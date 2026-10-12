@@ -10,8 +10,11 @@ through it before they reach a log, a receipt or an HTTP response.
 
 - **Used by:** [`crates/gateway`](../../crates/gateway) (intents, delegations,
   receipts, tasks, health, the KV facade, shared sessions),
-  [`opensesame-audit`](../audit), [`opensesame-authn`](../authn),
-  [`opensesame-broker`](../broker), and the fuzz crate
+  [`opensesame-audit`](../audit), [`opensesame-broker`](../broker),
+  [`opensesame-security-events`](../security-events),
+  [`opensesame-storage`](../storage), [`opensesame-sealed-log`](../sealed-log),
+  [`opensesame-nats-callout`](../nats-callout) (the bridge binary),
+  [`apps/cli`](../../apps/cli) (`src/serve.rs`), and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`redaction`).
 - **Builds on:** no workspace crates (`regex`, `serde_json`; `tracing-subscriber` only behind the `tracing` feature).
 
@@ -24,7 +27,7 @@ table, run by both planes.
 
 | Item | What it does |
 |---|---|
-| `redact_text(&str) -> String` | Rewrites every secret the text carries: PEM blocks, `scheme://user:pass@host` userinfo, secret URL parameters (`#token=…`, `?code=…`), Cookie lines, `label: value` pairs (compound labels such as `session_token` and `x-api-key` included, quoted values and `Authorization: Basic …`), bearer and DPoP credentials, JWTs, `osc_*` and `whsec_` tokens, vendor key shapes. Idempotent. |
+| `redact_text(&str) -> String` | Rewrites every secret the text carries: PEM blocks, `scheme://user:pass@host` userinfo, secret URL parameters (`#token=…`, `?code=…`), Cookie lines, `label: value` pairs (compound labels such as `session_token` and `x-api-key` included, quoted values and `Authorization: Basic …`), bearer and DPoP credentials, JWTs, `osk_*` model keys, `osc_*` and `whsec_` tokens, vendor key shapes. Idempotent. |
 | `redact_json(&Value) -> Value` | The value of every sensitive key censored at any depth (`accessToken`, `db_password`; not `tokenType`; booleans and null kept), and every string scrubbed. |
 | `is_sensitive_key(&str)` | Whether a key is named like a secret. |
 | `ScrubWriter<W>` / `Format` | An `io::Write` that scrubs whole lines on their way to a sink; a JSON line is decoded and scrubbed field by field. |
@@ -39,9 +42,11 @@ pnpm audit:miri             # runs this crate's tests under Miri
 pnpm test:mutation:rust     # src/lib.rs is in the mutation scope
 ```
 
-`redact_json` matches whole keys only; it does not run `redact_text` over string
-values. A new secret-bearing label belongs in both pattern lists, with a test in
-[`src/privacy.rs`](src/privacy.rs) or the `tests` module.
+`redact_json` censors by whole key and also runs `redact_text` over every string
+it keeps. A new secret-bearing label or shape belongs in
+[`spec/log-scrub/log-scrub.json`](../../spec/log-scrub/log-scrub.json) (a rule or
+a key, with a vector), never in this crate alone; this crate's tests run every
+vector, and [`src/privacy.rs`](src/privacy.rs) holds the AT-PRIVACY cases.
 
 ## Related
 

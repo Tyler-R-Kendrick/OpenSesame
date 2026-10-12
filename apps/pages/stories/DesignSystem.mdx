@@ -1,0 +1,45 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design system/Read me" />
+
+# OpenSesame design system
+
+Every story here is the app's own component on the app's own stylesheet
+(`src/styles.css` and the component sheets `src/main.tsx` loads), rendered
+through the same browser host the app installs (`.storybook/host.ts`). Nothing
+is restyled for the catalog: what a story shows is what the page draws.
+
+## The contract
+
+- **Greyscale.** Black, white and greys; accent is ink; a status is a glyph, a
+  texture and a shape, never a hue (`docs/design/color-vision.md`). The one
+  hue left is the identicon, and only as a derived identity.
+- **Square corners.** `--radius` is 0 and nothing carries a radius.
+- **An action is an icon key.** A 44px square with its sentence as the
+  accessible name and tooltip; a verb is never painted on a key
+  (`docs/design/controls.md`). A form of several fields ends on the `.go`
+  square with its verb beside it.
+- **A failure is never drawn in the page.** A `StatusMark` on the row and a
+  notice in the tray.
+- **Day and Night** are the app's `data-theme`; the toolbar's Theme switch
+  sets it the way Settings › General › Appearance does.
+
+## The three tools
+
+| Tool | Role |
+|------|------|
+| **Storybook** (this) | Defines the system: the shipped component, its states, its measured contract. The source of truth for what exists. |
+| **Figma** | Sets the look a component must meet. A story's Design tab links the frame it answers to (`stories/figma.ts`). |
+| **Stitch** | Rapid prototyping of alternatives from `.stitch/DESIGN.md`; a prototype that wins becomes a Figma frame, then a component, then a story. |
+
+See `docs/design/tooling.md` for the workflow and `DESIGN.md` for the visual
+contract itself.
+
+## For an agent
+
+Storybook serves an MCP endpoint at `http://localhost:6006/mcp` while
+`pnpm --filter @opensesame/pages storybook` runs (`@storybook/addon-mcp`). Ask
+it for the UI-building instructions and the components manifest before writing
+a new component; add a story beside every delivered component under
+`apps/pages/stories/`, tagged `ai-generated`, and verify it renders in both
+themes.

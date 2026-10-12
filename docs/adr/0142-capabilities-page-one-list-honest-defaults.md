@@ -4,6 +4,8 @@
 - Date: 2026-09-24
 - Amends: [ADR 0135](0135-always-on-capabilities-and-feature-rollups.md)
   (§2 features, §3 the page)
+- Amended by: [ADR 0153](0153-minimal-pwa-optional-sections.md) (browser-local
+  IAM and SIOP are no longer always on)
 - Supplements: [ADR 0130](0130-operator-controlled-capability-composition.md),
   [ADR 0090](0090-static-frontend-complete-without-backend.md)
 

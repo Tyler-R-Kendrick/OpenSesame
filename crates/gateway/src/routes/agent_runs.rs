@@ -202,6 +202,9 @@ async fn load(
         lease_held_by_other,
     )
     .map_err(refusal)?;
+    if attachment == Attachment::View {
+        stream_authority::ensure_view_authority(st, headers).await?;
+    }
     Ok((who, organization_id, run))
 }
 
@@ -274,6 +277,10 @@ fn subject_of(who: &Caller) -> Option<String> {
 #[cfg(test)]
 #[path = "agent_runs_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "agent_runs_tests_tail.rs"]
+mod tests_tail;
 
 #[cfg(test)]
 #[path = "agent_run_credentials_tests.rs"]

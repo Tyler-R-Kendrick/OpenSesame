@@ -68,6 +68,27 @@ export function purgeItem(body: VaultBody, id: string): void {
   body.tombstones = withTombstone(body.tombstones, "items", [...gone]);
 }
 
+/** A revoked drop must not come back from the trash still looking openable. */
+export function expireDropClaims(
+  body: VaultBody,
+  claimIds: ReadonlySet<string>,
+): void {
+  let changed = false;
+  const items = body.items.map((item) => {
+    if (
+      item.kind !== "drop" ||
+      item.state !== "pending" ||
+      !claimIds.has(item.claimId)
+    ) {
+      return item;
+    }
+    changed = true;
+    const expired: VaultItem = { ...item, state: "expired" };
+    return expired;
+  });
+  if (changed) body.items = items;
+}
+
 export function emptyTrash(body: VaultBody): void {
   const gone = body.items.filter((item) => item.deletedAt !== null);
   body.items = body.items.filter((item) => item.deletedAt === null);
@@ -76,6 +97,19 @@ export function emptyTrash(body: VaultBody): void {
     "items",
     gone.map((item) => item.id),
   );
+}
+
+/** A new folder, named as the person typed it, with an id of its own. */
+export function newFolder(name: string): Folder {
+  return {
+    id: crypto.randomUUID(),
+    name: name.trim(),
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export function appendFolder(body: VaultBody, folder: Folder): void {
+  body.folders = [...body.folders, folder];
 }
 
 export function deleteFolder(body: VaultBody, id: string): void {
@@ -157,6 +191,7 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.tombstones = merged.tombstones;
   body.deviceIdentityKey = merged.deviceIdentityKey;
   body.masterWrap = merged.masterWrap;
+  body.environments = merged.environments;
 }
 
 /** A copy of what a failed write must put back, so memory never runs ahead of disk. */
@@ -178,6 +213,9 @@ export function bodyBeforeWrite(body: VaultBody): VaultBody {
       : undefined),
     ...(body.masterWrap !== undefined
       ? { masterWrap: body.masterWrap }
+      : undefined),
+    ...(body.environments !== undefined
+      ? { environments: body.environments }
       : undefined),
   };
 }

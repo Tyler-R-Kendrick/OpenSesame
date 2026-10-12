@@ -1,11 +1,18 @@
 # Validation evidence — external authorization notifications and approval ceremonies
 
-Local validation for [ADR 0081](../adr/0084-external-authorization-notifications.md).
+Local validation for [ADR 0084](../adr/0084-external-authorization-notifications.md).
 Every command below was run in this repository. No GitHub Actions runner was
 used, and no workflow was triggered.
 
 - Base commit: `2b7727b691b650aad46db60f05480dde3640e4e6` (`main` at the time)
 - Branch: `claude/external-auth-notifications-ceremonies-20qj4n`
+
+> Status (2026-10-08): this is a record of one validation run at that base
+> commit; the counts, file lists and line numbers are not re-measured. Two names
+> in it have no counterpart in this checkout: there is no `apps/ceremonies` and
+> no `@opensesame/ceremonies` workspace package (`apps/` holds `android`,
+> `browser-extension`, `browser-extension-autofill`, `cli` and `pages`). Whether
+> the visual-contract baselines still fail was not re-checked.
 
 ## Gates run, and what they said
 

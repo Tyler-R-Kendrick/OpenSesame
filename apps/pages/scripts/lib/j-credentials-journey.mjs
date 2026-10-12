@@ -5,6 +5,7 @@
  * kept on its own is listed under the `+` and, chosen, is bound to the account
  * in the same save: never a copy of it.
  */
+import { expect } from "@playwright/test";
 import { openSettingsCategory, sealWithPin } from "./pages-journey.mjs";
 
 async function switchOn(page, name) {
@@ -29,9 +30,54 @@ async function go(page, base, route) {
   }, `${base}${route}`);
 }
 
-async function save(page) {
-  await page.getByRole("button", { name: "Save item" }).first().click();
+async function save(page, name) {
+  const saveItem = page.getByRole("button", { name: "Save item" }).first();
+  await saveItem.click();
   await page.waitForURL((url) => /\/vault\/[^/]+$/.test(url.pathname));
+  // The address changes before React replaces the editor. A following create
+  // must wait for that replacement or it can fill the previous item's name.
+  await expect(saveItem).toBeHidden();
+  await expect(
+    page
+      .locator(".detail__heading")
+      .getByRole("heading", { name, exact: true }),
+  ).toBeVisible();
+}
+
+/** Bound, not copied: the spare is Second's method, and First keeps its own. */
+async function confirmBound(page, base, check) {
+  await go(page, base, "vault?f=all");
+  await page
+    .getByRole("treeitem", { name: /^Second/ })
+    .first()
+    .waitFor();
+  const rows = await page.getByRole("treeitem").allTextContents();
+  const keys = rows.filter((row) => /API key|Spare key/.test(row));
+  check(
+    keys.length === 0,
+    `a bound key is the account's method, not its own row (${keys.length} API key entries)`,
+  );
+  const unbound = rows.filter((row) => /not bound/.test(row));
+  check(unbound.length === 0, "no credential is left on its own");
+  await page
+    .getByRole("treeitem", { name: /^Second/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Reveal x-api-key value" }).click();
+  check(
+    (await page.locator("body").innerText()).includes("ak_spare"),
+    "Second holds the spare that was bound",
+  );
+  await page
+    .getByRole("treeitem", { name: /^First/ })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Reveal x-api-key value" }).click();
+  const first = await page.locator("body").innerText();
+  check(
+    first.includes("ak_first") && !first.includes("ak_spare"),
+    "First keeps its own key",
+  );
 }
 
 export async function walkJCredentials({ page, origin, base, check, snap }) {
@@ -58,7 +104,7 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
   await snap(page, "J-CREDENTIALS-picker");
   await page.getByRole("button", { name: "API key", exact: true }).click();
   await page.getByLabel("X-Api-Key value", { exact: true }).fill("ak_first");
-  await save(page);
+  await save(page, "First");
   check(true, "an account saves with an API key of a type it had to switch on");
 
   // The type it switched on stays on (the vault holds a key now), so a
@@ -66,7 +112,7 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
   await go(page, base, "vault/new/api-key");
   await page.getByLabel("Name", { exact: true }).first().fill("Spare key");
   await page.getByLabel("X-Api-Key value", { exact: true }).fill("ak_spare");
-  await save(page);
+  await save(page, "Spare key");
 
   // A second account takes it from under the + and saves it bound, once.
   await go(page, base, "vault/new/account");
@@ -87,21 +133,7 @@ export async function walkJCredentials({ page, origin, base, check, snap }) {
       "ak_spare",
     "choosing it brings its value into the account",
   );
-  await save(page);
+  await save(page, "Second");
   await snap(page, "J-CREDENTIALS-bound");
-
-  // Bound, not copied: First's key and the spare, and nothing else, are API keys.
-  await go(page, base, "vault?f=all");
-  await page
-    .getByRole("treeitem", { name: /^Second/ })
-    .first()
-    .waitFor();
-  const rows = await page.getByRole("treeitem").allTextContents();
-  const keys = rows.filter((row) => /API key|Spare key/.test(row));
-  check(
-    keys.length === 2,
-    `the spare was bound, not copied (${keys.length} API key entries)`,
-  );
-  const unbound = rows.filter((row) => /not bound/.test(row));
-  check(unbound.length === 0, "no credential is left on its own");
+  await confirmBound(page, base, check);
 }

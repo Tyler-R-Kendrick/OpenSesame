@@ -22,17 +22,30 @@ pnpm --filter @opensesame/control-plane build
 ## Configure
 
 ```bash
-export OPENSESAME_LISTEN=127.0.0.1:8787
-export OPENSESAME_ENV=development
-# Production: set OPENSESAME_CLAIM_PEPPER to a unique secret; never ALLOW_PRINCIPAL_BEARER
+# Development: sets the mode, loopback URLs and generates the operator token,
+# claim pepper, connection key and receipt signing key under
+# ~/.local/state/opensesame/development/ (never printed).
+source scripts/dev/local-env.sh
 ```
+
+A bare `opensesame host run` or `daemon run` refuses to start: both need a
+deployment mode (`OPENSESAME_ENV` is `development`, `test` or `production`) and
+an `OPENSESAME_OPERATOR_TOKEN` of 32 or more characters; the Host also needs
+`OPENSESAME_CLAIM_PEPPER` of the same strength and loopback
+`OPENSESAME_RESOURCE` / `OPENSESAME_ISSUER` for a local run (the defaults are
+non-loopback and trigger the production safeguards). The Identity API needs a
+mode and `OPENSESAME_CLAIM_PEPPER`; `OPENSESAME_ALLOW_DEV_DEFAULTS=1` (exactly
+`1` or `0`, local-only) stands in for both in development. Production: set
+`OPENSESAME_CLAIM_PEPPER` to a unique secret; never `OPENSESAME_ALLOW_PRINCIPAL_BEARER`.
 
 ## Init
 
 ```bash
-./target/debug/opensesame host run --listen 127.0.0.1:8787
-OPENSESAME_ENV=development pnpm --filter @opensesame/control-plane start
-./target/debug/opensesame daemon run --listen 127.0.0.1:18790
+pnpm dev:host      # Host API, 127.0.0.1:8787 (sources scripts/dev/local-env.sh)
+pnpm dev:daemon    # local agent, 127.0.0.1:18790 (same environment)
+# In a shell that has not sourced local-env.sh:
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 \
+  pnpm --filter @opensesame/control-plane start   # Identity API, :8788
 ```
 
 ## Use

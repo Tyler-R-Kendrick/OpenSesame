@@ -346,6 +346,7 @@ async fn documented_routes_respond_on_the_router() {
         issuer: "https://identity.test".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");

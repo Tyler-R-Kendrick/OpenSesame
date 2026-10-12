@@ -212,9 +212,7 @@ function DestinationsPanel({
           ))}
         </ul>
         {bindings.length === 0 && !view.begun ? (
-          <p className="hint">
-            No destinations connected. Requests wait in the OpenSesame inbox.
-          </p>
+          <p className="hint">No destinations connected.</p>
         ) : null}
       </div>
     </section>

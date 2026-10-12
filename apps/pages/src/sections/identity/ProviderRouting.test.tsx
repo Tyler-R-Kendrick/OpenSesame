@@ -114,6 +114,7 @@ it("reuses the compiled route when signing in from the saved provider row", asyn
     registeredAt: "2026-09-10T00:00:00Z",
   });
   renderProviders();
+  await userEvent.click(await screen.findByRole("treeitem", { name: /Shoo/ }));
   await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
   await waitFor(() =>
     expect(federationSeams.beginSignIn).toHaveBeenCalledWith(

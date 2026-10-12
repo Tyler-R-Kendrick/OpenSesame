@@ -1748,6 +1748,91 @@
     }
   },
   {
+    "id": "shared_sessions.device_authorize",
+    "title": "Allow or turn down a device that asks to use this app's connections",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/live/device-broker.ts:DeviceBroker",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_host": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_client": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "webmcp": {
+        "reason": "letting a device use the owner's saved connections is the owner's own decision, taken on their screen by comparing a code; an agent that could allow a device could allow itself",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.device_connections",
+    "title": "List the connections a live session's owner allowed this device",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id session list",
+      "pwa": "lib/live/device-client.ts:DeviceClient",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_client": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "webmcp": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      }
+    }
+  },
+  {
+    "id": "shared_sessions.device_invoke",
+    "title": "Use an allowed connection through the owner's open tab",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id session invoke",
+      "pwa": "lib/live/device-client.ts:DeviceClient",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "mcp_client": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      },
+      "webmcp": {
+        "reason": "a device holds one seat of one session and asks over that seat's sealed channel; an MCP or WebMCP tool call has no seat to ask from, and an agent reaches the same connections by running the terminal command that holds one",
+        "adr": "0196-device-authorization-in-live-sessions.md"
+      }
+    }
+  },
+  {
     "id": "shared_sessions.decide_join_request",
     "title": "Admit or refuse a join request",
     "plane": "host",
@@ -4987,6 +5072,168 @@
     }
   },
   {
+    "id": "quorum.circle.manage",
+    "title": "Start, change, cancel a request for and retire a circle of trusted contacts",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/owner.ts:createFromDraft",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.share.ask",
+    "title": "Ask a circle to approve sharing something with a person",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/owner-act.ts:askToShare",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.guardian.hold",
+    "title": "Accept an invitation and hold a share for someone else",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/guardian.ts:takeWelcome",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.request.approve",
+    "title": "Approve a request, or release a share to it, with a security key",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/guardian-act.ts:approveRequest",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "quorum.recover",
+    "title": "Gather approvals and releases and open what a circle protects",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/quorum/desk/recipient.ts:openRecovery",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "a circle's owner key, a contact's wrapped share and every approval are held and given by people with their own security keys; a surface an agent could drive would let it raise, approve or release a request on their behalf, which is the one thing a quorum exists to prevent",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "password_reset.mailboxes.manage",
+    "title": "Add, change and remove the email accounts password reset reads",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/password-reset/mailbox-store.ts:addMailbox",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
+        "adr": "0190-password-reset-mailboxes-are-vault-items.md"
+      },
+      "mcp_client": {
+        "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
+        "adr": "0190-password-reset-mailboxes-are-vault-items.md"
+      },
+      "webmcp": {
+        "reason": "a reset mailbox's login can read the mail that resets every account its address is used on; a surface an agent could drive would let it add, point or replace a person's mailbox, so mailboxes are set up by a person in Settings",
+        "adr": "0190-password-reset-mailboxes-are-vault-items.md"
+      }
+    }
+  },
+  {
     "id": "secrets.materialize",
     "title": "Reveal secrets, acquire leases, run crypto plans",
     "plane": "host",
@@ -5789,6 +6036,60 @@
     }
   },
   {
+    "id": "cli.app_integration.list",
+    "title": "List pending CLI app-integration requests",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "CLI app-integration approval is bound to the human's browser session on loopback",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "mcp_client": {
+        "reason": "Agents cannot observe or approve terminal CLI integration on the person's device",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "webmcp": {
+        "reason": "Navigation may open Identity; CLI integration approval requires the human",
+        "adr": "0186-cli-app-integration-reveal.md"
+      }
+    }
+  },
+  {
+    "id": "cli.app_integration.respond",
+    "title": "Approve or deny CLI app-integration for this terminal",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/identity/authorize",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "CLI app-integration consent requires the human and a verified passkey or PIN",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "mcp_client": {
+        "reason": "Agents cannot approve their own terminal's vault reveal integration",
+        "adr": "0186-cli-app-integration-reveal.md"
+      },
+      "webmcp": {
+        "reason": "Agents may navigate; they cannot authorize CLI plaintext reveal for a terminal",
+        "adr": "0186-cli-app-integration-reveal.md"
+      }
+    }
+  },
+  {
     "id": "identity.local.organizations.read",
     "title": "Read the organizations a signed-in local person or agent belongs to, and their members",
     "plane": "client_local",
@@ -5838,6 +6139,33 @@
       },
       "webmcp": {
         "reason": "Navigation may open Identity; a membership change is the signed-in person's decision",
+        "adr": "0105-browser-local-organization-membership.md"
+      }
+    }
+  },
+  {
+    "id": "identity.local.vault.transfer",
+    "title": "Transfer the open vault's ownership to another registered user of that vault",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault-ownership.ts:transferVaultOwnership",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Handing a vault to another person is the owner's decision in the tab; the directory commit is not an RPC or agent surface",
+        "adr": "0105-browser-local-organization-membership.md"
+      },
+      "mcp_client": {
+        "reason": "Agents are never owners or admins and cannot receive or give a vault's ownership",
+        "adr": "0105-browser-local-organization-membership.md"
+      },
+      "webmcp": {
+        "reason": "Navigation may open Settings; transferring ownership is irreversible without the recipient and is never a model tool",
         "adr": "0105-browser-local-organization-membership.md"
       }
     }
@@ -6096,6 +6424,161 @@
       "webmcp": {
         "reason": "the proof spends the relay's management key to acquire a real token; it answers metadata only, and stays with the person who holds that key",
         "adr": "0147-connector-plans-and-user-token-proof.md"
+      }
+    }
+  },
+  {
+    "id": "models.keys.mint",
+    "title": "Create a model key for an app or agent from a saved provider",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "pwa": "lib/model-keys/mint.ts:mintModelKey"
+    },
+    "excluded": {
+      "cli": {
+        "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_host": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_client": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "webmcp": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      }
+    }
+  },
+  {
+    "id": "models.keys.read",
+    "title": "List the model keys handed out and what each may still do",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "pwa": "lib/model-keys/broker.ts:ModelKeyBroker"
+    },
+    "excluded": {
+      "cli": {
+        "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_host": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_client": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "webmcp": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      }
+    }
+  },
+  {
+    "id": "models.keys.revoke",
+    "title": "Revoke a model key and every key made from it",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "pwa": "lib/model-keys/broker.ts:ModelKeyBroker"
+    },
+    "excluded": {
+      "cli": {
+        "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_host": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_client": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "webmcp": {
+        "reason": "creating, listing and revoking the keys handed to apps and agents is the person's own act; an agent that could create a key would approve its own grant",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      }
+    }
+  },
+  {
+    "id": "models.keys.exchange",
+    "title": "Exchange a model key for a narrower one (RFC 8693)",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "pwa": "lib/model-keys/exchange.ts:exchangeKey"
+    },
+    "excluded": {
+      "cli": {
+        "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_host": {
+        "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_client": {
+        "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "webmcp": {
+        "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      }
+    }
+  },
+  {
+    "id": "models.keys.invoke",
+    "title": "Call a model provider with a model key, never its credential",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null,
+      "pwa": "lib/model-keys/gateway.ts:invokeWithModelKey"
+    },
+    "excluded": {
+      "cli": {
+        "reason": "keys are held in the memory of the page that issued them and end with it; a terminal has no page to ask",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_host": {
+        "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "mcp_client": {
+        "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
+        "adr": "0192-model-keys-and-token-exchange.md"
+      },
+      "webmcp": {
+        "reason": "a key is only good in the hands of the client it was issued to, and an MCP or WebMCP tool call does not say which client is calling; their results are also fenced against anything shaped like a key",
+        "adr": "0192-model-keys-and-token-exchange.md"
       }
     }
   },
@@ -6403,7 +6886,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame-id find",
-      "pwa": "lib/vault/password-workflows.ts:passwordWorkflowFind",
+      "pwa": "route:/vault",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_vault_find_references"
@@ -6418,7 +6901,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6449,7 +6932,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6480,7 +6963,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6496,7 +6979,7 @@
     "kind": "read",
     "surfaces": {
       "cli": "opensesame-id env write",
-      "pwa": "route:/vault",
+      "pwa": "lib/vault/item-references.ts:itemEnvTemplate",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_vault_env_template"
@@ -6511,7 +6994,7 @@
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6527,7 +7010,7 @@
     "kind": "act",
     "surfaces": {
       "cli": "opensesame-id create api-credential",
-      "pwa": "lib/vault/password-workflows.ts:createPrivateCredential",
+      "pwa": "route:/vault",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_open_password_workflow"
@@ -6542,7 +7025,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6573,7 +7056,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6604,7 +7087,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6674,7 +7157,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -6744,7 +7227,7 @@
         "adr": "0005-authority-handle-connectionref.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7028,31 +7511,35 @@
   },
   {
     "id": "password_provider.request",
-    "title": "Send a bound native request (PWA command handoff)",
+    "title": "Send a bound native request",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
       "cli": "opensesame-id request",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7063,31 +7550,35 @@
   },
   {
     "id": "password_provider.lease_approve",
-    "title": "Approve a bounded native lease (PWA command handoff)",
+    "title": "Approve a bounded native lease",
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
       "cli": "opensesame-id lease approve",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7098,31 +7589,35 @@
   },
   {
     "id": "password_provider.lease_status",
-    "title": "Inspect native lease metadata (PWA command handoff)",
+    "title": "Inspect native lease metadata",
     "plane": "client_local",
     "kind": "read",
     "surfaces": {
       "cli": "opensesame-id lease status",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7133,31 +7628,35 @@
   },
   {
     "id": "password_provider.lease_revoke",
-    "title": "Revoke a native lease (PWA command handoff)",
+    "title": "Revoke a native lease",
     "plane": "client_local",
     "kind": "admin",
     "surfaces": {
       "cli": "opensesame-id lease revoke",
-      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
       "mcp_host": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "mcp_client": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "webmcp": {
-        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "reason": "native provider requests and leases require the human CLI and its terminal approval; the PWA holds neither the lease store nor the provider session, and no MCP surface grants authority over them",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "extension": {
-        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "reason": "the extension keeps its own sealed candidates and origin grants (ADR 0076); these workflows run in the PWA's item pages and Password health, which the extension neither opens nor reads",
         "adr": "0177-password-workflow-surface-boundaries.md"
       },
       "android": {
@@ -7322,6 +7821,84 @@
     }
   },
   {
+    "id": "vault.circle.recover",
+    "title": "Recover a trusted-contacts circle's payload from its shares without a browser",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame vault circle recover",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "recovering a trusted-contacts circle takes the guardians' shares and yields the recovery secret's payload; it is a person's act at a terminal, never an agent tool",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "pwa": {
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "extension": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "android": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
+    "id": "vault.circle.inspect",
+    "title": "Verify a recovery bundle's owner signature and show the circle's public shape",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame vault circle inspect",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "mcp_client": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "webmcp": {
+        "reason": "it checks a recovery bundle for a person who is about to recover a circle by hand; recovery is a human act at a terminal, and no agent tool is pointed at a recovery bundle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "pwa": {
+        "reason": "the exit door for when the browser is not there: the browser's own recovery is the Recovery panel of Settings › Trusted contacts (sharing.trusted-contacts); this surface does not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "extension": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      },
+      "android": {
+        "reason": "a terminal verb for a person with a recovery bundle on disk; the browser extension and the Android app do not recover a circle",
+        "adr": "0187-trusted-circle-quorum-sharing.md"
+      }
+    }
+  },
+  {
     "id": "vault.item.create",
     "title": "Create a vault item (an account, secret, note or card)",
     "plane": "client_local",
@@ -7430,6 +8007,33 @@
       "webmcp": {
         "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
         "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.environments.manage",
+    "title": "Name environments and give a vault's keys a value and a required rule in each",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/environments-write.ts:writeEnvironments",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
+        "adr": "0194-vault-environments-values-on-items-schema-generated.md"
+      },
+      "mcp_client": {
+        "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
+        "adr": "0194-vault-environments-values-on-items-schema-generated.md"
+      },
+      "webmcp": {
+        "reason": "an environment's values are secrets a person sets in the vault's own sheet; an agent would write a credential under nobody's hand, or carry one in its context, where it holds only a ConnectionRef and an Intent",
+        "adr": "0194-vault-environments-values-on-items-schema-generated.md"
       }
     }
   },

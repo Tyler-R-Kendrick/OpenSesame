@@ -1,6 +1,6 @@
 /**
  * `vault.browser-autofill` — the Browser autofill section of Settings ›
- * Capabilities (ADR 0150 §7). Optional, default off, and never always-on:
+ * Features (ADR 0150 §7). Optional, default off, and never always-on:
  * nothing of it reaches the page before the plan approved it and a consent
  * receipt covered its exposure (ADR 0130).
  *
@@ -12,7 +12,7 @@
  * the extension and switches it there.
  *
  * Contributed: the plugin's tile inside its section, its file
- * (`settings/capabilities/plugins/browser-autofill.json`, read-only) and its
+ * (`settings/features/plugins/browser-autofill.json`, read-only) and its
  * walkthrough (`tutorial/registry/plugins-catalog.ts`).
  *
  * Egress this module makes, all through `ctx.egress` to the daemon a person

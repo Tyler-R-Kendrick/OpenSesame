@@ -28,6 +28,7 @@ describe("carrierStanding", () => {
     expect(carrierStanding(state("blocked"))).toEqual({
       tone: "warn",
       label: "Blocked by this installation: relay.example.test",
+      tray: "Blocked by this installation: relay.example.test",
     });
   });
 
@@ -35,6 +36,7 @@ describe("carrierStanding", () => {
     expect(carrierStanding(state("failed"))).toEqual({
       tone: "err",
       label: "Unreachable: relay.example.test (nostr)",
+      tray: "Unreachable: relay.example.test (nostr)",
     });
     expect(carrierStanding(state("ready")).tone).toBe("ok");
     expect(carrierStanding(state("connecting")).tone).toBe("idle");

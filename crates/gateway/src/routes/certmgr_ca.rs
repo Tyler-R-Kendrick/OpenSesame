@@ -436,7 +436,6 @@ fn resolve_not_after(
         (None, None) => Ok(now + Duration::days(default_days)),
     }
 }
-
 fn to_offset(moment: DateTime<Utc>) -> Result<OffsetDateTime, Response> {
     OffsetDateTime::from_unix_timestamp(moment.timestamp())
         .map_err(|error| internal(error, "convert timestamp"))
@@ -1958,6 +1957,7 @@ mod tests {
             issuer: "https://issuer.local".into(),
             database_url: "sqlite::memory:".into(),
             task_database_url: String::new(),
+            profile: crate::config::GatewayProfile::Host,
         })
         .await
         .unwrap();

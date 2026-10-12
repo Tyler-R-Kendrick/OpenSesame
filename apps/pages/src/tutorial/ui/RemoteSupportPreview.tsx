@@ -30,11 +30,11 @@ export function RemoteSupportPreview({ warning }: { warning: string | null }) {
       className="support__help"
     >
       <h3>Send this request?</h3>
-      <p className="hint">
-        To {preview.destination}. Review the exact payload. Redaction cannot
-        recognize every secret in prose.
-      </p>
-      <pre className="support__text">
+      <p className="hint">To {preview.destination}.</p>
+      <pre
+        className="support__text"
+        title="Redaction cannot recognize every secret in prose."
+      >
         {JSON.stringify(preview.payload, null, 2)}
       </pre>
       <FormCommit

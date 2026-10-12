@@ -41,7 +41,8 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 ## Hard rules (apply on every firing, no exceptions)
 
 - **This routine never becomes a GitHub Actions job.** `.github/workflows/`
-  holds only `ci.yml` and `deploy-pages.yml`.
+  holds `ci.yml`, `deploy-pages.yml`, `full-suite.yml` and
+  `password-parity.yml`; none of them runs a routine.
 - **Never weaken an exclusion.** Registry entries excluded under ADR 0005 /
   0023 / 0052 (secret materialization, auth ceremonies, PM-plane bridging)
   stay excluded; do not map them to tools, and do not soften
@@ -58,7 +59,7 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 2. **New CLI verbs**: clap enums in `apps/cli/src/*.rs`, grammar in
    `packages/cli/src/parse.ts`. Any verb absent from every `surfaces.cli`
    string?
-3. **New PWA surfaces**: `SECTIONS` in `apps/pages/src/components/AppShell.tsx`,
+3. **New PWA surfaces**: `SECTIONS` in `apps/pages/src/components/RailRows.tsx`,
    new files under `apps/pages/src/sections/`, `apps/pages/src/lib/` or
    `packages/app-core/src/lib/`. Anything a user can now do that no
    capability's `pwa` surface names?
@@ -86,7 +87,7 @@ guessing — an explicit issue beats a wrong mapping.
 ```bash
 export NODE_OPTIONS="--max-old-space-size=8192"
 pnpm --filter @opensesame/capability-registry test
-pnpm --filter opensesame-mcp-host test && pnpm --filter opensesame-mcp-client test
+pnpm --filter @opensesame/mcp-host test && pnpm --filter @opensesame/mcp-client test
 pnpm --filter @opensesame/pages test && pnpm --filter @opensesame/cli test
 cargo +1.88.0 test -p opensesame-cli --test capability_parity
 pnpm lint && pnpm typecheck

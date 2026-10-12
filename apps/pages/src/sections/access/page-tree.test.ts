@@ -59,6 +59,7 @@ describe("access page tree", () => {
       "identity-shares",
       "hosted-requests",
       "local-requests",
+      "sent-drops",
       "local-sessions",
       "local-authority-templates",
       "vault-share-sessions",

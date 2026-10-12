@@ -3,7 +3,7 @@
 Cross-runtime interoperability oracles for optional mTLS and workload identity
 ([ADR 0132](../../docs/adr/0132-optional-mtls-and-workload-identity.md)). Each
 test drives an entry point that already ships — the Rust `SecureListener`, the
-`opensesame-gateway` process, the Identity plane's Node TLS listener — from a
+`opensesame host run` process, the Identity plane's Node TLS listener — from a
 runtime that did not build it, and checks it refuses what policy says it must.
 The crate holds no production code, and nothing that ships depends on it.
 
@@ -31,7 +31,7 @@ The crate holds no production code, and nothing that ships depends on it.
 | `iop_tls_rust_listener` | `SecureListener` on `MtlsRequired`, dialled by `openssl s_client`: key possession, server identity, client identity and application permission asserted separately |
 | `iop_tls_node_client` | Node's OpenSSL as client, the Rust listener as server |
 | `iop_tls_identity_listener` | `packages/control-plane/src/transport/listener.ts` under `tsx`, dialled by a Rust client |
-| `iop_tls_gateway_process` | The real `opensesame-gateway` binary, configured as an operator would |
+| `iop_tls_gateway_process` | The real `opensesame host run` process (the `opensesame` binary), configured as an operator would |
 | `iop_tls_evidence` | An accepted TLS session is not peer evidence on a `server_tls` listener |
 | `iop_nats` | The pinned `nats-server`: the production Rust client publishes, `openssl s_client` consumes; reconnects re-derive authority |
 | `iop_openbao` | A TLS-enabled OpenBao with `auth/cert`, driven by `curl` |

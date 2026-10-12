@@ -114,12 +114,7 @@ function AccountPasskeyCard({
             else onDone();
           }, "Passkey added to your account."),
       }}
-    >
-      <p className="hint">
-        The browser asks for your face, fingerprint or device PIN when you press
-        Create. Nothing is typed here.
-      </p>
-    </CeremonyShell>
+    />
   );
 }
 

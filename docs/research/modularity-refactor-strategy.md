@@ -1,5 +1,59 @@
 # Modularity and generative-template refactor strategy
 
+> Status (2026-10-08): still an evaluation. No ADR adopts the strategy as a
+> whole. Every "Now" figure, line number and count below was measured on
+> 2026-09-03, and several have moved. Where the checkout stands today:
+>
+> - **§2.1 is still half-migrated.** `ItemEditor.tsx` is 386 lines and
+>   `ItemDetail.tsx` 165, because per-kind rendering moved into
+>   `ItemFields.tsx` and per-kind detail components. But a `switch (item.kind)`
+>   still decides, in `apps/pages/src/sections/vault/ItemFields.tsx:33`;
+>   `TypedItem` is still a peer in the `VaultItem` union
+>   (`packages/vault-core/src/model.ts:179`); and nothing outside the two
+>   validators (`validate.ts`, `validate.rs`) reads `spec.handler` (no handler
+>   registry). The `login` kind is now `account`
+>   ([ADR 0172](../adr/0172-accounts-and-login-methods.md)), beside a
+>   `credential` kind
+>   ([ADR 0179](../adr/0179-credentials-are-entries-bound-to-accounts.md)), so
+>   `login.json` no longer exists. `marketplace/item-types/builtin/` holds 28
+>   manifests (1,658 lines); five are embedded in the bundle and 23 are packs
+>   ([ADR 0165](../adr/0165-item-type-packs-on-demand.md)).
+> - **§2.2** is unchanged in shape: `packages/database/src/repos/` still has a
+>   hand-written `postgres.ts` (2,691 lines) and `memory.ts` (1,718) behind
+>   `interfaces.ts` (856), and no shared conformance suite exists there.
+> - **§2.3** is unchanged in shape: `packages/mcp-host` registers its ten tools
+>   by hand (`tools.ts`, `tools-act.ts`, `tools-read.ts`: 588 lines), and
+>   `packages/capability-registry` (now 306 capabilities over seven surfaces,
+>   adding `extension` and `android`) still has no method, path or schema
+>   column.
+> - **§2.4** is unchanged in shape: the OpenAPI document is still hand-written
+>   (`openapi.ts` is 1,755 lines, 3,524 across the `openapi*.ts` files, and the
+>   committed `openapi.json` lists 100 paths).
+>   `__tests__/openapi-contract-drift.test.ts` now compares its schemas with
+>   the Zod contracts; no test asserts that every registered route is
+>   documented.
+> - **§2.5** is unchanged: `spec/wit/` is still seven worlds and 324 lines, and
+>   `bindgen!` is still used only for `connector`.
+> - **§2.6** is not done. `GuideInstruction` has 10 members, not eleven;
+>   `parse.ts`, `serialize.ts` and `validate.ts` still switch by hand, and the
+>   runtime's dispatch now lives in `guide-runtime/src/auto.ts` and `check.ts`
+>   (with `default:` arms) rather than `runtime.ts`.
+> - **§2.7** is unchanged in shape: `providers.rs` (now 1,439 lines) still
+>   dispatches on `match (provider_id, operation)`.
+> - **§2.8's file split landed** under
+>   [ADR 0093](../adr/0093-structural-quality-gates.md): `crates/storage/src/lib.rs`
+>   is 2,069 lines and `impl Db` is spread over one module per responsibility.
+>   The `Store` trait still has one method and `AppState` still holds
+>   `pub db: Db` (`crates/gateway/src/app_state.rs:68`); the bounded-context
+>   traits have not been designed.
+> - **§2.9 is not done**: `turbo.json` still declares no `inputs` and no
+>   `globalDependencies`.
+> - **§2.10** is unchanged: the catalogue is still written twice
+>   (`catalogue.ts`, 173 lines; `catalogue.rs`, 209), and no test compares the
+>   two tables entry for entry.
+> - **Section 4's UI example moved**: `AccessSection.tsx` is 91 lines (its
+>   panels are under `sections/access/`) and `IdentitySection.tsx` 1,920.
+
 Status: Evaluation (no decision recorded yet)
 Date: 2026-09-03
 Scope: repository-wide, 512,226 lines (177,715 TS source, 155,024 TS test,
@@ -21,17 +75,19 @@ anything, because it changes what the work is.
 This repository already knows those patterns and applies several of them at a
 high standard. `packages/notification-adapters` is a textbook adapter set
 behind a registry: seven channel adapters, a closed `ChannelAdapter` contract
-in `contract.ts:310`, and an 87-line registry that resolves them by kind. No
+in `contract.ts` (line 332 today), and an 87-line registry that resolves them by kind. No
 provider logic leaks anywhere else. `packages/ceremony-kit`,
 `packages/guide-lang` and `crates/lifecycle` are each built as a pure core with
 I/O pushed to the edges. `packages/vault-item-types` turns 23 item types into
 1,435 lines of JSON manifests over a shared engine, with a generated embedding
 step (`packages/vault-item-types/scripts/emit-definitions.mjs` →
 `src/definitions.generated.ts`), guarded by a drift test that fails if the
-emitted output no longer matches its sources. (That generator's own docstring
-points the reader at a `definitions.generated.test.ts` that does not exist;
-the real guard is in `registry.test.ts:93`. A harmless instance of the same
-drift the guard was written to catch.)
+emitted output no longer matches its sources. (When this was written, that
+generator's own docstring pointed the reader at a
+`definitions.generated.test.ts` that does not exist; the real guard was in
+`registry.test.ts:93`, today line 66, and the docstring now names
+`src/registry.test.ts`. A harmless instance of the same drift the guard was
+written to catch.)
 
 The complexity is not coming from missing patterns. It is coming from a
 specific, repeating failure mode:
@@ -154,12 +210,13 @@ this item seemed to need is already written. What is missing is the dispatch:
   a drop's claim session, passkey custody, a secret's grant ceilings — keep
   their ceremonies "as a `handler` named in the definition and resolved against
   a platform registry of exactly those names, **not as a `switch (item.kind)`**".
-  Five definitions (`certificate`, `drop`, `login`, `passkey`, `secret`) already
-  declare `handler` in their spec, and the guard rails around it are built in
-  both planes: `HANDLER_IDS` is the closed list of legal names, `validate.ts:682`
-  refuses an unknown one, and only a platform publisher may name a handler at
-  all (`validate.rs:498` mirrors it). What does not exist is the *resolution*
-  step — no `handlerFor`, no registry, nothing in `apps/pages` that reads
+  Five definitions (`certificate`, `drop`, `login` (now `account`), `passkey`,
+  `secret`) already declare `handler` in their spec, and the guard rails around
+  it are built in both planes: `HANDLER_IDS` is the closed list of legal names,
+  `validate.ts:682` (today `validate.ts:655`) refuses an unknown one, and only
+  a platform publisher may name a handler at all (`validate.rs`,
+  `check_handler`, mirrors it). What does not exist is the *resolution* step —
+  no `handlerFor`, no registry, nothing in `apps/pages` that reads
   `spec.handler` and returns a ceremony. So the field is validated but never
   dispatched, and the switch §6 forbids is what still decides. The fence was
   built around an empty lot.
@@ -174,7 +231,7 @@ this item seemed to need is already written. What is missing is the dispatch:
   The vocabulary is not the problem, though, and it is worth being precise
   because the first version of this paragraph got it wrong: `totp` and
   `payment-card` are **already in the closed catalogue, in both planes**
-  (`catalogue.ts:53,99`; `catalogue.rs:152`). Nothing needs adding to the
+  (`catalogue.ts:53,58`; `catalogue.rs:149,154`). Nothing needs adding to the
   catalogue, and this is not the two-plane change it first looked like. The gap
   is entirely in the single-plane renderer, which does not yet branch on those
   two types. (`card.json` also types its number as `concealed` rather than
@@ -296,10 +353,10 @@ derivation lands later.
 
 **Now:** `spec/wit/` holds seven worlds, 324 lines. Exactly one —
 `spec/wit/connector` — is used for binding generation, via
-`wasmtime::component::bindgen!` in `crates/connector-host/src/wasm.rs:40`.
+`wasmtime::component::bindgen!` in `crates/connector-host/src/wasm.rs:38`.
 
 The other six are read as *text* and substring-asserted in tests. From
-`crates/host-core/src/lib.rs:660`:
+`crates/host-core/src/tests.rs:154` (then `lib.rs:660`):
 
 ```rust
 let src = read_wit("spec/wit/task/world.wit");
@@ -309,9 +366,10 @@ assert!(src.contains("restrict"));
 
 These assertions are load-bearing for security posture — `assert_no_secrets_or_arbitrary_sign`
 enforces ADR 0005's no-`getSecret()` rule at the contract level, which is a
-genuinely good idea. But `contains()` on source text is a weak instrument: it
-passes on a commented-out line, on a renamed parameter, on a type change that
-preserves the identifier.
+genuinely good idea. But `contains()` on source text is a weak instrument: the
+positive assertions pass on a commented-out line (the helper strips `//`
+comments before its negative checks, not here), on a renamed parameter, on a
+type change that preserves the identifier.
 
 **Move:** extend `bindgen!` to the remaining worlds so the Rust types *are* the
 WIT types. The security assertions then run against a parsed AST rather than a
@@ -379,8 +437,9 @@ boundary and is not one.
 **A correction worth recording, because it reverses the reasoning.** A first
 pass counted 15 files outside the crate referencing `Db` and concluded the blast
 radius was small. That measured the wrong thing. `AppState` holds `pub db: Db`
-(`crates/gateway/src/app_state.rs:64`), so consumers reach storage through the
-state handle: **134 call sites across 32 files in the gateway alone**. The
+(`crates/gateway/src/app_state.rs:64`, today line 68), so consumers reach
+storage through the state handle: **134 call sites across 32 files in the
+gateway alone**. The
 coupling is wide, not narrow, and this is a genuine modularity problem rather
 than only a readability one.
 
@@ -412,9 +471,9 @@ contents for every task, so a README edit invalidates `build`, `typecheck` and
 - **Cache misses that look like flakiness** — CI re-runs work it has already
   proven, and the cache appears unreliable rather than merely imprecise.
 - **Missing global invalidation** — `globalDependencies` is not declared at
-  all, while **51 packages extend a shared root config** (`tsconfig.base.json`,
-  `config/tsconfig.library.json`). Editing one of those changes how every
-  dependent package compiles, and Turbo has not been told, so a cached
+  all, while **51 packages extend a shared root config**
+  (`tsconfig.base.json`). Editing one of those changes how every dependent
+  package compiles, and Turbo has not been told, so a cached
   `typecheck` can outlive the config that produced it. That is a correctness
   gap, not a speed one. (Lockfile changes are excluded from this claim —
   Turbo hashes lockfiles specially, so they do not need declaring.)
@@ -443,19 +502,24 @@ does not know is a definition that plane cannot load.
 The asymmetry with the definitions is the interesting part, and it is sharper
 than "one got generated and the other did not". The corpus is safe in *both*
 planes, by two different mechanisms: Rust embeds the JSON directly with
-`include_str!` on `definitions/*.json`, so it cannot drift — the compiler reads
-the real file — while TypeScript, which has to bundle for a browser and cannot
-read files at runtime, generates `definitions.generated.ts` and guards it with
-the drift test in `registry.test.ts:93`. Two planes, two mechanisms, both sound.
+`include_str!` on `marketplace/item-types/builtin/*.json`, so it cannot drift —
+the compiler reads the real file — while TypeScript, which has to bundle for a
+browser and cannot read files at runtime, generates `definitions.generated.ts`
+and guards it with the drift test in `registry.test.ts` (line 93 then, 66
+today). Two planes, two mechanisms, both sound.
 
 The catalogue that *validates* that corpus has neither. It is hand-written twice
-and kept in step by a comment: `catalogue.rs:68` says "Every catalogue entry, in
-the same order as the TypeScript table." Nothing tests that claim. The data got
-the treatment; the schema describing the data is on the honour system.
+and kept in step by a comment: `catalogue.rs:68` (today :69) says "Every
+catalogue entry, in the same order as the TypeScript table." Nothing tests that
+claim (the file's header now says
+`crates/vault-item-types/tests/conformance.rs` does, but that suite
+runs shared rows and loops the built-in corpus; it compares no table entry for
+entry). The data got the treatment; the schema describing the data is on the
+honour system.
 
 **Move:** the same one already applied to the definitions — author the catalogue
 once as data and generate both planes' constants from it, with the drift test
-`registry.test.ts:93` already models. Low risk and small; the vocabulary is
+`registry.test.ts` already models. Low risk and small; the vocabulary is
 closed and changes rarely, which is exactly why the duplication has survived
 unnoticed.
 
@@ -501,7 +565,7 @@ in intent; it is just not yet sufficient in content.
 | In-memory repository backend | Drizzle schema metadata | ~1,800 |
 | OpenAPI document | Route + Zod definitions | 2,738 |
 | Rust types for 6 WIT worlds | `wit/*.wit` | drift, not lines |
-| Vault item rendering | `definitions/*.json` | ~1,900 |
+| Vault item rendering | `marketplace/item-types/builtin/*.json` | ~1,900 |
 
 **Poor candidates** — worth stating explicitly, because the failure mode of a
 codegen push is generating things that should have been designed:
@@ -514,7 +578,8 @@ codegen push is generating things that should have been designed:
   Small, high-value, correctness-critical, low-churn. Hand-written and
   hand-reviewed is right.
 - **UI sections.** `AccessSection.tsx` (4,161) and `IdentitySection.tsx`
-  (2,884) are large, but from too much in one file rather than repetition.
+  (2,884) were large (today 91 and 1,920 lines; the Access panels are under
+  `sections/access/`), but from too much in one file rather than repetition.
   Decompose along `CeremonyShell`/`FieldShell` seams that already exist.
 
 Two constraints any generator here must respect, both from existing ADRs:
@@ -577,8 +642,9 @@ Concretely, each item ships with a guard:
 - §2.6 — exhaustiveness via `never`, checked by the compiler
 
 The pattern already exists in-repo and works:
-`packages/vault-item-types/src/registry.test.ts:93` ("keeps the generated
-module in step with the JSON corpus") re-reads `definitions/*.json` from disk
+`packages/vault-item-types/src/registry.test.ts` ("keeps the generated
+modules in step with the JSON corpus", line 93 then, 66 today) re-reads
+`marketplace/item-types/builtin/*.json` from disk
 and fails if the embedded copy has drifted, in either direction. That is
 exactly the shape every item above needs — and its presence in the one place
 codegen was adopted, next to its absence everywhere the old path survived, is

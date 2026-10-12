@@ -10,7 +10,8 @@
  *
  * `rows` is every connector a grant can be made on: the Connections page's
  * `listConnections()` and the directory list it imported. `granted` is the
- * subset someone holds access to — what the panel lists.
+ * subset someone holds access to, or a grant waiting for approval — what
+ * the panel lists. An agent grant stays pending until it is approved.
  */
 
 import {
@@ -33,8 +34,16 @@ import {
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
+  type PendingShare,
+  approvePendingShare,
+  denyPendingShare,
+  listPendingShares,
+  submitLocalShare,
+} from "@opensesame/app-core/lib/local-share-grants-approvals.js";
+import {
+  type GrantIdentity,
   type LocalShare,
-  createLocalShare,
+  grantIdentities,
   listLocalShares,
   revokeLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants.js";
@@ -63,7 +72,7 @@ export type ConnectorRow = Readonly<{
   problem: string | null;
 }>;
 
-export type ConnectorIdentity = Readonly<{ id: string; name: string }>;
+export type ConnectorIdentity = GrantIdentity;
 
 export type BindInput = {
   principalId: string;
@@ -76,6 +85,7 @@ type Loaded = {
   /** Null when the Connections list could not be read. */
   connections: Connection[] | null;
   shares: LocalShare[];
+  pending: PendingShare[];
   identities: ConnectorIdentity[];
   settings: Record<string, ConnectorSetting>;
 };
@@ -119,25 +129,23 @@ function connectionRows(connections: readonly Connection[]): ConnectorRow[] {
 
 /**
  * A row for every grant no connector row carries, so access that exists is
- * always listed and can be revoked: a provider-wide grant (a standing grant,
- * keyed by provider id) with no connection of that provider here, and a grant
- * on a connector this device does not list — removed, never imported, or on
- * a Connections list that did not answer (`connectionsRead` false), which is
- * why such a row then reports no health rather than claiming it is gone.
+ * always listed and can be revoked or approved: a provider-wide grant (a
+ * standing grant, keyed by provider id) with no connection of that provider
+ * here, and a grant on a connector this device does not list — removed,
+ * never imported, or on a Connections list that did not answer
+ * (`connectionsRead` false), which is why such a row then reports no health
+ * rather than claiming it is gone. A pending approval is held the same way.
  */
 function grantOnlyRows(
-  shares: readonly LocalShare[],
+  shares: readonly { resourceId: string; resourceLabel: string }[],
   rows: readonly ConnectorRow[],
   connectionsRead: boolean,
 ): ConnectorRow[] {
-  const covered = (share: LocalShare) =>
-    rows.some(
-      (row) =>
-        row.id === share.resourceId || row.providerId === share.resourceId,
-    );
+  const covered = (resourceId: string) =>
+    rows.some((row) => row.id === resourceId || row.providerId === resourceId);
   const seen = new Map<string, ConnectorRow>();
   for (const share of shares) {
-    if (covered(share) || seen.has(share.resourceId)) continue;
+    if (covered(share.resourceId) || seen.has(share.resourceId)) continue;
     const unlisted = /[:/#]/.test(share.resourceId);
     if (!unlisted) {
       seen.set(share.resourceId, {
@@ -184,20 +192,25 @@ async function readConnections(): Promise<Connection[] | null> {
 
 async function readIdentities(tomb: string): Promise<ConnectorIdentity[]> {
   const directory = await readLocalDirectory(tomb);
-  return directory.entries
-    .filter(
-      (entry) =>
-        (entry.kind === "person" || entry.kind === "agent") && entry.enabled,
-    )
-    .map((entry) => ({ id: entry.id, name: entry.name }));
+  return grantIdentities(directory.entries);
+}
+
+async function readApprovals(tomb: string): Promise<PendingShare[]> {
+  try {
+    return await listPendingShares(tomb);
+  } catch {
+    // A damaged approval file must not hide the grants that are already active.
+    return [];
+  }
 }
 
 async function readAll(tomb: string): Promise<Loaded> {
-  const [directory, connections, granted, identities, settings] =
+  const [directory, connections, granted, pending, identities, settings] =
     await Promise.all([
       readConnectorDirectory(tomb),
       readConnections(),
       listLocalShares(tomb),
+      readApprovals(tomb),
       readIdentities(tomb),
       readConnectorSettings(tomb),
     ]);
@@ -205,6 +218,7 @@ async function readAll(tomb: string): Promise<Loaded> {
     directory,
     connections,
     shares: granted.filter((share) => share.resourceKind === "connection"),
+    pending: pending.filter((row) => row.resourceKind === "connection"),
     identities,
     settings,
   };
@@ -253,6 +267,7 @@ export function useConnectorAccess(tomb: string) {
   const [message, setMessage] = useState("");
   const directory = reads.loaded?.directory ?? null;
   const shares = reads.loaded?.shares ?? [];
+  const pending = reads.loaded?.pending ?? [];
   const connections = reads.loaded?.connections ?? [];
   const connectionsRead = reads.loaded?.connections !== null;
   const settings = reads.loaded?.settings ?? {};
@@ -284,14 +299,16 @@ export function useConnectorAccess(tomb: string) {
   );
   // This connection's own bindings, then the provider-wide grants that
   // cover it (the standing grants, keyed by provider id).
+  const onRow = (row: ConnectorRow, resourceId: string) =>
+    resourceId === row.id || resourceId === row.providerId;
   const bindingsFor = (row: ConnectorRow) =>
-    shares.filter(
-      (share) =>
-        share.resourceId === row.id || share.resourceId === row.providerId,
-    );
+    shares.filter((share) => onRow(row, share.resourceId));
+  const pendingFor = (row: ConnectorRow) =>
+    pending.filter((share) => onRow(row, share.resourceId));
 
   // A disabled connector stays listed with nobody bound: switching it off
   // is an access decision too, and its row is where it is switched back on.
+  // A pending approval is listed too, so it can be approved on this row.
   const granted = useMemo(
     () => [
       ...rows.filter(
@@ -301,11 +318,16 @@ export function useConnectorAccess(tomb: string) {
             (share) =>
               share.resourceId === row.id ||
               share.resourceId === row.providerId,
+          ) ||
+          pending.some(
+            (share) =>
+              share.resourceId === row.id ||
+              share.resourceId === row.providerId,
           ),
       ),
-      ...grantOnlyRows(shares, rows, connectionsRead),
+      ...grantOnlyRows([...shares, ...pending], rows, connectionsRead),
     ],
-    [rows, shares, settings, connectionsRead],
+    [rows, shares, pending, settings, connectionsRead],
   );
 
   return {
@@ -320,9 +342,19 @@ export function useConnectorAccess(tomb: string) {
     message,
     reload: reads.reload,
     bindingsFor,
+    pendingFor,
+    ...connectorMutations(tomb, run),
+  };
+}
+
+function connectorMutations(
+  tomb: string,
+  run: (action: () => Promise<string>) => Promise<boolean>,
+) {
+  return {
     bind: (row: ConnectorRow, input: BindInput) =>
       run(async () => {
-        await createLocalShare(tomb, {
+        const submitted = await submitLocalShare(tomb, {
           principalId: input.principalId,
           resourceKind: "connection",
           resourceId: row.id,
@@ -330,7 +362,19 @@ export function useConnectorAccess(tomb: string) {
           policy: input.policy,
           durationSeconds: input.durationSeconds,
         });
-        return `${row.name} bound.`;
+        return submitted.outcome === "pending"
+          ? "Approval requested."
+          : `${row.name} bound.`;
+      }),
+    approve: (id: string) =>
+      run(async () => {
+        await approvePendingShare(tomb, id);
+        return "Grant approved.";
+      }),
+    deny: (id: string) =>
+      run(async () => {
+        await denyPendingShare(tomb, id);
+        return "Grant denied.";
       }),
     revoke: (share: LocalShare) =>
       run(async () => {

@@ -5,7 +5,7 @@
  * `capture-evidence.mjs`'s own.
  */
 export function placeSteps() {
-  return { reveal, revealSelector, openDetails, scrollToCardEnd };
+  return { reveal, revealSelector, revealCenter, openDetails, scrollToCardEnd };
 }
 
 /**
@@ -46,6 +46,17 @@ export async function revealSelector(page, selector) {
     }
     (pane ?? document.scrollingElement)?.scrollBy(0, -140);
   });
+  await page.waitForTimeout(600);
+}
+
+/** Center a control through browser scrolling without a sticky-heading offset. */
+export async function revealCenter(page, selector) {
+  await page
+    .locator(selector)
+    .first()
+    .evaluate((node) => {
+      node.scrollIntoView({ block: "center", behavior: "instant" });
+    });
   await page.waitForTimeout(600);
 }
 

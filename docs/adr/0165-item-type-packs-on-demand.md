@@ -2,6 +2,11 @@
 
 - **Status:** Accepted — implemented
 - **Date:** 2026-10-04
+- **Implementation:** the counts in the body ("18" packs, "23" definitions) are
+  those of 2026-10-04. `marketplace/item-types/builtin/` now holds 28
+  definitions: 5 embedded (`secret`, `file`, `passkey`, `certificate`,
+  `drop`) and 23 packs (`packages/vault-item-types/src/packs/*.generated.ts`,
+  indexed by `PACK_INDEX`).
 - **Deciders:** OpenSesame maintainers
 - **Supplements:** ADR 0087 ([vault item types are plugins](0087-vault-item-type-plugins.md)),
   ADR 0153 ([minimal PWA](0153-minimal-pwa-optional-sections.md)),

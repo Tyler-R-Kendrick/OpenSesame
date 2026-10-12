@@ -51,11 +51,9 @@ function ScopeRolesRows({
 }) {
   return (
     <fieldset>
-      <legend>Roles allowed per scope</legend>
-      <p className="hint">
-        Unchecked roles are denied, including owners. New custom scopes allow
-        nobody until selected here. Sign-in still requires explicit consent.
-      </p>
+      <legend title="Unchecked roles are denied, including owners. New custom scopes allow nobody until selected. Sign-in still requires explicit consent.">
+        Roles allowed per scope
+      </legend>
       {policy.map((entry) => (
         <fieldset key={entry.scope} className="field">
           <legend>{entry.scope}</legend>
@@ -123,10 +121,7 @@ export function OrganizationField({
         </select>
       </div>
       {organizations.length === 0 ? (
-        <p className="hint">
-          Create an organization and assign its first owner in Organization
-          before registering an application.
-        </p>
+        <p className="hint">No organizations yet.</p>
       ) : null}
     </>
   );

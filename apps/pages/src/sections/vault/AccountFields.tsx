@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import type { AccountItem } from "@opensesame/vault-core";
 import { AccountMethods } from "./AccountMethods.js";
 import { AccountWebsites } from "./AccountWebsites.js";
@@ -24,6 +25,7 @@ export function AccountFields({
         <input
           id="username"
           autoComplete="off"
+          maxLength={FIELD_LIMITS.line}
           value={draft.username}
           onChange={(event) => onPatch({ username: event.target.value })}
         />
