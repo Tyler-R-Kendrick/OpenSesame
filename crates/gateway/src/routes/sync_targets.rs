@@ -6,6 +6,8 @@
 #[path = "sync_targets_access.rs"]
 mod access;
 
+pub use access::{create, delete, get};
+
 #[cfg(test)]
 use crate::test_principals::P06;
 use std::sync::Arc;
@@ -17,8 +19,10 @@ use axum::{
     Json,
 };
 use opensesame_connection_broker::{
-    config_access::ResourcePermission, CreateSyncTarget, KeyFilteredSecretSource, SyncSecretSource,
+    config_access::ResourcePermission, KeyFilteredSecretSource, SyncSecretSource,
 };
+#[cfg(test)]
+use opensesame_connection_broker::CreateSyncTarget;
 use opensesame_domain::OrganizationId;
 use opensesame_task_bus::BusEvent;
 use serde::Deserialize;
@@ -45,16 +49,6 @@ fn authorize(st: &AppState, headers: &axum::http::HeaderMap) -> Result<Caller, R
     // Reject a malformed principal even for an empty collection.
     secret_config_access::actor(&who)?;
     Ok(who)
-}
-
-async fn require_project(
-    st: &AppState,
-    who: &Caller,
-    organization: &OrganizationId,
-    project: &str,
-    permission: ResourcePermission,
-) -> Result<(), Response> {
-    secret_config_access::project(st, who, organization, project, permission).await
 }
 
 fn caller_organization(
@@ -185,7 +179,7 @@ pub async fn list(
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
     if let Some(project) = query.project_id.as_deref() {
-        if let Err(resp) = require_project(
+        if let Err(resp) = access::require_project(
             &st,
             &who,
             &organization_id,
@@ -220,164 +214,17 @@ pub async fn list(
         .await
     {
         Ok(targets) => {
-            let mut authorized = Vec::new();
-            for target in targets {
-                match require_project(
-                    &st,
-                    &who,
-                    &organization_id,
-                    &target.project_id,
-                    ResourcePermission::Manage,
-                )
-                .await
-                {
-                    Ok(()) => authorized.push(target),
-                    Err(resp) if resp.status() == StatusCode::NOT_FOUND => {}
-                    // A policy outage must not masquerade as a successful list.
+            let authorized =
+                match access::retain_authorized(&st, &who, &organization_id, targets).await {
+                    Ok(authorized) => authorized,
                     Err(resp) => return resp,
-                }
-            }
+                };
             let body = json!({ "sync_targets": authorized });
             if let Err(resp) = assert_no_secret_fields(&body) {
                 return resp;
             }
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => broker_error(&e),
-    }
-}
-
-/// `POST /api/v1/sync-targets`
-pub async fn create(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Json(body): Json<CreateBody>,
-) -> Response {
-    let who = match authorize(&st, &headers) {
-        Ok(who) => who,
-        Err(resp) => return resp,
-    };
-    let organization_id = organization_or_return!(&st, &who, &headers);
-    let config = match secret_config_access::config(
-        &st,
-        &who,
-        &organization_id,
-        body.config_id.trim(),
-        ResourcePermission::Manage,
-    )
-    .await
-    {
-        Ok(config) => config,
-        Err(resp) => return resp,
-    };
-    if config.project_id != body.project_id.trim() {
-        return secret_config_access::hidden();
-    }
-    let actor = match secret_config_access::actor(&who) {
-        Ok(actor) => actor,
-        Err(resp) => return resp,
-    };
-    match st
-        .connection_broker
-        .create_sync_target_for_actor(
-            &organization_id,
-            CreateSyncTarget {
-                project_id: config.project_id,
-                config_id: config.id,
-                connection_id: body.connection_id,
-                operation: body.operation,
-            },
-            &actor,
-        )
-        .await
-    {
-        Ok(target) => {
-            let body = serde_json::to_value(&target).unwrap_or_else(|_| json!({}));
-            if let Err(resp) = assert_no_secret_fields(&body) {
-                return resp;
-            }
-            let _ = publish_sync_bus(
-                &st,
-                "sync.target.created",
-                json!({
-                    "target_id": target.id,
-                    "project_id": target.project_id,
-                    "config_id": target.config_id,
-                    "provider_id": target.provider_id,
-                }),
-            )
-            .await;
-            (StatusCode::CREATED, Json(body)).into_response()
-        }
-        Err(e) => broker_error(&e),
-    }
-}
-
-/// `GET /api/v1/sync-targets/{id}`
-pub async fn get(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path(id): Path<String>,
-) -> Response {
-    let who = match authorize(&st, &headers) {
-        Ok(who) => who,
-        Err(resp) => return resp,
-    };
-    let organization_id = organization_or_return!(&st, &who, &headers);
-    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
-        Ok(target) => target,
-        Err(e) => return broker_error(&e),
-    };
-    if let Err(resp) = require_project(
-        &st,
-        &who,
-        &organization_id,
-        &target.project_id,
-        ResourcePermission::Manage,
-    )
-    .await
-    {
-        return resp;
-    }
-    let body = serde_json::to_value(&target).unwrap_or_else(|_| json!({}));
-    if let Err(resp) = assert_no_secret_fields(&body) {
-        return resp;
-    }
-    (StatusCode::OK, Json(body)).into_response()
-}
-
-/// `DELETE /api/v1/sync-targets/{id}`
-pub async fn delete(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path(id): Path<String>,
-) -> Response {
-    let who = match authorize(&st, &headers) {
-        Ok(who) => who,
-        Err(resp) => return resp,
-    };
-    let organization_id = organization_or_return!(&st, &who, &headers);
-    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
-        Ok(target) => target,
-        Err(e) => return broker_error(&e),
-    };
-    if let Err(resp) = require_project(
-        &st,
-        &who,
-        &organization_id,
-        &target.project_id,
-        ResourcePermission::Manage,
-    )
-    .await
-    {
-        return resp;
-    }
-    match st
-        .connection_broker
-        .delete_sync_target(&organization_id, &id)
-        .await
-    {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => broker_error(&e),
     }
 }

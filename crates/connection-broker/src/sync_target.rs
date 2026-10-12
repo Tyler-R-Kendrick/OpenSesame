@@ -504,7 +504,7 @@ impl ConnectionBroker {
             .await?;
         self.require_sync_target_authority(organization_id, &target)
             .await?;
-        Ok(content_version_for(&key, &target.id, &entries))
+        Ok(authority::content_version_for(&key, &target.id, &entries))
     }
 
     async fn sync_target_in_org(
@@ -568,7 +568,7 @@ impl ConnectionBroker {
         self.require_sync_target_authority(organization_id, target)
             .await?;
         let key_names: Vec<String> = entries.keys().cloned().collect();
-        let content_version = content_version_for(&key, &target.id, &entries);
+        let content_version = authority::content_version_for(&key, &target.id, &entries);
 
         self.invoke_env_sync(
             &target.provider_id,
@@ -713,35 +713,6 @@ fn env_sync_provider_supported(provider_id: &str) -> bool {
     matches!(provider_id, "vercel" | "railway")
 }
 
-/// Change fingerprint for a synced key set (v2).
-///
-/// v1 hashed key names only, so pure value changes were invisible and any
-/// consumer that skipped "unchanged" content versions would skip real
-/// updates. v2 is an HMAC over the resolved entries, keyed by the deployment
-/// seal key: value-sensitive (including changes that arrive through secret
-/// references), deterministic, and useless to an offline brute-forcer who
-/// only sees the fingerprint.
-fn content_version_for(
-    seal_key: &[u8; 32],
-    target_id: &str,
-    entries: &BTreeMap<String, String>,
-) -> String {
-    use hmac::{Hmac, Mac};
-    use sha2::Sha256;
-    let mut mac =
-        <Hmac<Sha256> as Mac>::new_from_slice(seal_key).expect("hmac accepts 32-byte keys");
-    mac.update(target_id.as_bytes());
-    mac.update(b"|");
-    for (name, value) in entries {
-        mac.update(name.as_bytes());
-        mac.update(b"=");
-        mac.update(value.as_bytes());
-        mac.update(b"\0");
-    }
-    let digest = mac.finalize().into_bytes();
-    let hex = hex::encode(digest);
-    format!("cv2_{hex}")
-}
 
 #[cfg(test)]
 mod unit_tests {
@@ -760,8 +731,8 @@ mod unit_tests {
         let entries: BTreeMap<String, String> = [("FOO".to_string(), "one".to_string())]
             .into_iter()
             .collect();
-        let a = content_version_for(&key, "t1", &entries);
-        let b = content_version_for(&key, "t1", &entries);
+        let a = super::authority::content_version_for(&key, "t1", &entries);
+        let b = super::authority::content_version_for(&key, "t1", &entries);
         assert_eq!(a, b);
         assert!(a.starts_with("cv2_"));
         // A value change alone changes the fingerprint (the v1 names-only
@@ -769,10 +740,10 @@ mod unit_tests {
         let changed: BTreeMap<String, String> = [("FOO".to_string(), "two".to_string())]
             .into_iter()
             .collect();
-        assert_ne!(a, content_version_for(&key, "t1", &changed));
+        assert_ne!(a, super::authority::content_version_for(&key, "t1", &changed));
         // Keyed: without the deployment seal key the fingerprint differs, so
         // the stored value cannot be brute-forced from the fingerprint alone.
-        assert_ne!(a, content_version_for(&[8u8; 32], "t1", &entries));
+        assert_ne!(a, super::authority::content_version_for(&[8u8; 32], "t1", &entries));
         // The fingerprint never embeds the value.
         assert!(!a.contains("one"));
     }

@@ -3,6 +3,8 @@
 //! A target is not executable until its grant is persisted. Legacy targets
 //! without a grant fail closed and must be recreated by an authorized caller.
 
+use std::collections::BTreeMap;
+
 use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId};
 use sqlx::Row;
 
@@ -206,4 +208,34 @@ impl ConnectionBroker {
             .await?;
         Ok(())
     }
+}
+
+/// Change fingerprint for a synced key set (v2).
+///
+/// v1 hashed key names only, so pure value changes were invisible and any
+/// consumer that skipped "unchanged" content versions would skip real
+/// updates. v2 is an HMAC over the resolved entries, keyed by the deployment
+/// seal key: value-sensitive (including changes that arrive through secret
+/// references), deterministic, and useless to an offline brute-forcer who
+/// only sees the fingerprint.
+pub(super) fn content_version_for(
+    seal_key: &[u8; 32],
+    target_id: &str,
+    entries: &BTreeMap<String, String>,
+) -> String {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    let mut mac =
+        <Hmac<Sha256> as Mac>::new_from_slice(seal_key).expect("hmac accepts 32-byte keys");
+    mac.update(target_id.as_bytes());
+    mac.update(b"|");
+    for (name, value) in entries {
+        mac.update(name.as_bytes());
+        mac.update(b"=");
+        mac.update(value.as_bytes());
+        mac.update(b"\0");
+    }
+    let digest = mac.finalize().into_bytes();
+    let hex = hex::encode(digest);
+    format!("cv2_{hex}")
 }
