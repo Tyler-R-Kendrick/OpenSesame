@@ -151,6 +151,11 @@ export const CROSS_RULES = [
     "native provider authorization and connection runtime",
   ),
   optional(
+    `${L}session-connections`,
+    "connectors.external",
+    "the closed read-only operations a device may ask of the connections a live session lends (ADR 0195)",
+  ),
+  optional(
     `${L}model-keys/`,
     "connectors.external",
     "model keys: the broker, the RFC 8693 exchange, the last-hop check and their test fixtures (ADR 0192)",
