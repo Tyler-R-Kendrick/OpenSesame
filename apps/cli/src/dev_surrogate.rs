@@ -39,6 +39,7 @@ use zeroize::Zeroizing;
 #[cfg(test)]
 pub(crate) use crate::dev_run::entries::provider_of;
 pub(crate) use crate::dev_run::entries::run_entries;
+use crate::dev_run::credentials::{self, CredentialWire};
 use crate::dev_run::login::{self, LoginSource, LoginWire};
 
 /// The catalog id of the plugin this module drives.
@@ -157,6 +158,11 @@ pub(crate) fn for_run(
     let settings_path = default_settings_path().ok();
     let session = start(entries, settings_path.as_deref(), &env, logins)?;
     let web_logins = login::declared(entries);
+    if session.is_some() || is_active(settings_path.as_deref(), &env) {
+        for line in credentials::missing(&run_entries(entries), logins) {
+            eprintln!("opensesame: {line}");
+        }
+    }
     match &session {
         Some(session) if !session.unserved().is_empty() => eprintln!(
             "opensesame: no surrogate for {}; delivering placeholders for those",
@@ -196,6 +202,11 @@ struct RunSpecWire<'a> {
     ttl_secs: u64,
     entries: &'a [Value],
     logins: &'a [LoginWire],
+    /// The token each connection holds in the sealed store, for the entries
+    /// that name it. Left out when there is none, so a spec without
+    /// credentials is the spec it always was.
+    #[serde(skip_serializing_if = "<[CredentialWire]>::is_empty")]
+    credentials: &'a [CredentialWire],
     passthrough_hosts: [&'a str; 0],
     watched: bool,
     notices_path: &'a Path,
@@ -236,7 +247,9 @@ pub(crate) fn start(
             ),
             other => anyhow::anyhow!("the surrogate-proxy plugin cannot be run: {other}"),
         })?;
-    // Only now, with a plugin that will take them, are passwords read.
+    // Only now, with a plugin that will take them, are passwords and tokens
+    // read.
+    let credentials = credentials::resolve(&requested, logins)?;
     let logins = login::resolve(&web_logins, logins)?;
     let run_id = format!("dev-{}", uuid::Uuid::new_v4().hyphenated());
     let notices = notices_path(settings_path, PLUGIN_ID)?;
@@ -248,12 +261,14 @@ pub(crate) fn start(
             ttl_secs: RUN_TTL_SECS,
             entries: &requested,
             logins: &logins,
+            credentials: &credentials,
             passthrough_hosts: [],
             watched: true,
             notices_path: &notices,
         },
     )?;
     drop(logins);
+    drop(credentials);
     line.push(b'\n');
     let session = spawn(&binary, &line, run_id)?;
     drop(line);

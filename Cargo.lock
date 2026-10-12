@@ -3735,6 +3735,7 @@ dependencies = [
  "opensesame-gateway",
  "opensesame-host-core",
  "opensesame-human-vault",
+ "opensesame-invoke-through",
  "opensesame-kdbx-bridge",
  "opensesame-plugin-settings",
  "opensesame-pm-bridges",

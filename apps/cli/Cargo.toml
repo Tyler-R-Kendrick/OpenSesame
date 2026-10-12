@@ -19,6 +19,7 @@ opensesame-authn = { path = "../../crates/authn" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-env-spec = { path = "../../crates/env-spec" }
 opensesame-cli-app-integration = { path = "../../crates/cli-app-integration" }
+opensesame-invoke-through = { path = "../../crates/invoke-through" }
 opensesame-connector-host = { path = "../../crates/connector-host" }
 opensesame-kdbx-bridge = { path = "../../crates/kdbx-bridge" }
 opensesame-provider-bitwarden = { path = "../../crates/provider-bitwarden" }

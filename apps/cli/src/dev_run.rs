@@ -26,6 +26,8 @@ use serde_json::json;
 use crate::dev_surrogate;
 use login::SealedStoreLogins;
 
+#[path = "dev_credentials.rs"]
+pub(crate) mod credentials;
 #[path = "dev_entries.rs"]
 pub(crate) mod entries;
 #[path = "dev_login.rs"]

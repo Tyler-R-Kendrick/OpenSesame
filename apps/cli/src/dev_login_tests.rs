@@ -22,6 +22,10 @@ impl FakeStore {
 }
 
 impl LoginSource for FakeStore {
+    fn holds(&self, store_path: &str) -> bool {
+        self.entries.contains_key(store_path)
+    }
+
     fn read(&self, store_path: &str) -> anyhow::Result<StoredLogin> {
         self.reads.borrow_mut().push(store_path.to_owned());
         let (secret, trailer) = self

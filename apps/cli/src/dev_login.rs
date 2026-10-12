@@ -68,6 +68,13 @@ pub(crate) trait LoginSource {
     ///
     /// When the store cannot be opened or holds no such entry.
     fn read(&self, store_path: &str) -> anyhow::Result<StoredLogin>;
+
+    /// Whether the store holds an entry at `store_path`. Names are not
+    /// secret and listing them needs no unlock, so a run with nothing stored
+    /// asks for no passphrase. Nothing is held unless a source says so.
+    fn holds(&self, _store_path: &str) -> bool {
+        false
+    }
 }
 
 /// The person's sealed store, unlocked once, on first use, exactly as `pass
@@ -78,6 +85,13 @@ pub(crate) struct SealedStoreLogins {
 }
 
 impl LoginSource for SealedStoreLogins {
+    fn holds(&self, store_path: &str) -> bool {
+        let folder = store_path.rsplit_once('/').map_or("", |(folder, _)| folder);
+        Self::root()
+            .and_then(|root| root.ls(folder).ok())
+            .is_some_and(|names| names.iter().any(|name| name == store_path))
+    }
+
     fn read(&self, store_path: &str) -> anyhow::Result<StoredLogin> {
         let mut unlocked = self.unlocked.borrow_mut();
         if unlocked.is_none() {
@@ -94,6 +108,13 @@ impl LoginSource for SealedStoreLogins {
         let secret = Zeroizing::new(std::mem::take(&mut entry.secret));
         drop(Zeroizing::new(std::mem::take(&mut entry.trailer)));
         Ok(StoredLogin { secret, url })
+    }
+}
+
+impl SealedStoreLogins {
+    fn root() -> Option<StoreRoot> {
+        let path = crate::store::resolve_root(None, None).ok()?;
+        StoreRoot::open(&path).ok()
     }
 }
 
