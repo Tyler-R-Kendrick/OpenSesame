@@ -52,10 +52,10 @@ it("offers AWS Secrets Manager as a browser connection, not a companion", () => 
       kind: "connect",
       method: "api-key",
     });
-  // AWS STS has no driver yet, and says so.
+  // AWS STS connects with the same key, signed for its own service.
   expect(catalogConnectorAction(aws("aws-sts"), null)).toMatchObject({
-    kind: "unavailable",
-    reason: "driver-pending",
+    kind: "connect",
+    method: "api-key",
   });
 });
 

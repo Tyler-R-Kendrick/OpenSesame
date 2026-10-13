@@ -51,6 +51,7 @@
     "@opensesame/capability-composition": "workspace:*",
     "@opensesame/capability-registry": "workspace:*",
     "@opensesame/ceremony-kit": "workspace:*",
+    "@opensesame/connector-bridge": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/guide-lang": "workspace:*",
     "@opensesame/log-scrub": "workspace:*",
