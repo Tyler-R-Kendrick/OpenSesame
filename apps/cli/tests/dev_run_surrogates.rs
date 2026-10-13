@@ -91,10 +91,12 @@ impl Sandbox {
         let link = dir.join("node");
         if std::fs::symlink_metadata(&link).is_err() {
             let system = std::env::var_os("PATH").unwrap_or_default();
-            let real = std::env::split_paths(&system).map(|d| d.join("node")).find(|c| {
-                std::fs::metadata(c)
-                    .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-            });
+            let real = std::env::split_paths(&system)
+                .map(|d| d.join("node"))
+                .find(|c| {
+                    std::fs::metadata(c)
+                        .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+                });
             match real {
                 Some(node) => std::os::unix::fs::symlink(node, &link).unwrap(),
                 None => return std::env::var("PATH").unwrap_or_default(),

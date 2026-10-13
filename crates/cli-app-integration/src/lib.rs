@@ -3,6 +3,7 @@ mod daemon_attest;
 mod device_crypto;
 mod human_proof;
 mod pairing;
+mod pairing_code;
 mod terminal_session;
 mod webauthn_assertion;
 

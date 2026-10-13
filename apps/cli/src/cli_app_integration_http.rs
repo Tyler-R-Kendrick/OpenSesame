@@ -91,9 +91,8 @@ pub fn get_json_loopback(base: &str, path: &str) -> Result<(u16, String), ()> {
     stream
         .set_write_timeout(Some(Duration::from_secs(5)))
         .map_err(|_| ())?;
-    let request = format!(
-        "GET {path} HTTP/1.1\r\nhost: {host}:{port}\r\nconnection: close\r\n\r\n"
-    );
+    let request =
+        format!("GET {path} HTTP/1.1\r\nhost: {host}:{port}\r\nconnection: close\r\n\r\n");
     stream.write_all(request.as_bytes()).map_err(|_| ())?;
     let mut raw = Vec::new();
     stream.read_to_end(&mut raw).map_err(|_| ())?;

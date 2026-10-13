@@ -5,14 +5,16 @@
 //! Pairing binds a device signing key (public half on the daemon only); vault
 //! key material never crosses the wire.
 
-use base64::Engine as _;
 use rand_core::{OsRng, RngCore as _};
-use serde::Serialize;
-use sha2::{Digest, Sha256};
 
 use crate::device_crypto::{
     is_registration_code_shaped, pairing_confirm_message, parse_verifying_key_spki_b64,
     verify_p256_sha256,
+};
+use crate::pairing_code::{digest_hex, find_digest, pairing_id, registration_code, same, secret};
+
+pub use crate::pairing_code::{
+    format_pairing_code, is_device_public_key_shaped, is_pairable_origin, is_secret_shaped,
 };
 
 pub const PAIRING_CODE_PREFIX: &str = "opensesame-cli-app:v1:";
@@ -22,8 +24,6 @@ pub const MAX_PAIRED: usize = 16;
 pub const MAX_LABEL_CHARS: usize = 80;
 pub const PAIRING_CHALLENGE_LEN: usize = 32;
 pub const MAX_PIN_PROOF_FAILURES: u32 = 8;
-
-const SECRET_LEN: usize = 43;
 
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum PairingError {
@@ -94,27 +94,9 @@ pub struct Issued {
     pub token: String,
 }
 
-impl std::fmt::Debug for Issued {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Issued")
-            .field("id", &self.id)
-            .field("origin", &self.origin)
-            .field("token", &"[redacted]")
-            .finish()
-    }
-}
-
 /// Outcome of a successful pairing confirm (registration code shown once in the PWA).
 pub struct ConfirmOutcome {
     pub registration_code: String,
-}
-
-impl std::fmt::Debug for ConfirmOutcome {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConfirmOutcome")
-            .field("registration_code", &"[redacted]")
-            .finish()
-    }
 }
 
 /// In-memory pairings held by the daemon (restarts clear them; re-pair in Pages).
@@ -122,99 +104,6 @@ impl std::fmt::Debug for ConfirmOutcome {
 pub struct CliAppIntegrationPairings {
     pending: Vec<Pending>,
     paired: Vec<PairedPage>,
-}
-
-#[must_use]
-pub fn is_pairable_origin(origin: &str) -> bool {
-    let Ok(url) = url::Url::parse(origin) else {
-        return false;
-    };
-    if url.origin().ascii_serialization() != origin
-        || !url.username().is_empty()
-        || url.password().is_some()
-    {
-        return false;
-    }
-    match url.scheme() {
-        "https" => url.host_str().is_some_and(|host| !host.ends_with('.')),
-        "http" => url.host_str() == Some("localhost") && url.port().is_some(),
-        _ => false,
-    }
-}
-
-fn secret() -> String {
-    let mut raw = [0u8; 32];
-    OsRng.fill_bytes(&mut raw);
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(raw)
-}
-
-fn pairing_id() -> String {
-    let mut raw = [0u8; 8];
-    OsRng.fill_bytes(&mut raw);
-    hex::encode(raw)
-}
-
-fn digest_hex(value: &str) -> String {
-    hex::encode(Sha256::digest(value.as_bytes()))
-}
-
-fn registration_code() -> String {
-    let n: u32 = OsRng.next_u32() % 1_000_000;
-    format!("{n:06}")
-}
-
-fn same(a: &str, b: &str) -> bool {
-    a.len() == b.len()
-        && a.bytes()
-            .zip(b.bytes())
-            .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-            == 0
-}
-
-fn find_digest<'a>(digests: impl Iterator<Item = &'a str>, digest: &str) -> Option<usize> {
-    digests.enumerate().fold(None, |found, (index, candidate)| {
-        if same(candidate, digest) {
-            Some(index)
-        } else {
-            found
-        }
-    })
-}
-
-#[must_use]
-pub fn is_secret_shaped(value: &str) -> bool {
-    value.len() == SECRET_LEN
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-}
-
-#[must_use]
-pub fn is_device_public_key_shaped(value: &str) -> bool {
-    parse_verifying_key_spki_b64(value).is_some()
-}
-
-/// The printed pairing code for Pages to parse.
-#[must_use]
-pub fn format_pairing_code(url: &str, code: &str, origin: &str, label: &str) -> String {
-    #[derive(Serialize)]
-    struct Wire<'a> {
-        code: &'a str,
-        label: String,
-        origin: &'a str,
-        url: &'a str,
-    }
-    let wire = Wire {
-        code,
-        label: label.trim().chars().take(MAX_LABEL_CHARS).collect(),
-        origin,
-        url: url.trim_end_matches('/'),
-    };
-    let json = serde_json::to_string(&wire).unwrap_or_default();
-    format!(
-        "{PAIRING_CODE_PREFIX}{}",
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(json)
-    )
 }
 
 impl CliAppIntegrationPairings {
@@ -494,80 +383,5 @@ impl CliAppIntegrationPairings {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use ecdsa::signature::Signer;
-    use p256::ecdsa::SigningKey;
-    use p256::elliptic_curve::pkcs8::EncodePublicKey;
-    use p256::PublicKey;
-
-    fn sign_pairing_confirm(
-        key: &SigningKey,
-        challenge: &[u8],
-        code: &str,
-        origin: &str,
-    ) -> String {
-        let message = pairing_confirm_message(challenge, code, origin);
-        let sig: p256::ecdsa::Signature = key.sign(&message);
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes())
-    }
-
-    fn device_key_b64() -> (SigningKey, String) {
-        let key = SigningKey::random(&mut OsRng);
-        let vk = key.verifying_key();
-        let spki = PublicKey::from(vk).to_public_key_der().expect("spki");
-        let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(spki.as_ref());
-        (key, b64)
-    }
-
-    #[test]
-    fn exchange_without_confirm_is_refused() {
-        let mut pairings = CliAppIntegrationPairings::default();
-        let origin = "http://localhost:5180";
-        let now = 1_000;
-        let (code, _) = pairings.issue(origin, now).unwrap();
-        assert!(matches!(
-            pairings.exchange(&code, origin, now),
-            Err(PairingError::NotConfirmed)
-        ));
-    }
-
-    #[test]
-    fn confirm_then_arm_then_exchange_mints_bearer() {
-        let mut pairings = CliAppIntegrationPairings::default();
-        let origin = "http://localhost:5180";
-        let now = 1_000;
-        let (code, _) = pairings.issue(origin, now).unwrap();
-        let (signing_key, spki) = device_key_b64();
-        let challenge = pairings.pending[0].pairing_challenge;
-        let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
-        let outcome = pairings
-            .confirm(&code, origin, &spki, &sig, now)
-            .expect("confirm");
-        pairings
-            .arm_registration(origin, &outcome.registration_code, now)
-            .expect("arm");
-        let issued = pairings.exchange(&code, origin, now).unwrap();
-        assert!(is_secret_shaped(&issued.token));
-        assert!(pairings.authorizes(&issued.token, origin));
-    }
-
-    /// Persona: operator-minted code + forged Origin + well-formed random root cannot confirm.
-    #[test]
-    fn persona_random_root_shaped_secret_cannot_confirm() {
-        let mut pairings = CliAppIntegrationPairings::default();
-        let origin = "http://localhost:5180";
-        let now = 1_000;
-        let (code, _) = pairings.issue(origin, now).unwrap();
-        let (signing_key, spki) = device_key_b64();
-        let forged_origin = "https://attacker.github.io";
-        let challenge = pairings
-            .pairing_challenge_for_code(&code, now)
-            .expect("challenge");
-        let sig = sign_pairing_confirm(&signing_key, &challenge, &code, forged_origin);
-        assert!(matches!(
-            pairings.confirm(&code, forged_origin, &spki, &sig, now),
-            Err(PairingError::WrongOrigin | PairingError::Unknown)
-        ));
-    }
-}
+#[path = "pairing_tests.rs"]
+mod tests;
