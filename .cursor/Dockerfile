@@ -18,6 +18,22 @@ if [ -z "${CARGO_TARGET_DIR:-}" ]; then
   CARGO_TARGET_DIR="${HOME}/.cache/packages/cargo-target"
   export CARGO_TARGET_DIR
 fi
+. /etc/profile.d/kimi-code.sh
+EOF
+
+RUN cat > /etc/profile.d/kimi-code.sh <<'EOF'
+# Kimi Code CLI on PATH (npm global and ~/.kimi-code installs).
+case ":${PATH}:" in
+  *:/usr/local/bin:*) ;;
+  *) PATH="/usr/local/bin:${PATH}" ;;
+esac
+if [ -d "${HOME}/.kimi-code/bin" ]; then
+  case ":${PATH}:" in
+    *:"${HOME}/.kimi-code/bin":*) ;;
+    *) PATH="${HOME}/.kimi-code/bin:${PATH}" ;;
+  esac
+fi
+export PATH
 EOF
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -39,10 +55,9 @@ ENV GROK_BIN_DIR=/usr/local/bin
 RUN curl -fsSL https://x.ai/cli/install.sh | bash \
   && /usr/local/bin/grok --version
 
-ENV KIMI_INSTALL_DIR=/usr/local
-RUN curl -fsSL https://code.kimi.com/kimi-code/install.sh \
-  | env KIMI_INSTALL_DIR=/usr/local KIMI_NO_MODIFY_PATH=1 bash \
-  && /usr/local/bin/kimi --version
+ARG KIMI_CODE_VERSION=2.1.1
+RUN npm install -g "@moonshot-ai/kimi-code@${KIMI_CODE_VERSION}" \
+  && kimi --version
 
 RUN rustup component add rustfmt clippy \
   && rustup target add wasm32-unknown-unknown
@@ -58,8 +73,9 @@ RUN useradd -m -u 1000 -s /bin/bash vscode \
   && echo 'vscode ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/vscode \
   && chmod 0440 /etc/sudoers.d/vscode \
   && { printf '%s\n' \
-      '# Cargo for non-login bash. Login shells read /etc/profile.d/cargo.sh.' \
+      '# Cargo and Kimi for non-login bash. Login shells read /etc/profile.d/*.sh.' \
       '. /etc/profile.d/cargo.sh' \
+      '. /etc/profile.d/kimi-code.sh' \
       ''; cat /home/vscode/.bashrc; } > /home/vscode/.bashrc.new \
   && mv /home/vscode/.bashrc.new /home/vscode/.bashrc \
   && chown vscode:vscode /home/vscode/.bashrc

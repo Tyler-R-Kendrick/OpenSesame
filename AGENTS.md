@@ -73,14 +73,13 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   (`env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY`) so device login is used.
   Do not set `auth.preferred_method = "api_key"` in the project
   `.grok/config.toml` when using device login alongside that runtime key.
-- **Kimi Code CLI** is installed on `PATH` as `kimi`
-  (`KIMI_INSTALL_DIR=/usr/local` in the Dockerfile; binary at
-  `/usr/local/bin/kimi`). Cloud agents use it for fix work with model alias
-  **`kimi-code/k3`** (`-m kimi-code/k3` or `default_model = "kimi-code/k3"` after
-  login). Sign in once per machine with the **Kimi Code (OAuth)** subscription
-  device-code flow — not a Kimi Open Platform API key: `kimi login`. Full
-  headless recipes, probe (`kimi -m kimi-code/k3 -p "say OK"`), quota detection,
-  and Composer fallback: [`.cursor/kimi-code.md`](.cursor/kimi-code.md).
+- **Kimi Code CLI** is installed as `@moonshot-ai/kimi-code` (pinned in the
+  Dockerfile) on `PATH` via `/etc/profile.d/kimi-code.sh`. Headless **K3** runs:
+  `scripts/dev/kimi-headless.sh -p "…"` (`-m kimi-code/k3`, `--output-format stream-json`).
+  Auth: `kimi login` OAuth first, else Runtime Secret
+  `KIMI_MODEL_API_KEY` (+ optional `KIMI_MODEL_NAME`, `KIMI_MODEL_BASE_URL`;
+  Kimi ignores plain `KIMI_API_KEY`). Check `scripts/dev/kimi-preflight.sh`
+  before batch work. See `docs/operators/kimi-code-cloud.md`.
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.
