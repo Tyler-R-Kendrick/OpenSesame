@@ -9,10 +9,9 @@
  * `return_to` is allowlisted to loopback http(s) and configured https
  * origins, so the relay can never bounce a browser anywhere else.
  *
- * Runs two ways with zero dependencies:
- * - locally: `node server.mjs` (or behind the dev HTTPS proxy),
- * - on Vercel: `api/connect/callback.mjs` is the same handler in a
- *   serverless function shape.
+ * Runs with zero dependencies: `node server.mjs` (or behind the dev HTTPS
+ * proxy). The app itself is static (ADR 0090) — there is no serverless
+ * shape; a deployment that serves the relay runs it from `server/`.
  */
 
 import { returnToAllowed } from "./allowlist.mjs";

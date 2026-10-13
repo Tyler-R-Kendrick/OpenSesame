@@ -1,10 +1,11 @@
-# The app's relay (`apps/pages/server`, `apps/pages/api`)
+# The app's relay (`apps/pages/server`)
 
 The server half of the one web deployment: a Connect callback relay and
 management proxy for Vercel Connect, the GitHub App manifest relay and the
 git-backup forge proxy. It
-ships with the app, so a Vercel deployment of `apps/pages` serves the relay
-on the app's own origin; GitHub Pages serves the app without it (ADR 0090). The
+ships beside the app: the app itself is a static export (ADR 0090), so a
+deployment that serves the relay runs `server/server.mjs` separately and
+points the app at it; GitHub Pages serves the app without it. The
 callback path holds no provider tokens or sessions. Management routes hold
 the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
@@ -12,8 +13,7 @@ the deployment `VERCEL_TOKEN` server-side — see ADR 0127.
 
 | Path | What it holds |
 |------|---------------|
-| `server/` | The relay itself: the callback, management, GitHub App and git-backup handlers, the `return_to` allowlist, the forge host guard, the pinned fetch, and the JSON boundary checks the connector handlers parse their input with (`json-boundary.mjs`). `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App and git-backup handlers directly (`scripts/github-app-relay-plugin.mjs`). |
-| `api/` | Vercel serverless routes, one file per route. Each is a thin adapter over a handler in `server/`. |
+| `server/` | The relay itself: the callback, management, GitHub App and git-backup handlers, the `return_to` allowlist, the forge host guard, the pinned fetch, and the JSON boundary checks the connector handlers parse their input with (`json-boundary.mjs`). `server/server.mjs` serves all of them on `:8789` for local use (`pnpm --filter @opensesame/pages relay`); the Vite dev server mounts the GitHub App and git-backup handlers directly (`scripts/github-app-relay-plugin.mjs`). There is no serverless shape — the app deploys as static `dist/` only. |
 | `server/test/` | `node --test` suites (`pnpm --filter @opensesame/pages test:relay`, also part of `test`). |
 
 ## What it does
@@ -105,9 +105,11 @@ them straight from the browser (ADR 0147).
 ## Deploy it
 
 The Vercel project is rooted at `apps/pages` ([`vercel.json`](../vercel.json)):
-it builds the app with `VITE_BASE=/`, serves `api/` as functions beside it, and
-writes `connectCallbackBase: "/"` into `os-runtime-config.json`, so the app
-uses the relay on its own origin. Set
+it builds the static app with `VITE_BASE=/` into `dist/` only — no server
+functions (ADR 0090). Run the relay separately
+(`node apps/pages/server/server.mjs`) and point the app at it with
+`VITE_CONNECT_CALLBACK_BASE` (build time) or `connectCallbackBase` in
+`os-runtime-config.json` (deploy time). Set
 `OPENSESAME_CONNECT_APP_ORIGINS` to the app origin, and
 `OPENSESAME_CONNECT_MANAGE_KEY` (a Sensitive environment variable) if the
 deployment should create, authorize or revoke connectors at all.
