@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import { activitySeams } from "../activity-log.js";
 import {
+  bindDropReceiptOutboundTomb,
   flushHeldDropNotes,
   noteDropExpired,
   noteDropRevoked,
@@ -315,3 +316,10 @@ export function seedOutboundDropForTests(row: StoredSend): void {
   store.sends[row.claimId] = row;
   writeStore(store);
 }
+
+function senderTombForClaim(claimId: string): string | null {
+  const tomb = readStore().sends[claimId]?.tomb;
+  return tomb ?? null;
+}
+
+bindDropReceiptOutboundTomb(senderTombForClaim);

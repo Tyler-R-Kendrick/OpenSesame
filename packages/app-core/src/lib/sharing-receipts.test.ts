@@ -206,6 +206,58 @@ it("records a sender revoke and expiry as the claim id only", async () => {
   expect(blob).not.toContain("expire-me");
 });
 
+it("records sender refused when a tracked send cannot be presented", async () => {
+  const tomb = await unlock();
+  const { session } = await sealedClaim();
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: "refused-send",
+    expiresAt: session.expiresAt,
+    sourceItemId: "item_refused",
+    tomb,
+  });
+  resetLocalDropClaimsForTests();
+  await expect(
+    presentDrop(session.bearerToken, session.userCode),
+  ).rejects.toThrow();
+  const blob = await trails(tomb);
+  expect(blob).toContain(session.claimId);
+  expect(blob).toContain("vault.drop.refused");
+  expect(blob).toContain("access.drop.refused");
+});
+
+it("records a drop open on the sending vault when another vault presents", async () => {
+  const tombA = await unlock();
+  const tombB = `sharing-receipts-b-${crypto.randomUUID()}`;
+  unlockTomb(tombB, (await mintVaultKey()).vaultKey);
+  const { session } = await sealedClaim();
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: "cross-vault-open",
+    expiresAt: session.expiresAt,
+    sourceItemId: "item_cross",
+    tomb: tombA,
+  });
+  activitySeams.activeTomb = () => tombB;
+  const presented = await presentLocalDropClaim(
+    session.bearerToken,
+    session.userCode,
+  );
+  dropOpenSeams.presentClaim = async () => ({
+    targetManifest: presented.targetManifest,
+  });
+  await presentDrop(session.bearerToken, session.userCode);
+  const blobA = await trails(tombA);
+  expect(blobA).toContain("vault.drop.opened");
+  expect(blobA.match(/vault\.drop\.opened/gu)).toHaveLength(1);
+  activitySeams.activeTomb = () => tombB;
+  const blobB = await trails(tombB);
+  expect(blobB).toContain("vault.drop.opened");
+  expect(blobB.match(/vault\.drop\.opened/gu)).toHaveLength(1);
+});
+
 it("refuses a bearer passed off as a claim id", async () => {
   const tomb = await unlock();
   const { session } = await sealedClaim();

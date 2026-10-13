@@ -52,6 +52,7 @@ const KINDS = [
   "drop.opened",
   "drop.expired",
   "drop.locked_out",
+  "drop.refused",
   "drop.revoked",
   "live.granted",
   "live.ended",
@@ -83,7 +84,7 @@ describe("the decisions a receipt can record", () => {
     }
     expect(
       [...byType.values()].filter((value) => value === "denied"),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
   });
 });
 

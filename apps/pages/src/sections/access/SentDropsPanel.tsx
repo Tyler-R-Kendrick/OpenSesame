@@ -39,6 +39,7 @@ const DROP_RECEIPTS = new Set([
   "access.drop.opened",
   "access.drop.expired",
   "access.drop.locked_out",
+  "access.drop.refused",
   "access.drop.revoked",
 ]);
 

@@ -59,6 +59,7 @@ export const RECEIPT_KINDS = {
   "drop.opened": ["access.drop.opened", "succeeded"],
   "drop.expired": ["access.drop.expired", "succeeded"],
   "drop.locked_out": ["access.drop.locked_out", "denied"],
+  "drop.refused": ["access.drop.refused", "denied"],
   "drop.revoked": ["access.drop.revoked", "succeeded"],
   "live.granted": ["access.live.granted", "succeeded"],
   "live.ended": ["access.live.ended", "succeeded"],
