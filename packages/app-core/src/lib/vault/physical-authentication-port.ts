@@ -13,7 +13,7 @@ export type PhysicalAuthenticationReader = Readonly<{
   close: () => Promise<void>;
 }>;
 export type PhysicalAuthenticationPort = Readonly<{
-  bodyFormat: "node-projection-v1";
+  bodyFormat: "flat-v1" | "node-projection-v1";
   /** Callback can cancel, never authenticate a user, root or selected factors. */
   capture: (
     tomb: string,

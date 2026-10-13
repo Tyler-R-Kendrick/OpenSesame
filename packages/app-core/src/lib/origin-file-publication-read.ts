@@ -11,6 +11,8 @@ export type OriginRecord = {
   handle: FileSystemFileHandle | null;
   value: string | null;
   entry: OriginalOriginFileData | null;
+  /** Original physical ciphertext DATA for inventory evidence; never owner authority. */
+  ciphertext?: string;
 };
 export function checkPublicationLimit(value: string, maxBytes: number): void {
   if (
@@ -71,7 +73,7 @@ export async function readOriginRecord(
   current();
   if (value === null) throw new Error("Storage record does not open.");
   checkPublicationLimit(value, maxBytes);
-  return { handle, value, entry };
+  return { handle, value, entry, ciphertext: text };
 }
 /** Caller retains original locks; fixed cleanup never deletes a changed entry. */
 export async function removeOwnEmptyPlaceholder(
