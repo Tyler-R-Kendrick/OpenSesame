@@ -30,6 +30,7 @@ import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
+import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 
 export const github = createItem("account", "GitHub");
 github.username = "octo";
@@ -133,7 +134,9 @@ export async function host(
   const panel = within(rendered.container);
   await panel.findByRole("img", { name: "Direct only" });
   type(panel.getByLabelText("Session name"), "Team");
-  fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+  fireEvent.click(
+    panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+  );
   if (values !== "use") type(panel.getByLabelText("Values"), values);
   type(panel.getByLabelText("Who gets in"), admission);
   return panel;
