@@ -100,4 +100,15 @@ describe("SentDropsPanel revoke", () => {
     fireEvent.blur(key);
     await waitFor(() => expect(key.className).not.toContain("is-armed"));
   });
+
+  it("disarms revoke after four seconds like grant revoke", async () => {
+    renderAccess(<SentDropsPanel />, "/access?view=sessions#sent-drops");
+    const key = await screen.findByRole("button", { name: "Revoke" });
+    fireEvent.click(key);
+    expect(key.className).toContain("is-armed");
+    await waitFor(
+      () => expect(key.className).not.toContain("is-armed"),
+      { timeout: 4500 },
+    );
+  });
 });

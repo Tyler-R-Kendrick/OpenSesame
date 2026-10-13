@@ -69,6 +69,14 @@ function SentDropRow({
   const [busy, setBusy] = useState(false);
   const [armed, setArmed] = useState(false);
   const [revokeError, setRevokeError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!busy) setArmed(false);
+  }, [busy]);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
   const mark = STATUS[drop.state];
   const trail = receiptsForClaim(events, drop.claimId);
   const revokeLabel = armed ? "Confirm" : "Revoke";
@@ -113,6 +121,9 @@ function SentDropRow({
             armed={armed}
             disabled={busy}
             onBlur={() => setArmed(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") setArmed(false);
+            }}
             onClick={() => void revoke()}
           >
             <IconX size={16} />
