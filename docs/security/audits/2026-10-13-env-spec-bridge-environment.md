@@ -19,7 +19,7 @@ and nothing it starts should hold them either.
 
 | Severity | Finding | Fix |
 | --- | --- | --- |
-| High | The bridge ran as a bare `Command::new("node")` with the whole inherited environment. The passphrase was stripped only for the final child, so the bridge and everything Node starts (`NODE_PATH`, loader variables, `npm_config_*`) received it, with every other `OPENSESAME_*` variable, tokens and proxy URLs with credentials. `node` was resolved through the inherited `PATH`, where an empty or relative entry means the working directory: a `node` planted in the directory the command ran in, or behind a trailing `:`, ran with all of it. The review demonstrated this with a stub that wrote its environment to a file. | `node_command` is the one way the crate starts Node. It searches only `PATH` entries that are absolute, exist, are directories, are owned by root or the effective user, cannot be written by others, and, when group-writable, belong to root's group (gid 0) or one of the caller's own (`getegid`, `getgroups`). Windows: absolute, existing, not the current directory. It starts the `node` it finds by absolute path, and requires that file to be owned by root or the caller and not world-writable. It builds the environment instead of inheriting it: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables and, on Windows, `SystemRoot`, `PATHEXT`, `COMSPEC`. With no such `node` the run stops with `no usable node` and names every entry or file it skipped with the exact reason (`writable by others`, `group-writable by group 1234 which is not one of yours`, `owned by uid 1001`); the inherited `PATH` is never a fallback. |
+| High | The bridge ran as a bare `Command::new("node")` with the whole inherited environment. The passphrase was stripped only for the final child, so the bridge and everything Node starts (`NODE_PATH`, loader variables, `npm_config_*`) received it, with every other `OPENSESAME_*` variable, tokens and proxy URLs with credentials. `node` was resolved through the inherited `PATH`, where an empty or relative entry means the working directory: a `node` planted in the directory the command ran in, or behind a trailing `:`, ran with all of it. The review demonstrated this with a stub that wrote its environment to a file. | `node_command` is the one way the crate starts Node. It searches only `PATH` entries that are absolute, exist, are directories, are owned by root or the effective user, cannot be written by others, and, when group-writable, belong to root's group (gid 0) or one of the caller's own (`getegid`, `getgroups`). Windows: absolute, existing, not the current directory. It starts the `node` it finds by absolute path, and requires that file to be owned by root or the caller and not world-writable. It builds the environment instead of inheriting it: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables and, on Windows, `SystemRoot`, `PATHEXT`, `COMSPEC`. An operator can name the exact file with `OPENSESAME_NODE=<absolute path>`: it is consulted first, must exist and (after symlinks) be a regular file with an execute bit, and is exempt from the directory and file ownership and mode checks, because the operator chose that file (the same trust as `OPENSESAME_ENV_PARSE`, the script it runs); an empty, relative, missing, non-file or non-executable value is an error that names the variable and never becomes the `PATH` search; the variable is not passed on to the bridge. With no such `node` the run stops with `no usable node` and names every entry or file it skipped with the exact reason (`writable by others`, `group-writable by group 1234 which is not one of yours`, `owned by uid 1001`); the inherited `PATH` is never a fallback. |
 
 The trust rule first skipped every directory that group or others could write.
 That refused real layouts: `nvm`, `volta` and Homebrew create `user:user 0775`
@@ -52,7 +52,11 @@ It does not take a world-writable directory; see Not fixed.
   reason, real directory modes, the real `stat` reaching the decision) and the
   allowlist, including the Windows rules. `bridge_isolation.rs` and
   `dev_run_bridge_env.rs` each run a `0775` directory of the caller's own group,
-  the CI layout, and it supplies the node.
+  the CI layout, and it supplies the node. The same two files pin
+  `OPENSESAME_NODE` through the real binary and the test process: it wins over a
+  trusted `PATH` node, a 0777 file in a 0777 directory is used, an empty,
+  relative, missing, directory and non-executable value is refused naming the
+  variable with no `PATH` fallback, and the variable never reaches the node.
 
 ## Other spawns of Node and interpreters
 
@@ -74,14 +78,18 @@ It does not take a world-writable directory; see Not fixed.
 - A `node` in a directory root or the caller owns, that only root's group or the
   caller's groups can write, is trusted. A member of such a group can replace it;
   the rule assumes the caller's own groups are the caller's.
-- A directory anyone can write is still refused, even when absolute and owned by
-  root, and so is a world-writable `node`. Hosted CI images set both on purpose
-  (`actions/runner-images`, `install-nodejs.sh`: `chmod -R 777 /usr/local/bin`), so
-  on those images `dev run` finds no `node` there and needs one in another trusted
-  directory, for example the one `actions/setup-node` installs, placed first on
-  `PATH`. Trusting such a directory is a separate decision; this change does not
-  make it. The `dev_run_surrogates` tests bring their own trusted `node` that hands
-  off to the machine's, so they do not depend on which layout the host has.
+- A directory anyone can write is still refused on the `PATH` search, even when
+  absolute and owned by root, and so is a world-writable `node`. Hosted CI images
+  set both on purpose (`actions/runner-images`, `install-nodejs.sh`:
+  `chmod -R 777 /usr/local/bin`). There the operator names the file with
+  `OPENSESAME_NODE`, or puts a trusted Node (for example the one
+  `actions/setup-node` installs) first on `PATH`. The CI Rust job sets
+  `OPENSESAME_NODE` to the runner's `node`, and the two tests that would
+  otherwise skip when no node can be resolved fail instead when `CI` is set.
+- `OPENSESAME_NODE` is trusted as named. Anyone who can set the environment of
+  `opensesame` can already point it at any program through
+  `OPENSESAME_ENV_PARSE`; the variable adds no new reach, and it replaces the
+  checks that a `PATH` search needs because nobody searched.
 - The Windows rules are exercised by unit tests of the decision functions, not by
   a run on Windows.
 - The PATH-resolved spawns above are a related class (`git` in `sealed-store`

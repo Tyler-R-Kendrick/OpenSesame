@@ -18,9 +18,14 @@ You need:
   reduced to those entries, `HOME`, `TMPDIR`, `LANG` and the `LC_*` variables
   and nothing else: the store passphrase and every other `OPENSESAME_*`,
   `NODE_*`, token or proxy variable stay out of the bridge. When no such `node`
-  exists the run stops and names each directory it skipped and why; if the only
-  `node` sits in a directory anyone can write (some CI images do this), install
-  one elsewhere and put it first on `PATH`.
+  exists the run stops and names each directory it skipped and why. If the only
+  `node` sits in a directory anyone can write (some CI images do this), either
+  install one elsewhere and put it first on `PATH`, or set `OPENSESAME_NODE` to
+  its absolute path. `OPENSESAME_NODE` is consulted first and trusted as named:
+  you chose that exact file, so it skips the owner and mode checks (the same
+  trust as `OPENSESAME_ENV_PARSE`), it is not passed on to the bridge, and a
+  value that is empty, relative or not an executable file stops the run naming
+  the variable instead of searching `PATH`.
 - The plugin binary `opensesame-surrogate-proxy` and its sha256.
 - A Vercel token. Use a dummy one while you try this out.
 
