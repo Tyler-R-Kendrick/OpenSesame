@@ -60,10 +60,18 @@ export type SecurityFinding = {
 
 export type SecurityReport = {
   checkedAt: string;
-  /** Logins with a password, each checked. */
+  /** Logins whose whole password this device can produce for breach lookup. */
   checked: number;
+  /**
+   * Logins with a password that cannot be breach-checked here (pepper or legacy
+   * seal only the person holds; ADR 0174).
+   */
+  notCheckable: number;
   findings: SecurityFinding[];
 };
+
+const NOT_CHECKABLE_FOR_BREACHS =
+  "not checkable for breaches (pepper only you hold)";
 
 /** Shown in Settings and on Password health while the capability is on and no check has finished. */
 export const SECURITY_CHECKS_IDLE =
@@ -78,16 +86,27 @@ export function securityWatchLabel(report: SecurityReport): string {
   const breached = report.findings.filter((f) => f.breaches > 0).length;
   const twoStep = report.findings.filter((f) => f.twoFactorAvailable).length;
   const checked = report.checked;
+  const notCheckable = report.notCheckable;
+  const notCheckableSuffix =
+    notCheckable > 0
+      ? ` ${noun(notCheckable, "login", "logins")} ${NOT_CHECKABLE_FOR_BREACHS}.`
+      : "";
+  if (checked === 0) {
+    if (notCheckable > 0) {
+      return `${noun(notCheckable, "login", "logins")} ${NOT_CHECKABLE_FOR_BREACHS}. No breach lookup ran.`;
+    }
+    return "No logins with a password this device can check.";
+  }
   if (breached > 0 && twoStep > 0) {
-    return `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.`;
+    return `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.${notCheckableSuffix}`;
   }
   if (breached > 0) {
-    return `${breached} of ${checked} passwords found in known breaches.`;
+    return `${breached} of ${checked} passwords found in known breaches.${notCheckableSuffix}`;
   }
   if (twoStep > 0) {
-    return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
+    return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.${notCheckableSuffix}`;
   }
-  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.`;
+  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.${notCheckableSuffix}`;
 }
 
 /** Visible sentences for one login, breach first, then a missing authenticator code. */
@@ -127,6 +146,7 @@ function checkedWatch(report: SecurityReport): BreachWatch {
     phase: "checked",
     label: securityWatchLabel(report),
     checked: report.checked,
+    notCheckable: report.notCheckable,
     breached,
     twoStep,
     lines: report.findings.map(watchLine),
@@ -314,14 +334,26 @@ function wholePassword(item: AccountItem | CredentialItem): string {
  * kept on their own (ADR 0179): a breached password is as breached for no
  * account at all.
  */
-function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {
+function passwordLogins(
+  items: readonly VaultItem[],
+): (AccountItem | CredentialItem)[] {
   const resolved = resolveAccounts(items);
   const accounts = activeItems([...resolved]).filter(
     (item): item is AccountItem => item.kind === "account",
   );
-  return [...accounts, ...unboundCredentials(resolved)].filter(
-    (item) => wholePassword(item) !== "",
-  );
+  return [...accounts, ...unboundCredentials(resolved)].filter((item) => {
+    if (item.kind === "credential") return item.method.type === "password";
+    return passwordMethod(item) !== undefined;
+  });
+}
+
+function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {
+  return passwordLogins(items).filter((item) => wholePassword(item) !== "");
+}
+
+function countNotCheckable(items: readonly VaultItem[]): number {
+  return passwordLogins(items).filter((item) => wholePassword(item) === "")
+    .length;
 }
 
 /**
@@ -367,6 +399,7 @@ export async function runSecurityChecks(
   return {
     checkedAt: now().toISOString(),
     checked: checked.length,
+    notCheckable: countNotCheckable(items),
     findings,
   };
 }

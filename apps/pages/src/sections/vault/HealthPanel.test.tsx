@@ -179,6 +179,7 @@ describe("HealthPanel", () => {
       label:
         "1 of 1 passwords found in known breaches. 1 login could add an authenticator code.",
       checked: 1,
+      notCheckable: 0,
       breached: 1,
       twoStep: 1,
       lines: [

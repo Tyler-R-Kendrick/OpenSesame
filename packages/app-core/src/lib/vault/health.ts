@@ -188,6 +188,8 @@ export type BreachWatch =
       phase: "checked";
       label: string;
       checked: number;
+      /** Passwords the breach corpus cannot hash (pepper only the person holds). */
+      notCheckable: number;
       breached: number;
       twoStep: number;
       lines: readonly BreachWatchLine[];
