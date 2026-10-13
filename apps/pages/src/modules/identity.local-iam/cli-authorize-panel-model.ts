@@ -1,14 +1,14 @@
-import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
-import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
-import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import {
-  type BoundaryValue,
-  isJsonObject,
-  readString,
-} from "@opensesame/os-domain";
+  fetchFirstCliAppPending,
+  readCliAppAuthHeaders,
+  readDaemonOrigin,
+} from "@opensesame/app-core/lib/cli-app-integration/client.js";
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
+  type: "json",
+};
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
 import {
@@ -16,46 +16,10 @@ import {
   runCliAuthorizePinApprove,
 } from "./cli-authorize-proof-run.js";
 
-function daemonOrigin(): string | null {
-  const raw = loadSettings().daemonApi.trim() || "http://127.0.0.1:18790";
-  try {
-    return new URL(raw.includes("://") ? raw : `http://${raw}`).origin.replace(
-      /\/$/,
-      "",
-    );
-  } catch {
-    return null;
-  }
-}
-
-function pageOrigin(): string | null {
-  try {
-    return window.location.origin;
-  } catch {
-    return null;
-  }
-}
-
-function parseFirst(body: BoundaryValue): CliAuthorizeRow | null {
-  if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
-  const entry = body.pending[0];
-  if (!isJsonObject(entry)) return null;
-  const requestId = readString(entry.requestId);
-  const terminalSessionId = readString(entry.terminalSessionId);
-  const verb = readString(entry.verb);
-  const respondNonce = readString(entry.respondNonce);
-  if (!requestId || !terminalSessionId || !verb || !respondNonce) return null;
-  return [requestId, terminalSessionId, verb, respondNonce];
-}
-
-function authHeaders(): Record<string, string> | null {
-  const token = readCliAppIntegrationBearer();
-  const origin = pageOrigin();
-  if (!token || !origin) return null;
-  return {
-    authorization: `Bearer ${token}`,
-    Origin: origin,
-  };
+function toAuthorizeRow(
+  row: NonNullable<Awaited<ReturnType<typeof fetchFirstCliAppPending>>>,
+): CliAuthorizeRow {
+  return [row.requestId, row.terminalSessionId, row.verb, row.respondNonce];
 }
 
 export function useCliAuthorizePanel() {
@@ -67,29 +31,32 @@ export function useCliAuthorizePanel() {
   const [header, setHeader] = useState<VaultHeader | null>(null);
 
   useEffect(() => {
-    void (async () => {
-      const origin = daemonOrigin();
-      const headers = authHeaders();
-      if (!origin || !headers) return setRow(null);
-      const res = await localNetworkFetch(
-        `${origin}/v1/cli/app-integration/pending`,
-        {
-          method: "GET",
-          credentials: "omit",
-          cache: "no-store",
-          headers,
-        },
-      );
-      if (!res.ok) return setRow(null);
-      setRow(parseFirst(await res.json()));
-    })();
+    let cancelled = false;
+    async function refresh() {
+      const origin = readDaemonOrigin();
+      const headers = readCliAppAuthHeaders();
+      if (!origin || !headers) {
+        if (!cancelled) setRow(null);
+        return;
+      }
+      const pending = await fetchFirstCliAppPending();
+      if (!cancelled) setRow(pending ? toAuthorizeRow(pending) : null);
+    }
+    void refresh();
+    const timer = setInterval(() => {
+      void refresh();
+    }, gate.pollIntervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   async function finish(decision: "approve" | "deny", humanProof?: string) {
     if (!row || busy) return;
     setBusy(true);
-    const origin = daemonOrigin();
-    const headers = authHeaders();
+    const origin = readDaemonOrigin();
+    const headers = readCliAppAuthHeaders();
     if (!origin || !headers) {
       setBusy(false);
       return;

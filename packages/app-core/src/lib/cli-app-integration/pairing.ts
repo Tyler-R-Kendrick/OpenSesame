@@ -3,6 +3,7 @@
  */
 
 import { b64urlToBytes } from "@opensesame/vault-core";
+import { loadSettings, saveSettings } from "../settings.js";
 import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
@@ -55,6 +56,7 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
 }
 
 export {
+  clearCliAppIntegrationBearer,
   readCliAppIntegrationBearer,
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
@@ -79,5 +81,9 @@ export async function exchangeCliAppPairingCode(
   const token = (body as { token?: string }).token;
   if (typeof token !== "string" || !SECRET.test(token)) return false;
   writeCliAppIntegrationBearer(token);
+  const settings = loadSettings();
+  if (settings.daemonApi !== base) {
+    saveSettings({ ...settings, daemonApi: base });
+  }
   return true;
 }
