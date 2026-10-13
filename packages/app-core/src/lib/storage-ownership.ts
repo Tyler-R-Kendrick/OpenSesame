@@ -22,7 +22,6 @@
  *   fails its first test rather than outlive every reset.
  */
 
-import { CLI_APP_INTEGRATION_BEARER_KEY } from "./cli-app-integration/keys.js";
 import { msalKeyNamesClient } from "./storage-ownership-msal.js";
 
 /** The start of every origin-private file `kv.ts` writes. */
@@ -84,7 +83,6 @@ const KEYS: ReadonlySet<string> = new Set([
   "join.presented.v1",
   "join.pending.v2",
   "join.invite.v1",
-  CLI_APP_INTEGRATION_BEARER_KEY,
 ]);
 
 export function ownsOriginFile(name: string): boolean {

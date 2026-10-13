@@ -3,23 +3,12 @@ import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { CliAuthorizePanelHints } from "./cli-authorize-panel-hints.js";
 import { useCliAuthorizePanel } from "./cli-authorize-panel-model.js";
 
 export function CliAuthorizePanel() {
   const panel = useCliAuthorizePanel();
-  const {
-    row,
-    hint,
-    busy,
-    pinOpen,
-    pin,
-    mark,
-    setPin,
-    onPasskey,
-    onPin,
-    onDeny,
-  } = panel;
+  const { row, busy, pinOpen, pin, mark, setPin, onPasskey, onPin, onDeny } =
+    panel;
 
   return (
     <section className="panel" aria-label="Authorize CLI">
@@ -27,7 +16,13 @@ export function CliAuthorizePanel() {
         <h1>Authorize CLI</h1>
       </div>
       <div className="panel__body">
-        <CliAuthorizePanelHints row={row} hint={hint} />
+        {row === undefined ? <output>Reading CLI request…</output> : null}
+        {row === null ? <p>No CLI request is waiting.</p> : null}
+        {row ? (
+          <p>
+            <code className="identity-ref">{row[2]}</code>
+          </p>
+        ) : null}
         {row && pinOpen ? (
           <form onSubmit={onPin}>
             <FieldShell

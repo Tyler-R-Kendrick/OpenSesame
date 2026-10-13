@@ -1,9 +1,10 @@
 /**
- * PIN / passkey proof for CLI app-integration approve (ADR 0186).
- * HMAC-SHA256 over the pending row, keyed by the paired bearer (per-pairing secret).
+ * PIN / passkey proof for CLI app-integration approve (ADR 0186 round 4).
+ * Binds the pending row's ids to a fresh unlock check without sending secrets.
  */
 
-import { readCliAppIntegrationBearer } from "./bearer-session.js";
+import type { VaultHeader } from "@opensesame/vault-core";
+import type { PasskeyProbe } from "../vault/passkey-unlock-session.js";
 
 export const CLI_APP_HUMAN_PROOF_PREFIX = "oschip1:";
 
@@ -11,7 +12,6 @@ export type CliAppHumanProofBinding = Readonly<{
   requestId: string;
   respondNonce: string;
   terminalSessionId: string;
-  verb: string;
 }>;
 
 function bytesToHex(bytes: Uint8Array): string {
@@ -22,37 +22,31 @@ function bytesToHex(bytes: Uint8Array): string {
   return hex;
 }
 
-function humanProofMessage(binding: CliAppHumanProofBinding): string {
-  return [
-    binding.requestId,
-    binding.terminalSessionId,
-    binding.respondNonce,
-    binding.verb,
-  ].join("\0");
-}
-
-async function hmacSha256Hex(key: string, message: string): Promise<string> {
-  const keyBytes = new TextEncoder().encode(key);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
+async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
   );
-  const sig = await crypto.subtle.sign(
-    "HMAC",
-    cryptoKey,
-    new TextEncoder().encode(message),
-  );
-  return bytesToHex(new Uint8Array(sig));
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return new Uint8Array(digest);
 }
 
 async function proofMac(
-  pairingSecret: string,
   binding: CliAppHumanProofBinding,
+  kind: "pin" | "passkey",
+  material: Uint8Array,
 ): Promise<string> {
-  return hmacSha256Hex(pairingSecret, humanProofMessage(binding));
+  const seed = new TextEncoder().encode(
+    [
+      binding.requestId,
+      binding.respondNonce,
+      binding.terminalSessionId,
+      kind,
+      bytesToHex(material),
+    ].join("\0"),
+  );
+  const mac = await sha256(seed);
+  return bytesToHex(mac);
 }
 
 export function formatCliAppHumanProof(
@@ -68,47 +62,25 @@ export function isCliAppHumanProofValid(proof: string): boolean {
   return PROOF_RE.test(proof.trim());
 }
 
-function requirePairingSecret(): string {
-  const secret = readCliAppIntegrationBearer();
-  if (!secret) {
-    throw new Error("cli_app_pairing_required");
-  }
-  return secret;
-}
-
 export async function mintCliAppHumanProofFromPin(
-  header: import("@opensesame/vault-core").VaultHeader,
+  header: VaultHeader,
   pin: string,
   binding: CliAppHumanProofBinding,
   recordFailedUnlock: () => void,
 ): Promise<string> {
   const { unwrapPin } = await import("../vault/primary-unwrap.js");
   const raw = await unwrapPin(header, pin, recordFailedUnlock);
+  const fingerprint = await sha256(raw);
   raw.fill(0);
-  const pairingSecret = requirePairingSecret();
-  const mac = await proofMac(pairingSecret, binding);
+  const mac = await proofMac(binding, "pin", fingerprint);
   return formatCliAppHumanProof("pin", mac);
 }
 
 export async function mintCliAppHumanProofFromPasskey(
-  probe: import("../vault/passkey-unlock-session.js").PasskeyProbe,
+  probe: PasskeyProbe,
   binding: CliAppHumanProofBinding,
 ): Promise<string> {
-  const fingerprint = new Uint8Array(probe.prfOutput);
-  if (fingerprint.byteLength === 0) {
-    throw new Error("passkey_probe_empty");
-  }
-  const pairingSecret = requirePairingSecret();
-  const mac = await proofMac(pairingSecret, binding);
+  const fingerprint = await sha256(new Uint8Array(probe.prfOutput));
+  const mac = await proofMac(binding, "passkey", fingerprint);
   return formatCliAppHumanProof("passkey", mac);
-}
-
-/** Test helper: mint without vault unlock (vectors / unit tests). */
-export async function mintCliAppHumanProofForTest(
-  pairingSecret: string,
-  binding: CliAppHumanProofBinding,
-  kind: "pin" | "passkey" = "passkey",
-): Promise<string> {
-  const mac = await proofMac(pairingSecret, binding);
-  return formatCliAppHumanProof(kind, mac);
 }
