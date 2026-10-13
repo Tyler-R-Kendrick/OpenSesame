@@ -9,6 +9,8 @@ import { writeCliAppIntegrationBearer } from "./bearer-session.js";
 
 export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
 export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
+export const CLI_APP_PAIRING_CONFIRM_PATH =
+  "/v1/cli/app-integration/pairing/confirm";
 
 export type CliAppPairingCode = Readonly<{
   url: string;
@@ -54,25 +56,72 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
   return { code, origin, url, label };
 }
 
+/** One-time binding secret minted in the unlocked PWA when a person confirms the code. */
+export function mintCliAppPairingPageBinding(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  let out = "";
+  for (const byte of bytes) {
+    out += String.fromCharCode(byte);
+  }
+  return btoa(out).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
 export {
   readCliAppIntegrationBearer,
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
 
-export async function exchangeCliAppPairingCode(
-  parsed: CliAppPairingCode,
-): Promise<boolean> {
-  const base = daemonBase(parsed.url);
-  if (!base) return false;
-  const res = await fetch(`${base}${CLI_APP_PAIRING_EXCHANGE_PATH}`, {
+async function postPairing(
+  base: string,
+  path: string,
+  origin: string,
+  body: Record<string, string>,
+): Promise<Response> {
+  return fetch(`${base}${path}`, {
     method: "POST",
     credentials: "omit",
     headers: {
       "content-type": "application/json",
-      Origin: parsed.origin,
+      Origin: origin,
     },
-    body: JSON.stringify({ code: parsed.code }),
+    body: JSON.stringify(body),
   });
+}
+
+export async function confirmCliAppPairingCode(
+  parsed: CliAppPairingCode,
+  pageBinding: string,
+): Promise<boolean> {
+  const base = daemonBase(parsed.url);
+  if (!base || !SECRET.test(pageBinding)) return false;
+  const res = await postPairing(
+    base,
+    CLI_APP_PAIRING_CONFIRM_PATH,
+    parsed.origin,
+    {
+      code: parsed.code,
+      pageBinding,
+    },
+  );
+  return res.status === 204;
+}
+
+export async function exchangeCliAppPairingCode(
+  parsed: CliAppPairingCode,
+  pageBinding: string,
+): Promise<boolean> {
+  const base = daemonBase(parsed.url);
+  if (!base || !SECRET.test(pageBinding)) return false;
+  const res = await postPairing(
+    base,
+    CLI_APP_PAIRING_EXCHANGE_PATH,
+    parsed.origin,
+    {
+      code: parsed.code,
+      pageBinding,
+    },
+  );
   if (res.status !== 201) return false;
   const body: unknown = await res.json();
   if (!body || typeof body !== "object") return false;
@@ -80,4 +129,13 @@ export async function exchangeCliAppPairingCode(
   if (typeof token !== "string" || !SECRET.test(token)) return false;
   writeCliAppIntegrationBearer(token);
   return true;
+}
+
+/** Confirm in the unlocked PWA, then exchange for the session bearer. */
+export async function completeCliAppPairing(
+  parsed: CliAppPairingCode,
+): Promise<boolean> {
+  const pageBinding = mintCliAppPairingPageBinding();
+  if (!(await confirmCliAppPairingCode(parsed, pageBinding))) return false;
+  return exchangeCliAppPairingCode(parsed, pageBinding);
 }
