@@ -5,6 +5,7 @@
  */
 
 import {
+  type AuthenticatedLegacyGates,
   MANIFEST_SCHEMA_VERSION,
   type ProtectionRecord,
   type RootProtectionManifest,
@@ -37,9 +38,9 @@ export type LegacyMigrationResult = {
   legacyBinding: true;
 };
 
-function gatesFromUnlocks(
+export function gatesFromUnlocks(
   unlocks: VaultUnlocks | undefined,
-): RootProtectionManifest["legacyGates"] {
+): AuthenticatedLegacyGates {
   return {
     totpEnrolled: unlocks?.totp !== undefined,
     emailEnrolled: unlocks?.email !== undefined,

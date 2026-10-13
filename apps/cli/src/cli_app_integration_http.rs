@@ -63,11 +63,7 @@ pub fn post_json_uds(sock: &Path, path: &str, json_body: &str) -> Result<(u16, S
 }
 
 /// POST JSON to `http://127.0.0.1:port/path` and return status code plus body.
-pub fn post_json_loopback(
-    base: &str,
-    path: &str,
-    json_body: &str,
-) -> Result<(u16, String), ()> {
+pub fn post_json_loopback(base: &str, path: &str, json_body: &str) -> Result<(u16, String), ()> {
     let base = base.trim_end_matches('/');
     let path = if path.starts_with('/') {
         path

@@ -224,9 +224,11 @@ describe("allowing a device", () => {
     expect(host.state.devices.grants).toEqual([]);
     expect(host.state.devices.pending).toHaveLength(1);
     // The failure is in the tray as well as on the sheet.
-    expect(
-      listNotices().some((notice) => notice.id === "live-device-allow"),
-    ).toBe(true);
+    await waitFor(() =>
+      expect(
+        listNotices().some((notice) => notice.id === "live-device-allow"),
+      ).toBe(true),
+    );
   });
 
   it("revokes a grant, and the device is told it is over", async () => {

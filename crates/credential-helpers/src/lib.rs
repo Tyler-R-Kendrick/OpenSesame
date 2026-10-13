@@ -31,6 +31,7 @@ use zeroize::Zeroizing;
 pub const ENV_SOCK: &str = "OPENSESAME_AGENT_SOCK";
 
 /// Cap on a mint response; the payload is a few hundred bytes of JSON.
+#[cfg(unix)]
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
 /// Failure classes — safe for stderr by construction.
@@ -114,6 +115,7 @@ pub struct MintedCredential {
 /// A blocking client of the daemon's Unix socket. One request, one response,
 /// connection closed — the helpers are one-shot processes.
 pub struct DaemonClient {
+    #[cfg(unix)]
     sock: PathBuf,
 }
 
@@ -121,15 +123,30 @@ impl DaemonClient {
     /// Socket from `OPENSESAME_AGENT_SOCK`, else the documented default.
     #[must_use]
     pub fn from_env() -> Self {
-        let sock = std::env::var_os(ENV_SOCK)
-            .filter(|v| !v.is_empty())
-            .map_or_else(default_sock_path, PathBuf::from);
-        Self { sock }
+        #[cfg(unix)]
+        {
+            let sock = std::env::var_os(ENV_SOCK)
+                .filter(|v| !v.is_empty())
+                .map_or_else(default_sock_path, PathBuf::from);
+            Self { sock }
+        }
+        #[cfg(not(unix))]
+        {
+            Self {}
+        }
     }
 
     #[must_use]
     pub fn new(sock: PathBuf) -> Self {
-        Self { sock }
+        #[cfg(unix)]
+        {
+            Self { sock }
+        }
+        #[cfg(not(unix))]
+        {
+            drop(sock);
+            Self {}
+        }
     }
 
     /// `POST /v1/mint` over the daemon's UDS. Peer-cred attestation is the
@@ -148,7 +165,7 @@ impl DaemonClient {
         if let Some(installation_id) = installation_id {
             body["installation_id"] = json!(installation_id);
         }
-        let (status, response_body) = self.post("/v1/mint", &body)?;
+        let (status, response_body) = Self::post(self, "/v1/mint", &body)?;
         if status != 200 {
             let code = response_body
                 .as_deref()
@@ -182,10 +199,10 @@ impl DaemonClient {
     }
 
     #[cfg(unix)]
-    fn post(&self, path: &str, body: &Value) -> Result<(u16, Option<String>), HelperError> {
+    fn post(client: &Self, path: &str, body: &Value) -> Result<(u16, Option<String>), HelperError> {
         use std::io::{Read, Write};
         let payload = serde_json::to_string(body).map_err(|_| HelperError::Malformed)?;
-        let mut stream = std::os::unix::net::UnixStream::connect(&self.sock)
+        let mut stream = std::os::unix::net::UnixStream::connect(&client.sock)
             .map_err(|error| HelperError::Unavailable(error.to_string()))?;
         stream
             .set_read_timeout(Some(std::time::Duration::from_secs(10)))
@@ -225,7 +242,11 @@ impl DaemonClient {
     }
 
     #[cfg(not(unix))]
-    fn post(&self, _path: &str, _body: &Value) -> Result<(u16, Option<String>), HelperError> {
+    fn post(
+        _client: &Self,
+        _path: &str,
+        _body: &Value,
+    ) -> Result<(u16, Option<String>), HelperError> {
         Err(HelperError::UnsupportedPlatform)
     }
 }

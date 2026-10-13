@@ -18,11 +18,11 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+#[cfg(test)]
+use opensesame_connection_broker::CreateSyncTarget;
 use opensesame_connection_broker::{
     config_access::ResourcePermission, KeyFilteredSecretSource, SyncSecretSource,
 };
-#[cfg(test)]
-use opensesame_connection_broker::CreateSyncTarget;
 use opensesame_domain::OrganizationId;
 use opensesame_task_bus::BusEvent;
 use serde::Deserialize;
@@ -241,7 +241,11 @@ pub async fn sync_one(
         Err(resp) => return resp,
     };
     let organization_id = organization_or_return!(&st, &who, &headers);
-    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+    let target = match st
+        .connection_broker
+        .get_sync_target(&organization_id, &id)
+        .await
+    {
         Ok(target) => target,
         Err(e) => return broker_error(&e),
     };
@@ -331,12 +335,7 @@ pub async fn sync_all(
     {
         return resp;
     }
-    let secrets = match secret_source_from_body(
-        &st,
-        &who,
-        &organization_id,
-        &SyncBody::default(),
-    ) {
+    let secrets = match secret_source_from_body(&st, &who, &organization_id, &SyncBody::default()) {
         Ok(secrets) => secrets,
         Err(resp) => return resp,
     };

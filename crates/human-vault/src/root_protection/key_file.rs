@@ -5,10 +5,10 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::password_wrap::{unwrap_vrk_with_password, wrap_vrk_with_password, PasswordWrapper};
+use crate::password_wrap::{unwrap_vrk_with_password, PasswordWrapper};
 use crate::{ItemDataKey, VaultRootKey};
 
-use super::auth::{seal_manifest_auth, verify_manifest_auth};
+use super::auth::verify_manifest_auth;
 use super::error::ProtectionError;
 use super::legacy::{
     looks_like_legacy_password_wrapper, parse_legacy_password_wrapper,
@@ -18,9 +18,8 @@ use super::limits::{
     KEY_FILE_NAME, MANIFEST_SCHEMA_VERSION, MAX_MANIFEST_ENCODED_BYTES, MAX_PROTECTION_RECORDS,
     MAX_RECORD_ENCODED_BYTES,
 };
-use super::types::{
-    ProofStatus, ProtectionPurpose, ProtectionRecord, ProtectorSummary, RootProtectionManifest,
-};
+use super::native_factor_configuration::assert_present_binding;
+use super::types::{ProofStatus, ProtectionRecord, ProtectorSummary, RootProtectionManifest};
 
 /// Contents of `.opensesame-key`.
 #[derive(Debug, Clone)]
@@ -59,8 +58,7 @@ pub fn parse_key_file_json(json: &str) -> Result<KeyFileContents, ProtectionErro
             json,
         )?));
     }
-    let manifest: RootProtectionManifest = serde_json::from_value(value)
-        .map_err(|e| ProtectionError::MalformedEncoding(format!("manifest: {e}")))?;
+    let manifest = super::parse::parse_root_protection_manifest(json)?;
     validate_manifest_bounds(&manifest)?;
     Ok(KeyFileContents::Manifest(manifest))
 }
@@ -147,30 +145,7 @@ pub fn init_versioned_key_file(
     root: &Path,
     password: &[u8],
 ) -> Result<(ItemDataKey, RootProtectionManifest), ProtectionError> {
-    let vrk = VaultRootKey::generate();
-    let wrapper = wrap_vrk_with_password(password, &vrk)?;
-    let vault_id = uuid::Uuid::new_v4().to_string();
-    let root_key_id = uuid::Uuid::new_v4().to_string();
-    let protector_id = uuid::Uuid::new_v4().to_string();
-    let mut manifest = RootProtectionManifest {
-        schema_version: MANIFEST_SCHEMA_VERSION,
-        vault_id,
-        root_key_id,
-        root_epoch: 1,
-        revision: 1,
-        purpose: ProtectionPurpose::HumanVaultRoot,
-        records: vec![ProtectionRecord::Password {
-            protector_id: protector_id.clone(),
-            legacy: true,
-            wrapper,
-            proof_status: ProofStatus::Verified,
-            last_evidence: None,
-        }],
-        preferred_protector_id: Some(protector_id),
-        legacy_gates: None,
-        auth_b64: None,
-    };
-    seal_manifest_auth(&vrk, &mut manifest)?;
+    let (vrk, manifest) = super::new_password_root::prepare(password)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest.clone()))?;
     Ok((ItemDataKey(vrk.0), manifest))
 }
@@ -196,6 +171,7 @@ pub fn unlock_key_file_with_password(
             let wrapper = password_wrapper_from_manifest(manifest)?;
             let vrk = unwrap_vrk_with_password(password, wrapper)?;
             verify_manifest_auth(&vrk, manifest)?;
+            assert_present_binding(manifest)?;
             vrk
         }
     };
@@ -239,7 +215,9 @@ pub fn password_wrapper_from_manifest(
     Err(ProtectionError::ProtectorNotFound)
 }
 
-fn validate_manifest_bounds(manifest: &RootProtectionManifest) -> Result<(), ProtectionError> {
+pub(super) fn validate_manifest_bounds(
+    manifest: &RootProtectionManifest,
+) -> Result<(), ProtectionError> {
     if manifest.schema_version != MANIFEST_SCHEMA_VERSION {
         return Err(ProtectionError::UnsupportedVersion(manifest.schema_version));
     }

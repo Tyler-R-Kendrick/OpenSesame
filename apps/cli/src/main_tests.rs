@@ -92,13 +92,13 @@ fn pass_kdbx_verbs_parse_without_colliding_with_the_global_output_option() {
         "--reveal",
     ]);
     let Commands::Vault {
-        cmd:
-            vault_area::VaultArea::Pass {
-                cmd: PassCmd::ExportKdbx { dest, reveal, .. },
-            },
+        cmd: vault_area::VaultArea::Pass { cmd },
     } = cli.command
     else {
         panic!("expected vault pass export-kdbx");
+    };
+    let PassCmd::ExportKdbx { dest, reveal, .. } = cmd.into_inner() else {
+        panic!("expected export-kdbx");
     };
     assert_eq!(dest, PathBuf::from("/tmp/vault.kdbx"));
     assert!(reveal);
@@ -116,20 +116,20 @@ fn pass_kdbx_verbs_parse_without_colliding_with_the_global_output_option() {
         "--replace",
     ]);
     let Commands::Vault {
-        cmd:
-            vault_area::VaultArea::Pass {
-                cmd:
-                    PassCmd::ImportKdbx {
-                        file,
-                        keyfile,
-                        prefix,
-                        replace,
-                        ..
-                    },
-            },
+        cmd: vault_area::VaultArea::Pass { cmd },
     } = cli.command
     else {
         panic!("expected vault pass import-kdbx");
+    };
+    let PassCmd::ImportKdbx {
+        file,
+        keyfile,
+        prefix,
+        replace,
+        ..
+    } = cmd.into_inner()
+    else {
+        panic!("expected import-kdbx");
     };
     assert_eq!(file, PathBuf::from("/tmp/vault.kdbx"));
     assert_eq!(keyfile, Some(PathBuf::from("/tmp/vault.key")));

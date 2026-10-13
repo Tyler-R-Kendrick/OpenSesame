@@ -1,0 +1,235 @@
+{
+  "format": "actual-browser-evidence-index-v1",
+  "date": "2026-10-09",
+  "executable": false,
+  "captureDriverBefore": "apps/pages/scripts/capture-retired-security-before.mjs",
+  "captureDriverAfter": "apps/pages/scripts/verify-retired-credential-management.mjs",
+  "loader": "node --import ./packages/cli/node_modules/tsx/dist/loader.mjs",
+  "browser": "/usr/bin/chromium",
+  "origin": "https://tyler-r-kendrick.github.io",
+  "base": "/OpenSesame/",
+  "sameJourney": [
+    "Create a new persistent vault through the actual UI.",
+    "Seal with the test-only device PIN; wait for the actual open session.",
+    "Capture PIN-setup completion.",
+    "Navigate through existing Settings to Security.",
+    "Capture initial Security before opening retired-password management."
+  ],
+  "pairs": [
+    {
+      "profile": "desktop",
+      "screen": "pin-setup",
+      "measurement": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "observed": {
+          "width": 1280,
+          "height": 900,
+          "coarsePointer": false
+        },
+        "nativeContextEmulation": false,
+        "fullPageScreenshot": true
+      },
+      "captures": {
+        "before": {
+          "image": "desktop-before-pin-setup.png",
+          "sha256": "ee9ad55282a2c39668de3de917495610ac70edc3b83affb0696745075a1d143f",
+          "width": 1280,
+          "height": 900
+        },
+        "after": {
+          "image": "desktop-after-pin-setup.png",
+          "sha256": "071d736edafd04032b62d0ca44247c95e13bb907f7e464834d05f46a36c2d6f6",
+          "width": 1280,
+          "height": 900
+        }
+      },
+      "pixelBytesIdentical": false,
+      "securityManagementRows": null
+    },
+    {
+      "profile": "desktop",
+      "screen": "security",
+      "measurement": {
+        "viewport": {
+          "width": 1280,
+          "height": 900
+        },
+        "observed": {
+          "width": 1280,
+          "height": 900,
+          "coarsePointer": false
+        },
+        "nativeContextEmulation": false,
+        "fullPageScreenshot": true
+      },
+      "captures": {
+        "before": {
+          "image": "desktop-before-security.png",
+          "sha256": "dc6c09b3d700f4290d23f1e655fccdda6402c404a6e8dc34d538609d8046243c",
+          "width": 1280,
+          "height": 923
+        },
+        "after": {
+          "image": "desktop-after-security.png",
+          "sha256": "dc6c09b3d700f4290d23f1e655fccdda6402c404a6e8dc34d538609d8046243c",
+          "width": 1280,
+          "height": 923
+        }
+      },
+      "pixelBytesIdentical": true,
+      "securityManagementRows": {
+        "before": 0,
+        "after": 1
+      }
+    },
+    {
+      "profile": "phone",
+      "screen": "pin-setup",
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed": {
+          "width": 390,
+          "height": 844,
+          "coarsePointer": true
+        },
+        "nativeContextEmulation": true,
+        "fullPageScreenshot": false
+      },
+      "captures": {
+        "before": {
+          "image": "phone-before-pin-setup.png",
+          "sha256": "0fd12a6a0cd36bb74b09237e9bb4ac8286fab34264469d68bf69cba9bfb08e95",
+          "width": 390,
+          "height": 844
+        },
+        "after": {
+          "image": "phone-after-pin-setup.png",
+          "sha256": "67a12b142e2e92eceb6504d068ec135e910ff2dc4f3469782d08297f37bcc8fd",
+          "width": 390,
+          "height": 844
+        }
+      },
+      "pixelBytesIdentical": false,
+      "securityManagementRows": null
+    },
+    {
+      "profile": "phone",
+      "screen": "security",
+      "measurement": {
+        "viewport": {
+          "width": 390,
+          "height": 844
+        },
+        "observed": {
+          "width": 390,
+          "height": 844,
+          "coarsePointer": true
+        },
+        "nativeContextEmulation": true,
+        "fullPageScreenshot": false
+      },
+      "captures": {
+        "before": {
+          "image": "phone-before-security.png",
+          "sha256": "f7b93ebafde2da322089ef59e180eb87891fda4edc12ac14844ba3caa263f895",
+          "width": 390,
+          "height": 844
+        },
+        "after": {
+          "image": "phone-after-security.png",
+          "sha256": "f7b93ebafde2da322089ef59e180eb87891fda4edc12ac14844ba3caa263f895",
+          "width": 390,
+          "height": 844
+        }
+      },
+      "pixelBytesIdentical": true,
+      "securityManagementRows": {
+        "before": 0,
+        "after": 1
+      }
+    }
+  ],
+  "fullBuilds": {
+    "before": {
+      "files": 247,
+      "pinsSHA256": "94e768b7b1c92890a2ceed785bfc63f17c8015fd5b29a6981e9646448828fe1a",
+      "indexSHA256": "3fc84cbd2ca07c95e959bad4d1755fce78de2bdd0657d845258807e60ed451b7"
+    },
+    "after": {
+      "files": 246,
+      "pinsSHA256": "8366595113fdc635c600e9f284097735736df57bc42f8f3649376b2472608ec8",
+      "indexSHA256": "cf837c3051a8b45f0dbf65f071868b40bdb475e50908a1ac6b6ad288be812a2e"
+    }
+  },
+  "actualAfterRuntime": {
+    "path": "/tmp/retired-pwa-corrected-management-desktop-phone-runtime-actual-v9/receipt.json",
+    "sha256": "0e670b8d8f8f8b0e94ed99032b5b932d91268ecb9341da8a32abd527dd560299",
+    "bytes": 1300
+  },
+  "sourceOnlyAfterQualificationIndex": {
+    "path": "/tmp/retired-pwa-corrected-management-evidence-qualification-source-v1.json",
+    "sha256": "7256b17c00435380bfead8c52237e58b5ac01637ce7e292444d2740ad1a61ce0",
+    "bytes": 3470
+  },
+  "ordinaryUnlockRegression": {
+    "currentReceipt": {
+      "path": "/tmp/retired-pwa-original-unlock-policy-three-document-browser-actual-v2/receipt.json",
+      "sha256": "32aa4b8eb3eb9e88dc37f2d621cbe34c98a0e631f4cdb5f80af18c8c45b9d3df",
+      "bytes": 987
+    },
+    "currentQualification": {
+      "path": "/tmp/retired-pwa-original-unlock-policy-three-document-browser-actual-v2/QUALIFICATION-ADDENDUM.json",
+      "sha256": "9e4410b338d3f7632eb8b0de44c20eba97f8a39e3115808959bd16176d1b5ae7",
+      "bytes": 799
+    },
+    "earlierFailedReceipt": {
+      "path": "/tmp/retired-original-security-ui-before-three-document-browser-actual-v6/receipt.json",
+      "sha256": "ec04525dea807ef3c78f9a73e35f4381f81ab22d008f4af2264243fdad23532c",
+      "bytes": 984
+    },
+    "earlierFailureQualification": {
+      "path": "/tmp/retired-original-security-ui-before-three-document-browser-actual-v6/QUALIFICATION-ADDENDUM.json",
+      "sha256": "22dd3160a3e7b25307e20897c2c497f676d6ea2f146cc9e00fc419914128add3",
+      "bytes": 965
+    }
+  },
+  "separateCoreControls": {
+    "receipt": {
+      "path": "/tmp/retired-original-unlock-all-ordinary-policy-compiler-runtime-actual-v3/receipt.json",
+      "sha256": "a951eabf1fcb4e8d74fcfab24dba8e6b7ed599440ec84dc2b5e8ac47a6612e0c",
+      "bytes": 2061
+    },
+    "qualifiedControls": {
+      "path": "/tmp/retired-original-unlock-all-ordinary-policy-compiler-runtime-actual-v3/QUALIFICATION-ADDENDUM.json",
+      "sha256": "8aefac08d9c955eaa0dc9ab928453b992831a82bc8d19a0c382be7f932d9ed7f",
+      "bytes": 628
+    },
+    "compilerLog": {
+      "path": "/tmp/retired-original-unlock-all-ordinary-policy-compiler-runtime-actual-v3/command.log",
+      "sha256": "32b94d6d62c8a57c4576cb635ca79880176794b076003008b4a03f556bbafbdf",
+      "bytes": 417
+    },
+    "controls": {
+      "files": 24,
+      "pass": 94,
+      "fail": 0,
+      "skip": 0
+    },
+    "qualification": "Actual unchanged Core production source and genuine root/MAC/AEAD/factor lifecycle/concurrency controls. Browser OPFS/WebLocks and remote code-send APIs are TestHost delivery doubles where stated; no hardware, browser platform, remote verified principal, device-global all-writer lease, synthetic REAL-isolation, complete release or production admission. Whole actual browser three-document regression remains required."
+  },
+  "qualification": [
+    "Phone context emulates viewport/touch/coarse pointer; no physical phone tested.",
+    "Service workers blocked; install and offline operation untested.",
+    "Static deployed-file transport substituted; external network refused. No authentication, crypto, or browser-storage doubles.",
+    "Retired login, separate synthetic realm, synthetic exit, authority-escape checks, receiver delivery, native SDK and all-client activation untested.",
+    "Before desktop/phone captures passed individually. Their aggregate also ran a failing original multi-document baseline; do not treat that aggregate as fully passing.",
+    "The corrected build passes the original three-document stale-unlock regression; synthetic/global/native/remote and full production readiness remain unproven."
+  ],
+  "additionalVisibleFeatureEvidence": "interactions/README.md"
+}

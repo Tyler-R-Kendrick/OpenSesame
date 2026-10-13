@@ -1,69 +1,8 @@
 import { createHash } from "node:crypto";
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type Jsonable,
-  type MutableBoundaryObject,
-  isFunction,
-  isString,
-  isTypeofObject,
-  overlapCast,
-} from "../json.js";
+import { type JsonObject, isString } from "../json.js";
+import { canonicalize } from "./canonical.js";
 
-function isJsonable(value: BoundaryValue): value is Jsonable {
-  if (!isTypeofObject(value) || value === null) return false;
-  const candidate: Jsonable = overlapCast(value);
-  return isFunction(candidate.toJSON);
-}
-
-/**
- * Stable JSON canonicalization for manifest digests.
- * Object keys sorted recursively; arrays preserve order.
- */
-export function canonicalize(value: BoundaryValue): string {
-  return JSON.stringify(sortKeys(value));
-}
-
-function sortKeys(value: BoundaryValue): BoundaryValue {
-  if (value === null || !isTypeofObject(value)) {
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (value instanceof Map) {
-    const out: MutableBoundaryObject = {};
-    const entries = [...value.entries()].sort(([a], [b]) =>
-      String(a).localeCompare(String(b)),
-    );
-    for (const [key, item] of entries) {
-      out[String(key)] = sortKeys(item);
-    }
-    return out;
-  }
-  if (Array.isArray(value)) {
-    return value.map(sortKeys);
-  }
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null && isJsonable(value)) {
-    return sortKeys(value.toJSON());
-  }
-  const obj: MutableBoundaryObject = overlapCast(value);
-  const out: MutableBoundaryObject = {};
-  for (const key of Object.keys(obj).sort()) {
-    // Defined, not assigned: `out["__proto__"] = x` calls the prototype
-    // setter and writes no property at all, so a `__proto__` member would
-    // silently fall out of the digest — a field an approver could be shown
-    // that nothing hashes.
-    Object.defineProperty(out, key, {
-      value: sortKeys(obj[key]),
-      enumerable: true,
-      writable: true,
-      configurable: true,
-    });
-  }
-  return out;
-}
+export { canonicalize };
 
 export function sha256Hex(data: string | Uint8Array): string {
   const h = createHash("sha256");

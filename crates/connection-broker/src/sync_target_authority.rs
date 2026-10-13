@@ -100,8 +100,8 @@ impl ConnectionBroker {
                     .await
                     .map_err(policy_error)?
                     .ok_or(BrokerError::SyncTargetNotFound)?;
-                let revision = i64::try_from(policy.revision)
-                    .map_err(|_| BrokerError::SyncTargetNotFound)?;
+                let revision =
+                    i64::try_from(policy.revision).map_err(|_| BrokerError::SyncTargetNotFound)?;
                 (
                     "session",
                     Some(principal.to_string()),
@@ -111,7 +111,9 @@ impl ConnectionBroker {
             }
         };
         // A concurrently discovered target is denied until the grant exists.
-        let target = self.insert_sync_target_unapproved(organization_id, request).await?;
+        let target = self
+            .insert_sync_target_unapproved(organization_id, request)
+            .await?;
         let grant = sqlx::query(
             "INSERT INTO sync_target_authority
                 (target_id,organization_id,project_id,config_id,actor_kind,
@@ -132,7 +134,10 @@ impl ConnectionBroker {
             return Err(error.into());
         }
         let row = self.sync_target_in_org(organization_id, &target.id).await?;
-        if let Err(error) = self.require_sync_target_authority(organization_id, &row).await {
+        if let Err(error) = self
+            .require_sync_target_authority(organization_id, &row)
+            .await
+        {
             let _ = self.delete_sync_target(organization_id, &target.id).await;
             return Err(error);
         }
@@ -165,8 +170,8 @@ impl ConnectionBroker {
             return Err(BrokerError::SyncTargetNotFound);
         }
         let principal: String = grant.try_get("principal_id")?;
-        let principal = PrincipalId::parse(&principal)
-            .map_err(|_| BrokerError::SyncTargetNotFound)?;
+        let principal =
+            PrincipalId::parse(&principal).map_err(|_| BrokerError::SyncTargetNotFound)?;
         let role: String = grant.try_get("session_role")?;
         let role = match role.as_str() {
             "owner" => OrganizationRole::Owner,

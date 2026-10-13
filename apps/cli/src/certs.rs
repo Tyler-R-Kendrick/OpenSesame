@@ -7,10 +7,11 @@ use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
     fs,
-    io::Write as _,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
+
+#[cfg(unix)]
+use std::{io::Write as _, os::unix::fs::PermissionsExt};
 
 use crate::connect;
 
@@ -197,18 +198,36 @@ fn sanitize_stem(cn: &str) -> String {
     }
 }
 
-/// Write a public PEM (a certificate or CA) at `mode`.
+/// Write a public PEM; POSIX modes apply on Unix, and only the public
+/// certificate request (`0644`) is supported on other platforms.
 fn write_pem(path: &Path, pem: &str, mode: u32) -> Result<()> {
+    #[cfg(not(unix))]
+    if mode != 0o644 {
+        bail!("only public certificate output is supported by this writer");
+    }
     fs::write(path, pem).with_context(|| format!("writing {}", path.display()))?;
+    #[cfg(unix)]
     fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
     Ok(())
 }
 
 /// Write a private key: created `0600` from its first byte and renamed into
 /// place, never written at the umask's mode and chmodded afterwards.
+#[cfg(unix)]
 fn write_private_pem(path: &Path, pem: &str) -> Result<()> {
     crate::attach::write_owner_only(path, |file| Ok(file.write_all(pem.as_bytes())?))
         .with_context(|| format!("writing {}", path.display()))
+}
+
+// Inherited Windows ACLs do not establish owner-private key-file creation.
+// Refuse before opening, creating, replacing or removing any file.
+#[cfg(not(unix))]
+fn write_private_pem(_path: &Path, _pem: &str) -> Result<()> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "owner-private certificate key writing is not implemented on this platform",
+    )
+    .into())
 }
 
 /// `opensesame cert key` — collect a host-custody private key (ADR 0075).
@@ -252,10 +271,12 @@ pub async fn cmd_key(
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     fn mode_of(path: &Path) -> u32 {
         fs::metadata(path).unwrap().permissions().mode() & 0o777
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_private_key_is_owner_only_even_over_a_world_readable_file() {
         let dir = tempfile::tempdir().unwrap();
@@ -270,11 +291,64 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_public_certificate_keeps_its_readable_mode() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("host.crt.pem");
         write_pem(&path, "cert", 0o644).unwrap();
         assert_eq!(mode_of(&path), 0o644);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_public_certificate_writes_and_replaces_the_exact_pem_bytes() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("host.crt.pem");
+        write_pem(&path, "certificate\n", 0o644).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "certificate\n");
+        write_pem(&path, "replacement certificate\n", 0o644).unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "replacement certificate\n"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_public_writer_cannot_claim_private_posix_modes_on_windows() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("existing.crt.pem");
+        fs::write(&path, "unchanged").unwrap();
+        assert!(write_pem(&path, "replacement", 0o600).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "unchanged");
+        let absent = dir.path().join("absent.crt.pem");
+        assert!(write_pem(&absent, "certificate", 0o600).is_err());
+        assert!(!absent.exists());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn unsupported_private_writing_preserves_existing_destinations_and_partial_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("host.key.pem");
+        let partial = path.with_extension("partial");
+        fs::write(&path, "unchanged old file").unwrap();
+        fs::write(&partial, "unchanged previous partial").unwrap();
+        let absent = dir.path().join("absent.key.pem");
+        for destination in [&path, &absent] {
+            let error = write_private_pem(destination, "new private material").unwrap_err();
+            assert_eq!(
+                error.downcast_ref::<std::io::Error>().unwrap().kind(),
+                std::io::ErrorKind::Unsupported
+            );
+        }
+        assert_eq!(fs::read_to_string(&path).unwrap(), "unchanged old file");
+        assert_eq!(
+            fs::read_to_string(&partial).unwrap(),
+            "unchanged previous partial"
+        );
+        assert!(!absent.exists());
+        assert!(!absent.with_extension("partial").exists());
     }
 }

@@ -3712,11 +3712,13 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bytes",
+ "chacha20poly1305",
  "chrono",
  "clap",
  "crossterm 0.29.0",
  "directories",
  "hex",
+ "hkdf",
  "http-body-util",
  "hyper",
  "hyper-util",
@@ -4170,6 +4172,7 @@ dependencies = [
  "hkdf",
  "hmac 0.12.1",
  "insta",
+ "libc",
  "opensesame-domain",
  "pbkdf2 0.12.2",
  "proptest",
@@ -4177,10 +4180,12 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.9",
+ "subtle",
  "tempfile",
  "thiserror 2.0.19",
  "unicode-normalization",
  "uuid",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 
@@ -4620,6 +4625,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.19",
  "url",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 

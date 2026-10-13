@@ -25,7 +25,9 @@ fn run_with(store: &Path, password: &str, args: &[&str], stdin: &str) -> Output 
             "OPENSESAME_DAEMON_API",
             cli_app_integration_mock::shared_daemon_base().as_str(),
         );
-    let mut child = command.spawn().expect("failed to run the opensesame binary");
+    let mut child = command
+        .spawn()
+        .expect("failed to run the opensesame binary");
     child
         .stdin
         .take()

@@ -49,6 +49,41 @@ const CLOUD_ADAPTERS = [
 
 export const VAULT_LIB_RULES = [
   core(
+    "src/lib/original-device-identity-fence-data",
+    null,
+    "fixed original identity serialization; no Root or factor admission",
+  ),
+  core(
+    "src/lib/original-device-identity-pending-data",
+    null,
+    "per-Store original generation deduplication; no authentication authority",
+  ),
+  core(
+    "src/lib/original-device-identity-seal-data",
+    "identity.brokered-signin",
+    "fixed device identity record sealing and accepted-work retirement",
+  ),
+  core(
+    "src/lib/original-device-identity-crypto-data",
+    "identity.brokered-signin",
+    "fixed P256 device identity operations and accepted-work retirement",
+  ),
+  core(
+    `${V}protection/protector-context`,
+    UNLOCK,
+    "pure capsule metadata; management loads only at authenticated operation use",
+  ),
+  core(
+    "src/lib/retired-credentials/",
+    UNLOCK,
+    "bounded retired-credential records and authentication boundaries",
+  ),
+  core(
+    "src/lib/agent-canaries/",
+    UNLOCK,
+    "bounded controlled-canary records and original sealed-data operations",
+  ),
+  core(
     "src/lib/password-agent/",
     ITEMS,
     "provider-independent credential workflow algorithms and native CLI ports; the local vault reuses discovery and template handling",

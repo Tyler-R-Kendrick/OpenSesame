@@ -40,6 +40,8 @@ mod proxy_path;
 use proxy_loopback::proxy_loopback;
 mod invoke_through;
 mod keychain;
+mod listener;
+mod listener_startup;
 mod mint;
 mod peer_auth;
 mod plugin_routes;
@@ -56,7 +58,6 @@ mod token_source;
 mod toolbar;
 mod vault_drive;
 mod vault_drive_routes;
-use startup::{build_state, secured_router};
 
 use peer_auth::UdsConnectInfo;
 use ratelimit::{rate_limited, RateKey};
@@ -242,23 +243,13 @@ fn discover_response(mut report: discovery::DiscoveryReport) -> Response {
 /// Fails when the listen address or socket is refused by policy, cannot be
 /// bound, or the daemon's startup security checks do not pass.
 pub async fn run(args: Args) -> anyhow::Result<()> {
-    let listen = args.listen.clone();
-    let sock = args
-        .sock
-        .clone()
-        .or_else(|| env::var("OPENSESAME_AGENT_SOCK").ok());
-
-    let (state, hsts) = build_state(&args)?;
-    let app = secured_router(state.clone(), hsts)?;
-
-    let uds_only = opensesame_host_core::daemon::uds_only_requested();
-    tracing::info!(
-        %listen,
-        sock = ?sock,
+    let listener_startup::Prepared {
+        listen,
+        sock,
+        state,
+        app,
         uds_only,
-        wit = opensesame_host_core::wit_contract::PACKAGE,
-        "daemon starting"
-    );
+    } = listener_startup::prepare(&args)?;
 
     #[cfg(unix)]
     if uds_only {
@@ -283,12 +274,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
 
-    let app_clone = app.clone();
     let tcp = tokio::net::TcpListener::bind(&listen).await?;
 
     #[cfg(unix)]
     if let Some(sock_path) = sock.clone() {
-        daemon_listen::spawn_uds(&sock_path, app_clone)?;
+        daemon_listen::spawn_uds(&sock_path, app.clone())?;
     }
 
     #[cfg(not(unix))]
@@ -297,17 +287,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     }
 
     tracing::info!(%listen, "daemon TCP listening");
-    let tcp_app = app.clone();
-    let tcp_handle = tokio::spawn(async move {
-        if let Err(e) = axum::serve(
-            tcp,
-            tcp_app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-        )
-        .await
-        {
-            tracing::error!(error = %e, "tcp serve failed");
-        }
-    });
+    let tcp_handle = listener::spawn_tcp(tcp, app.clone());
     // Accept before Windows loopback probes / Tailscale Serve target selection.
     tokio::task::yield_now().await;
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -323,8 +303,8 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // Read-only tailnet listener (ADR 0048 §8, D9): whois identity, no bearer.
     #[cfg(all(unix, feature = "tailscale"))]
     daemon_listen::spawn_tailnet(&listen, &state).await;
-
     tcp_handle.await?;
+    drop(state);
     Ok(())
 }
 

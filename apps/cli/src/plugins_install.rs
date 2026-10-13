@@ -129,7 +129,13 @@ pub(crate) async fn install(
 }
 
 /// Fetch `from` to a partial file beside `dest`, verify it, move it in place.
-async fn place(from: &str, dest: &Path, pin: &str, executable: bool) -> anyhow::Result<()> {
+async fn place(
+    from: &str,
+    dest: &Path,
+    pin: &str,
+    #[cfg(unix)] executable: bool,
+    #[cfg(not(unix))] _executable: bool,
+) -> anyhow::Result<()> {
     let dir = dest
         .parent()
         .ok_or_else(|| anyhow::anyhow!("install destination has no directory"))?;
@@ -153,6 +159,7 @@ async fn place(from: &str, dest: &Path, pin: &str, executable: bool) -> anyhow::
         let _ = std::fs::remove_file(&partial);
         return Err(error);
     }
+    #[cfg(unix)]
     set_mode(&partial, if executable { 0o755 } else { 0o644 })?;
     std::fs::rename(&partial, dest)?;
     Ok(())
@@ -162,11 +169,6 @@ async fn place(from: &str, dest: &Path, pin: &str, executable: bool) -> anyhow::
 fn set_mode(path: &Path, mode: u32) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
-}
-
-#[cfg(not(unix))]
-fn set_mode(_: &Path, _: u32) -> std::io::Result<()> {
-    Ok(())
 }
 
 async fn fetch(from: &str, partial: &Path) -> anyhow::Result<()> {

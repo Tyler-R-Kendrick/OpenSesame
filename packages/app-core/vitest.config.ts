@@ -21,7 +21,9 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",
-    testTimeout: 20_000,
+    // PIN suites derive real 10M-iteration PBKDF2 wraps; under a loaded
+    // full-suite run the KDF alone can exceed the default budget.
+    testTimeout: 60_000,
     hookTimeout: 20_000,
     setupFiles: ["./src/test-setup.ts"],
   },

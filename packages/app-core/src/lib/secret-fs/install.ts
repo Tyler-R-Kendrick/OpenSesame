@@ -15,10 +15,14 @@ export async function installFileBackedVfs(
   const adapter = createFileBackedVfs(files, previous);
   await adapter.hydrate();
   Object.assign(vfsSeams, adapter.seams);
+  // This legacy adapter has no fresh physical refresh yet; never borrow the device KV transport.
+  Reflect.deleteProperty(vfsSeams, "refreshRaw");
   return () => {
     vfsSeams.readRaw = previous.readRaw;
     vfsSeams.writeRaw = previous.writeRaw;
     vfsSeams.deleteRaw = previous.deleteRaw;
+    if (previous.refreshRaw) vfsSeams.refreshRaw = previous.refreshRaw;
+    else Reflect.deleteProperty(vfsSeams, "refreshRaw");
     if (previous.openBody) vfsSeams.openBody = previous.openBody;
     else Reflect.deleteProperty(vfsSeams, "openBody");
   };

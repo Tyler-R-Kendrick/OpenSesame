@@ -1,3 +1,6 @@
+import { host } from "./host.js";
+import { sealedWebStorage } from "./lib/at-rest/web-storage.js";
+import type { OriginalOfflineBuildPort } from "./lib/duress/store/original-offline-build-port.js";
 /**
  * The platform ports (ADR 0133 §2): everything the core needs that differs
  * between a browser tab, a CLI process and an Android isolate. The runtime
@@ -14,10 +17,14 @@
  * (`Location`, `CredentialsContainer`, …). Those are types only: they are
  * erased at build time and load nothing on a host without a DOM.
  */
-import { host } from "./host.js";
-import { sealedWebStorage } from "./lib/at-rest/web-storage.js";
+import type { PhysicalApplicationVaultWipePort } from "./lib/duress/wipe/physical-application-vault-wipe.js";
 import { storageWritesHalted } from "./lib/storage-halt.js";
 import { type WebStorageArea, ownsDatabase } from "./lib/storage-ownership.js";
+import type { PhysicalAuthenticationPort } from "./lib/vault/physical-authentication-port.js";
+import type { PhysicalCurrentCredentialCataloguePort } from "./lib/vault/physical-current-credential-catalogue.js";
+import type { PhysicalDeviceRecordPort } from "./lib/vault/physical-device-record-port.js";
+import type { PhysicalVaultGenerationPort } from "./lib/vault/physical-vault-generation-port.js";
+import type { PhysicalVaultPublicationPort } from "./lib/vault/physical-vault-publication-port.js";
 
 /** Web Storage, as `localStorage` and `sessionStorage` expose it. */
 export type WebStorage = {
@@ -112,7 +119,12 @@ export type EnvironmentPort = {
 };
 
 /** Web Locks, as `navigator.locks` offers them. */
-export type LockManagerLike = Pick<LockManager, "request">;
+export type LockManagerLike = Pick<LockManager, "request"> & {
+  /** Original provider identity check; never evidence of a held lease. */
+  readonly checkOriginal?: () => void;
+  /** Wait for this provider's original resources to drain. */
+  readonly close?: () => Promise<void>;
+};
 
 export type BroadcastLike = Pick<
   BroadcastChannel,
@@ -125,6 +137,8 @@ export type BroadcastLike = Pick<
  * the process rather than store it in the clear (`lib/at-rest/key.ts`).
  */
 export type AtRestKeyPort = {
+  /** Existing durable key evidence only: never create, repair or mint missing storage. */
+  readExisting?(): Promise<Uint8Array>;
   /** The key, when the host can produce it without waiting (a file, a test). */
   loadSync?(): Uint8Array;
   /** The key, created on first use. Rejects when the host cannot keep one. */
@@ -149,6 +163,13 @@ export type KeyRangeFactory = {
 };
 
 export type Ports = {
+  readonly originalOfflineBuild?: OriginalOfflineBuildPort;
+  readonly physicalVaultGeneration?: PhysicalVaultGenerationPort;
+  readonly physicalVaultAuthentication?: PhysicalAuthenticationPort;
+  readonly physicalDeviceRecords?: PhysicalDeviceRecordPort;
+  readonly physicalCurrentCredentialCatalogue?: PhysicalCurrentCredentialCataloguePort;
+  readonly physicalApplicationVaultWipe?: PhysicalApplicationVaultWipePort;
+  readonly physicalVaultPublication?: PhysicalVaultPublicationPort;
   readonly storage?: StoragePorts;
   readonly atRestKeys?: AtRestKeyPort;
   readonly page?: PagePort;

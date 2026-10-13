@@ -11,6 +11,7 @@ import {
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
 import { wrapVaultKeyWithCeremony } from "../passkey-unlock-session.js";
+import { operationHeader } from "../store-operation-check.js";
 import {
   type VaultUnlocks,
   createPasskeyUnlockCeremony,
@@ -282,8 +283,12 @@ async function wrapRotatedKey(
  * re-keyed under a new passkey or PIN, and every other method it held is
  * dropped with the old key (the caller names which).
  */
+type RootRotationHost = LifecycleHost & {
+  /** Publication ordering only; this method creates no owner authority. */
+  withRootWriteTurn(work: () => Promise<void>): Promise<void>;
+};
 export async function rotateCompromisedRoot(
-  host: LifecycleHost,
+  host: RootRotationHost,
   input: RotationKey,
 ): Promise<void> {
   const header = host.getHeader();
@@ -294,40 +299,63 @@ export async function rotateCompromisedRoot(
     );
   }
   const base = requireManifest(header);
-  const { rawVaultKey } = await mintVaultKey();
-  const wrapped = await wrapRotatedKey(header, rawVaultKey, input);
-  // The store zeroes the key it replaces, so a way back is kept before the swap.
+  // Capture the original before asynchronous preparation; never borrow a new session.
   const previousRoot = host.requireRawRoot().slice();
+  let preparedRoot: Uint8Array | undefined;
   try {
-    await host.replaceRawVaultKey(rawVaultKey);
-    const { protection: _old, ...kept } = header;
-    const nextHeader: VaultHeader = {
-      ...kept,
-      kdf: wrapped.kdf,
-      wrap: wrapped.wrap,
-      unlocks: wrapped.unlocks,
-    };
-    const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
-      ...migrateLegacyHeaderToManifest({
-        header: nextHeader,
-        vaultId: base.vaultId,
-        rootKeyId: newOpaqueId("root"),
-        rootEpoch: base.rootEpoch + 1,
-      }).manifest,
-      revision: base.revision + 1,
-      purpose: base.purpose,
-    };
-    const sealed = await sealAuthenticatedManifest(
-      host.requireRawRoot(),
-      nextManifest,
-    );
-    await host.persistHeader({ ...nextHeader, protection: sealed });
-  } catch (error) {
-    // The header still holds the old wraps, so the data must go back under the
-    // old key or the vault would open to nothing.
-    await host.replaceRawVaultKey(previousRoot.slice()).catch(() => undefined);
-    throw error;
+    const { rawVaultKey } = await mintVaultKey();
+    preparedRoot = rawVaultKey;
+    // Preparation has no persistent effects and must not hold BODY/write turns.
+    const wrapped = await wrapRotatedKey(header, rawVaultKey, input);
+    let restoredFailure: { error: unknown } | undefined;
+    await host.withRootWriteTurn(async () => {
+      try {
+        await host.replaceRawVaultKey(rawVaultKey);
+        const { protection: _old, ...kept } = header;
+        const nextHeader: VaultHeader = {
+          ...kept,
+          kdf: wrapped.kdf,
+          wrap: wrapped.wrap,
+          unlocks: wrapped.unlocks,
+        };
+        const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
+          ...migrateLegacyHeaderToManifest({
+            header: nextHeader,
+            vaultId: base.vaultId,
+            rootKeyId: newOpaqueId("root"),
+            rootEpoch: base.rootEpoch + 1,
+          }).manifest,
+          revision: base.revision + 1,
+          purpose: base.purpose,
+        };
+        const sealed = await sealAuthenticatedManifest(
+          host.requireRawRoot(),
+          nextManifest,
+        );
+        await host.persistHeader({ ...nextHeader, protection: sealed });
+      } catch (error) {
+        // Reverse only while the original wraps still own the header. A failed
+        // effect can already have published the new header; its root must stay new.
+        // An incomplete reverse stays inside the turn and closes the original
+        // session. A fully completed reverse preserves the known old root.
+        let restored = false;
+        try {
+          if (operationHeader(host.getHeader()) === operationHeader(header)) {
+            await host.replaceRawVaultKey(previousRoot);
+            restored = true;
+          }
+        } catch {
+          // An indeterminate publication requires fresh authentication/recovery.
+        }
+        if (!restored) throw error;
+        restoredFailure = { error };
+      }
+    });
+    // The owned turn completed the actual reverse, including BODY persistence.
+    // Return the original failure without retiring the restored session.
+    if (restoredFailure) throw restoredFailure.error;
   } finally {
+    preparedRoot?.fill(0);
     previousRoot.fill(0);
   }
 }

@@ -22,13 +22,20 @@ zeroize = { workspace = true }
 blake3 = { workspace = true }
 base64 = { workspace = true }
 uuid = { workspace = true }
+subtle = { workspace = true }
+chrono = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.20.0"
-chrono = { workspace = true }
 insta = { workspace = true, features = ["redactions"] }
 opensesame-domain = { path = "../domain" }
 proptest = { workspace = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_Security_Authorization", "Win32_System_Threading", "Win32_System_IO", "Win32_System_SystemServices", "Win32_System_WindowsProgramming"] }

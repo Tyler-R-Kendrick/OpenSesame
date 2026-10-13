@@ -138,8 +138,8 @@ mod imp {
 
 #[cfg(target_os = "macos")]
 mod imp {
-    use super::*;
-    use security_framework::item::{ItemClass, ItemSearchOptions, Limit};
+    use super::{Arc, KeychainBackend, KeychainStore, ProbeError};
+    use security_framework::item::{ItemClass, ItemSearchOptions, Limit, SearchResult};
 
     /// macOS Keychain backend.
     ///
@@ -163,22 +163,27 @@ mod imp {
                 .limit(Limit::All)
                 .search()
                 .map_err(|e| ProbeError::Keychain(format!("macOS keychain search: {e}")))?;
-            let mut labels = Vec::new();
-            for result in results {
-                let Some(attributes) = result.simplify_dict() else {
-                    continue;
-                };
-                // kSecAttrService ("svce") is what `gh:`-style tools set;
-                // kSecAttrLabel ("labl") is the display fallback.
-                let label = attributes.get("svce").or_else(|| attributes.get("labl"));
-                if let Some(label) = label {
-                    if !label.is_empty() {
-                        labels.push((KeychainStore::MacOsKeychain, label.clone()));
-                    }
-                }
-            }
-            Ok(labels)
+            Ok(labels_from_results(results))
         }
+    }
+
+    fn labels_from_results(results: Vec<SearchResult>) -> Vec<(KeychainStore, String)> {
+        let mut labels = Vec::new();
+        for result in results {
+            let Some(attributes) = result.simplify_dict() else {
+                continue;
+            };
+            // kSecAttrService ("svce") is what `gh:`-style tools set;
+            // kSecAttrLabel ("labl") is the display fallback.
+            let Some(label) = attributes.get("svce").or_else(|| attributes.get("labl")) else {
+                continue;
+            };
+            if label.is_empty() {
+                continue;
+            }
+            labels.push((KeychainStore::MacOsKeychain, label.clone()));
+        }
+        labels
     }
 
     pub fn backend() -> Arc<dyn KeychainBackend> {
@@ -188,7 +193,7 @@ mod imp {
 
 #[cfg(target_os = "windows")]
 mod imp {
-    use super::*;
+    use super::{Arc, KeychainBackend, KeychainStore, ProbeError};
     use windows_sys::Win32::Security::Credentials::{
         CredEnumerateW, CredFree, CREDENTIALW, CRED_ENUMERATE_ALL_CREDENTIALS,
     };
@@ -209,8 +214,8 @@ mod imp {
                 if CredEnumerateW(
                     std::ptr::null(),
                     CRED_ENUMERATE_ALL_CREDENTIALS,
-                    &mut count,
-                    &mut credentials,
+                    &raw mut count,
+                    &raw mut credentials,
                 ) == 0
                 {
                     return Err(ProbeError::Keychain(format!(
@@ -219,8 +224,10 @@ mod imp {
                     )));
                 }
                 let mut labels = Vec::new();
-                for index in 0..count as isize {
-                    let credential = *credentials.offset(index);
+                let mut cursor = credentials;
+                for _ in 0..count {
+                    let credential = *cursor;
+                    cursor = cursor.add(1);
                     if credential.is_null() {
                         continue;
                     }

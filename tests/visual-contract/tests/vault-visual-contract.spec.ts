@@ -9,13 +9,13 @@
  *                                            session, and the corner Skip;
  *                                            sign-in and "Use without an
  *                                            account" once setup is skipped)
- *  - apps/pages/src/screens/UnlockScreen.tsx (.unlock__card, protection tabs)
+ *  - apps/pages/src/screens/UnlockScreen.tsx (.unlock__card, #unlock-pin / #confirm)
  *  - apps/pages/src/sections/VaultSection.tsx (.vault after sealing)
  *
  * Every test gets a fresh Playwright browser context, so apps/pages always
  * sees a true first run: no vault and no setup record, so the front door.
- * The local-only seal offers a device PIN on this IP-address preview origin
- * (ADR 0180); the journey acknowledges that it has no recovery.
+ * The local-only seal selects the Device PIN method (ADR 0180) and
+ * acknowledges that there is no recovery.
  *
  * Pages calls no backend by default (ADR 0090: every settings default is
  * empty), so nothing here is mocked. Instead any request that leaves the
@@ -26,7 +26,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { captureAndVerify } from "../src/compare.js";
 
-/** Matches the real Pages browser journeys and the PIN enrollment rules. */
+/** Matches the genuine current Pages PIN-seal journey; policy accepts eight digits. */
 const DEVICE_PIN = "48291037";
 
 async function settleFonts(page: Page): Promise<void> {
@@ -97,9 +97,13 @@ async function openLocalOnlySeal(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Skip all" }).click();
   await page.getByRole("button", { name: "Use without an account" }).click();
   await expect(
-    page.getByRole("tab", { name: "PIN", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await expect(page.locator("#master")).toHaveCount(0);
+    page.getByRole("tab", { name: "Password", exact: true }),
+  ).toHaveCount(0);
+  const pinMethod = page.getByRole("tab", { name: "PIN", exact: true });
+  await pinMethod.click();
+  await expect(pinMethod).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("Device PIN", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Confirm PIN", { exact: true })).toBeVisible();
 }
 
 async function completeFirstRunSeal(
@@ -108,13 +112,17 @@ async function completeFirstRunSeal(
 ): Promise<void> {
   await openLocalOnlySeal(page);
 
-  await page.getByRole("tab", { name: "PIN", exact: true }).click();
+  const seal = page.getByRole("button", { name: "Seal with PIN", exact: true });
+  await expect(seal).toBeDisabled();
   await page.getByLabel("Device PIN", { exact: true }).fill(DEVICE_PIN);
+  await expect(seal).toBeDisabled();
   await page.getByLabel("Confirm PIN", { exact: true }).fill(DEVICE_PIN);
-  await page.getByLabel("I understand this vault cannot be recovered.").check();
+  await expect(seal).toBeDisabled();
   await page
-    .getByRole("button", { name: "Seal with PIN", exact: true })
-    .click();
+    .getByLabel("I understand this vault cannot be recovered.", { exact: true })
+    .check();
+  await expect(seal).toBeEnabled();
+  await seal.click();
 
   await page.locator(".vault").waitFor({ state: "visible" });
   await expect(
@@ -172,24 +180,24 @@ test.describe("Pages visual contract", () => {
     );
   });
 
-  test("vault-unlock: first-run device-PIN form, settled", async ({
+  test("vault-unlock: first-run Device PIN form, settled", async ({
     page,
   }, testInfo) => {
     await openLocalOnlySeal(page);
     await expect(
       page.getByRole("heading", { name: "Seal this device" }),
     ).toBeVisible();
-    const pin = page.getByLabel("Device PIN", { exact: true });
-    await expect(pin).toBeVisible();
+    await expect(page.getByLabel("Device PIN", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Confirm PIN", { exact: true })).toBeVisible();
-    await expect(
-      page.getByRole("tab", { name: "PIN", exact: true }),
-    ).toBeVisible();
-    await expect(page.locator("#master")).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Seal with PIN", exact: true }),
     ).toBeVisible();
-    await capture(page, pin, `vault-unlock-${testInfo.project.name}`, testInfo);
+    await capture(
+      page,
+      page.getByLabel("Device PIN", { exact: true }),
+      `vault-unlock-${testInfo.project.name}`,
+      testInfo,
+    );
   });
 
   test("vault-list: vault landing page after sealing", async ({
