@@ -152,6 +152,11 @@ fn a_real_node_still_parses_under_the_reduced_environment() {
             .map(|dir| dir.join("node"))
             .find(|node| dir_is_absolute_and_has(node))
     }) else {
+        // On CI a skip is a pass nobody can tell from a real one.
+        assert!(
+            std::env::var_os("CI").is_none(),
+            "CI has no node on PATH, so the real-Node test would be vacuous"
+        );
         eprintln!("skip: no node on PATH");
         return;
     };

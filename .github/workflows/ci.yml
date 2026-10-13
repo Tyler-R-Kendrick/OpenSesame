@@ -799,6 +799,15 @@ jobs:
           toolchain: 1.88.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         if: steps.affected.outputs.scope != 'none'
+      - name: Name the runner's node for the bridge
+        # The env-spec bridge runs only a `node` nobody else could have
+        # replaced, and the hosted image keeps its own in /usr/local/bin with
+        # mode 0777. OPENSESAME_NODE names the file the way an operator does
+        # (docs/operators/proxied-run-quickstart.md); no node fails the job.
+        if: steps.affected.outputs.scope != 'none'
+        run: |
+          node_bin="$(command -v node)" || { echo "::error::no node on PATH"; exit 1; }
+          echo "OPENSESAME_NODE=$(readlink -f "$node_bin")" >> "$GITHUB_ENV"
       - name: Test affected crates
         if: steps.affected.outputs.scope != 'none'
         env:
