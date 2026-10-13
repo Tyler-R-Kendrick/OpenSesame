@@ -75,14 +75,14 @@ describe("2password native executor contracts", () => {
     180000,
   );
 
-  it(
-    "enforces bounded execution redirect rejection and no retries",
-    async () =>
-      nativeContract(
-        "password_agent::request::tests::bounded_private_requests_reject_redirects_oversize_stalls_and_send_failures_without_retry",
-      ),
-    180000,
-  );
+  it("enforces bounded execution redirect rejection and no retries", async () => {
+    await nativeContract(
+      "password_agent::request::tests::private_requests_reject_redirects_oversize_and_send_failures_without_retry",
+    );
+    await nativeContract(
+      "password_agent::request::tests::bounded_private_stalls_preserve_claim_state_and_drop_released_results",
+    );
+  }, 180000);
   it(
     "pins actual transport SNI and verifies TLS without reconnecting",
     async () =>

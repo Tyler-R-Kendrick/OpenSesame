@@ -82,12 +82,14 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-10-connector-self-review/`](2026-10-10-connector-self-review/README.md) | Connector self-review |
 | [`2026-10-10-cli-authorize-ui/`](2026-10-10-cli-authorize-ui/README.md) | CLI Authorize UI (D4) |
 | [`2026-10-10-brand-plates/`](2026-10-10-brand-plates/README.md) | The brand on plates: one mark, one wordmark, three size tiers |
+| [`2026-10-09-retired-credential-management/`](2026-10-09-retired-credential-management/README.md) | Retired-password management: original journey |
 | [`2026-10-09-provider-authentication/`](2026-10-09-provider-authentication/README.md) | Provider authentication and connector actions |
 | [`2026-10-09-native-public-protocol/`](2026-10-09-native-public-protocol/README.md) | Native public OAuth and MCP protocol evidence |
 | [`2026-10-09-native-connectors/`](2026-10-09-native-connectors/README.md) | Native connector configuration evidence |
 | [`2026-10-09-main-visual-baselines/`](2026-10-09-main-visual-baselines/README.md) | Reviewed visual baselines from merged main |
 | [`2026-10-09-greyscale/`](2026-10-09-greyscale/README.md) | Greyscale Pages (before / after) |
 | [`2026-10-09-connector-controls/`](2026-10-09-connector-controls/README.md) | Linear connector controls — production browser comparisons |
+| [`2026-10-08-visual-contract-baselines/`](2026-10-08-visual-contract-baselines/README.md) | Reviewed visual contract baselines |
 | [`2026-10-08-vault-style-sections/`](2026-10-08-vault-style-sections/README.md) | Vault style for Identity, Access and Wallet |
 | [`2026-10-08-static-pwa-no-backend/`](2026-10-08-static-pwa-no-backend/README.md) | Evidence — static PWA, no Host/Identity/daemon backend (2026-10-08) |
 | [`2026-10-08-self-hosted-connectors/`](2026-10-08-self-hosted-connectors/README.md) | Self-hosted provider configuration |
