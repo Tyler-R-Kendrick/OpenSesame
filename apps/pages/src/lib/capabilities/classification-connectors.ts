@@ -21,5 +21,9 @@ const CONNECTOR_FILES = [
 ];
 
 export const CONNECTOR_LIB_RULES = each(L, CONNECTOR_FILES, (p) =>
-  optional(p, CONNECTORS, "connector catalogue, Connect, GitHub App, directory"),
+  optional(
+    p,
+    CONNECTORS,
+    "connector catalogue, Connect, GitHub App, directory",
+  ),
 );
