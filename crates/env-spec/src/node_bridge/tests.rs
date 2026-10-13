@@ -4,27 +4,27 @@ use std::collections::BTreeSet;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-fn dir(mode: u32) -> tempfile::TempDir {
+pub(super) fn dir(mode: u32) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     std::fs::set_permissions(dir.path(), std::fs::Permissions::from_mode(mode)).unwrap();
     dir
 }
 
-fn plant(dir: &Path, mode: u32) -> PathBuf {
+pub(super) fn plant(dir: &Path, mode: u32) -> PathBuf {
     let node = dir.join("node");
     std::fs::write(&node, "#!/bin/sh\n").unwrap();
     std::fs::set_permissions(&node, std::fs::Permissions::from_mode(mode)).unwrap();
     node
 }
 
-fn os(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
+pub(super) fn os(pairs: &[(&str, &str)]) -> Vec<(OsString, OsString)> {
     pairs
         .iter()
         .map(|(n, v)| (OsString::from(n), OsString::from(v)))
         .collect()
 }
 
-fn host(path: &OsStr, platform: Platform, cwd: Option<&Path>) -> Host {
+pub(super) fn host(path: &OsStr, platform: Platform, cwd: Option<&Path>) -> Host {
     let mut vars = os(&[
         ("HOME", "/home/dummy"),
         ("OPENSESAME_STORE_PASSWORD", "dummy"),
@@ -43,7 +43,7 @@ fn owner_of(path: &Path) -> Owner {
     Owner::from(&std::fs::metadata(path).unwrap())
 }
 
-fn joined(parts: &[&Path]) -> OsString {
+pub(super) fn joined(parts: &[&Path]) -> OsString {
     std::env::join_paths(parts).unwrap()
 }
 

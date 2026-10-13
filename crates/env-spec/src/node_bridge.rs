@@ -8,7 +8,10 @@
 //! package manager configured). Two rules, kept in this one place so that no
 //! spawn of Node takes a shortcut around them:
 //!
-//! 1. `node` is found here, by this crate, and run by its absolute path. Only
+//! 1. `node` is found here, by this crate, and run by its absolute path. If the
+//!    operator set `OPENSESAME_NODE` to an absolute path, that file is the
+//!    `node` (see `operator`): it is exempt from the checks below, and a value
+//!    that cannot be used is an error, not a fallback. Otherwise only
 //!    `PATH` entries that are absolute, exist and that nobody else could have
 //!    put a `node` in are searched: owned by root or the caller, not writable
 //!    by others, and group-writable only by root's group or one of the
@@ -34,6 +37,7 @@ use std::process::Command;
 
 use crate::EnvSpecError;
 
+mod operator;
 mod trust;
 use trust::{Caller, NodeSearch, Owner, Skip};
 
@@ -251,12 +255,17 @@ fn not_found(path: Option<&OsStr>, found: &Search, rejected: &[(PathBuf, Skip)])
 }
 
 /// `node` for `host`, ready for the bridge's arguments.
+///
+/// `OPENSESAME_NODE` is consulted first and is final: a value that cannot be
+/// used is an error, never a reason to search `PATH` instead.
 pub(crate) fn node_command_for(host: &Host) -> Result<Command, EnvSpecError> {
     let path = host.var("PATH");
     let found = path.map(|p| search(p, host)).unwrap_or_default();
-    let NodeSearch { node, rejected } = find_node(&found.trusted, host);
-    let Some(node) = node else {
-        return Err(not_found(path, &found, &rejected));
+    let node = if let Some(named) = host.var(operator::VARIABLE) {
+        operator::node(named)?
+    } else {
+        let NodeSearch { node, rejected } = find_node(&found.trusted, host);
+        node.ok_or_else(|| not_found(path, &found, &rejected))?
     };
     let mut command = Command::new(node);
     command.env_clear().envs(bridge_environment(

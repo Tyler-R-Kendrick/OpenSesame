@@ -79,6 +79,10 @@ pub enum EnvSpecError {
     /// No `node` the bridge may be started with (see [`node_command`]).
     #[error("{0}")]
     Node(String),
+    /// `OPENSESAME_NODE` is set to something that cannot be run. Names the
+    /// variable; the `PATH` search is not tried instead.
+    #[error("{0}")]
+    NodeOverride(String),
 }
 
 fn bridge_bin() -> PathBuf {

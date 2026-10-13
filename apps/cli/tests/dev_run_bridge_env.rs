@@ -30,7 +30,12 @@ struct Sandbox {
 impl Sandbox {
     fn new() -> Self {
         let dir = tempfile::tempdir().unwrap();
-        for (name, mode) in [("work/bin", 0o700), ("trusted", 0o700), ("out", 0o700)] {
+        for (name, mode) in [
+            ("work/bin", 0o700),
+            ("trusted", 0o700),
+            ("open", 0o777),
+            ("out", 0o700),
+        ] {
             let path = dir.path().join(name);
             std::fs::create_dir_all(&path).unwrap();
             std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode)).unwrap();
@@ -65,6 +70,11 @@ impl Sandbox {
     /// process that holds the passphrase and a spread of other secrets, with
     /// `path` as its `PATH`.
     fn run(&self, agent: bool, path: &str) -> Output {
+        self.run_with(agent, path, &[])
+    }
+
+    /// [`Sandbox::run`] with more variables in the process that runs it.
+    fn run_with(&self, agent: bool, path: &str, extra: &[(&str, String)]) -> Output {
         let mut command = Command::new(BIN);
         command.arg("dev");
         if agent {
@@ -90,6 +100,7 @@ impl Sandbox {
                 "HTTPS_PROXY",
                 "http://user:dummy-proxy-pass@proxy.invalid:3128",
             );
+        command.envs(extra.iter().map(|(name, value)| (name, value)));
         let _guard = WRITING_OR_FORKING
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
@@ -167,6 +178,62 @@ fn a_directory_its_own_group_can_write_supplies_the_node() {
     assert!(output.status.success(), "{}", said(&output));
     assert_eq!(bridge_names(&sandbox), allowed());
     assert!(sandbox.recorded("in-cwd").is_none());
+}
+
+/// `OPENSESAME_NODE` names the exact file, so it is used wherever it is, even
+/// when no `PATH` entry could supply a `node`, and it is not forwarded to the
+/// bridge.
+#[test]
+fn an_operator_named_node_is_used_in_a_directory_anyone_can_write() {
+    let sandbox = Sandbox::new();
+    sandbox.plant("open", "bridge");
+    std::fs::set_permissions(
+        sandbox.path("open/node"),
+        std::fs::Permissions::from_mode(0o777),
+    )
+    .unwrap();
+    let chosen = sandbox.path("open/node").display().to_string();
+    let output = sandbox.run_with(
+        true,
+        ":./bin:.:/usr/bin:/bin",
+        &[("OPENSESAME_NODE", chosen)],
+    );
+    assert!(output.status.success(), "{}", said(&output));
+    assert_eq!(bridge_names(&sandbox), allowed());
+}
+
+#[test]
+fn an_operator_named_node_wins_over_a_trusted_one_on_path() {
+    let sandbox = Sandbox::new();
+    sandbox.plant("trusted", "on-path");
+    sandbox.plant("open", "bridge");
+    let chosen = sandbox.path("open/node").display().to_string();
+    let path = format!("{}:/usr/bin:/bin", sandbox.path("trusted").display());
+    let output = sandbox.run_with(true, &path, &[("OPENSESAME_NODE", chosen)]);
+    assert!(output.status.success(), "{}", said(&output));
+    assert!(sandbox.recorded("on-path").is_none(), "PATH's node ran");
+    assert_eq!(bridge_names(&sandbox), allowed());
+}
+
+#[test]
+fn a_bad_operator_value_stops_the_run_by_name_and_never_falls_back_to_path() {
+    for value in ["", "node", "./node", "/nonexistent/node"] {
+        let sandbox = Sandbox::new();
+        sandbox.plant("trusted", "on-path");
+        let path = format!("{}:/usr/bin:/bin", sandbox.path("trusted").display());
+        let output = sandbox.run_with(true, &path, &[("OPENSESAME_NODE", value.to_owned())]);
+        let said = said(&output);
+        assert!(!output.status.success(), "{value:?}: {said}");
+        assert!(said.contains("OPENSESAME_NODE"), "{value:?}: {said}");
+        assert!(
+            sandbox.recorded("on-path").is_none(),
+            "{value:?}: PATH's node ran after a bad OPENSESAME_NODE"
+        );
+        assert!(
+            !sandbox.path("out/child.env").exists(),
+            "{value:?}: the child ran"
+        );
+    }
 }
 
 #[test]
