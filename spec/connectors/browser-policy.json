@@ -25,6 +25,45 @@
       }
     },
     {
+      "provider_id": "amazon-nova",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Amazon Nova's CORS preflight admits this site, but its answer to the key check (HTTP 403) carries no Access-Control-Allow-Origin header, so a page cannot read that a key was refused. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://nova.amazon.com/dev/documentation"],
+      "probe": {
+        "url": "https://api.nova.amazon.com/v1/chat/completions",
+        "method": "POST",
+        "request_header_names": ["authorization", "content-type"],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": "POST",
+        "allow_headers": "authorization,content-type",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:14+00:00"
+      }
+    },
+    {
+      "provider_id": "arcee",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Arcee does not admit this site to its API: the CORS preflight for its key check is answered HTTP 400 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.arcee.ai",
+        "https://docs.arcee.ai/api-reference/models"
+      ],
+      "probe": {
+        "url": "https://api.arcee.ai/api/v1/models",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+        "allow_headers": "authorization",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:12+00:00"
+      }
+    },
+    {
       "provider_id": "beehiiv",
       "method": "api-key",
       "parameters": {},
@@ -100,6 +139,27 @@
         "allow_headers": null,
         "tls_verified": true,
         "checked_at": "2026-10-09T08:05:36.294566+00:00"
+      }
+    },
+    {
+      "provider_id": "crusoe",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Crusoe's gateway refuses the browser before it routes: even the CORS preflight is answered HTTP 403 with no Access-Control-Allow-Origin header, so a page cannot reach its key check. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.crusoecloud.com/managed-inference/overview",
+        "https://docs.crusoecloud.com/serverless-inference"
+      ],
+      "probe": {
+        "url": "https://api.inference.crusoecloud.com/v1/models",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 403,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:15+00:00"
       }
     },
     {
@@ -339,6 +399,27 @@
       }
     },
     {
+      "provider_id": "edenai",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Eden AI's CORS preflight admits this site, but its answer to the key check (HTTP 401) carries no Access-Control-Allow-Origin header, so a page cannot read that a key was refused. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.edenai.co",
+        "https://www.edenai.co/docs/api-reference/files-management/list-files"
+      ],
+      "probe": {
+        "url": "https://api.edenai.run/v3/upload?limit=1",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+        "allow_headers": "authorization",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:08+00:00"
+      }
+    },
+    {
       "provider_id": "exa",
       "method": "api-key",
       "parameters": {},
@@ -372,6 +453,111 @@
         "allow_headers": null,
         "tls_verified": true,
         "checked_at": "2026-10-09T08:05:37.656719+00:00"
+      }
+    },
+    {
+      "provider_id": "friendli",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Friendli does not admit this site to its API: the CORS preflight for its key check is answered HTTP 400 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://friendli.ai/docs/guides/serverless_endpoints/introduction",
+        "https://friendli.ai/docs/openapi/dedicated/endpoint/list"
+      ],
+      "probe": {
+        "url": "https://api.friendli.ai/dedicated/beta/endpoint?limit=1",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+        "allow_headers": "authorization",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:04+00:00"
+      }
+    },
+    {
+      "provider_id": "helicone",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Helicone's API answers any request that carries an Origin header with HTTP 500, and its gateway sends no CORS headers, so a page cannot read its answers. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://helicone.ai/models",
+        "https://docs.helicone.ai/rest/prompts/get-v1prompt-2025-count"
+      ],
+      "probe": {
+        "url": "https://ai-gateway.helicone.ai/v1/models",
+        "method": "GET",
+        "request_header_names": ["authorization", "content-type"],
+        "status": 405,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T13:24:50+00:00"
+      }
+    },
+    {
+      "provider_id": "hetzner",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Hetzner's gateway refuses the browser before it routes: even the CORS preflight is answered HTTP 401 with no Access-Control-Allow-Origin header, so a page cannot reach its key check. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://experiments.hetzner.com/docs/inference",
+        "https://docs.hetzner.com/general/company-and-policy/experiments/inference/"
+      ],
+      "probe": {
+        "url": "https://inference.hetzner.com/api/v1/models",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:16+00:00"
+      }
+    },
+    {
+      "provider_id": "infisical",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Infisical's cloud servers admit only their own web app's origin: a request from this site is answered with Access-Control-Allow-Origin set to https://app.infisical.com, so a page here cannot read the answer. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://infisical.com/docs/self-hosting/configuration/envars",
+        "https://infisical.com/docs/documentation/platform/identities/universal-auth"
+      ],
+      "probe": {
+        "url": "https://app.infisical.com/api/v1/auth/universal-auth/login",
+        "method": "POST",
+        "request_header_names": ["content-type", "accept"],
+        "status": 401,
+        "allow_origin": "https://app.infisical.com",
+        "allow_methods": "GET,HEAD,POST",
+        "allow_headers": "content-type,accept",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T23:06:18+00:00"
+      }
+    },
+    {
+      "provider_id": "io-net",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "IO.NET does not admit this site to its API: the CORS preflight for its key check is answered HTTP 400 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://io.net/docs/guides/intelligence/io-intelligence",
+        "https://io.net/docs/guides/intelligence/io-intelligence-apis"
+      ],
+      "probe": {
+        "url": "https://api.intelligence.io.solutions/api/v1/agents",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": "DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT",
+        "allow_headers": "authorization",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:06+00:00"
       }
     },
     {
@@ -411,6 +597,27 @@
       }
     },
     {
+      "provider_id": "kilo",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Kilo Gateway does not admit this site to its API: the CORS preflight for its key check is answered HTTP 204 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://kilo.ai",
+        "https://kilo.ai/docs/gateway/authentication"
+      ],
+      "probe": {
+        "url": "https://api.kilo.ai/api/profile",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:09+00:00"
+      }
+    },
+    {
       "provider_id": "lemma",
       "method": "api-key",
       "parameters": {},
@@ -428,6 +635,48 @@
         "allow_headers": null,
         "tls_verified": true,
         "checked_at": "2026-10-09T08:05:38.498156+00:00"
+      }
+    },
+    {
+      "provider_id": "llmgateway",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "LLM Gateway does not admit this site to its API: the CORS preflight for its key check is answered HTTP 204 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://llmgateway.io/docs",
+        "https://docs.llmgateway.io/developers/devpass-usage"
+      ],
+      "probe": {
+        "url": "https://api.llmgateway.io/v1/key",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": "POST,GET,OPTIONS,PUT,PATCH,DELETE",
+        "allow_headers": "Content-Type,Authorization,Cache-Control,x-api-key,mcp-session-id,MCP-Protocol-Version",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:10+00:00"
+      }
+    },
+    {
+      "provider_id": "modal",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Modal does not admit this site to its API: the CORS preflight for its key check is answered HTTP 404 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://modal.com/docs/guide/endpoints",
+        "https://modal.com/docs/guide/endpoint-integrations"
+      ],
+      "probe": {
+        "url": "https://inference.us-west.modal.direct/v1/models",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:14+00:00"
       }
     },
     {
@@ -466,6 +715,63 @@
         "allow_headers": null,
         "tls_verified": true,
         "checked_at": "2026-10-09T08:05:38.712575+00:00"
+      }
+    },
+    {
+      "provider_id": "nvidia",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Nvidia does not admit this site to its API: the CORS preflight for its key check is answered HTTP 200 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://docs.api.nvidia.com/nim/"],
+      "probe": {
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "method": "POST",
+        "request_header_names": ["authorization", "content-type"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:04+00:00"
+      }
+    },
+    {
+      "provider_id": "ollama-cloud",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Ollama Cloud does not admit this site to its API: the CORS preflight for its key check is answered HTTP 405 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://docs.ollama.com/cloud",
+        "https://docs.ollama.com/api/authentication"
+      ],
+      "probe": {
+        "url": "https://ollama.com/v1/chat/completions",
+        "method": "POST",
+        "request_header_names": ["authorization", "content-type"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:07+00:00"
+      }
+    },
+    {
+      "provider_id": "plivo",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Plivo's API answers a browser preflight from this site without any CORS header, so a page cannot read its answers. This method is unavailable under the current browser policy.",
+      "evidence_urls": ["https://www.plivo.com/docs/messaging/api/overview"],
+      "probe": {
+        "url": "https://api.plivo.com/v1/Account/MAAAAAAAAAAAAAAAAAAA/",
+        "method": "GET",
+        "request_header_names": ["authorization", "accept"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T22:14:18+00:00"
       }
     },
     {
@@ -667,6 +973,48 @@
       }
     },
     {
+      "provider_id": "stepfun",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "StepFun (Global)'s gateway refuses the browser before it routes: even the CORS preflight is answered HTTP 401 with no Access-Control-Allow-Origin header, so a page cannot reach its key check. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://platform.stepfun.ai/docs/en/overview/concept",
+        "https://platform.stepfun.ai/docs/en/api-reference/accounts/get"
+      ],
+      "probe": {
+        "url": "https://api.stepfun.ai/v1/accounts",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:10+00:00"
+      }
+    },
+    {
+      "provider_id": "thinking-machines",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Thinking Machines does not admit this site to its API: the CORS preflight for its key check is answered HTTP 405 with no Access-Control-Allow-Origin header, so a page cannot call it. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/",
+        "https://tinker-docs.thinkingmachines.ai/tinker/api-reference/restclient/"
+      ],
+      "probe": {
+        "url": "https://tinker.thinkingmachines.dev/services/tinker-prod/api/v1/training_runs?limit=1&offset=0",
+        "method": "GET",
+        "request_header_names": ["x-api-key"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": null,
+        "allow_headers": null,
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:13+00:00"
+      }
+    },
+    {
       "provider_id": "typeform",
       "method": "api-key",
       "parameters": {
@@ -710,6 +1058,27 @@
         "allow_headers": "X-Typeform-Key, Content-Type, Authorization, Typeform-Version, typeform-app, X-Requested-With, anonymousid, X-Namespace",
         "tls_verified": true,
         "checked_at": "2026-10-09T08:05:40.202339+00:00"
+      }
+    },
+    {
+      "provider_id": "volcengine",
+      "method": "api-key",
+      "parameters": {},
+      "reason": "Volcengine Ark's CORS preflight admits this site, but its answer to the key check (HTTP 401) carries no Access-Control-Allow-Origin header, so a page cannot read that a key was refused. This method is unavailable under the current browser policy.",
+      "evidence_urls": [
+        "https://www.volcengine.com/docs/82379/1330310",
+        "https://docs.volcengine.com/docs/ark/list-files-api"
+      ],
+      "probe": {
+        "url": "https://ark.cn-beijing.volces.com/api/v3/files",
+        "method": "GET",
+        "request_header_names": ["authorization"],
+        "status": 401,
+        "allow_origin": null,
+        "allow_methods": "GET,POST,PUT,DELETE,HEAD,OPTIONS",
+        "allow_headers": "authorization",
+        "tls_verified": true,
+        "checked_at": "2026-10-12T21:52:12+00:00"
       }
     },
     {

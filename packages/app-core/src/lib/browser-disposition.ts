@@ -158,6 +158,13 @@ export function authoredDispositionIds(): readonly string[] {
   return browserDispositionSpec().dispositions.map((row) => row.provider_id);
 }
 
+/** The authored row for a provider, by the id the app was asked for or its catalog id. */
+export function authoredDisposition(
+  providerId: string,
+): AuthoredDisposition | undefined {
+  return authored(providerId);
+}
+
 function authored(providerId: string): AuthoredDisposition | undefined {
   // The app keeps the alias it was asked for; the row is the catalog's.
   const id = canonicalProviderId(providerId) ?? providerId;

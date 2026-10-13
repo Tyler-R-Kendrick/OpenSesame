@@ -1,0 +1,26 @@
+{
+  "name": "@opensesame/browser-extension-bridge",
+  "version": "0.1.0",
+  "description": "Optional companion extension (ADR 0199): makes allowlisted requests for the Pages app that a provider's CORS policy keeps a page from making, only to hosts a person allowed, never with a cookie",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "wxt build && node --test --test-concurrency=1 e2e/*.e2e.mjs"
+  },
+  "dependencies": {
+    "@opensesame/connector-bridge": "workspace:*",
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1",
+    "jsdom": "26.1.0",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11",
+    "wxt": "0.20.6"
+  }
+}

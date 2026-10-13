@@ -14,6 +14,7 @@ import { bindNativeProviderTransport } from "@opensesame/app-core/lib/native-con
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type { Activation } from "../activation.js";
 import { LeaseAbortedError, anySignal, runUnlessAborted } from "../signals.js";
+import { bindBridgeRuntime, carriedByBridge } from "./bridge-runtime.js";
 import { bindLinearRuntime } from "./linear-runtime.js";
 import { bindNativeApiRuntime } from "./native-api-runtime.js";
 import { bindNativeCleanupRuntime } from "./native-cleanup-runtime.js";
@@ -67,6 +68,46 @@ function grantExpiry(view: NativeConnectorView): string | null {
   return expiries.length ? new Date(Math.min(...expiries)).toISOString() : null;
 }
 
+/** How a device-connector view reads a native connection, for as long as this lease and activation hold. */
+function authorizationProjector(
+  signal: AbortSignal,
+  activation: Activation,
+): typeof nativeDeviceViewSeams.authorization {
+  return (id) => {
+    if (signal.aborted || activation.disposed()) return null;
+    const view = readNativeConnector(id);
+    if (!view) return null;
+    const policy = nativeBrowserMethodPolicy(
+      view.providerId,
+      view.configuration.method,
+      view.configuration.parameters,
+    );
+    const connected = view.status === "connected" && policy.available;
+    const authorization: AuthorizationView = {
+      status: connected ? "active" : "pending",
+      statusDetail:
+        view.status !== "cleanup" && !policy.available
+          ? policy.reason
+          : STATUS_DETAILS[view.status],
+      grantedScopes: connected
+        ? view.grants.flatMap((grant) => grant.grantedScopes)
+        : [],
+      accountLabel:
+        view.identity?.assurance === "account-verified"
+          ? view.identity.label
+          : null,
+      expiresAt: grantExpiry(view),
+      refreshable:
+        policy.available &&
+        view.status !== "cleanup" &&
+        Object.values(
+          loadNativeConnectorRecord(id)?.privateState.grants ?? {},
+        ).some((grant) => !!grant.refreshToken),
+    };
+    return authorization;
+  };
+}
+
 export function bindNativeRuntime(
   ctx: ApprovedCapabilityContext,
   activation: Activation,
@@ -113,6 +154,8 @@ export function bindNativeRuntime(
       const requestSignal = request.init.signal
         ? anySignal([signal, request.init.signal])
         : signal;
+      const carried = carriedByBridge(ctx, request, requestSignal);
+      if (carried) return carried;
       return runUnlessAborted(requestSignal, () =>
         ctx.egress.fetch(
           request.url,
@@ -125,40 +168,9 @@ export function bindNativeRuntime(
       );
     },
   });
+  bindBridgeRuntime(activation);
   const previous = nativeDeviceViewSeams.authorization;
-  const projector: typeof nativeDeviceViewSeams.authorization = (id) => {
-    if (signal.aborted || activation.disposed()) return null;
-    const view = readNativeConnector(id);
-    if (!view) return null;
-    const policy = nativeBrowserMethodPolicy(
-      view.providerId,
-      view.configuration.method,
-      view.configuration.parameters,
-    );
-    const connected = view.status === "connected" && policy.available;
-    const authorization: AuthorizationView = {
-      status: connected ? "active" : "pending",
-      statusDetail:
-        view.status !== "cleanup" && !policy.available
-          ? policy.reason
-          : STATUS_DETAILS[view.status],
-      grantedScopes: connected
-        ? view.grants.flatMap((grant) => grant.grantedScopes)
-        : [],
-      accountLabel:
-        view.identity?.assurance === "account-verified"
-          ? view.identity.label
-          : null,
-      expiresAt: grantExpiry(view),
-      refreshable:
-        policy.available &&
-        view.status !== "cleanup" &&
-        Object.values(
-          loadNativeConnectorRecord(id)?.privateState.grants ?? {},
-        ).some((grant) => !!grant.refreshToken),
-    };
-    return authorization;
-  };
+  const projector = authorizationProjector(signal, activation);
   nativeDeviceViewSeams.authorization = projector;
   activation.onDispose(() => {
     lifetime.abort();

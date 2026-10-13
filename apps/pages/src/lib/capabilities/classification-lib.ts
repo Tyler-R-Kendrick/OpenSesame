@@ -1,5 +1,6 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 import { CLI_APP_INTEGRATION_RULES } from "./classification-cli-app.js";
+import { CONNECTOR_LIB_RULES } from "./classification-connectors.js";
 import { DEV_EVIDENCE_RULES } from "./classification-dev-evidence.js";
 import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
@@ -11,7 +12,6 @@ const L = "src/lib/";
 const SHELL = "shell.navigation";
 const SIGNIN = "identity.brokered-signin";
 const CEREMONIES = "identity.ceremonies";
-const CONNECTORS = "connectors.external";
 const GIT = "backup.git-remote";
 const CLOUD = "backup.cloud-secrets";
 const ACCESS = "access.authority";
@@ -121,15 +121,6 @@ const SIGNIN_FILES = [
   "federated-signin",
   "guest-login",
   "orgs",
-];
-const CONNECTOR_FILES = [
-  "linear-",
-  "connector-guidance",
-  "connect-",
-  "self-hosted-config",
-  "self-hosted-connectors",
-  "github-installation-access",
-  "identity-graph",
 ];
 const GIT_FILES = [
   "github-app-",
@@ -258,13 +249,7 @@ export const LIB_RULES = [
     `${L}document-lifecycle`,
     "trusted-hide and persisted-restore decisions the shell and a live session share",
   ),
-  ...each(L, CONNECTOR_FILES, (p) =>
-    optional(
-      p,
-      CONNECTORS,
-      "connector catalogue, Connect, GitHub App, directory",
-    ),
-  ),
+  ...CONNECTOR_LIB_RULES,
   ...each(L, GIT_FILES, (p) =>
     optional(p, GIT, "git remote backup and history"),
   ),

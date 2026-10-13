@@ -52,7 +52,11 @@ function errorType(body: string): string {
 }
 
 function refusal(status: number, body: string): NativeApiError {
-  const type = errorType(body);
+  return awsRefusal(status, errorType(body));
+}
+
+/** The error AWS's own error type and status stand for, whatever the protocol that carried them. */
+export function awsRefusal(status: number, type: string): NativeApiError {
   if (status === 429 || RATE_LIMITED.has(type))
     return new NativeApiError("rate-limit", status);
   if (REFUSED_KEY.has(type) || status === 401)
@@ -62,7 +66,9 @@ function refusal(status: number, body: string): NativeApiError {
   return new NativeApiError("response", status);
 }
 
-function signingCredentials(target: NativeAwsTarget) {
+export function awsSigningMaterial(
+  target: Pick<NativeAwsTarget, "parameters" | "credentials">,
+) {
   return {
     accessKeyId: target.parameters.access_key_id ?? "",
     secretAccessKey: Redacted.make(target.credentials.secret_access_key ?? ""),
@@ -95,7 +101,7 @@ export async function nativeAwsCall(
     }),
     payloadHash: bytesToHex(sha256(new TextEncoder().encode(body))),
     region: target.parameters.region ?? "",
-    credentials: signingCredentials(target),
+    credentials: awsSigningMaterial(target),
     service: service.service,
     payloadHashHeader: false,
     pathEncoding: "twice",

@@ -68,6 +68,33 @@ describe("requestFor", () => {
     expect(Object.keys(request.headers).sort()).toEqual(["accept", "origin"]);
   });
 
+  it("describes the refusal of a key that cannot be right, and an unauthenticated POST", () => {
+    const invalid = requestFor(
+      {
+        stage: "authenticated-invalid-key",
+        url: "https://x.example/v1/me",
+        method: "GET",
+        request_header_names: ["authorization"],
+      },
+      "https://site.example",
+    );
+    expect(invalid.method).toBe("GET");
+    expect(invalid.headers.origin).toBe("https://site.example");
+    expect(invalid.headers.authorization).toBe(
+      "Bearer osprobe-invalid-key-0000",
+    );
+    const post = requestFor(
+      {
+        stage: "unauthenticated-post",
+        url: "https://x.example/v1/c",
+        method: "POST",
+      },
+      "https://site.example",
+    );
+    expect(post.method).toBe("POST");
+    expect(post.headers.authorization).toBeUndefined();
+  });
+
   it("refuses a stage it does not know", () => {
     expect(() =>
       requestFor(

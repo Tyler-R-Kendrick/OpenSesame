@@ -1,0 +1,490 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/letsencrypt"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-letsencrypt"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/letsencrypt"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "390-letsencrypt"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/aws-sts"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-aws-sts"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/azure-app-configuration"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-azure-ac"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/gcp-secret-manager"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-gcp"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/gcp-iam"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-gcp-iam"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/venice"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "1280-venice"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/venice"
+        },
+        {
+          "count": [
+            "input:not([type=hidden])",
+            "input[type=password]",
+            "select",
+            "details.cx-application[open]",
+            "button:has-text('Verify and connect')"
+          ]
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "shot": "390-venice"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections/stepfun"
+        },
+        {
+          "report": ".conn-settings h1, .conn-settings h2"
+        },
+        {
+          "report": "details.cx-application p.hint"
+        },
+        {
+          "count": ["details.cx-application[open]", "a.conn-doc-link"]
+        },
+        {
+          "shot": "1280-stepfun"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections#catalog-more"
+        },
+        {
+          "count": [
+            ".conn-tile__link[title=\"Provider blocks browsers\"]",
+            ".conn-tile__link[title=\"No way to check a key\"]",
+            ".conn-tile__link[title=\"Not built yet\"]",
+            ".conn-tile__link[title=\"No browser connection\"]",
+            ".conn-tile"
+          ]
+        },
+        {
+          "shot": "1280-tiles"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "Features"
+        },
+        {
+          "switchOptional": "Connections"
+        },
+        {
+          "visit": "connections#catalog-more"
+        },
+        {
+          "count": [
+            ".conn-tile__link[title=\"Provider blocks browsers\"]",
+            ".conn-tile__link[title=\"No way to check a key\"]",
+            ".conn-tile__link[title=\"Not built yet\"]",
+            ".conn-tile__link[title=\"No browser connection\"]",
+            ".conn-tile"
+          ]
+        },
+        {
+          "shot": "390-tiles"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-letsencrypt",
+      "width": 1280,
+      "title": "Connections \u203a Let's Encrypt \u2014 1280 \u00d7 900",
+      "caption": "Let's Encrypt's ACME directory answers this site, but the provider had a catalog row and no tile, so its page said \"Connector not found\". It is now bundled and connects: pick production or staging and agree to the Subscriber Agreement. No key is asked for; the account key is made in the page and sealed.",
+      "before": "\"Connector not found\": no tile for this provider, so the page has nothing to draw (1 input: the command bar, 0 selects, no Verify key)",
+      "after": "2 selects (environment, agreement), the Verify and connect key, 3 links (Subscriber Agreement, challenge types, RFC 8555); 0 password fields"
+    },
+    {
+      "shot": "390-letsencrypt",
+      "width": 390,
+      "title": "Connections \u203a Let's Encrypt \u2014 390 \u00d7 844",
+      "caption": "The same form on a phone.",
+      "before": "\"Connector not found\": no tile for this provider, so the page has nothing to draw (1 input: the command bar, 0 selects, no Verify key)",
+      "after": "2 selects, Verify and connect key, 3 links"
+    },
+    {
+      "shot": "1280-aws-sts",
+      "width": 1280,
+      "title": "Connections \u203a AWS STS \u2014 1280 \u00d7 900",
+      "caption": "AWS STS is signed with the same SigV4 signer as Secrets Manager and sent only to the regional endpoint AWS publishes. Verification is GetCallerIdentity.",
+      "before": "\"Connector not found\": no tile for this provider, so the page has nothing to draw (1 input: the command bar, 0 selects, no Verify key)",
+      "after": "5 inputs, 2 password fields (region, access key ID, secret, optional session token)"
+    },
+    {
+      "shot": "1280-azure-ac",
+      "width": 1280,
+      "title": "Connections \u203a Azure App Configuration \u2014 1280 \u00d7 900",
+      "caption": "The store name is compiled to https://{store}.azconfig.io; the access key signs each request with HMAC-SHA256.",
+      "before": "Hint: \"Azure App Configuration answers browser preflights from this site \u2026 OpenSesame has not built that connection yet.\" 1 input, 0 password fields, no Verify key",
+      "after": "4 inputs, 1 password field (store name, access key ID, access key secret)"
+    },
+    {
+      "shot": "1280-gcp",
+      "width": 1280,
+      "title": "Connections \u203a Google Cloud Secret Manager \u2014 1280 \u00d7 900",
+      "caption": "The service account's JSON key signs a short-lived token in the page; the token address is fixed.",
+      "before": "Hint: \"\u2026 OpenSesame has no way to obtain [an access token] here yet\" 1 input, 0 password fields, no Verify key",
+      "after": "2 inputs, 1 password field (project, service account key), Verify and connect"
+    },
+    {
+      "shot": "1280-gcp-iam",
+      "width": 1280,
+      "title": "Connections \u203a Google Cloud IAM credentials \u2014 1280 \u00d7 900",
+      "caption": "Google's IAM Credentials API issues a one-hour access token for a service account the key may impersonate; the token is shown once.",
+      "before": "\"Connector not found\": no tile for this provider, so the page has nothing to draw (1 input: the command bar, 0 selects, no Verify key)",
+      "after": "1 service-account key field, Verify and connect, 2 links"
+    },
+    {
+      "shot": "1280-venice",
+      "width": 1280,
+      "title": "Connections \u203a Venice AI \u2014 1280 \u00d7 900",
+      "caption": "Venice's model list is public, so it could not prove a key. Its rate-limits route needs the key, so that is the proof.",
+      "before": "Hint: \"Venice AI's model list is public \u2026 listing models cannot prove a key works\" 1 input, 0 password fields, no Verify key",
+      "after": "3 inputs, 1 password field, Verify and connect: verified with GET /api/v1/api_keys/rate_limits"
+    },
+    {
+      "shot": "390-venice",
+      "width": 390,
+      "title": "Connections \u203a Venice AI \u2014 390 \u00d7 844",
+      "caption": "The same form on a phone.",
+      "before": "1 input, 0 password fields",
+      "after": "3 inputs, 1 password field"
+    },
+    {
+      "shot": "1280-stepfun",
+      "width": 1280,
+      "title": "Connections \u203a StepFun \u2014 1280 \u00d7 900",
+      "caption": "StepFun's gateway answers every preflight with 401 and no CORS headers. The page now says so, with the probe that shows it, instead of \"no browser connection \u2026 no probe recorded\".",
+      "before": "Hint: \"OpenSesame has no browser connection for StepFun \u2026 defines no key check \u2026 and no probe of that service from this site has been recorded.\"",
+      "after": "Hint: \"StepFun's gateway authenticates before it routes, so even the CORS preflight is refused (HTTP 401 with no Access-Control-Allow-Origin)\" (open: 1, 1 doc link)"
+    },
+    {
+      "shot": "1280-tiles",
+      "width": 1280,
+      "title": "Connections \u203a Add a connection, tile reasons \u2014 1280 \u00d7 900",
+      "caption": "Every model provider that was a dead end now either connects or says, with a probe, that its servers refuse this site.",
+      "before": "Provider blocks browsers 58, No way to check a key 20, Not built yet 2, No browser connection 20 (of 240 tiles)",
+      "after": "Provider blocks browsers 67, No way to check a key 0, Not built yet 0, No browser connection 10 (of 240 tiles)"
+    },
+    {
+      "shot": "390-tiles",
+      "width": 390,
+      "title": "Connections \u203a Add a connection, tile reasons \u2014 390 \u00d7 844",
+      "caption": "The same catalog on a phone.",
+      "before": "Provider blocks browsers 58, No way to check a key 20, Not built yet 2, No browser connection 20",
+      "after": "Provider blocks browsers 67, No way to check a key 0, Not built yet 0, No browser connection 10"
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { hasConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import { isNativeAwsProvider } from "@opensesame/app-core/lib/native-aws-input.js";
+import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { expect, it, vi } from "vitest";
 import {
   type NativeDeviceAvailability,
@@ -32,14 +32,17 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   const visible = getBundledProviders()
     .filter(isConnectionCatalogProvider)
     .filter((provider) => !hasConnectPlan(provider.id));
-  // The 31 that were here, and the 48 model providers a browser cannot reach yet (ADR 0192).
-  expect(visible).toHaveLength(79);
+  // Local and device integrations, the model providers that need a cloud signer, a tenant
+  // address or a probe nobody has run (ADR 0192, ADR 0198), and the ones bundled for their
+  // drivers, which have a specialized road. Seventeen model providers left it when their key
+  // check was found (ADR 0199).
+  expect(visible).toHaveLength(42);
   const has = vi.fn<NativeDeviceAvailability["has"]>(() => false);
   for (const provider of visible) {
     const descriptor = nativeDeviceProviderDescriptor(provider.id, { has });
     if (
       ["git", "aws-kms", "gcp-kms", "s3"].includes(provider.id) ||
-      isNativeAwsProvider(provider.id)
+      nativeKeyDriverFor(provider.id) !== null
     ) {
       expect(descriptor).toBeNull();
       continue;
@@ -146,11 +149,18 @@ it("says Bitwarden's real constraint, with Bitwarden's own pages, not fnox's", (
     expect(new URL(url ?? "").hostname).toBe("bitwarden.com");
 });
 
-it("does not call a provider whose API a browser can reach a companion", () => {
+it("does not call a provider whose API a browser can reach a companion", async () => {
+  const { authoredDispositionIds, browserDisposition } = await import(
+    "@opensesame/app-core/lib/browser-disposition.js"
+  );
   const has = vi.fn(() => true);
-  for (const id of ["aws-sts", "azure-ac", "gcp", "gcp-iam"]) {
+  // Whatever is still waiting for its driver; the list falls as each one ships.
+  for (const id of authoredDispositionIds()) {
+    const provider = catalogProvider(id);
+    if (!provider || browserDisposition(provider).kind !== "driver-pending")
+      continue;
     const method = nativeDeviceProviderDescriptor(id, { has })?.methods[0];
-    expect(method?.available).toBe(false);
+    expect(method?.available, id).toBe(false);
     expect(method?.unavailableKind, id).toBe("driver-pending");
     expect(method?.label, id).not.toBe("Companion configuration");
     expect(method?.unavailableReason, id).toContain("answers browser");
@@ -158,11 +168,22 @@ it("does not call a provider whose API a browser can reach a companion", () => {
   expect(has).not.toHaveBeenCalled();
 });
 
-it("does not infer an unimplemented cloud or wallet driver from registry availability", () => {
+it("records no provider as waiting for a driver: where a browser can reach the API, the driver ships", async () => {
+  const { authoredDispositionIds, browserDisposition } = await import(
+    "@opensesame/app-core/lib/browser-disposition.js"
+  );
+  const waiting = authoredDispositionIds().filter((id) => {
+    const provider = catalogProvider(id);
+    return provider && browserDisposition(provider).kind === "driver-pending";
+  });
+  expect(
+    waiting,
+    "build the driver instead of recording that it is missing",
+  ).toEqual([]);
+});
+
+it("does not infer an unimplemented wallet driver from registry availability", () => {
   const has = vi.fn(() => true);
-  const cloud = nativeDeviceProviderDescriptor("aws-sts", { has });
-  expect(cloud?.methods[0]?.available).toBe(false);
-  expect(cloud?.methods[0]?.unavailableKind).toBe("driver-pending");
   const wallet = nativeDeviceProviderDescriptor("apple-wallet", { has });
   expect(wallet?.methods[0]?.available).toBe(false);
   expect(wallet?.methods[0]?.unavailableKind).toBe("policy");
@@ -192,6 +213,11 @@ it("returns no descriptor for unknown IDs, plans, or preserved specialized git r
     "aws-kms",
     "gcp-kms",
     "s3",
+    "aws-sts",
+    "azure-ac",
+    "gcp",
+    "gcp-iam",
+    "letsencrypt",
   ])
     expect(nativeDeviceProviderDescriptor(id, { has: () => true })).toBeNull();
 });
