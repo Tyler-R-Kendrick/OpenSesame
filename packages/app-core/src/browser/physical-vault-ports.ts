@@ -2,7 +2,6 @@
 import { z } from "zod";
 import { createOriginalOriginStorageProfile } from "../lib/original-origin-storage.js";
 import { assertUnambiguousJson } from "../lib/retired-credentials/json-preflight.js";
-import { zodJitless } from "../lib/zod-jitless.js";
 import type { PhysicalAuthenticationPort } from "../lib/vault/physical-authentication-port.js";
 import type { PhysicalAuthenticationSnapshot } from "../lib/vault/physical-authentication-port.js";
 import type {
@@ -15,6 +14,7 @@ import type {
 } from "../lib/vault/physical-current-credential-catalogue.js";
 import type { PhysicalDeviceRecordPort } from "../lib/vault/physical-device-record-port.js";
 import type { PhysicalVaultPublicationPort } from "../lib/vault/physical-vault-publication-port.js";
+import { zodJitless } from "../lib/zod-jitless.js";
 
 // This module is in the browser host's static graph and evaluates before
 // the boot seeds zod; seed here so the schemas below never probe for eval.
