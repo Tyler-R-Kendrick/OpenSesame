@@ -19,7 +19,7 @@ import {
   shareOnce,
   sweepDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
-import { shareText } from "@opensesame/app-core/sections/vault-section-model.js";
+import { shareText } from "@opensesame/app-core/sections/vault-share-text.js";
 import {
   type DropItem,
   type VaultItem,

@@ -1,4 +1,4 @@
-import { shareText } from "@opensesame/app-core/sections/vault-section-model.js";
+import { shareText } from "@opensesame/app-core/sections/vault-share-text.js";
 import type { VaultItem } from "@opensesame/vault-core";
 import {
   type ComponentProps,
