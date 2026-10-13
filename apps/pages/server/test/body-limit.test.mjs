@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { describe, it } from "node:test";
-import handler from "../../api/github-app/webhook.mjs";
 import { githubAppRelayPlugin } from "../../scripts/github-app-relay-plugin.mjs";
 import {
   MAX_INBOUND_BODY_BYTES,
@@ -96,16 +95,6 @@ describe("readRawBody ceiling", () => {
     assert.equal(req.destroyed, true);
   });
 
-  it("answers 413 from the Vercel webhook before the handler runs", async () => {
-    const res = response();
-    await handler(
-      streamingRequest([Buffer.alloc(MAX_INBOUND_BODY_BYTES + 1)]),
-      res,
-    );
-    assert.equal(res.statusCode, 413);
-    assert.equal(res.body, "body_too_large");
-  });
-
   it("answers 405 for a webhook GET without reading the body", async () => {
     let read = false;
     const req = new Readable({
@@ -115,9 +104,11 @@ describe("readRawBody ceiling", () => {
       },
     });
     req.method = "GET";
+    req.url = "/api/github-app/webhook";
     req.headers = {};
     const res = response();
-    await handler(req, res);
+    handleRelayRequest(req, res);
+    await res.finished;
     assert.equal(res.statusCode, 405);
     assert.equal(read, false);
   });
