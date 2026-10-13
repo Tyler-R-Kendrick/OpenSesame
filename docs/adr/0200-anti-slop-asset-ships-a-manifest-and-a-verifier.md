@@ -14,9 +14,14 @@ copy byte-identical to ours and wants to know, offline and without a network
 fetch, when it stops being so: a hand edit to a rule, a half-applied update, a
 deleted file. Nothing in the asset said what the right bytes were.
 
-Separately, 17 of the asset's 39 files are RuleTester suites. A repository that
-vendors the plugin as a lint dependency, and does not re-run our tests, does not
-want them in its tree, and must still be able to verify what it did keep.
+Separately, 17 of the 41 files the manifest lists are RuleTester suites. A
+repository that vendors the plugin as a lint dependency, and does not re-run our
+tests, does not want them in its tree, and must still be able to verify what it
+did keep.
+
+The asset also carried no license text, although the in-repository copy has the
+MIT file and the notice asks to travel with copies. A consumer got the code
+without it.
 
 ## Decision
 
@@ -24,7 +29,9 @@ want them in its tree, and must still be able to verify what it did keep.
    `<sha256-hex>  <path>` line per shipped file, paths relative to the plugin
    directory with `/` separators, sorted bytewise, LF endings, no line for
    itself. It is the format `sha256sum -c` reads, so a consumer without Node can
-   check it too. It lists `verify.mjs`, so a changed verifier is drift as well.
+   check it too. It lists `verify.mjs`, so a changed verifier is drift as well,
+   and `LICENSE`, the MIT text of the in-repository copy, byte for byte, which
+   every install carries (a test pins it).
 2. **`verify.mjs` ships beside it and is copied by the installer.** It reads the
    manifest in its own directory and exits 1 with one sentence per problem: a
    missing, modified or extra file, a symbolic link, or a manifest line it cannot
@@ -43,8 +50,14 @@ want them in its tree, and must still be able to verify what it did keep.
    script with `--check` after the existing `diff -ru` parity check. That check
    leaves `MANIFEST.sha256` and `verify.mjs` out of the comparison, because the
    in-repository twin under `tools/oxlint/anti-slop` is the plugin source and
-   the pair exists only in the distributed asset. A rule changed in both trees
-   but not re-hashed fails the check and names the file.
+   the pair exists only in the distributed asset. `LICENSE` is compared like any
+   other file. A rule changed in both trees but not re-hashed fails the check and
+   names the file.
+5. **The installer refuses what it does not understand.** An unknown option (a
+   typo such as `--no-test` must never install the tests), a second destination
+   or an empty one exits 2 with one sentence naming it, before any file is
+   written. The accepted options are `--force`, `--no-tests` and at most one
+   destination, before or after each other.
 
 Alternatives not taken:
 

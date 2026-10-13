@@ -24,7 +24,7 @@ Install the bundled Oxlint plugin into the current repository and integrate it w
 
    This creates `tools/oxlint/anti-slop/`. Pass another relative destination as the first argument when the repository has an established tooling layout. The script refuses to replace an existing destination; only use `--force` after backing up and reviewing existing files.
 
-   Add `--no-tests` when the repository uses the plugin as a lint dependency and does not re-run its RuleTester suites. It leaves out every test-only file (`*.test.*`, `*.spec.*`, and anything under `fixtures`, `__fixtures__`, `__snapshots__` or `__tests__`), prints how many, and prints the matching verify command.
+   Add `--no-tests` when the repository uses the plugin as a lint dependency and does not re-run its RuleTester suites. It leaves out every test-only file (`*.test.*`, `*.spec.*`, and anything under `fixtures`, `__fixtures__`, `__snapshots__` or `__tests__`), prints how many, and prints the matching verify command. The installer takes `--force`, `--no-tests` and at most one destination; anything else exits 2 with a sentence naming it, before any file is written. The copy includes the plugin's MIT `LICENSE`; keep it with the files.
 
    The copy ships `MANIFEST.sha256` (one `<sha256>  <path>` line per file, readable by `sha256sum -c`) and `verify.mjs`. Check the copy offline, in CI or after an update, with:
 
