@@ -136,6 +136,11 @@ function checkedWatch(report: SecurityReport): BreachWatch {
 let checkedScope: string | null = null;
 
 function loginScopeKey(item: AccountItem | CredentialItem): string {
+  if (item.kind === "credential") {
+    const method = item.method;
+    const changedAt = method.type === "password" ? method.changedAt : "";
+    return `${item.id}:${method.id}:${changedAt}`;
+  }
   const method = passwordMethod(item);
   return `${item.id}:${method?.id ?? ""}:${method?.changedAt ?? ""}`;
 }
