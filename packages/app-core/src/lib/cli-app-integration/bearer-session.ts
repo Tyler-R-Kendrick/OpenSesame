@@ -25,3 +25,11 @@ export function writeCliAppIntegrationBearer(token: string): void {
     // session store unavailable
   }
 }
+
+export function clearCliAppIntegrationBearer(): void {
+  try {
+    sessionStore().removeItem(CLI_APP_INTEGRATION_BEARER_KEY);
+  } catch {
+    // session store unavailable
+  }
+}

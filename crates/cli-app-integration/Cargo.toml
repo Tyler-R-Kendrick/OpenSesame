@@ -15,6 +15,7 @@ test-seams = []
 [dependencies]
 base64 = { workspace = true }
 hex = { workspace = true }
+hmac = { workspace = true }
 rand_core = { version = "0.6", features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
