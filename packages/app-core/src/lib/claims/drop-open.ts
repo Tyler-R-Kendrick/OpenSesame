@@ -30,7 +30,7 @@ import {
   openDrop as openDropFormat,
 } from "@opensesame/vault-core";
 import { identityBase, identityFetch } from "../identity.js";
-import { noteDropOpened } from "../sharing-receipts.js";
+import { noteDropOpened, noteDropRefused } from "../sharing-receipts.js";
 import { claimIdFromBearer } from "../vault/local-drop-codec.js";
 import { noteOutboundDropConsumed } from "../vault/outbound-drops.js";
 
@@ -177,18 +177,31 @@ async function presentClaimDefault(
 /** The one network step of opening; a test substitutes it. */
 export const dropOpenSeams = { presentClaim: presentClaimDefault };
 
+function dropPresentFailedForGood(error: DropError): boolean {
+  return error.code !== "invalid_code" && error.code !== "unreachable";
+}
+
 /** Open a drop once — user code + bearer; returns the sealed manifest. */
 export async function presentDrop(
   bearerToken: string,
   userCode: string,
 ): Promise<PresentedDrop> {
+  const claimId = claimIdFromBearer(bearerToken);
   try {
     const presented = await dropOpenSeams.presentClaim(bearerToken, userCode);
-    const claimId = claimIdFromBearer(bearerToken);
     if (claimId) noteOutboundDropConsumed(claimId);
     if (claimId) noteDropOpened(claimId);
     return { targetManifest: guardManifest(presented.targetManifest) };
   } catch (error) {
+    if (claimId) {
+      const mapped =
+        error instanceof DropError
+          ? error
+          : error instanceof DropTransportError
+            ? mapTransportError(error)
+            : null;
+      if (mapped && dropPresentFailedForGood(mapped)) noteDropRefused(claimId);
+    }
     throw mapTransportError(
       error instanceof Error ? error : new Error("drop claim present failed"),
     );

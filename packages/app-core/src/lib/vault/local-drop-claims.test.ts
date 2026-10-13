@@ -148,12 +148,14 @@ describe("local drop claims — no Identity API", () => {
       1,
       "That code does not match this drop. This is your last try.",
     );
-    await wrong(0, "That code does not match this drop. No tries left.");
     await expect(
       presentLocalDropClaim(session.bearerToken, "WRONG-CODE"),
-    ).rejects.toThrow(/Too many wrong codes/);
+    ).rejects.toMatchObject({
+      wire: "too_many_attempts",
+      message: /Locked out/,
+    });
     await expect(
       pollLocalDropClaim(session.claimId, session.bearerToken),
-    ).resolves.toBe("pending");
+    ).resolves.toBe("locked_out");
   });
 });

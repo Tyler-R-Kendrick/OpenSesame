@@ -20,8 +20,10 @@ lint gate beside Biome.
 - **Mirrored in:** [`skills/install-anti-slop/assets/anti-slop`](../../skills/install-anti-slop/assets/anti-slop),
   the copy the install skill ships to other repositories. `pnpm test:anti-slop`
   fails unless the two trees are identical (ignoring `package.json`,
-  `vitest.config.ts`, `LICENSE` and build output).
-- MIT-licensed (`anti-slop/LICENSE`). Both copies are excluded
+  `vitest.config.ts`, build output, and the two files only the shipped copy
+  carries, `MANIFEST.sha256` and `verify.mjs`).
+- MIT-licensed (`anti-slop/LICENSE`; the shipped copy carries the same text, and
+  the parity check compares it). Both copies are excluded
   from the lint they implement, because they contain the syntax they diagnose.
 
 ## Surface
@@ -44,12 +46,26 @@ pnpm --filter @opensesame/anti-slop test     # RuleTester suites only
 ```
 
 Change a rule in `anti-slop/` and copy the same change into
-`skills/install-anti-slop/assets/anti-slop/` in one commit, or
-`pnpm test:anti-slop` fails. A new rule needs its RuleTester suite, an entry in
+`skills/install-anti-slop/assets/anti-slop/`, then run `pnpm anti-slop:manifest`
+to re-hash the shipped copy, all in one commit, or `pnpm test:anti-slop` fails. A new rule needs its RuleTester suite, an entry in
 `index.ts`, and an `error` line in `oxlint.config.ts`. The lint runs with
 `--deny-warnings` and `--report-unused-disable-directives-severity=error`, so an
 unused `oxlint-disable` comment fails it too. The RuleTester suites need Vitest
 globals (`anti-slop/vitest.config.ts`).
+
+## Install it in another repository
+
+The shipped copy is an installable, verifiable asset
+([ADR 0200](../../docs/adr/0200-anti-slop-asset-ships-a-manifest-and-a-verifier.md)).
+From the consuming repository, `node <this repo>/skills/install-anti-slop/scripts/install.mjs [dest]`
+copies it, with its `LICENSE`, to `tools/oxlint/anti-slop` (or `dest`); add
+`--no-tests` to leave out the RuleTester suites and any other test-only file. An
+unknown option or a second destination exits 2 before anything is written. `node <dest>/verify.mjs`
+(with `--no-tests` for that install) checks the copy against its
+`MANIFEST.sha256` offline and exits 1 with one sentence per missing, modified or
+extra file. After changing a rule here, `pnpm anti-slop:manifest` rewrites the
+manifest and `node skills/install-anti-slop/scripts/manifest.mjs --check` (run
+by `pnpm test:anti-slop`) fails when it is stale.
 
 ## Related
 

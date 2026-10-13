@@ -24,6 +24,17 @@ Install the bundled Oxlint plugin into the current repository and integrate it w
 
    This creates `tools/oxlint/anti-slop/`. Pass another relative destination as the first argument when the repository has an established tooling layout. The script refuses to replace an existing destination; only use `--force` after backing up and reviewing existing files.
 
+   Add `--no-tests` when the repository uses the plugin as a lint dependency and does not re-run its RuleTester suites. It leaves out every test-only file (`*.test.*`, `*.spec.*`, and anything under `fixtures`, `__fixtures__`, `__snapshots__` or `__tests__`), prints how many, and prints the matching verify command. The installer takes `--force`, `--no-tests` and at most one destination; anything else exits 2 with a sentence naming it, before any file is written. The copy includes the plugin's MIT `LICENSE`; keep it with the files.
+
+   The copy ships `MANIFEST.sha256` (one `<sha256>  <path>` line per file, readable by `sha256sum -c`) and `verify.mjs`. Check the copy offline, in CI or after an update, with:
+
+   ```bash
+   node <destination>/verify.mjs               # default install, tests included
+   node <destination>/verify.mjs --no-tests    # an install made with --no-tests
+   ```
+
+   It exits 1 with one sentence per missing, modified or extra file and exits 0 otherwise. There is one manifest for both installs: `--no-tests` tells the verifier not to expect the test-only entries, and a test file that is present is then extra. Without the flag, missing test files fail and the output suggests `--no-tests`. The manifest detects drift, not tampering; pin its own digest where the repository pins other inputs. Decision: [ADR 0200](../../docs/adr/0200-anti-slop-asset-ships-a-manifest-and-a-verifier.md).
+
 3. Install current compatible dependencies rather than trusting versions remembered by the agent:
    - Query `npm view oxlint version`, `npm view @oxlint/plugins version`, `npm view typescript version`, and `npm view @types/node version`.
    - Install the same current version of both packages with the repository's package manager.

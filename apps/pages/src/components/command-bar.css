@@ -94,12 +94,24 @@
 }
 
 .command-bar__status {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
   margin: 0;
   padding: 0 0.35rem;
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--ink-3);
   text-wrap: pretty;
+}
+
+.command-bar__status-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.command-bar__status-dismiss {
+  flex: none;
 }
 
 /* ——— The slash list ————————————————————————————————————
@@ -199,12 +211,16 @@
   position: absolute;
   right: 0;
   bottom: calc(100% + 6px);
-  left: 0;
+  left: auto;
+  z-index: 4;
+  width: max-content;
+  max-width: min(100%, 28rem);
   padding: 0.45rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.12);
+  pointer-events: auto;
 }
 
 /* Completions float above the field so the statusline stays one row. */

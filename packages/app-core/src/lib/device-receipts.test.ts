@@ -49,12 +49,15 @@ const KINDS = [
   "session.ended",
   "siop.approved",
   "siop.denied",
+  "drop.sent",
   "drop.opened",
   "drop.expired",
   "drop.locked_out",
+  "drop.refused",
   "drop.revoked",
   "live.granted",
   "live.ended",
+  "share.requested",
   "share.approved",
   "share.denied",
   "share.granted",
@@ -83,7 +86,7 @@ describe("the decisions a receipt can record", () => {
     }
     expect(
       [...byType.values()].filter((value) => value === "denied"),
-    ).toHaveLength(5);
+    ).toHaveLength(6);
   });
 });
 

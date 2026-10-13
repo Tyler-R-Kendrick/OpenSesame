@@ -9,7 +9,10 @@ import { activitySeams, listActivityEvents } from "./activity-log.js";
 import { dropOpenSeams, presentDrop } from "./claims/drop-open.js";
 import { listReceipts } from "./device-receipts.js";
 import { localRequestFixture } from "./local-request.fixture.js";
-import { ensureLocalShare } from "./local-share-grants-approvals.js";
+import {
+  ensureLocalShare,
+  submitLocalShare,
+} from "./local-share-grants-approvals.js";
 import { createLocalShare, revokeLocalShare } from "./local-share-grants.js";
 import {
   flushSharingReceipts,
@@ -169,6 +172,45 @@ it("queues an expiry receipt while locked and flushes once on unlock", async () 
   expect(blob).not.toContain("vault.drop.expired");
 });
 
+it("records drop sent when the sender logs the outbound drop", async () => {
+  const tomb = await unlock();
+  const { session } = await sealedClaim();
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: "sent",
+    expiresAt: session.expiresAt,
+    sourceItemId: "item_sent",
+    tomb,
+  });
+  const blob = await trails(tomb);
+  expect(blob).toContain("vault.drop.sent");
+  expect(blob).toContain("access.drop.sent");
+  expect(blob).toContain(session.claimId);
+  expect(blob).toContain("item_sent");
+  expect(blob).not.toContain('"name":"sent"');
+});
+
+it("records share requested when an agent grant is pending", async () => {
+  const fixture = await localRequestFixture();
+  activitySeams.activeTomb = () => fixture.tomb;
+  const submitted = await submitLocalShare(fixture.tomb, {
+    principalId: fixture.applicationId,
+    resourceKind: "folder",
+    resourceId: "fold-receipt",
+    resourceLabel: "Work",
+    policy: "read",
+    durationSeconds: 3600,
+  });
+  if (submitted.outcome !== "pending") throw new Error("expected pending");
+  const blob = await trails(fixture.tomb);
+  expect(blob).toContain("access.share.requested");
+  expect(blob).toContain(submitted.pending.id);
+  expect(blob).toContain(fixture.applicationId);
+  expect(blob).toContain("fold-receipt");
+  expect(blob).not.toContain("Work");
+});
+
 it("records a sender revoke and expiry as the claim id only", async () => {
   const tomb = await unlock();
   const revoked = await sealedClaim();
@@ -204,6 +246,58 @@ it("records a sender revoke and expiry as the claim id only", async () => {
   expect(blob).toContain("access.drop.expired");
   expect(blob).not.toContain("revoke-me");
   expect(blob).not.toContain("expire-me");
+});
+
+it("records sender refused when a tracked send cannot be presented", async () => {
+  const tomb = await unlock();
+  const { session } = await sealedClaim();
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: "refused-send",
+    expiresAt: session.expiresAt,
+    sourceItemId: "item_refused",
+    tomb,
+  });
+  resetLocalDropClaimsForTests();
+  await expect(
+    presentDrop(session.bearerToken, session.userCode),
+  ).rejects.toThrow();
+  const blob = await trails(tomb);
+  expect(blob).toContain(session.claimId);
+  expect(blob).toContain("vault.drop.refused");
+  expect(blob).toContain("access.drop.refused");
+});
+
+it("records a drop open on the sending vault when another vault presents", async () => {
+  const tombA = await unlock();
+  const tombB = `sharing-receipts-b-${crypto.randomUUID()}`;
+  unlockTomb(tombB, (await mintVaultKey()).vaultKey);
+  const { session } = await sealedClaim();
+  recordOutboundDrop({
+    claimId: session.claimId,
+    bearerToken: session.bearerToken,
+    name: "cross-vault-open",
+    expiresAt: session.expiresAt,
+    sourceItemId: "item_cross",
+    tomb: tombA,
+  });
+  activitySeams.activeTomb = () => tombB;
+  const presented = await presentLocalDropClaim(
+    session.bearerToken,
+    session.userCode,
+  );
+  dropOpenSeams.presentClaim = async () => ({
+    targetManifest: presented.targetManifest,
+  });
+  await presentDrop(session.bearerToken, session.userCode);
+  const blobA = await trails(tombA);
+  expect(blobA).toContain("vault.drop.opened");
+  expect(blobA.match(/vault\.drop\.opened/gu)).toHaveLength(1);
+  activitySeams.activeTomb = () => tombB;
+  const blobB = await trails(tombB);
+  expect(blobB).toContain("vault.drop.opened");
+  expect(blobB.match(/vault\.drop\.opened/gu)).toHaveLength(1);
 });
 
 it("refuses a bearer passed off as a claim id", async () => {

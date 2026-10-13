@@ -28,8 +28,10 @@ import {
   activeItems,
   completePassword,
   hostOf,
+  passwordMethod,
   produceAccountPassword,
   producePassword,
+  resolveAccounts,
   unboundCredentials,
 } from "@opensesame/vault-core";
 import {
@@ -133,11 +135,18 @@ function checkedWatch(report: SecurityReport): BreachWatch {
 
 let checkedScope: string | null = null;
 
+function loginScopeKey(item: AccountItem | CredentialItem): string {
+  if (item.kind === "credential") {
+    const method = item.method;
+    const changedAt = method.type === "password" ? method.changedAt : "";
+    return `${item.id}:${method.id}:${changedAt}`;
+  }
+  const method = passwordMethod(item);
+  return `${item.id}:${method?.id ?? ""}:${method?.changedAt ?? ""}`;
+}
+
 function securityWatchScope(tomb: string, items: readonly VaultItem[]): string {
-  return `${tomb}\0${logins(items)
-    .map((item) => item.updatedAt)
-    .sort()
-    .join("|")}`;
+  return `${tomb}\0${logins(items).map(loginScopeKey).sort().join("|")}`;
 }
 
 export type SecurityWatchNote =
@@ -306,10 +315,11 @@ function wholePassword(item: AccountItem | CredentialItem): string {
  * account at all.
  */
 function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {
-  const accounts = activeItems([...items]).filter(
+  const resolved = resolveAccounts(items);
+  const accounts = activeItems([...resolved]).filter(
     (item): item is AccountItem => item.kind === "account",
   );
-  return [...accounts, ...unboundCredentials(items)].filter(
+  return [...accounts, ...unboundCredentials(resolved)].filter(
     (item) => wholePassword(item) !== "",
   );
 }

@@ -4,6 +4,7 @@ import { sealDrop } from "./drop.js";
 import {
   createLocalDropClaim,
   localDropClaimSeams,
+  presentLocalDropClaim,
   resetLocalDropClaimsForTests,
 } from "./local-drop-claims.js";
 import {
@@ -96,6 +97,28 @@ describe("outbound drop sender ledger", () => {
       "missing",
     );
     expect(listOutboundDrops(TOMB_A)[0]?.state).toBe("pending");
+  });
+
+  it("marks the sender ledger locked out after too many wrong codes", async () => {
+    const { manifest } = await sealDrop({
+      kind: "text",
+      name: "locked",
+      text: "x",
+    });
+    const session = await createLocalDropClaim(manifest, 600_000);
+    recordOutboundDrop({
+      claimId: session.claimId,
+      bearerToken: session.bearerToken,
+      name: "locked",
+      expiresAt: session.expiresAt,
+      sourceItemId: "item_1",
+    });
+    for (let i = 0; i < 5; i += 1) {
+      await expect(
+        presentLocalDropClaim(session.bearerToken, "WRONG-CODE"),
+      ).rejects.toThrow();
+    }
+    expect(listOutboundDrops(TOMB_A)[0]?.state).toBe("locked_out");
   });
 
   it("expires legacy rows without tomb through refreshOutboundDropLedger", async () => {

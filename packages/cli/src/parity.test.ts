@@ -1,23 +1,14 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { startCliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
-import type { CliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
+import { describe, expect, it, vi } from "vitest";
+import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import { parseArgs } from "./parse.js";
 import { runCli } from "./run.js";
 
-let parityFakeDaemon: CliAppIntegrationFakeDaemon | undefined;
-
-beforeAll(async () => {
-  parityFakeDaemon = await startCliAppIntegrationFakeDaemon();
-  process.env.OPENSESAME_DAEMON_API = parityFakeDaemon.baseUrl;
-});
-
-afterAll(async () => {
-  await parityFakeDaemon?.close();
-  parityFakeDaemon = undefined;
-});
+const approveAppIntegration: CliAppIntegrationPort = {
+  ensureReveal: async () => "approve",
+};
 
 async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
   const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
@@ -96,6 +87,7 @@ describe("password-agent CLI", () => {
       expect(
         await runCli(["find", "openai", "--desktop"], {
           parityPort: { invoke },
+          appIntegration: approveAppIntegration,
         }),
       ).toBe(0);
       const output = stdout.mock.calls.map(([value]) => String(value)).join("");
@@ -114,6 +106,7 @@ describe("password-agent CLI", () => {
         await withTerminal(() =>
           runCli(["read", "op://v/i/f", "--desktop", "--reveal"], {
             parityPort: { invoke },
+            appIntegration: approveAppIntegration,
           }),
         ),
       ).toBe(0);
@@ -145,7 +138,7 @@ describe("password-agent CLI", () => {
               "--desktop",
               "--reveal",
             ],
-            { parityPort: { invoke } },
+            { parityPort: { invoke }, appIntegration: approveAppIntegration },
           ),
         ),
       ).toBe(1);

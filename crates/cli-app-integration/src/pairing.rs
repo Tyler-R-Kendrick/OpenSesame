@@ -16,7 +16,7 @@ pub const MAX_LABEL_CHARS: usize = 80;
 
 const SECRET_LEN: usize = 43;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum PairingError {
     #[error(
         "an origin is https://host[:port] or http://localhost:port, exactly as a browser sends it"
@@ -30,6 +30,8 @@ pub enum PairingError {
     Expired,
     #[error("the pairing code was issued for another origin, and is now spent")]
     WrongOrigin,
+    #[error("confirm the pairing code in OpenSesame before exchanging")]
+    NotConfirmed,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +39,8 @@ struct Pending {
     code_sha256: String,
     origin: String,
     expires_at: u64,
+    /// Set only after the unlocked PWA confirms the code (`confirm`).
+    confirmation_binding_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -170,16 +174,60 @@ impl CliAppIntegrationPairings {
             code_sha256: digest_hex(&code),
             origin: origin.to_string(),
             expires_at,
+            confirmation_binding_sha256: None,
         });
         Ok((code, expires_at))
     }
 
-    pub fn exchange(&mut self, code: &str, origin: &str, now: u64) -> Result<Issued, PairingError> {
+    /// Pages calls this after a person confirms the printed code while the vault is unlocked.
+    pub fn confirm(
+        &mut self,
+        code: &str,
+        origin: &str,
+        page_binding: &str,
+        now: u64,
+    ) -> Result<(), PairingError> {
+        if !is_secret_shaped(page_binding) {
+            return Err(PairingError::Unknown);
+        }
+        self.pending.retain(|p| p.expires_at > now);
+        let digest = digest_hex(code);
+        let index = find_digest(self.pending.iter().map(|p| p.code_sha256.as_str()), &digest)
+            .filter(|_| is_secret_shaped(code))
+            .ok_or(PairingError::Unknown)?;
+        let pending = &mut self.pending[index];
+        if pending.expires_at <= now {
+            return Err(PairingError::Expired);
+        }
+        if pending.origin != origin {
+            return Err(PairingError::WrongOrigin);
+        }
+        pending.confirmation_binding_sha256 = Some(digest_hex(page_binding));
+        Ok(())
+    }
+
+    pub fn exchange(
+        &mut self,
+        code: &str,
+        origin: &str,
+        page_binding: &str,
+        now: u64,
+    ) -> Result<Issued, PairingError> {
         let digest = digest_hex(code);
         let found = find_digest(self.pending.iter().map(|p| p.code_sha256.as_str()), &digest);
         let Some(index) = found.filter(|_| is_secret_shaped(code)) else {
             return Err(PairingError::Unknown);
         };
+        if !is_secret_shaped(page_binding) {
+            return Err(PairingError::NotConfirmed);
+        }
+        let expected_binding = self.pending[index]
+            .confirmation_binding_sha256
+            .as_deref()
+            .ok_or(PairingError::NotConfirmed)?;
+        if !same(expected_binding, digest_hex(page_binding).as_str()) {
+            return Err(PairingError::WrongOrigin);
+        }
         if self.pending[index].expires_at > now
             && self.pending[index].origin == origin
             && self.paired.len() >= MAX_PAIRED
@@ -236,5 +284,36 @@ impl CliAppIntegrationPairings {
         self.paired.retain(|page| {
             !(page.origin == origin && same(page.token_sha256.as_str(), token_digest_hex))
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn exchange_without_confirm_is_refused() {
+        let mut pairings = CliAppIntegrationPairings::default();
+        let origin = "http://localhost:5180";
+        let now = 1_000;
+        let (code, _) = pairings.issue(origin, now).unwrap();
+        let binding = secret();
+        assert!(matches!(
+            pairings.exchange(&code, origin, &binding, now),
+            Err(PairingError::NotConfirmed)
+        ));
+    }
+
+    #[test]
+    fn confirm_then_exchange_mints_bearer() {
+        let mut pairings = CliAppIntegrationPairings::default();
+        let origin = "http://localhost:5180";
+        let now = 1_000;
+        let (code, _) = pairings.issue(origin, now).unwrap();
+        let binding = secret();
+        pairings.confirm(&code, origin, &binding, now).unwrap();
+        let issued = pairings.exchange(&code, origin, &binding, now).unwrap();
+        assert!(is_secret_shaped(&issued.token));
+        assert!(pairings.authorizes(&issued.token, origin));
     }
 }

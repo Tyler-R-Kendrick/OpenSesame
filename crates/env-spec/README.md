@@ -20,20 +20,31 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
 - `resolve_for_delivery` never materializes a secret without a policy allow;
   with `agent` set, materialization is denied and the item is omitted with a
   warning.
-- The bridge runs with `NODE_OPTIONS` removed, so an inherited `--import` or
-  `--require` cannot load other code into the process that reads configuration.
+- The bridge is started by `node_command` and nothing else: `node` is found
+  among the `PATH` entries that are absolute, exist and cannot be written by
+  group or others (Windows: absolute, existing, not the current directory), so
+  an empty or relative entry cannot run a `node` planted in the working
+  directory, and it is run by its absolute path. Its environment is built, not
+  inherited: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*`
+  locale variables and, on Windows, `SystemRoot`, `PATHEXT` and `COMSPEC`. The
+  store passphrase and every other `OPENSESAME_*` variable, `NODE_OPTIONS`,
+  `NODE_PATH`, tokens and proxy settings never reach it, so an inherited
+  `--import` or `--require` cannot load other code into the process that reads
+  configuration either. With no such `node` the error says so; the inherited
+  `PATH` is not a fallback.
 - Placeholder suffixes are random per projection.
 
 ## Surface
 
 | Item | What it is |
 |---|---|
-| `parse_schema_file(path)` | Runs `node packages/env-spec-bridge/bin/opensesame-env-parse.mjs <path>`; `OPENSESAME_ENV_PARSE` overrides the script path |
+| `parse_schema_file(path)` | Runs `node packages/env-spec-bridge/bin/opensesame-env-parse.mjs <path>` under `node_command`; `OPENSESAME_ENV_PARSE` overrides the script path |
+| `node_command()` | The one way to start Node here: the trusted `node` and the minimal environment above, ready for the script's arguments |
 | `parse_schema_json(json)` | Parses bridge output already in hand |
 | `schema_summary(doc)` | Per item: key, sensitive / required / public flags, resolver name, whether a value is present — never the value |
 | `resolve_for_delivery(doc, policy, agent)` | `Vec<ResolvedEnvEntry>` with delivery mode, connection ref, projection, `omitted` and `warning` |
 | `EnvSpecDocument`, `EnvSpecItem`, `EnvDecorator`, `EnvResolver`, `EnvResolverArg` | The bridge's JSON shapes |
-| `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain` |
+| `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain`, `Scope`, `Node` (no usable `node`) |
 | `web_login`, `WebLogin`, `LOGIN_RESOLVER` | The `opensesameLogin(...)` resolver: a sealed-store path and one form submission, never the password; the entry resolves omitted and only the optional `surrogate-proxy` plugin delivers anything for it (ADR 0150 §6.3) |
 | `is_bounded_prefix`, `is_http_method`; `ResolvedEnvEntry::path_prefixes` | The `paths=` and `methods=` a connection entry may declare to bound its surrogate (ADR 0150 §8) |
 
@@ -43,6 +54,11 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
 cargo +1.88.0 test -p opensesame-env-spec
 pnpm --filter @opensesame/env-spec-bridge test
 ```
+
+`tests/bridge_isolation.rs` starts this test binary again as the process that
+parses, with a planted `node` in its working directory, an empty and a relative
+`PATH` entry, a directory others can write, and a spread of dummy secrets in its
+environment, and reads what the `node` it ran was handed.
 
 `bridge_roundtrip_fixture` parses
 [`tests/fixtures/demo.env.schema`](../../tests/fixtures/demo.env.schema)

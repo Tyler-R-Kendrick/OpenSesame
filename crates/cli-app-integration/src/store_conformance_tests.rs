@@ -1,5 +1,5 @@
 use super::*;
-use crate::human_proof::TEST_HUMAN_PROOF;
+use crate::human_proof::{mint_test_human_proof, TEST_PAIRING_SECRET};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -29,13 +29,25 @@ fn tcp_transport_consumes_approval_once() {
     let id = "tcp-attempt-1";
     let (_, req) = store.ensure(id, "read", None, false);
     let request_id = req.expect("pending");
-    let nonce = store
-        .pending
-        .get(&request_id)
-        .map(|r| r.respond_nonce.clone())
-        .unwrap_or_default();
+    let (respond_nonce, verb) = {
+        let row = store.pending.get(&request_id).expect("pending row");
+        (row.respond_nonce.clone(), row.verb.clone())
+    };
+    let proof = mint_test_human_proof(
+        TEST_PAIRING_SECRET,
+        &request_id,
+        id,
+        &respond_nonce,
+        &verb,
+    );
     assert_eq!(
-        store.approve(&request_id, id, &nonce, TEST_HUMAN_PROOF),
+        store.approve(
+            &request_id,
+            id,
+            &respond_nonce,
+            &proof,
+            TEST_PAIRING_SECRET,
+        ),
         "approved"
     );
     let (status, _) = store.ensure(id, "read", None, false);
@@ -54,17 +66,24 @@ fn conformance_session_cases() {
         assert_eq!(pending.0, "pending", "case {}", case.id);
         let request_id = pending.1.expect("request id");
         if case.action == "approve" {
-            let nonce = store
-                .pending
-                .get(&request_id)
-                .map(|r| r.respond_nonce.clone())
-                .expect("nonce");
+            let (respond_nonce, verb) = {
+                let row = store.pending.get(&request_id).expect("nonce");
+                (row.respond_nonce.clone(), row.verb.clone())
+            };
+            let proof = mint_test_human_proof(
+                TEST_PAIRING_SECRET,
+                &request_id,
+                &case.terminal_session_id,
+                &respond_nonce,
+                &verb,
+            );
             assert_eq!(
                 store.approve(
                     &request_id,
                     &case.terminal_session_id,
-                    &nonce,
-                    TEST_HUMAN_PROOF,
+                    &respond_nonce,
+                    &proof,
+                    TEST_PAIRING_SECRET,
                 ),
                 "approved"
             );
