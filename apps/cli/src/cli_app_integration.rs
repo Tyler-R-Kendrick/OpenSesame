@@ -2,7 +2,7 @@
 #[path = "cli_app_integration_http.rs"]
 mod cli_app_integration_http;
 
-use cli_app_integration_http::{post_json_loopback, post_json_uds};
+use cli_app_integration_http::{get_json_loopback, post_json_loopback, post_json_uds};
 use opensesame_cli_app_integration::{
     app_unavailable_message, denied_message, expired_message, request_timeout_message,
 };
@@ -10,6 +10,7 @@ use opensesame_credential_helpers::{default_sock_path, ENV_SOCK};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
+use url::Url;
 
 const POLICY: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
 
@@ -18,6 +19,7 @@ const POLICY: &str = include_str!("../../../spec/conformance/cli-app-integration
 struct PolicyDoc {
     request_timeout_seconds: u64,
     poll_interval_ms: u64,
+    daemon_pin_probe_verb: String,
     daemon_paths: DaemonPaths,
     messages: PolicyMessages,
 }
@@ -36,6 +38,77 @@ struct DaemonPaths {
 
 fn policy() -> PolicyDoc {
     serde_json::from_str(POLICY).expect("cli-app-integration.json")
+}
+
+fn is_loopback_daemon_base(base: &str) -> bool {
+    let trimmed = base.trim();
+    let with_scheme = if trimmed.contains("://") {
+        trimmed.to_string()
+    } else {
+        format!("http://{trimmed}")
+    };
+    let url = match url::Url::parse(&with_scheme) {
+        Ok(parsed) => parsed,
+        Err(_) => return false,
+    };
+    if url.scheme() != "http" && url.scheme() != "https" {
+        return false;
+    }
+    matches!(
+        url.host_str(),
+        Some("localhost") | Some("127.0.0.1") | Some("::1") | Some("[::1]")
+    )
+}
+
+fn health_looks_like_daemon(base: &str) -> bool {
+    let (status, body) = get_json_loopback(base, "/health").unwrap_or((0, String::new()));
+    if status != 200 {
+        return false;
+    }
+    match serde_json::from_str::<serde_json::Value>(&body) {
+        Ok(value) => value.get("status").and_then(|s| s.as_str()) == Some("ok"),
+        Err(_) => false,
+    }
+}
+
+fn ensure_probe_rejects_instant_approval(base: &str, path: &str, probe_verb: &str) -> bool {
+    let tcp_correlation = tcp_correlation_id();
+    let payload = serde_json::json!({
+        "terminalSessionId": tcp_correlation,
+        "verb": probe_verb,
+    });
+    let json_body = payload.to_string();
+    let response = post_json_loopback(base, path, &json_body);
+    match response {
+        Ok((status, body)) if (200..300).contains(&status) => {
+            let parsed = serde_json::from_str::<EnsureBody>(&body);
+            match parsed {
+                Ok(body) if body.status == "approved" => false,
+                Ok(body) => matches!(
+                    body.status.as_str(),
+                    "pending" | "denied" | "expired" | "wrongSession"
+                ),
+                Err(_) => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+/// Pin loopback `OPENSESAME_DAEMON_API` to an OpenSesame daemon before trusting ensure.
+pub fn verify_local_daemon_for_cli_app_integration(base: &str) -> bool {
+    if !is_loopback_daemon_base(base) {
+        return false;
+    }
+    let policy = policy();
+    if !health_looks_like_daemon(base) {
+        return false;
+    }
+    ensure_probe_rejects_instant_approval(
+        base,
+        &policy.daemon_paths.ensure,
+        &policy.daemon_pin_probe_verb,
+    )
 }
 
 fn daemon_base() -> Option<String> {
@@ -78,6 +151,9 @@ pub fn require_pass_reveal(reveal: bool) -> anyhow::Result<()> {
 /// When the app is unavailable or integration is denied.
 pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> {
     let base = daemon_base().ok_or_else(|| anyhow::anyhow!("{}", app_unavailable_message()))?;
+    if !verify_local_daemon_for_cli_app_integration(&base) {
+        anyhow::bail!("{}", app_unavailable_message());
+    }
     let policy = policy();
     let path = policy.daemon_paths.ensure.clone();
     let deadline = Instant::now() + Duration::from_secs(policy.request_timeout_seconds);
