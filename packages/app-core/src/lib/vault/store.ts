@@ -18,7 +18,6 @@ import {
   uninstallItemType,
 } from "@opensesame/vault-core";
 import {
-  activitySeams,
   noteVaultBodyPersisted,
   noteVaultUnlocked,
   recordActivityEvent,
@@ -124,7 +123,12 @@ import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
 import { rebindTombSeals, rekeyTomb } from "./seal-rebind.js";
-import { CodeSendGuard, PendingChallenge } from "./second-step-guard.js";
+import {
+  CodeSendGuard,
+  PendingChallenge,
+  assertSecondStepPending,
+  finishSecondStepUnlock,
+} from "./second-step-guard.js";
 import {
   UnguardedTotpEnrollment,
   heldTotpCode,
@@ -136,8 +140,6 @@ import { loadVaultBody } from "./store-body.js";
 import {
   type ApplyChange,
   type VaultBodyPort,
-  bodyPortOf,
-  installDeviceKeyCarrier,
   levelDeviceKey,
   makeBodyPort,
   registerBodyPort,
@@ -212,7 +214,8 @@ export {
   normalizeVaultPrefs,
 } from "./prefs.js";
 
-import type { VaultState } from "./store-state.js";
+import { installVaultStoreBoot } from "./store-boot.js";
+import { type VaultState, bindGuestSessionStore } from "./store-state.js";
 export type { VaultState, VaultStatus } from "./store-state.js";
 
 type Listener = () => void;
@@ -795,7 +798,9 @@ export class VaultStore {
       this.#recordFailedUnlock();
       throw new WrongPasswordError("That authenticator code is not valid.");
     }
-    await this.#activateSession(pending);
+    await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
+      this.#activateSession(k),
+    );
     // A gate with no registration yet gets one now (ADR 0113).
     if (!gate.selfItemId) await this.#registerSelfAuthenticator(gate);
   }
@@ -848,7 +853,9 @@ export class VaultStore {
       throw error;
     }
     this.#pendingCode = null;
-    await this.#activateSession(pending);
+    await finishSecondStepUnlock(pending, this.#pendingVaultKey, (k) =>
+      this.#activateSession(k),
+    );
   }
 
   /** Spend a recovery code as the second step (see `recovery-codes.ts`). */
@@ -860,6 +867,7 @@ export class VaultStore {
     if (!pending || !header || !record) {
       throw new WrongPasswordError("That recovery code is not valid.");
     }
+    assertSecondStepPending(pending, this.#pendingVaultKey);
     const codesWrap = await spendRecoveryCode(pending, record, code, () =>
       this.#recordFailedUnlock(),
     );
@@ -1578,16 +1586,7 @@ export class VaultStore {
   }
 }
 
-export const vaultStore = new VaultStore();
-
-// The device identity host mints through this store's body (ADR 0160 §5).
-installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
-
-// A guest's tomb is sealed and isolated like any other, so a guest's
-// actions are logged in it (PRODUCT.md: guests are first-class).
-activitySeams.activeTomb = () => {
-  const snap = vaultStore.getSnapshot();
-  return snap.status === "unlocked" && snap.tomb ? snap.tomb : null;
-};
+export const vaultStore = bindGuestSessionStore(new VaultStore());
+installVaultStoreBoot(vaultStore);
 
 export { WrongPasswordError, VaultCorruptError };
