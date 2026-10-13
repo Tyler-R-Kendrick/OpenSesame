@@ -12,6 +12,7 @@ import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
 import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
 import {
+  type LocalClaimRecord,
   type LocalDropPollState,
   MAX_DROP_CLAIM_ATTEMPTS,
   digestDropBearerToken,
@@ -183,6 +184,23 @@ export type PresentedLocalDrop = {
   targetManifest: JsonObject;
 };
 
+/** Lock a claim out: wipe ciphertext, persist, mirror to the sender ledger. */
+function lockOutLocalDropClaim(
+  record: LocalClaimRecord,
+  claimId: string,
+  persist: (next: LocalClaimRecord) => void,
+  attempts: number,
+): void {
+  persist({
+    ...record,
+    attempts,
+    state: "locked_out",
+    targetManifest: {},
+    version: record.version + 1,
+  });
+  noteDropLockedOut(claimId);
+}
+
 export async function presentLocalDropClaim(
   bearerToken: string,
   userCode: string,
@@ -218,6 +236,12 @@ export async function presentLocalDropClaim(
     if (record.state === "expired") {
       throw refuse("EXPIRED", "This drop has expired.");
     }
+    if (record.state === "locked_out") {
+      throw refuse(
+        "too_many_attempts",
+        "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
+      );
+    }
     throw refuse(
       "INVALID_TRANSITION",
       "This drop was already opened and cannot be opened again.",
@@ -227,16 +251,23 @@ export async function presentLocalDropClaim(
     throw refuse("invalid_token", "This drop's claim token was refused.");
   }
   if (record.attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
+    lockOutLocalDropClaim(record, claimId, persist, record.attempts);
     throw refuse(
       "too_many_attempts",
-      "Too many wrong codes for this drop. Seal a new one.",
+      "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
     );
   }
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
     const attempts = record.attempts + 1;
     const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
+    if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
+      lockOutLocalDropClaim(record, claimId, persist, attempts);
+      throw refuse(
+        "too_many_attempts",
+        "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
+      );
+    }
     persist({ ...record, attempts, version: record.version + 1 });
-    if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) noteDropLockedOut(claimId);
     throw refuse("invalid_user_code", wrongDropCodeWords(triesLeft), triesLeft);
   }
   const targetManifest = structuredClone(record.targetManifest);

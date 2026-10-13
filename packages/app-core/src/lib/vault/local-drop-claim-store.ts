@@ -30,7 +30,7 @@ export type LocalClaimRecord = {
   tokenDigest: string;
   userCodeDigest: string;
   targetManifest: JsonObject;
-  state: "pending" | "presented" | "expired" | "revoked";
+  state: "pending" | "presented" | "expired" | "revoked" | "locked_out";
   expiresAtMs: number;
   attempts: number;
   version: number;
@@ -40,7 +40,12 @@ type LocalClaimStore = {
   claims: Record<string, LocalClaimRecord>;
 };
 
-export type LocalDropPollState = "pending" | "consumed" | "expired" | "revoked";
+export type LocalDropPollState =
+  | "pending"
+  | "consumed"
+  | "expired"
+  | "revoked"
+  | "locked_out";
 
 const claimSlot = originKvSlot(LOCAL_DROP_CLAIM_KEYS);
 
@@ -125,6 +130,7 @@ export function localDropPollState(
   if (state === "pending") return "pending";
   if (state === "presented") return "consumed";
   if (state === "revoked") return "revoked";
+  if (state === "locked_out") return "locked_out";
   return "expired";
 }
 
