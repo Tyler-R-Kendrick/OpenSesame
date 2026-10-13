@@ -30,6 +30,7 @@ import { SettingsFileContext } from "../../sections/settings/files/context.js";
 import { LiveHostForm } from "./LiveHostForm.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { liveUiSeams } from "./live-hooks.js";
+import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const github = createItem("account", "GitHub");
@@ -210,7 +211,9 @@ describe("the start form", () => {
   async function fill(form: ReturnType<typeof within>) {
     await form.findByLabelText("Session name");
     type(form, "Session name", "Team");
-    fireEvent.click(form.getByRole("checkbox", { name: "GitHub" }));
+    fireEvent.click(
+      form.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+    );
   }
   const start = (form: ReturnType<typeof within>) =>
     form.getByRole("button", { name: /^Start the live session/ });
@@ -222,7 +225,9 @@ describe("the start form", () => {
       name: "relay needs at least one TURN server.",
     });
     type(form, "Session name", "Team");
-    fireEvent.click(form.getByRole("checkbox", { name: "GitHub" }));
+    fireEvent.click(
+      form.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+    );
     expect(start(form)).toHaveProperty("disabled", true);
     expect(form.queryByRole("img", { name: "Direct only" })).toBeNull();
   });
