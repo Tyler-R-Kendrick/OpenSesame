@@ -188,9 +188,8 @@ async function passkeyNoPrfJourney(
     "the tray sheet stays closed — the caret keeps its field",
   );
   check(
-    (await page
-      .getByRole("heading", { name: "Seal this device" })
-      .count()) === 1,
+    (await page.getByRole("heading", { name: "Seal this device" }).count()) ===
+      1,
     "still on Seal this device",
   );
   await page.getByRole("button", { name: /Notifications.*pending/ }).click();
