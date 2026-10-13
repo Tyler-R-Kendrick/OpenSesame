@@ -182,6 +182,7 @@ pub(crate) async fn respond(
     };
     host.store
         .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
+    let pairing_secret = bearer(&headers).unwrap_or("");
     let status = match req.decision.as_str() {
         "approve" => {
             let proof = req.human_proof.as_deref().unwrap_or("");
@@ -190,6 +191,7 @@ pub(crate) async fn respond(
                 &req.terminal_session_id,
                 &req.respond_nonce,
                 proof,
+                pairing_secret,
             )
         }
         "deny" => host.store.deny(
