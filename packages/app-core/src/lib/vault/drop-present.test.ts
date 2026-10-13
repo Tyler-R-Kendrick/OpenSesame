@@ -85,12 +85,7 @@ describe("presenting a drop to the Identity API", () => {
         "invalid_code",
         /did not match this drop/,
       ],
-      [
-        { error: "too_many_attempts" },
-        429,
-        "invalid_code",
-        /Too many wrong codes/,
-      ],
+      [{ error: "too_many_attempts" }, 429, "locked_out", /Locked out/],
       [{ error: "EXPIRED" }, 410, "expired", /expired before it was opened/],
       [
         { error: "INVALID_TRANSITION" },
