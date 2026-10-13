@@ -9,6 +9,7 @@ import {
   manualPassword,
   newUri,
 } from "@opensesame/vault-core";
+import { splitAccount } from "@opensesame/vault-core/credential-split.js";
 import { describe, expect, it } from "vitest";
 import { breachWatchSnapshot } from "./health.js";
 import {
@@ -178,6 +179,24 @@ describe("runSecurityChecks", () => {
       ["Mail", 0, true],
     ]);
     expect(list.requests).toEqual([TWO_FACTOR_LIST_URL]);
+  });
+
+  it("counts logins stored as credentials bound to accounts (ADR 0179)", async () => {
+    const range = rangeServer(new Map([[PASSWORD_SHA1, 1]]));
+    const list = listServer();
+    const stored = splitAccount(
+      [],
+      login("GitHub", "password", "https://github.com/login"),
+      "2026-10-01T00:00:00.000Z",
+    );
+    const report = await runSecurityChecks(
+      stored,
+      range.fetch,
+      list.fetch,
+      () => new Date("2026-10-05T00:00:00.000Z"),
+    );
+    expect(report.checked).toBe(1);
+    expect(report.findings[0]?.breaches).toBe(1);
   });
 
   it("never fetches the list when every login stores a code", async () => {
