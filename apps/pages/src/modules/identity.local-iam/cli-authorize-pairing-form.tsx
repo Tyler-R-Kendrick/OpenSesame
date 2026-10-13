@@ -20,6 +20,25 @@ function daemonBase(url: string): string | null {
   return base && isTailnetOrLoopback(base) ? base : null;
 }
 
+function isPairingOriginValid(origin: string): boolean {
+  try {
+    const o = new URL(origin);
+    if (o.origin !== origin || o.username || o.password) return false;
+    if (o.protocol === "https:") {
+      if (o.hostname.endsWith(".")) return false;
+    } else if (
+      o.protocol !== "http:" ||
+      o.hostname !== "localhost" ||
+      o.port === ""
+    ) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 function parseCode(raw: string) {
   const trimmed = raw.trim();
   if (!trimmed.startsWith(PREFIX)) return null;
@@ -42,21 +61,7 @@ function parseCode(raw: string) {
     ) {
       return null;
     }
-    try {
-      const o = new URL(origin);
-      if (o.origin !== origin || o.username || o.password) return null;
-      if (o.protocol === "https:") {
-        if (o.hostname.endsWith(".")) return null;
-      } else if (
-        o.protocol !== "http:" ||
-        o.hostname !== "localhost" ||
-        o.port === ""
-      ) {
-        return null;
-      }
-    } catch {
-      return null;
-    }
+    if (!isPairingOriginValid(origin)) return null;
     return { code, origin, url, label };
   } catch {
     return null;
