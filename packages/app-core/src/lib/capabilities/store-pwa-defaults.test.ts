@@ -50,9 +50,7 @@ describe("needsPersonalLocalPwaDefaults", () => {
     },
   } as CompositionSnapshot["plan"];
 
-  function snap(
-    overrides: Partial<CompositionSnapshot>,
-  ): CompositionSnapshot {
+  function snap(overrides: Partial<CompositionSnapshot>): CompositionSnapshot {
     return {
       plan,
       provenance: "personal-local",
