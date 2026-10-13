@@ -26,7 +26,9 @@ export async function guestUnlockAfterMfa(page, { check, snap, PIN }) {
   );
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  await page.waitForTimeout(2500);
+  // Short PINs unwrap at up to 10M PBKDF2 iterations (PIN KDF cost scaling);
+  // give the derivation plus the self-supplied second step room on slow CI.
+  await page.waitForTimeout(8000);
   await finishUnlockSelfSupplied(page, "1-guest", { check, snap });
 }
 
@@ -44,6 +46,8 @@ export async function guestUnlockAfterReload(
   );
   await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  await page.waitForTimeout(2500);
+  // Short PINs unwrap at up to 10M PBKDF2 iterations (PIN KDF cost scaling);
+  // give the derivation plus the self-supplied second step room on slow CI.
+  await page.waitForTimeout(8000);
   await finishUnlockSelfSupplied(page, "1-guest-reload", { check, snap });
 }
