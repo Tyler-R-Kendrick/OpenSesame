@@ -72,7 +72,7 @@ async function pair(parsed: {
   if (!base) return false;
   const bytes = new Uint8Array(32);
   crypto.getRandomValues(bytes);
-  let pageBinding = btoa(String.fromCharCode(...bytes))
+  const pageBinding = btoa(String.fromCharCode(...bytes))
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replace(/=+$/, "");
