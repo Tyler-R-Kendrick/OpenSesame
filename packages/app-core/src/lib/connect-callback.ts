@@ -2,7 +2,8 @@ import { env } from "../host.js";
 import { maybePage } from "../ports.js";
 /**
  * Where Connect OAuth authorizations return: the relay in
- * `apps/pages/server`, deployed as `apps/pages/api` beside the app.
+ * `apps/pages/server`, run beside the static app by its operator
+ * (`node apps/pages/server/server.mjs`).
  *
  * A destination, never a credential: Connect returns the browser to the
  * relay after approval and the relay bounces it to the app. Empty means

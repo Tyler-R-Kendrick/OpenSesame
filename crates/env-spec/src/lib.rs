@@ -8,11 +8,12 @@ use opensesame_domain::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 mod login;
+mod node_bridge;
 mod scope;
 pub use login::{web_login, WebLogin, LOGIN_RESOLVER};
+pub use node_bridge::node_command;
 pub use scope::{is_bounded_prefix, is_http_method};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -75,6 +76,9 @@ pub enum EnvSpecError {
     /// A `paths=` or `methods=` declaration that does not bound a surrogate.
     #[error("{0}")]
     Scope(String),
+    /// No `node` the bridge may be started with (see [`node_command`]).
+    #[error("{0}")]
+    Node(String),
 }
 
 fn bridge_bin() -> PathBuf {
@@ -87,21 +91,19 @@ fn bridge_bin() -> PathBuf {
 
 /// Invoke the Node `@env-spec/parser` bridge.
 ///
+/// The bridge runs under [`node_command`]: a `node` found only in trusted
+/// `PATH` entries, started by its absolute path with a minimal environment. It
+/// reads our configuration, so it gets neither the secrets this process holds
+/// nor code that an inherited `NODE_OPTIONS`, `NODE_PATH` or a `node` planted
+/// in the working directory would put inside it.
+///
 /// # Errors
 ///
-/// Returns an error when validation or the underlying operation fails.
+/// Returns an error when validation or the underlying operation fails, or when
+/// no trusted `node` exists.
 pub fn parse_schema_file(path: &Path) -> Result<EnvSpecDocument, EnvSpecError> {
     let bin = bridge_bin();
-    // Run the bridge on a bare Node. An inherited `NODE_OPTIONS` decides what
-    // loads into this process before the script does, so it can fail the parse
-    // for reasons that have nothing to do with the schema (`--import tsx`
-    // does exactly that) and, with `--require`, can put someone else's code
-    // inside the thing that reads our configuration. Neither belongs here.
-    let out = Command::new("node")
-        .env_remove("NODE_OPTIONS")
-        .arg(&bin)
-        .arg(path)
-        .output()?;
+    let out = node_command()?.arg(&bin).arg(path).output()?;
     if !out.status.success() {
         return Err(EnvSpecError::Bridge(
             String::from_utf8_lossy(&out.stderr).into(),

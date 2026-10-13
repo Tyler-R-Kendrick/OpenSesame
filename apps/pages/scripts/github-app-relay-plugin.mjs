@@ -5,9 +5,9 @@ import {
 /**
  * Dev-only GitHub App relay on the Vite origin.
  *
- * Same handlers as `apps/pages/api` (from `server/`) so localhost needs no separate
- * `VITE_CONNECT_CALLBACK_BASE` — production GitHub Pages / Vercel set that
- * base to the deployed relay instead.
+ * Same handlers as the deployed relay (from `server/`) so localhost needs no
+ * separate `VITE_CONNECT_CALLBACK_BASE` — production deployments set that
+ * base to their relay instead.
  */
 import {
   handleGithubAppPutContents,
