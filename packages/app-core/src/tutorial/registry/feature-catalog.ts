@@ -84,7 +84,7 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "feature.security-checks",
     description:
-      "The Breach and two-step checks section of Settings › Features: its switch adds a check of logins against known breaches and sites that take an authenticator code.",
+      "Settings › Features › Breach and two-step checks: its switch runs breach and two-step checks on vault logins.",
     role: "surface",
     routes: ["/settings/features"],
     capabilityId: null,

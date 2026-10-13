@@ -163,10 +163,10 @@ describe("vault.security-checks runtime", () => {
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText("Found in breaches 42 times: change this password"),
+      screen.getByText("In breaches 42 times: change this password"),
     ).toBeTruthy();
     expect(
-      screen.getByText("This site takes an authenticator code; none is stored"),
+      screen.getByText("Site takes an authenticator code; none stored"),
     ).toBeTruthy();
     expect(t.egressCalls).toEqual([
       {
@@ -195,9 +195,9 @@ describe("vault.security-checks runtime", () => {
     const marks = screen
       .getAllByRole("img")
       .map((mark) => mark.getAttribute("aria-label"));
-    expect(marks).toContain("Found in breaches 42 times: change this password");
+    expect(marks).toContain("In breaches 42 times: change this password");
     expect(marks).toContain(
-      "This site takes an authenticator code; none is stored",
+      "Site takes an authenticator code; none stored",
     );
     expect(screen.queryByText("Shop")).toBeNull();
     await handle.dispose();

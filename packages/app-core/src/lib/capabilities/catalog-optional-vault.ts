@@ -109,7 +109,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   ),
   optional(
     "vault.security-checks",
-    "Breach and two-step checks",
+    "Breach and two-step",
     SECURITY_CHECKS_SUMMARY,
     {
       operationIds: ["vault.health.security_check"],

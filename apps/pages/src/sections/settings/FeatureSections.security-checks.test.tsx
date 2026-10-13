@@ -105,10 +105,10 @@ describe("Breach and two-step checks in Settings", () => {
       ),
     );
     expect(section?.textContent).toContain(
-      "Found in breaches 42 times: change this password",
+      "In breaches 42 times: change this password",
     );
     expect(section?.textContent).toContain(
-      "This site takes an authenticator code; none is stored",
+      "Site takes an authenticator code; none stored",
     );
     expect(section?.textContent).not.toContain("Shop");
   });
