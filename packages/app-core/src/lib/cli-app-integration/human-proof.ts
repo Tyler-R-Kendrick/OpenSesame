@@ -84,7 +84,12 @@ export async function mintCliAppHumanProofFromPasskey(
     throw new Error("passkey_assertion_cancelled");
   }
   const response = assertion.response;
-  if (!("authenticatorData" in response) || !("signature" in response)) {
+  if (
+    !("authenticatorData" in response) ||
+    !(response.authenticatorData instanceof ArrayBuffer) ||
+    !("signature" in response) ||
+    !(response.signature instanceof ArrayBuffer)
+  ) {
     throw new Error("passkey_assertion_invalid");
   }
   const wire = JSON.stringify({
