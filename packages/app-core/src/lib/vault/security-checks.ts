@@ -48,6 +48,60 @@ export {
   TWO_FACTOR_PURPOSE,
 } from "../capabilities/catalog-optional-vault.js";
 
+/** Shown in Settings and on Password health while the capability is on and no check has finished. */
+export const SECURITY_CHECKS_IDLE =
+  "Breach and two-step checks are on. Not checked yet.";
+
+function noun(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+const PEPPER_ONLY_YOU_HOLD = "a pepper only you hold";
+
+function pepperSkippedSentence(notCheckable: number): string {
+  const who = noun(notCheckable, "password", "passwords");
+  const verb = notCheckable === 1 ? "uses" : "use";
+  return `No logins checked: ${who} ${verb} ${PEPPER_ONLY_YOU_HOLD}, so this device can't check them.`;
+}
+
+/** The sentence Password health and Settings show for one finished check. */
+export function securityWatchLabel(report: SecurityReport): string {
+  const breached = report.findings.filter((f) => f.breaches > 0).length;
+  const twoStep = report.findings.filter((f) => f.twoFactorAvailable).length;
+  const { checked, notCheckable } = report;
+  if (checked === 0) {
+    if (notCheckable > 0) return pepperSkippedSentence(notCheckable);
+    return "No logins this device can check.";
+  }
+  if (breached > 0 && twoStep > 0) {
+    return `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.`;
+  }
+  if (breached > 0) {
+    return `${breached} of ${checked} passwords found in known breaches.`;
+  }
+  if (twoStep > 0) {
+    return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
+  }
+  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.`;
+}
+
+/** Visible sentences for one login, breach first, then a missing authenticator code. */
+export function findingSentences(
+  breaches: number,
+  twoFactorAvailable: boolean,
+): string[] {
+  const sentences: string[] = [];
+  if (breaches > 0) {
+    sentences.push(
+      `Found in breaches ${noun(breaches, "time", "times")}: change this password`,
+    );
+  }
+  if (twoFactorAvailable) {
+    sentences.push("This site takes an authenticator code; none is stored");
+  }
+  return sentences;
+}
+
 export type CheckFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export type SecurityFinding = {
@@ -69,52 +123,6 @@ export type SecurityReport = {
   notCheckable: number;
   findings: SecurityFinding[];
 };
-
-/** Shown in Settings and on Password health while the capability is on and no check has finished. */
-export const SECURITY_CHECKS_IDLE = "Breach checks on. Unchecked.";
-
-function noun(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
-/** The sentence Password health and Settings show for one finished check. */
-export function securityWatchLabel(report: SecurityReport): string {
-  const breached = report.findings.filter((f) => f.breaches > 0).length;
-  const twoStep = report.findings.filter((f) => f.twoFactorAvailable).length;
-  const { checked, notCheckable } = report;
-  const pepperTail = notCheckable > 0 ? ` (${notCheckable} pep-only)` : "";
-  let base: string;
-  if (checked === 0) {
-    base =
-      notCheckable > 0 ? "No breach check" : "No logins this device can check.";
-  } else if (breached > 0 && twoStep > 0) {
-    base = `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.`;
-  } else if (breached > 0) {
-    base = `${breached} of ${checked} passwords found in known breaches.`;
-  } else if (twoStep > 0) {
-    base = `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
-  } else {
-    base = `${noun(checked, "login", "logins")} checked; no breaches or missing codes.`;
-  }
-  return `${base}${pepperTail}`;
-}
-
-/** Visible sentences for one login, breach first, then a missing authenticator code. */
-export function findingSentences(
-  breaches: number,
-  twoFactorAvailable: boolean,
-): string[] {
-  const sentences: string[] = [];
-  if (breaches > 0) {
-    sentences.push(
-      `In breaches ${noun(breaches, "time", "times")}: change this password`,
-    );
-  }
-  if (twoFactorAvailable) {
-    sentences.push("Site takes an authenticator code; none stored");
-  }
-  return sentences;
-}
 
 function watchLine(finding: SecurityFinding): BreachWatchLine {
   const site =
@@ -179,7 +187,7 @@ export function noteSecurityWatch(note: SecurityWatchNote): void {
     case "checking":
       publishBreachWatch({
         phase: "checking",
-        label: "Checking logins against breaches and two-step sites.",
+        label: "Checking logins against known breaches and two-step sites.",
       });
       return;
     case "error":
@@ -252,7 +260,7 @@ export async function breachCounts(
       cache: "no-store",
     });
     if (!response.ok) {
-      throw new Error(`Breach check failed (${response.status}).`);
+      throw new Error(`The breach check failed (${response.status}).`);
     }
     const range = parseRange(await response.text());
     for (const [suffix, password] of bucket) {
@@ -297,7 +305,9 @@ export async function fetchTwoFactorSites(
 ): Promise<Set<string>> {
   const response = await fetchList(TWO_FACTOR_LIST_URL, { cache: "no-store" });
   if (!response.ok) {
-    throw new Error(`Two-step list unreadable (${response.status}).`);
+    throw new Error(
+      `The two-step list could not be read (${response.status}).`,
+    );
   }
   return parseTwoFactorList(await response.json());
 }

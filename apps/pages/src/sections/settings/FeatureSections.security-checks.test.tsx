@@ -61,8 +61,7 @@ describe("Breach and two-step checks in Settings", () => {
     const { container } = renderPanel();
     const section = container.querySelector("#feature-security-checks");
     expect(section?.textContent).toContain(SECURITY_CHECKS_SUMMARY);
-    expect(section?.textContent).toContain("Password health");
-    expect(section?.textContent).toContain("Press Check");
+    expect(section?.textContent).toContain("Hash prefixes");
     expect(
       screen.queryByRole("button", {
         name: "Check logins against breaches and two-step sites",
@@ -105,10 +104,10 @@ describe("Breach and two-step checks in Settings", () => {
       ),
     );
     expect(section?.textContent).toContain(
-      "In breaches 42 times: change this password",
+      "Found in breaches 42 times: change this password",
     );
     expect(section?.textContent).toContain(
-      "Site takes an authenticator code; none stored",
+      "This site takes an authenticator code; none is stored",
     );
     expect(section?.textContent).not.toContain("Shop");
   });

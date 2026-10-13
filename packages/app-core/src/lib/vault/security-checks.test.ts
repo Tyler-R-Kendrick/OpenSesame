@@ -132,7 +132,7 @@ describe("the breach check", () => {
   it("says when the service refused", async () => {
     await expect(
       breachCounts(["x"], async () => new Response(null, { status: 429 })),
-    ).rejects.toThrow("Breach check failed (429).");
+    ).rejects.toThrow("The breach check failed (429).");
   });
 });
 
@@ -209,7 +209,9 @@ describe("runSecurityChecks", () => {
     expect(report.notCheckable).toBe(1);
     expect(report.findings).toEqual([]);
     expect(range.sent).toEqual([]);
-    expect(securityWatchLabel(report)).toBe("No breach check (1 pep-only)");
+    expect(securityWatchLabel(report)).toBe(
+      "No logins checked: 1 password uses a pepper only you hold, so this device can't check them.",
+    );
   });
 
   it("never fetches the list when every login stores a code", async () => {
@@ -256,11 +258,11 @@ describe("runSecurityChecks", () => {
     expect(watch.twoStep).toBe(2);
     expect(watch.lines.map((line) => line.name)).toEqual(["GitHub", "Mail"]);
     expect(watch.lines[0]?.sentences).toEqual([
-      "In breaches 12 times: change this password",
-      "Site takes an authenticator code; none stored",
+      "Found in breaches 12 times: change this password",
+      "This site takes an authenticator code; none is stored",
     ]);
     expect(watch.lines[1]?.sentences).toEqual([
-      "Site takes an authenticator code; none stored",
+      "This site takes an authenticator code; none is stored",
     ]);
     reconcileSecurityWatchWithVault("personal", items);
     expect(breachWatchSnapshot().phase).toBe("checked");
