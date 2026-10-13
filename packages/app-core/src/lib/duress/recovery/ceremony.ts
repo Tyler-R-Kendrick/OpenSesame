@@ -4,7 +4,10 @@
  */
 
 import type { RecoveryRequest } from "./approval.js";
-import type { ApprovalQuorumLedger } from "./approval.js";
+import {
+  type ApprovalQuorumLedger,
+  digestRecoveryRequest,
+} from "./approval.js";
 import { wipe } from "./bytes.js";
 import type { CustodyGrant } from "./roles.js";
 import { roleAllows } from "./roles.js";
@@ -93,6 +96,25 @@ export async function reconstructAfterQuorum(input: {
   nowMs?: number;
 }): Promise<CeremonyResult> {
   try {
+    const recomputed = await digestRecoveryRequest({
+      requestId: input.request.requestId,
+      incidentIds: input.request.incidentIds,
+      vaultRef: input.request.vaultRef,
+      compartmentRefs: input.request.compartmentRefs,
+      targetDeviceBinding: input.request.targetDeviceBinding,
+      ephemeralRecipientKeyB64: input.request.ephemeralRecipientKeyB64,
+      policyRevision: input.request.policyRevision,
+      keyEpoch: input.request.keyEpoch,
+      recoveryGeneration: input.request.recoveryGeneration,
+      nonce: input.request.nonce,
+      expiresAt: input.request.expiresAt,
+    });
+    if (recomputed !== input.request.digest) {
+      return {
+        kind: "failed",
+        reason: "authority_mismatch: request digest",
+      };
+    }
     assertGenerationLive(input.registry, input.request.recoveryGeneration);
     if (Date.parse(input.request.expiresAt) < (input.nowMs ?? Date.now())) {
       return {
@@ -138,12 +160,31 @@ export async function reconstructAfterQuorum(input: {
   }
 }
 
-export function reportApprovalQuorum(
+export async function reportApprovalQuorum(
   ledger: ApprovalQuorumLedger,
-  requestDigest: string,
+  request: RecoveryRequest,
   independentApprovers: number,
-): CeremonyResult {
-  if (!ledger.quorumMet(requestDigest)) {
+): Promise<CeremonyResult> {
+  const recomputed = await digestRecoveryRequest({
+    requestId: request.requestId,
+    incidentIds: request.incidentIds,
+    vaultRef: request.vaultRef,
+    compartmentRefs: request.compartmentRefs,
+    targetDeviceBinding: request.targetDeviceBinding,
+    ephemeralRecipientKeyB64: request.ephemeralRecipientKeyB64,
+    policyRevision: request.policyRevision,
+    keyEpoch: request.keyEpoch,
+    recoveryGeneration: request.recoveryGeneration,
+    nonce: request.nonce,
+    expiresAt: request.expiresAt,
+  });
+  if (recomputed !== request.digest) {
+    return {
+      kind: "failed",
+      reason: "authority_mismatch: request digest",
+    };
+  }
+  if (!ledger.quorumMet(request.digest)) {
     return {
       kind: "failed",
       reason: "recovery_required: approval quorum not met",
@@ -151,7 +192,7 @@ export function reportApprovalQuorum(
   }
   return {
     kind: "approval_quorum_met",
-    requestDigest,
+    requestDigest: request.digest,
     independentApprovers,
     wrappingSecret: null,
   };

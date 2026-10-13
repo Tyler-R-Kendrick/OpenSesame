@@ -1,7 +1,13 @@
 /** Native effects for the shared 1Password workflow core. */
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { constants, accessSync, realpathSync, statSync } from "node:fs";
+import {
+  constants,
+  accessSync,
+  lstatSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { chmod, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import {
@@ -11,6 +17,7 @@ import {
   isAbsolute,
   join,
   parse,
+  sep,
 } from "node:path";
 import { passwordAgentPolicy } from "@opensesame/app-core/lib/password-agent/policy.js";
 import {
@@ -37,7 +44,7 @@ export function invokeOp(
     ? [...args, "--account", options.account]
     : [...args];
   return capture(
-    resolveCredentialHelper("op"),
+    resolveCredentialHelper("op", env),
     argv,
     env,
     options.input,
@@ -160,7 +167,7 @@ export function runOpChild(
     ...command,
   ];
   return new Promise((resolve, reject) => {
-    const child = spawn(resolveCredentialHelper("op"), argv, {
+    const child = spawn(resolveCredentialHelper("op", env), argv, {
       env: helperEnvironment(env),
       cwd: parse(process.execPath).root,
       stdio: "inherit",
@@ -176,8 +183,12 @@ export function runOpChild(
 }
 
 /** Windows normally searches the working directory before PATH; skip that search. */
-export function resolveCredentialHelper(name: string): string {
-  for (const directory of (process.env.PATH ?? "").split(delimiter)) {
+export function resolveCredentialHelper(
+  name: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  let chosen: string | undefined;
+  for (const directory of helperPathEntries(env)) {
     if (!trustedDirectory(directory)) continue;
     const candidate = join(
       directory,
@@ -191,12 +202,13 @@ export function resolveCredentialHelper(name: string): string {
         resolved,
         process.platform === "win32" ? constants.F_OK : constants.X_OK,
       );
-      return resolved;
+      chosen = resolved;
     } catch {
       /* Missing or unusable PATH entries grant no trust. */
     }
   }
-  throw new Error("Credential helper was not found on PATH.");
+  if (!chosen) throw new Error("Credential helper was not found on PATH.");
+  return chosen;
 }
 
 /** Remove interpreter preloads before credential-bearing helpers start. */
@@ -212,12 +224,42 @@ export function helperEnvironment(input: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return env;
 }
 
+function helperPathEntries(env: NodeJS.ProcessEnv): string[] {
+  const screened = helperEnvironment({ ...process.env, ...env }).PATH ?? "";
+  return screened.split(delimiter);
+}
+
 function trustedDirectory(directory: string): boolean {
-  if (!isAbsolute(directory)) return false;
+  const trimmed = directory.trim();
+  if (!trimmed || !isAbsolute(trimmed)) return false;
   try {
-    return realpathSync(directory) !== realpathSync(process.cwd());
+    const resolved = realpathSync(trimmed);
+    const cwd = realpathSync(process.cwd());
+    if (resolved === cwd) return false;
+    if (cwdUnderDirectory(cwd, resolved)) return false;
+    if (worldWritableWithoutStickyBit(resolved)) return false;
+    return true;
   } catch {
     return false;
+  }
+}
+
+function cwdUnderDirectory(cwd: string, directory: string): boolean {
+  if (process.platform === "win32") {
+    const normalized = cwd.toLowerCase();
+    const root = directory.toLowerCase();
+    return normalized === root || normalized.startsWith(`${root}${sep}`);
+  }
+  return cwd === directory || cwd.startsWith(`${directory}${sep}`);
+}
+
+function worldWritableWithoutStickyBit(directory: string): boolean {
+  if (process.platform === "win32") return false;
+  try {
+    const mode = lstatSync(directory).mode;
+    return (mode & 0o002) !== 0 && (mode & 0o1000) === 0;
+  } catch {
+    return true;
   }
 }
 
