@@ -1,13 +1,13 @@
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
 import type { ComponentType, FormEvent, RefObject } from "react";
-import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
-import { commandPlaceholder } from "./command-bar-placeholder.js";
+import type { useFieldSearch } from "../lib/command-bar/use-field-search.js";
 import {
   COMMAND_LIST_ID,
   commandOptionId,
-  useCommandSuggestions,
+  type useCommandSuggestions,
 } from "./CommandSuggestions.js";
 import { IconArrowRight } from "./Icons.js";
+import { commandPlaceholder } from "./command-bar-placeholder.js";
 
 function RunKey({ off }: { off: boolean }) {
   return (

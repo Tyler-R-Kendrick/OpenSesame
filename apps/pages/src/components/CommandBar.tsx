@@ -2,21 +2,18 @@ import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js"
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
 import { listedItems } from "@opensesame/vault-core";
-import {
-  type FormEvent,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import {
+  CommandSuggestions,
+  useCommandSuggestions,
+} from "./CommandSuggestions.js";
 import { CommandBarForm } from "./command-bar-form.js";
 import { CommandBarNotice } from "./command-bar-notice.js";
-import { CommandSuggestions, useCommandSuggestions } from "./CommandSuggestions.js";
 import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
