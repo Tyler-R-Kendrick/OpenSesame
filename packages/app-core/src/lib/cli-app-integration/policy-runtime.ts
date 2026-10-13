@@ -5,6 +5,7 @@ export const cliAppIntegrationPolicy = {
   hardLimitSeconds: 43200,
   requestTimeoutSeconds: 120,
   pollIntervalMs: 500,
+  daemonPinProbeVerb: "daemon-pin-probe",
   daemonPaths: {
     ensure: "/v1/cli/app-integration/ensure",
     respond: "/v1/cli/app-integration/respond",

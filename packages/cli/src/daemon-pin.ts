@@ -1,4 +1,5 @@
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { ephemeralTerminalCorrelationId } from "@opensesame/app-core/lib/cli-app-integration/terminal-session.js";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -38,8 +39,8 @@ async function ensureProbeRejectsInstantApproval(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      terminalSessionId: "opensesame-cli-daemon-pin-probe",
-      verb: "read",
+      terminalSessionId: ephemeralTerminalCorrelationId(),
+      verb: cliAppIntegrationPolicy.daemonPinProbeVerb,
     }),
   });
   if (!response.ok) return false;

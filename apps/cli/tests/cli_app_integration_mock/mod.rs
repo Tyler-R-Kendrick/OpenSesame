@@ -8,8 +8,10 @@ use std::sync::Arc;
 use std::thread;
 
 const ENSURE_PATH: &str = "/v1/cli/app-integration/ensure";
+const HEALTH_PATH: &str = "/health";
+const PIN_PROBE_VERB: &str = "daemon-pin-probe";
 
-fn read_request(stream: &mut TcpStream) -> Option<(String, String)> {
+fn read_request(stream: &mut TcpStream) -> Option<(String, String, String)> {
     let mut raw = Vec::new();
     let mut buf = [0u8; 4096];
     let split = loop {
@@ -43,15 +45,29 @@ fn read_request(stream: &mut TcpStream) -> Option<(String, String)> {
     let mut first = head.lines().next().unwrap_or_default().split(' ');
     let method = first.next().unwrap_or_default().to_string();
     let path = first.next().unwrap_or_default().to_string();
-    Some((method, path))
+    let body_text = String::from_utf8_lossy(&body[..length.min(body.len())]).into_owned();
+    Some((method, path, body_text))
+}
+
+fn ensure_verb_is(body: &str, expected: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
+        return false;
+    };
+    value.get("verb").and_then(|v| v.as_str()) == Some(expected)
 }
 
 fn handle(mut stream: TcpStream) {
-    let Some((method, path)) = read_request(&mut stream) else {
+    let Some((method, path, body)) = read_request(&mut stream) else {
         return;
     };
-    let (status, reply) = if method == "POST" && path == ENSURE_PATH {
-        ("200 OK", r#"{"status":"approved"}"#)
+    let (status, reply) = if method == "GET" && path == HEALTH_PATH {
+        ("200 OK", r#"{"status":"ok"}"#)
+    } else if method == "POST" && path == ENSURE_PATH {
+        if ensure_verb_is(&body, PIN_PROBE_VERB) {
+            ("200 OK", r#"{"status":"pending"}"#)
+        } else {
+            ("200 OK", r#"{"status":"approved"}"#)
+        }
     } else {
         ("404 Not Found", "{}")
     };
@@ -77,7 +93,7 @@ pub fn serve_always_approve() -> String {
     url
 }
 
-/// One shared daemon for the whole test binary.
+/// One shared daemon for the whole binary.
 pub fn shared_daemon_base() -> Arc<String> {
     static ONCE: std::sync::OnceLock<Arc<String>> = std::sync::OnceLock::new();
     Arc::clone(ONCE.get_or_init(|| Arc::new(serve_always_approve())))
