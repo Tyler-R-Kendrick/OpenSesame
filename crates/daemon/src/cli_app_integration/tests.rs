@@ -2,7 +2,7 @@ use super::*;
 use axum::body::Body;
 use axum::extract::connect_info::ConnectInfo;
 use axum::http::{header, Request, StatusCode};
-use opensesame_cli_app_integration::session_id_from_pid;
+use opensesame_cli_app_integration::{mint_human_proof, session_id_from_pid};
 use opensesame_uds_authn::PeerCred;
 use tower::ServiceExt;
 
@@ -92,6 +92,14 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
+    let human_proof = mint_human_proof(
+        &token,
+        "passkey",
+        request_id,
+        &derived,
+        nonce,
+        "read",
+    );
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")
@@ -104,7 +112,7 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
                 "terminalSessionId": derived,
                 "decision": "approve",
                 "respondNonce": nonce,
-                "humanProof": "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
+                "humanProof": human_proof,
             })
             .to_string(),
         ))
@@ -175,6 +183,14 @@ async fn tcp_ensure_never_reuses_approval() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
+    let human_proof = mint_human_proof(
+        &token,
+        "passkey",
+        request_id,
+        correlation,
+        nonce,
+        "read",
+    );
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")
@@ -187,7 +203,7 @@ async fn tcp_ensure_never_reuses_approval() {
                 "terminalSessionId": correlation,
                 "decision": "approve",
                 "respondNonce": nonce,
-                "humanProof": "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
+                "humanProof": human_proof,
             })
             .to_string(),
         ))
