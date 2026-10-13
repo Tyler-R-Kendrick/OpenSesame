@@ -53,9 +53,7 @@ pub(super) fn run_assignments(
     desktop: bool,
 ) -> anyhow::Result<()> {
     core::validate_run_assignments(assignments)?;
-    if desktop {
-        crate::cli_app_integration::ensure_reveal("run", None)?;
-    }
+    crate::cli_app_integration::ensure_reveal("run", None)?;
     let mut args = super::io::helper("op")?;
     args.arg("run");
     for assignment in assignments {
@@ -126,9 +124,7 @@ pub(super) fn env(cmd: Env, desktop: bool, reveal: bool) -> anyhow::Result<()> {
             std::fs::write(file, text)?;
         }
         Env::Run { file, command } => {
-            if desktop {
-                crate::cli_app_integration::ensure_reveal("run", None)?;
-            }
+            crate::cli_app_integration::ensure_reveal("run", None)?;
             let content = zeroize::Zeroizing::new(std::fs::read_to_string(file)?);
             core::validate_run_template(&content)?;
             let mut snapshot = tempfile::NamedTempFile::new()?;
