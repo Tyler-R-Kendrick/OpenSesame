@@ -1,5 +1,5 @@
 import { listDeviceVaults } from "@opensesame/app-core/lib/vaults.js";
-import type { VaultItem } from "@opensesame/vault-core";
+import { type VaultItem, listedItems } from "@opensesame/vault-core";
 import { useState } from "react";
 import { IconKey } from "../components/IconKey.js";
 import { IconRefresh, IconTrash, IconX } from "../components/Icons.js";
@@ -143,8 +143,9 @@ export function SettingsDangerPanel() {
   const [confirmDestroy, setConfirmDestroy] = useState(false);
   const [emptyArmed, setEmptyArmed] = useState(false);
   const [purgeArmedId, setPurgeArmedId] = useState<string | null>(null);
-  const count = `${items.length} ${items.length === 1 ? "item" : "items"}`;
-  const trashed = items.filter(isTrashed);
+  const listed = listedItems(items);
+  const count = `${listed.length} ${listed.length === 1 ? "item" : "items"}`;
+  const trashed = listed.filter(isTrashed);
   const trashCount = `${trashed.length} ${
     trashed.length === 1 ? "item" : "items"
   }`;
