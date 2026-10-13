@@ -298,7 +298,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     tracing::info!(%listen, "daemon TCP listening");
     let tcp_app = app.clone();
     let tcp_handle = tokio::spawn(async move {
-        if let Err(e) = axum::serve(tcp, tcp_app).await {
+        if let Err(e) = axum::serve(
+            tcp,
+            tcp_app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        {
             tracing::error!(error = %e, "tcp serve failed");
         }
     });
@@ -379,7 +384,12 @@ async fn spawn_wsl_bridge(listen: &str, app: &Router) {
     tracing::info!(%bridge, "daemon TCP listening (WSL↔Windows Tailscale bridge)");
     let bridge_app = app.clone();
     tokio::spawn(async move {
-        if let Err(error) = axum::serve(bridge_tcp, bridge_app).await {
+        if let Err(error) = axum::serve(
+            bridge_tcp,
+            bridge_app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        {
             tracing::error!(%error, "wsl bridge serve failed");
         }
     });

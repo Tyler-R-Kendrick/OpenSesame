@@ -1,7 +1,8 @@
 //! CLI app-integration routes (`/v1/cli/app-integration/*`).
 use axum::{
-    extract::State,
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
+    body::Body,
+    extract::{FromRequest, State},
+    http::{header, HeaderMap, HeaderValue, Method, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -18,6 +19,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::extract::connect_info::ConnectInfo;
 use axum::Extension;
+use std::net::SocketAddr;
 
 use crate::peer_auth::UdsConnectInfo;
 use crate::{require_operator, App, UdsPeer};
@@ -66,6 +68,10 @@ pub(crate) fn routes(app: &App) -> Router<App> {
         .route("/v1/cli/app-integration/pending", get(pending))
         .route("/v1/cli/app-integration/respond", post(respond))
         .route(
+            "/v1/cli/app-integration/pairing/confirm",
+            post(pairing_confirm),
+        )
+        .route(
             "/v1/cli/app-integration/pairing",
             post(pairing_exchange).delete(pairing_revoke),
         )
@@ -98,11 +104,24 @@ pub struct RespondReq {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PairingExchange {
     code: String,
+    page_binding: String,
 }
 
-fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool) {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PairingConfirm {
+    code: String,
+    page_binding: String,
+}
+
+fn terminal_session_for_ensure(
+    host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
+    uds: &UdsPeer,
+    tcp_peer: Option<ConnectInfo<SocketAddr>>,
+) -> (String, bool) {
     #[cfg(unix)]
     if let Some(Extension(ConnectInfo(UdsConnectInfo(cred)))) = uds.as_ref() {
         if let Some(cred) = cred {
@@ -111,27 +130,37 @@ fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool
             }
         }
     }
-    let trimmed = body.terminal_session_id.trim();
-    let correlation = if trimmed.is_empty() {
-        format!("tcp-ephemeral-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0))
-    } else {
-        trimmed.to_string()
-    };
-    (correlation, false)
+    let peer_key = tcp_peer
+        .map(|ConnectInfo(addr)| format!("tcp:{addr}"))
+        .unwrap_or_else(|| {
+            format!(
+                "tcp:anon-{}",
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+            )
+        });
+    let (id, _) = host.terminal_session_for_tcp(&peer_key);
+    // TCP never auto-reuses an approved session (consume-on-next-ensure), same as pre-D5-3 body correlation.
+    (id, false)
 }
 
-pub(crate) async fn ensure(
-    State(st): State<App>,
-    uds: UdsPeer,
-    Json(req): Json<EnsureReq>,
-) -> Response {
+pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Response {
+    let uds: UdsPeer = request
+        .extensions()
+        .get::<ConnectInfo<UdsConnectInfo>>()
+        .cloned()
+        .map(Extension);
+    let tcp_peer = request.extensions().get::<ConnectInfo<SocketAddr>>().cloned();
+    let Json(req) = match Json::<EnsureReq>::from_request(request, &()).await {
+        Ok(json) => json,
+        Err(rejection) => return rejection.into_response(),
+    };
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
     host.store
         .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
-    let (terminal_session_id, reuse) = terminal_session_for_ensure(&uds, &req);
+    let (terminal_session_id, reuse) = terminal_session_for_ensure(&mut host, &uds, tcp_peer);
     let (status, request_id) = host.store.ensure(
         &terminal_session_id,
         &req.verb,
@@ -210,6 +239,36 @@ pub(crate) async fn respond(
     Json(json!({ "status": status })).into_response()
 }
 
+pub(crate) async fn pairing_confirm(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<PairingConfirm>,
+) -> Response {
+    let Some(origin) = origin_of(&headers).filter(|o| is_pairable_origin(o)) else {
+        return pairing_error(StatusCode::FORBIDDEN, "origin_required");
+    };
+    let now = chrono::Utc::now().timestamp() as u64;
+    let mut host = match st.cli_app_integration.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    match host
+        .pairings
+        .confirm(&body.code, origin, &body.page_binding, now)
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::WrongOrigin) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+        Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+        Err(PairingError::Full | PairingError::NotConfirmed) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+    }
+}
+
 pub(crate) async fn pairing_exchange(
     State(st): State<App>,
     headers: HeaderMap,
@@ -223,7 +282,10 @@ pub(crate) async fn pairing_exchange(
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    match host.pairings.exchange(&body.code, origin, now) {
+    match host
+        .pairings
+        .exchange(&body.code, origin, &body.page_binding, now)
+    {
         Ok(issued) => (
             StatusCode::CREATED,
             Json(json!({
@@ -238,6 +300,9 @@ pub(crate) async fn pairing_exchange(
         }
         Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+        Err(PairingError::NotConfirmed) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_confirm_required")
         }
         Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
     }
@@ -299,7 +364,10 @@ pub(crate) async fn pairing_issue_operator(
             pairing_error(StatusCode::BAD_REQUEST, "invalid_origin")
         }
         Err(
-            PairingError::Unknown | PairingError::Expired | PairingError::WrongOrigin,
+            PairingError::Unknown
+            | PairingError::Expired
+            | PairingError::WrongOrigin
+            | PairingError::NotConfirmed,
         ) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused"),
     }
 }
