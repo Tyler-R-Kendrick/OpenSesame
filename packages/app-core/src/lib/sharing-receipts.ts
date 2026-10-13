@@ -33,10 +33,46 @@ const SEEN_MAX = 256;
 let chain: Promise<void> = Promise.resolve();
 let heldDropExpiry: string | undefined;
 
+/** Outbound send ledger tomb for a claim id; wired from `outbound-drops.ts`. */
+let outboundSenderTombForClaim: (claimId: string) => string | null = () => null;
+let outboundLockedOut: (claimId: string) => void = () => {};
+
+/** Binds the sender tomb resolver without importing the outbound ledger here. */
+export function bindDropReceiptOutboundTomb(
+  resolver: (claimId: string) => string | null,
+): void {
+  outboundSenderTombForClaim = resolver;
+}
+
+/** Binds the sender ledger patch when a drop is locked out. */
+export function bindDropLockedOutOutbound(
+  patch: (claimId: string) => void,
+): void {
+  outboundLockedOut = patch;
+}
+
+function senderTombForClaim(claimId: string): string | null {
+  return outboundSenderTombForClaim(claimId);
+}
+
+function tombsForDropReceipt(claimId: string): string[] {
+  const tombs: string[] = [];
+  const sender = senderTombForClaim(claimId);
+  const active = activitySeams.activeTomb();
+  if (sender) tombs.push(sender);
+  if (active && active !== sender) tombs.push(active);
+  return tombs;
+}
+
+function tombForSenderDropReceipt(claimId: string): string | null {
+  return senderTombForClaim(claimId) ?? activitySeams.activeTomb();
+}
+
 export function flushHeldDropNotes(): void {
-  const tomb = activitySeams.activeTomb();
   const id = heldDropExpiry;
-  if (!tomb || !id) return;
+  if (!id) return;
+  const tomb = tombForSenderDropReceipt(id);
+  if (!tomb) return;
   heldDropExpiry = undefined;
   noteDropExpired(id);
 }
@@ -92,38 +128,68 @@ export function resetSharingReceiptsForTest(): void {
   heldDropExpiry = undefined;
 }
 
-/** The claim was presented. `claimId` is the id, never the bearer. */
-export function noteDropOpened(claimId: string): void {
+/** The sender sealed a drop for someone else to claim. */
+export function noteDropSent(
+  tomb: string,
+  claimId: string,
+  link?: { sourceItemId?: string | null; vaultItemId?: string | null },
+): void {
   const id = blindId(claimId);
-  const tomb = activitySeams.activeTomb();
-  if (!id || !tomb || !remember(`drop-opened:${id}`)) return;
+  if (!id || !tomb || !remember(`drop-sent:${id}`)) return;
   const metadata: JsonObject = { claimId: id };
+  const sourceItemId = link?.sourceItemId ? blindId(link.sourceItemId) : null;
+  const vaultItemId = link?.vaultItemId ? blindId(link.vaultItemId) : null;
+  if (sourceItemId) metadata.sourceItemId = sourceItemId;
+  if (vaultItemId) metadata.vaultItemId = vaultItemId;
+  const ref: ReceiptRef = sourceItemId
+    ? { claimId: id, resourceId: sourceItemId }
+    : { claimId: id };
   write(
     tomb,
     {
       category: "vault",
-      type: "vault.drop.opened",
-      summary: "Drop opened",
+      type: "vault.drop.sent",
+      summary: "Drop sent",
       outcome: "succeeded",
       targetType: "claim",
       targetId: id,
       metadata,
     },
-    "drop.opened",
-    { claimId: id },
+    "drop.sent",
+    ref,
   );
+}
+
+/** The claim was presented. `claimId` is the id, never the bearer. */
+export function noteDropOpened(claimId: string): void {
+  const id = blindId(claimId);
+  if (!id) return;
+  const metadata: JsonObject = { claimId: id };
+  const activity = {
+    category: "vault" as const,
+    type: "vault.drop.opened",
+    summary: "Drop opened",
+    outcome: "succeeded" as const,
+    targetType: "claim" as const,
+    targetId: id,
+    metadata,
+  };
+  for (const tomb of tombsForDropReceipt(id)) {
+    if (!remember(`drop-opened:${tomb}:${id}`)) continue;
+    write(tomb, activity, "drop.opened", { claimId: id });
+  }
 }
 
 /** The sender's drop passed its TTL with no claim. */
 export function noteDropExpired(claimId: string): void {
   const id = blindId(claimId);
-  const tomb = activitySeams.activeTomb();
   if (!id) return;
+  const tomb = tombForSenderDropReceipt(id);
   if (!tomb) {
     heldDropExpiry = id;
     return;
   }
-  if (!remember(`drop-expired:${id}`)) return;
+  if (!remember(`drop-expired:${tomb}:${id}`)) return;
   const metadata: JsonObject = { claimId: id };
   write(
     tomb,
@@ -144,8 +210,9 @@ export function noteDropExpired(claimId: string): void {
 /** The sender's drop was locked out after too many wrong codes. */
 export function noteDropLockedOut(claimId: string): void {
   const id = blindId(claimId);
-  const tomb = activitySeams.activeTomb();
-  if (!id || !tomb || !remember(`drop-locked:${id}`)) return;
+  if (!id) return;
+  const tomb = tombForSenderDropReceipt(id);
+  if (!tomb || !remember(`drop-locked:${tomb}:${id}`)) return;
   const metadata: JsonObject = { claimId: id };
   write(
     tomb,
@@ -161,13 +228,38 @@ export function noteDropLockedOut(claimId: string): void {
     "drop.locked_out",
     { claimId: id },
   );
+  outboundLockedOut(claimId);
+}
+
+/** A drop presentation failed for good on a send this device still tracks. */
+export function noteDropRefused(claimId: string): void {
+  const id = blindId(claimId);
+  if (!id) return;
+  const tomb = tombForSenderDropReceipt(id);
+  if (!tomb || !remember(`drop-refused:${tomb}:${id}`)) return;
+  const metadata: JsonObject = { claimId: id };
+  write(
+    tomb,
+    {
+      category: "vault",
+      type: "vault.drop.refused",
+      summary: "Drop refused",
+      outcome: "denied",
+      targetType: "claim",
+      targetId: id,
+      metadata,
+    },
+    "drop.refused",
+    { claimId: id },
+  );
 }
 
 /** The sender revoked the drop before it was claimed. */
 export function noteDropRevoked(claimId: string): void {
   const id = blindId(claimId);
-  const tomb = activitySeams.activeTomb();
-  if (!id || !tomb || !remember(`drop-revoked:${id}`)) return;
+  if (!id) return;
+  const tomb = tombForSenderDropReceipt(id);
+  if (!tomb || !remember(`drop-revoked:${tomb}:${id}`)) return;
   const metadata: JsonObject = { claimId: id };
   write(
     tomb,
@@ -236,6 +328,33 @@ const GRANT_RECEIPT_KIND = [
   "share.approved",
   "share.denied",
 ] as const satisfies readonly [ReceiptKind, ReceiptKind];
+
+/** An agent or application grant is waiting for a person to approve. */
+export function noteShareRequested(
+  tomb: string,
+  share: { id: string; principalId: string; resourceId: string },
+): void {
+  const id = blindId(share.id);
+  const subject = blindId(share.principalId);
+  const resourceId = blindId(share.resourceId);
+  if (!tomb || !id || !subject || !resourceId) return;
+  if (!remember(`share.requested:${id}`)) return;
+  const metadata: JsonObject = { subject, resourceId };
+  write(
+    tomb,
+    {
+      category: "access",
+      type: "access.share.requested",
+      summary: "Share requested",
+      outcome: "succeeded",
+      targetType: "share",
+      targetId: id,
+      metadata,
+    },
+    "share.requested",
+    { shareId: id, subject, resourceId },
+  );
+}
 
 /** Identity share grant decision after a person approves or denies. */
 export function noteShareGrantStep(

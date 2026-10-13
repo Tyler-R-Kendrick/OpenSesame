@@ -70,7 +70,7 @@ describe("drop refusals", () => {
       words:
         "That code did not match this drop. Check it with the sender and try again.",
     });
-    expect(dropRefusal("too_many_attempts", 429).code).toBe("invalid_code");
+    expect(dropRefusal("too_many_attempts", 429).code).toBe("locked_out");
     expect(dropRefusal("EXPIRED", 410).code).toBe("expired");
     expect(dropRefusal("REVOKED", 410)).toEqual({
       code: "revoked",

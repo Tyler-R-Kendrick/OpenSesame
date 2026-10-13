@@ -41,7 +41,7 @@ import {
   requireManageGrants,
   systemShareWrite,
 } from "./proofs/share-write.js";
-import { noteShareGrantStep } from "./sharing-receipts.js";
+import { noteShareGrantStep, noteShareRequested } from "./sharing-receipts.js";
 import { listDeviceVaults } from "./vaults.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -253,6 +253,7 @@ async function savePendingShare<T>(
   if (next.length > MAX_SHARES)
     throw new LocalDirectoryError("Share capacity is full.");
   await writePending(tomb, next);
+  noteShareRequested(tomb, pending);
   return pending;
 }
 
