@@ -29,6 +29,7 @@ pub use args::Args;
 pub use plugin_routes::recent_notices as plugin_notices;
 mod cli_app_integration;
 mod cli_probe;
+mod daemon_listen;
 mod discovery;
 mod duress_receiver;
 mod duress_routes;
@@ -268,7 +269,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                 "OPENSESAME_AGENT_SOCK"
             )
         })?;
-        serve_uds_only(&sock_path, app).await?;
+        daemon_listen::serve_uds_only(&sock_path, app).await?;
         return Ok(());
     }
 
@@ -287,7 +288,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
 
     #[cfg(unix)]
     if let Some(sock_path) = sock.clone() {
-        spawn_uds(&sock_path, app_clone)?;
+        daemon_listen::spawn_uds(&sock_path, app_clone)?;
     }
 
     #[cfg(not(unix))]
@@ -298,7 +299,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     tracing::info!(%listen, "daemon TCP listening");
     let tcp_app = app.clone();
     let tcp_handle = tokio::spawn(async move {
-        if let Err(e) = axum::serve(tcp, tcp_app).await {
+        if let Err(e) = axum::serve(
+            tcp,
+            tcp_app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        {
             tracing::error!(error = %e, "tcp serve failed");
         }
     });
@@ -309,110 +315,17 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // When Windows cannot reach WSL via 127.0.0.1, Serve targets the eth IP —
     // bind that address so the proxy has somewhere to dial.
     if env::var("OPENSESAME_DAEMON_NETWORK_BRIDGE").ok().as_deref() == Some("1") {
-        spawn_wsl_bridge(&listen, &app).await;
+        daemon_listen::spawn_wsl_bridge(&listen, &app).await;
         let serve_listen = listen.clone();
         tokio::task::spawn_blocking(move || startup::enable_network_bridge(&serve_listen));
     }
 
     // Read-only tailnet listener (ADR 0048 §8, D9): whois identity, no bearer.
     #[cfg(all(unix, feature = "tailscale"))]
-    spawn_tailnet(&listen, &state).await;
+    daemon_listen::spawn_tailnet(&listen, &state).await;
 
     tcp_handle.await?;
     Ok(())
-}
-
-#[cfg(unix)]
-async fn serve_uds_only(sock_path: &str, app: Router) -> anyhow::Result<()> {
-    let _ = std::fs::remove_file(sock_path);
-    if let Some(parent) = std::path::Path::new(sock_path).parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let listener = tokio::net::UnixListener::bind(sock_path)?;
-    tracing::info!(%sock_path, "daemon UDS-only listening (TCP disabled)");
-    axum::serve(
-        listener,
-        app.into_make_service_with_connect_info::<UdsConnectInfo>(),
-    )
-    .await?;
-    Ok(())
-}
-
-#[cfg(unix)]
-fn spawn_uds(sock_path: &str, app: Router) -> anyhow::Result<()> {
-    let _ = std::fs::remove_file(sock_path);
-    if let Some(parent) = std::path::Path::new(sock_path).parent() {
-        let _ = std::fs::create_dir_all(parent);
-    }
-    let listener = tokio::net::UnixListener::bind(sock_path)?;
-    tracing::info!(%sock_path, "daemon UDS listening (peer-credential auth)");
-    tokio::spawn(async move {
-        if let Err(error) = axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<UdsConnectInfo>(),
-        )
-        .await
-        {
-            tracing::error!(%error, "uds serve failed");
-        }
-    });
-    Ok(())
-}
-
-async fn spawn_wsl_bridge(listen: &str, app: &Router) {
-    let Some(port) = tailscale::listen_port(listen) else {
-        return;
-    };
-    let Some(bridge) = tailscale::wsl_bridge_listen(port) else {
-        return;
-    };
-    if bridge == listen {
-        return;
-    }
-    let bridge_tcp = match tokio::net::TcpListener::bind(&bridge).await {
-        Ok(listener) => listener,
-        Err(error) => {
-            tracing::warn!(%bridge, %error, "failed to bind WSL Tailscale bridge listen");
-            return;
-        }
-    };
-    tracing::info!(%bridge, "daemon TCP listening (WSL↔Windows Tailscale bridge)");
-    let bridge_app = app.clone();
-    tokio::spawn(async move {
-        if let Err(error) = axum::serve(bridge_tcp, bridge_app).await {
-            tracing::error!(%error, "wsl bridge serve failed");
-        }
-    });
-}
-
-#[cfg(all(unix, feature = "tailscale"))]
-async fn spawn_tailnet(listen: &str, state: &App) {
-    let policy = tailnet::TailnetPolicy::from_env();
-    if policy.allows_anyone() {
-        let Some(listener) = tailnet::bind_listener(listen, &policy).await else {
-            tracing::warn!("tailnet listener not bound");
-            return;
-        };
-        let addr = listener.local_addr().ok();
-        tracing::info!(?addr, "daemon tailnet listening (whois auth)");
-        let tailnet_app = tailnet::router(state.clone(), policy);
-        tokio::spawn(async move {
-            if let Err(error) = axum::serve(
-                listener,
-                tailnet_app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-            )
-            .await
-            {
-                tracing::error!(%error, "tailnet serve failed");
-            }
-        });
-        return;
-    }
-    tracing::warn!(
-        "tailscale feature on but {}/{} are empty — tailnet listener disabled (fail closed)",
-        tailnet::ENV_ALLOW_USERS,
-        tailnet::ENV_ALLOW_TAGS
-    );
 }
 
 async fn daemon_health() -> Json<Value> {
