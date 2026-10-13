@@ -27,7 +27,14 @@ async function healthLooksLikeDaemon(base: string): Promise<boolean> {
 }
 
 /**
- * Real daemon ensure never returns `approved` on a cold probe; journey fakes that
+ * Terminal session id the loopback pin probe sends. A real daemon never
+ * returns `approved` for it; journey fakes answer `pending` (see fixtures).
+ */
+export const CLI_APP_DAEMON_PIN_PROBE_SESSION_ID =
+  "opensesame-cli-daemon-pin-probe";
+
+/**
+ * Real daemon ensure never returns `approved` on a cold probe; impostors that
  * auto-approve are rejected here.
  */
 async function ensureProbeRejectsInstantApproval(base: string): Promise<boolean> {
@@ -36,7 +43,7 @@ async function ensureProbeRejectsInstantApproval(base: string): Promise<boolean>
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      terminalSessionId: "opensesame-cli-daemon-pin-probe",
+      terminalSessionId: CLI_APP_DAEMON_PIN_PROBE_SESSION_ID,
       verb: "read",
     }),
   });
