@@ -49,6 +49,12 @@ function stubClipboard(overrides: Partial<ClipboardStub> = {}): ClipboardStub {
     writeText: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
+  Object.defineProperty(navigator, "permissions", {
+    value: {
+      query: vi.fn().mockResolvedValue({ state: "granted" }),
+    },
+    configurable: true,
+  });
   Object.defineProperty(globalThis.navigator, "clipboard", {
     value: clipboard,
     configurable: true,
@@ -286,6 +292,31 @@ describe("useCopySecret", () => {
     });
     const { result: missing } = renderHook(() => useCopySecret());
     await expect(missing.current("x")).resolves.toBe("unavailable");
+  });
+
+  it("skips a timed clear when clipboard-read is not already granted", async () => {
+    vi.useFakeTimers();
+    Object.defineProperty(navigator, "permissions", {
+      value: {
+        query: vi.fn().mockResolvedValue({ state: "prompt" }),
+      },
+      configurable: true,
+    });
+    const clipboard = stubClipboard();
+    act(() => {
+      vaultStore.setPrefs({ clipboardClearSeconds: 10 });
+    });
+
+    const { result } = renderHook(() => useCopySecret());
+    await result.current("secret-value");
+    clipboard.readText.mockClear();
+    clipboard.writeText.mockClear();
+    await act(async () => {
+      vi.advanceTimersByTime(10_000);
+      await Promise.resolve();
+    });
+    expect(clipboard.readText).not.toHaveBeenCalled();
+    expect(clipboard.writeText).not.toHaveBeenCalled();
   });
 
   it("a second copy replaces the pending clear of the first", async () => {
