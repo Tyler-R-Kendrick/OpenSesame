@@ -108,6 +108,16 @@ pub struct RespondReq {
 struct PairingExchange {
     code: String,
     page_binding: String,
+<<<<<<< HEAD
+=======
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PairingConfirm {
+    code: String,
+    page_binding: String,
+>>>>>>> 9bea574b2 (fix(cli-app-integration): require PWA confirm before pairing exchange)
 }
 
 #[derive(Debug, Deserialize)]
