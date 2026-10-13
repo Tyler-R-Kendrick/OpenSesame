@@ -1,6 +1,7 @@
 /**
- * The boot-time sweep that seals origin files an older build left in the
- * clear (ADR 0149). Apart from `origin-files.ts` because only a shell with a
+ * Boot-time purge of origin files that are not sealed under the device key
+ * (ADR 0149). Unauthenticated plaintext cannot be hydrated or re-sealed into
+ * a trusted envelope. Apart from `origin-files.ts` because only a shell with a
  * directory to list — the Pages boot — runs it.
  */
 
@@ -8,8 +9,7 @@ import { lockManager, originFiles } from "../../ports.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { ORIGIN_FILE_PREFIX } from "../storage-ownership.js";
 import { AT_REST_PREFIX, isSealedAtRest } from "./cipher.js";
-import { type AtRestKey, atRestReady } from "./key.js";
-import { sealOriginFile } from "./origin-files.js";
+import { atRestReady } from "./key.js";
 
 const SWEEP_LOCK = "opensesame.at-rest.sweep";
 
@@ -28,18 +28,19 @@ async function isLegacy(
   }
 }
 
-async function sealIfLegacy(
+async function removeIfUnsealed(
   root: FileSystemDirectoryHandle,
   name: string,
-  atRest: AtRestKey,
 ): Promise<boolean> {
-  const handle = await root.getFileHandle(name);
-  const text = await (await handle.getFile()).text();
-  if (isSealedAtRest(text) || storageWritesHalted()) return false;
-  const writable = await handle.createWritable();
-  await writable.write(sealOriginFile(atRest, name, text));
-  await writable.close();
-  return true;
+  try {
+    const handle = await root.getFileHandle(name);
+    const text = await (await handle.getFile()).text();
+    if (isSealedAtRest(text) || storageWritesHalted()) return false;
+    await root.removeEntry(name);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function sweep(): Promise<number> {
@@ -54,19 +55,19 @@ async function sweep(): Promise<number> {
   // Every boot checks, in parallel, only each file's first five bytes: a tab
   // of an older build may have written in the clear since the last boot.
   const legacy = await Promise.all(names.map((name) => isLegacy(root, name)));
-  let sealed = 0;
+  let removed = 0;
   for (const name of names.filter((_, index) => legacy[index])) {
     try {
-      if (await sealIfLegacy(root, name, atRest)) sealed += 1;
+      if (await removeIfUnsealed(root, name)) removed += 1;
     } catch {
       // Gone, or refused: the next boot tries again.
     }
   }
-  return sealed;
+  return removed;
 }
 
 /**
- * Seal every one of the app's origin files still stored in the clear. Runs
+ * Remove every app origin file that is not sealed under the device key. Runs
  * at boot, before anything is hydrated or written, under a Web Lock so two
  * tabs booting at once do not both rewrite a file.
  */

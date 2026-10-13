@@ -4,28 +4,18 @@
  * compatibility, including PWA handoff via localStorage.
  */
 
-import { isNumber, overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { localStore, sessionStore } from "../ports.js";
+import { type PendingAuth, asPendingAuth } from "./federation-pending-auth.js";
+import {
+  dropPkcePending,
+  readPkcePendingRaw,
+} from "./federation-pkce-pending-slot.js";
 
 export const PKCE_KEY = "opensesame:federation:pkce";
 export const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
 
-export type PendingAuth = {
-  upstreamId: string;
-  issuer: string;
-  verifier: string;
-  state: string;
-  tokenEndpoint: string;
-  jwksUri: string;
-  scope: string;
-  createdAt?: number;
-  sessionCheckEndpoint?: string | undefined;
-  redirectUri?: string;
-  clientId?: string;
-  returnTo?: string | undefined;
-  orgSlug?: string | undefined;
-  orgMethod?: "sso" | "saml" | undefined;
-};
+export type { PendingAuth };
 
 export type TakenPending = {
   pending: PendingAuth | null;
@@ -33,34 +23,35 @@ export type TakenPending = {
   unmatched?: boolean;
 };
 
-function readRawPending(): string | null {
-  return localStore().getItem(PKCE_KEY) ?? sessionStore().getItem(PKCE_KEY);
+function readRawPending() {
+  return readPkcePendingRaw(PKCE_KEY);
 }
 
 function dropRawPending(): void {
-  localStore().removeItem(PKCE_KEY);
-  sessionStore().removeItem(PKCE_KEY);
+  dropPkcePending(PKCE_KEY);
 }
 
 function parsePending(raw: string): TakenPending {
-  let pending: PendingAuth | null;
+  let parsed: BoundaryValue;
   try {
-    pending = overlapCast(JSON.parse(raw));
+    parsed = overlapCast(JSON.parse(raw));
   } catch {
     return { pending: null, stale: true };
   }
-  if (
-    pending &&
-    isNumber(pending.createdAt) &&
-    Date.now() - pending.createdAt > PENDING_MAX_AGE_MS
-  ) {
+  const pending = asPendingAuth(parsed);
+  if (!pending) {
     return { pending: null, stale: true };
   }
-  return { pending, stale: !pending };
+  const createdAt = pending.createdAt;
+  if (createdAt === undefined || Date.now() - createdAt > PENDING_MAX_AGE_MS) {
+    return { pending: null, stale: true };
+  }
+  return { pending, stale: false };
 }
 
 export function peekPending(): TakenPending {
-  const raw = readRawPending();
+  const { raw, swapped } = readRawPending();
+  if (swapped) return { pending: null, stale: true };
   if (!raw) return { pending: null, stale: false };
   return parsePending(raw);
 }
@@ -70,7 +61,9 @@ export function consumePending(): void {
 }
 
 export function storePending(pending: PendingAuth): void {
-  // localStorage, not sessionStorage, ON PURPOSE: PWA handoff.
+  // localStorage, not sessionStorage, ON PURPOSE: PWA handoff. Drop any
+  // session copy so a second lane cannot shadow or swap the live record.
+  sessionStore().removeItem(PKCE_KEY);
   // ast-grep-ignore: ts-localstorage-set
   localStore().setItem(
     PKCE_KEY,
