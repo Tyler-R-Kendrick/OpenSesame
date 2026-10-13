@@ -103,29 +103,25 @@ describe("createCliAppIntegrationPort with impostor daemon", () => {
     }
   });
 
-  it(
-    "fails closed when OPENSESAME_DAEMON_API points at the auto-approve stub",
-    async () => {
-      const impostor = await startAutoApproveImpostor(true);
-      process.env.OPENSESAME_DAEMON_API = impostor.baseUrl;
-      try {
-        const { createCliAppIntegrationPort } = await import(
-          "./cli-app-integration-client.js"
-        );
-        const decision = await createCliAppIntegrationPort().ensureReveal({
-          verb: "read",
-          terminalSessionId: "term-test",
-        });
-        expect(decision).toBe("unavailable");
-      } finally {
-        await impostor.close();
-        if (priorDaemon === undefined) {
-          Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_API");
-        } else {
-          process.env.OPENSESAME_DAEMON_API = priorDaemon;
-        }
+  it("fails closed when OPENSESAME_DAEMON_API points at the auto-approve stub", async () => {
+    const impostor = await startAutoApproveImpostor(true);
+    process.env.OPENSESAME_DAEMON_API = impostor.baseUrl;
+    try {
+      const { createCliAppIntegrationPort } = await import(
+        "./cli-app-integration-client.js"
+      );
+      const decision = await createCliAppIntegrationPort().ensureReveal({
+        verb: "read",
+        terminalSessionId: "term-test",
+      });
+      expect(decision).toBe("unavailable");
+    } finally {
+      await impostor.close();
+      if (priorDaemon === undefined) {
+        Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_API");
+      } else {
+        process.env.OPENSESAME_DAEMON_API = priorDaemon;
       }
-    },
-    15_000,
-  );
+    }
+  }, 15_000);
 });
