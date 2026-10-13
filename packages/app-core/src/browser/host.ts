@@ -1,10 +1,3 @@
-/**
- * The browser's ports (ADR 0133 §2). This is the one place outside the
- * worker entries (`*.worker.ts`) where the core touches browser globals; every other module
- * reaches them through `ports.ts`. Each port reads its global when asked, so
- * a test that stubs `localStorage` or `navigator.credentials` still reaches
- * the stub.
- */
 import { overlapCast } from "@opensesame/os-domain";
 import { indexedDbAtRestKeys } from "../lib/at-rest/idb-key-store.js";
 import type {
@@ -16,6 +9,15 @@ import type {
   Ports,
   StoragePorts,
 } from "../ports.js";
+/**
+ * The browser's ports (ADR 0133 §2). This is the one place outside the
+ * worker entries (`*.worker.ts`) where the core touches browser globals; every other module
+ * reaches them through `ports.ts`. Each port reads its global when asked, so
+ * a test that stubs `localStorage` or `navigator.credentials` still reaches
+ * the stub.
+ */
+import { createBrowserOriginFileProvider } from "./origin-file-provider.js";
+import { createBrowserPhysicalVaultPorts } from "./physical-vault-ports.js";
 
 const storage: StoragePorts = {
   get local() {
@@ -157,7 +159,27 @@ const environment: EnvironmentPort = {
 
 /** Every port a browser tab provides. Read lazily; install with the env. */
 export function browserPorts(): Ports {
+  const originalOriginFiles = createBrowserOriginFileProvider();
+  const physical = createBrowserPhysicalVaultPorts();
   return {
+    get physicalVaultAuthentication() {
+      return originalOriginFiles()
+        ? physical.physicalVaultAuthentication
+        : undefined;
+    },
+    get physicalDeviceRecords() {
+      return originalOriginFiles() ? physical.physicalDeviceRecords : undefined;
+    },
+    get physicalCurrentCredentialCatalogue() {
+      return originalOriginFiles()
+        ? physical.physicalCurrentCredentialCatalogue
+        : undefined;
+    },
+    get physicalVaultPublication() {
+      return originalOriginFiles()
+        ? physical.physicalVaultPublication
+        : undefined;
+    },
     storage,
     /** The at-rest key lives in IndexedDB; without it nothing is kept past the tab. */
     get atRestKeys() {
@@ -191,10 +213,7 @@ export function browserPorts(): Ports {
       return globalThis.navigator?.serviceWorker ?? undefined;
     },
     get originFiles() {
-      const storageManager = globalThis.navigator?.storage;
-      return storageManager?.getDirectory === undefined
-        ? undefined
-        : () => storageManager.getDirectory();
+      return originalOriginFiles();
     },
     get indexedDB() {
       return globalThis.indexedDB ?? undefined;
