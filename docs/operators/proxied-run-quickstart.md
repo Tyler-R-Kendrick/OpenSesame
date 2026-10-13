@@ -12,11 +12,15 @@ You need:
 - `opensesame`, and `node` on `PATH`: the schema is read by
   `@env-spec/parser` through [`packages/env-spec-bridge`](../../packages/env-spec-bridge).
   `opensesame` finds that `node` itself, only in absolute `PATH` entries that
-  exist and that group and others cannot write (an empty or relative entry
-  never counts), and starts it with `PATH` reduced to those entries, `HOME`,
-  `TMPDIR`, `LANG` and the `LC_*` variables and nothing else: the store
-  passphrase and every other `OPENSESAME_*`, `NODE_*`, token or proxy variable
-  stay out of the bridge. When no such `node` exists the run stops and says so.
+  exist and that nobody else could have put a `node` in: owned by root or you,
+  not writable by others, and group-writable only by root's group or one of
+  yours (an empty or relative entry never counts), and starts it with `PATH`
+  reduced to those entries, `HOME`, `TMPDIR`, `LANG` and the `LC_*` variables
+  and nothing else: the store passphrase and every other `OPENSESAME_*`,
+  `NODE_*`, token or proxy variable stay out of the bridge. When no such `node`
+  exists the run stops and names each directory it skipped and why; if the only
+  `node` sits in a directory anyone can write (some CI images do this), install
+  one elsewhere and put it first on `PATH`.
 - The plugin binary `opensesame-surrogate-proxy` and its sha256.
 - A Vercel token. Use a dummy one while you try this out.
 

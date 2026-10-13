@@ -19,7 +19,14 @@ and nothing it starts should hold them either.
 
 | Severity | Finding | Fix |
 | --- | --- | --- |
-| High | The bridge ran as a bare `Command::new("node")` with the whole inherited environment. The passphrase was stripped only for the final child, so the bridge and everything Node starts (`NODE_PATH`, loader variables, `npm_config_*`) received it, with every other `OPENSESAME_*` variable, tokens and proxy URLs with credentials. `node` was resolved through the inherited `PATH`, where an empty or relative entry means the working directory: a `node` planted in the directory the command ran in, or behind a trailing `:`, ran with all of it. The review demonstrated this with a stub that wrote its environment to a file. | `node_command` is the one way the crate starts Node. It searches only `PATH` entries that are absolute, exist and cannot be written by group or others (Windows: absolute, existing, not the current directory), starts the `node` it finds by absolute path, and builds the environment instead of inheriting it: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables and, on Windows, `SystemRoot`, `PATHEXT`, `COMSPEC`. With no such `node` the run stops with `no usable node` and names every entry it skipped; the inherited `PATH` is never a fallback. |
+| High | The bridge ran as a bare `Command::new("node")` with the whole inherited environment. The passphrase was stripped only for the final child, so the bridge and everything Node starts (`NODE_PATH`, loader variables, `npm_config_*`) received it, with every other `OPENSESAME_*` variable, tokens and proxy URLs with credentials. `node` was resolved through the inherited `PATH`, where an empty or relative entry means the working directory: a `node` planted in the directory the command ran in, or behind a trailing `:`, ran with all of it. The review demonstrated this with a stub that wrote its environment to a file. | `node_command` is the one way the crate starts Node. It searches only `PATH` entries that are absolute, exist, are directories, are owned by root or the effective user, cannot be written by others, and, when group-writable, belong to root's group (gid 0) or one of the caller's own (`getegid`, `getgroups`). Windows: absolute, existing, not the current directory. It starts the `node` it finds by absolute path, and requires that file to be owned by root or the caller and not world-writable. It builds the environment instead of inheriting it: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables and, on Windows, `SystemRoot`, `PATHEXT`, `COMSPEC`. With no such `node` the run stops with `no usable node` and names every entry or file it skipped with the exact reason (`writable by others`, `group-writable by group 1234 which is not one of yours`, `owned by uid 1001`); the inherited `PATH` is never a fallback. |
+
+The trust rule first skipped every directory that group or others could write.
+That refused real layouts (a hosted CI image keeps `node` in group-writable
+`/usr/local/bin`; `nvm`, `volta` and Homebrew create `user:user 0775` trees under
+`umask 002`) and broke `dev run` there. The rule above takes those layouts and
+still refuses what a planted `node` needs: a directory another user owns, anyone
+can write, or a group the caller is not in can write.
 
 ## Tests
 
@@ -37,9 +44,15 @@ and nothing it starts should hold them either.
   environment and the schema's entries (an agent child loses only
   `OPENSESAME_STORE_PASSWORD`, as before). Those child assertions pass on the
   code before the fix too.
-- `crates/env-spec/src/node_bridge/tests.rs` pins the search (order, each
-  skipped reason, directory modes) and the allowlist, including the Windows
-  rules.
+- `crates/env-spec/src/node_bridge/trust/tests.rs` is the table of owner, group and
+  mode combinations the rule decides, with injected `stat` results: `root:root 0755`,
+  `root:root 0775` and `user:user 0775` (searched); `root:othergroup 0775`, `0777`,
+  `0757`, sticky `1777` and a directory another uid owns (refused); and the same for
+  the `node` file. `src/node_bridge/tests.rs` pins the search (order, each skipped
+  reason, real directory modes, the real `stat` reaching the decision) and the
+  allowlist, including the Windows rules. `bridge_isolation.rs` and
+  `dev_run_bridge_env.rs` each run a `0775` directory of the caller's own group,
+  the CI layout, and it supplies the node.
 
 ## Other spawns of Node and interpreters
 
@@ -58,8 +71,17 @@ and nothing it starts should hold them either.
 - A `node` in a `PATH` directory only its owner can write is trusted; so is the
   bridge script (`OPENSESAME_ENV_PARSE` or the repository's own). A caller who
   controls either already controls the process.
-- A directory that is group-writable because of a user-private-group `umask 002`
-  (some `nvm` and `volta` layouts) is skipped like any other; the error names it.
+- A `node` in a directory root or the caller owns, that only root's group or the
+  caller's groups can write, is trusted. A member of such a group can replace it;
+  the rule assumes the caller's own groups are the caller's.
+- A directory anyone can write is still refused, even when absolute and owned by
+  root, and so is a world-writable `node`. Hosted CI images set both on purpose
+  (`actions/runner-images`, `install-nodejs.sh`: `chmod -R 777 /usr/local/bin`), so
+  on those images `dev run` finds no `node` there and needs one in another trusted
+  directory, for example the one `actions/setup-node` installs, placed first on
+  `PATH`. Trusting such a directory is a separate decision; this change does not
+  make it. The `dev_run_surrogates` tests bring their own trusted `node` that hands
+  off to the machine's, so they do not depend on which layout the host has.
 - The Windows rules are exercised by unit tests of the decision functions, not by
   a run on Windows.
 - The PATH-resolved spawns above are a related class (`git` in `sealed-store`
