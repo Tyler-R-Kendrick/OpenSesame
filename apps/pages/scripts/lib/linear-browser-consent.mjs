@@ -1,12 +1,18 @@
 /** Real popup consent: the originating sealed vault never navigates or unlocks. */
 import { expect } from "@playwright/test";
 
+const CONSENT_POPUP_TIMEOUT_MS = 60_000;
+
 export async function beginLinearConsent(harness, page, label, action) {
   const original = page.url();
-  const opened = page.context().waitForEvent("page");
+  const opened = page
+    .context()
+    .waitForEvent("page", { timeout: CONSENT_POPUP_TIMEOUT_MS });
   await page.getByRole("button", { name: action, exact: true }).click();
   const popup = await opened;
-  await popup.waitForURL("https://linear.app/oauth/authorize?**");
+  await popup.waitForURL("https://linear.app/oauth/authorize?**", {
+    timeout: CONSENT_POPUP_TIMEOUT_MS,
+  });
   await popup
     .getByText("Test-only OAuth consent transport.", { exact: true })
     .waitFor();
