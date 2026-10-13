@@ -5,7 +5,6 @@ import {
   isLoopbackDaemonBase,
   verifyLocalDaemonForCliAppIntegration,
 } from "./daemon-pin.js";
-import { startCliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
 
 const ensurePath = cliAppIntegrationPolicy.daemonPaths.ensure;
 
