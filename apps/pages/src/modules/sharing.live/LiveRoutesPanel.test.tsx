@@ -28,9 +28,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { SettingsFileContext } from "../../sections/settings/files/context.js";
 import { LiveHostForm } from "./LiveHostForm.js";
-import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { liveUiSeams } from "./live-hooks.js";
+import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const github = createItem("account", "GitHub");

@@ -1,5 +1,9 @@
 import { liveItemPickLabels } from "@opensesame/app-core/lib/live/item-pick-label.js";
-import { activeItems, listedItems, type VaultItem } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  activeItems,
+  listedItems,
+} from "@opensesame/vault-core";
 
 /** Checkbox label the live host item picker draws (B9). */
 export function liveItemPickerCheckboxName(

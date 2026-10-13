@@ -29,8 +29,8 @@ import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
-import { transportSeams } from "./live-transport-hooks.js";
 import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
+import { transportSeams } from "./live-transport-hooks.js";
 
 export const github = createItem("account", "GitHub");
 github.username = "octo";
