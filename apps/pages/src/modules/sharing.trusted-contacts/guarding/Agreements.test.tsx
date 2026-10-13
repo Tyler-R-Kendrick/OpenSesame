@@ -227,10 +227,12 @@ describe("a list of invitations that cannot be read", () => {
     expect(
       screen.queryByRole("img", { name: "Nothing held for anyone yet." }),
     ).toBeNull();
-    const notice = listNotices().find(
-      (one) => one.id === "trusted-contacts:agreements",
+    await waitFor(() =>
+      expect(
+        listNotices().find((one) => one.id === "trusted-contacts:agreements")
+          ?.title,
+      ).toBe("Guarding"),
     );
-    expect(notice?.title).toBe("Guarding");
     expect(document.body.textContent).not.toContain("sealed");
   });
 });
