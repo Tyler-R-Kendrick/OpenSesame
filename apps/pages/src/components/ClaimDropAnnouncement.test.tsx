@@ -7,6 +7,7 @@ import {
 /** @vitest-environment jsdom */
 import { cleanup, render } from "@testing-library/react";
 import { act } from "react";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { NoticeCorner } from "./NoticeCorner.js";
 
@@ -17,7 +18,12 @@ afterEach(() => {
 
 describe("ClaimDropAnnouncement", () => {
   it("shows one bar caption and replaces it instead of stacking", () => {
-    const { container } = render(<NoticeCorner />);
+    // The corner renders the tray's own failure card now, which navigates.
+    const { container } = render(
+      <MemoryRouter>
+        <NoticeCorner />
+      </MemoryRouter>,
+    );
     act(() => {
       reportClaim("First.");
       reportClaim("Second.");
@@ -28,7 +34,11 @@ describe("ClaimDropAnnouncement", () => {
   });
 
   it("clears when the claim notice is dismissed from the tray", () => {
-    const { container } = render(<NoticeCorner />);
+    const { container } = render(
+      <MemoryRouter>
+        <NoticeCorner />
+      </MemoryRouter>,
+    );
     act(() => {
       reportClaim("Refused.");
     });
