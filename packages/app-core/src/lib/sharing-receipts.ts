@@ -15,6 +15,7 @@
 import { scrubText } from "@opensesame/log-scrub";
 import type { JsonObject } from "@opensesame/os-domain";
 import {
+  type ActivityOutcome,
   type RecordActivityInput,
   activitySeams,
   flushActivityLog,
@@ -175,9 +176,9 @@ export function noteDropOpened(claimId: string): void {
 function noteSenderDropState(
   claimId: string,
   rememberKey: string,
-  vaultType: RecordActivityInput["type"],
+  vaultType: string,
   summary: string,
-  outcome: RecordActivityInput["outcome"],
+  outcome: ActivityOutcome,
   deviceKind: ReceiptKind,
 ): boolean {
   const id = blindId(claimId);

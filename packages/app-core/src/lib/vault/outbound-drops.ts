@@ -167,8 +167,8 @@ export function recordOutboundDrop(input: {
   writeStore(store);
   if (sealingTomb) {
     noteDropSent(sealingTomb, input.claimId, {
-      sourceItemId: input.sourceItemId,
-      vaultItemId: input.vaultItemId,
+      sourceItemId: input.sourceItemId ?? null,
+      vaultItemId: input.vaultItemId ?? null,
     });
   }
 }
