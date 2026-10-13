@@ -52,7 +52,7 @@ describe("SettingsDangerPanel", () => {
     const draft = {
       ...createItem("account", "Billing"),
       id: "acct",
-      methods: [manualPassword("acct:p")],
+      methods: [manualPassword("acct:p", "secret", at)],
       createdAt: at,
       updatedAt: at,
       deletedAt: null,
