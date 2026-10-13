@@ -156,7 +156,26 @@ export const CLIPBOARD_READ_NOTICE = {
 let lastCopied: string | null = null;
 let pendingClear: number | null = null;
 
-async function clearIfOurs(value: string): Promise<void> {
+async function clipboardReadIsGranted(): Promise<boolean> {
+  if (!navigator.permissions?.query) return false;
+  try {
+    const status = await navigator.permissions.query({
+      name: "clipboard-read" as PermissionName,
+    });
+    return status.state === "granted";
+  } catch {
+    return false;
+  }
+}
+
+async function clearIfOurs(
+  value: string,
+  mode: "timer" | "lock",
+): Promise<void> {
+  if (mode === "timer" && !(await clipboardReadIsGranted())) {
+    // A timed clear must not surprise someone mid-navigation with a read prompt.
+    return;
+  }
   // The read is what prompts. The tray sentence is up before it, and leaves
   // once the read has finished.
   setStatusNotice(CLIPBOARD_READ_NOTICE);
@@ -185,7 +204,7 @@ function clearCopiedSecretDefault(): void {
   }
   const value = lastCopied;
   if (value === null) return;
-  void clearIfOurs(value);
+  void clearIfOurs(value, "lock");
 }
 
 /**
@@ -209,7 +228,7 @@ function useCopySecretDefault(): (value: string) => Promise<CopyResult> {
       if (clearAfter > 0) {
         pendingClear = window.setTimeout(() => {
           pendingClear = null;
-          void clearIfOurs(value);
+          void clearIfOurs(value, "timer");
         }, clearAfter * 1000);
       }
       return "copied";
