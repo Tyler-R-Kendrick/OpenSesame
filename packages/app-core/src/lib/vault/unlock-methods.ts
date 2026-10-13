@@ -19,13 +19,13 @@ import {
   type VaultHeader,
   type VaultUnlocks,
   WrongPasswordError,
-  assertKdfParams,
   b64ToBytes,
   bytesToB64,
   parseTotp,
   randomBytes,
   totpCode,
 } from "@opensesame/vault-core";
+import { loadPinKdf } from "./pin-kdf-loader.js";
 import {
   type PasskeyCreateOptions,
   createPasskeyUnlockCeremonyDefault,
@@ -297,14 +297,16 @@ export async function wrapVaultKeyWithPin(
   pin: string,
 ): Promise<PinUnlockRecord> {
   assertPinPolicy(pin);
+  const { pinPbkdf2Iterations } = await loadPinKdf();
+  const iterations = pinPbkdf2Iterations(pin);
   const salt = randomBytes(SALT_BYTES);
-  const kek = await deriveAesKeyFromPassword(pin, salt, PIN_PBKDF2_ITERATIONS);
+  const kek = await deriveAesKeyFromPassword(pin, salt, iterations);
   const wrap = await encryptWithKey(kek, rawVaultKey);
   return {
     kdf: {
       alg: "PBKDF2-SHA256",
       saltB64: bytesToB64(salt),
-      iterations: PIN_PBKDF2_ITERATIONS,
+      iterations,
     },
     wrap,
   };
@@ -318,7 +320,8 @@ export async function unwrapVaultKeyWithPin(
   if (record.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("unsupported PIN unlock format");
   }
-  assertKdfParams(record.kdf);
+  const { assertPinKdfIterations } = await loadPinKdf();
+  assertPinKdfIterations(record.kdf, pin);
   const kek = await deriveAesKeyFromPassword(
     pin,
     b64ToBytes(record.kdf.saltB64),

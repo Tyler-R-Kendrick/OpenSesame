@@ -1,10 +1,12 @@
 /** @vitest-environment jsdom */
 import type { JsonObject } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../ports.js";
 import { completeSignIn, loadSession, originClientId } from "./federation.js";
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
 
 const PKCE_KEY = "opensesame:federation:pkce";
+const TEST_VERIFIER = "test-verifier-abcdefghijklmnopqrstuvwxyz0123456789";
 const originalNetworkEligibility = localNetworkFetchSeams.eligible;
 
 function b64url(value: string): string {
@@ -18,16 +20,17 @@ function jwt(claims: JsonObject): string {
 }
 
 function seedPending(overrides: JsonObject = {}): void {
-  localStorage.setItem(
+  localStore().setItem(
     PKCE_KEY,
     JSON.stringify({
       upstreamId: "mock",
       issuer: "http://127.0.0.1:9090",
-      verifier: "verifier-1",
-      state: "state-1",
+      verifier: TEST_VERIFIER,
+      state: "state-ab12",
       tokenEndpoint: "http://127.0.0.1:9090/token",
       jwksUri: "http://127.0.0.1:9090/jwks",
       scope: "openid",
+      createdAt: Date.now(),
       ...overrides,
     }),
   );
@@ -117,7 +120,7 @@ describe("completeSignIn", () => {
 
     it("asks the broker and passes an active session through", async () => {
       seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
+      history.replaceState(null, "", "/?code=abc&state=state-ab12");
       const calls = stubExchangeThenCheck(() =>
         Response.json({ status: "active" }),
       );
@@ -133,7 +136,7 @@ describe("completeSignIn", () => {
 
     it("refuses a sign-in the broker says is revoked, saving nothing", async () => {
       seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
+      history.replaceState(null, "", "/?code=abc&state=state-ab12");
       stubExchangeThenCheck(
         () =>
           new Response(
@@ -150,7 +153,7 @@ describe("completeSignIn", () => {
 
     it("does not block on a broker without the endpoint", async () => {
       seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
+      history.replaceState(null, "", "/?code=abc&state=state-ab12");
       stubExchangeThenCheck(() => new Response("not here", { status: 404 }));
 
       const result = await completeSignIn();
@@ -159,7 +162,7 @@ describe("completeSignIn", () => {
 
     it("does not block on a transport failure after a good exchange", async () => {
       seedShooPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
+      history.replaceState(null, "", "/?code=abc&state=state-ab12");
       vi.stubGlobal(
         "fetch",
         vi.fn((input: RequestInfo | URL) => {
@@ -178,12 +181,12 @@ describe("completeSignIn", () => {
       seedPending({
         upstreamId: "shoo",
         issuer: "https://shoo.dev",
-        verifier: "verifier-from-storage",
+        verifier: "verifier-from-storage-abcdefghijklmnopqrstuvwxyz0123",
         tokenEndpoint: "https://attacker.example/token",
         sessionCheckEndpoint: "https://attacker.example/check",
         jwksUri: "https://attacker.example/jwks",
       });
-      history.replaceState(null, "", "/?code=attacker-code&state=state-1");
+      history.replaceState(null, "", "/?code=attacker-code&state=state-ab12");
       const calls: string[] = [];
       vi.stubGlobal(
         "fetch",
@@ -196,7 +199,9 @@ describe("completeSignIn", () => {
           expect(url).toBe("https://shoo.dev/token");
           const body = String(init.body ?? "");
           expect(body).toContain("code=attacker-code");
-          expect(body).toContain("code_verifier=verifier-from-storage");
+          expect(body).toContain(
+            "code_verifier=verifier-from-storage-abcdefghijklmnopqrstuvwxyz0123",
+          );
           return Promise.resolve(
             Response.json({
               id_token: jwt({
@@ -230,7 +235,7 @@ describe("completeSignIn", () => {
         tokenEndpoint: "https://attacker.example/token",
         jwksUri: "https://attacker.example/jwks",
       });
-      history.replaceState(null, "", "/?code=attacker-code&state=state-1");
+      history.replaceState(null, "", "/?code=attacker-code&state=state-ab12");
       const fetchMock = vi.fn((input: RequestInfo | URL) => {
         expect(String(input)).toBe("http://127.0.0.1:9090/token");
         return Promise.resolve(
@@ -254,7 +259,7 @@ describe("completeSignIn", () => {
 
     it("never calls a check endpoint an upstream does not declare", async () => {
       seedPending();
-      history.replaceState(null, "", "/?code=abc&state=state-1");
+      history.replaceState(null, "", "/?code=abc&state=state-ab12");
       const fetchMock = vi.fn(() =>
         Promise.resolve(
           Response.json({

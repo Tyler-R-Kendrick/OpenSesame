@@ -21,12 +21,12 @@ import {
   AT_REST_DATABASE,
   HISTORY_BACKUP_DATABASE,
 } from "../storage-ownership.js";
-import { atRestBinding, isSealedAtRest, sealAtRest } from "./cipher.js";
+import { atRestBinding, sealAtRest } from "./cipher.js";
 import { fakeIndexedDb, rawRows } from "./fake-idb.test-support.js";
 import { loadIndexedDbAtRestKey } from "./idb-key-store.js";
 import { forgetAtRestKeyForTest } from "./key.js";
 import { sealLegacyOriginFiles } from "./origin-files-sweep.js";
-import { openOriginFile, sealedFileBound } from "./origin-files.js";
+import { sealedFileBound } from "./origin-files.js";
 
 afterEach(() => {
   forgetAtRestKeyForTest();
@@ -140,13 +140,17 @@ function opfs(files: Files) {
         }),
       };
     },
+    async removeEntry(name: string) {
+      if (!files.has(name)) throw new DOMException("gone", "NotFoundError");
+      files.delete(name);
+    },
   };
   const handle: FileSystemDirectoryHandle = overlapCast(root);
   return { originFiles: () => Promise.resolve(handle) };
 }
 
 describe("origin-private files", () => {
-  it("seals every file of ours left in the clear, and nobody else's", async () => {
+  it("removes every app file left in the clear, and nobody else's", async () => {
     const files: Files = new Map([
       ["opensesame-pages-tomb_personal_header.json", '{"kdf":"argon2id"}'],
       ["opensesame-pages-guest-access.v1.json", '{"allow":true}'],
@@ -155,28 +159,20 @@ describe("origin-private files", () => {
     configureHost(createTestHost(opfs(files)));
 
     expect(await sealLegacyOriginFiles()).toBe(2);
-    const header = files.get("opensesame-pages-tomb_personal_header.json");
-    expect(isSealedAtRest(header ?? "")).toBe(true);
-    expect(header).not.toContain("argon2id");
+    expect(files.has("opensesame-pages-tomb_personal_header.json")).toBe(false);
+    expect(files.has("opensesame-pages-guest-access.v1.json")).toBe(false);
     expect(files.get("their-notes.json")).toBe("theirs");
-    expect(
-      await openOriginFile(
-        "opensesame-pages-tomb_personal_header.json",
-        header ?? "",
-      ),
-    ).toBe('{"kdf":"argon2id"}');
     expect(await sealLegacyOriginFiles()).toBe(0);
   });
 
-  it("seals, at the next boot, a file an older build wrote since", async () => {
+  it("removes, at the next boot, a file written in the clear since", async () => {
     const files: Files = new Map([["opensesame-pages-settings.v1.json", "{}"]]);
     configureHost(createTestHost(opfs(files)));
     expect(await sealLegacyOriginFiles()).toBe(1);
+    expect(files.has("opensesame-pages-settings.v1.json")).toBe(false);
     files.set("opensesame-pages-late.json", "written by an old tab");
     expect(await sealLegacyOriginFiles()).toBe(1);
-    expect(isSealedAtRest(files.get("opensesame-pages-late.json") ?? "")).toBe(
-      true,
-    );
+    expect(files.has("opensesame-pages-late.json")).toBe(false);
   });
 
   it("bounds a sealed file by what its plaintext may be", () => {

@@ -33,6 +33,13 @@ export const TAILNET_DEVICES_PURPOSE =
 export const PASSWORD_RESET_MAIL_PURPOSE =
   "the JMAP mail server a person named on a reset mailbox, read for password-reset messages";
 
+/**
+ * What `support.remote-ai` declares for its external-service egress; model
+ * posts import this so the descriptor and runtime cannot drift.
+ */
+export const REMOTE_MODEL_EGRESS_PURPOSE =
+  "the configured AG-UI endpoint or model provider, with redacted page context";
+
 export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "agents.webmcp",
@@ -84,8 +91,7 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       egress: [
         {
           class: "external-service",
-          purpose:
-            "the configured AG-UI endpoint or model provider, with redacted page context",
+          purpose: REMOTE_MODEL_EGRESS_PURPOSE,
           automatic: true,
         },
       ],
