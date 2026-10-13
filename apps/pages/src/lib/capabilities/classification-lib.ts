@@ -125,6 +125,8 @@ const SIGNIN_FILES = [
 const CONNECTOR_FILES = [
   "linear-",
   "connector-guidance",
+  "connector-bridge", // the page's side of the connector bridge (ADR 0199)
+  "use-native-bridge",
   "connect-",
   "self-hosted-config",
   "self-hosted-connectors",
