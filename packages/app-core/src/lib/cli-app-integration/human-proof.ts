@@ -2,6 +2,7 @@
  * PIN / passkey proof for CLI app-integration approve (ADR 0186, D6 redesign).
  */
 
+import { isPublicKeyCredential, requireCredentials } from "../../ports.js";
 import { readCliAppIntegrationBearer } from "./bearer-session.js";
 import { approvalChallengeDigest } from "./device-crypto.js";
 import { ensureCliAppDeviceSigningKey } from "./device-signing-key.js";
@@ -72,18 +73,18 @@ export async function mintCliAppHumanProofFromPasskey(
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replace(/=+$/, "");
-  const assertion = await navigator.credentials.get({
+  const assertion = await requireCredentials().get({
     publicKey: {
       challenge: Uint8Array.from(challenge),
       timeout: 60_000,
       userVerification: "required",
     },
   });
-  if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+  if (!isPublicKeyCredential(assertion)) {
     throw new Error("passkey_assertion_cancelled");
   }
   const response = assertion.response;
-  if (!(response instanceof AuthenticatorAssertionResponse)) {
+  if (!("authenticatorData" in response) || !("signature" in response)) {
     throw new Error("passkey_assertion_invalid");
   }
   const wire = JSON.stringify({
