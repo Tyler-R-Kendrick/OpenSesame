@@ -22,7 +22,7 @@
  *   fails its first test rather than outlive every reset.
  */
 
-import { CLI_APP_INTEGRATION_BEARER_KEY } from "./cli-app-integration/bearer-session.js";
+import { CLI_APP_INTEGRATION_BEARER_KEY } from "./cli-app-integration/keys.js";
 import { msalKeyNamesClient } from "./storage-ownership-msal.js";
 
 /** The start of every origin-private file `kv.ts` writes. */

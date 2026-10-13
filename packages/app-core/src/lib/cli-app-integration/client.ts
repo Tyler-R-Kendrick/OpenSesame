@@ -2,12 +2,11 @@
  * Loopback daemon client for CLI app-integration (ADR 0186).
  */
 
-import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
-  type: "json",
-};
+import { maybePage } from "../../ports.js";
 import { localNetworkFetch } from "../local-network-fetch.js";
 import { loadSettings } from "../settings.js";
 import { readCliAppIntegrationBearer } from "./bearer-session.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 
 export type CliAppPendingRow = Readonly<{
   requestId: string;
@@ -29,11 +28,7 @@ export function readDaemonOrigin(): string | null {
 }
 
 export function readPageOrigin(): string | null {
-  try {
-    return window.location.origin;
-  } catch {
-    return null;
-  }
+  return maybePage()?.location.origin ?? null;
 }
 
 export function readCliAppAuthHeaders(): Record<string, string> | null {
@@ -75,12 +70,15 @@ export async function fetchFirstCliAppPending(): Promise<CliAppPendingRow | null
   const origin = readDaemonOrigin();
   const headers = readCliAppAuthHeaders();
   if (!origin || !headers) return null;
-  const res = await localNetworkFetch(`${origin}${gate.daemonPaths.pending}`, {
-    method: "GET",
-    credentials: "omit",
-    cache: "no-store",
-    headers,
-  });
+  const res = await localNetworkFetch(
+    `${origin}${cliAppIntegrationPolicy.daemonPaths.pending}`,
+    {
+      method: "GET",
+      credentials: "omit",
+      cache: "no-store",
+      headers,
+    },
+  );
   if (!res.ok) return null;
   return parseFirstPending(await res.json());
 }

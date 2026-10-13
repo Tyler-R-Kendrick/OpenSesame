@@ -6,14 +6,12 @@ import {
   CLI_AUTHORIZE_ROUTE,
   fetchFirstCliAppPending,
 } from "@opensesame/app-core/lib/cli-app-integration/client.js";
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy-runtime.js";
 import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import { pageIsLoopback } from "@opensesame/app-core/lib/settings.js";
-import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
-  type: "json",
-};
 
 export const CLI_APP_PENDING_NOTICE = "identity:cli-app-pending";
 
@@ -33,9 +31,12 @@ async function poll(): Promise<void> {
     setStatusNotice({
       id: CLI_APP_PENDING_NOTICE,
       tone: "warn",
-      title: gate.ui.sheetTitle,
-      body: gate.messages.pending,
-      open: { to: CLI_AUTHORIZE_ROUTE, label: gate.ui.allowKey },
+      title: cliAppIntegrationPolicy.ui.sheetTitle,
+      body: cliAppIntegrationPolicy.messages.pending,
+      open: {
+        to: CLI_AUTHORIZE_ROUTE,
+        label: cliAppIntegrationPolicy.ui.allowKey,
+      },
     });
   } catch {
     dismissNotice(CLI_APP_PENDING_NOTICE);
@@ -48,7 +49,7 @@ export function startCliAppPendingTrayWatch(): () => void {
   void poll();
   timer = setInterval(() => {
     void poll();
-  }, gate.pollIntervalMs);
+  }, cliAppIntegrationPolicy.pollIntervalMs);
   return () => {
     if (timer === undefined) return;
     clearInterval(timer);

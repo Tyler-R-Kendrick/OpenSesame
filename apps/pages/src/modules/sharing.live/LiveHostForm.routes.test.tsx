@@ -154,6 +154,7 @@ describe("a session started right after a route was added", () => {
       NOSTR,
     ]);
     expect(opened).toEqual([`nostr ${NOSTR.url}`]);
+    routes.unmount();
   });
 
   it("starts with every route when more than one edit is queued behind the seal", async () => {
@@ -174,6 +175,7 @@ describe("a session started right after a route was added", () => {
       "mqtt wss://broker.example.com",
       `nostr ${NOSTR.url}`,
     ]);
+    routes.unmount();
   });
 
   it("starts direct when no route was added, and does not wait for one", async () => {

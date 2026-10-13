@@ -8,9 +8,25 @@ import {
   clearCliAppIntegrationBearer,
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
+import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
+  type: "json",
+};
 import { fetchFirstCliAppPending, readCliAppAuthHeaders } from "./client.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 
 describe("cli-app-integration client", () => {
+  it("policy-runtime stays aligned with the conformance document slice", () => {
+    expect(cliAppIntegrationPolicy.pollIntervalMs).toBe(gate.pollIntervalMs);
+    expect(cliAppIntegrationPolicy.messages.pending).toBe(
+      gate.messages.pending,
+    );
+    expect(cliAppIntegrationPolicy.ui.sheetTitle).toBe(gate.ui.sheetTitle);
+    expect(cliAppIntegrationPolicy.ui.allowKey).toBe(gate.ui.allowKey);
+    expect(cliAppIntegrationPolicy.daemonPaths.pending).toBe(
+      gate.daemonPaths.pending,
+    );
+  });
+
   const originalEligible = localNetworkFetchSeams.eligible;
 
   beforeEach(() => {

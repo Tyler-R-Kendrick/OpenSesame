@@ -3,10 +3,8 @@ import {
   readCliAppAuthHeaders,
   readDaemonOrigin,
 } from "@opensesame/app-core/lib/cli-app-integration/client.js";
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy-runtime.js";
 import { useEffect } from "react";
-import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
-  type: "json",
-};
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import type { CliAuthorizePanelHint } from "./cli-authorize-panel-model.js";
 
@@ -58,7 +56,7 @@ export function useCliAuthorizePendingPoll(
     void refresh();
     const timer = setInterval(() => {
       void refresh();
-    }, gate.pollIntervalMs);
+    }, cliAppIntegrationPolicy.pollIntervalMs);
     return () => {
       cancelled = true;
       clearInterval(timer);
