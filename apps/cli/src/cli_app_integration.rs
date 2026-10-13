@@ -21,13 +21,6 @@ struct PolicyDoc {
     poll_interval_ms: u64,
     daemon_pin_probe_verb: String,
     daemon_paths: DaemonPaths,
-    messages: PolicyMessages,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PolicyMessages {
-    request_timeout: String,
 }
 
 #[derive(Debug, Deserialize)]

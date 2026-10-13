@@ -49,10 +49,11 @@ fn read_request(stream: &mut TcpStream) -> Option<(String, String, String)> {
     Some((method, path, body_text))
 }
 
-fn ensure_verb(body: &str) -> Option<&str> {
-    serde_json::from_str::<serde_json::Value>(body)
-        .ok()
-        .and_then(|value| value.get("verb").and_then(|v| v.as_str()))
+fn ensure_verb_is(body: &str, expected: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(body) else {
+        return false;
+    };
+    value.get("verb").and_then(|v| v.as_str()) == Some(expected)
 }
 
 fn handle(mut stream: TcpStream) {
@@ -62,7 +63,7 @@ fn handle(mut stream: TcpStream) {
     let (status, reply) = if method == "GET" && path == HEALTH_PATH {
         ("200 OK", r#"{"status":"ok"}"#)
     } else if method == "POST" && path == ENSURE_PATH {
-        if ensure_verb(&body) == Some(PIN_PROBE_VERB) {
+        if ensure_verb_is(&body, PIN_PROBE_VERB) {
             ("200 OK", r#"{"status":"pending"}"#)
         } else {
             ("200 OK", r#"{"status":"approved"}"#)
