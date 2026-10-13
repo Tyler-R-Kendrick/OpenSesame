@@ -34,6 +34,8 @@ export const RESTRICTED_SEAMS = [
       // The module itself and the store that registers and installs.
       "packages/app-core/src/lib/vault/store-device-key.ts",
       "packages/app-core/src/lib/vault/store.ts",
+      // The store's boot half: called once, by the store, with the singleton.
+      "packages/app-core/src/lib/vault/store-boot.ts",
       // The golden-vector generator builds its own store and installs a carrier.
       "apps/pages/scripts/vault-vectors/emit.ts",
     ],
