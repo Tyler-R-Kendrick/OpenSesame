@@ -16,16 +16,16 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 416,
-    "violations": 643,
-    "oversizedLines": 211841
+    "files": 417,
+    "violations": 644,
+    "oversizedLines": 212762
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
     },
     "apps/cli/src/bridge.rs": {
-      "max-lines": 500
+      "max-lines": 514
     },
     "apps/cli/src/configs.rs": {
       "max-lines": 587
@@ -34,7 +34,7 @@
       "max-lines": 1451
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1585
+      "max-lines": 1898
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -258,7 +258,7 @@
       "max-lines": 2736
     },
     "crates/connection-broker/src/sync_target.rs": {
-      "max-lines": 796
+      "max-lines": 791
     },
     "crates/connection-broker/src/tests/connection_lifecycle.rs": {
       "max-lines": 878
@@ -303,7 +303,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1332
+      "max-lines": 1352
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -407,9 +407,6 @@
     "crates/gateway/src/routes/shared_sessions/tests.rs": {
       "max-lines": 1169
     },
-    "crates/gateway/src/routes/sync_targets_authorization_tests.rs": {
-      "max-lines": 461
-    },
     "crates/gateway/src/routes/tasks.rs": {
       "max-lines": 979
     },
@@ -423,7 +420,7 @@
       "max-lines": 580
     },
     "crates/human-vault/src/lib.rs": {
-      "max-lines": 784
+      "max-lines": 792
     },
     "crates/kdbx-bridge/src/import.rs": {
       "max-lines": 426
@@ -456,7 +453,7 @@
       "max-lines": 458
     },
     "crates/pm-bridges/src/pairing.rs": {
-      "max-lines": 645
+      "max-lines": 646
     },
     "crates/pm-bridges/src/store.rs": {
       "max-lines": 439
@@ -595,7 +592,7 @@
       "max-lines": 447
     },
     "packages/app-core/src/lib/identity.ts": {
-      "max-lines": 610
+      "max-lines": 642
     },
     "packages/app-core/src/lib/idp-registry.ts": {
       "complexity": 1
@@ -678,7 +675,13 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1609
+      "max-lines": 1592
+    },
+    "packages/app-core/src/lib/vault/unlock-methods.ts": {
+      "max-lines": 575
+    },
+    "packages/app-core/src/lib/vfs.ts": {
+      "max-lines": 441
     },
     "packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
       "max-lines": 676
