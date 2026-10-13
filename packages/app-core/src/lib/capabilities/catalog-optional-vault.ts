@@ -31,7 +31,7 @@ export const TWO_FACTOR_PURPOSE =
  * capability is on. Kept under the catalog's 400-character summary limit.
  */
 export const SECURITY_CHECKS_SUMMARY =
-  "Compares the open vault's logins with known password breaches and with sites that offer an authenticator code you have not stored. With this on, Settings and Password health show how many passwords were found and which logins could add a second step. Press Check to run it. Only five characters of each password's hash leave this browser; the two-step site list is fetched whole and matched here.";
+  "Checks the open vault's logins against known password breaches and sites that offer an authenticator code you have not stored. Hash prefixes only leave this browser.";
 
 /**
  * What Settings says `vault.environments` does (ADR 0194). Kept under the

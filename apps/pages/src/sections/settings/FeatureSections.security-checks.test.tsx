@@ -61,8 +61,7 @@ describe("Breach and two-step checks in Settings", () => {
     const { container } = renderPanel();
     const section = container.querySelector("#feature-security-checks");
     expect(section?.textContent).toContain(SECURITY_CHECKS_SUMMARY);
-    expect(section?.textContent).toContain("Password health");
-    expect(section?.textContent).toContain("Press Check");
+    expect(section?.textContent).toContain("Hash prefixes");
     expect(
       screen.queryByRole("button", {
         name: "Check logins against breaches and two-step sites",

@@ -189,8 +189,8 @@ describe("HealthPanel", () => {
           breaches: 42,
           twoFactorAvailable: true,
           sentences: [
-            "Found in breaches 42 times: change this password",
-            "This site takes an authenticator code; none is stored",
+            "In breaches 42 times: change this password",
+            "Site takes an authenticator code; none stored",
           ],
         },
       ],
@@ -206,10 +206,10 @@ describe("HealthPanel", () => {
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText("Found in breaches 42 times: change this password"),
+      screen.getByText("In breaches 42 times: change this password"),
     ).toBeTruthy();
     expect(
-      screen.getByText("This site takes an authenticator code; none is stored"),
+      screen.getByText("Site takes an authenticator code; none stored"),
     ).toBeTruthy();
     expect(
       screen

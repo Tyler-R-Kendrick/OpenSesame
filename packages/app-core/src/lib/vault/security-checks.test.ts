@@ -11,6 +11,7 @@ import {
 } from "@opensesame/vault-core";
 import { splitAccount } from "@opensesame/vault-core/credential-split.js";
 import { describe, expect, it } from "vitest";
+import { pepperedAccount } from "../account.test-support.js";
 import { breachWatchSnapshot } from "./health.js";
 import {
   type CheckFetch,
@@ -197,6 +198,20 @@ describe("runSecurityChecks", () => {
     );
     expect(report.checked).toBe(1);
     expect(report.findings[0]?.breaches).toBe(1);
+  });
+
+  it("counts peppered logins as not checkable and never claims nothing was found", async () => {
+    const peppered = pepperedAccount("Vaulted", "summer2019", "pepper");
+    const range = rangeServer(new Map());
+    const list = listServer();
+    const report = await runSecurityChecks([peppered], range.fetch, list.fetch);
+    expect(report.checked).toBe(0);
+    expect(report.notCheckable).toBe(1);
+    expect(report.findings).toEqual([]);
+    expect(range.sent).toEqual([]);
+    expect(securityWatchLabel(report)).toBe(
+      "No logins checked: 1 password uses a pepper only you hold, so this device can't check them.",
+    );
   });
 
   it("never fetches the list when every login stores a code", async () => {
