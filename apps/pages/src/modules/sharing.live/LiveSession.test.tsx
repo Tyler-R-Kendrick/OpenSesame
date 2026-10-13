@@ -31,6 +31,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
+import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
@@ -94,7 +95,9 @@ async function startHosting(
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });
-  fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+  fireEvent.click(
+    panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+  );
   fireEvent.change(panel.getByLabelText("Values"), {
     target: { value: values },
   });

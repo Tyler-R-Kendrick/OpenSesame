@@ -40,6 +40,7 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
+import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { withCarrier } from "./live-transport-edits.js";
 import { transportSeams, useLiveTransport } from "./live-transport-hooks.js";
 
@@ -121,7 +122,9 @@ async function filledForm() {
   fireEvent.change(panel.getByLabelText("Session name"), {
     target: { value: "Team" },
   });
-  fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+  fireEvent.click(
+    panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+  );
   return panel;
 }
 

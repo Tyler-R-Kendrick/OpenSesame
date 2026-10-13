@@ -34,6 +34,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
+import { liveItemPickerCheckboxName } from "./live-item-picker-test.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
@@ -139,7 +140,9 @@ describe("where there is nothing to lend", () => {
     const panel = await form();
     expect(panel.queryByLabelText("Devices")).toBeNull();
     expect(panel.queryByRole("option", { name: "Nothing" })).toBeNull();
-    fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+    fireEvent.click(
+      panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+    );
     fireEvent.click(startKey(panel));
     await waitFor(() => expect(currentHost()).not.toBeNull());
     expect(currentHost()?.devices).toBeNull();
@@ -169,7 +172,9 @@ describe("where there is a connection to lend", () => {
 
   it("lets devices ask beside shared items", async () => {
     const panel = await form();
-    fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+    fireEvent.click(
+      panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+    );
     choose(panel, "Devices", "May ask");
     fireEvent.click(startKey(panel));
     await waitFor(() => expect(currentHost()).not.toBeNull());
@@ -178,7 +183,9 @@ describe("where there is a connection to lend", () => {
 
   it("does not let devices ask unless they are asked about", async () => {
     const panel = await form();
-    fireEvent.click(panel.getByRole("checkbox", { name: "GitHub" }));
+    fireEvent.click(
+      panel.getByRole("checkbox", { name: liveItemPickerCheckboxName(github) }),
+    );
     fireEvent.click(startKey(panel));
     await waitFor(() => expect(currentHost()).not.toBeNull());
     expect(currentHost()?.devices).toBeNull();
