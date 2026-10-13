@@ -14,8 +14,8 @@ import {
 } from "@opensesame/vault-core";
 
 import * as pinDigits from "./pin-digits.js";
-import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 import { loadPinKdf } from "./pin-kdf-loader.js";
+import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 
 const IV_BYTES = 12;
 const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
