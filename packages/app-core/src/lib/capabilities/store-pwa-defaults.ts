@@ -33,8 +33,10 @@ export async function applyPersonalLocalPwaDefaults(
   if (!needsPersonalLocalPwaDefaults(snap) || !catalog) {
     return;
   }
+  const plan = snap.plan;
+  if (!plan) return;
   const at = storeSeams.now();
-  const id = snap.plan.identity;
+  const id = plan.identity;
   const draft: InstallationCapabilitySelection = {
     schemaVersion: 1,
     kind: "InstallationCapabilitySelection",
