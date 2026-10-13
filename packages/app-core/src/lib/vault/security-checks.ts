@@ -86,9 +86,7 @@ export function securityWatchLabel(report: SecurityReport): string {
   let base: string;
   if (checked === 0) {
     base =
-      notCheckable > 0
-        ? "No breach check"
-        : "No logins this device can check.";
+      notCheckable > 0 ? "No breach check" : "No logins this device can check.";
   } else if (breached > 0 && twoStep > 0) {
     base = `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.`;
   } else if (breached > 0) {

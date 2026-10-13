@@ -106,9 +106,7 @@ export const FEATURES: readonly Feature[] = [
     "vault.certificate-records",
   ]),
   section("environments", "Environments", ["vault.environments"]),
-  section("security-checks", "Breach checks", [
-    "vault.security-checks",
-  ]),
+  section("security-checks", "Breach checks", ["vault.security-checks"]),
   // Runtime-installed plugins (ADR 0150 §7): advanced, default off, and
   // nothing of the plugin itself is in the bundle — the section shows what
   // the paired daemon has installed and switches it there.

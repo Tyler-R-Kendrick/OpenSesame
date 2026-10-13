@@ -196,9 +196,7 @@ describe("vault.security-checks runtime", () => {
       .getAllByRole("img")
       .map((mark) => mark.getAttribute("aria-label"));
     expect(marks).toContain("In breaches 42 times: change this password");
-    expect(marks).toContain(
-      "Site takes an authenticator code; none stored",
-    );
+    expect(marks).toContain("Site takes an authenticator code; none stored");
     expect(screen.queryByText("Shop")).toBeNull();
     await handle.dispose();
   });

@@ -209,9 +209,7 @@ describe("runSecurityChecks", () => {
     expect(report.notCheckable).toBe(1);
     expect(report.findings).toEqual([]);
     expect(range.sent).toEqual([]);
-    expect(securityWatchLabel(report)).toBe(
-      "No breach check (1 pep-only)",
-    );
+    expect(securityWatchLabel(report)).toBe("No breach check (1 pep-only)");
   });
 
   it("never fetches the list when every login stores a code", async () => {
