@@ -11,9 +11,9 @@ use opensesame_cli_app_integration::{
     format_pairing_code, is_pairable_origin, session_id_from_pid, CliAppIntegrationHost,
     PairingError,
 };
+use sha2::Digest;
 use serde::Deserialize;
 use serde_json::json;
-use sha2::Digest;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::connect_info::ConnectInfo;
@@ -49,24 +49,15 @@ fn require_paired_caller(st: &App, headers: &HeaderMap) -> Result<(), Response> 
         return Err(pairing_error(StatusCode::FORBIDDEN, "origin_required"));
     };
     let Some(token) = bearer(headers) else {
-        return Err(pairing_error(
-            StatusCode::UNAUTHORIZED,
-            "cli_app_pairing_required",
-        ));
+        return Err(pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required"));
     };
     let host = st.cli_app_integration.lock().map_err(|_| {
-        pairing_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "cli_app_integration_locked",
-        )
+        pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "cli_app_integration_locked")
     })?;
     if host.pairings.authorizes(token, origin) {
         Ok(())
     } else {
-        Err(pairing_error(
-            StatusCode::UNAUTHORIZED,
-            "cli_app_pairing_required",
-        ))
+        Err(pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required"))
     }
 }
 
@@ -122,10 +113,7 @@ fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool
     }
     let trimmed = body.terminal_session_id.trim();
     let correlation = if trimmed.is_empty() {
-        format!(
-            "tcp-ephemeral-{}",
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-        )
+        format!("tcp-ephemeral-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0))
     } else {
         trimmed.to_string()
     };
@@ -243,7 +231,9 @@ pub(crate) async fn pairing_exchange(
             })),
         )
             .into_response(),
-        Err(PairingError::WrongOrigin) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        Err(PairingError::WrongOrigin) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
         Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
         }
@@ -290,7 +280,10 @@ pub(crate) async fn pairing_issue_operator(
     };
     match host.pairings.issue(&body.origin, now) {
         Ok((code, expires_at)) => {
-            let url = body.url.as_deref().unwrap_or("http://127.0.0.1:18790");
+            let url = body
+                .url
+                .as_deref()
+                .unwrap_or("http://127.0.0.1:18790");
             let label = body.label.as_deref().unwrap_or("CLI");
             Json(json!({
                 "pairingCode": format_pairing_code(url, &code, &body.origin, label),
@@ -303,9 +296,9 @@ pub(crate) async fn pairing_issue_operator(
         Err(PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::BAD_REQUEST, "invalid_origin")
         }
-        Err(PairingError::Unknown | PairingError::Expired | PairingError::WrongOrigin) => {
-            pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused")
-        }
+        Err(
+            PairingError::Unknown | PairingError::Expired | PairingError::WrongOrigin,
+        ) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused"),
     }
 }
 
@@ -329,21 +322,14 @@ fn allow(response: &mut Response, origin: Option<&str>) {
     }
 }
 
-async fn cors(
-    State(st): State<App>,
-    request: axum::http::Request<axum::body::Body>,
-    next: Next,
-) -> Response {
+async fn cors(State(st): State<App>, request: axum::http::Request<axum::body::Body>, next: Next) -> Response {
     let Some(origin) = origin_of(request.headers()).map(str::to_owned) else {
         return next.run(request).await;
     };
     let admitted = st
         .cli_app_integration
         .lock()
-        .map(|host| {
-            host.pairings
-                .admits_origin(&origin, chrono::Utc::now().timestamp() as u64)
-        })
+        .map(|host| host.pairings.admits_origin(&origin, chrono::Utc::now().timestamp() as u64))
         .unwrap_or(false)
         .then_some(origin);
     if request.method() == Method::OPTIONS
