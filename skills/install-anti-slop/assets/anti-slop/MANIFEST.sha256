@@ -1,3 +1,4 @@
+10ed33bf340d6d63dc0633dfc917a346b369b6aa41fe20734aefc6a3fb75ba17  LICENSE
 00a732685add59bb23247f04f8bbd674581c8251d1d772f828eed4d11e291822  effect/index.ts
 c4767cdb934bbf3a93bcfa1ec5c7f093f2bdb1a73d3eb0c7fb69599c9ea61b91  effect/rules/no-service-constructor-imports.test.ts
 59658d631bc6510c513cc0c52eb15df77bc3e76bca14b60b77b304a3bf3d6465  effect/rules/no-service-constructor-imports.ts

@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import {
@@ -7,8 +7,10 @@ import {
   fresh,
   install,
   installer,
+  root,
   run,
   tree,
+  verify,
 } from "./install-anti-slop-harness.mjs";
 
 // Each case spawns Node a few times; a loaded CI runner needs more than 5 s.
@@ -102,6 +104,53 @@ describe("the installer refuses what it does not understand", () => {
     expect(bare.status).toBe(0);
     expect(bare.stdout).toBe(
       `Copied the anti-slop plugin to ${target}\nConfigure Oxlint with: ${target}/index.ts\n`,
+    );
+  });
+});
+
+describe("the license", () => {
+  const twin = join(root, "tools", "oxlint", "anti-slop");
+  const text = (dir) => readFileSync(join(dir, "LICENSE"), "utf8");
+
+  it("is the in-repo copy's text, byte for byte", () => {
+    expect(text(asset)).toBe(text(twin));
+    expect(text(asset)).toContain("MIT License");
+  });
+
+  it("makes a full install the in-repo plugin plus the three files only the asset carries", () => {
+    const onlyHere = (file) =>
+      file === "package.json" || file === "vitest.config.ts";
+    const built = (file) =>
+      file.startsWith("node_modules/") || file.startsWith(".turbo/");
+    const expected = [
+      ...tree(twin).filter((file) => !onlyHere(file) && !built(file)),
+      "MANIFEST.sha256",
+      "verify.mjs",
+    ].sort();
+    expect(tree(asset)).toEqual(expected);
+    expect(tree(asset)).toContain("LICENSE");
+  });
+
+  it("is installed by a full install and by --no-tests", () => {
+    for (const args of [[], ["--no-tests"]]) {
+      const { target } = install(args);
+      expect(text(target)).toBe(text(asset));
+    }
+  });
+
+  it("is listed in the manifest, which a changed license no longer matches", () => {
+    const manifest = readFileSync(join(asset, "MANIFEST.sha256"), "utf8");
+    expect(manifest.split("\n")[0]).toMatch(/^[0-9a-f]{64} {2}LICENSE$/u);
+    const { target } = install();
+    writeFileSync(join(target, "LICENSE"), `${text(target)}\n`);
+    const result = verify(target);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toBe(
+      "Modified file: LICENSE does not match the digest in MANIFEST.sha256.\n",
+    );
+    unlinkSync(join(target, "LICENSE"));
+    expect(verify(target).stderr).toBe(
+      "Missing file: LICENSE is listed in MANIFEST.sha256 but is not installed.\n",
     );
   });
 });
