@@ -4,17 +4,22 @@ import {
   thisDeviceId,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { formatTime } from "@opensesame/app-core/sections/identity-section-model.js";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, Suspense, lazy, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
-import { CliAppPairingPanel } from "../../modules/identity.local-iam/cli-app-pairing-panel.js";
 import { IdentityFact } from "./IdentityRecordFields.js";
 import { DeviceForm, type DevicesModel } from "./LocalDeviceRows.js";
 import { useDevices } from "./LocalDevicesPanel.js";
 import { LocalIdentityNotices } from "./LocalIdentityNotices.js";
 import { identityRecordId } from "./identity-record-selection.js";
+
+const CliAppPairingPanel = lazy(() =>
+  import("../../modules/identity.local-iam/cli-app-pairing-panel.js").then(
+    (m) => ({ default: m.CliAppPairingPanel }),
+  ),
+);
 
 export function DevicesWorkspace({
   tomb,
@@ -109,7 +114,9 @@ export function DevicesWorkspace({
       ) : selectedId === "tailnet-devices" ? (
         tailnet
       ) : selectedId === "cli-terminal" ? (
-        <CliAppPairingPanel />
+        <Suspense fallback={null}>
+          <CliAppPairingPanel />
+        </Suspense>
       ) : null}
     </RecordWorkspace>
   );
