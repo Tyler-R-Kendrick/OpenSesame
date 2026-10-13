@@ -136,9 +136,10 @@ impl Sandbox {
     }
 }
 
+/// What the shell a script `node` runs under adds to its environment.
+const SHELL_OWN: [&str; 4] = ["PWD", "OLDPWD", "SHLVL", "_"];
+
 fn names(recorded: &str) -> BTreeSet<String> {
-    // The shell the recording `node` runs under adds a few of its own.
-    const SHELL_OWN: [&str; 4] = ["PWD", "OLDPWD", "SHLVL", "_"];
     recorded
         .lines()
         .filter_map(|line| line.split_once('=').map(|(name, _)| name.to_owned()))
@@ -185,6 +186,42 @@ fn a_node_behind_a_relative_path_entry_never_runs() {
 #[test]
 fn a_node_in_a_directory_others_can_write_never_runs() {
     planted_node_never_runs("{unsafe}:{safe}", "unsafe");
+}
+
+/// The layout a CI image or a package manager under `umask 002` produces: an
+/// absolute directory this user owns, group-writable by this user's own group.
+/// It holds the only node, behind a planted one in an empty entry.
+#[test]
+fn a_directory_its_own_group_can_write_is_trusted() {
+    let sandbox = Sandbox::new();
+    std::fs::set_permissions(sandbox.path("safe"), std::fs::Permissions::from_mode(0o775)).unwrap();
+    sandbox.plant("safe", "trusted");
+    sandbox.plant("work", "planted");
+    let path = format!(":./bin:{}", sandbox.path("safe").display());
+    let said = sandbox.subject(&path);
+    assert_eq!(said, "ok items=0", "PATH={path}");
+    assert!(
+        sandbox.recorded("trusted").is_some(),
+        "the node in the 0775 directory did not run"
+    );
+    assert!(sandbox.recorded("planted").is_none());
+}
+
+/// A node nobody but its owner can replace is what runs; one anyone can
+/// write is not, even in a directory that is fine.
+#[test]
+fn a_world_writable_node_file_is_not_run() {
+    let sandbox = Sandbox::new();
+    sandbox.plant("safe", "trusted");
+    std::fs::set_permissions(
+        sandbox.path("safe/node"),
+        std::fs::Permissions::from_mode(0o757),
+    )
+    .unwrap();
+    let said = sandbox.subject(&sandbox.path("safe").display().to_string());
+    assert!(said.starts_with("err "), "{said}");
+    assert!(said.contains("writable by others"), "{said}");
+    assert!(sandbox.recorded("trusted").is_none());
 }
 
 #[test]
@@ -239,7 +276,23 @@ fn a_real_node_still_parses_under_the_reduced_environment() {
         return;
     };
     let sandbox = Sandbox::new();
-    std::os::unix::fs::symlink(&real, sandbox.path("safe").join("node")).unwrap();
+    // The runner-like layout, with the real thing behind it: 0775 in the user's
+    // own group. A shim rather than a symlink, because the node the machine has
+    // may be one the rule refuses (a hosted CI image leaves its own world-writable);
+    // what is under test is that real Node parses under the reduced environment.
+    std::fs::set_permissions(sandbox.path("safe"), std::fs::Permissions::from_mode(0o775)).unwrap();
+    {
+        let shim = sandbox.path("safe").join("node");
+        let _guard = WRITING_OR_FORKING
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        std::fs::write(
+            &shim,
+            format!("#!/bin/sh\nexec '{}' \"$@\"\n", real.display()),
+        )
+        .unwrap();
+        std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
     let dump = sandbox.path("out/real-node-env.json");
     std::fs::write(
         sandbox.path("work/parse.mjs"),
@@ -253,8 +306,12 @@ fn a_real_node_still_parses_under_the_reduced_environment() {
     .unwrap();
     let said = sandbox.subject(&format!(":./bin:{}", sandbox.path("safe").display()));
     assert_eq!(said, "ok items=0");
-    let keys: BTreeSet<String> = serde_json::from_str(&std::fs::read_to_string(&dump).unwrap())
-        .expect("the stand-in bridge wrote its environment's names");
+    let keys: BTreeSet<String> =
+        serde_json::from_str::<BTreeSet<String>>(&std::fs::read_to_string(&dump).unwrap())
+            .expect("the stand-in bridge wrote its environment's names")
+            .into_iter()
+            .filter(|name| !SHELL_OWN.contains(&name.as_str()))
+            .collect();
     let allowed: BTreeSet<String> = ["HOME", "LANG", "LC_ALL", "PATH", "TMPDIR"]
         .map(String::from)
         .into();

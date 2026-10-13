@@ -21,17 +21,22 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
   with `agent` set, materialization is denied and the item is omitted with a
   warning.
 - The bridge is started by `node_command` and nothing else: `node` is found
-  among the `PATH` entries that are absolute, exist and cannot be written by
-  group or others (Windows: absolute, existing, not the current directory), so
-  an empty or relative entry cannot run a `node` planted in the working
-  directory, and it is run by its absolute path. Its environment is built, not
-  inherited: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*`
-  locale variables and, on Windows, `SystemRoot`, `PATHEXT` and `COMSPEC`. The
-  store passphrase and every other `OPENSESAME_*` variable, `NODE_OPTIONS`,
-  `NODE_PATH`, tokens and proxy settings never reach it, so an inherited
-  `--import` or `--require` cannot load other code into the process that reads
-  configuration either. With no such `node` the error says so; the inherited
-  `PATH` is not a fallback.
+  among the `PATH` entries that are absolute, exist, are owned by root or the
+  caller, cannot be written by others, and are group-writable only by root's
+  group or one of the caller's own (`root:root 0775` and `user:user 0775` pass,
+  `root:othergroup 0775` and `0777` do not; Windows: absolute, existing, not the
+  current directory), and the `node` itself must be owned by root or the caller
+  and not world-writable. So an empty or relative entry cannot run a `node`
+  planted in the working directory, and it is run by its absolute path. Its
+  environment is built, not inherited: `PATH` (those entries), `HOME`,
+  `TMPDIR`, `LANG`, the `LC_*` locale variables and, on Windows, `SystemRoot`,
+  `PATHEXT` and `COMSPEC`. The store passphrase and every other `OPENSESAME_*`
+  variable, `NODE_OPTIONS`, `NODE_PATH`, tokens and proxy settings never reach
+  it, so an inherited `--import` or `--require` cannot load other code into the
+  process that reads configuration either. With no such `node` the error says
+  so and names every entry or file it skipped and why ("writable by others",
+  "group-writable by group 1234 which is not one of yours", "owned by uid
+  1001"); the inherited `PATH` is not a fallback.
 - Placeholder suffixes are random per projection.
 
 ## Surface
@@ -57,8 +62,10 @@ pnpm --filter @opensesame/env-spec-bridge test
 
 `tests/bridge_isolation.rs` starts this test binary again as the process that
 parses, with a planted `node` in its working directory, an empty and a relative
-`PATH` entry, a directory others can write, and a spread of dummy secrets in its
-environment, and reads what the `node` it ran was handed.
+`PATH` entry, a directory others can write, a `0775` directory of its own group
+(trusted), and a spread of dummy secrets in its environment, and reads what the
+`node` it ran was handed. `src/node_bridge/trust/tests.rs` is the table of
+owner, group and mode combinations the trust rule decides.
 
 `bridge_roundtrip_fixture` parses
 [`tests/fixtures/demo.env.schema`](../../tests/fixtures/demo.env.schema)

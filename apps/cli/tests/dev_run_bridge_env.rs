@@ -150,6 +150,25 @@ fn the_bridge_gets_a_minimal_environment_and_the_child_gets_what_it_always_got()
     }
 }
 
+/// A CI image's layout: the only `node` sits in an absolute directory this user
+/// owns that its own group can write (`umask 002`, or a runner's tool cache).
+#[test]
+fn a_directory_its_own_group_can_write_supplies_the_node() {
+    let sandbox = Sandbox::new();
+    std::fs::set_permissions(
+        sandbox.path("trusted"),
+        std::fs::Permissions::from_mode(0o775),
+    )
+    .unwrap();
+    sandbox.plant("trusted", "bridge");
+    sandbox.plant("work", "in-cwd");
+    let path = format!(":./bin:{}:/usr/bin:/bin", sandbox.path("trusted").display());
+    let output = sandbox.run(true, &path);
+    assert!(output.status.success(), "{}", said(&output));
+    assert_eq!(bridge_names(&sandbox), allowed());
+    assert!(sandbox.recorded("in-cwd").is_none());
+}
+
 #[test]
 fn an_agent_child_loses_only_the_store_passphrase_as_before() {
     let sandbox = Sandbox::new();
