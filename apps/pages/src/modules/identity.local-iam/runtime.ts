@@ -37,7 +37,6 @@ import { registerIdentityViewPaths } from "../identity-view-paths.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { pickById } from "../tutorial-pick-b.js";
 import { IdentityRailTree } from "./IdentityRailTree.js";
-import { startCliAppPendingTrayWatch } from "./cli-app-pending-tray.js";
 import { LocalAuthorizeRoute } from "./lazy-routes.js";
 
 export const CAPABILITY = "identity.local-iam";
@@ -94,6 +93,9 @@ export const capabilityRuntime: CapabilityRuntime = {
     // (ADR 0160): present exactly while this capability is.
     activation.onDispose(registerDeviceRoutes(LOCAL_IAM_DEVICE_ROUTES));
 
+    const { startCliAppPendingTrayWatch } = await import(
+      "./cli-app-pending-tray.js"
+    );
     activation.onDispose(startCliAppPendingTrayWatch());
     activation.onDispose(bindLocalIamLockResets());
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
