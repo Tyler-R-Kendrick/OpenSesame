@@ -110,6 +110,7 @@ function ClaimFlow({
           <ConnectIdentityNote
             online={online}
             what="the claims shared with you"
+            lockIssuer
           />
         ) : null}
       </>

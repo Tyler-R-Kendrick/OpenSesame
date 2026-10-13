@@ -37,6 +37,7 @@ const originalSettingsSeams = { ...settingsSeams };
 
 const PKCE_KEY = "opensesame:federation:pkce";
 const SESSION_KEY = "opensesame:federation:session";
+const TEST_VERIFIER = "test-verifier-abcdefghijklmnopqrstuvwxyz0123456789";
 
 function b64url(value: string): string {
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -49,16 +50,17 @@ function jwt(claims: JsonObject): string {
 }
 
 function seedPending(overrides: JsonObject = {}): void {
-  localStorage.setItem(
+  localStore().setItem(
     PKCE_KEY,
     JSON.stringify({
       upstreamId: "mock",
       issuer: "http://127.0.0.1:9090",
-      verifier: "verifier-1",
-      state: "state-1",
+      verifier: TEST_VERIFIER,
+      state: "state-ab12",
       tokenEndpoint: "http://127.0.0.1:9090/token",
       jwksUri: "http://127.0.0.1:9090/jwks",
       scope: "openid",
+      createdAt: Date.now(),
       ...overrides,
     }),
   );
@@ -331,9 +333,6 @@ describe("beginSignIn", () => {
 
     await beginSignIn(upstream);
 
-    // Exactly what shoo.js sends (docs.shoo.dev): client, redirect, state and
-    // an S256 challenge. `response_type` and `scope` are not part of Shoo's
-    // protocol, and profile data is the `pii` flag — absent unless asked for.
     const url = new URL(seen[0] ?? "");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
@@ -428,7 +427,7 @@ describe("completeSignIn", () => {
   });
 
   it("refuses a code when no sign-in is in progress", async () => {
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
     });
@@ -447,7 +446,7 @@ describe("completeSignIn", () => {
 
   it("refuses a pending record older than Shoo's ten-minute PKCE ceiling", async () => {
     seedPending({ createdAt: Date.now() - 11 * 60 * 1000 });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
     });
@@ -461,27 +460,28 @@ describe("completeSignIn", () => {
     // session would silently discard the sign-in the person just made.
     saveSession(identity());
     seedPending({ createdAt: Date.now() - 11 * 60 * 1000 });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
     });
   });
 
   it("finishes a sign-in that an older build left in sessionStorage", async () => {
-    localStorage.clear();
-    sessionStorage.setItem(
+    localStore().removeItem(PKCE_KEY);
+    sessionStore().setItem(
       PKCE_KEY,
       JSON.stringify({
         upstreamId: "mock",
         issuer: "http://127.0.0.1:9090",
-        verifier: "verifier-1",
-        state: "state-1",
+        verifier: TEST_VERIFIER,
+        state: "state-ab12",
         tokenEndpoint: "http://127.0.0.1:9090/token",
         jwksUri: "http://127.0.0.1:9090/jwks",
         scope: "openid",
+        createdAt: Date.now(),
       }),
     );
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "http://127.0.0.1:9090",
@@ -493,11 +493,12 @@ describe("completeSignIn", () => {
     const result = await completeSignIn();
     expect(result?.identity.pairwiseSub).toBe("sub-legacy");
     expect(sessionStore().getItem(PKCE_KEY)).toBeNull();
+    expect(localStore().getItem(PKCE_KEY)).toBeNull();
   });
 
   it("refuses a code when the stored PKCE state is unreadable", async () => {
-    localStorage.setItem(PKCE_KEY, "{corrupt");
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    localStore().setItem(PKCE_KEY, "{corrupt");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
     });
@@ -511,7 +512,7 @@ describe("completeSignIn", () => {
 
   it("reports an unreachable token endpoint", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.reject(new TypeError("failed to fetch"))),
@@ -523,7 +524,7 @@ describe("completeSignIn", () => {
 
   it("reports a refused code exchange", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({ error: "invalid_grant" }, 400);
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "exchange_failed",
@@ -532,14 +533,14 @@ describe("completeSignIn", () => {
 
   it("reports a token response without an id_token", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({ access_token: "only-access" });
     await expect(completeSignIn()).rejects.toThrowError(/no id_token/);
   });
 
   it("rejects a token from the wrong issuer", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "https://shoo.dev",
@@ -555,7 +556,7 @@ describe("completeSignIn", () => {
 
   it("rejects a token from an issuer no longer trusted", async () => {
     seedPending({ issuer: "https://evil.example" });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "https://evil.example",
@@ -571,7 +572,7 @@ describe("completeSignIn", () => {
 
   it("rejects a token minted for a different audience", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "http://127.0.0.1:9090",
@@ -587,7 +588,7 @@ describe("completeSignIn", () => {
 
   it("accepts an audience list containing this origin", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "http://127.0.0.1:9090",
@@ -602,7 +603,7 @@ describe("completeSignIn", () => {
 
   it("rejects an already-expired token", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "http://127.0.0.1:9090",
@@ -616,7 +617,7 @@ describe("completeSignIn", () => {
 
   it("rejects a token without a pairwise subject", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "http://127.0.0.1:9090",
@@ -629,7 +630,7 @@ describe("completeSignIn", () => {
 
   it("completes the flow, persists the session, and cleans the URL", async () => {
     seedPending({ returnTo: "/broker?x=1" });
-    history.replaceState(null, "", "/?code=abc&state=state-1&scope=openid");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12&scope=openid");
     stubTokenResponse({
       id_token: jwt({
         iss: "http://127.0.0.1:9090",
@@ -672,7 +673,7 @@ describe("completeSignIn", () => {
       orgMethod: "saml",
       returnTo: "/settings",
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     stubTokenResponse({
       id_token: jwt({
         iss: "https://idp.acme.example",
@@ -718,7 +719,7 @@ describe("session storage", () => {
   });
 
   it("ignores a corrupt session payload", () => {
-    localStorage.setItem(SESSION_KEY, "{not json");
+    localStore().setItem(SESSION_KEY, "{not json");
     expect(loadSession()).toBeNull();
   });
 
@@ -837,7 +838,7 @@ describe("brokered federation", () => {
       tokenEndpoint: `${BASE}/token`,
       jwksUri: `${BASE}/jwks`,
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -867,7 +868,7 @@ describe("brokered federation", () => {
       issuer: "http://127.0.0.1:18788.evil.example",
       tokenEndpoint: "http://127.0.0.1:18788.evil.example/token",
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -895,7 +896,7 @@ describe("brokered federation", () => {
       tokenEndpoint: `${BASE}/token`,
       jwksUri: `${BASE}/jwks`,
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -915,7 +916,7 @@ describe("brokered federation", () => {
 
   it("never carries an access token off a direct upstream flow", async () => {
     seedPending();
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -1126,7 +1127,7 @@ describe("an operator's own identity provider", () => {
       jwksUri: `${OKTA.issuer}/keys`,
       clientId: OKTA.clientId,
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1146,7 +1147,7 @@ describe("an operator's own identity provider", () => {
       redirectUri: redirectUri(),
       clientId: OKTA.clientId,
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     // Typed parameters, so the assertion below can read the request body the
     // exchange actually sent rather than an inferred empty tuple.
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
@@ -1183,7 +1184,7 @@ describe("an operator's own identity provider", () => {
       jwksUri: `${OKTA.issuer}/keys`,
       clientId: OKTA.clientId,
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -1211,7 +1212,7 @@ describe("an operator's own identity provider", () => {
       tokenEndpoint: "https://other.okta.com/token",
       clientId: OKTA.clientId,
     });
-    history.replaceState(null, "", "/?code=abc&state=state-1");
+    history.replaceState(null, "", "/?code=abc&state=state-ab12");
     vi.stubGlobal(
       "fetch",
       vi.fn(() =>
@@ -1287,7 +1288,6 @@ describe("prompt=login for switching accounts", () => {
 
     const url = new URL(seen[0] ?? "");
     expect(url.searchParams.get("prompt")).toBeNull();
-    // The dialect stays exactly Shoo's: nothing else crept in beside it.
     expect([...url.searchParams.keys()].sort()).toEqual([
       "client_id",
       "code_challenge",

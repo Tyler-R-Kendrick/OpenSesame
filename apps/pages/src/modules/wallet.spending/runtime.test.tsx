@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { localStore } from "@opensesame/app-core/ports.js";
 import { describe, expect, it } from "vitest";
 import {
   NO_SIDE_EFFECTS,
@@ -135,7 +136,7 @@ describe("wallet.spending runtime", () => {
     // looking at the guest tomb. Coming back must re-read, not answer from
     // the cache the same tomb name filled before the excursion.
     scope.setWalletStorageTomb("guest");
-    localStorage.setItem(
+    localStore().setItem(
       "opensesame.wallet.leases.v1.personal",
       JSON.stringify([
         {

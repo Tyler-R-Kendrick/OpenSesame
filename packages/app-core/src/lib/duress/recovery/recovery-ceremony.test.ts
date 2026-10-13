@@ -55,7 +55,7 @@ async function sharesOf(
 async function quorum() {
   const secrets = keys();
   const request = await recoveryRequest();
-  const ledger = new ApprovalQuorumLedger(secrets.approval, secrets.device, {
+  const ledger = new ApprovalQuorumLedger(secrets.registry, secrets.device, {
     thresholdK: 2,
     proofMaxAgeMs: 60_000,
   });
@@ -92,11 +92,11 @@ describe("reconstructAfterQuorum", () => {
       kind: "failed",
       reason: "recovery_required: approval quorum not met",
     });
-    expect(reportApprovalQuorum(ledger, request.digest, 1)).toMatchObject({
+    expect(await reportApprovalQuorum(ledger, request, 1)).toMatchObject({
       kind: "failed",
     });
     await submit("a2", "hardware-token");
-    expect(reportApprovalQuorum(ledger, request.digest, 2)).toEqual({
+    expect(await reportApprovalQuorum(ledger, request, 2)).toEqual({
       kind: "approval_quorum_met",
       requestDigest: request.digest,
       independentApprovers: 2,

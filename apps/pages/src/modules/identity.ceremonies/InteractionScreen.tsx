@@ -178,7 +178,11 @@ function Ceremony({ ceremonyRef }: { ceremonyRef: string }) {
             </div>
           ) : null}
         </section>
-        <ConnectIdentityNote online={online} what="the requests sent to you" />
+        <ConnectIdentityNote
+          online={online}
+          what="the requests sent to you"
+          lockIssuer
+        />
       </>
     );
   return <div ref={root}>{body}</div>;
@@ -210,7 +214,11 @@ export function InteractionScreen() {
       ) : configured ? (
         <Ceremony ceremonyRef={entry.ref} />
       ) : (
-        <ConnectIdentityNote online={online} what="the requests sent to you" />
+        <ConnectIdentityNote
+          online={online}
+          what="the requests sent to you"
+          lockIssuer
+        />
       )}
     </div>
   );
