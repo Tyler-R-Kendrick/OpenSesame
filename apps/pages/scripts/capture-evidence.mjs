@@ -30,6 +30,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stubJourneyBridge } from "./lib/capture-bridge-steps.mjs";
 import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
@@ -68,8 +69,7 @@ if (!mode || !journeyPath || (mode === "capture" && !label)) {
 
 const journey = JSON.parse(fs.readFileSync(journeyPath, "utf8"));
 const root = path.resolve(path.dirname(journeyPath), journey.out ?? ".");
-// Raw captures stay out of the repository: only the composed sheets are
-// evidence, and two full phone walks of PNGs are not worth versioning.
+// Raw captures stay out of the repository; only the composed sheets are evidence.
 const shots = path.join(
   os.tmpdir(),
   "opensesame-evidence",
@@ -83,8 +83,8 @@ const dist =
 
 /**
  * `remote` maps an external URL to a repository-relative file served in its
- * place — only for a feature that reads a file this branch adds, which the
- * real host will not have until the branch lands. The README must say so.
+ * place, only for a file this branch adds that the real host lacks until it
+ * lands. The README must say so.
  */
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const remote = Object.fromEntries(
@@ -343,6 +343,7 @@ async function capture(browser, into) {
     await prepareScreen(context, { origin, base, screen });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
     await stubJourneyDaemon(page, screen, journey, origin);
+    await stubJourneyBridge(page, screen);
     // A fixed start time, so both builds' timestamps read the same.
     if (journey.clock)
       await page.clock.install({ time: new Date(journey.clock) });
