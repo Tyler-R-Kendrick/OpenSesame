@@ -19,6 +19,7 @@ import {
   flushHeldDropNotes,
   noteDropExpired,
   noteDropRevoked,
+  noteDropSent,
 } from "../sharing-receipts.js";
 import {
   LocalDropClaimError,
@@ -165,6 +166,12 @@ export function recordOutboundDrop(input: {
   if (sealingTomb) row.tomb = sealingTomb;
   store.sends[input.claimId] = row;
   writeStore(store);
+  if (sealingTomb) {
+    noteDropSent(sealingTomb, input.claimId, {
+      sourceItemId: input.sourceItemId,
+      vaultItemId: input.vaultItemId,
+    });
+  }
 }
 
 /**

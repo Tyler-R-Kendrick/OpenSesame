@@ -37,6 +37,7 @@ const STATUS = {
 >;
 
 const DROP_RECEIPTS = new Set([
+  "access.drop.sent",
   "access.drop.opened",
   "access.drop.expired",
   "access.drop.locked_out",

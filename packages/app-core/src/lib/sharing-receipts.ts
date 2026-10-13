@@ -126,6 +126,37 @@ export function resetSharingReceiptsForTest(): void {
   heldDropExpiry = undefined;
 }
 
+/** The sender sealed a drop for someone else to claim. */
+export function noteDropSent(
+  tomb: string,
+  claimId: string,
+  link?: { sourceItemId?: string | null; vaultItemId?: string | null },
+): void {
+  const id = blindId(claimId);
+  if (!id || !tomb || !remember(`drop-sent:${id}`)) return;
+  const metadata: JsonObject = { claimId: id };
+  const sourceItemId = link?.sourceItemId ? blindId(link.sourceItemId) : null;
+  const vaultItemId = link?.vaultItemId ? blindId(link.vaultItemId) : null;
+  if (sourceItemId) metadata.sourceItemId = sourceItemId;
+  if (vaultItemId) metadata.vaultItemId = vaultItemId;
+  const ref: ReceiptRef = { claimId: id };
+  if (sourceItemId) ref.resourceId = sourceItemId;
+  write(
+    tomb,
+    {
+      category: "vault",
+      type: "vault.drop.sent",
+      summary: "Drop sent",
+      outcome: "succeeded",
+      targetType: "claim",
+      targetId: id,
+      metadata,
+    },
+    "drop.sent",
+    ref,
+  );
+}
+
 /** The claim was presented. `claimId` is the id, never the bearer. */
 export function noteDropOpened(claimId: string): void {
   const id = blindId(claimId);
@@ -291,6 +322,33 @@ const GRANT_RECEIPT_KIND = [
   "share.approved",
   "share.denied",
 ] as const satisfies readonly [ReceiptKind, ReceiptKind];
+
+/** An agent or application grant is waiting for a person to approve. */
+export function noteShareRequested(
+  tomb: string,
+  share: { id: string; principalId: string; resourceId: string },
+): void {
+  const id = blindId(share.id);
+  const subject = blindId(share.principalId);
+  const resourceId = blindId(share.resourceId);
+  if (!tomb || !id || !subject || !resourceId) return;
+  if (!remember(`share.requested:${id}`)) return;
+  const metadata: JsonObject = { subject, resourceId };
+  write(
+    tomb,
+    {
+      category: "access",
+      type: "access.share.requested",
+      summary: "Share requested",
+      outcome: "succeeded",
+      targetType: "share",
+      targetId: id,
+      metadata,
+    },
+    "share.requested",
+    { shareId: id, subject, resourceId },
+  );
+}
 
 /** Identity share grant decision after a person approves or denies. */
 export function noteShareGrantStep(
