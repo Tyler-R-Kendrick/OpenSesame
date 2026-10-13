@@ -331,6 +331,23 @@ describe("CommandBar — command or ask", () => {
     expect(liveSearch()).toBe("gi");
   });
 
+  it("dismisses command status on Escape and on the dismiss key", async () => {
+    const user = userEvent.setup();
+    renderBar(false);
+    const field = screen.getByRole("combobox", { name: "Command" });
+    await user.type(field, "/vault{Enter}");
+    await screen.findByRole("status");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
+
+    await user.type(field, "/vault{Enter}");
+    await screen.findByRole("status");
+    await user.click(
+      screen.getByRole("button", { name: "Dismiss command status" }),
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
   it("still runs commands, and still shrugs, with no Support mounted", async () => {
     const user = userEvent.setup();
     renderBar(false);
