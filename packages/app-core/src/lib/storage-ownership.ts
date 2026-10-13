@@ -83,6 +83,8 @@ const KEYS: ReadonlySet<string> = new Set([
   "join.presented.v1",
   "join.pending.v2",
   "join.invite.v1",
+  // CLI app-integration pairing bearer (`cli-app-integration/bearer-session.ts`).
+  "opensesame-cli-app-integration-bearer",
 ]);
 
 export function ownsOriginFile(name: string): boolean {
