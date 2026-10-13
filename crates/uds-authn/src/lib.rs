@@ -44,6 +44,10 @@ pub fn peer_cred<S: std::os::fd::AsFd>(stream: &S) -> Result<PeerCred, AuthnErro
 
 /// Peer attestation has no non-Unix equivalent in v1 (ADR 0048 §8: Windows is
 /// TCP plus operator token only), so this stub always fails closed.
+///
+/// # Errors
+///
+/// Always returns [`AuthnError::Unsupported`].
 #[cfg(not(unix))]
 pub fn peer_cred<S>(_stream: &S) -> Result<PeerCred, AuthnError> {
     Err(AuthnError::Unsupported)
@@ -113,6 +117,7 @@ pub fn default_allowed_uids() -> Vec<u32> {
 }
 
 #[cfg(not(unix))]
+#[must_use]
 pub fn default_allowed_uids() -> Vec<u32> {
     Vec::new()
 }

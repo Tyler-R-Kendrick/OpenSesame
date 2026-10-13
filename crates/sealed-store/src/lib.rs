@@ -13,6 +13,7 @@ mod git;
 mod gpg;
 mod history;
 mod manifest;
+mod native_password_policy;
 mod otp {
     #[cfg(test)]
     pub use opensesame_authenticator_core::parse_otpauth;
@@ -23,6 +24,7 @@ mod path;
 mod piv_age;
 mod produce;
 mod recipients;
+mod retired_native;
 mod root;
 mod root_protection;
 mod rotation;
@@ -53,6 +55,7 @@ pub use gpg::{decrypt_gpg_file, encrypt_gpg_file, read_gpg_id};
 pub use history::{entry_history, restore_entry, HistoryEntry};
 // —— end entry history / restore ——————————————————————————————————————————
 pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
+pub use native_password_policy::assert_native_new_password_policy;
 pub use object_store::{assert_confined_rel, FsObjectStore, ObjectStore};
 pub use opensesame_authenticator_core::{
     find_otpauth_in_trailer, hotp_code, parse_otpauth, sync_trailer_otp, totp_code,
@@ -88,3 +91,6 @@ pub use update::{
 };
 
 pub use opensesame_human_vault::{ItemDataKey, VaultRootKey};
+
+// Public read-only metadata; no transferable owner capability is returned.
+pub use retired_native::{inspect_native_retired_policy, NativeRetiredPolicyView};

@@ -121,6 +121,7 @@ impl PluginSettings {
             }
             Err(error) => return Err(error.into()),
         };
+        #[cfg(unix)]
         refuse_shared_write(path)?;
         let settings: Self = serde_json::from_slice(&bytes)
             .map_err(|error| SettingsError::Unreadable(error.to_string()))?;
@@ -311,11 +312,6 @@ fn refuse_shared_write(path: &Path) -> Result<(), SettingsError> {
             "the settings file is writable by others".to_string(),
         ));
     }
-    Ok(())
-}
-
-#[cfg(not(unix))]
-fn refuse_shared_write(_: &Path) -> Result<(), SettingsError> {
     Ok(())
 }
 

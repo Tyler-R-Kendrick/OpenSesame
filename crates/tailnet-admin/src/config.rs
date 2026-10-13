@@ -237,6 +237,7 @@ impl AdminStore {
             if config.v != 1 || !valid_secret(kind, trimmed) {
                 return Err(AdminError::Unreadable("secret".into()));
             }
+            #[cfg(unix)]
             self.trusted_legacy()?;
             let key = LogKey::load_or_create(&key_path)?;
             let sealed = key.seal_value(&namespace, PURPOSE, trimmed);
@@ -296,6 +297,7 @@ impl AdminStore {
         if config.v != 1 || !valid_secret(config.credential.kind, text.trim()) {
             return Err(AdminError::Unreadable("secret".into()));
         }
+        #[cfg(unix)]
         self.trusted_legacy()?;
         Ok(LogKey::load_or_create(&key_path)?)
     }
@@ -329,11 +331,6 @@ impl AdminStore {
                 ));
             }
         }
-        Ok(())
-    }
-
-    #[cfg(not(unix))]
-    fn trusted_legacy(&self) -> Result<(), AdminError> {
         Ok(())
     }
 }
