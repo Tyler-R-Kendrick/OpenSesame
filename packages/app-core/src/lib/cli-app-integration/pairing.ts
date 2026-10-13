@@ -64,14 +64,7 @@ export function mintCliAppPairingPageBinding(): string {
   for (const byte of bytes) {
     out += String.fromCharCode(byte);
   }
-<<<<<<< HEAD
   return btoa(out).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-=======
-  return btoa(out)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/, "");
->>>>>>> 9bea574b2 (fix(cli-app-integration): require PWA confirm before pairing exchange)
 }
 
 export {
@@ -94,34 +87,6 @@ async function postPairing(
       Origin: origin,
     },
     body: JSON.stringify(body),
-<<<<<<< HEAD
-=======
-  });
-}
-
-export async function confirmCliAppPairingCode(
-  parsed: CliAppPairingCode,
-  pageBinding: string,
-): Promise<boolean> {
-  const base = daemonBase(parsed.url);
-  if (!base || !SECRET.test(pageBinding)) return false;
-  const res = await postPairing(base, CLI_APP_PAIRING_CONFIRM_PATH, parsed.origin, {
-    code: parsed.code,
-    pageBinding,
-  });
-  return res.status === 204;
-}
-
-export async function exchangeCliAppPairingCode(
-  parsed: CliAppPairingCode,
-  pageBinding: string,
-): Promise<boolean> {
-  const base = daemonBase(parsed.url);
-  if (!base || !SECRET.test(pageBinding)) return false;
-  const res = await postPairing(base, CLI_APP_PAIRING_EXCHANGE_PATH, parsed.origin, {
-    code: parsed.code,
-    pageBinding,
->>>>>>> 9bea574b2 (fix(cli-app-integration): require PWA confirm before pairing exchange)
   });
 }
 
