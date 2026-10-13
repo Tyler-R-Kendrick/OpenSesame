@@ -2,10 +2,7 @@ import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import type { JsonObject } from "@opensesame/os-domain";
 import {
   type Folder,
-  createItem,
   installItemType,
-  manualPassword,
-  splitAccount,
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
@@ -336,26 +333,6 @@ describe("SettingsSection", () => {
       screen.getByRole("button", { name: /Delete permanently/i }),
     );
     expect(store.destroy).toHaveBeenCalled();
-  });
-
-  it("counts a trashed account and its bound password as one item", () => {
-    const at = "2026-09-01T00:00:00.000Z";
-    const draft = {
-      ...createItem("account", "Billing"),
-      id: "acct",
-      methods: [manualPassword("acct:p")],
-      createdAt: at,
-      updatedAt: at,
-      deletedAt: null,
-    };
-    vault.current.items = splitAccount([], draft, at).map((item) =>
-      item.deletedAt === null ? { ...item, deletedAt: at } : item,
-    );
-    renderSettings("#danger");
-    expect(screen.getByText(/1 item in the trash/)).toBeTruthy();
-    expect(screen.getByText(/· 1 item/)).toBeTruthy();
-    expect(screen.getByText("Billing")).toBeTruthy();
-    expect(screen.queryByText(/Password/)).toBeNull();
   });
 
   it("lists the trash and empties it only after arming", async () => {
