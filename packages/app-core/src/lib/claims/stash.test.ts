@@ -48,7 +48,7 @@ describe("claim stash (ported from the console)", () => {
   });
 
   it("omits claimId and principalId unless they are strings", () => {
-    storage.setItem(
+    sessionStore().setItem(
       KEY,
       JSON.stringify({
         token: "osc_clm_a.secret",
@@ -75,7 +75,7 @@ describe("claim stash (ported from the console)", () => {
       JSON.stringify({ token: 7, presented: false, savedAt }),
       JSON.stringify({ token: "osc_clm_a.secret", presented: "yes", savedAt }),
     ]) {
-      storage.setItem(KEY, raw);
+      sessionStore().setItem(KEY, raw);
       expect(claimStash.read(), raw).toBeNull();
     }
   });
