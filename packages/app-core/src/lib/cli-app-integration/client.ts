@@ -3,9 +3,9 @@
  */
 
 import { localNetworkFetch } from "../local-network-fetch.js";
-import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 import { loadSettings } from "../settings.js";
 import { readCliAppIntegrationBearer } from "./bearer-session.js";
+import { cliAppIntegrationPolicy } from "./policy-runtime.js";
 
 export type CliAppPendingRow = Readonly<{
   requestId: string;

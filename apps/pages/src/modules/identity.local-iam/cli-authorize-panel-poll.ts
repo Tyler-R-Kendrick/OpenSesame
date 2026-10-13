@@ -3,8 +3,8 @@ import {
   readCliAppAuthHeaders,
   readDaemonOrigin,
 } from "@opensesame/app-core/lib/cli-app-integration/client.js";
-import { useEffect } from "react";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy-runtime.js";
+import { useEffect } from "react";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import type { CliAuthorizePanelHint } from "./cli-authorize-panel-model.js";
 
