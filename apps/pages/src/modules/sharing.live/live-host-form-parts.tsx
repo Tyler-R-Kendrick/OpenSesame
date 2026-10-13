@@ -6,7 +6,6 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { activeItems, listedItems } from "@opensesame/vault-core";
 import { useMemo } from "react";
 import { useDeviceVaults } from "../../bindings/vaults.js";
-import { FieldRow } from "../../components/FieldRow.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 
@@ -94,21 +93,19 @@ export function ItemChoice({
 }) {
   const { items } = useVault();
   const live = listedItems(activeItems(items));
-  const labels = useMemo(() => liveItemPickLabels(live), [live]);
   const vaults = useDeviceVaults();
   const vaultLabel = vaults.find(
     (vault) => vault.id === vaultStore.activeTomb(),
   )?.label;
+  const labels = useMemo(
+    () => liveItemPickLabels(live, { vaultLabel }),
+    [live, vaultLabel],
+  );
   if (live.length === 0)
     return <StatusMark tone="idle" label="This vault has no items" />;
   return (
     <fieldset className="live-choose">
       <legend className="visually-hidden">Items to share</legend>
-      {vaultLabel ? (
-        <FieldRow label="Vault">
-          <span className="frow__value">{vaultLabel}</span>
-        </FieldRow>
-      ) : null}
       {live.map((item) => (
         <label key={item.id} className="join__choice">
           <input

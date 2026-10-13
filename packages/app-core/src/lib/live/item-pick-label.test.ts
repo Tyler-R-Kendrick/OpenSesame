@@ -36,4 +36,11 @@ describe("liveItemPickLabels", () => {
     const labels = liveItemPickLabels([item("a", "Solo", "note")]);
     expect(labels.get("a")).toBe("Solo");
   });
+
+  it("names the vault on every row when asked", () => {
+    const labels = liveItemPickLabels([item("a", "Solo", "note")], {
+      vaultLabel: "personal",
+    });
+    expect(labels.get("a")).toBe("Solo · personal");
+  });
 });
