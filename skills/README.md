@@ -22,7 +22,7 @@ live directly in `.agents/skills/` and `.claude/skills/`.
 | [`local-debug-session`](local-debug-session/SKILL.md) | "Run it locally": an attached Vite HMR session with the browser console watched, never a static preview. |
 | [`visual-evidence`](visual-evidence/SKILL.md) | Before/after screenshots from two real builds for any user-visible change. |
 | [`security-review`](security-review/SKILL.md) | The deterministic security gates and budgeted Codex Security scans. |
-| [`install-anti-slop`](install-anti-slop/SKILL.md) | Installing the anti-slop Oxlint plugin into another repository; its `assets/` mirror [`tools/oxlint/anti-slop`](../tools/oxlint/anti-slop) (`pnpm test:anti-slop` checks they match). |
+| [`install-anti-slop`](install-anti-slop/SKILL.md) | Installing the anti-slop Oxlint plugin into another repository; its `assets/` mirror [`tools/oxlint/anti-slop`](../tools/oxlint/anti-slop) (`pnpm test:anti-slop` checks they match), `install.mjs --no-tests` leaves the test suites out, and the asset's `MANIFEST.sha256` and `verify.mjs` let a consuming repository check its copy offline (`pnpm anti-slop:manifest` regenerates the manifest). |
 
 A new skill gets a directory here, a symlink in `.agents/skills/`, and a row in
 the skills table in [`AGENTS.md` §7](../AGENTS.md#7-skills).

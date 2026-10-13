@@ -124,7 +124,8 @@ pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-cor
                           #   body port, ADR 0160 §5a) is imported by no one else
 pnpm quality:bundle      # build apps/pages, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
-pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity
+pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity + MANIFEST.sha256 freshness
+pnpm anti-slop:manifest  # rewrite the installer asset's MANIFEST.sha256 after changing a rule (ADR 0200)
 pnpm test:rust-lint      # contract test for rustfmt/Clippy hook + verify wiring
 pnpm lint:fix            # fix changed and staged files
 pnpm test                # turbo test across every workspace test script
