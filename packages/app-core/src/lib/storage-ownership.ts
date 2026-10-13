@@ -22,7 +22,6 @@
  *   fails its first test rather than outlive every reset.
  */
 
-import { CLI_APP_INTEGRATION_BEARER_KEY } from "./cli-app-integration/bearer-session.js";
 import { msalKeyNamesClient } from "./storage-ownership-msal.js";
 
 /** The start of every origin-private file `kv.ts` writes. */
@@ -75,6 +74,15 @@ const KEY_PREFIXES = [
   "opensesame:federation:",
   "opensesame:ambient-auth:",
 ] as const;
+
+/**
+ * Session-held Bearer [REDACTED] the daemon CLI app-integration flow reads
+ * (`cli-app-integration/bearer-session.ts`, ADR 0186). Declared here with every
+ * other Web Storage key so the ownership rule stays single-sourced; the bearer
+ * module imports it rather than the reverse, keeping the core acyclic.
+ */
+export const CLI_APP_INTEGRATION_BEARER_KEY =
+  "opensesame-cli-app-integration-bearer";
 
 /** Keys owned whole. */
 const KEYS: ReadonlySet<string> = new Set([

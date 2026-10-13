@@ -2,8 +2,7 @@
 
 import { sessionStore } from "../../ports.js";
 
-export const CLI_APP_INTEGRATION_BEARER_KEY =
-  "opensesame-cli-app-integration-bearer";
+import { CLI_APP_INTEGRATION_BEARER_KEY } from "../storage-ownership.js";
 
 /** Same shape as plugin pairing secrets (`plugin-pairing.ts` SECRET). */
 const BEARER_TOKEN = /^[A-Za-z0-9_-]{43}$/;
