@@ -104,6 +104,10 @@ describe("what the seams leave open", () => {
           "apps/pages/scripts/vault-vectors/emit.ts",
           'import { bodyPortOf } from "@opensesame/app-core/lib/vault/store-device-key.js";',
         ],
+        [
+          "packages/app-core/src/lib/vault/store-boot.ts",
+          'import { bodyPortOf, installDeviceKeyCarrier } from "./store-device-key.js";',
+        ],
       ]),
     ).toEqual([]);
   });
