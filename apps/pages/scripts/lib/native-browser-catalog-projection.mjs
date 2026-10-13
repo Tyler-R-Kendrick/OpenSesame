@@ -34,18 +34,16 @@ const projection = buildSync({
   platform: "node",
   format: "esm",
   write: false,
-  // The bundle below is imported from a data: URL, where no `require`
-  // binding exists. Bundled CommonJS (yaml via the contracts barrel, kept
-  // once any live module defeats tree-shaking) calls require("process") and
-  // require("buffer") through esbuild's __require shim, which throws
-  // 'Dynamic require ... is not supported' without a real require. Restore
-  // Node's require for builtins so evaluation matches a file import; relative
-  // requires cannot occur (everything is bundled) and any other bare
-  // specifier still fails fast.
-  banner: {
-    js: 'import { createRequire as __osProjectionRequire } from "node:module"; globalThis.require ??= __osProjectionRequire(import.meta.url);',
-  },
 });
+// The bundle below is imported from a data: URL, where no `require`
+// binding exists. Bundled CommonJS (yaml via the contracts barrel, kept
+// once any live module defeats tree-shaking) calls require("process") and
+// require("buffer") through esbuild's __require shim, which throws
+// 'Dynamic require ... is not supported' without a real require. Lend this
+// harness module's own require (bound to a file: URL, unlike the data: URL
+// inside the bundle where createRequire would throw) so evaluation matches
+// a file import; everything else is bundled, so only builtin requires occur.
+globalThis.require ??= createRequire(import.meta.url);
 const source = await import(
   `data:text/javascript;base64,${Buffer.from(projection.outputFiles[0].text).toString("base64")}`
 );
