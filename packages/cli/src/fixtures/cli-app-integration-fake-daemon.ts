@@ -23,16 +23,44 @@ export async function envWithFakeCliAppIntegrationDaemon(
   return { env, close: fakeDaemon.close };
 }
 
+const DAEMON_PIN_PROBE_SESSION = "opensesame-cli-daemon-pin-probe";
+
 export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFakeDaemon> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
-      if (req.method === "POST" && req.url === ensurePath) {
-        const payload = JSON.stringify({ status: "approved" });
+      if (req.method === "GET" && req.url === "/health") {
+        const payload = JSON.stringify({ status: "ok" });
         res.writeHead(200, {
           "content-type": "application/json",
           "content-length": Buffer.byteLength(payload),
         });
         res.end(payload);
+        return;
+      }
+      if (req.method === "POST" && req.url === ensurePath) {
+        const chunks: Buffer[] = [];
+        req.on("data", (chunk) => {
+          chunks.push(chunk);
+        });
+        req.on("end", () => {
+          let status = "approved";
+          try {
+            const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
+              terminalSessionId?: string;
+            };
+            if (body.terminalSessionId === DAEMON_PIN_PROBE_SESSION) {
+              status = "pending";
+            }
+          } catch {
+            status = "denied";
+          }
+          const payload = JSON.stringify({ status });
+          res.writeHead(200, {
+            "content-type": "application/json",
+            "content-length": Buffer.byteLength(payload),
+          });
+          res.end(payload);
+        });
         return;
       }
       res.writeHead(404);
