@@ -1,14 +1,23 @@
 //! Vault commands: the same work the Vault section covers, plus the sealed store.
 use std::path::PathBuf;
 
+use super::entry_dispatch::command_future;
 use super::{PassAttachCmd, PassCmd, PassTombCmd};
 use crate::{attach, pass_otp, pass_protect, store};
 use clap::Subcommand;
 
 mod circle;
+#[path = "node_data_worker.rs"]
+mod node_data_worker;
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum VaultArea {
+    /// Private original physical Node DATA transport; never a vault authentication interface.
+    #[command(hide = true)]
+    NodeData {
+        #[arg(long)]
+        state: PathBuf,
+    },
     /// Open a Pages vault export or offline backup with its master password.
     Verify { file: PathBuf },
     /// List its items: path and kind, never values.
@@ -27,7 +36,7 @@ pub(crate) enum VaultArea {
     /// Password-store management (`pass` parity): init, insert, show, ls, …
     Pass {
         #[command(subcommand)]
-        cmd: super::PassCmd,
+        cmd: super::pass_commands::BoundedPassCmd,
     },
     /// Explicit human-only provider reads. Never exposed through MCP or agent APIs.
     Secret {
@@ -53,6 +62,7 @@ pub(crate) enum VaultArea {
 
 pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::Result<()> {
     match cmd {
+        VaultArea::NodeData { state } => node_data_worker::run(&state)?,
         VaultArea::Verify { file } => {
             crate::vault_file::run(output, &crate::vault_file::VaultCmd::Verify { file })?;
         }
@@ -66,10 +76,18 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
             memory_kib,
             passes,
         } => crate::vault_migration::migrate(&input, &output, memory_kib, passes)?,
-        VaultArea::Pass { cmd } => run_pass(server, cmd).await?,
-        VaultArea::Secret { cmd } => super::secret_cmd(server, cmd).await?,
-        VaultArea::Sync { cmd } => crate::sync_commands::sync_cmd(server, cmd).await?,
-        VaultArea::Crypto { cmd } => super::crypto_cmd(server, cmd).await?,
+        VaultArea::Pass { cmd } => {
+            command_future(move || run_pass(server, cmd.into_inner())).await?;
+        }
+        VaultArea::Secret { cmd } => {
+            command_future(move || super::secret_cmd(server, cmd)).await?;
+        }
+        VaultArea::Sync { cmd } => {
+            command_future(move || crate::sync_commands::sync_cmd(server, cmd)).await?;
+        }
+        VaultArea::Crypto { cmd } => {
+            command_future(move || super::crypto_cmd(server, cmd)).await?;
+        }
         VaultArea::Circle { cmd } => circle::run(output, cmd)?,
     }
     Ok(())
@@ -90,8 +108,10 @@ async fn run_pass(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
         cmd @ (PassCmd::Seal { .. }
         | PassCmd::ImportKdbx { .. }
         | PassCmd::ExportKdbx { .. }
-        | PassCmd::Backup { .. }) => pass_files(cmd).await?,
-        cmd @ PassCmd::Attach { .. } => pass_attach(server, cmd).await?,
+        | PassCmd::Backup { .. }) => command_future(move || pass_files(cmd)).await?,
+        cmd @ PassCmd::Attach { .. } => {
+            command_future(move || pass_attach(server, cmd)).await?;
+        }
         cmd @ (PassCmd::Protect { .. }
         | PassCmd::Otp { .. }
         | PassCmd::Update { .. }

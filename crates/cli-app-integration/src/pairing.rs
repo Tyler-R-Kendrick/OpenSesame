@@ -214,14 +214,16 @@ impl CliAppIntegrationPairings {
             return false;
         }
         let digest = digest_hex(token);
-        self.paired.iter().any(|page| {
-            page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
-        })
+        self.paired
+            .iter()
+            .any(|page| page.origin == origin && same(page.token_sha256.as_str(), digest.as_str()))
     }
 
     #[must_use]
     pub fn admits_origin(&self, origin: &str, now: u64) -> bool {
-        self.pending.iter().any(|p| p.origin == origin && p.expires_at > now)
+        self.pending
+            .iter()
+            .any(|p| p.origin == origin && p.expires_at > now)
             || self.paired.iter().any(|p| p.origin == origin)
     }
 

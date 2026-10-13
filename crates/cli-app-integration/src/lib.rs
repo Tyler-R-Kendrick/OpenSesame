@@ -132,9 +132,8 @@ impl CliAppIntegrationStore {
 
     fn expire_pending(&mut self) {
         let ttl_ms = policy().request_timeout_seconds * 1000;
-        self.pending.retain(|_, row| {
-            self.now_ms.saturating_sub(row.created_at_ms) <= ttl_ms
-        });
+        self.pending
+            .retain(|_, row| self.now_ms.saturating_sub(row.created_at_ms) <= ttl_ms);
     }
 
     pub fn ensure(

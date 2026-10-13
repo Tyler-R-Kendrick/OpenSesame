@@ -83,8 +83,7 @@ fn seam_env_without_daemon_is_refused() {
     let combined = format!("{out}{err}");
     assert!(!status.success(), "combined output:\n{combined}");
     assert!(
-        combined.contains("OpenSesame is not running")
-            || combined.contains("Unlock OpenSesame"),
+        combined.contains("OpenSesame is not running") || combined.contains("Unlock OpenSesame"),
         "expected app-unavailable copy, got:\n{combined}"
     );
 }

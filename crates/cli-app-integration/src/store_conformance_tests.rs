@@ -75,7 +75,9 @@ fn conformance_session_cases() {
                 store.set_now_ms(1_000_000 + seconds * 1000);
             }
             let query_id = if case.query_as.as_deref() == Some("other") {
-                case.other_terminal_session_id.as_deref().unwrap_or("missing")
+                case.other_terminal_session_id
+                    .as_deref()
+                    .unwrap_or("missing")
             } else {
                 case.terminal_session_id.as_str()
             };

@@ -1,5 +1,7 @@
 use super::*;
-use crate::dev_run::login::tests::{web_login, FakeStore, SECRET};
+#[cfg(unix)]
+use crate::dev_run::login::tests::SECRET;
+use crate::dev_run::login::tests::{web_login, FakeStore};
 use opensesame_domain::{
     CredentialDeliveryMode, LegacyProjection, PlaceholderLocation, PlaceholderPlacement,
 };
@@ -300,6 +302,7 @@ fn a_login_the_store_does_not_bind_to_its_origin_never_starts_the_plugin() {
 
 /// A stand-in for the plugin's rule: a served entry with no bounded path
 /// scope is refused before anything is issued.
+#[cfg(unix)]
 const SCOPE_CHECKING_PLUGIN: &str = r#"#!/bin/sh
 here="$(dirname "$0")"
 IFS= read -r line

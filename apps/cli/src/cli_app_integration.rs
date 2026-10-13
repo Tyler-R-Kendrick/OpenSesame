@@ -7,8 +7,8 @@ use opensesame_cli_app_integration::{
     app_unavailable_message, denied_message, expired_message, request_timeout_message,
 };
 use opensesame_credential_helpers::{default_sock_path, ENV_SOCK};
-use std::path::PathBuf;
 use serde::Deserialize;
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 const POLICY: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
