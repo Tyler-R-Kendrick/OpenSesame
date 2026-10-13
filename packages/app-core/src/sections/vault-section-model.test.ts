@@ -7,11 +7,8 @@ import {
 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { pepperedAccount, plainAccount } from "../lib/account.test-support.js";
-import {
-  chipTypeIds,
-  concealedValue,
-  shareText,
-} from "./vault-section-model.js";
+import { chipTypeIds, concealedValue } from "./vault-section-model.js";
+import { shareText } from "./vault-share-text.js";
 
 const BOAT = JSON.stringify({
   apiVersion: "opensesame.dev/v1alpha1",

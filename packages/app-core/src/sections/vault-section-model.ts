@@ -98,13 +98,7 @@ export function shareText(item: VaultItem): string | null {
     return text === "" ? null : text;
   }
   const secret = concealedValue(item);
-  if (secret !== null && secret.trim() !== "") {
-    if (item.kind === "account") {
-      const user = item.username.trim();
-      return user !== "" ? `${user}\n${secret}` : secret;
-    }
-    return secret;
-  }
+  if (secret !== null && secret.trim() !== "") return secret;
   const notes = item.notes.trim();
   return notes === "" ? null : notes;
 }
