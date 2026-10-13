@@ -5,6 +5,7 @@ import {
   isJsonObject,
   readString,
 } from "@opensesame/os-domain";
+import { verifyLocalDaemonForCliAppIntegration } from "./daemon-pin.js";
 import type { HumanRevealVerb } from "./reveal-gate.js";
 
 export type CliAppIntegrationDecision =
@@ -74,6 +75,9 @@ export function createCliAppIntegrationPort(): CliAppIntegrationPort {
       const base = daemonBase();
       if (!base) return "unavailable";
       try {
+        if (!(await verifyLocalDaemonForCliAppIntegration(base))) {
+          return "unavailable";
+        }
         return await pollEnsure(
           base,
           input.terminalSessionId,
