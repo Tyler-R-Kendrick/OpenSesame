@@ -3234,6 +3234,35 @@
       "template_params": []
     },
     {
+      "service": "abacus",
+      "key_url": "https://abacus.ai/app/profile/apikey",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://routellm.abacus.ai/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://routellm.abacus.ai/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"route-llm\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Open the [Abacus.AI API Keys dashboard](https://abacus.ai/app/profile/apikey), generate an API key and copy it. The [RouteLLM docs](https://abacus.ai/help/route-llm/) say RouteLLM takes an API key as a Bearer token. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://abacus.ai/help/api",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Verifies with the RouteLLM chat route the key is for: GET /v1/models is public, and the platform API at api.abacus.ai uses a different key header and may not accept a RouteLLM key. Observed 2026-10-12 from the audited origin: preflight 204 (allow-origin *, authorization and content-type allowed), a fake key answers 403 \"Invalid API Key\" and no key 403, both with allow-origin *. The request is one token and may be billed. Authenticated access was not exercised.",
+      "sources": [
+        "https://abacus.ai/help/api",
+        "https://abacus.ai/help/python-sdk/getting-started",
+        "https://abacus.ai/help/route-llm/"
+      ],
+      "template_params": []
+    },
+    {
       "service": "agentmail",
       "key_url": "https://console.agentmail.to",
       "header": "Authorization",
@@ -3254,6 +3283,56 @@
       "sources": [
         "https://docs.agentmail.to/knowledge-base/getting-api-key",
         "https://docs.agentmail.to/api-reference/inboxes/list"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "ai21",
+      "key_url": "https://docs.ai21.com/docs/create-api-key",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.ai21.com/studio/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.ai21.com/studio/v1/library/files",
+        "account_field": null
+      },
+      "instructions": "Follow [Create an API key](https://docs.ai21.com/docs/create-api-key): sign in to AI21 Studio, open Settings → API Keys, click Create new key and copy it (shown once).",
+      "docs_url": "https://docs.ai21.com/reference/manage-library-ref/list-library-files",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "List library files needs a credential: on 2026-10-12 a GET with a fake Bearer key answered 401 {\"detail\":\"Authentication required.\"} with allow-origin *, and the preflight for GET (authorization) from the audited origin answered 200 admitting the origin. A request with no key answered 400 (not 401) 'bad or missing authentication'. GET /studio/v1/models is public. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.ai21.com/reference/authentication",
+        "https://docs.ai21.com/reference/manage-library-ref/list-library-files",
+        "https://docs.ai21.com/docs/create-api-key"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "aihubmix",
+      "key_url": "https://console.aihubmix.com/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://aihubmix.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://aihubmix.com/dashboard/billing/remain",
+        "account_field": null
+      },
+      "instructions": "Open the [AIHubMix console](https://console.aihubmix.com/), go to its API key page, create an API key and copy it. Do not use the separate system access token described in the [account API guide](https://docs.aihubmix.com/cn/api/Cli).",
+      "docs_url": "https://docs.aihubmix.com/cn/api/Cli",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Key quota route shown in AIHubMix's account guide with an ordinary Bearer sk- key (not the system access token its /api/user/self takes). On 2026-10-12 a GET with a fake Bearer key answered 401 'invalid key' and with no key 401 'no key provided', both with allow-origin set to the audited origin; the preflight for GET (authorization) answered 204 admitting the origin. The docs name no response fields. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.aihubmix.com/cn/api/Cli",
+        "https://aihubmix.com/agents.md",
+        "https://docs.aihubmix.com/llms.txt"
       ],
       "template_params": []
     },
@@ -3338,6 +3417,35 @@
       "template_params": []
     },
     {
+      "service": "amazon-nova",
+      "key_url": "https://nova.amazon.com/dev/api",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.nova.amazon.com/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://api.nova.amazon.com/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"nova-2-lite-v1\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Sign in to the [Amazon Nova developer console](https://nova.amazon.com/dev/api), generate an API key and copy it. The [Nova developer documentation](https://nova.amazon.com/dev/documentation) says the API takes the key as a Bearer token. Verification sends one request of a single token, which the provider may bill. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://nova.amazon.com/dev/documentation",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "No key-gated GET could be shown to exist, so the proof is a one-token chat completion (nova-2-lite-v1, the model id the LiteLLM and API7 Nova guides use on api.nova.amazon.com/v1/chat/completions). Without an Origin header on 2026-10-12: POST with a fake Bearer key answers 403 with an empty body (CloudFront/Amazon authorizer); POST with no Authorization header answers 500 with an HTML error page (not 401/403, but the app always sends a key). Rejected GETs: /v1/models, /v1/models/{id}, /v1/files, /v1/account all answer the same empty 403 for any Bearer-shaped fake, and so does GET /v1/zzz-nonexistent, so the 403 comes from the authorizer before routing and says nothing about whether the route exists; no Amazon page documents a models, account or usage route (the first-party docs page is a client-rendered app that returns no text, and LiteLLM lists only chat completions and responses). A valid-key answer was not exercised. key_url /dev/api is the site's own route for key generation (the app bundle's BUILDER_STUDIO_DEV_APIS route renders the 'generate API key' component), not a page that could be fetched here.",
+      "sources": [
+        "https://nova.amazon.com/dev/documentation",
+        "https://docs.litellm.ai/docs/providers/amazon_nova",
+        "https://docs.api7.ai/ai-gateway/providers/amazon-nova"
+      ],
+      "template_params": []
+    },
+    {
       "service": "anthropic",
       "key_url": "https://platform.claude.com/settings/keys",
       "header": "x-api-key",
@@ -3370,6 +3478,32 @@
           "secret": false
         }
       ]
+    },
+    {
+      "service": "arcee",
+      "key_url": "https://platform.arcee.ai/api/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.arcee.ai/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.arcee.ai/api/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Arcee Platform API keys page](https://platform.arcee.ai/api/api-keys) (sign in at chat.arcee.ai first), choose Create API Key, name it and copy it. The [Create Your First API Key](https://docs.arcee.ai/other/create-your-first-api-key) guide has the steps; the key is sent as a Bearer token.",
+      "docs_url": "https://docs.arcee.ai/api-reference/models",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "GET /api/v1/models on api.arcee.ai. The official OpenAPI for it (docs.arcee.ai/api-reference/models.md) lists 200 and '401 Authentication Fails'. Read-only, bills nothing. Without an Origin header on 2026-10-12: a fake Bearer key answers 401 {\"detail\":\"Invalid or expired credentials\"} (www-authenticate: Bearer) and no key answers 401 {\"detail\":\"Missing or invalid Authorization header. Expected: Bearer <api_key>\"}. Route-specific: GET /api/v1/zzz-nonexistent answers 404. Alternate: GET /api/v1/usage/stats?limit=1 (documented, 'daily usage statistics for the API key's organization', 401 for fake key, 401 for no key); it returns per-user rows with emails so the plain models list was preferred. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.arcee.ai/api-reference/models.md",
+        "https://docs.arcee.ai/api-reference/usage.md",
+        "https://docs.arcee.ai/api-reference/your-first-api-call.md",
+        "https://docs.arcee.ai/other/create-your-first-api-key.md"
+      ],
+      "template_params": []
     },
     {
       "service": "assemblyai",
@@ -3454,6 +3588,34 @@
       ]
     },
     {
+      "service": "baseten",
+      "key_url": "https://app.baseten.co/settings/api_keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://inference.baseten.co/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://inference.baseten.co/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"openai/gpt-oss-120b\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Open [API keys](https://app.baseten.co/settings/api_keys) under Organization settings in Baseten, choose Create API key, pick a type that may call Model APIs and copy it (shown once). The [Model APIs overview](https://docs.baseten.co/inference/model-apis/overview) shows it sent as a Bearer token. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.baseten.co/inference/model-apis/overview",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Baseten's Model APIs (inference.baseten.co) have no key-protected GET that a browser can read, so the proof is a one-token chat completion (billable). On 2026-10-12 a preflight for POST (authorization, content-type) from the audited origin answered 204 admitting the origin and both headers; a POST with a fake Bearer key answered 403 {\"error\":\"please check the api-key you provided\"} and with no key the same 403, both with allow-origin set to the audited origin (confirmed readable in real Chromium from the origin: status 403, type cors). Baseten answers 403, not 401, for a bad key. The model id openai/gpt-oss-120b comes from the supported-models table in the Model APIs docs and may need refreshing if Baseten retires it. Keys created after 2026-10-01 start b10_ but older ones have no prefix, so no key_prefix is set. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.baseten.co/inference/model-apis/overview",
+        "https://docs.baseten.co/organization/api-keys"
+      ],
+      "template_params": []
+    },
+    {
       "service": "beehiiv",
       "key_url": "https://app.beehiiv.com/settings/workspace/api",
       "header": "Authorization",
@@ -3472,6 +3634,35 @@
       "confidence": "high",
       "notes": null,
       "sources": ["https://developers.beehiiv.com/welcome/create-an-api-key"],
+      "template_params": []
+    },
+    {
+      "service": "berget",
+      "key_url": "https://console.berget.ai/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "sk_ber_",
+      "service_urls": ["https://api.berget.ai/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://api.berget.ai/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"mistralai/Mistral-Small-3.2-24B-Instruct-2506\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Open [API Keys in the Berget AI Console](https://console.berget.ai/api-keys), create a key and copy it (shown once, `sk_ber_...`). The [quickstart](https://docs.berget.ai/quickstart) shows it sent as a Bearer token. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://api.berget.ai",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Berget's published OpenAPI has no key-protected GET, so the proof is a one-token chat completion (billable). On 2026-10-12 a POST with a fake Bearer key answered 401 invalid_token ('Invalid token format') and with no key 401 missing_auth, both with allow-origin set to the audited origin; the preflight for POST (authorization, content-type) answered 204 admitting the origin and both headers. The model id comes from the public GET /v1/models list and may need refreshing if Berget retires it. Authenticated access was not exercised.",
+      "sources": [
+        "https://api.berget.ai",
+        "https://api.berget.ai/openapi.json",
+        "https://docs.berget.ai/quickstart"
+      ],
       "template_params": []
     },
     {
@@ -3561,6 +3752,31 @@
       "confidence": "medium",
       "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
       "sources": ["https://inference-docs.cerebras.ai/models/overview"],
+      "template_params": []
+    },
+    {
+      "service": "chutes",
+      "key_url": "https://chutes.ai/app/settings/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "cpk_",
+      "service_urls": ["https://llm.chutes.ai/v1", "https://api.chutes.ai"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.chutes.ai/users/me/quotas",
+        "account_field": null
+      },
+      "instructions": "Create an API key from the [Chutes dashboard](https://chutes.ai/app/settings/api-keys) (or with the CLI) and copy it; keys start with `cpk_` and go in the `Authorization: Bearer` header per the [authentication reference](https://chutes.ai/docs/api-reference/authentication).",
+      "docs_url": "https://chutes.ai/docs/api-reference/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Management API route 'My Quotas' (api.chutes.ai OpenAPI, security APIKeyHeader on Authorization). On 2026-10-12 a GET with a fake Bearer key answered 401 {\"detail\":\"Invalid token.\"} and with no key 401, both with allow-origin *; the preflight for GET (authorization) answered 204 with allow-origin * and allow-headers '*, Authorization'. The inference host llm.chutes.ai also answered a fake key on POST /v1/chat/completions with 401 and CORS open. Authenticated access was not exercised.",
+      "sources": [
+        "https://chutes.ai/docs/api-reference/authentication",
+        "https://api.chutes.ai/openapi.json",
+        "https://www.chutes.ai/llms.txt"
+      ],
       "template_params": []
     },
     {
@@ -3797,6 +4013,31 @@
       ]
     },
     {
+      "service": "crusoe",
+      "key_url": "https://console.crusoecloud.com/security/inference-api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.inference.crusoecloud.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.inference.crusoecloud.com/v1/models",
+        "account_field": null
+      },
+      "instructions": "In the [Crusoe Cloud Console](https://console.crusoecloud.com) switch to Intelligence Foundry, open Admin, Security, then [Intelligence API keys](https://console.crusoecloud.com/security/inference-api-keys), choose Create and copy the key. The [Serverless Inference guide](https://docs.crusoecloud.com/serverless-inference) shows it sent as a Bearer token.",
+      "docs_url": "https://docs.crusoecloud.com/serverless-inference",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/models on api.inference.crusoecloud.com, the OpenAI-compatible Serverless Inference host. Read-only, bills nothing. Without an Origin header on 2026-10-12: a fake Bearer answers 401 {\"errors\":[\"Authentication failed\"],\"id\":\"...\"} and no key answers 401 {\"errors\":[\"Authentication failed\"]}. Route-specific: GET /v1/zzz-nonexistent and /v1/files with the fake key answer 404 on this host, so /v1/models is a real authenticated route (the docs describe the host as OpenAI-API compatible and use the OpenAI SDK against /v1, but print no curl for /v1/models, hence medium). Origin sensitivity worth knowing for the extension: with an Origin of chrome-extension://<32 letters> plus the fake key the host answers the same 401 and echoes that origin in access-control-allow-origin; with Origin https://tyler-r-kendrick.github.io plus a key it answers an empty 403 from the edge (the earlier batch saw this), so the verify call must be sent from the extension, not the page. Documented alternates live on a different host: GET https://api.intelligence.crusoecloud.com/v1/fine_tuning/jobs?limit=20 and /v1/files (Serverless Fine-Tuning docs; fake key 401 {\"detail\":\"Authentication failed\"}, no key 403 Cloudflare HTML), rejected because that host is not in the catalog row's egress authorities. No usage or balance route is documented (usage is a console view). Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.crusoecloud.com/serverless-inference.md",
+        "https://docs.crusoecloud.com/quickstart/getting-started-with-serverless-inference.md",
+        "https://docs.crusoecloud.com/serverless-fine-tuning/fine-tune-a-model.md"
+      ],
+      "template_params": []
+    },
+    {
       "service": "datadog",
       "key_url": "https://app.datadoghq.com/organization-settings/api-keys",
       "header": "DD-API-KEY",
@@ -3932,6 +4173,31 @@
       "template_params": []
     },
     {
+      "service": "deepinfra",
+      "key_url": "https://deepinfra.com/dash/api_keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.deepinfra.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.deepinfra.com/v1/me",
+        "account_field": null
+      },
+      "instructions": "Open the [DeepInfra dashboard → API keys](https://deepinfra.com/dash/api_keys), create an API key and copy it. [Authentication](https://docs.deepinfra.com/account/authentication) says keys go in the `Authorization: Bearer` header.",
+      "docs_url": "https://docs.deepinfra.com/api-reference/account/me",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Documented 'Me' account route (GET /v1/me). On 2026-10-12 a GET with a fake Bearer key answered 401 {\"detail\":\"User is not authorized to access this resource\"} and with no key 401, both with allow-origin * and WWW-Authenticate: Bearer; the preflight for GET (authorization) answered 200 with allow-origin * and allow-headers authorization. The OpenAPI response schema names uid, email and display_name, but no account_field is set because a response was never seen. Authenticated access was not exercised, so it is not confirmed that /v1/me accepts an API key as well as a dashboard session token (the API intro says all endpoints take an API key as Bearer).",
+      "sources": [
+        "https://docs.deepinfra.com/api-reference/account/me",
+        "https://docs.deepinfra.com/account/authentication",
+        "https://docs.deepinfra.com/api-reference/introduction"
+      ],
+      "template_params": []
+    },
+    {
       "service": "deepseek",
       "key_url": "https://platform.deepseek.com/api_keys",
       "header": "Authorization",
@@ -4045,6 +4311,32 @@
       "confidence": "high",
       "notes": null,
       "sources": ["https://developers.dovetail.com/docs/authorization"],
+      "template_params": []
+    },
+    {
+      "service": "edenai",
+      "key_url": "https://app.edenai.run/settings/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.edenai.run/v3"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.edenai.run/v3/upload?limit=1",
+        "account_field": null
+      },
+      "instructions": "Open [API Keys](https://app.edenai.run/settings/api-keys) in the Eden AI dashboard, create an API key and copy it. Eden AI's [custom API keys page](https://www.edenai.co/docs/v3/general/custom-api-keys) says inference keys start with `sk-eden-`; use that key, not a management key.",
+      "docs_url": "https://www.edenai.co/docs/api-reference/files-management/list-files",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v3/upload lists the caller's non-expired uploaded files (Eden AI reference 'List Files': Authorization Bearer, optional limit 1-1000, page, purpose; read-only). Observed 2026-10-12 (Node, no Origin header): ?limit=1 with a fake Bearer key answered 401 {\"detail\":\"Invalid token\"} (also for sk-eden- and JWT-shaped fakes) and with no key 403 {\"detail\":\"Not authenticated\"}. Rejected: GET /v3/models, /v3/llm/models and /v3/info answer 401 'Invalid token' for a fake key but 200 with no key (the docs call /v3/models public), so they would pass if the extension sent none; GET /v3/manage/usage/ (Get organization usage) needs a management key (mgmt-eden-) and inference keys get 401; /v3/usage answers 401 for fake and no key but is not documented; /v3/account, /credits, /user, /me, /key are 404 or 401-only with no doc. key_prefix is left unset because docs say new inference keys start sk-eden- while older tokens may not. A key created with custom restrictions could be refused on /v3/upload (not documented); a valid key's 200 was not exercised. Authenticated access was not exercised.",
+      "sources": [
+        "https://www.edenai.co/docs/api-reference/files-management/list-files.md",
+        "https://www.edenai.co/docs/v3/general/custom-api-keys.md",
+        "https://www.edenai.co/docs/v3/general/sandbox.md",
+        "https://www.edenai.co/docs/llms.txt"
+      ],
       "template_params": []
     },
     {
@@ -4171,6 +4463,35 @@
       "template_params": []
     },
     {
+      "service": "friendli",
+      "key_url": "https://friendli.ai/suite/~/setting/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.friendli.ai/serverless/v1",
+        "https://api.friendli.ai/dedicated/beta"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.friendli.ai/dedicated/beta/endpoint?limit=1",
+        "account_field": null
+      },
+      "instructions": "In [Friendli Suite](https://friendli.ai/suite/~/setting/keys) open **Settings > API Keys**, choose **Create API Key**, optionally name it and copy it (it cannot be viewed again). See [Personal API keys](https://friendli.ai/docs/guides/suite/personal-api-keys).",
+      "docs_url": "https://friendli.ai/docs/openapi/dedicated/endpoint/list",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /dedicated/beta/endpoint (Friendli reference 'List all endpoint statuses', Dedicated Endpoints API, Beta; Bearer Personal API Key such as flp_XXX, optional X-Friendli-Team, optional limit 1-100) only reads. Observed 2026-10-12 (Node, no Origin header): ?limit=1 with a fake Bearer key answered 401 {\"detail\":\"Unauthorized\"} and with no key 401 the same; a flp_-shaped fake also 401. The key page and docs name no prefix explicitly (the OpenAPI pages only say 'e.g. flp_XXX'), so key_prefix is not set. Caveat: the call is in the Dedicated Endpoints API, so a valid key's 200 depends on the key being allowed to list the default team's endpoints (an empty data map is expected for a serverless-only team); it was not exercised. Alternative that also answers 401 for fake and no key: GET https://api.friendli.ai/v1/team/usage?start_time=...&end_time=... (documented under Administration > Usage, Bearer flp_ key), rejected as the fixed URL because start_time must be on a 5-minute boundary and within the last year, so any static window ages out. Rejected: GET /serverless/v1/models answers 200 with a fake key and with none (public); GET /serverless/v1/{usage,me,files} and /dedicated/v1/{endpoints,teams} answer 400 'Error occurred while deserializing json body' for fake and no key (not routes); /v1/models and /api/user 404. Authenticated access was not exercised.",
+      "sources": [
+        "https://friendli.ai/docs/openapi/dedicated/endpoint/list.md",
+        "https://friendli.ai/docs/openapi/administration/usage.md",
+        "https://friendli.ai/docs/guides/suite/personal-api-keys.md",
+        "https://friendli.ai/docs/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
       "service": "gemini",
       "key_url": "https://aistudio.google.com/app/apikey",
       "header": "x-goog-api-key",
@@ -4260,6 +4581,59 @@
       "template_params": []
     },
     {
+      "service": "helicone",
+      "key_url": "https://us.helicone.ai/settings/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://ai-gateway.helicone.ai/v1",
+        "https://api.helicone.ai"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.helicone.ai/v1/prompt-2025/count",
+        "account_field": null
+      },
+      "instructions": "Open [API Keys](https://us.helicone.ai/settings/api-keys) in your Helicone account, generate a key and copy it. The [Helicone quickstart](https://docs.helicone.ai/getting-started/quick-start) shows it sent as `Authorization: Bearer`. EU-region accounts use the `eu.api.helicone.ai` host for the REST API.",
+      "docs_url": "https://docs.helicone.ai/rest/prompts/get-v1prompt-2025-count",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "The AI Gateway host (ai-gateway.helicone.ai) answers every GET with 405 'AI Gateway only accepts POST requests' (fake and no key), and its GET /v1/models is public (200 with a fake key and with none), so the proof is on the REST API host api.helicone.ai, which takes the same Helicone key. GET /v1/prompt-2025/count is the Helicone reference 'Get Prompt Count' (Bearer key, returns one integer, read-only). Observed 2026-10-12 (Node, no Origin header): fake Bearer key answered 401 {\"error\":\"No API key found\",\"trace\":\"isAuthenticated.error\"} and no key 401 {\"error\":\"No authorization header\"}; sk-helicone- and pk-helicone-shaped fakes also 401. Why this one: api.helicone.ai's auth layer answers 401 for every /v1 path, even nonexistent ones, so only documented GET routes were considered (webhooks, prompt-2025 count/tags/environments, evals/scores, request/{id}); GET /v1/webhooks was avoided because its response lists each webhook's hmac_key secret; GET /v1/organization answers 200 with {\"data\":null,\"error\":\"Invalid auth header\"} (HTTP 200 for a bad key) and is undocumented, so rejected. Caveats: (1) the host differs from the catalog's gateway host; (2) Helicone documents a separate EU host (eu.api.helicone.ai) and a US-host request with an EU-region key is expected to be refused (eu.api.helicone.ai also answers 401 to a fake key; not testable without a key); (3) the docs do not say which key type or permission the route needs. Fallback if those matter: POST https://ai-gateway.helicone.ai/v1/chat/completions, which answered a fake key 401 'Invalid Helicone API key' and no key 401, but may bill. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.helicone.ai/rest/prompts/get-v1prompt-2025-count.md",
+        "https://docs.helicone.ai/rest/webhooks/get-v1webhooks.md",
+        "https://docs.helicone.ai/getting-started/quick-start.md",
+        "https://docs.helicone.ai/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "hetzner",
+      "key_url": "https://experiments.hetzner.com/inference",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://inference.hetzner.com/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://inference.hetzner.com/api/v1/models",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [Hetzner Experiments platform](https://experiments.hetzner.com/inference), open the Inference app and create an API token, then copy it. The [Inference API docs](https://docs.hetzner.com/general/company-and-policy/experiments/inference/) show it sent as a Bearer token.",
+      "docs_url": "https://docs.hetzner.com/general/company-and-policy/experiments/inference/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /api/v1/models on inference.hetzner.com. The Inference API docs show 'curl -s https://inference.hetzner.com/api/v1/models -H \"Authorization: Bearer <YOUR_TOKEN>\"' and call the endpoint's response definitive for the available models. Read-only; the service is free while experimental. Without an Origin header on 2026-10-12: a fake Bearer answers 401 'unauthorized' (12 bytes) and no key answers 401 'unauthorized'. Caveat: this gateway answers 401 for every path under /api/v1 (GET /api/v1/zzz-nonexistent also 401), so the 401 proves the token check but not the route; the route is established by the docs. The docs say the API 'currently exposes three standard endpoints: /v1/models, /v1/completions and /v1/chat/completions' and give no account, usage or token-info route. The token creation page is the Experiments dashboard (Inference under Apps, Create API Token, per a third-party write-up; the dashboard is a client-rendered app and was not fetched; a payment method on file may be required to create a token). Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.hetzner.com/general/company-and-policy/experiments/inference/",
+        "https://docs.hetzner.com/general/company-and-policy/experiments/experiments-platform/"
+      ],
+      "template_params": []
+    },
+    {
       "service": "honeycomb",
       "key_url": "https://ui.honeycomb.io/",
       "header": "X-Honeycomb-Team",
@@ -4333,6 +4707,61 @@
       "template_params": []
     },
     {
+      "service": "inception",
+      "key_url": "https://platform.inceptionlabs.ai/dashboard/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.inceptionlabs.ai/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://api.inceptionlabs.ai/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"mercury-2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Open [API keys](https://platform.inceptionlabs.ai/dashboard/api-keys) in the Inception Platform dashboard, create a key and copy it; the [authentication page](https://docs.inceptionlabs.ai/get-started/authentication) shows it sent as `Authorization: Bearer`. Verification sends one request of a single token, which the provider may bill. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.inceptionlabs.ai/get-started/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Every GET Inception documents is public, so the proof is a one-token chat completion (billable). Observed 2026-10-12 (Node, no Origin header): POST /v1/chat/completions with a fake Bearer key answered 401 {\"error\":{\"type\":\"authentication_error\",\"code\":\"invalid_api_key\",\"message\":\"Incorrect API key provided\"}} and with no key the same 401 (also for a 'sk_'-shaped fake). Rejected: the OpenAPI (api.inceptionlabs.ai/openapi.json) lists four GETs, /v1/models, /v1/chat/completions/models, /v1/fim/completions/models and /v1/edit/completions/models, and all answer 200 with a fake key and with none; /v1/usage, /account, /me, /user, /credits, /balance, /key(s), /api-keys, /organization, /billing, /fine-tunes and /models/{id} are 404 and /v1/files is 405; GET /v1/batches (and /v1/batches/{id}) answers 401 for fake and no key, but it is in neither the OpenAPI nor the docs index, so a valid key's 2xx is unknowable and it is not used. Model: mercury-2 is in the public model list (the OpenAPI example uses mercury-2.5, also listed). The OpenAPI marks max_tokens deprecated in favour of max_completion_tokens (still in the schema, minimum 1), so max_tokens stays as the brief asks; swap if Inception removes it. The key page returned 429 to a scripted fetch, so it was not confirmed to load, but the authentication page names it. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.inceptionlabs.ai/get-started/authentication.md",
+        "https://api.inceptionlabs.ai/openapi.json",
+        "https://docs.inceptionlabs.ai/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "io-net",
+      "key_url": "https://ai.io.net/ai/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.intelligence.io.solutions/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.intelligence.io.solutions/api/v1/agents",
+        "account_field": null
+      },
+      "instructions": "Open [API Keys](https://ai.io.net/ai/api-keys) in your IO Intelligence account, create a key and copy it. The [IO Intelligence API guide](https://io.net/docs/guides/intelligence/io-intelligence-apis) shows it sent as `Authorization: Bearer`.",
+      "docs_url": "https://io.net/docs/guides/intelligence/io-intelligence-apis",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /api/v1/agents (IO Intelligence reference 'Agents List', read-only). Observed 2026-10-12 (Node, no Origin header): a fake Bearer key answered 401 {\"detail\":\"Invalid API Key\"} and no key 401 {\"detail\":\"No authentication present\"}, so unlike /models it refuses a request with no key. Rejected: GET /api/v1/models (which the API guide says requires auth) answers 401 {\"detail\":\"Invalid API Key\"} for a fake key but 200 with the full list when no key is sent, so it validates a key that is supplied yet would also pass if the extension sent none; it remains a fallback (an empty 'Bearer ' gets 401 'Auth Token is missing or invalid format'). Account-like paths /api/v1/{usage,account,me,user,credits,balance,key,keys,api-keys,files,workflows,organization,billing} are 404; the only documented key-scoped read elsewhere, GET https://api.io.solutions/v1/api-keys/sub-keys/me/usage (x-api-key), is another host, only for sub-keys (admin keys get 403). Caveats: the Agents List reference names no auth header (its spec declares an empty oauth2 scheme and an optional X-Guest-Session-ID, so a guest session can also read it), and a key made with a limited Permissions level (All, Read, Write) is not documented per endpoint; a valid key's 200 was not exercised. Authenticated access was not exercised.",
+      "sources": [
+        "https://io.net/docs/reference/ai-agents/get-agents-list.md",
+        "https://io.net/docs/reference/ai-models/get-started-with-io-intelligence-api.md",
+        "https://io.net/docs/guides/intelligence/io-intelligence-apis",
+        "https://io.net/docs/llms.txt"
+      ],
+      "template_params": []
+    },
+    {
       "service": "jev",
       "key_url": "https://console.typesafe.ai/settings/keys",
       "header": "Authorization",
@@ -4375,6 +4804,35 @@
       "confidence": "medium",
       "notes": "auth.md suggests GET /org/api_keys?limit=1 as the harmless check; /browsers (list) works for project-scoped keys too.",
       "sources": ["https://www.kernel.sh/auth.md"],
+      "template_params": []
+    },
+    {
+      "service": "kilo",
+      "key_url": "https://app.kilo.ai/profile",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.kilo.ai/api/gateway",
+        "https://api.kilo.ai/api/profile"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.kilo.ai/api/profile",
+        "account_field": null
+      },
+      "instructions": "Sign in at [app.kilo.ai](https://app.kilo.ai/profile), open **Your Profile** on your personal account (not inside an organization), scroll to the bottom and copy your API key, as the [Kilo authentication setup](https://kilo.ai/docs/getting-started/setup-authentication) describes.",
+      "docs_url": "https://kilo.ai/docs/gateway/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Kilo's gateway reference documents no account call (its GET routes /models and /providers say 'No authentication required', and the Authentication page only says keys are JWTs sent as Authorization: Bearer), so this uses the profile route the open-source Kilo client calls with the same token: packages/kilo-gateway/src/api/profile.ts in Kilo-Org/kilocode builds ${KILO_API_BASE}/api/profile with 'Authorization: Bearer ${token}' and reads email, name, organizations; fetchBalance uses /api/profile/balance the same way. Observed 2026-10-12 (Node, no Origin header): GET /api/profile with a fake Bearer key answered 401 {\"error\":\"Invalid token (<uuid>)\",\"success\":false} (also for a JWT-shaped fake) and with no key 401 {\"error\":\"Unauthorized\",\"success\":false}; /api/profile/balance, /api/organizations and /api/user behave the same. Rejected: GET /api/gateway/models, /api/openrouter/models, /api/gateway/providers and /models-by-provider answer 200 with a fake key and with none (public); /api/gateway/{balance,credits,key,usage,me} are 405. Caveats: this is documented only in the client source, not in Kilo's docs, and it is inferred that the gateway API key from the profile page is accepted there (the client's token is the same 'kilocodeToken' / KILOCODE_API_KEY); the account_field is left null though the source reads email. A valid key's 200 was not exercised. Authenticated access was not exercised.",
+      "sources": [
+        "https://github.com/Kilo-Org/kilocode/blob/main/packages/kilo-gateway/src/api/profile.ts",
+        "https://kilo.ai/docs/gateway/authentication",
+        "https://kilo.ai/docs/getting-started/setup-authentication",
+        "https://kilo.ai/docs/gateway/api-reference"
+      ],
       "template_params": []
     },
     {
@@ -4476,6 +4934,32 @@
       "sources": [
         "https://docs.lithic.com/docs/get-api-key.md",
         "https://docs.lithic.com/docs/api-basics.md"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "llmgateway",
+      "key_url": "https://llmgateway.io/dashboard",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "llmgtwy_",
+      "service_urls": ["https://api.llmgateway.io/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.llmgateway.io/v1/key",
+        "account_field": "data.label"
+      },
+      "instructions": "Sign in to the [LLM Gateway dashboard](https://llmgateway.io/dashboard), create a project, open **API Keys**, choose **Create API Key** and copy it (shown only once). See [API keys](https://docs.llmgateway.io/learn/api-keys).",
+      "docs_url": "https://docs.llmgateway.io/developers/devpass-usage",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/key ('Retrieve key status', operationId v1_key_retrieve in https://api.llmgateway.io/openapi.json, and the 'DevPass Usage API' page: a regular gateway key as Bearer; invalid or inactive keys get 401, publishable keys and sessions 403) returns usage and plan state for the calling key and no key token or billing details. Observed 2026-10-12 (Node, no Origin header): a fake Bearer key answered 401 {\"error\":{\"message\":\"Unauthorized: Invalid LLMGateway API token...\",\"code\":\"invalid_api_key\"}} (also for a llmgtwy_-shaped fake) and no key 401 'Unauthorized: No API key provided'. account_field data.label is the 'Description of the API key' field named in the OpenAPI response (example: \"My coding tool\"). Rejected: GET /v1/models answers 401 for a fake key but 200 with no key (spec security is optional), so it would pass if the extension sent none; GET /v1/credits answers 401 for fake and no key but is not in the OpenAPI; /v1/{me,usage,account,user,balance,organization,logs,keys} are 404. The quickstart shows keys starting llmgtwy_ (placeholder), so key_prefix is set to that. Authenticated access was not exercised, so a valid key's data.label was not seen.",
+      "sources": [
+        "https://docs.llmgateway.io/developers/devpass-usage",
+        "https://api.llmgateway.io/openapi.json",
+        "https://docs.llmgateway.io/learn/api-keys",
+        "https://docs.llmgateway.io/quick-start"
       ],
       "template_params": []
     },
@@ -4604,6 +5088,31 @@
       "template_params": []
     },
     {
+      "service": "minimax",
+      "key_url": "https://platform.minimax.io/user-center/basic-information/interface-key",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.minimax.io/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.minimax.io/v1/models",
+        "account_field": null
+      },
+      "instructions": "Open [MiniMax API Keys](https://platform.minimax.io/user-center/basic-information/interface-key), choose **Create new secret key** and copy the key, as the [MiniMax prerequisites](https://platform.minimax.io/docs/guides/quickstart-preparation) describe.",
+      "docs_url": "https://platform.minimax.io/docs/api-reference/models/openai/list-models",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "The OpenAI-compatible GET /v1/models (documented List Models, bearer auth) answered a fake key (HTTP 401, 'login fail: Please carry the API secret key in the Authorization field') and no key (HTTP 401) with allow-origin '*', and its preflight (200) lists Authorization in allow-headers, observed 2026-10-12. Authenticated access was not exercised. The Anthropic-compatible route that the catalog row uses (x-api-key) is NOT usable from a browser: its preflight allow-headers omits x-api-key and anthropic-version, and Chromium refuses it (HeaderDisallowedByPreflightResponse).",
+      "sources": [
+        "https://platform.minimax.io/docs/api-reference/models/openai/list-models",
+        "https://platform.minimax.io/docs/guides/quickstart-preparation",
+        "https://platform.minimax.io/docs/api-reference/text-openai-api"
+      ],
+      "template_params": []
+    },
+    {
       "service": "mistral",
       "key_url": "https://console.mistral.ai/api-keys",
       "header": "Authorization",
@@ -4622,6 +5131,32 @@
       "confidence": "high",
       "notes": null,
       "sources": ["https://docs.mistral.ai/admin/identity-access/api-keys"],
+      "template_params": []
+    },
+    {
+      "service": "modal",
+      "key_url": "https://modal.com/settings/proxy-auth-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": "wk-",
+      "service_urls": ["https://inference.us-west.modal.direct/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://inference.us-west.modal.direct/v1/models",
+        "account_field": null
+      },
+      "instructions": "Create a proxy token on the [Modal Proxy Auth Tokens](https://modal.com/settings/proxy-auth-tokens) page (or run `modal workspace proxy-tokens create`). Join the token id and secret with a period and paste the result, wk-<id>.ws-<secret>; the [Endpoints guide](https://modal.com/docs/guide/endpoints) shows it sent as a Bearer token.",
+      "docs_url": "https://modal.com/docs/guide/endpoint-integrations",
+      "probe_status": 401,
+      "confidence": "high",
+      "notes": "GET /v1/models on https://inference.us-west.modal.direct, the Shared Endpoints host. The Endpoint integrations guide says 'To see which Shared Endpoints a token can reach, list all model IDs with: curl https://inference.us-west.modal.direct/v1/models -H \"Authorization: Bearer $MODAL_PROXY_TOKEN_ID.$MODAL_PROXY_TOKEN_SECRET\"'; the Endpoints guide names the same Models API. Read-only, bills nothing. Without an Origin header on 2026-10-12: a fake Bearer (osprobe-invalid and a wk-...ws-... shaped fake) answers 401 {\"error\":\"invalid proxy auth credentials\"}, no key answers the same 401. Route-specific: GET /v1/zzz-nonexistent with the fake key answers 404. Shared Endpoints always require a proxy token. Dedicated Endpoints have their own URL (shown in the dashboard) and one catalog host cannot cover them; the token is also accepted as separate Modal-Key / Modal-Secret headers, which this preset does not use. A valid token returns the list of Shared Endpoint model ids it can reach (possibly empty for a workspace with none). Authenticated access was not exercised.",
+      "sources": [
+        "https://modal.com/docs/guide/endpoint-integrations.md",
+        "https://modal.com/docs/guide/endpoints.md",
+        "https://modal.com/docs/guide/shared-endpoints.md",
+        "https://modal.com/docs/guide/webhook-proxy-auth.md"
+      ],
       "template_params": []
     },
     {
@@ -4730,6 +5265,58 @@
           "placeholder": "acme"
         }
       ]
+    },
+    {
+      "service": "nanogpt",
+      "key_url": "https://nano-gpt.com/api",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.nano-gpt.com/api/v1",
+        "https://nano-gpt.com/api/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.nano-gpt.com/api/v1/usage?group_by=model",
+        "account_field": null
+      },
+      "instructions": "Open the [NanoGPT API page](https://nano-gpt.com/api), click **Create API key** under **API keys** and copy it. The [NanoGPT documentation](https://docs.nano-gpt.com) describes the API.",
+      "docs_url": "https://docs.nano-gpt.com",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /api/v1/usage (spend, requests and tokens for the calling key; the documented default is its last 30 UTC days, grouped here by model) needs the key: on 2026-10-12 a fake key answered 401 (malformed_api_key for a non-UUID, invalid_api_key for a UUID-shaped fake; API keys are UUID v4), no key answered 401 missing_api_key, all with allow-origin * and a preflight (204, allow-headers Authorization) admitting the audited origin; a real Chromium page on that origin read the 401. The public GET /models ignores the key and cannot be used. Authenticated access was not exercised, so a valid key's 200 body, size and any 429 or 503 usage_not_ready were not seen.",
+      "sources": [
+        "https://docs.nano-gpt.com",
+        "https://docs.nano-gpt.com/api-reference/endpoint/usage"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "nearai",
+      "key_url": "https://cloud.near.ai",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://cloud-api.near.ai/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://cloud-api.near.ai/v1/check_api_key",
+        "account_field": null
+      },
+      "instructions": "Sign in to [NEAR AI Cloud](https://cloud.near.ai), add credits under **Credits**, then open **API Keys** and generate a new key. The [NEAR AI Cloud quickstart](https://docs.near.ai/cloud/quickstart) has the steps.",
+      "docs_url": "https://docs.near.ai/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "POST /v1/check_api_key is NEAR AI's documented key check (no body, bearer key only; 200 valid, 401 invalid or missing, 402 insufficient credits or spend limit, 429 rate limited). On 2026-10-12 a fake key and no key both answered 401 with allow-origin set to the audited origin, and a preflight for POST (authorization) was admitted (allow-methods *, allow-headers authorization); a real Chromium page on that origin read the 401. The public GET /models ignores the key. Authenticated access was not exercised, so a valid key's 200 body (documented as valid, organization_id, workspace_id, api_key_id) was not seen; a valid key whose organization is out of credits would get 402.",
+      "sources": [
+        "https://docs.near.ai/api-reference/gateway/check-api-key-validity.md",
+        "https://docs.near.ai/api-reference/openapi.json",
+        "https://docs.near.ai/cloud/quickstart.md"
+      ],
+      "template_params": []
     },
     {
       "service": "nebius",
@@ -4882,6 +5469,31 @@
       "template_params": []
     },
     {
+      "service": "novita",
+      "key_url": "https://novita.ai/settings/key-management",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.novita.ai/openai"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.novita.ai/v3/user",
+        "account_field": null
+      },
+      "instructions": "Open [Novita Key Management](https://novita.ai/settings/key-management), create an API key and copy it. Novita's [API reference](https://docs.novita.ai/api-reference/api-reference-overview) describes the bearer authentication.",
+      "docs_url": "https://docs.novita.ai/api-reference/api-reference-overview",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "GET /v3/user (account info and credit balance) is key-gated: on 2026-10-12 a fake key answered 403 INVALID_API_KEY and no key answered 400 MISSING_API_KEY, both with allow-origin *, and a preflight (allow-headers Authorization) admitted the audited origin; a real Chromium page on that origin read the 403. The public GET /openai/models ignores the key. The route is NOT in Novita's current docs index (its old 'get user info' page now 404s; only a cached search description of GET https://api.novita.ai/v3/user with bearer auth was seen), so it may change. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.novita.ai/api-reference/api-reference-overview",
+        "https://docs.novita.ai/api-reference/basic-authentication.md",
+        "https://docs.novita.ai/api-reference/basic-get-user-balance.md"
+      ],
+      "template_params": []
+    },
+    {
       "service": "npm",
       "key_url": "https://www.npmjs.com/settings/~/tokens",
       "header": "Authorization",
@@ -4900,6 +5512,64 @@
       "confidence": "medium",
       "notes": "key_url uses ~ for the signed-in user (https://www.npmjs.com/settings/<username>/tokens).",
       "sources": ["https://docs.npmjs.com/creating-and-viewing-access-tokens"],
+      "template_params": []
+    },
+    {
+      "service": "nvidia",
+      "key_url": "https://build.nvidia.com/settings/api-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://integrate.api.nvidia.com/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"openai/gpt-oss-20b\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Sign in at [build.nvidia.com](https://build.nvidia.com/settings/api-keys), open **API Keys**, generate a key and copy it; the [NIM API authentication guide](https://docs.api.nvidia.com/nim/docs/authentication) says a key made in NGC must have **AI Foundation Models and Endpoints** selected under Services Included. Verification sends one request of a single token, which the provider may bill. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.api.nvidia.com/nim/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "No key-requiring GET exists on integrate.api.nvidia.com, so the proof is a one-token chat completion (may bill). Observed 2026-10-12 (Node, no Origin header): POST /v1/chat/completions with 'Bearer osprobe-invalid-key-0000' answered 401 {\"detail\":\"Invalid JWT serialization: Missing dot delimiter(s)\"}, with no Authorization header 401 'Header of type `authorization` was missing', and with an nvapi-shaped fake ('Bearer nvapi-AAAA...') 403 {\"title\":\"Forbidden\",\"detail\":\"Authorization failed\"}; so a bad key is a 401 or a 403, both refusals. Rejected: GET /v1/models and GET /v1/models/{id} answer 200 with a fake key and with none (public); GET /v1/usage, /account, /credits, /me, /files, /batches are 404 (the host's Go mux) for fake and no key; api.nvcf.nvidia.com/v2/nvcf/functions and api.ngc.nvidia.com/v2/users/me and /v2/org(s) answer 401 for fake and no key but are on other hosts, no document names them as a check for a build.nvidia.com key, and a key without the Cloud Functions/NGC scope may be refused, so a valid key's 2xx is unproven; POST api.ngc.nvidia.com/v3/keys/get-caller-info answered 415 without a form body and is not documented. Model choice: meta/llama-3.1-8b-instruct now answers 410 (end of life 2026-08-26), so openai/gpt-oss-20b is used; it is in the public list and GET /v1/models/openai/gpt-oss-20b answers 200. A valid key whose account lacks access to that model could also be refused (403). NVIDIA's NeMo Retriever page says keys typically start with nvapi-, so no key_prefix is set. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.api.nvidia.com/nim/docs/authentication",
+        "https://docs.nvidia.com/nemo/retriever/26.8.1/extraction/api-keys/",
+        "https://integrate.api.nvidia.com/v1/models"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "ollama-cloud",
+      "key_url": "https://ollama.com/settings/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://ollama.com/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://ollama.com/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"gpt-oss:20b\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Sign in to Ollama, open [API keys](https://ollama.com/settings/keys), create a key and copy it. The [authentication page](https://docs.ollama.com/api/authentication) says direct cloud inference at ollama.com requires it as `Authorization: Bearer`. Verification sends one request of a single token, which the provider may bill. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.ollama.com/api/authentication",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Ollama documents no key-checking call (the docs index has no me/whoami/account page; the only account surface is the settings/usage web page), so the proof is a one-token chat completion, which the authentication page says requires a key ('Direct cloud inference at https://ollama.com/api and https://ollama.com/v1 requires an API key'). Observed 2026-10-12 (Node, no Origin header): POST /v1/chat/completions with a fake Bearer key answered 401 {\"error\":{\"message\":\"Unauthorized\",\"type\":\"api_error\"}} and with no key the same 401; POST /api/chat also 401 {\"error\":\"Unauthorized\"} both ways. Rejected: GET /v1/models, GET /api/tags, GET /api/version and POST /api/show answer 200 with a fake key and with none (public); undocumented routes GET /api/usage (401 'invalid credentials'), POST /api/me (401 'invalid credentials', the route the ollama CLI's sign-in whoami uses) and GET /api/ps (401 'unauthorized'; its docs page declares security: [] and describes the local server) answer 401 for fake and no key, but nothing establishes that a plain API key (rather than the CLI's signed device identity) passes them, so a valid key's 2xx is unknowable; /api/user, /api/account, /api/keys, /api/whoami, /v1/me are 404. Model: gpt-oss:20b is in the public cloud model list (GET /api/tags). max_tokens 1 is the OpenAI-compatible limit; Ollama's own field is options.num_predict on /api/chat. The key page redirects to /signin when signed out. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.ollama.com/api/authentication.md",
+        "https://docs.ollama.com/cloud",
+        "https://docs.ollama.com/llms.txt"
+      ],
       "template_params": []
     },
     {
@@ -4926,6 +5596,30 @@
       "template_params": []
     },
     {
+      "service": "opencode-zen",
+      "key_url": "https://opencode.ai/auth",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://opencode.ai/zen/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://opencode.ai/zen/v1/models",
+        "account_field": null
+      },
+      "instructions": "Sign in at [opencode.ai/auth](https://opencode.ai/auth), add your billing details and copy your API key, as the [OpenCode providers guide](https://opencode.ai/docs/providers/#opencode-zen) describes.",
+      "docs_url": "https://opencode.ai/zen",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /zen/v1/models serves its free model list with no credential, but checks a credential when one is sent: on 2026-10-12 `Authorization: Bearer <fake>` answered 401 {\"error\":{\"message\":\"Invalid credential\"}} with allow-origin *, whereas no header (and an empty `Bearer `) answered 200; the preflight (allow-headers Content-Type, Authorization) admits the audited origin and a real Chromium page on it read the 401. The call therefore proves a key only because the page always sends one; the no-key control is a 200, not a refusal. Authenticated access was not exercised.",
+      "sources": [
+        "https://opencode.ai/zen",
+        "https://opencode.ai/docs/providers/"
+      ],
+      "template_params": []
+    },
+    {
       "service": "openrouter",
       "key_url": "https://openrouter.ai/settings/keys",
       "header": "Authorization",
@@ -4944,6 +5638,30 @@
       "confidence": "high",
       "notes": null,
       "sources": ["https://openrouter.ai/docs/api-reference/authentication"],
+      "template_params": []
+    },
+    {
+      "service": "ovhcloud",
+      "key_url": "https://docs.ovhcloud.com/en/guides/public-cloud/ai-machine-learning/ai-endpoints-getting-started",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/models",
+        "account_field": null
+      },
+      "instructions": "In the OVHcloud Control Panel open **Public Cloud**, choose your project, open **AI Endpoints** and create an API key, as the [AI Endpoints getting started guide](https://docs.ovhcloud.com/en/guides/public-cloud/ai-machine-learning/ai-endpoints-getting-started) describes. The project needs a payment method.",
+      "docs_url": "https://docs.ovhcloud.com/en/guides/public-cloud/ai-machine-learning/ai-endpoints-getting-started",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "GET /v1/models serves the public model list anonymously but rejects a credential it does not accept: on 2026-10-12 `Authorization: Bearer <fake>` answered 403 'Forbidden: authentication failed' with allow-origin *, while no header answered 200; the preflight returned allow-origin * and allow-headers `*` and a real Chromium 141 page on the audited origin read the 403. The call proves a key only because the page always sends one; the no-key control is a 200, not a refusal. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.ovhcloud.com/en/guides/public-cloud/ai-machine-learning/ai-endpoints-getting-started",
+        "https://www.ovhcloud.com/en/public-cloud/ai-endpoints/catalog//"
+      ],
       "template_params": []
     },
     {
@@ -5028,6 +5746,93 @@
       "sources": [
         "https://docs.pinecone.io/guides/projects/manage-api-keys",
         "https://docs.pinecone.io/reference/api/authentication"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "plivo",
+      "key_url": "https://console.plivo.com/dashboard/",
+      "header": "Authorization",
+      "scheme": "Basic",
+      "basic": {
+        "username": "{auth_id}",
+        "password": "{key}"
+      },
+      "key_prefix": null,
+      "service_urls": ["https://api.plivo.com/v1/Account/{auth_id}"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.plivo.com/v1/Account/{auth_id}/",
+        "account_field": null,
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "instructions": "Open the [Plivo console dashboard](https://console.plivo.com/dashboard/); your **Auth ID** and **Auth Token** are shown there. Enter the Auth ID below and paste the Auth Token as the key.",
+      "docs_url": "https://www.plivo.com/docs/messaging/api/overview",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "HTTP Basic with the Auth ID as username and the Auth Token as password; the account resource at /v1/Account/{auth_id}/ is read-only. Observed 2026-10-12 (Node): a fake token answers 401 'Could not verify your access level for that URL', and so does no credential at all; the preflight answers 200 with no CORS headers, so a page cannot read either. A valid credential was not exercised.",
+      "sources": ["https://www.plivo.com/docs/messaging/api/overview"],
+      "template_params": [
+        {
+          "name": "auth_id",
+          "label": "Auth ID",
+          "placeholder": "MAXXXXXXXXXXXXXXXXXX"
+        }
+      ]
+    },
+    {
+      "service": "poe",
+      "key_url": "https://poe.com/api/keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.poe.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.poe.com/usage/current_balance",
+        "account_field": null
+      },
+      "instructions": "Sign in to Poe and open [poe.com/api/keys](https://poe.com/api/keys) to copy your API key. Poe's [OpenAI-compatible API guide](https://creator.poe.com/docs/external-applications/openai-compatible-api) links to that page.",
+      "docs_url": "https://creator.poe.com/docs/resources/usage-api",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /usage/current_balance (Poe Usage API) needs a credential: on 2026-10-12 an invalid Bearer key and a missing key both answered 401 authentication_error/invalid_api_key with access-control-allow-origin *, and the preflight (GET, authorization) answered 204 with allow-origin * and allow-headers including Authorization. Authenticated access was not exercised; the documented 200 body is {current_point_balance: integer}. The route is /usage/..., outside the catalog's /v1 prefix, on the same host api.poe.com.",
+      "sources": [
+        "https://creator.poe.com/docs/resources/usage-api",
+        "https://creator.poe.com/api-reference/getCurrentBalance",
+        "https://creator.poe.com/docs/external-applications/openai-compatible-api"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "poolside",
+      "key_url": "https://platform.poolside.ai/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://inference.poolside.ai/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://inference.poolside.ai/v1/chat/completions",
+        "account_field": null,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"model\":\"poolside/laguna-s-2.1\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":1}"
+      },
+      "instructions": "Sign in to [Poolside Platform](https://platform.poolside.ai/), open the API Keys tab, click New key and copy it. The [Poolside API overview](https://docs.poolside.ai/api/overview) shows it sent as a Bearer token. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.poolside.ai/api/overview",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Poolside-hosted inference documents only GET /v1/models and POST /v1/chat/completions, and the documented GET /v1/models cannot be read from a browser (see below), so the proof is a one-token chat completion (billable). On 2026-10-12 a preflight for POST (authorization, content-type) from the audited origin answered 204 admitting the origin and both headers; a POST with a fake Bearer key answered 403 {\"error\":\"please check the api-key you provided\"} and with no key the same 403, both with allow-origin set to the audited origin (confirmed readable in real Chromium from the origin: status 403, type cors). Poolside answers 403, not 401, for a bad key. The model id poolside/laguna-s-2.1 is the docs' quickstart id and may need refreshing if Poolside retires it. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.poolside.ai/api/overview",
+        "https://docs.poolside.ai/api/openai-api-examples",
+        "https://docs.poolside.ai/openai-api/chat/create-completion"
       ],
       "template_params": []
     },
@@ -5230,6 +6035,35 @@
       "template_params": []
     },
     {
+      "service": "requesty",
+      "key_url": "https://docs.requesty.ai/quickstart",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://router.requesty.ai/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://router.requesty.ai/v1/chat/completions",
+        "account_field": null,
+        "body": "{\"model\":\"anthropic/claude-haiku-4-5\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":1}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "instructions": "Sign up at [Requesty](https://app.requesty.ai/sign-up), open the **API Keys** page and create a key, as the [Requesty quickstart](https://docs.requesty.ai/quickstart) describes. Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.requesty.ai/quickstart",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "The router has no key-requiring GET (its only GET is the public /v1/models). POST /v1/chat/completions answered, on 2026-10-12, 403 {\"error\":{\"origin\":\"router\",\"message\":\"Invalid authorization token\"}} to an invalid Bearer key and 401 'Unauthorized' to a missing key, both with access-control-allow-origin *; the preflight (POST, authorization + content-type) answered 204 with allow-origin *, allow-methods POST and allow-headers authorization,content-type. The model anthropic/claude-haiku-4-5 is in the public /v1/models list. Authenticated access was not exercised; a valid key sends a real one-token completion, which bills a negligible amount.",
+      "sources": [
+        "https://docs.requesty.ai/quickstart",
+        "https://docs.requesty.ai/api-reference/openapi.json",
+        "https://router.requesty.ai/v1/models"
+      ],
+      "template_params": []
+    },
+    {
       "service": "resend",
       "key_url": "https://resend.com/api-keys",
       "header": "Authorization",
@@ -5283,6 +6117,31 @@
           "placeholder": "abc123xy"
         }
       ]
+    },
+    {
+      "service": "sarvam",
+      "key_url": "https://docs.sarvam.ai/api-reference/authentication",
+      "header": "api-subscription-key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "sk_",
+      "service_urls": ["https://api.sarvam.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.sarvam.ai/text-to-speech/pronunciation-dictionary",
+        "account_field": null
+      },
+      "instructions": "Create an account on the [Sarvam Dashboard](https://dashboard.sarvam.ai), open its **API Keys** section, create a key and copy it straight away (it is shown once). See [Sarvam's authentication guide](https://docs.sarvam.ai/api-reference/authentication).",
+      "docs_url": "https://docs.sarvam.ai/api-reference/pronunciation-dictionary/list",
+      "probe_status": 403,
+      "confidence": "medium",
+      "notes": "Every model route (/v1/models, /v2/models, /v1/models/{id}, /v2/models/{id}) answers 200 with no key and with a fake key, so none proves a key. GET /text-to-speech/pronunciation-dictionary (list the caller's pronunciation dictionaries; documented with the api-subscription-key header) answered, on 2026-10-12, 403 {\"error\":{\"code\":\"invalid_api_key_error\"}} to an invalid key with access-control-allow-origin *, and the preflight (GET, api-subscription-key) answered 200 with allow-origin * and allow-headers api-subscription-key. Sarvam documents that auth failures return 403, not 401. Authenticated access was not exercised; the documented 200 body is {dictionary_count, dictionaries}. The route is outside the catalog's /v1 prefix, on the same host api.sarvam.ai.",
+      "sources": [
+        "https://docs.sarvam.ai/api-reference/pronunciation-dictionary/list",
+        "https://docs.sarvam.ai/api-reference/authentication",
+        "https://docs.sarvam.ai/api-reference/chat/chat-completions-v1"
+      ],
+      "template_params": []
     },
     {
       "service": "scaleway",
@@ -5427,6 +6286,31 @@
       "template_params": []
     },
     {
+      "service": "stepfun",
+      "key_url": "https://platform.stepfun.ai/interface-key",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.stepfun.ai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.stepfun.ai/v1/accounts",
+        "account_field": null
+      },
+      "instructions": "Sign in to the [StepFun Open Platform](https://platform.stepfun.ai/) and create an API key on the [Interface Keys](https://platform.stepfun.ai/interface-key) page, then copy it. The [Get account details](https://platform.stepfun.ai/docs/en/api-reference/accounts/get) reference shows the key sent as a Bearer token.",
+      "docs_url": "https://platform.stepfun.ai/docs/en/api-reference/accounts/get",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/accounts (Get account details: balance, cash and voucher balance for the current account) on api.stepfun.ai. Read-only, bills nothing. Without an Origin header on 2026-10-12: a fake Bearer key answers 401 {\"error\":{\"message\":\"Incorrect API key provided\",\"type\":\"invalid_api_key\"}} and no key answers the same 401. The gateway authenticates before it routes only for known routes (GET /v1/zzz-nonexistent with the fake key answers 404), so the 401 is route-specific. /v1/models (documented List models) and /v1/files answer the same 401 for a fake key and are the fallback if /accounts is ever retired. Authenticated access was not exercised, so the shape of a 200 is from the docs only.",
+      "sources": [
+        "https://platform.stepfun.ai/docs/en/api-reference/accounts/get.md",
+        "https://platform.stepfun.ai/docs/en/api-reference/models/list.md",
+        "https://platform.stepfun.ai/docs/en/quickstart/overview.md"
+      ],
+      "template_params": []
+    },
+    {
       "service": "stripe-issuing",
       "key_url": "https://dashboard.stripe.com/apikeys",
       "header": "Authorization",
@@ -5447,6 +6331,30 @@
       "sources": [
         "https://docs.stripe.com/issuing",
         "https://docs.stripe.com/keys"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "synthetic",
+      "key_url": "https://dev.synthetic.new/docs/api/overview",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.synthetic.new/openai/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.synthetic.new/v2/quotas",
+        "account_field": null
+      },
+      "instructions": "Sign in to [Synthetic](https://synthetic.new/) and copy your key from the **API Key** field on its [API overview](https://dev.synthetic.new/docs/api/overview) page.",
+      "docs_url": "https://dev.synthetic.new/docs/synthetic/quotas",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v2/quotas needs a credential: on 2026-10-12 an invalid Bearer key answered 401 {\"error\":\"Invalid API Key.\"} with access-control-allow-origin *, and the preflight (GET, authorization) answered 204 with allow-origin * and allow-headers authorization. Synthetic states /quotas requests do not count against subscription limits. Authenticated access was not exercised; the documented 200 body is {subscription: {limit, requests, renewsAt}}. The route is /v2/..., outside the catalog's /openai/v1 prefix, on the same host api.synthetic.new.",
+      "sources": [
+        "https://dev.synthetic.new/docs/synthetic/quotas",
+        "https://dev.synthetic.new/docs/api/overview"
       ],
       "template_params": []
     },
@@ -5484,6 +6392,64 @@
         "kind": "path",
         "template": "/bot{key}"
       }
+    },
+    {
+      "service": "thinking-machines",
+      "key_url": "https://tinker.thinkingmachines.ai/keys?new_key=true",
+      "header": "X-API-Key",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": "tml-",
+      "service_urls": [
+        "https://tinker.thinkingmachines.dev/services/tinker-prod/anthropic/api/v1",
+        "https://tinker.thinkingmachines.dev/services/tinker-prod/api/v1"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://tinker.thinkingmachines.dev/services/tinker-prod/api/v1/training_runs?limit=1&offset=0",
+        "account_field": null
+      },
+      "instructions": "Create a key in the [Tinker Console](https://tinker.thinkingmachines.ai/keys?new_key=true) and copy it (it starts with tml-). The [Anthropic-compatible API guide](https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/) says to pass the same Tinker key as the API key; it is sent in the x-api-key header.",
+      "docs_url": "https://tinker-docs.thinkingmachines.ai/tinker/api-reference/restclient/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /services/tinker-prod/api/v1/training_runs?limit=1&offset=0 on tinker.thinkingmachines.dev: the REST call behind the documented RestClient.list_training_runs (the Tinker SDK source, src/tinker/lib/public_interfaces/rest_client.py, sends it with the X-API-Key header and the tml- key; keys must start tml- or eyJ). Read-only, bills nothing. Without an Origin header on 2026-10-12: a fake X-API-Key answers 401 {\"detail\":\"Unable to validate api-key\"} and no key 401 {\"detail\":\"X-Api-Key token is empty\"}. The same detail text comes back from the Anthropic-compatible gateway for a bad x-api-key, so the same validator guards both. The same answers hold for GET /api/v1/sessions, /api/v1/checkpoints and /api/v1/get_server_capabilities. Unauthenticated GET /api/v1/healthz is 200 (not key-gated, rejected). The docs name no models list on the Anthropic route (GET .../anthropic/api/v1/models is 404). NOT confirmed with a valid key: the SDK normally exchanges the key for a short-lived JWT via POST /api/v1/auth/token (401 'Unable to validate credential' for a fake key, 401 'X-API-Key header is required' for none) and sends the JWT afterwards; the SDK also has a server mode that accepts the plain key, and the identical validator message suggests the gateway accepts a plain tml- key on this GET, but only a real key can prove it. Within the catalog row's current egress path prefix (/services/tinker-prod/anthropic/api/v1/) the only non-generating option is POST .../anthropic/api/v1/messages/count_tokens with {\"model\":\"Qwen/Qwen3-8B\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]} and anthropic-version: 2023-06-01 (documented as 'without sampling'; fake key 401 'Unable to validate api-key', no key 401 'X-Api-Key token is empty'). The chosen GET path /services/tinker-prod/api/v1/ is OUTSIDE spec/connectors/catalog.json's egress.path_prefixes for thinking-machines, so that row needs a second prefix if this preset is adopted.",
+      "sources": [
+        "https://tinker-docs.thinkingmachines.ai/tinker/api-reference/restclient/index.md",
+        "https://tinker-docs.thinkingmachines.ai/tinker/compatible-apis/anthropic/index.md",
+        "https://tinker-docs.thinkingmachines.ai/tinker/quickstart/index.md",
+        "https://raw.githubusercontent.com/thinking-machines-lab/tinker/1e5777ef1e0bb2bae6d9b8d63a6144eec405377d/src/tinker/lib/public_interfaces/rest_client.py"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "tinfoil",
+      "key_url": "https://dash.tinfoil.sh/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://inference.tinfoil.sh/v1"],
+      "verify": {
+        "method": "POST",
+        "url": "https://inference.tinfoil.sh/v1/chat/completions",
+        "account_field": null,
+        "body": "{\"model\":\"gpt-oss-120b\",\"messages\":[{\"role\":\"user\",\"content\":\"ping\"}],\"max_tokens\":1}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "instructions": "Sign in at [Tinfoil](https://tinfoil.sh/), open the [dashboard](https://dash.tinfoil.sh/), activate **Private Inference** to get a default API key, or create another under **API Keys**, as in [Getting a Tinfoil API key](https://docs.tinfoil.sh/get-api-key). Verification sends one request of a single token, which the provider may bill.",
+      "docs_url": "https://docs.tinfoil.sh/sdk/direct-api-access",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "Tinfoil's inference host has no key-requiring GET (the only GET is the public /v1/models; /v1/me, /usage, /key, /user, /account, /credits, /balance, /organization all answer 400 with or without a key). POST /v1/chat/completions answered, on 2026-10-12, 401 {\"error\":{\"message\":\"Incorrect API key provided.\"}} to an invalid Bearer key and 401 'You didn't provide an API key.' to a missing key, both with access-control-allow-origin set to the audited origin; the preflight (POST, authorization + content-type) answered 204 with the same allow-origin and allow-headers authorization,content-type. The model gpt-oss-120b is in the public /v1/models list. Authenticated access was not exercised; a valid key sends a real one-token completion, which bills a negligible amount. Direct calls skip Tinfoil's SDK attestation, as its Direct API Access page says.",
+      "sources": [
+        "https://docs.tinfoil.sh/sdk/direct-api-access",
+        "https://docs.tinfoil.sh/get-api-key",
+        "https://inference.tinfoil.sh/v1/models"
+      ],
+      "template_params": []
     },
     {
       "service": "tinybird",
@@ -5599,6 +6565,31 @@
       "template_params": []
     },
     {
+      "service": "venice",
+      "key_url": "https://venice.ai/settings/api",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.venice.ai/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.venice.ai/api/v1/api_keys/rate_limits",
+        "account_field": null
+      },
+      "instructions": "Open [Venice → API settings](https://venice.ai/settings/api), choose **Generate New API Key**, pick the **Inference Only** key type and copy the key (shown once). The steps are in Venice's [API key guide](https://docs.venice.ai/guides/getting-started/generating-api-key).",
+      "docs_url": "https://docs.venice.ai/api-reference/endpoint/api_keys/rate_limits",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /api_keys/rate_limits needs a credential: on 2026-10-12 an invalid Bearer key answered 401 {\"error\":\"Authentication failed\"} with access-control-allow-origin * and the preflight (GET, authorization) answered 200 with allow-origin * and allow-headers *. Venice's key guide says rate limits and balances accept either key type (Inference Only or Admin). An unauthenticated request answered 402 (x402 payment-required body) rather than 401, still with allow-origin *. Authenticated access was not exercised, so the 200 response shape (data.accessPermitted, data.apiTier, data.balances per the OpenAPI page) is documented, not observed. GET /billing/balance and GET /api_keys behave the same without a key, but a community page lists balance as admin-only, so rate_limits was chosen.",
+      "sources": [
+        "https://docs.venice.ai/api-reference/endpoint/api_keys/rate_limits",
+        "https://docs.venice.ai/guides/getting-started/generating-api-key",
+        "https://docs.venice.ai"
+      ],
+      "template_params": []
+    },
+    {
       "service": "vercel",
       "key_url": "https://vercel.com/account/settings/tokens",
       "header": "Authorization",
@@ -5617,6 +6608,80 @@
       "confidence": "high",
       "notes": "Team resources need ?teamId=… on requests.",
       "sources": ["https://vercel.com/docs/rest-api#authentication"],
+      "template_params": []
+    },
+    {
+      "service": "vercel-ai-gateway",
+      "key_url": "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://ai-gateway.vercel.sh/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://ai-gateway.vercel.sh/v1/credits",
+        "account_field": null
+      },
+      "instructions": "Open the [AI Gateway API Keys page](https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway%2Fapi-keys) in the Vercel dashboard, click **Create key**, name it and copy it (shown once). See [AI Gateway API keys](https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys).",
+      "docs_url": "https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/credits is documented as an authenticated route that returns the team's balance and total_used (USD strings). It answered a fake key (HTTP 401, authentication_error) and no key (HTTP 401, 'Missing Authorization header') with allow-origin naming the audited origin, and its preflight (200) admitted GET with authorization, observed 2026-10-12. Authenticated access was not exercised. The model list GET /v1/models is public by design, so it proves nothing.",
+      "sources": [
+        "https://vercel.com/docs/ai-gateway/sdks-and-apis/rest-api",
+        "https://vercel.com/docs/ai-gateway/authentication-and-byok/api-keys"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "volcengine",
+      "key_url": "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://ark.cn-beijing.volces.com/api/v3"],
+      "verify": {
+        "method": "GET",
+        "url": "https://ark.cn-beijing.volces.com/api/v3/files",
+        "account_field": null
+      },
+      "instructions": "Open the [Volcengine Ark console](https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey), choose API Key management, create an API key and copy it. The [API Key guide](https://www.volcengine.com/docs/82379/1541594) explains project scoping; the key is sent as a Bearer token.",
+      "docs_url": "https://docs.volcengine.com/docs/ark/list-files-api",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /api/v3/files (documented 'List files', Files API, API Key auth) on ark.cn-beijing.volces.com. Read-only, bills nothing. Without an Origin header on 2026-10-12: a fake Bearer key answers 401 {\"error\":{\"code\":\"AuthenticationError\",\"message\":\"The API key format is incorrect...\"}} and no key answers 401 'the API key or AK/SK in the request is missing or invalid'. Caveat: this gateway answers 401 for EVERY path under /api/v3 (including /zzz-nonexistent), so the 401 proves the key check but not that the route exists; the route is established by the official docs and the Ark SDK source (volcenginesdkarkruntime resources/files.py list -> GET /files). GET /contents/generations/tasks (list video generation tasks, also API-key authenticated in the SDK) behaves the same and is the alternate. GET /api/v3/models is not a documented Ark route (the model list is a management OpenAPI action signed with an Access Key), so it was rejected. API keys created after 2026-09-17 use a new plaintext format and older ones stay valid, so no key_prefix is set. Authenticated access was not exercised.",
+      "sources": [
+        "https://docs.volcengine.com/docs/ark/list-files-api",
+        "https://docs.volcengine.com/docs/ark/base-url-and-authentication",
+        "https://www.volcengine.com/docs/82379/1541594",
+        "https://raw.githubusercontent.com/volcengine/volcengine-python-sdk/master/volcenginesdkarkruntime/resources/files.py"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "vultr",
+      "key_url": "https://docs.vultr.com/products/compute/serverless-inference/management/connection",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.vultrinference.com/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.vultrinference.com/v1/models/all",
+        "account_field": null
+      },
+      "instructions": "In the Vultr Console open **Products → Serverless → Inference**, open your inference subscription and copy the **API Key** from its overview page, as the [Vultr guide](https://docs.vultr.com/products/compute/serverless-inference/management/connection) describes. A subscription must exist first.",
+      "docs_url": "https://api.vultrinference.com/",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /v1/models/all is marked as needing the bearer API key in Vultr's OpenAPI document, and it is the route the document's own authentication example calls. It answered a fake key (HTTP 401, 'Invalid API key') and no key (HTTP 401, 'No API key provided') with allow-origin naming the audited origin, and its preflight (204) admitted the origin, observed 2026-10-12. Authenticated access was not exercised. Caveat: the preflight allow-headers is '*' (with allow-credentials true); Chromium 141 accepted '*' for an Authorization header, but the Fetch standard and MDN say '*' does not cover Authorization, so Firefox or WebKit may refuse it (not tested).",
+      "sources": [
+        "https://api.vultrinference.com/",
+        "https://docs.vultr.com/products/compute/serverless-inference/management/connection"
+      ],
       "template_params": []
     },
     {
@@ -5708,6 +6773,30 @@
       "confidence": "medium",
       "notes": "Models list answered an unauthenticated request with an auth refusal, so the route needs a credential; preflight for GET (authorization) and POST (authorization, content-type) from the audited origin admitted it on 2026-10-11. Authenticated access was not exercised.",
       "sources": ["https://platform.xiaomimimo.com/#/docs"],
+      "template_params": []
+    },
+    {
+      "service": "zai",
+      "key_url": "https://z.ai/manage-apikey/apikey-list",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.z.ai/api/paas/v4"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.z.ai/api/paas/v4/models",
+        "account_field": null
+      },
+      "instructions": "Open the [Z.AI API Keys page](https://z.ai/manage-apikey/apikey-list), create an API key and copy it. The [quick start](https://docs.z.ai/guides/overview/quick-start) shows the key sent as `Authorization: Bearer`.",
+      "docs_url": "https://docs.z.ai/guides/overview/quick-start",
+      "probe_status": 401,
+      "confidence": "medium",
+      "notes": "GET /models answered a fake key (HTTP 401, 'token expired or incorrect') and no key (HTTP 401) with an allow-origin naming the audited origin, and the preflight for GET (authorization, and authorization+content-type) was admitted, all observed 2026-10-12. Z.AI's published API reference and quick start do not list a GET /models route (they document chat, image, video, audio and tool routes only); it is the OpenAI-compatible route and it demands a credential. Authenticated access was not exercised, so a 2xx for a valid key (including a GLM Coding Plan key, which the docs say uses a separate endpoint) is unproven. Chat road warning: the preflight for POST /api/paas/v4/chat/completions (and /api/coding/paas/v4/chat/completions) answers 200 with no access-control-allow-origin, so a browser blocks inference calls from the page (PreflightMissingAllowOriginHeader in Chromium) even though this key check works.",
+      "sources": [
+        "https://docs.z.ai/guides/overview/quick-start",
+        "https://docs.z.ai/api-reference/introduction"
+      ],
       "template_params": []
     },
     {

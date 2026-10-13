@@ -8,13 +8,6 @@ import {
   verifyNativeApiConnector,
 } from "@opensesame/app-core/lib/native-api-connectors.js";
 import {
-  configureNativeAws,
-  invokeNativeAws,
-  isNativeAwsProvider,
-  nativeAwsCleanup,
-  verifyNativeAws,
-} from "@opensesame/app-core/lib/native-aws.js";
-import {
   type NativeConnectorDriver,
   type NativeDriverInput,
   registerNativeConnectorDriver,
@@ -27,6 +20,7 @@ import {
   nativeGithubPersonalCleanup,
   verifyNativeGithubPersonal,
 } from "@opensesame/app-core/lib/native-github-personal.js";
+import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import {
   configureNativeLocalInstance,
   nativeLocalInstanceCleanup,
@@ -72,7 +66,7 @@ function validateInstanceInput(input: NativeDriverInput): void {
 }
 function supportedApiProvider(id: string): boolean {
   if (instance(id) || id === "github" || id === "s3") return true;
-  if (isNativeAwsProvider(id)) return true;
+  if (nativeKeyDriverFor(id)) return true;
   const plan = connectPlan(id);
   return (
     id !== "linear" &&
@@ -99,7 +93,8 @@ function apiCleanup(
   const adapter = (id: string) => {
     if (id === "github") return nativeGithubPersonalCleanup;
     if (id === "s3") return nativeS3Cleanup;
-    if (isNativeAwsProvider(id)) return nativeAwsCleanup;
+    const keyed = nativeKeyDriverFor(id);
+    if (keyed) return keyed.cleanup;
     return instance(id) ? instanceAdapters[id] : nativeApiCleanup;
   };
   return {
@@ -129,8 +124,8 @@ function configureApi(
 ) {
   transport.assertCurrent();
   if (input.providerId === "s3") return configureNativeS3(input, transport);
-  if (isNativeAwsProvider(input.providerId))
-    return configureNativeAws(input, transport);
+  const keyed = nativeKeyDriverFor(input.providerId);
+  if (keyed) return keyed.configure(input, transport);
   if (input.providerId === "github")
     return configureNativeGithubPersonal(input, transport);
   if (!instance(input.providerId))
@@ -158,7 +153,7 @@ function testApi(
   if (
     input.providerId === "s3" ||
     input.providerId === "github" ||
-    isNativeAwsProvider(input.providerId)
+    nativeKeyDriverFor(input.providerId)
   )
     throw new Error("This provider verifies only when it is saved");
   if (instance(input.providerId))
@@ -174,8 +169,8 @@ async function invokeApi(
   transport.assertCurrent();
   const provider = providerOf(id);
   if (provider === "s3") return invokeNativeS3(id, operation, input, transport);
-  if (isNativeAwsProvider(provider))
-    return invokeNativeAws(id, operation, input, transport);
+  const keyed = nativeKeyDriverFor(provider);
+  if (keyed) return keyed.invoke(id, operation, input, transport);
   if (provider === "github")
     return invokeNativeGithubPersonal(id, operation, input, transport);
   if (!instance(provider))
@@ -221,8 +216,8 @@ export function bindNativeApiRuntime(activation: Activation): void {
         transport.assertCurrent();
         const provider = providerOf(id);
         if (provider === "s3") return verifyNativeS3(id, transport);
-        if (isNativeAwsProvider(provider))
-          return verifyNativeAws(id, transport);
+        const keyed = nativeKeyDriverFor(provider);
+        if (keyed) return keyed.verify(id, transport);
         if (provider === "github")
           return verifyNativeGithubPersonal(id, transport);
         return instance(provider)

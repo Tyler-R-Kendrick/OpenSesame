@@ -82,7 +82,14 @@ function verifyProfile(
     path: decodeURIComponent(path(fill(target.url))),
     header: target.header,
     scheme: target.scheme,
-    basic: target.basic,
+    // The relay fills a Basic pair from the connector's stored endpoints
+    // before it calls; the emulator expects the pair in that filled shape.
+    basic: target.basic
+      ? {
+          username: fill(target.basic.username),
+          password: fill(target.basic.password),
+        }
+      : target.basic,
     headers: Object.fromEntries(
       Object.entries(target.headers).map(([k, v]) => [k, fill(v)]),
     ),

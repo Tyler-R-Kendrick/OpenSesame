@@ -2447,8 +2447,8 @@
       ],
       "scopes": [],
       "egress": {
-        "scheme": "none",
-        "authorities": [],
+        "scheme": "https",
+        "authorities": ["app.infisical.com", "eu.infisical.com"],
         "path_prefixes": []
       },
       "operations": ["secret.configure"]
@@ -3724,19 +3724,19 @@
       "provenance_url": "https://platform.minimax.io/docs/guides/quickstart",
       "auth": {
         "kind": "api_key",
-        "header": "x-api-key",
-        "value_prefix": ""
+        "header": "Authorization",
+        "value_prefix": "Bearer "
       },
       "scopes": [],
       "egress": {
         "scheme": "https",
         "authorities": ["api.minimax.io"],
-        "path_prefixes": ["/anthropic/v1/"]
+        "path_prefixes": ["/v1/"]
       },
-      "operations": ["message.create", "model.list"],
+      "operations": ["chat.create", "model.list"],
       "model_api": {
-        "protocol": "anthropic_messages",
-        "base_url": "https://api.minimax.io/anthropic/v1"
+        "protocol": "openai_chat",
+        "base_url": "https://api.minimax.io/v1"
       }
     },
     {
@@ -5193,6 +5193,6 @@
       }
     }
   ],
-  "revision": "2026-10-12.1",
+  "revision": "2026-10-12.2",
   "schema_version": 1
 }

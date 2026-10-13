@@ -29,6 +29,23 @@ export function requestFor(probe, auditedOrigin) {
       url: probe.url,
       headers: { origin, accept: "application/json" },
     };
+  // A key that cannot be right, so what is read is how the provider refuses one.
+  if (probe.stage === "authenticated-invalid-key")
+    return {
+      method: probe.method,
+      url: probe.url,
+      headers: {
+        origin,
+        accept: "application/json",
+        authorization: "Bearer osprobe-invalid-key-0000",
+      },
+    };
+  if (probe.stage === "unauthenticated-post")
+    return {
+      method: "POST",
+      url: probe.url,
+      headers: { origin, accept: "application/json" },
+    };
   throw new Error(`Unknown probe stage: ${probe.stage}`);
 }
 

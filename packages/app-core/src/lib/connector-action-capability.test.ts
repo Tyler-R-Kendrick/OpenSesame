@@ -159,8 +159,8 @@ describe("connector card actions", () => {
     const providers = mergeVercelCatalog(getBundledProviders()).filter(
       isConnectionCatalogProvider,
     );
-    expect(providers).toHaveLength(290);
-    expect(new Set(providers.map((entry) => entry.id)).size).toBe(290);
+    expect(providers).toHaveLength(294);
+    expect(new Set(providers.map((entry) => entry.id)).size).toBe(294);
     for (const entry of providers) {
       const action = connectorCardAction(
         entry,

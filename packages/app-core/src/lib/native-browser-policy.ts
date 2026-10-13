@@ -1,6 +1,8 @@
 /** Conservative browser admission, independently of hosted connector contracts. */
 import { z } from "zod";
+import { authoredDisposition } from "./browser-disposition.js";
 import { type ConnectPlan, connectPlan } from "./connect-plan.js";
+import { bridgeAdmits } from "./native-bridge.js";
 import { NATIVE_BROWSER_POLICY_JSON } from "./native-browser-policy.generated.js";
 
 const ruleSchema = z.object({
@@ -66,6 +68,28 @@ function publicDefaults(
   }
   return parameters;
 }
+const AVAILABLE: NativeBrowserPolicyDecision = {
+  available: true,
+  reason: null,
+  evidenceUrls: [],
+};
+
+/**
+ * A provider recorded as refusing browsers (ADR 0197) has no policy rule of
+ * its own, but its evidence says the same thing: a page cannot read its
+ * answers. Its API-key road is the connector bridge's, or it is unavailable.
+ */
+function refusedByEvidence(providerId: string): NativeBrowserPolicyDecision {
+  const row = authoredDisposition(providerId);
+  if (row?.kind !== "refuses-browser" || bridgeAdmits(providerId))
+    return AVAILABLE;
+  return {
+    available: false,
+    reason: row.summary,
+    evidenceUrls: row.sources.map((source) => source.url),
+  };
+}
+
 export function nativeBrowserMethodPolicy(
   providerId: string,
   method: ConnectPlan["methods"][number]["kind"] | "native-local" | "oidc",
@@ -82,13 +106,15 @@ export function nativeBrowserMethodPolicy(
         ([name, value]) => selected[name] === value,
       ),
   );
-  return rule
-    ? {
-        available: false,
-        reason: rule.reason,
-        evidenceUrls: [...rule.evidence_urls],
-      }
-    : { available: true, reason: null, evidenceUrls: [] };
+  if (rule)
+    return method === "api-key" && bridgeAdmits(providerId)
+      ? AVAILABLE
+      : {
+          available: false,
+          reason: rule.reason,
+          evidenceUrls: [...rule.evidence_urls],
+        };
+  return method === "api-key" ? refusedByEvidence(providerId) : AVAILABLE;
 }
 export function nativeBrowserApiPolicy(
   providerId: string,

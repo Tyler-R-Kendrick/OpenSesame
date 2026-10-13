@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn embedded_catalog_is_valid_and_versioned() {
     let catalog = load().expect("embedded catalog");
-    assert_eq!(catalog.revision(), "2026-10-12.1");
+    assert_eq!(catalog.revision(), "2026-10-12.2");
     assert_eq!(catalog.providers().len(), 178);
     assert_eq!(
         catalog

@@ -1,0 +1,26 @@
+{
+  "name": "@opensesame/connector-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The wire protocol, request policy and host table shared by the Pages app and the connector bridge extension (ADR 0199)",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "generate:table": "node scripts/emit-table.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*"
+  }
+}

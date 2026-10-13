@@ -15,7 +15,12 @@ import { catalogProvider } from "./connector-catalog.js";
 
 const probeSchema = z
   .object({
-    stage: z.enum(["preflight", "unauthenticated-get"]),
+    stage: z.enum([
+      "preflight",
+      "unauthenticated-get",
+      "unauthenticated-post",
+      "authenticated-invalid-key",
+    ]),
     url: z.string().url(),
     method: z.enum(["GET", "POST"]),
     request_header_names: z.array(z.string()),
@@ -100,12 +105,17 @@ describe("the evidence file", () => {
 describe("what each kind must be able to prove", () => {
   it("a refusal rests on a response that did not admit this origin", () => {
     for (const row of rows.filter((r) => r.kind === "refuses-browser")) {
+      // A successful answer, or the refusal of a bad key, that a page cannot read.
       const refused = own(row).filter(
-        (probe) => probe.status >= 200 && probe.status < 300 && !admits(probe),
+        (probe) =>
+          !admits(probe) &&
+          ((probe.status >= 200 && probe.status < 300) ||
+            (probe.stage === "authenticated-invalid-key" &&
+              [401, 403].includes(probe.status))),
       );
       expect(
         refused.length,
-        `${row.provider_id} needs a 2xx probe that did not admit the origin`,
+        `${row.provider_id} needs a 2xx answer or a bad-key refusal that did not admit the origin`,
       ).toBeGreaterThan(0);
     }
   });

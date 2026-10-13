@@ -75,24 +75,30 @@ export type NativeAwsTarget = {
 /** A commercial or GovCloud region, e.g. `us-east-1`, `eu-central-2`, `us-gov-west-1`. */
 const REGION = /^[a-z]{2}(?:-[a-z]+)+-\d{1,2}$/;
 
+/** The endpoint AWS publishes for this signing-service name in this region. */
+export function nativeAwsRegionalEndpoint(host: string, region: string): URL {
+  if (!REGION.test(region)) throw new Error("Enter a valid AWS region");
+  return new URL(`https://${host}.${region}.amazonaws.com/`);
+}
+
 /** The endpoint AWS publishes for this service in this region. */
 export function nativeAwsEndpoint(
   service: NativeAwsServiceId,
   region: string,
 ): URL {
-  if (!REGION.test(region)) throw new Error("Enter a valid AWS region");
-  return new URL(
-    `https://${NATIVE_AWS_SERVICES[service].service}.${region}.amazonaws.com/`,
+  return nativeAwsRegionalEndpoint(
+    NATIVE_AWS_SERVICES[service].service,
+    region,
   );
 }
 
 /** Nothing but a region and a key: no endpoint, no scope, no target, no extra field. */
-function assertOnlyAwsFields(
+export function assertOnlyAwsFields(
   input: NativeApiConfigureInput,
-): NativeAwsServiceId {
-  const service = nativeAwsServiceId(input.providerId);
+  ours: boolean,
+): void {
   if (
-    !service ||
+    !ours ||
     Object.keys(input.requestedScopes ?? {}).length ||
     Object.keys(input.targetIds ?? {}).length
   )
@@ -106,12 +112,11 @@ function assertOnlyAwsFields(
     )
   )
     throw new Error("Unsupported AWS configuration field");
-  return service;
 }
 
-function publicParameters(
+/** The region and key id, trimmed, with the region checked against the shape AWS publishes. */
+export function awsPublicParameters(
   input: NativeApiConfigureInput,
-  service: NativeAwsServiceId,
 ): Record<string, string> {
   const parameters = Object.fromEntries(
     nativeAwsClassification.publicParameters.map((key) => [
@@ -119,13 +124,14 @@ function publicParameters(
       (input.parameters[key] ?? "").trim(),
     ]),
   );
-  nativeAwsEndpoint(service, parameters.region ?? "");
+  nativeAwsRegionalEndpoint("sts", parameters.region ?? "");
   if (!/^[A-Z0-9]{16,128}$/.test(parameters.access_key_id ?? ""))
     throw new Error("Enter a valid AWS access key ID");
   return parameters;
 }
 
-function signingCredentials(
+/** The secret key and optional session token, the saved ones where the form left them blank. */
+export function awsSigningCredentials(
   input: NativeApiConfigureInput,
   saved: NativeConnectorRecord | null,
 ): Record<string, string> {
@@ -152,9 +158,11 @@ export function nativeAwsInput(
   input: NativeApiConfigureInput,
   saved: NativeConnectorRecord | null,
 ): NativeAwsTarget {
-  const service = assertOnlyAwsFields(input);
-  const parameters = publicParameters(input, service);
-  const credentials = signingCredentials(input, saved);
+  const service = nativeAwsServiceId(input.providerId);
+  assertOnlyAwsFields(input, service !== null);
+  if (!service) throw new Error("This is not an AWS connection");
+  const parameters = awsPublicParameters(input);
+  const credentials = awsSigningCredentials(input, saved);
   safeProviderText(input.displayName, credentials);
   safeNativeConnectorIcon(input.icon ?? "", credentials);
   for (const value of Object.values(parameters))

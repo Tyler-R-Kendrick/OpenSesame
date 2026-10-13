@@ -5,28 +5,34 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
-import { isNativeAwsProvider } from "@opensesame/app-core/lib/native-aws-input.js";
 import { nativeBrowserOAuthProfile } from "@opensesame/app-core/lib/native-browser-oauth-profile.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
+import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
+import { useNativeBridge } from "../../../lib/use-native-bridge.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
-import {
-  nativeAwsActions,
-  nativeAwsDescriptor,
-} from "./native-aws-descriptor.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
 import { nativeDeviceProviderDescriptor } from "./native-device-provider-descriptor.js";
 import { nativeGithubDescriptor } from "./native-github-descriptor.js";
+import {
+  nativeKeyActions,
+  nativeKeyDescriptor,
+} from "./native-key-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
+
+function nativeKeyActionsFor(providerId: string) {
+  const keyed = nativeKeyDriverFor(providerId);
+  return keyed ? nativeKeyActions(keyed.ui(providerId)) : [];
+}
 
 function discordActions(view: NativeConnectorView) {
   if (
@@ -62,10 +68,12 @@ export function nativeSettingsDescriptor(
       provider,
       hasNativeConnectorDriver("api-key", provider.id),
     );
-  if (isNativeAwsProvider(provider.id))
-    return nativeAwsDescriptor(
+  const keyed = nativeKeyDriverFor(provider.id);
+  if (keyed)
+    return nativeKeyDescriptor(
       provider,
       hasNativeConnectorDriver("api-key", provider.id),
+      keyed.ui(provider.id),
     );
   const plan = connectPlan(provider.id);
   if (!plan)
@@ -174,9 +182,7 @@ function actions(
                   },
                 ]
               : []),
-            ...(isNativeAwsProvider(descriptor.providerId)
-              ? nativeAwsActions(descriptor.providerId)
-              : []),
+            ...nativeKeyActionsFor(descriptor.providerId),
             ...discordActions(view),
           ].map((action) => ({
             ...action,
@@ -200,6 +206,8 @@ export function NativeConnectorPanels({
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
 }) {
+  // The connector bridge changes what a refused provider offers (ADR 0199).
+  useNativeBridge(provider.id);
   const descriptor = nativeSettingsDescriptor(provider);
   const controller = useMemo(
     () =>
@@ -222,6 +230,10 @@ export function NativeConnectorPanels({
   }, [hash]);
   if (!descriptor) return null;
   const current = actions(descriptor, view);
+  // A road that opens or closes (the bridge arriving, a host allowed in it) is a new form.
+  const roads = current.methods
+    .map((method) => (method.available ? 1 : 0))
+    .join("");
   const changed = (_next: NativeConnectorView | null) => {
     refresh((version) => version + 1);
     onChanged();
@@ -241,7 +253,7 @@ export function NativeConnectorPanels({
           </h2>
         </div>
         <NativeConnectorForm
-          key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}`}
+          key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}`}
           descriptor={current}
           controller={controller}
           view={view}

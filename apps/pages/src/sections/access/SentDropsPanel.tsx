@@ -16,7 +16,7 @@ import {
   receiptLabel,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { isString } from "@opensesame/os-domain";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useCapabilityGate } from "../../app-root.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconX } from "../../components/Icons.js";
@@ -159,11 +159,24 @@ export function SentDropsPanel() {
   const { tomb } = useVault();
   const [sends, setSends] = useState<OutboundDrop[]>([]);
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  // A receipt read that lands after unmount must not set state: the update
+  // has nowhere to go and surfaces as an unhandled rejection in tests.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const reload = useCallback(() => {
     setSends(listOutboundDrops(tomb));
     void listReceipts(tomb, 80)
-      .then((rows) => setEvents(rows))
-      .catch(() => setEvents([]));
+      .then((rows) => {
+        if (mounted.current) setEvents(rows);
+      })
+      .catch(() => {
+        if (mounted.current) setEvents([]);
+      });
   }, [tomb]);
 
   useEffect(() => {

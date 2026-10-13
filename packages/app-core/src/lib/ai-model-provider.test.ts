@@ -114,7 +114,18 @@ describe("the browser's connect plan for a model row", () => {
         method.urls.some((url) => hosts.has(new URL(url).host)),
         row.id,
       ).toBe(true);
-      expect(method.preset.verify?.method, row.id).toBe("GET");
+      const verify = method.preset.verify;
+      // A key is proved by a read. Where a provider offers none a page can use,
+      // the check is its own free key route, or one token of chat that the
+      // instructions say the provider may bill.
+      if (verify?.method === "POST")
+        expect(
+          verify.url.endsWith("/check_api_key") ||
+            (verify.url.endsWith("/chat/completions") &&
+              method.preset.instructions.includes("may bill")),
+          row.id,
+        ).toBe(true);
+      else expect(verify?.method, row.id).toBe("GET");
       expect(method.preset.auth?.kind, row.id).toBe("header");
     }
     expect(planned).toBeGreaterThanOrEqual(25);
