@@ -19,6 +19,7 @@ import {
   type ProtectionPurpose,
   type ProtectionRecord,
   type RootProtectionManifest,
+  parseFactorConfigurationBinding,
 } from "@opensesame/vault-core";
 import { ProtectionError } from "./errors.js";
 
@@ -237,6 +238,20 @@ function parseLegacyGates(
   };
 }
 
+function parseFactorConfigurationFields(
+  value: BoundaryValue,
+): Partial<Pick<RootProtectionManifest, "factorConfiguration">> {
+  if (value === undefined) return {};
+  try {
+    return { factorConfiguration: parseFactorConfigurationBinding(value) };
+  } catch {
+    throw new ProtectionError(
+      "malformed_encoding",
+      "Factor configuration binding is invalid.",
+    );
+  }
+}
+
 export function parseRootProtectionManifest(
   input: string | Uint8Array,
 ): RootProtectionManifest {
@@ -309,6 +324,7 @@ export function parseRootProtectionManifest(
     revision: requireNonNegInt(json.revision, "revision"),
     purpose: parsePurpose(json.purpose),
     records,
+    ...parseFactorConfigurationFields(json.factorConfiguration),
   };
   if (isString(json.preferredProtectorId)) {
     manifest.preferredProtectorId = json.preferredProtectorId;

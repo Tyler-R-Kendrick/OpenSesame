@@ -1,4 +1,3 @@
-import { overlapCast } from "@opensesame/os-domain";
 import {
   type Folder,
   type InstallResult,
@@ -10,55 +9,44 @@ import {
   createVault,
   emptyBody,
   importVaultKey,
-  installItemType,
-  installedDefinitions,
   mintVaultKey,
   resolveAccounts,
   syncInstalledTypes,
-  uninstallItemType,
 } from "@opensesame/vault-core";
 import {
   noteVaultBodyPersisted,
   noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
-import { refuseWhileFrozen } from "../duress/hold/gate.js";
 import {
-  decoyScratchScope,
   endEphemeralTomb,
   forgetDecoyScratch,
-  guestTombIsSealed,
-  isDecoySession,
   isGuestSessionTomb,
   markDecoySession,
-  presentedTomb,
 } from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
 import { sessionRootDigestFromKey } from "../duress/store/vault-session-digest.js";
-import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
-import { kvDelete, kvDeleteDurable, kvDurability } from "../kv.js";
+import { kvDelete, kvDeleteDurable } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
+import type { TombWriteTurn } from "../vfs-write-order.js";
 import {
   BODY_PATH,
   GUEST_TOMB,
   HEADER_PATH,
-  VfsError,
   deleteFile,
   deletePlaintextFile,
   lockTomb,
+  readPlaintextFile,
   readSealedFile,
   unlockTomb,
   writePlaintextFile,
 } from "../vfs.js";
 import {
-  appendFolder,
   appendItems,
   applyManifestPlan,
   bodyBeforeWrite,
   deleteFolder,
-  newFolder,
-  recordItemTypes,
   renameFolder,
   replaceItems,
   restoreItem,
@@ -86,6 +74,11 @@ import {
   wrapMoved,
 } from "./master-wrap.js";
 import {
+  frozenAuthenticationRefusal,
+  ordinaryPeerFreshBody,
+  requireOriginalRawRoot,
+} from "./ordinary-peer-body-refresh.js";
+import {
   probePasskeyCeremony,
   sealNewVaultWithPasskey,
   unlockVaultWithHeldPrf,
@@ -93,7 +86,6 @@ import {
   wrapVaultKeyWithCeremony,
 } from "./passkey-unlock-session.js";
 import {
-  readPrefsJson,
   readPrefsSourceFile,
   writePrefsJson,
   writePrefsSourceFile,
@@ -101,11 +93,11 @@ import {
 import {
   VAULT_PREFS_REVISION,
   type VaultPrefs,
-  defaultPrefs,
   normalizeVaultPrefs,
 } from "./prefs.js";
 import type { PasskeyCreateOptions } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { VaultProtectionBrowserService } from "./protection/browser-service.js";
+import { ProtectionError } from "./protection/errors.js";
 import { ProtectionSessionGuard } from "./protection/session-guard.js";
 import {
   type ProtectorUnlockInput,
@@ -145,23 +137,35 @@ import {
   registerBodyPort,
 } from "./store-device-key.js";
 import { freshBody, sealMark } from "./store-fresh.js";
+import * as GuestMaterial from "./store-guest-material.js";
+import * as HeaderPublication from "./store-header-publication.js";
 import {
   deviceHoldsSealedVault,
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
+import { type ImportOptions, importSealedInto } from "./store-import.js";
 import {
-  type ImportOptions,
-  importSealedInto,
-  sealedVaultExport,
-} from "./store-import.js";
+  installDefinition,
+  newVaultFolder,
+  uninstallDefinition,
+} from "./store-item-types.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
   type SnapshotMerge,
   mergeSnapshotInto,
 } from "./store-merge.js";
+import {
+  captureStoreOperation,
+  operationHeader,
+  requireExistingUnlock,
+} from "./store-operation-check.js";
+import { StorePreferences } from "./store-preferences.js";
+import { buildVaultState, exportStoredVault } from "./store-presentation.js";
 import { writeBody } from "./store-seal.js";
+import { StoreListeners, StoreView } from "./store-view.js";
+import { StoreWriteQueue } from "./store-write-queue.js";
 import {
   discardTombCaches,
   discardVaultBody,
@@ -172,9 +176,9 @@ import {
   type CodeChannel,
   type TotpGateRecord,
   type VaultUnlocks,
-  assertKeepsPrimaryUnlock,
   createPasskeyUnlockCeremony,
   hasSecondStep,
+  headerWithoutUnlock,
   openText,
   openTotpSecret,
   primaryUnlockCount,
@@ -218,8 +222,6 @@ import { installVaultStoreBoot } from "./store-boot.js";
 import { type VaultState, bindGuestSessionStore } from "./store-state.js";
 export type { VaultState, VaultStatus } from "./store-state.js";
 
-type Listener = () => void;
-
 export class VaultStore {
   #vaultKey: CryptoKey | null = null;
   /** Raw VK for enroll-only wrapKey substitutes; wiped on lock and cancel. */
@@ -234,20 +236,17 @@ export class VaultStore {
   #pendingCodeAddress: { channel: CodeChannel; to: string } | null = null;
   #body: VaultBody = emptyBody();
   #header: VaultHeader | null = null;
-  #prefs: VaultPrefs = defaultPrefs;
-  #listeners = new Set<Listener>();
-  #snapshot: VaultState;
-  #idleTimer: ReturnType<typeof setTimeout> | null = null;
-  #lastActivity = Date.now();
+  #preferences = new StorePreferences();
+  #view = new StoreView();
   /** Expiry for a parked second step; cleared when the challenge ends. */
   #pendingChallenge = new PendingChallenge();
   /** Per-challenge throttle for email/text code sends. */
   #sendGuard = new CodeSendGuard();
   /** Serializes body writes so overlapping mutations cannot land out of order. */
-  #writeChain: Promise<unknown> = Promise.resolve();
+  #writeQueue = new StoreWriteQueue();
   /** The seal of the body this tab last wrote or read; another writer's differs. */
   #sealMark: string | null = null;
-  #lockHandlers = new Set<() => void>();
+  #lockHandlers = new StoreListeners();
   #scope: VaultScope = scopedVaultScope();
   /** Guest/this-tab: key never wrapped; lock must not leave a wrap-less header. */
   #ephemeral = false;
@@ -263,11 +262,14 @@ export class VaultStore {
       getHeader: () => this.#header,
       requireRawRoot: () => this.#requireRaw(),
       isUnlocked: () => this.#vaultKey !== null && this.#header !== null,
-      persistHeader: (next) => this.#persistHeader(next),
-      replaceRawVaultKey: (next) => this.#replaceRawVaultKey(next),
+      persistHeader: (next, check, turn) =>
+        this.#persistHeader(next, check, turn),
+      replaceRawVaultKey: (next, check, turn) =>
+        this.#replaceRawVaultKey(next, check, turn),
+      withRootWriteTurn: (work, check) => this.#withRootWriteTurn(work, check),
       session: this.#sessionGuard,
     });
-    this.#snapshot = this.#build();
+    this.#view.publish(this.#build());
   }
 
   /** Root-protection lifecycle for the active vault session. */
@@ -334,12 +336,11 @@ export class VaultStore {
 
   /** Await in-flight body persists before duress activation or scope carries. */
   async flushPendingWrites(): Promise<void> {
-    await this.#writeChain.catch(() => undefined);
+    await this.#writeQueue.pending().catch(() => undefined);
   }
 
-  #sessionRootDigest(): Promise<string | null> {
-    return sessionRootDigestFromKey(this.#vaultKey, this.#ephemeral);
-  }
+  #sessionRootDigest = (): Promise<string | null> =>
+    sessionRootDigestFromKey(this.#vaultKey, this.#ephemeral);
 
   /** Host surface for duress activation coordination (STORE-E). */
   duressActivationHost() {
@@ -390,81 +391,38 @@ export class VaultStore {
     });
   }
 
-  #readHeader(): VaultHeader | null {
-    return readTombHeader(this.#scope.tomb);
-  }
-
-  #readAttempts() {
-    return readAttempts(this.#scope.attempts);
-  }
+  #readHeader = (): VaultHeader | null => readTombHeader(this.#scope.tomb);
 
   #persistPrefs(): void {
     if (!this.#vaultKey) return;
-    const { tomb } = this.#scope;
-    const prefs = this.#prefs;
-    this.#writeChain = this.#writeChain.then(() =>
-      writePrefsJson(tomb, prefs).catch(() => this.#restorePrefs(prefs)),
+    this.#writeQueue.persistPreferences(
+      this.#preferences,
+      this.#scope.tomb,
+      () => this.#scope.tomb,
+      () => {
+        this.#armIdleTimer();
+        this.#emit();
+      },
     );
-  }
-
-  async #restorePrefs(prefs: VaultPrefs): Promise<void> {
-    if (this.#prefs !== prefs) return;
-    const durable: Partial<VaultPrefs> = overlapCast(
-      await readPrefsJson(this.#scope.tomb).catch(() => ({})),
-    );
-    this.#prefs = normalizeVaultPrefs(durable);
-    this.#armIdleTimer();
-    this.#emit();
-  }
-
-  async #loadPrefsFromVfs(): Promise<void> {
-    try {
-      const stored: Partial<VaultPrefs> = overlapCast(
-        await readPrefsJson(this.#scope.tomb),
-      );
-      this.#prefs = normalizeVaultPrefs(stored);
-      if ((stored.prefsRevision ?? 0) < VAULT_PREFS_REVISION) {
-        await writePrefsJson(this.#scope.tomb, this.#prefs).catch(
-          () => undefined,
-        );
-      }
-    } catch (error) {
-      if (error instanceof VfsError && error.code === "locked") throw error;
-    }
   }
 
   #build(): VaultState {
-    const attempts = this.#readAttempts();
-    return {
-      status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
-      tomb: presentedTomb(this.#scope.tomb),
-      guest: this.#ephemeral && this.#vaultKey !== null,
-      decoy: this.#ephemeral && this.#vaultKey !== null && isDecoySession(),
+    return buildVaultState({
       header: this.#header,
-      items: resolveAccounts(this.#body.items),
-      rawItems: this.#body.items,
-      folders: this.#body.folders,
-      environments: this.#body.environments,
-      prefs: this.#prefs,
-      lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
-      failedAttempts: attempts.fails,
-      awaitingSecondStep:
-        this.#pendingVaultKey !== null && this.#vaultKey === null,
-      durable: kvDurability() !== "memory",
-    };
+      open: this.#vaultKey !== null,
+      pending: this.#pendingVaultKey !== null,
+      ephemeral: this.#ephemeral,
+      tomb: this.#scope.tomb,
+      body: this.#body,
+      prefs: this.#preferences.prefs,
+      attempts: readAttempts(this.#scope.attempts),
+    });
   }
 
-  #emit(): void {
-    this.#snapshot = this.#build();
-    for (const listener of this.#listeners) listener();
-  }
+  #emit = (): void => this.#view.publish(this.#build());
 
-  subscribe = (listener: Listener): (() => void) => {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
-  };
-
-  getSnapshot = (): VaultState => this.#snapshot;
+  subscribe = this.#view.subscribe;
+  getSnapshot = this.#view.getSnapshot;
 
   // —— session ——————————————————————————————————————————————
 
@@ -478,22 +436,65 @@ export class VaultStore {
     this.#rawVaultKey = null;
   }
 
-  #requireRaw(): Uint8Array {
-    if (!this.#rawVaultKey) {
-      throw new Error("Unlock the vault before changing unlock methods.");
-    }
-    return this.#rawVaultKey;
+  #requireRaw = (): Uint8Array => requireOriginalRawRoot(this.#rawVaultKey);
+
+  /** Captures cancellation and original state only, never owner authority. */
+  #protectionOperation(check?: () => void) {
+    return captureStoreOperation(
+      () => ({
+        scope: this.#scope,
+        session: this.#sessionGuard,
+        key: this.#vaultKey,
+        raw: this.#rawVaultKey,
+        header: this.#header,
+      }),
+      check,
+    );
+  }
+
+  #withRootWriteTurn(
+    work: (turn: TombWriteTurn) => Promise<void>,
+    check?: () => void,
+  ): Promise<void> {
+    const original = this.#protectionOperation(check);
+    return this.#writeQueue.rootTurn(
+      original.scope.tomb,
+      () => this.#refreshBody(original),
+      work,
+      original.context,
+      () => original.closeOriginal(() => this.lock()),
+    );
   }
 
   /** Root-rotate: re-seal the tomb's files and the body under the new VK. */
-  async #replaceRawVaultKey(next: Uint8Array): Promise<void> {
-    if (!this.#vaultKey || !this.#header) {
-      throw new Error("Unlock the vault before rotating the vault key.");
-    }
-    const vaultKey = await rekeyTomb(this.#scope.tomb, this.#vaultKey, next);
-    this.#stashRaw(next);
-    this.#vaultKey = vaultKey;
-    await this.#persist();
+  async #replaceRawVaultKey(
+    next: Uint8Array,
+    check?: () => void,
+    turn?: TombWriteTurn,
+  ): Promise<void> {
+    const { vaultKey: previous } = this.#requireUnlocked(
+      "rotating the vault key",
+    );
+    const original = this.#protectionOperation(check);
+    const vaultKey = await rekeyTomb(
+      original.scope.tomb,
+      previous,
+      next,
+      original.active,
+      turn,
+    );
+    original.active();
+    if (this.#vaultKey !== previous)
+      throw new ProtectionError(
+        "stale_operation",
+        "Original vault root changed.",
+      );
+    original.adoptRoot(() => {
+      this.#stashRaw(next.slice());
+      this.#vaultKey = vaultKey;
+    });
+    await this.#persist(original.active, turn);
+    original.active();
   }
 
   async create(password: string, hint?: string): Promise<void> {
@@ -542,31 +543,17 @@ export class VaultStore {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
-    // Guests run in GUEST_TOMB, apart from member tombs; a decoy never wipes a
-    // guest tomb that holds its own key: it runs in a scratch tomb.
-    markDecoySession(options?.decoy === true);
-    const scratch = options?.decoy === true && guestTombIsSealed();
-    this.#scope = scratch ? decoyScratchScope() : guestVaultScope();
-    // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them (GitHub App return).
-    if (!options?.resume && !scratch) clearGuestConnections();
-    forgetDecoyScratch(this.#scope.tomb);
-    // A previous guest's leftovers are ciphertext under a dead tab's key — unreadable, in the way.
-    lockTomb(this.#scope.tomb);
-    await wipeTombOnDestroy(this.#scope.tomb);
-    await discardVaultBody(this.#scope.tomb);
-    const { vaultKey, rawVaultKey } = await mintVaultKey();
-    this.#header = {
-      v: 1,
-      createdAt: new Date().toISOString(),
-    };
+    this.#scope = GuestMaterial.selectGuestScope(options);
+    const { header, vaultKey, rawVaultKey } =
+      await GuestMaterial.prepareGuestMaterial(this.#scope.tomb, options);
+    this.#header = header;
     this.#vaultKey = vaultKey;
     this.#stashRaw(rawVaultKey);
     this.#pendingVaultKey = null;
     this.#body = emptyBody();
     this.#ephemeral = true;
     unlockTomb(this.#scope.tomb, vaultKey);
-    // A decoy leaves the unlock screen on the vault it was typed at.
-    if (!options?.decoy) writeLastVaultId(GUEST_TOMB);
+    GuestMaterial.recordGuestOrigin(options);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -612,7 +599,7 @@ export class VaultStore {
       // Legacy config (prefs, registry, …) still belongs with this tomb —
       // seal it in, then read this session's view of it.
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
-      await this.#loadPrefsFromVfs();
+      await this.#preferences.load(() => this.#scope.tomb);
     } catch (error) {
       // A vault whose header never reached disk cannot be unlocked again, so
       // leave nothing behind that would claim otherwise.
@@ -646,16 +633,12 @@ export class VaultStore {
    * A held device (a freeze duress code, ADR 0168) refuses a right credential
    * as a wrong one: same error, same count; the key it opened is zeroed.
    */
-  #refuseWhileFrozen(miss?: string): void {
-    refuseWhileFrozen(
-      this.#scope.tomb,
-      () => {
-        this.#recordFailedUnlock();
-        if (!this.#vaultKey) this.cancelTotpChallenge();
-      },
-      miss,
-    );
-  }
+  #refuseWhileFrozen = frozenAuthenticationRefusal(
+    () => this.#scope.tomb,
+    () => this.#recordFailedUnlock(),
+    () => this.#vaultKey !== null,
+    () => this.cancelTotpChallenge(),
+  );
 
   async #loadBody(vaultKey: CryptoKey): Promise<VaultBody> {
     return loadVaultBody(this.#scope.tomb, vaultKey, this.#header);
@@ -671,7 +654,7 @@ export class VaultStore {
       await rebindTombSeals(this.#scope.tomb, vaultKey);
       // Phase C: seal legacy plaintext config into this tomb, hydrate modules, then prefs and body.
       await hydrateAndMigrateTombOnUnlock(this.#scope.tomb);
-      await this.#loadPrefsFromVfs();
+      await this.#preferences.load(() => this.#scope.tomb);
       this.#body = await this.#loadBody(vaultKey);
       this.#sealMark = sealMark(this.#scope.tomb);
       syncInstalledTypes(this.#body.itemTypes);
@@ -879,32 +862,48 @@ export class VaultStore {
     await this.#activateSession(pending);
   }
 
-  async #persistHeader(next: VaultHeader): Promise<void> {
+  async #persistHeader(
+    proposed: VaultHeader,
+    check?: () => void,
+    turn?: TombWriteTurn,
+  ): Promise<void> {
+    const original = this.#protectionOperation(check);
     const previous = this.#header;
-    this.#header = next;
-    try {
-      await writePlaintextFile(
-        this.#scope.tomb,
-        HEADER_PATH,
-        JSON.stringify(next),
-      );
-    } catch (error) {
-      this.#header = previous;
-      this.#emit();
-      throw error;
-    }
+    const next = turn
+      ? HeaderPublication.withBodyWitness(previous, proposed)
+      : proposed;
+    const previousPhysical = readPlaintextFile(
+      original.scope.tomb,
+      HEADER_PATH,
+    );
+    original.adoptHeader(next, () => {
+      this.#header = next;
+    });
+    const carry = this.#vaultKey && wrapMoved(previous, next, this.#body);
+    const change = (body: VaultBody) => noteMasterWrap(body, next);
+    await HeaderPublication.publishOriginalHeader(
+      original.scope.tomb,
+      () => JSON.stringify(this.#header),
+      previousPhysical,
+      original.active,
+      async () => {
+        // A rotated BODY must carry its new wraps before next HEADER publication.
+        if (turn && carry)
+          await this.#apply(stampedEdit(change), original.active, turn);
+      },
+      (unchangedPhysical) => {
+        if (unchangedPhysical) this.#header = previous;
+        this.#emit();
+      },
+    );
     this.#ephemeral = false;
     this.#emit();
-    // A password set, changed or removed is carried to every device (ADR 0144).
-    if (this.#vaultKey && wrapMoved(previous, next, this.#body))
-      await this.#mutate((body) => noteMasterWrap(body, next));
+    if (!turn && carry) await this.#mutate(change, original.active);
+    original.active();
   }
 
-  #requireUnlocked() {
-    if (!this.#vaultKey || !this.#header) {
-      throw new Error("Unlock the vault before changing unlock methods.");
-    }
-    return { vaultKey: this.#vaultKey, header: this.#header };
+  #requireUnlocked(reason?: string) {
+    return requireExistingUnlock(this.#vaultKey, this.#header, reason);
   }
 
   async enrollPasskey(options?: PasskeyCreateOptions): Promise<void> {
@@ -926,14 +925,8 @@ export class VaultStore {
 
   /** Drop one enrolled unlock method, if the vault keeps another primary. */
   async #removeUnlock(method: "passkey" | "pin"): Promise<void> {
-    const header = this.#header;
-    if (!header?.unlocks?.[method]) return;
-    assertKeepsPrimaryUnlock(header, method);
-    const { [method]: _removed, ...rest } = header.unlocks;
-    await this.#persistHeader({
-      ...header,
-      unlocks: Object.keys(rest).length ? rest : undefined,
-    });
+    const next = headerWithoutUnlock(this.#header, method);
+    if (next) await this.#persistHeader(next);
   }
 
   async enrollPin(pin: string): Promise<void> {
@@ -1139,10 +1132,7 @@ export class VaultStore {
   }
 
   /** Run on every lock — used to wipe secrets that left the vault (clipboard). */
-  onLock = (handler: () => void): (() => void) => {
-    this.#lockHandlers.add(handler);
-    return () => this.#lockHandlers.delete(handler);
-  };
+  onLock = this.#lockHandlers.subscribe;
 
   lock = (options?: { recordLastVault?: boolean }): void => {
     this.#protection.cancelPendingOps();
@@ -1176,8 +1166,7 @@ export class VaultStore {
       writeLastVaultId(lockedTomb);
     }
     if (ephemeralTomb) void endEphemeralTomb(ephemeralTomb);
-    if (this.#idleTimer) clearTimeout(this.#idleTimer);
-    this.#idleTimer = null;
+    this.#preferences.stop();
     this.#pendingChallenge.clear();
     for (const handler of this.#lockHandlers) handler();
     emitVaultLock();
@@ -1223,14 +1212,18 @@ export class VaultStore {
 
   // —— persistence ——————————————————————————————————————————
 
-  async #persist(): Promise<void> {
+  async #persist(check?: () => void, turn?: TombWriteTurn): Promise<void> {
+    const original = this.#protectionOperation(check);
     if (!this.#vaultKey) throw new Error("The vault is locked.");
     const written = await writeBody(
-      this.#scope.tomb,
+      original.scope.tomb,
       this.#vaultKey,
       this.#body,
       this.#header,
+      original.active,
+      turn,
     );
+    original.active();
     this.#body.rev = written.rev;
     this.#header = written.header;
     // Last: a body that did not finish being recorded is read back, not trusted.
@@ -1263,8 +1256,11 @@ export class VaultStore {
   }
 
   /** Apply a mutation and seal it, in the order requested (a rename per keystroke). */
-  #mutate(change: (body: VaultBody) => void): Promise<void> {
-    return this.#exclusive((apply) => apply(stampedEdit(change)));
+  #mutate(
+    change: (body: VaultBody) => void,
+    check?: () => void,
+  ): Promise<void> {
+    return this.#exclusive((apply) => apply(stampedEdit(change)), check);
   }
 
   /**
@@ -1273,28 +1269,65 @@ export class VaultStore {
    * Chain, then lock, is the one order (`destroy` too), so neither waits on
    * the other. `act` writes through `apply`, which never queues again.
    */
-  #exclusive<T>(act: (apply: ApplyChange) => Promise<T>): Promise<T> {
-    const run = this.#writeChain.then(() => {
-      const vaultKey = this.#vaultKey;
-      if (!vaultKey) throw new Error("The vault is locked.");
-      return withBodyWriteLockOrBare(this.#scope.tomb, async () => {
-        const fresh = await freshBody(
-          this.#scope.tomb,
-          vaultKey,
+  #exclusive<T>(
+    act: (apply: ApplyChange) => Promise<T>,
+    check?: () => void,
+  ): Promise<T> {
+    const original = this.#protectionOperation(check);
+    return this.#writeQueue.enqueue(() => {
+      original.active();
+      return withBodyWriteLockOrBare(original.scope.tomb, async () => {
+        const fresh = await ordinaryPeerFreshBody(
+          original.scope.tomb,
+          this.#vaultKey,
+          this.#rawVaultKey,
           { header: this.#header, body: this.#body, mark: this.#sealMark },
           () => (this.#sharesDisk() ? this.#readHeader() : null),
+          original.active,
         );
-        this.#header = fresh.header;
+        original.active();
+        original.adoptHeader(fresh.header, () => {
+          this.#header = fresh.header;
+        });
         if (fresh.body) {
           this.#body = fresh.body;
           syncInstalledTypes(fresh.body.itemTypes);
           this.#emit();
         }
-        return act((change) => this.#apply(change));
+        const result = await act((change) =>
+          this.#apply(change, original.active),
+        );
+        original.active();
+        return result;
       });
     });
-    this.#writeChain = run.catch(() => undefined);
-    return run;
+  }
+
+  async #refreshBody(
+    original: ReturnType<typeof captureStoreOperation>,
+  ): Promise<void> {
+    original.active();
+    const vaultKey = this.#vaultKey;
+    if (!vaultKey) throw new Error("The vault is locked.");
+    const fresh = await freshBody(
+      original.scope.tomb,
+      vaultKey,
+      { header: this.#header, body: this.#body, mark: this.#sealMark },
+      () => (this.#sharesDisk() ? this.#readHeader() : null),
+    );
+    original.active();
+    if (operationHeader(fresh.header) !== operationHeader(this.#header))
+      throw new ProtectionError(
+        "stale_operation",
+        "Stored operation header changed.",
+      );
+    this.#header = fresh.header;
+    if (fresh.body) {
+      this.#body = fresh.body;
+      syncInstalledTypes(fresh.body.itemTypes);
+      this.#emit();
+    }
+    original.active();
   }
 
   /** A guest or scratch session is never exported or synced, and its tomb has no header of its own. */
@@ -1302,18 +1335,25 @@ export class VaultStore {
     return !this.#ephemeral && !isGuestSessionTomb(this.#scope.tomb);
   }
 
-  async #apply(change: (body: VaultBody) => void): Promise<void> {
+  async #apply(
+    change: (body: VaultBody) => void,
+    check: () => void,
+    turn?: TombWriteTurn,
+  ): Promise<void> {
+    check();
     if (!this.#vaultKey) throw new Error("The vault is locked.");
     // Keep the pre-change body: a failed write must not leave memory ahead of disk.
     const previous = bodyBeforeWrite(this.#body);
     change(this.#body);
     try {
-      await this.#persist();
+      await this.#persist(check, turn);
     } catch (error) {
+      check();
       this.#body = previous;
       this.#emit();
       throw error;
     }
+    check();
     this.touch();
     this.#emit();
   }
@@ -1322,32 +1362,20 @@ export class VaultStore {
 
   /** Validate a definition, store it in the sealed body, and register it for this session. */
   async installItemTypeDefinition(text: string): Promise<InstallResult> {
-    const result = installItemType(text);
-    if (!result.ok) return result;
-    await this.#recordTypes({ added: [result.definition.metadata.id] });
-    return result;
+    return installDefinition(
+      text,
+      (change) => this.#mutate(change),
+      () => this.#body,
+    );
   }
 
   /** Drop a definition. Items of that type keep their values. */
   async uninstallItemTypeDefinition(id: string): Promise<boolean> {
-    if (!uninstallItemType(id)) return false;
-    await this.#recordTypes({ removed: [id] });
-    return true;
-  }
-
-  async #recordTypes(
-    change: Parameters<typeof recordItemTypes>[2],
-  ): Promise<void> {
-    try {
-      await this.#mutate((body) => {
-        recordItemTypes(body, installedDefinitions(), change);
-      });
-    } catch (error) {
-      // A failed seal rolls the body back, not the registry (module state):
-      // put it back, or this device offers a type the vault does not carry.
-      syncInstalledTypes(this.#body.itemTypes);
-      throw error;
-    }
+    return uninstallDefinition(
+      id,
+      (change) => this.#mutate(change),
+      () => this.#body,
+    );
   }
 
   // —— items ————————————————————————————————————————————————
@@ -1454,8 +1482,10 @@ export class VaultStore {
   // —— folders ——————————————————————————————————————————————
 
   async addFolder(name: string): Promise<Folder> {
-    const folder = newFolder(name);
-    await this.#mutate((body) => appendFolder(body, folder));
+    const folder = newVaultFolder(name);
+    await this.#mutate((body) => {
+      body.folders = [...body.folders, folder];
+    });
     return folder;
   }
 
@@ -1471,7 +1501,7 @@ export class VaultStore {
 
   /** Encrypted export — the sealed body plus its header, portable to another device. */
   exportSealed(): string {
-    return sealedVaultExport(this.#header, this.#scope.tomb);
+    return exportStoredVault(this.#scope.tomb, this.#header);
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
@@ -1515,7 +1545,8 @@ export class VaultStore {
     // Queued behind any write still in the air. Deleting straight away would let
     // a persist that had already sealed its body land afterwards and put the
     // vault — ciphertext, header and all — back on a device it was deleted from.
-    const done = this.#writeChain
+    const done = this.#writeQueue
+      .pending()
       .catch(() => undefined)
       .then(async () => {
         // Awaited — resolves once the files are gone; leftover ciphertext would break a fresh vault.
@@ -1530,7 +1561,7 @@ export class VaultStore {
           }),
         );
       });
-    this.#writeChain = done;
+    this.#writeQueue.assign(done);
     await done;
     this.#emit();
   }
@@ -1538,8 +1569,8 @@ export class VaultStore {
   // —— preferences and auto-lock ————————————————————————————
 
   setPrefs(next: Partial<VaultPrefs>): void {
-    this.#prefs = normalizeVaultPrefs({
-      ...this.#prefs,
+    this.#preferences.prefs = normalizeVaultPrefs({
+      ...this.#preferences.prefs,
       ...next,
       prefsRevision: VAULT_PREFS_REVISION,
     });
@@ -1552,7 +1583,7 @@ export class VaultStore {
     if (!this.#vaultKey)
       throw new Error("Unlock the vault before saving preferences.");
     this.setPrefs(next);
-    await writePrefsJson(this.#scope.tomb, this.#prefs);
+    await writePrefsJson(this.#scope.tomb, this.#preferences.prefs);
   }
 
   async writePrefsSource(source: string): Promise<void> {
@@ -1565,24 +1596,10 @@ export class VaultStore {
     return this.#vaultKey ? readPrefsSourceFile(this.#scope.tomb) : null;
   }
 
-  touch = (): void => {
-    this.#lastActivity = Date.now();
-  };
+  touch = this.#preferences.touch.bind(this.#preferences);
 
   #armIdleTimer(): void {
-    if (this.#idleTimer) clearTimeout(this.#idleTimer);
-    this.#idleTimer = null;
-    if (!this.#vaultKey || this.#prefs.autoLockMinutes <= 0) return;
-    const windowMs = this.#prefs.autoLockMinutes * 60_000;
-    const tick = () => {
-      const idleFor = Date.now() - this.#lastActivity;
-      if (idleFor >= windowMs) {
-        this.lock();
-        return;
-      }
-      this.#idleTimer = setTimeout(tick, Math.max(1_000, windowMs - idleFor));
-    };
-    this.#idleTimer = setTimeout(tick, windowMs);
+    this.#preferences.arm(this.#vaultKey !== null, () => this.lock());
   }
 }
 
