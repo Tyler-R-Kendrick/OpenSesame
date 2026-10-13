@@ -1,6 +1,6 @@
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
-import type { CliAuthorizePanelHint } from "./cli-authorize-panel-model.js";
 import { CliAuthorizePairingForm } from "./cli-authorize-pairing-form.js";
+import type { CliAuthorizePanelHint } from "./cli-authorize-panel-model.js";
 
 type Props = {
   row: CliAuthorizeRow | null | undefined;

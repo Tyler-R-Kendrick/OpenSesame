@@ -5,8 +5,8 @@
 import { b64urlToBytes } from "@opensesame/vault-core";
 import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
-import { cliAppDaemonPaths } from "./daemon-paths.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
+import { cliAppDaemonPaths } from "./daemon-paths.js";
 
 export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
 export const CLI_APP_PAIRING_EXCHANGE_PATH = cliAppDaemonPaths.pairingExchange;

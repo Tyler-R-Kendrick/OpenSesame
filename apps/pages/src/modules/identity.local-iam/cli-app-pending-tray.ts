@@ -2,7 +2,6 @@
  * Tray doorbell while the daemon waits for CLI integration approval (ADR 0186).
  */
 
-import { fetchDaemonCliPending } from "./cli-daemon-pending-fetch.js";
 import {
   dismissNotice,
   setStatusNotice,
@@ -13,6 +12,7 @@ import {
   readCliAppAuthHeaders,
   readDaemonOrigin,
 } from "./cli-authorize-session.js";
+import { fetchDaemonCliPending } from "./cli-daemon-pending-fetch.js";
 
 export const CLI_APP_PENDING_NOTICE = "identity:cli-app-pending";
 
