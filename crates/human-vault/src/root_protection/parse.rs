@@ -151,5 +151,5 @@ pub fn parse_root_protection_manifest(
             return Err(ProtectionError::DuplicateProtectorId);
         }
     }
-    serde_json::from_value(value).map_err(|e| ProtectionError::MalformedEncoding(e.to_string()))
+    serde_json::from_str(input).map_err(|e| ProtectionError::MalformedEncoding(e.to_string()))
 }

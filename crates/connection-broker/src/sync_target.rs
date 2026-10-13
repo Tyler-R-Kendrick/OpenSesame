@@ -713,7 +713,6 @@ fn env_sync_provider_supported(provider_id: &str) -> bool {
     matches!(provider_id, "vercel" | "railway")
 }
 
-
 #[cfg(test)]
 mod unit_tests {
     use super::*;
@@ -740,10 +739,16 @@ mod unit_tests {
         let changed: BTreeMap<String, String> = [("FOO".to_string(), "two".to_string())]
             .into_iter()
             .collect();
-        assert_ne!(a, super::authority::content_version_for(&key, "t1", &changed));
+        assert_ne!(
+            a,
+            super::authority::content_version_for(&key, "t1", &changed)
+        );
         // Keyed: without the deployment seal key the fingerprint differs, so
         // the stored value cannot be brute-forced from the fingerprint alone.
-        assert_ne!(a, super::authority::content_version_for(&[8u8; 32], "t1", &entries));
+        assert_ne!(
+            a,
+            super::authority::content_version_for(&[8u8; 32], "t1", &entries)
+        );
         // The fingerprint never embeds the value.
         assert!(!a.contains("one"));
     }

@@ -119,7 +119,11 @@ async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authorit
             .unwrap();
         }
         sync_actor::pass(&st, &cfg).await.unwrap();
-        let current = st.connection_broker.get_sync_target(&org, &target.id).await.unwrap();
+        let current = st
+            .connection_broker
+            .get_sync_target(&org, &target.id)
+            .await
+            .unwrap();
         assert_eq!(current.status, SyncTargetStatus::Idle);
         assert!(current.last_synced_at.is_none());
         let rows = sqlx::query(
@@ -134,7 +138,10 @@ async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authorit
         for row in rows {
             assert_eq!(row.get::<i64, _>("attempts"), attempt);
             assert!(row.get::<Option<String>, _>("published_at").is_none());
-            assert_eq!(row.get::<Option<String>, _>("dead_lettered_at").is_some(), attempt == 3);
+            assert_eq!(
+                row.get::<Option<String>, _>("dead_lettered_at").is_some(),
+                attempt == 3
+            );
             let reason = row.get::<Option<String>, _>("last_error").unwrap();
             assert!(reason.contains("sync target not found"), "{reason}");
             assert!(!reason.contains("test-only"));

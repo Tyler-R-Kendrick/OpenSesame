@@ -16,8 +16,11 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 #[cfg(test)]
 mod chunk_tests;
 pub mod kdf_policy;
+mod nonce;
 pub mod pages_vault;
 mod password_wrap;
+use nonce::decode_nonce;
+pub mod retired_credentials;
 pub mod root_protection;
 #[cfg(not(target_arch = "wasm32"))]
 pub use password_wrap::migrate_password_wrapper_offline;
@@ -361,17 +364,6 @@ pub fn open_chunk(
             },
         )
         .map_err(|_| VaultCryptoError::Aead)
-}
-
-/// Decode a stored nonce, refusing any length `XChaCha20` would panic on.
-fn decode_nonce(encoded: &str) -> Result<[u8; 24], VaultCryptoError> {
-    let bytes = STANDARD
-        .decode(encoded)
-        .map_err(|_| VaultCryptoError::Aead)?;
-    let nonce: [u8; 24] = bytes
-        .try_into()
-        .map_err(|_| VaultCryptoError::NonceLength)?;
-    Ok(nonce)
 }
 
 pub(crate) fn hkdf_expand(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], VaultCryptoError> {

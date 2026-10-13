@@ -86,7 +86,6 @@ impl SyncSecretSource for CallerSecretSource {
     }
 }
 
-
 pub(super) async fn require_project(
     st: &AppState,
     who: &Caller,
@@ -206,7 +205,11 @@ pub async fn get(
         Ok(id) => id,
         Err(resp) => return resp,
     };
-    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+    let target = match st
+        .connection_broker
+        .get_sync_target(&organization_id, &id)
+        .await
+    {
         Ok(target) => target,
         Err(e) => return broker_error(&e),
     };
@@ -242,7 +245,11 @@ pub async fn delete(
         Ok(id) => id,
         Err(resp) => return resp,
     };
-    let target = match st.connection_broker.get_sync_target(&organization_id, &id).await {
+    let target = match st
+        .connection_broker
+        .get_sync_target(&organization_id, &id)
+        .await
+    {
         Ok(target) => target,
         Err(e) => return broker_error(&e),
     };

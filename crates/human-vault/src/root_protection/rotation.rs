@@ -14,9 +14,10 @@ use zeroize::Zeroize;
 use crate::password_wrap::{unwrap_vrk_with_password, wrap_vrk_with_password};
 use crate::VaultRootKey;
 
-use super::auth::{seal_manifest_auth, verify_manifest_auth};
+use super::auth::verify_manifest_auth;
 use super::error::ProtectionError;
 use super::key_file::{load_key_file, password_wrapper_from_manifest};
+use super::native_factor_configuration::seal_for_native_producer;
 use super::ops::{ensure_versioned_manifest, remove_record};
 use super::recovery::{generate_recovery_key, wrap_vrk_with_recovery_key};
 use super::types::{ProofStatus, ProtectionRecord, RootProtectionManifest};
@@ -80,6 +81,14 @@ pub fn prepare_root_rotation(
     seal_capsule: CapsuleSealer<'_>,
 ) -> Result<PreparedRotation, ProtectionError> {
     let (old_vrk, mut manifest) = ensure_versioned_manifest(password, load_key_file(root)?)?;
+    let next_epoch = manifest
+        .root_epoch
+        .checked_add(1)
+        .ok_or(ProtectionError::ContextMismatch)?;
+    let next_revision = manifest
+        .revision
+        .checked_add(1)
+        .ok_or(ProtectionError::ContextMismatch)?;
     let unlocking_id = manifest
         .records
         .iter()
@@ -119,10 +128,10 @@ pub fn prepare_root_rotation(
                 .into(),
         ));
     }
-    manifest.root_epoch = manifest.root_epoch.saturating_add(1);
+    manifest.root_epoch = next_epoch;
     manifest.root_key_id = uuid::Uuid::new_v4().to_string();
-    manifest.revision = manifest.revision.saturating_add(1);
-    seal_manifest_auth(&new_vrk, &mut manifest)?;
+    manifest.revision = next_revision;
+    seal_for_native_producer(&new_vrk, &mut manifest)?;
     // Prove the plan opens before anyone re-encrypts a byte under it.
     let reopened =
         unwrap_vrk_with_password(passphrase, password_wrapper_from_manifest(&manifest)?)?;
