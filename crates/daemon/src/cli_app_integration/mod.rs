@@ -1,26 +1,29 @@
 //! CLI app-integration routes (`/v1/cli/app-integration/*`).
 use axum::{
-    extract::State,
-    http::{header, HeaderMap, HeaderValue, Method, StatusCode},
+    body::Body,
+    extract::{FromRequest, State},
+    http::{header, HeaderMap, HeaderValue, Method, Request, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
-use opensesame_cli_app_integration::{
-    format_pairing_code, is_pairable_origin, session_id_from_pid, CliAppIntegrationHost,
-    PairingError,
-};
-use sha2::Digest;
+use opensesame_cli_app_integration::{session_id_from_pid, CliAppIntegrationHost};
 use serde::Deserialize;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::connect_info::ConnectInfo;
 use axum::Extension;
+use std::net::SocketAddr;
 
 use crate::peer_auth::UdsConnectInfo;
-use crate::{require_operator, App, UdsPeer};
+use crate::{App, UdsPeer};
+
+mod pairing_routes;
+pub(crate) use pairing_routes::{
+    pairing_confirm, pairing_exchange, pairing_issue_operator, pairing_revoke,
+};
 
 pub(crate) type SharedCliAppIntegration = Arc<Mutex<CliAppIntegrationHost>>;
 
@@ -66,6 +69,10 @@ pub(crate) fn routes(app: &App) -> Router<App> {
         .route("/v1/cli/app-integration/pending", get(pending))
         .route("/v1/cli/app-integration/respond", post(respond))
         .route(
+            "/v1/cli/app-integration/pairing/confirm",
+            post(pairing_confirm),
+        )
+        .route(
             "/v1/cli/app-integration/pairing",
             post(pairing_exchange).delete(pairing_revoke),
         )
@@ -97,12 +104,11 @@ pub struct RespondReq {
     human_proof: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-struct PairingExchange {
-    code: String,
-}
-
-fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool) {
+fn terminal_session_for_ensure(
+    host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
+    uds: &UdsPeer,
+    tcp_peer: Option<ConnectInfo<SocketAddr>>,
+) -> (String, bool) {
     #[cfg(unix)]
     if let Some(Extension(ConnectInfo(UdsConnectInfo(cred)))) = uds.as_ref() {
         if let Some(cred) = cred {
@@ -111,27 +117,37 @@ fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool
             }
         }
     }
-    let trimmed = body.terminal_session_id.trim();
-    let correlation = if trimmed.is_empty() {
-        format!("tcp-ephemeral-{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0))
-    } else {
-        trimmed.to_string()
-    };
-    (correlation, false)
+    let peer_key = tcp_peer
+        .map(|ConnectInfo(addr)| format!("tcp:{addr}"))
+        .unwrap_or_else(|| {
+            format!(
+                "tcp:anon-{}",
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+            )
+        });
+    let (id, _) = host.terminal_session_for_tcp(&peer_key);
+    // TCP never auto-reuses an approved session (consume-on-next-ensure), same as pre-D5-3 body correlation.
+    (id, false)
 }
 
-pub(crate) async fn ensure(
-    State(st): State<App>,
-    uds: UdsPeer,
-    Json(req): Json<EnsureReq>,
-) -> Response {
+pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Response {
+    let uds: UdsPeer = request
+        .extensions()
+        .get::<ConnectInfo<UdsConnectInfo>>()
+        .cloned()
+        .map(Extension);
+    let tcp_peer = request.extensions().get::<ConnectInfo<SocketAddr>>().cloned();
+    let Json(req) = match Json::<EnsureReq>::from_request(request, &()).await {
+        Ok(json) => json,
+        Err(rejection) => return rejection.into_response(),
+    };
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
     host.store
         .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
-    let (terminal_session_id, reuse) = terminal_session_for_ensure(&uds, &req);
+    let (terminal_session_id, reuse) = terminal_session_for_ensure(&mut host, &uds, tcp_peer);
     let (status, request_id) = host.store.ensure(
         &terminal_session_id,
         &req.verb,
@@ -182,6 +198,7 @@ pub(crate) async fn respond(
     };
     host.store
         .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
+    let pairing_secret = bearer(&headers).unwrap_or("");
     let status = match req.decision.as_str() {
         "approve" => {
             let proof = req.human_proof.as_deref().unwrap_or("");
@@ -190,6 +207,7 @@ pub(crate) async fn respond(
                 &req.terminal_session_id,
                 &req.respond_nonce,
                 proof,
+                pairing_secret,
             )
         }
         "deny" => host.store.deny(
@@ -206,108 +224,6 @@ pub(crate) async fn respond(
         }
     };
     Json(json!({ "status": status })).into_response()
-}
-
-pub(crate) async fn pairing_exchange(
-    State(st): State<App>,
-    headers: HeaderMap,
-    Json(body): Json<PairingExchange>,
-) -> Response {
-    let Some(origin) = origin_of(&headers).filter(|o| is_pairable_origin(o)) else {
-        return pairing_error(StatusCode::FORBIDDEN, "origin_required");
-    };
-    let now = chrono::Utc::now().timestamp() as u64;
-    let mut host = match st.cli_app_integration.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    match host.pairings.exchange(&body.code, origin, now) {
-        Ok(issued) => (
-            StatusCode::CREATED,
-            Json(json!({
-                "id": issued.id,
-                "origin": issued.origin,
-                "token": issued.token,
-            })),
-        )
-            .into_response(),
-        Err(PairingError::WrongOrigin) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
-        Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
-        Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
-    }
-}
-
-pub(crate) async fn pairing_revoke(State(st): State<App>, headers: HeaderMap) -> Response {
-    let (Some(origin), Some(token)) = (origin_of(&headers), bearer(&headers)) else {
-        return pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required");
-    };
-    let mut host = match st.cli_app_integration.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    let digest = sha2::Sha256::digest(token.as_bytes());
-    let digest_hex = hex::encode(digest);
-    let before = host.pairings.paired_len();
-    host.pairings.revoke_token(origin, &digest_hex);
-    if host.pairings.paired_len() < before {
-        StatusCode::NO_CONTENT.into_response()
-    } else {
-        pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required")
-    }
-}
-
-/// Operator-only: mint a pairing code for a browser origin (terminal prints it).
-pub(crate) async fn pairing_issue_operator(
-    State(st): State<App>,
-    headers: HeaderMap,
-    uds: UdsPeer,
-    Json(body): Json<PairingIssueReq>,
-) -> Response {
-    if let Err(resp) = require_operator(&st, &headers, &uds) {
-        return resp;
-    }
-    if !is_pairable_origin(&body.origin) {
-        return pairing_error(StatusCode::BAD_REQUEST, "invalid_origin");
-    }
-    let now = chrono::Utc::now().timestamp() as u64;
-    let mut host = match st.cli_app_integration.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    match host.pairings.issue(&body.origin, now) {
-        Ok((code, expires_at)) => {
-            let url = body
-                .url
-                .as_deref()
-                .unwrap_or("http://127.0.0.1:18790");
-            let label = body.label.as_deref().unwrap_or("CLI");
-            Json(json!({
-                "pairingCode": format_pairing_code(url, &code, &body.origin, label),
-                "origin": body.origin,
-                "expiresAt": expires_at,
-            }))
-            .into_response()
-        }
-        Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
-        Err(PairingError::InvalidOrigin) => {
-            pairing_error(StatusCode::BAD_REQUEST, "invalid_origin")
-        }
-        Err(
-            PairingError::Unknown | PairingError::Expired | PairingError::WrongOrigin,
-        ) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused"),
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PairingIssueReq {
-    origin: String,
-    url: Option<String>,
-    label: Option<String>,
 }
 
 const ALLOW_METHODS: &str = "GET, POST, DELETE";

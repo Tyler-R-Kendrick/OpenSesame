@@ -1,6 +1,15 @@
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 
+/** The hosting page's origin; null outside a browser tab. */
+export function readPageOrigin(): string | null {
+  try {
+    return window.location.origin;
+  } catch {
+    return null;
+  }
+}
+
 export async function postCliRespond(
   origin: string,
   headers: Record<string, string>,

@@ -77,6 +77,7 @@ export async function dispatchParity(
         reveal: ctx.reveal,
         desktop: Boolean(ctx.scope.desktop),
         reference: ref,
+        appIntegration: ctx.appIntegration,
       });
       emitRevealReceipt({ verb: "read", reference: ref });
       emitHumanValue(await agent.read(ref));
@@ -199,6 +200,7 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
     verb: "env-resolve",
     reveal: ctx.reveal,
     desktop: Boolean(ctx.scope.desktop),
+    appIntegration: ctx.appIntegration,
   });
   emitStderrLine(
     "Deprecation: env resolve writes plaintext at rest; prefer `run --env-file` or `env run <file> -- <cmd>` (same `run` wrapper as `op run` / `infisical run`).",

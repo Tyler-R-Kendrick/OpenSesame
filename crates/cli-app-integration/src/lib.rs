@@ -3,13 +3,20 @@ mod human_proof;
 mod pairing;
 mod terminal_session;
 
-use human_proof::human_proof_valid;
+use human_proof::human_proof_verify;
 
 use rand_core::{OsRng, RngCore as _};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicU64, Ordering};
+
+#[cfg(test)]
+static TEST_TCP_EPHEMERAL: AtomicU64 = AtomicU64::new(0);
+
+pub use human_proof::mint_human_proof;
 pub use pairing::{
     format_pairing_code, is_pairable_origin, CliAppIntegrationPairings, Issued, PairingError,
     CODE_TTL_SECS, PAIRING_CODE_PREFIX,
@@ -20,6 +27,8 @@ pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_se
 pub struct CliAppIntegrationHost {
     pub store: CliAppIntegrationStore,
     pub pairings: CliAppIntegrationPairings,
+    /// TCP peers (or test harness keys) bound to a daemon-issued terminal session id.
+    tcp_terminal_sessions: HashMap<String, String>,
 }
 
 impl CliAppIntegrationHost {
@@ -28,7 +37,27 @@ impl CliAppIntegrationHost {
         Self {
             store: CliAppIntegrationStore::new(),
             pairings: CliAppIntegrationPairings::default(),
+            tcp_terminal_sessions: HashMap::new(),
         }
+    }
+
+    /// Issue or return the terminal session id for a non-UDS ensure (never trusts the client body).
+    pub fn terminal_session_for_tcp(&mut self, peer_key: &str) -> (String, bool) {
+        if let Some(existing) = self.tcp_terminal_sessions.get(peer_key) {
+            return (existing.clone(), true);
+        }
+        let mut raw = [0u8; 16];
+        OsRng.fill_bytes(&mut raw);
+        let id = format!("term-tcp-{}", hex::encode(raw));
+        self.tcp_terminal_sessions
+            .insert(peer_key.to_string(), id.clone());
+        (id, false)
+    }
+
+    #[cfg(test)]
+    pub fn terminal_session_for_tcp_test_harness(&mut self) -> (String, bool) {
+        let n = TEST_TCP_EPHEMERAL.fetch_add(1, Ordering::Relaxed);
+        self.terminal_session_for_tcp(&format!("tcp:harness-{n}"))
     }
 }
 
@@ -196,6 +225,7 @@ impl CliAppIntegrationStore {
         terminal_session_id: &str,
         respond_nonce: &str,
         human_proof: &str,
+        pairing_secret: &str,
     ) -> String {
         self.expire_idle();
         let Some(row) = self.pending.get(request_id) else {
@@ -207,7 +237,14 @@ impl CliAppIntegrationStore {
         if row.respond_nonce != respond_nonce {
             return "wrongSession".into();
         }
-        if !human_proof_valid(human_proof) {
+        if !human_proof_verify(
+            human_proof,
+            pairing_secret,
+            request_id,
+            terminal_session_id,
+            respond_nonce,
+            &row.verb,
+        ) {
             return "wrongSession".into();
         }
         self.pending.remove(request_id);

@@ -9,6 +9,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
+import { CliAppPairingPanel } from "../../modules/identity.local-iam/cli-app-pairing-panel.js";
 import { IdentityFact } from "./IdentityRecordFields.js";
 import { DeviceForm, type DevicesModel } from "./LocalDeviceRows.js";
 import { useDevices } from "./LocalDevicesPanel.js";
@@ -107,6 +108,8 @@ export function DevicesWorkspace({
         approval
       ) : selectedId === "tailnet-devices" ? (
         tailnet
+      ) : selectedId === "cli-terminal" ? (
+        <CliAppPairingPanel />
       ) : null}
     </RecordWorkspace>
   );
@@ -138,6 +141,12 @@ function deviceWorkspaceRows(
       extension: "",
       to: `${listPath}#approve-device`,
     });
+  rows.push({
+    id: "cli-terminal",
+    label: "Terminal CLI",
+    extension: "",
+    to: `${listPath}#cli-terminal`,
+  });
   return rows;
 }
 function DeviceDetail({

@@ -55,6 +55,7 @@ mod token_source;
 mod toolbar;
 mod vault_drive;
 mod vault_drive_routes;
+mod wsl_bridge;
 use startup::{build_state, secured_router};
 
 use peer_auth::UdsConnectInfo;
@@ -298,7 +299,12 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     tracing::info!(%listen, "daemon TCP listening");
     let tcp_app = app.clone();
     let tcp_handle = tokio::spawn(async move {
-        if let Err(e) = axum::serve(tcp, tcp_app).await {
+        if let Err(e) = axum::serve(
+            tcp,
+            tcp_app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        {
             tracing::error!(error = %e, "tcp serve failed");
         }
     });
@@ -309,7 +315,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // When Windows cannot reach WSL via 127.0.0.1, Serve targets the eth IP —
     // bind that address so the proxy has somewhere to dial.
     if env::var("OPENSESAME_DAEMON_NETWORK_BRIDGE").ok().as_deref() == Some("1") {
-        spawn_wsl_bridge(&listen, &app).await;
+        wsl_bridge::spawn_wsl_bridge(&listen, &app).await;
         let serve_listen = listen.clone();
         tokio::task::spawn_blocking(move || startup::enable_network_bridge(&serve_listen));
     }
@@ -357,32 +363,6 @@ fn spawn_uds(sock_path: &str, app: Router) -> anyhow::Result<()> {
         }
     });
     Ok(())
-}
-
-async fn spawn_wsl_bridge(listen: &str, app: &Router) {
-    let Some(port) = tailscale::listen_port(listen) else {
-        return;
-    };
-    let Some(bridge) = tailscale::wsl_bridge_listen(port) else {
-        return;
-    };
-    if bridge == listen {
-        return;
-    }
-    let bridge_tcp = match tokio::net::TcpListener::bind(&bridge).await {
-        Ok(listener) => listener,
-        Err(error) => {
-            tracing::warn!(%bridge, %error, "failed to bind WSL Tailscale bridge listen");
-            return;
-        }
-    };
-    tracing::info!(%bridge, "daemon TCP listening (WSL↔Windows Tailscale bridge)");
-    let bridge_app = app.clone();
-    tokio::spawn(async move {
-        if let Err(error) = axum::serve(bridge_tcp, bridge_app).await {
-            tracing::error!(%error, "wsl bridge serve failed");
-        }
-    });
 }
 
 #[cfg(all(unix, feature = "tailscale"))]

@@ -2,12 +2,13 @@ use super::*;
 use axum::body::Body;
 use axum::extract::connect_info::ConnectInfo;
 use axum::http::{header, Request, StatusCode};
-use opensesame_cli_app_integration::session_id_from_pid;
+use opensesame_cli_app_integration::{mint_human_proof, session_id_from_pid};
 use opensesame_uds_authn::PeerCred;
 use tower::ServiceExt;
 
 use crate::peer_auth::UdsConnectInfo;
 use crate::App;
+use std::net::SocketAddr;
 
 fn ensure_body(terminal_session_id: &str) -> String {
     serde_json::json!({
@@ -26,11 +27,18 @@ fn pair_browser(app: &App, origin: &str) -> String {
         .pairings
         .issue(origin, now)
         .unwrap();
+    let binding = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     app.cli_app_integration
         .lock()
         .unwrap()
         .pairings
-        .exchange(&code, origin, now)
+        .confirm(&code, origin, binding, now)
+        .unwrap();
+    app.cli_app_integration
+        .lock()
+        .unwrap()
+        .pairings
+        .exchange(&code, origin, binding, now)
         .unwrap()
         .token
 }
@@ -92,6 +100,14 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
+    let human_proof = mint_human_proof(
+        &token,
+        "passkey",
+        request_id,
+        &derived,
+        nonce,
+        "read",
+    );
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")
@@ -104,7 +120,7 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
                 "terminalSessionId": derived,
                 "decision": "approve",
                 "respondNonce": nonce,
-                "humanProof": "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
+                "humanProof": human_proof,
             })
             .to_string(),
         ))
@@ -145,14 +161,16 @@ async fn tcp_ensure_never_reuses_approval() {
     let (app, state) = test_router("http://127.0.0.1:8787");
     let origin = "http://localhost:5180";
     let token = pair_browser(&state, origin);
-    let correlation = "tcp-correlation-1";
-    let body = ensure_body(correlation);
-    let req = Request::builder()
+    let forged_id = "tcp-correlation-1";
+    let body = ensure_body(forged_id);
+    let tcp_peer = ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 4242)));
+    let mut req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
         .body(Body::from(body))
         .unwrap();
+    req.extensions_mut().insert(tcp_peer);
     let res = app.clone().oneshot(req).await.unwrap();
     let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
         .await
@@ -172,9 +190,21 @@ async fn tcp_ensure_never_reuses_approval() {
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let terminal_session_id = parsed["pending"][0]["terminalSessionId"]
+        .as_str()
+        .expect("terminal session");
+    assert_ne!(terminal_session_id, forged_id);
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
+    let human_proof = mint_human_proof(
+        &token,
+        "passkey",
+        request_id,
+        terminal_session_id,
+        nonce,
+        "read",
+    );
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")
@@ -184,34 +214,36 @@ async fn tcp_ensure_never_reuses_approval() {
         .body(Body::from(
             serde_json::json!({
                 "requestId": request_id,
-                "terminalSessionId": correlation,
+                "terminalSessionId": terminal_session_id,
                 "decision": "approve",
                 "respondNonce": nonce,
-                "humanProof": "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
+                "humanProof": human_proof,
             })
             .to_string(),
         ))
         .unwrap();
     let res = app.clone().oneshot(respond).await.unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
-        .body(Body::from(ensure_body(correlation)))
+        .body(Body::from(ensure_body(forged_id)))
         .unwrap();
+    req.extensions_mut().insert(tcp_peer);
     let res = app.clone().oneshot(req).await.unwrap();
     let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(parsed["status"], "approved");
-    let req = Request::builder()
+    let mut req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
-        .body(Body::from(ensure_body(correlation)))
+        .body(Body::from(ensure_body(forged_id)))
         .unwrap();
+    req.extensions_mut().insert(tcp_peer);
     let res = app.clone().oneshot(req).await.unwrap();
     let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
         .await
