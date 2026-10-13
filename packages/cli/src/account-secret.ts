@@ -6,7 +6,7 @@
  * for a pepper and never stores one; what it copies stops before the slot, and
  * `--field rest` copies what follows it.
  */
-import { shareText } from "@opensesame/app-core/sections/vault-section-model.js";
+import { shareText } from "@opensesame/app-core/sections/vault-share-text.js";
 import {
   type AccountItem,
   type VaultItem,

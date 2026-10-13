@@ -14,6 +14,11 @@ export const SECTION_RULES = [
   // --- vault -----------------------------------------------------------------
   core("src/sections/VaultSection", "vault.passwords", "vault section root"),
   core("src/sections/vault-section-model", "vault.passwords", "its view-model"),
+  core(
+    "src/sections/vault-share-text",
+    "vault.passwords",
+    "username line in one-time share text",
+  ),
   core("src/sections/vault.css", "vault.passwords", "stylesheet"),
   core(
     "src/sections/vault/",
