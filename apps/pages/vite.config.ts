@@ -146,6 +146,12 @@ export default defineConfig({
     },
   },
   build: {
+    // Optimize emitted bytes with the pinned minifier without assuming property reads are pure.
+    minify: "terser",
+    terserOptions: {
+      compress: { passes: 2, pure_getters: false, unsafe: false },
+      mangle: { properties: false },
+    },
     // esbuild 0.28 cannot downlevel some destructuring forms used by react-router
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],

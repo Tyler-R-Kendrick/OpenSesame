@@ -1,7 +1,5 @@
 /** Browser physical ciphertext producers. They issue DATA only, never owner or factors-complete authority. */
-import { z } from "zod";
 import { createOriginalOriginStorageProfile } from "../lib/original-origin-storage.js";
-import { assertUnambiguousJson } from "../lib/retired-credentials/json-preflight.js";
 import type { PhysicalAuthenticationPort } from "../lib/vault/physical-authentication-port.js";
 import type { PhysicalAuthenticationSnapshot } from "../lib/vault/physical-authentication-port.js";
 import type {
@@ -14,12 +12,11 @@ import type {
 } from "../lib/vault/physical-current-credential-catalogue.js";
 import type { PhysicalDeviceRecordPort } from "../lib/vault/physical-device-record-port.js";
 import type { PhysicalVaultPublicationPort } from "../lib/vault/physical-vault-publication-port.js";
+import {
+  readBrowserPhysicalRegistryData,
+  readBrowserPhysicalTombData,
+} from "./physical-vault-name-data.js";
 
-const tombName = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u);
-const registry = z.strictObject({
-  v: z.literal(1),
-  tombs: z.array(tombName).max(32),
-});
 const HEADER_BOUND = 65536;
 const BODY_BOUND = 8 << 20;
 function unavailable(): never {
@@ -29,7 +26,7 @@ function tombKey(
   tomb: string,
   path: "header" | "body" | "retired-credentials.v2",
 ) {
-  return `tomb/${tombName.parse(tomb)}/${path}`;
+  return `tomb/${readBrowserPhysicalTombData(tomb)}/${path}`;
 }
 function deviceKey(key: string): string {
   if (
@@ -40,13 +37,6 @@ function deviceKey(key: string): string {
   )
     unavailable();
   return key;
-}
-function names(wire: string | null): readonly string[] {
-  if (wire === null) return [];
-  assertUnambiguousJson(wire, 32768);
-  const values = registry.parse(JSON.parse(wire)).tombs;
-  if (new Set(values).size !== values.length) unavailable();
-  return Object.freeze([...values].sort());
 }
 /** Created by each original browser host; every producer shares its private captured native profile. */
 export function createBrowserPhysicalVaultPorts() {
@@ -65,7 +55,7 @@ function authenticationPort(
   return Object.freeze({
     bodyFormat: "flat-v1",
     async capture(tomb, original) {
-      tombName.parse(tomb);
+      readBrowserPhysicalTombData(tomb);
       const source = await capture(original);
       return Object.freeze({
         check: source.check,
@@ -98,7 +88,7 @@ function deviceRecordPort(capture: OriginCapture): PhysicalDeviceRecordPort {
         async captureRetiredCredentialInventory() {
           const inventory = [];
           const wire = await source.read("tombs.v1", 32768);
-          for (const tomb of names(wire)) {
+          for (const tomb of readBrowserPhysicalRegistryData(wire)) {
             const record = await source.readRecord(
               tombKey(tomb, "retired-credentials.v2"),
               32768,
@@ -140,7 +130,7 @@ function cataloguePort(
       const wire = await source.read("tombs.v1", 32768);
       const identity = await source.readOriginalStateIdentity();
       const scopes = Object.freeze(
-        names(wire).map((tomb) =>
+        readBrowserPhysicalRegistryData(wire).map((tomb) =>
           Object.freeze({
             tomb,
             physicalIdentity: `${identity}:${tomb}`,
@@ -188,7 +178,7 @@ function cataloguePort(
 function publicationPort(capture: OriginCapture): PhysicalVaultPublicationPort {
   return Object.freeze({
     async capture(tomb, original) {
-      tombName.parse(tomb);
+      readBrowserPhysicalTombData(tomb);
       const source = await capture(original);
       const read = async () => {
         const header = await source.read(tombKey(tomb, "header"), HEADER_BOUND);
