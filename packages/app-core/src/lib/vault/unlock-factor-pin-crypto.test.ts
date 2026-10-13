@@ -1,4 +1,5 @@
 import {
+  MAX_PBKDF2_ITERATIONS,
   type PinUnlockRecord,
   VaultCorruptError,
   WrongPasswordError,
@@ -21,7 +22,7 @@ it("preserves public wrapper function identity and complete PIN NFKC/KDF semanti
   expect(legacy.wrapVaultKeyWithPin).toBe(factor.wrapVaultKeyWithPin);
   expect(legacy.unwrapVaultKeyWithPin).toBe(factor.unwrapVaultKeyWithPin);
   expect(pinRecord.kdf.alg).toBe("PBKDF2-SHA256");
-  expect(pinRecord.kdf.iterations).toBe(1_200_000);
+  expect(pinRecord.kdf.iterations).toBe(MAX_PBKDF2_ITERATIONS);
   expect(factor.MIN_PIN_LENGTH).toBe(8);
   expect(factor.MAX_PIN_LENGTH).toBe(64);
   const opened = await legacy.unwrapVaultKeyWithPin(
