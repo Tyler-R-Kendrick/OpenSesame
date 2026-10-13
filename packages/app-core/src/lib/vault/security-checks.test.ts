@@ -210,7 +210,7 @@ describe("runSecurityChecks", () => {
     expect(report.findings).toEqual([]);
     expect(range.sent).toEqual([]);
     expect(securityWatchLabel(report)).toBe(
-      "1 login not checkable for breaches (pepper only you hold). No breach lookup ran.",
+      "No breach check ran (1 pepper-only)",
     );
   });
 

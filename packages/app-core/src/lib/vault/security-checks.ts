@@ -70,8 +70,7 @@ export type SecurityReport = {
   findings: SecurityFinding[];
 };
 
-const NOT_CHECKABLE_FOR_BREACHS =
-  "not checkable for breaches (pepper only you hold)";
+const PEPPER_ONLY = "pepper-only";
 
 /** Shown in Settings and on Password health while the capability is on and no check has finished. */
 export const SECURITY_CHECKS_IDLE =
@@ -85,28 +84,25 @@ function noun(count: number, one: string, many: string): string {
 export function securityWatchLabel(report: SecurityReport): string {
   const breached = report.findings.filter((f) => f.breaches > 0).length;
   const twoStep = report.findings.filter((f) => f.twoFactorAvailable).length;
-  const checked = report.checked;
-  const notCheckable = report.notCheckable;
-  const notCheckableSuffix =
-    notCheckable > 0
-      ? ` ${noun(notCheckable, "login", "logins")} ${NOT_CHECKABLE_FOR_BREACHS}.`
-      : "";
+  const { checked, notCheckable } = report;
+  const pepperTail =
+    notCheckable > 0 ? ` (${notCheckable} ${PEPPER_ONLY})` : "";
+  let base: string;
   if (checked === 0) {
-    if (notCheckable > 0) {
-      return `${noun(notCheckable, "login", "logins")} ${NOT_CHECKABLE_FOR_BREACHS}. No breach lookup ran.`;
-    }
-    return "No logins with a password this device can check.";
+    base =
+      notCheckable > 0
+        ? "No breach check ran"
+        : "No logins with a password this device can check.";
+  } else if (breached > 0 && twoStep > 0) {
+    base = `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.`;
+  } else if (breached > 0) {
+    base = `${breached} of ${checked} passwords found in known breaches.`;
+  } else if (twoStep > 0) {
+    base = `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.`;
+  } else {
+    base = `${noun(checked, "login", "logins")} checked; no known breaches or missing authenticator codes.`;
   }
-  if (breached > 0 && twoStep > 0) {
-    return `${breached} of ${checked} passwords found in known breaches. ${noun(twoStep, "login", "logins")} could add an authenticator code.${notCheckableSuffix}`;
-  }
-  if (breached > 0) {
-    return `${breached} of ${checked} passwords found in known breaches.${notCheckableSuffix}`;
-  }
-  if (twoStep > 0) {
-    return `${noun(twoStep, "login", "logins")} of ${checked} could add an authenticator code.${notCheckableSuffix}`;
-  }
-  return `${noun(checked, "login", "logins")} checked. Nothing found in known breaches, and no login is missing an authenticator code its site offers.${notCheckableSuffix}`;
+  return `${base}${pepperTail}`;
 }
 
 /** Visible sentences for one login, breach first, then a missing authenticator code. */
@@ -146,7 +142,6 @@ function checkedWatch(report: SecurityReport): BreachWatch {
     phase: "checked",
     label: securityWatchLabel(report),
     checked: report.checked,
-    notCheckable: report.notCheckable,
     breached,
     twoStep,
     lines: report.findings.map(watchLine),
@@ -334,26 +329,30 @@ function wholePassword(item: AccountItem | CredentialItem): string {
  * kept on their own (ADR 0179): a breached password is as breached for no
  * account at all.
  */
-function passwordLogins(
-  items: readonly VaultItem[],
-): (AccountItem | CredentialItem)[] {
+function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {
   const resolved = resolveAccounts(items);
   const accounts = activeItems([...resolved]).filter(
     (item): item is AccountItem => item.kind === "account",
   );
-  return [...accounts, ...unboundCredentials(resolved)].filter((item) => {
-    if (item.kind === "credential") return item.method.type === "password";
-    return passwordMethod(item) !== undefined;
-  });
+  return [...accounts, ...unboundCredentials(resolved)].filter(
+    (item) => wholePassword(item) !== "",
+  );
 }
 
-function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {
-  return passwordLogins(items).filter((item) => wholePassword(item) !== "");
-}
-
-function countNotCheckable(items: readonly VaultItem[]): number {
-  return passwordLogins(items).filter((item) => wholePassword(item) === "")
-    .length;
+function pepperOnlyLoginCount(items: readonly VaultItem[]): number {
+  const resolved = resolveAccounts(items);
+  const accounts = activeItems([...resolved]).filter(
+    (item): item is AccountItem => item.kind === "account",
+  );
+  let count = 0;
+  for (const item of [...accounts, ...unboundCredentials(resolved)]) {
+    const peppered =
+      item.kind === "credential"
+        ? item.method.type === "password" && wholePassword(item) === ""
+        : passwordMethod(item) !== undefined && wholePassword(item) === "";
+    if (peppered) count += 1;
+  }
+  return count;
 }
 
 /**
@@ -370,6 +369,7 @@ export async function runSecurityChecks(
   watchTomb?: string,
 ): Promise<SecurityReport> {
   const checked = logins(items);
+  const notCheckable = pepperOnlyLoginCount(items);
   const counts = await breachCounts(checked.map(wholePassword), fetchRange);
   const needCodes = checked.some(
     (login) => login.kind === "account" && !accountTotp(login),
@@ -399,7 +399,7 @@ export async function runSecurityChecks(
   return {
     checkedAt: now().toISOString(),
     checked: checked.length,
-    notCheckable: countNotCheckable(items),
+    notCheckable,
     findings,
   };
 }

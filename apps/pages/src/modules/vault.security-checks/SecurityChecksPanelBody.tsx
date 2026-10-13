@@ -80,12 +80,7 @@ export function SecurityChecksPanelBody({
           label="Logins in this vault"
           sub={
             watch.phase === "checked"
-              ? [
-                  plural(watch.checked, "login checked", "logins checked"),
-                  watch.notCheckable > 0
-                    ? ` · ${watch.notCheckable} not checkable`
-                    : "",
-                ].join("")
+              ? plural(watch.checked, "login checked", "logins checked")
               : watch.phase === "checking"
                 ? "Checking"
                 : "Not checked"
