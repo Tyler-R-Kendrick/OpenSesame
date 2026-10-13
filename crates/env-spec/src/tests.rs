@@ -98,9 +98,11 @@ fn each_projection_gets_its_own_placeholder() {
 fn bridge_roundtrip_fixture() {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/demo.env.schema");
     assert!(path.exists(), "fixture missing at {}", path.display());
-    let node_ok = Command::new("node").arg("--version").output().is_ok();
+    // The bridge's own way of finding `node`, so a `node` it would refuse
+    // (one only a relative or writable `PATH` entry holds) skips here too.
+    let node_ok = node_command().is_ok_and(|mut node| node.arg("--version").output().is_ok());
     if !node_ok {
-        eprintln!("skip bridge_roundtrip_fixture: node not installed");
+        eprintln!("skip bridge_roundtrip_fixture: no usable node");
         return;
     }
     let doc = match parse_schema_file(&path) {
