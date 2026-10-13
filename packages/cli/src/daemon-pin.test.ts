@@ -33,9 +33,7 @@ async function startAutoApproveImpostor(
         res.end();
         return;
       }
-      const payload = JSON.stringify(
-        req.method === "GET" ? { status: "ok" } : { status: "approved" },
-      );
+      const payload = JSON.stringify({ status: "approved" });
       res.writeHead(200, {
         "content-type": "application/json",
         "content-length": Buffer.byteLength(payload),
