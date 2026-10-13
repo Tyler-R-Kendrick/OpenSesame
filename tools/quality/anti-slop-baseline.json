@@ -11,15 +11,15 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 168,
-    "violations": 566,
+    "files": 162,
+    "violations": 560,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
       "anti-slop/no-known-value-widening": 202,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 160,
+      "anti-slop/no-runtime-typeof": 154,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 34,
       "anti-slop/no-unknown-returns": 2,
@@ -29,24 +29,6 @@
   },
   "files": {
     "apps/browser-extension/tests/capability-parity.test.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/git-backup/put.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/github-app/convert.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/github-app/installations.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/github-app/lookup.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/github-app/put-contents.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
-    "apps/pages/api/github-app/webhook-pending.mjs": {
       "anti-slop/no-runtime-typeof": 1
     },
     "apps/pages/scripts/build-profile.mjs": {
