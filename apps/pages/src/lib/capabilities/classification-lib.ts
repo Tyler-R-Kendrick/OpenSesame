@@ -237,6 +237,7 @@ export const LIB_RULES = [
   core(`${L}guest-connections`, "vault.local-unlock", "tomb"),
   core(`${L}idp-registry`, "vault.local-unlock", "tomb IdPs"),
   shared(`${L}origin-file-publication-read`, "device-sealed record reads"),
+  shared(`${L}original-origin-storage`, "sealed origin data"),
   shared(
     `${L}activity-log`,
     "append API used by core; the section is activity.log",
