@@ -68,6 +68,7 @@ export function mintCliAppPairingPageBinding(): string {
 }
 
 export {
+  clearCliAppIntegrationBearer,
   readCliAppIntegrationBearer,
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";

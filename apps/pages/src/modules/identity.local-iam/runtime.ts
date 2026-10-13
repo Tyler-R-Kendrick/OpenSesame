@@ -93,6 +93,14 @@ export const capabilityRuntime: CapabilityRuntime = {
     // (ADR 0160): present exactly while this capability is.
     activation.onDispose(registerDeviceRoutes(LOCAL_IAM_DEVICE_ROUTES));
 
+    let stopTray: (() => void) | undefined;
+    void import("./cli-app-pending-tray.js").then((mod) => {
+      if (activation.disposed()) return;
+      stopTray = mod.startCliAppPendingTrayWatch();
+    });
+    activation.onDispose(() => {
+      stopTray?.();
+    });
     activation.onDispose(bindLocalIamLockResets());
     activation.onDispose(contributeIdentityViews(IDENTITY_VIEWS_OWNED));
 
