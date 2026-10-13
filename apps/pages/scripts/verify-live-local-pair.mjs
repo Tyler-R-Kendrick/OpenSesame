@@ -44,15 +44,12 @@ const PHONE = {
   },
 };
 
-/** LNA only — keep WebRtcHideLocalIpsWithMdns at Chromium default. */
+/** Stock Chromium flags only; LNA is granted per-origin like a person would. */
 function launch() {
   return chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
     headless: true,
-    args: [
-      "--allow-loopback-in-peer-connection",
-      "--disable-features=LocalNetworkAccessChecks",
-    ],
+    args: ["--allow-loopback-in-peer-connection"],
   });
 }
 

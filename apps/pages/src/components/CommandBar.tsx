@@ -9,12 +9,11 @@ import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import {
-  COMMAND_LIST_ID,
   CommandSuggestions,
-  commandOptionId,
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
-import { IconArrowRight } from "./Icons.js";
+import { CommandBarForm } from "./command-bar-form.js";
+import { CommandBarNotice } from "./command-bar-notice.js";
 import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
@@ -94,32 +93,7 @@ function useCommandRunner() {
   };
 }
 
-/**
- * The field's hint. A phone's field is 178px wide at 320, so the desktop line
- * is cut mid-word there; its touch twin is the same three verbs, short enough
- * to be read whole (`verify:mobile` measures it at every width).
- */
-export function commandPlaceholder(asks: boolean, touch: boolean): string {
-  if (touch) return asks ? "Command or ask…" : "go · search · copy";
-  return asks
-    ? "Command or ask… copy password for github"
-    : "go to vault · search · copy password for …";
-}
-
-/** The submit key; a search with no words yet has nothing to run. */
-function RunKey({ off }: { off: boolean }) {
-  return (
-    <button
-      type="submit"
-      className="command-bar__go"
-      aria-label="Run command"
-      title="Run"
-      disabled={off}
-    >
-      <IconArrowRight size={16} />
-    </button>
-  );
-}
+export { commandPlaceholder } from "./command-bar-placeholder.js";
 
 /**
  * Shell omnibox. With no model it runs parsed commands: navigate, search,
@@ -163,50 +137,22 @@ export function CommandBar() {
 
   return (
     <search className="command-bar" ref={barRef}>
-      <form className="command-bar__form" onSubmit={onSubmit}>
-        <label className="visually-hidden" htmlFor="command-bar-input">
-          Command
-        </label>
-        <input
-          ref={runner.input}
-          id="command-bar-input"
-          className="command-bar__input"
-          type="text"
-          role="combobox"
-          enterKeyHint="go"
-          autoComplete="off"
-          spellCheck={false}
-          aria-autocomplete="list"
-          aria-expanded={suggestions.open}
-          aria-controls={suggestions.open ? COMMAND_LIST_ID : undefined}
-          aria-activedescendant={
-            suggestions.open ? commandOptionId(suggestions.active) : undefined
-          }
-          placeholder={commandPlaceholder(runner.asks, touch)}
-          value={value}
-          disabled={busy}
-          onFocus={() => suggestions.setFocused(true)}
-          onBlur={() => suggestions.setFocused(false)}
-          onKeyDown={(event) =>
-            search.onEscape(event, suggestions.open) ||
-            suggestions.onKeyDown(event, choose)
-          }
-          onChange={(event) => {
-            suggestions.setDismissed(false);
-            setNotice(null);
-            setValue(event.target.value);
-          }}
-        />
-        {runner.Voice ? (
-          <runner.Voice
-            setValue={setValue}
-            setNotice={setNotice}
-            run={run}
-            busy={busy}
-          />
-        ) : null}
-        <RunKey off={busy || value.trim() === "" || search.empty} />
-      </form>
+      <CommandBarForm
+        inputRef={runner.input}
+        value={value}
+        setValue={setValue}
+        notice={notice}
+        setNotice={setNotice}
+        busy={busy}
+        run={run}
+        asks={runner.asks}
+        touch={touch}
+        search={search}
+        suggestions={suggestions}
+        choose={choose}
+        onSubmit={onSubmit}
+        Voice={runner.Voice}
+      />
       {suggestions.open ? (
         <CommandSuggestions
           suggestions={suggestions.suggestions}
@@ -215,9 +161,11 @@ export function CommandBar() {
           onChoose={choose}
         />
       ) : null}
-      {notice !== null && !suggestions.open ? (
-        <output className="command-bar__status">{notice}</output>
-      ) : null}
+      <CommandBarNotice
+        notice={notice}
+        setNotice={setNotice}
+        open={suggestions.open}
+      />
     </search>
   );
 }
