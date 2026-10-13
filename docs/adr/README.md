@@ -261,4 +261,6 @@ looks arbitrary, the ADR it cites explains it.
 | [0195](0195-vault-ownership-is-transferred-from-the-danger-zone.md) | A vault's owner can hand it to another registered user from the Danger zone | Accepted |
 | [0196](0196-device-authorization-in-live-sessions.md) | Device authorization in live sessions: a terminal uses the connections an open tab holds | Accepted |
 | [0197](0197-browser-dispositions-and-honest-links.md) | A provider with no browser road says why, with evidence, and links what it names | Accepted |
+| [0198](0198-key-driven-providers-share-one-driver-core.md) | Providers that connect with a person's own key share one driver core | Accepted |
+| [0199](0199-connector-bridge-extension.md) | A provider that refuses web pages is reached through an optional bridge extension, host by host | Accepted |
 | [0200](0200-anti-slop-asset-ships-a-manifest-and-a-verifier.md) | The anti-slop installer asset ships a manifest and a verifier | Accepted |

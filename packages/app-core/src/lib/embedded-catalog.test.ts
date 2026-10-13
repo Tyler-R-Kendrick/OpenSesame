@@ -10,7 +10,7 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(130);
+    expect(ids).toHaveLength(133);
     for (const id of [
       "webcrypto",
       "aws-kms",
@@ -42,6 +42,10 @@ describe("embedded connector catalog", () => {
       "better-auth",
       "workos",
       "auth0",
+      // What a browser can be a client of with the person's own key (ADR 0198).
+      "letsencrypt",
+      "aws-sts",
+      "gcp-iam",
     ]) {
       expect(ids).toContain(id);
     }

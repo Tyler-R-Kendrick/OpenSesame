@@ -168,13 +168,26 @@ export function resolveTarget(target, connector) {
         fillParams(value, params),
       ]),
     ),
+    // A Basic pair may name a recovered value too (Plivo's Auth ID is the
+    // username); `{key}` is left for the token itself.
+    basic: target.basic
+      ? {
+          username: fillParams(target.basic.username ?? "", params),
+          password: fillParams(target.basic.password ?? "", params),
+        }
+      : target.basic,
   };
 }
 
 /** True while the target still needs a value only its person knows. */
 function openTemplate(target) {
   return /\{(?!key\})[a-z_]+\}/.test(
-    [target.url, ...Object.values(target.headers ?? {})].join(" "),
+    [
+      target.url,
+      ...Object.values(target.headers ?? {}),
+      target.basic?.username ?? "",
+      target.basic?.password ?? "",
+    ].join(" "),
   );
 }
 

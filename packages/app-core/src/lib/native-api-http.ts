@@ -11,6 +11,7 @@ export class NativeApiError extends Error {
       | "rate-limit"
       | "response"
       | "deployment"
+      | "bridge"
       | "network",
     readonly status = 0,
   ) {
@@ -22,6 +23,8 @@ export class NativeApiError extends Error {
         "rate-limit": "Provider rate limit reached; try again later",
         response: "Provider did not return the expected response",
         deployment: "This deployment does not permit this provider endpoint",
+        bridge:
+          "The connector bridge could not make this request; open it, switch it on for this site and allow this provider's host",
         network:
           "Could not reach the provider from this browser; check its CORS policy and your connection",
       }[code],

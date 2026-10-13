@@ -208,6 +208,31 @@ importers:
         specifier: 0.20.6
         version: 0.20.6(@types/node@25.9.8)(jiti@2.7.0)(rollup@4.64.5)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4)
 
+  apps/browser-extension-bridge:
+    dependencies:
+      '@opensesame/connector-bridge':
+        specifier: workspace:*
+        version: link:../../packages/connector-bridge
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../../packages/os-domain
+    devDependencies:
+      '@playwright/test':
+        specifier: 1.55.1
+        version: 1.55.1
+      jsdom:
+        specifier: 26.1.0
+        version: 26.1.0
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@25.9.8)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@25.9.8)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))
+      wxt:
+        specifier: 0.20.6
+        version: 0.20.6(@types/node@25.9.8)(jiti@2.7.0)(rollup@4.64.5)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4)
+
   apps/pages:
     dependencies:
       '@azure/msal-browser':
@@ -295,6 +320,9 @@ importers:
         specifier: 4.0.0
         version: 4.0.0
     devDependencies:
+      '@opensesame/connector-bridge':
+        specifier: workspace:*
+        version: link:../../packages/connector-bridge
       '@storybook/addon-a11y':
         specifier: 10.6.1
         version: 10.6.1(storybook@10.6.1(@types/react@19.2.7)(react@19.2.8))
@@ -700,6 +728,9 @@ importers:
       '@opensesame/ceremony-kit':
         specifier: workspace:*
         version: link:../ceremony-kit
+      '@opensesame/connector-bridge':
+        specifier: workspace:*
+        version: link:../connector-bridge
       '@opensesame/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1009,6 +1040,22 @@ importers:
       '@opensesame/testing':
         specifier: workspace:*
         version: link:../testing
+      '@types/node':
+        specifier: 22.15.29
+        version: 22.15.29
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))
+
+  packages/connector-bridge:
+    dependencies:
+      '@opensesame/os-domain':
+        specifier: workspace:*
+        version: link:../os-domain
+    devDependencies:
       '@types/node':
         specifier: 22.15.29
         version: 22.15.29
@@ -8372,7 +8419,6 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
-    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -12426,7 +12472,7 @@ snapshots:
       '@better-fetch/fetch': 1.3.1
       '@opentelemetry/semantic-conventions': 1.43.0
       '@standard-schema/spec': 1.1.0
-      better-call: 1.3.7(zod@4.4.3)
+      better-call: 1.3.7(zod@3.25.67)
       jose: 6.2.8
       kysely: 0.29.6
       nanostores: 1.5.4
@@ -15075,9 +15121,9 @@ snapshots:
       obug: 2.2.1
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@25.9.8)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@25.9.8)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))
+      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))
     optionalDependencies:
-      '@vitest/browser': 4.1.11(vite@6.4.3(@types/node@25.9.8)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))(vitest@4.1.11)
+      '@vitest/browser': 4.1.11(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))(vitest@4.1.11)
 
   '@vitest/expect@3.2.4':
     dependencies:
@@ -15497,7 +15543,7 @@ snapshots:
       '@better-fetch/fetch': 1.3.1
       '@noble/ciphers': 2.4.0
       '@noble/hashes': 2.4.0
-      better-call: 1.3.7(zod@4.4.3)
+      better-call: 1.3.7(zod@3.25.67)
       defu: 6.1.7
       jose: 6.2.8
       kysely: 0.29.6
@@ -15515,14 +15561,14 @@ snapshots:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
 
-  better-call@1.3.7(zod@4.4.3):
+  better-call@1.3.7(zod@3.25.67):
     dependencies:
       '@better-auth/utils': 0.4.2
       '@better-fetch/fetch': 1.3.1
       rou3: 0.7.12
       set-cookie-parser: 3.1.2
     optionalDependencies:
-      zod: 4.4.3
+      zod: 3.25.67
 
   big-integer@1.6.52:
     optional: true
@@ -15597,7 +15643,7 @@ snapshots:
 
   broker-factory@3.1.15:
     dependencies:
-      '@babel/runtime': 7.29.7
+      '@babel/runtime': 7.29.10
       fast-unique-numbers: 9.0.27
       tslib: 2.8.1
       worker-factory: 7.0.50
@@ -16584,7 +16630,7 @@ snapshots:
 
   fast-unique-numbers@9.0.27:
     dependencies:
-      '@babel/runtime': 7.29.7
+      '@babel/runtime': 7.29.10
       tslib: 2.8.1
 
   fast-uri@3.1.8: {}
@@ -17110,7 +17156,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
+      retry-axios: 2.6.0(axios@1.20.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -19136,7 +19182,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
+  retry-axios@2.6.0(axios@1.20.0):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
     optional: true
@@ -20719,7 +20765,7 @@ snapshots:
 
   worker-factory@7.0.50:
     dependencies:
-      '@babel/runtime': 7.29.7
+      '@babel/runtime': 7.29.10
       fast-unique-numbers: 9.0.27
       tslib: 2.8.1
 

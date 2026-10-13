@@ -75,6 +75,20 @@ export const WALLET_ISSUER_PROVIDER_IDS = [
 export const STORAGE_PROVIDER_IDS = ["s3"] as const;
 
 /**
+ * Certificate authorities a browser can be an ACME client of (catalog category
+ * `certificates`, ADR 0198): the account key is made here and the order is
+ * opened and finished from the connection's page.
+ */
+export const CERTIFICATE_PROVIDER_IDS = ["letsencrypt"] as const;
+
+/**
+ * Cloud credential services a browser reaches with the person's own key (catalog
+ * category `cloud_secret_storage`, ADR 0198): what a key is, and what it may
+ * assume, rather than a store of secrets.
+ */
+export const CLOUD_CREDENTIAL_PROVIDER_IDS = ["aws-sts", "gcp-iam"] as const;
+
+/**
  * Field sets this app collects that differ from the catalog row's. Each is a
  * known divergence from the one definition: `connector-catalog.test.ts` pins
  * the ids, so the list can shrink but never grow.

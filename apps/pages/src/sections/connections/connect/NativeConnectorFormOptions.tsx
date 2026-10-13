@@ -2,7 +2,11 @@ import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connec
 import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { ConnectorIconField } from "./ConnectorIconField.js";
-import { nativeVerified } from "./native-connector-ui-values.js";
+import { OutLink } from "./fields.js";
+import {
+  nativePublicUrl,
+  nativeVerified,
+} from "./native-connector-ui-values.js";
 import type {
   NativeConnectorDescriptor,
   NativeMethodDescriptor,
@@ -74,10 +78,24 @@ export function NativeMethodPicker({
             {choices.length ? "Other sign-in methods" : "Why not"}
           </summary>
           {unavailable.map((choice) => (
-            <p className="hint" key={choice.id}>
-              {choice.label}:{" "}
-              {choice.unavailableReason ?? "Unavailable on this device."}
-            </p>
+            <div key={choice.id}>
+              <p className="hint">
+                {choice.label}:{" "}
+                {choice.unavailableReason ?? "Unavailable on this device."}
+              </p>
+              {choice.links?.length ? (
+                <div className="cx-links">
+                  {choice.links.map((link) => {
+                    const url = nativePublicUrl(link.url);
+                    return url ? (
+                      <OutLink key={link.url} href={url}>
+                        {link.label}
+                      </OutLink>
+                    ) : null;
+                  })}
+                </div>
+              ) : null}
+            </div>
           ))}
         </details>
       ) : null}
