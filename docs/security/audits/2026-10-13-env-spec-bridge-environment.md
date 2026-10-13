@@ -22,11 +22,11 @@ and nothing it starts should hold them either.
 | High | The bridge ran as a bare `Command::new("node")` with the whole inherited environment. The passphrase was stripped only for the final child, so the bridge and everything Node starts (`NODE_PATH`, loader variables, `npm_config_*`) received it, with every other `OPENSESAME_*` variable, tokens and proxy URLs with credentials. `node` was resolved through the inherited `PATH`, where an empty or relative entry means the working directory: a `node` planted in the directory the command ran in, or behind a trailing `:`, ran with all of it. The review demonstrated this with a stub that wrote its environment to a file. | `node_command` is the one way the crate starts Node. It searches only `PATH` entries that are absolute, exist, are directories, are owned by root or the effective user, cannot be written by others, and, when group-writable, belong to root's group (gid 0) or one of the caller's own (`getegid`, `getgroups`). Windows: absolute, existing, not the current directory. It starts the `node` it finds by absolute path, and requires that file to be owned by root or the caller and not world-writable. It builds the environment instead of inheriting it: `PATH` (those entries), `HOME`, `TMPDIR`, `LANG`, the `LC_*` variables and, on Windows, `SystemRoot`, `PATHEXT`, `COMSPEC`. With no such `node` the run stops with `no usable node` and names every entry or file it skipped with the exact reason (`writable by others`, `group-writable by group 1234 which is not one of yours`, `owned by uid 1001`); the inherited `PATH` is never a fallback. |
 
 The trust rule first skipped every directory that group or others could write.
-That refused real layouts (a hosted CI image keeps `node` in group-writable
-`/usr/local/bin`; `nvm`, `volta` and Homebrew create `user:user 0775` trees under
-`umask 002`) and broke `dev run` there. The rule above takes those layouts and
-still refuses what a planted `node` needs: a directory another user owns, anyone
-can write, or a group the caller is not in can write.
+That refused real layouts: `nvm`, `volta` and Homebrew create `user:user 0775`
+trees under `umask 002`, and some systems keep root-owned `0775` directories. The
+rule above takes those and still refuses what a planted `node` needs: a directory
+another user owns, anyone can write, or a group the caller is not in can write.
+It does not take a world-writable directory; see Not fixed.
 
 ## Tests
 
