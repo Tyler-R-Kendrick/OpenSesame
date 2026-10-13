@@ -1,12 +1,25 @@
 /** Real popup consent: the originating sealed vault never navigates or unlocks. */
 import { expect } from "@playwright/test";
 
+const CONSENT_POPUP_TIMEOUT_MS = 60_000;
+
 export async function beginLinearConsent(harness, page, label, action) {
   const original = page.url();
-  const opened = page.context().waitForEvent("page");
-  await page.getByRole("button", { name: action, exact: true }).click();
-  const popup = await opened;
-  await popup.waitForURL("https://linear.app/oauth/authorize?**");
+  const button = page.getByRole("button", { name: action, exact: true });
+  // Bind the popup to this click — context-wide "page" events can catch a stray tab.
+  const [popup] = await Promise.all([
+    page.waitForEvent("popup", { timeout: CONSENT_POPUP_TIMEOUT_MS }),
+    button.click(),
+  ]);
+  if (popup.isClosed()) {
+    throw new Error(
+      `${label}: consent popup closed before Linear authorize URL`,
+    );
+  }
+  await popup.waitForURL("https://linear.app/oauth/authorize?**", {
+    timeout: CONSENT_POPUP_TIMEOUT_MS,
+    waitUntil: "domcontentloaded",
+  });
   await popup
     .getByText("Test-only OAuth consent transport.", { exact: true })
     .waitFor();
@@ -36,7 +49,9 @@ export async function finishLinearConsent(
   respond,
 ) {
   const original = page.url();
-  const closed = popup.waitForEvent("close");
+  const closed = popup.waitForEvent("close", {
+    timeout: CONSENT_POPUP_TIMEOUT_MS,
+  });
   await respond(popup);
   await closed;
   await expect(

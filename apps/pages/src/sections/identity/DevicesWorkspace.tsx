@@ -138,6 +138,12 @@ function deviceWorkspaceRows(
       extension: "",
       to: `${listPath}#approve-device`,
     });
+  rows.push({
+    id: "cli-terminal",
+    label: "Terminal CLI",
+    extension: "",
+    to: "/identity/authorize?cli=1",
+  });
   return rows;
 }
 function DeviceDetail({
