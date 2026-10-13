@@ -23,7 +23,7 @@ export async function envWithFakeCliAppIntegrationDaemon(
   return { env, close: fakeDaemon.close };
 }
 
-const DAEMON_PIN_PROBE_SESSION = "opensesame-cli-daemon-pin-probe";
+const pinProbeVerb = cliAppIntegrationPolicy.daemonPinProbeVerb;
 
 export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFakeDaemon> {
   return new Promise((resolve, reject) => {
@@ -46,9 +46,9 @@ export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFak
           let status = "approved";
           try {
             const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
-              terminalSessionId?: string;
+              verb?: string;
             };
-            if (body.terminalSessionId === DAEMON_PIN_PROBE_SESSION) {
+            if (body.verb === pinProbeVerb) {
               status = "pending";
             }
           } catch {
