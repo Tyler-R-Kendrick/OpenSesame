@@ -1,14 +1,10 @@
-import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
-import { type FormEvent, useCallback, useState } from "react";
+import {
+  completeCliAppPairing,
+  parseCliAppPairingCode,
+} from "@opensesame/app-core/lib/cli-app-integration/pairing.js";
+import { type FormEvent, useState } from "react";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import {
-  pairCliWithDaemon,
-  parseCliPairingCode,
-} from "./cli-authorize-pairing-wire.js";
-
-const fieldId = "cli-authorize-pairing-code";
-const PAIR = "Pair with the daemon";
 
 export function CliAuthorizePairingForm({
   onPaired,
@@ -18,41 +14,35 @@ export function CliAuthorizePairingForm({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [mark, setMark] = useState<string | null>(null);
-  const paired = readCliAppIntegrationBearer() !== null;
-  const refresh = useCallback(() => onPaired(), [onPaired]);
 
   async function onPair(event: FormEvent) {
     event.preventDefault();
     const raw = code.trim();
     if (!raw || busy) return;
-    const parsed = parseCliPairingCode(raw);
+    const parsed = parseCliAppPairingCode(raw);
     if (!parsed) {
-      setMark("Not a CLI pairing code.");
+      setMark("Not a pairing code.");
       return;
     }
     setBusy(true);
     setMark(null);
-    const ok = await pairCliWithDaemon(parsed);
+    const ok = await completeCliAppPairing(parsed);
     setBusy(false);
     if (!ok) {
-      setMark("The daemon would not take that code.");
+      setMark("The daemon refused that code.");
       return;
     }
     setCode("");
-    refresh();
-  }
-
-  if (paired) {
-    return <StatusMark tone="ok" label="Paired for CLI on this browser." />;
+    onPaired();
   }
 
   return (
     <>
       <form className="plugin-tile__pair" onSubmit={onPair}>
-        <label htmlFor={fieldId}>Pairing code</label>
+        <label htmlFor="cli-authorize-pairing-code">Pairing code</label>
         <div className="field-inline">
           <input
-            id={fieldId}
+            id="cli-authorize-pairing-code"
             type="text"
             value={code}
             placeholder="opensesame-cli-app:v1:…"
@@ -62,13 +52,13 @@ export function CliAuthorizePairingForm({
             readOnly={busy}
             onChange={(event) => setCode(event.target.value)}
           />
-          {code.trim().length > 0 ? (
+          {code.trim() ? (
             <button
               type="submit"
               className="icon-btn"
               aria-busy={busy || undefined}
-              aria-label={PAIR}
-              title={PAIR}
+              aria-label="Pair with the daemon"
+              title="Pair with the daemon"
             >
               <IconConnection size={16} />
             </button>

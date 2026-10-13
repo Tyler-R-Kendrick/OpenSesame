@@ -75,15 +75,6 @@ const KEY_PREFIXES = [
   "opensesame:ambient-auth:",
 ] as const;
 
-/**
- * Session-held Bearer [REDACTED] the daemon CLI app-integration flow reads
- * (`cli-app-integration/bearer-session.ts`, ADR 0186). Declared here with every
- * other Web Storage key so the ownership rule stays single-sourced; the bearer
- * module imports it rather than the reverse, keeping the core acyclic.
- */
-export const CLI_APP_INTEGRATION_BEARER_KEY =
-  "opensesame-cli-app-integration-bearer";
-
 /** Keys owned whole. */
 const KEYS: ReadonlySet<string> = new Set([
   // The legacy org profile, migrated into the tomb on unlock (`orgs.ts`).
@@ -92,7 +83,6 @@ const KEYS: ReadonlySet<string> = new Set([
   "join.presented.v1",
   "join.pending.v2",
   "join.invite.v1",
-  CLI_APP_INTEGRATION_BEARER_KEY,
 ]);
 
 export function ownsOriginFile(name: string): boolean {

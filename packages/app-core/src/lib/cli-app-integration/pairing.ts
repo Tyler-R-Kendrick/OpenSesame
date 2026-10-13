@@ -3,31 +3,14 @@
  */
 
 import { b64urlToBytes } from "@opensesame/vault-core";
+import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
-import { cliAppDaemonPaths } from "./daemon-paths.js";
-
-/** 32 random bytes, unpadded base64url: the code and the key alike. */
-const PAIRING_SECRET = /^[A-Za-z0-9_-]{43}$/;
-
-/** Exactly what a browser sends: `https://host[:port]` or `http://localhost:port`. */
-function isPairableOrigin(origin: string): boolean {
-  let url: URL;
-  try {
-    url = new URL(origin);
-  } catch {
-    return false;
-  }
-  if (url.origin !== origin || url.username || url.password) return false;
-  if (url.protocol === "https:") return !url.hostname.endsWith(".");
-  return (
-    url.protocol === "http:" && url.hostname === "localhost" && url.port !== ""
-  );
-}
 
 export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
-export const CLI_APP_PAIRING_EXCHANGE_PATH = cliAppDaemonPaths.pairingExchange;
-export const CLI_APP_PAIRING_CONFIRM_PATH = cliAppDaemonPaths.pairingConfirm;
+export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
+export const CLI_APP_PAIRING_CONFIRM_PATH =
+  "/v1/cli/app-integration/pairing/confirm";
 
 export type CliAppPairingCode = Readonly<{
   url: string;
@@ -61,7 +44,7 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
   const label = wire.label;
   if (
     typeof code !== "string" ||
-    !PAIRING_SECRET.test(code) ||
+    !SECRET.test(code) ||
     typeof origin !== "string" ||
     !isPairableOrigin(origin) ||
     typeof url !== "string" ||
@@ -85,7 +68,6 @@ export function mintCliAppPairingPageBinding(): string {
 }
 
 export {
-  clearCliAppIntegrationBearer,
   readCliAppIntegrationBearer,
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
@@ -112,7 +94,7 @@ export async function confirmCliAppPairingCode(
   pageBinding: string,
 ): Promise<boolean> {
   const base = daemonBase(parsed.url);
-  if (!base || !PAIRING_SECRET.test(pageBinding)) return false;
+  if (!base || !SECRET.test(pageBinding)) return false;
   const res = await postPairing(
     base,
     CLI_APP_PAIRING_CONFIRM_PATH,
@@ -130,7 +112,7 @@ export async function exchangeCliAppPairingCode(
   pageBinding: string,
 ): Promise<boolean> {
   const base = daemonBase(parsed.url);
-  if (!base || !PAIRING_SECRET.test(pageBinding)) return false;
+  if (!base || !SECRET.test(pageBinding)) return false;
   const res = await postPairing(
     base,
     CLI_APP_PAIRING_EXCHANGE_PATH,
@@ -141,10 +123,10 @@ export async function exchangeCliAppPairingCode(
     },
   );
   if (res.status !== 201) return false;
-  const body = await res.json();
+  const body: unknown = await res.json();
   if (!body || typeof body !== "object") return false;
-  const token = Reflect.get(body, "token");
-  if (typeof token !== "string" || !PAIRING_SECRET.test(token)) return false;
+  const token = (body as { token?: string }).token;
+  if (typeof token !== "string" || !SECRET.test(token)) return false;
   writeCliAppIntegrationBearer(token);
   return true;
 }
