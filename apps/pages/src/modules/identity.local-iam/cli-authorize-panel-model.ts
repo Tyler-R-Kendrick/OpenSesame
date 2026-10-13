@@ -66,10 +66,7 @@ export function useCliAuthorizePanel() {
       } catch (error) {
         if (cancelled) return;
         setRow(null);
-        if (
-          error instanceof DOMException &&
-          error.name === "SecurityError"
-        ) {
+        if (error instanceof DOMException && error.name === "SecurityError") {
           setHint("local-network-blocked");
         } else {
           setHint("daemon-unreachable");
