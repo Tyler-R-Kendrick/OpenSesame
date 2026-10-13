@@ -1,5 +1,5 @@
 use super::*;
-use crate::human_proof::{mint_test_human_proof, TEST_PAIRING_SECRET};
+use crate::test_support::{mint_test_human_proof, test_paired_binding};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -33,21 +33,12 @@ fn tcp_transport_consumes_approval_once() {
         let row = store.pending.get(&request_id).expect("pending row");
         (row.respond_nonce.clone(), row.verb.clone())
     };
-    let proof = mint_test_human_proof(
-        TEST_PAIRING_SECRET,
-        &request_id,
-        id,
-        &respond_nonce,
-        &verb,
-    );
+    let proof = mint_test_human_proof(&request_id, id, &respond_nonce, &verb);
+    let binding = test_paired_binding();
     assert_eq!(
-        store.approve(
-            &request_id,
-            id,
-            &respond_nonce,
-            &proof,
-            TEST_PAIRING_SECRET,
-        ),
+        store
+            .approve(&request_id, id, &respond_nonce, &proof, &binding)
+            .0,
         "approved"
     );
     let (status, _) = store.ensure(id, "read", None, false);
@@ -71,20 +62,22 @@ fn conformance_session_cases() {
                 (row.respond_nonce.clone(), row.verb.clone())
             };
             let proof = mint_test_human_proof(
-                TEST_PAIRING_SECRET,
                 &request_id,
                 &case.terminal_session_id,
                 &respond_nonce,
                 &verb,
             );
+            let binding = test_paired_binding();
             assert_eq!(
-                store.approve(
-                    &request_id,
-                    &case.terminal_session_id,
-                    &respond_nonce,
-                    &proof,
-                    TEST_PAIRING_SECRET,
-                ),
+                store
+                    .approve(
+                        &request_id,
+                        &case.terminal_session_id,
+                        &respond_nonce,
+                        &proof,
+                        &binding,
+                    )
+                    .0,
                 "approved"
             );
             if let Some(seconds) = case.idle_past_seconds {

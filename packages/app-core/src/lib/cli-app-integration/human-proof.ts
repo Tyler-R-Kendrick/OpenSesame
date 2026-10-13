@@ -1,72 +1,23 @@
 /**
- * PIN / passkey proof for CLI app-integration approve (ADR 0186).
- * HMAC-SHA256 over the pending row, keyed by the paired bearer (per-pairing secret).
+ * PIN / passkey proof for CLI app-integration approve (ADR 0186, D6 redesign).
  */
 
 import { readCliAppIntegrationBearer } from "./bearer-session.js";
+import { approvalChallengeDigest } from "./device-crypto.js";
+import { ensureCliAppDeviceSigningKey } from "./device-signing-key.js";
+import {
+  CLI_APP_HUMAN_PROOF_PREFIX,
+  type CliAppHumanProofBinding,
+  formatCliAppHumanProofPasskey,
+  formatCliAppHumanProofPin,
+  isCliAppHumanProofValid,
+} from "./human-proof-crypto.js";
 
-export const CLI_APP_HUMAN_PROOF_PREFIX = "oschip1:";
-
-export type CliAppHumanProofBinding = Readonly<{
-  requestId: string;
-  respondNonce: string;
-  terminalSessionId: string;
-  verb: string;
-}>;
-
-function bytesToHex(bytes: Uint8Array): string {
-  let hex = "";
-  for (const byte of bytes) {
-    hex += byte.toString(16).padStart(2, "0");
-  }
-  return hex;
-}
-
-function humanProofMessage(binding: CliAppHumanProofBinding): string {
-  return [
-    binding.requestId,
-    binding.terminalSessionId,
-    binding.respondNonce,
-    binding.verb,
-  ].join("\0");
-}
-
-async function hmacSha256Hex(key: string, message: string): Promise<string> {
-  const keyBytes = new TextEncoder().encode(key);
-  const cryptoKey = await crypto.subtle.importKey(
-    "raw",
-    keyBytes,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const sig = await crypto.subtle.sign(
-    "HMAC",
-    cryptoKey,
-    new TextEncoder().encode(message),
-  );
-  return bytesToHex(new Uint8Array(sig));
-}
-
-async function proofMac(
-  pairingSecret: string,
-  binding: CliAppHumanProofBinding,
-): Promise<string> {
-  return hmacSha256Hex(pairingSecret, humanProofMessage(binding));
-}
-
-export function formatCliAppHumanProof(
-  kind: "pin" | "passkey",
-  mac: string,
-): string {
-  return `${CLI_APP_HUMAN_PROOF_PREFIX}${kind}:${mac}`;
-}
-
-const PROOF_RE = /^oschip1:(pin|passkey):([0-9a-f]{64})$/;
-
-export function isCliAppHumanProofValid(proof: string): boolean {
-  return PROOF_RE.test(proof.trim());
-}
+export {
+  CLI_APP_HUMAN_PROOF_PREFIX,
+  type CliAppHumanProofBinding,
+  isCliAppHumanProofValid,
+};
 
 function requirePairingSecret(): string {
   const secret = readCliAppIntegrationBearer();
@@ -85,9 +36,17 @@ export async function mintCliAppHumanProofFromPin(
   const { unwrapPin } = await import("../vault/primary-unwrap.js");
   const raw = await unwrapPin(header, pin, recordFailedUnlock);
   raw.fill(0);
-  const pairingSecret = requirePairingSecret();
-  const mac = await proofMac(pairingSecret, binding);
-  return formatCliAppHumanProof("pin", mac);
+  requirePairingSecret();
+  const device = await ensureCliAppDeviceSigningKey();
+  if (!device) throw new Error("vault_locked");
+  const challenge = approvalChallengeDigest(
+    binding.requestId,
+    binding.terminalSessionId,
+    binding.respondNonce,
+    binding.verb,
+  );
+  const sig = await device.sign(challenge);
+  return formatCliAppHumanProofPin(sig);
 }
 
 export async function mintCliAppHumanProofFromPasskey(
@@ -98,17 +57,61 @@ export async function mintCliAppHumanProofFromPasskey(
   if (fingerprint.byteLength === 0) {
     throw new Error("passkey_probe_empty");
   }
-  const pairingSecret = requirePairingSecret();
-  const mac = await proofMac(pairingSecret, binding);
-  return formatCliAppHumanProof("passkey", mac);
-}
-
-/** Test helper: mint without vault unlock (vectors / unit tests). */
-export async function mintCliAppHumanProofForTest(
-  pairingSecret: string,
-  binding: CliAppHumanProofBinding,
-  kind: "pin" | "passkey" = "passkey",
-): Promise<string> {
-  const mac = await proofMac(pairingSecret, binding);
-  return formatCliAppHumanProof(kind, mac);
+  requirePairingSecret();
+  const challenge = approvalChallengeDigest(
+    binding.requestId,
+    binding.terminalSessionId,
+    binding.respondNonce,
+    binding.verb,
+  );
+  let binary = "";
+  for (const byte of challenge) {
+    binary += String.fromCharCode(byte);
+  }
+  const challengeB64 = btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/, "");
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: Uint8Array.from(challenge),
+      timeout: 60_000,
+      userVerification: "required",
+    },
+  });
+  if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+    throw new Error("passkey_assertion_cancelled");
+  }
+  const response = assertion.response;
+  if (!(response instanceof AuthenticatorAssertionResponse)) {
+    throw new Error("passkey_assertion_invalid");
+  }
+  const wire = JSON.stringify({
+    credentialIdB64: btoa(
+      String.fromCharCode(...new Uint8Array(assertion.rawId)),
+    )
+      .replaceAll("+", "-")
+      .replaceAll("/", "_")
+      .replace(/=+$/, ""),
+    authenticatorDataB64: btoa(
+      String.fromCharCode(...new Uint8Array(response.authenticatorData)),
+    )
+      .replaceAll("+", "-")
+      .replaceAll("/", "_")
+      .replace(/=+$/, ""),
+    clientDataJsonB64: btoa(
+      String.fromCharCode(...new Uint8Array(response.clientDataJSON)),
+    )
+      .replaceAll("+", "-")
+      .replaceAll("/", "_")
+      .replace(/=+$/, ""),
+    signatureB64: btoa(
+      String.fromCharCode(...new Uint8Array(response.signature)),
+    )
+      .replaceAll("+", "-")
+      .replaceAll("/", "_")
+      .replace(/=+$/, ""),
+    challengeB64,
+  });
+  return formatCliAppHumanProofPasskey(wire);
 }

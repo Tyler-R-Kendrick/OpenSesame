@@ -14,8 +14,9 @@ test-seams = []
 
 [dependencies]
 base64 = { workspace = true }
+ecdsa = { version = "0.16", default-features = false, features = ["signing", "verifying"] }
 hex = { workspace = true }
-hmac = { workspace = true }
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "pkcs8", "alloc", "arithmetic", "pem"] }
 rand_core = { version = "0.6", features = ["getrandom"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

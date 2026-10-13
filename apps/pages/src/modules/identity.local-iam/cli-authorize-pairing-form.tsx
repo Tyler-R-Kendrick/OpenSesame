@@ -1,7 +1,4 @@
-import {
-  completeCliAppPairing,
-  parseCliAppPairingCode,
-} from "@opensesame/app-core/lib/cli-app-integration/pairing.js";
+import { parseCliAppPairingCode } from "@opensesame/app-core/lib/cli-app-integration/pairing-code.js";
 import { type FormEvent, useState } from "react";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -26,12 +23,18 @@ export function CliAuthorizePairingForm({
     }
     setBusy(true);
     setMark(null);
-    const ok = await completeCliAppPairing(parsed);
+    const { completeCliAppPairing } = await import(
+      "@opensesame/app-core/lib/cli-app-integration/pairing.js"
+    );
+    const outcome = await completeCliAppPairing(parsed);
     setBusy(false);
-    if (!ok) {
+    if (!outcome) {
       setMark("The daemon refused that code.");
       return;
     }
+    setMark(
+      `Type ${outcome.registrationCode} into the terminal, then exchange the pairing code there.`,
+    );
     setCode("");
     onPaired();
   }

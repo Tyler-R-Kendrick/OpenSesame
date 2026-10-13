@@ -1,12 +1,11 @@
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
-use opensesame_cli_app_integration::{
-    format_pairing_code, is_pairable_origin, PairingError,
-};
+use base64::Engine as _;
+use opensesame_cli_app_integration::{format_pairing_code, is_pairable_origin, PairingError};
 use serde::Deserialize;
 use serde_json::json;
 use sha2::Digest;
@@ -19,14 +18,29 @@ use super::auth::{bearer, origin_of, pairing_error};
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PairingExchange {
     code: String,
-    page_binding: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PairingConfirm {
     code: String,
-    page_binding: String,
+    device_public_key_spki_b64: String,
+    pairing_signature_b64: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PairingRegistrationArm {
+    origin: String,
+    registration_code: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PairingWebAuthnRegister {
+    credential_id_b64: String,
+    public_key_spki_b64: String,
+    sign_count: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -35,6 +49,39 @@ pub(crate) struct PairingIssueReq {
     origin: String,
     url: Option<String>,
     label: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct PairingChallengeQuery {
+    code: String,
+}
+
+pub(crate) async fn pairing_challenge(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Query(query): Query<PairingChallengeQuery>,
+) -> Response {
+    let Some(origin) = origin_of(&headers).filter(|o| is_pairable_origin(o)) else {
+        return pairing_error(StatusCode::FORBIDDEN, "origin_required");
+    };
+    let now = chrono::Utc::now().timestamp() as u64;
+    let host = match st.cli_app_integration.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let challenge = host
+        .pairings
+        .pairing_challenge_for_confirm(&query.code, origin, now);
+    match challenge {
+        Some(bytes) => (
+            StatusCode::OK,
+            Json(json!({
+                "challengeB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes),
+            })),
+        )
+            .into_response(),
+        None => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+    }
 }
 
 pub(crate) async fn pairing_confirm(
@@ -50,18 +97,27 @@ pub(crate) async fn pairing_confirm(
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    match host
-        .pairings
-        .confirm(&body.code, origin, &body.page_binding, now)
-    {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
-        Err(PairingError::WrongOrigin) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
+    match host.pairings.confirm(
+        &body.code,
+        origin,
+        &body.device_public_key_spki_b64,
+        &body.pairing_signature_b64,
+        now,
+    ) {
+        Ok(outcome) => (
+            StatusCode::OK,
+            Json(json!({ "registrationCode": outcome.registration_code })),
+        )
+            .into_response(),
+        Err(PairingError::WrongOrigin) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+        Err(PairingError::InvalidProof) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
         Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
         }
         Err(PairingError::Full | PairingError::NotConfirmed) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+        Err(PairingError::RegistrationRequired | PairingError::RegistrationMismatch) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
         }
     }
@@ -80,10 +136,7 @@ pub(crate) async fn pairing_exchange(
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    match host
-        .pairings
-        .exchange(&body.code, origin, &body.page_binding, now)
-    {
+    match host.pairings.exchange(&body.code, origin, now) {
         Ok(issued) => (
             StatusCode::CREATED,
             Json(json!({
@@ -93,16 +146,78 @@ pub(crate) async fn pairing_exchange(
             })),
         )
             .into_response(),
-        Err(PairingError::WrongOrigin) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
+        Err(PairingError::WrongOrigin) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
         Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
         }
         Err(PairingError::NotConfirmed) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_confirm_required")
         }
+        Err(PairingError::RegistrationRequired) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_registration_required")
+        }
+        Err(PairingError::RegistrationMismatch) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+        Err(PairingError::InvalidProof) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
         Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
+    }
+}
+
+pub(crate) async fn pairing_register_webauthn(
+    State(st): State<App>,
+    headers: HeaderMap,
+    Json(body): Json<PairingWebAuthnRegister>,
+) -> Response {
+    let (Some(origin), Some(token)) = (origin_of(&headers), bearer(&headers)) else {
+        return pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required");
+    };
+    let mut host = match st.cli_app_integration.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    match host.pairings.register_webauthn(
+        token,
+        origin,
+        &body.credential_id_b64,
+        &body.public_key_spki_b64,
+        body.sign_count,
+    ) {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::Unknown) => {
+            pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required")
+        }
+        Err(_) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
+    }
+}
+
+pub(crate) async fn pairing_arm_registration(
+    State(st): State<App>,
+    headers: HeaderMap,
+    uds: UdsPeer,
+    Json(body): Json<PairingRegistrationArm>,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
+        return resp;
+    }
+    if !is_pairable_origin(&body.origin) {
+        return pairing_error(StatusCode::BAD_REQUEST, "invalid_origin");
+    }
+    let now = chrono::Utc::now().timestamp() as u64;
+    let mut host = match st.cli_app_integration.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    match host
+        .pairings
+        .arm_registration(&body.origin, &body.registration_code, now)
+    {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::RegistrationMismatch) => {
+            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
+        }
+        Err(PairingError::Unknown) => pairing_error(StatusCode::NOT_FOUND, "pairing_refused"),
+        Err(_) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
     }
 }
 
@@ -145,10 +260,7 @@ pub(crate) async fn pairing_issue_operator(
     };
     match host.pairings.issue(&body.origin, now) {
         Ok((code, expires_at)) => {
-            let url = body
-                .url
-                .as_deref()
-                .unwrap_or("http://127.0.0.1:18790");
+            let url = body.url.as_deref().unwrap_or("http://127.0.0.1:18790");
             let label = body.label.as_deref().unwrap_or("CLI");
             Json(json!({
                 "pairingCode": format_pairing_code(url, &code, &body.origin, label),
@@ -165,7 +277,10 @@ pub(crate) async fn pairing_issue_operator(
             PairingError::Unknown
             | PairingError::Expired
             | PairingError::WrongOrigin
-            | PairingError::NotConfirmed,
+            | PairingError::NotConfirmed
+            | PairingError::RegistrationRequired
+            | PairingError::RegistrationMismatch
+            | PairingError::InvalidProof,
         ) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused"),
     }
 }

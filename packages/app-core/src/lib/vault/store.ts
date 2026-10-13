@@ -1198,6 +1198,11 @@ export class VaultStore {
     return this.#vaultKey !== null;
   }
 
+  /** Vault-key-derived digest for device-binding ceremonies (CLI pairing, duress). */
+  readSessionRootDigest(): Promise<string | null> {
+    return this.#sessionRootDigest();
+  }
+
   async changeMasterPassword(
     current: string,
     next: string,

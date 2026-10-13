@@ -12,7 +12,8 @@ mod cors;
 mod handlers;
 mod pairing;
 
-pub(crate) type SharedCliAppIntegration = Arc<Mutex<opensesame_cli_app_integration::CliAppIntegrationHost>>;
+pub(crate) type SharedCliAppIntegration =
+    Arc<Mutex<opensesame_cli_app_integration::CliAppIntegrationHost>>;
 
 pub(crate) fn fresh_store() -> SharedCliAppIntegration {
     opensesame_cli_app_integration::fresh_host()
@@ -27,12 +28,31 @@ pub(crate) fn routes(app: &App) -> Router<App> {
             post(pairing::pairing_confirm),
         )
         .route(
+            "/v1/cli/app-integration/pairing/challenge",
+            get(pairing::pairing_challenge),
+        )
+        .route(
             "/v1/cli/app-integration/pairing",
             post(pairing::pairing_exchange).delete(pairing::pairing_revoke),
         )
-        .layer(axum::middleware::from_fn_with_state(app.clone(), cors::cors));
+        .route(
+            "/v1/cli/app-integration/pairing/webauthn",
+            post(pairing::pairing_register_webauthn),
+        )
+        .route(
+            "/v1/operator/cli-app-integration/pair/registration",
+            post(pairing::pairing_arm_registration),
+        )
+        .layer(axum::middleware::from_fn_with_state(
+            app.clone(),
+            cors::cors,
+        ));
     Router::new()
         .route("/v1/cli/app-integration/ensure", post(handlers::ensure))
+        .route(
+            "/v1/cli/app-integration/daemon-attest",
+            post(handlers::daemon_attest),
+        )
         .route(
             "/v1/operator/cli-app-integration/pair",
             post(pairing::pairing_issue_operator),
