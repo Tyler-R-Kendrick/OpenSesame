@@ -245,11 +245,7 @@ export function CommandBar() {
         />
       ) : null}
       {notice !== null && !suggestions.open ? (
-        <output
-          className="command-bar__status"
-          role="status"
-          aria-live="polite"
-        >
+        <output className="command-bar__status" aria-live="polite">
           <span className="command-bar__status-text">{notice}</span>
           <button
             type="button"
