@@ -2,8 +2,7 @@
  * Tray doorbell while the daemon waits for CLI integration approval (ADR 0186).
  */
 
-import { fetchFirstCliAppPending } from "@opensesame/app-core/lib/cli-app-integration/client.js";
-import { cliAppIntegrationUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
+import { fetchDaemonCliPending } from "./cli-daemon-pending-fetch.js";
 import {
   dismissNotice,
   setStatusNotice,
@@ -16,6 +15,11 @@ import {
 } from "./cli-authorize-session.js";
 
 export const CLI_APP_PENDING_NOTICE = "identity:cli-app-pending";
+
+const POLL_MS = 500;
+const TRAY_TITLE = "Authorize CLI";
+const TRAY_BODY = "Allow CLI integration in OpenSesame.";
+const TRAY_OPEN_LABEL = "Authorize";
 
 let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -30,7 +34,7 @@ async function poll(): Promise<void> {
     return;
   }
   try {
-    const row = await fetchFirstCliAppPending(readDaemonOrigin() ?? "", headers);
+    const row = await fetchDaemonCliPending(readDaemonOrigin() ?? "", headers);
     if (!row) {
       dismissNotice(CLI_APP_PENDING_NOTICE);
       return;
@@ -38,11 +42,11 @@ async function poll(): Promise<void> {
     setStatusNotice({
       id: CLI_APP_PENDING_NOTICE,
       tone: "warn",
-      title: cliAppIntegrationUi.sheetTitle,
-      body: cliAppIntegrationUi.messages.pending,
+      title: TRAY_TITLE,
+      body: TRAY_BODY,
       open: {
         to: CLI_AUTHORIZE_ROUTE,
-        label: cliAppIntegrationUi.allowKey,
+        label: TRAY_OPEN_LABEL,
       },
     });
   } catch {
@@ -56,7 +60,7 @@ export function startCliAppPendingTrayWatch(): () => void {
   void poll();
   timer = setInterval(() => {
     void poll();
-  }, cliAppIntegrationUi.pollIntervalMs);
+  }, POLL_MS);
   return () => {
     if (timer === undefined) return;
     clearInterval(timer);

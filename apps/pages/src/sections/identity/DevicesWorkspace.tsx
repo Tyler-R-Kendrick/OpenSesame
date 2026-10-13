@@ -4,7 +4,7 @@ import {
   thisDeviceId,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { formatTime } from "@opensesame/app-core/sections/identity-section-model.js";
-import { type ReactNode, Suspense, lazy, useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
@@ -14,13 +14,6 @@ import { DeviceForm, type DevicesModel } from "./LocalDeviceRows.js";
 import { useDevices } from "./LocalDevicesPanel.js";
 import { LocalIdentityNotices } from "./LocalIdentityNotices.js";
 import { identityRecordId } from "./identity-record-selection.js";
-
-const CliAppPairingPanel = lazy(async () => {
-  const mod = await import(
-    "../../modules/identity.local-iam/cli-app-pairing-panel.js"
-  );
-  return { default: mod.CliAppPairingPanel };
-});
 
 export function DevicesWorkspace({
   tomb,
@@ -114,10 +107,6 @@ export function DevicesWorkspace({
         approval
       ) : selectedId === "tailnet-devices" ? (
         tailnet
-      ) : selectedId === "cli-terminal" ? (
-        <Suspense fallback={null}>
-          <CliAppPairingPanel />
-        </Suspense>
       ) : null}
     </RecordWorkspace>
   );
@@ -153,7 +142,7 @@ function deviceWorkspaceRows(
     id: "cli-terminal",
     label: "Terminal CLI",
     extension: "",
-    to: `${listPath}#cli-terminal`,
+    to: "/identity/authorize?cli=1",
   });
   return rows;
 }

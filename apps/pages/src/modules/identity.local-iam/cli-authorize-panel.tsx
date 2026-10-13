@@ -27,7 +27,7 @@ export function CliAuthorizePanel() {
         <h1>Authorize CLI</h1>
       </div>
       <div className="panel__body">
-        <CliAuthorizePanelHints row={row} hint={hint} />
+        <CliAuthorizePanelHints row={row} hint={hint} onPaired={panel.onPaired} />
         {row && pinOpen ? (
           <form onSubmit={onPin}>
             <FieldShell
