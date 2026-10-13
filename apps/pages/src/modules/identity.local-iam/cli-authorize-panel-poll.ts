@@ -1,16 +1,12 @@
-import {
-  fetchFirstCliAppPending,
-  readCliAppAuthHeaders,
-  readDaemonOrigin,
-} from "@opensesame/app-core/lib/cli-app-integration/client.js";
-import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/policy-runtime.js";
+import type { CliAppPendingRow } from "@opensesame/app-core/lib/cli-app-integration/client.js";
+import { fetchFirstCliAppPending } from "@opensesame/app-core/lib/cli-app-integration/client.js";
+import { cliAppIntegrationUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
 import { useEffect } from "react";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import type { CliAuthorizePanelHint } from "./cli-authorize-panel-model.js";
+import { readCliAppAuthHeaders, readDaemonOrigin } from "./cli-authorize-session.js";
 
-function toAuthorizeRow(
-  row: NonNullable<Awaited<ReturnType<typeof fetchFirstCliAppPending>>>,
-): CliAuthorizeRow {
+function toAuthorizeRow(row: CliAppPendingRow): CliAuthorizeRow {
   return [row.requestId, row.terminalSessionId, row.verb, row.respondNonce];
 }
 
@@ -38,7 +34,7 @@ export function useCliAuthorizePendingPoll(
         return;
       }
       try {
-        const pending = await fetchFirstCliAppPending();
+        const pending = await fetchFirstCliAppPending(origin, headers);
         if (!cancelled) {
           setHint(null);
           setRow(pending ? toAuthorizeRow(pending) : null);
@@ -56,7 +52,7 @@ export function useCliAuthorizePendingPoll(
     void refresh();
     const timer = setInterval(() => {
       void refresh();
-    }, cliAppIntegrationPolicy.pollIntervalMs);
+    }, cliAppIntegrationUi.pollIntervalMs);
     return () => {
       cancelled = true;
       clearInterval(timer);

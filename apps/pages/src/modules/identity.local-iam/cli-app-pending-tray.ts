@@ -2,18 +2,18 @@
  * Tray doorbell while the daemon waits for CLI integration approval (ADR 0186).
  */
 
-import {
-  CLI_AUTHORIZE_ROUTE,
-  fetchFirstCliAppPending,
-} from "@opensesame/app-core/lib/cli-app-integration/client.js";
+import { fetchFirstCliAppPending } from "@opensesame/app-core/lib/cli-app-integration/client.js";
+import { cliAppIntegrationUi } from "@opensesame/app-core/lib/cli-app-integration/policy-ui.js";
 import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import { pageIsLoopback } from "@opensesame/app-core/lib/settings.js";
-import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
-  type: "json",
-};
+import {
+  CLI_AUTHORIZE_ROUTE,
+  readCliAppAuthHeaders,
+  readDaemonOrigin,
+} from "./cli-authorize-session.js";
 
 export const CLI_APP_PENDING_NOTICE = "identity:cli-app-pending";
 
@@ -24,8 +24,13 @@ async function poll(): Promise<void> {
     dismissNotice(CLI_APP_PENDING_NOTICE);
     return;
   }
+  const headers = readCliAppAuthHeaders();
+  if (!readDaemonOrigin() || !headers) {
+    dismissNotice(CLI_APP_PENDING_NOTICE);
+    return;
+  }
   try {
-    const row = await fetchFirstCliAppPending();
+    const row = await fetchFirstCliAppPending(readDaemonOrigin() ?? "", headers);
     if (!row) {
       dismissNotice(CLI_APP_PENDING_NOTICE);
       return;
@@ -33,9 +38,12 @@ async function poll(): Promise<void> {
     setStatusNotice({
       id: CLI_APP_PENDING_NOTICE,
       tone: "warn",
-      title: gate.ui.sheetTitle,
-      body: gate.messages.pending,
-      open: { to: CLI_AUTHORIZE_ROUTE, label: gate.ui.allowKey },
+      title: cliAppIntegrationUi.sheetTitle,
+      body: cliAppIntegrationUi.messages.pending,
+      open: {
+        to: CLI_AUTHORIZE_ROUTE,
+        label: cliAppIntegrationUi.allowKey,
+      },
     });
   } catch {
     dismissNotice(CLI_APP_PENDING_NOTICE);
@@ -48,7 +56,7 @@ export function startCliAppPendingTrayWatch(): () => void {
   void poll();
   timer = setInterval(() => {
     void poll();
-  }, gate.pollIntervalMs);
+  }, cliAppIntegrationUi.pollIntervalMs);
   return () => {
     if (timer === undefined) return;
     clearInterval(timer);
@@ -57,9 +65,8 @@ export function startCliAppPendingTrayWatch(): () => void {
   };
 }
 
-/** Tests only. */
+/** @internal test seam */
 export function resetCliAppPendingTrayWatchForTests(): void {
   if (timer !== undefined) clearInterval(timer);
   timer = undefined;
-  dismissNotice(CLI_APP_PENDING_NOTICE);
 }

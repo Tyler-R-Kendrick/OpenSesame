@@ -1,3 +1,4 @@
+import { cliAppDaemonPaths } from "@opensesame/app-core/lib/cli-app-integration/daemon-paths.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 
@@ -16,7 +17,7 @@ export async function postCliRespond(
   };
   if (decision === "approve" && humanProof) body.humanProof = humanProof;
   const res = await localNetworkFetch(
-    `${origin}/v1/cli/app-integration/respond`,
+    `${origin}${cliAppDaemonPaths.respond}`,
     {
       method: "POST",
       credentials: "omit",

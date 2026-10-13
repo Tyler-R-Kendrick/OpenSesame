@@ -3,14 +3,31 @@
  */
 
 import { b64urlToBytes } from "@opensesame/vault-core";
-import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
+import { cliAppDaemonPaths } from "./daemon-paths.js";
+
+/** 32 random bytes, unpadded base64url — same rule as plugin pairing (ADR 0150 §7). */
+const SECRET = /^[A-Za-z0-9_-]{43}$/;
+
+/** Exactly what a browser sends: `https://host[:port]` or `http://localhost:port`. */
+function isPairableOrigin(origin: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.origin !== origin || url.username || url.password) return false;
+  if (url.protocol === "https:") return !url.hostname.endsWith(".");
+  return (
+    url.protocol === "http:" && url.hostname === "localhost" && url.port !== ""
+  );
+}
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
 
 export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
-export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
-export const CLI_APP_PAIRING_CONFIRM_PATH =
-  "/v1/cli/app-integration/pairing/confirm";
+export const CLI_APP_PAIRING_EXCHANGE_PATH = cliAppDaemonPaths.pairingExchange;
+export const CLI_APP_PAIRING_CONFIRM_PATH = cliAppDaemonPaths.pairingConfirm;
 
 export type CliAppPairingCode = Readonly<{
   url: string;

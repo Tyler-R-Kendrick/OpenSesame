@@ -1,5 +1,6 @@
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
+import { maybePage } from "@opensesame/app-core/ports.js";
 
 export const CLI_AUTHORIZE_ROUTE = "/identity/authorize?cli=1";
 
@@ -17,12 +18,7 @@ export function readDaemonOrigin(): string | null {
 
 export function readCliAppAuthHeaders(): Record<string, string> | null {
   const token = readCliAppIntegrationBearer();
-  let origin: string | null = null;
-  try {
-    origin = window.location.origin;
-  } catch {
-    origin = null;
-  }
+  const origin = maybePage()?.location.origin ?? null;
   if (!token || !origin) return null;
   return {
     authorization: `Bearer ${token}`,
