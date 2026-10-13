@@ -9,6 +9,7 @@ use axum::extract::connect_info::ConnectInfo;
 use opensesame_cli_app_integration::session_id_from_pid;
 use serde::Deserialize;
 use serde_json::json;
+use std::net::SocketAddr;
 
 use crate::peer_auth::UdsConnectInfo;
 use crate::{App, UdsPeer};
@@ -33,7 +34,11 @@ pub struct RespondReq {
     human_proof: Option<String>,
 }
 
-fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool) {
+fn terminal_session_for_ensure(
+    host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
+    uds: &UdsPeer,
+    tcp_peer: Option<ConnectInfo<SocketAddr>>,
+) -> (String, bool) {
     #[cfg(unix)]
     if let Some(Extension(ConnectInfo(UdsConnectInfo(cred)))) = uds.as_ref() {
         if let Some(cred) = cred {
@@ -42,24 +47,25 @@ fn terminal_session_for_ensure(uds: &UdsPeer, body: &EnsureReq) -> (String, bool
             }
         }
     }
-    let trimmed = body.terminal_session_id.trim();
-    let correlation = if trimmed.is_empty() {
-        format!(
-            "tcp-ephemeral-{}",
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-        )
-    } else {
-        trimmed.to_string()
-    };
-    (correlation, false)
+    let peer_key = tcp_peer
+        .map(|ConnectInfo(addr)| format!("tcp:{addr}"))
+        .unwrap_or_else(|| {
+            format!(
+                "tcp:anon-{}",
+                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+            )
+        });
+    let (id, _) = host.terminal_session_for_tcp(&peer_key);
+    (id, false)
 }
 
 pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Response {
     let uds: UdsPeer = request
         .extensions()
-        .get::<axum::extract::connect_info::ConnectInfo<UdsConnectInfo>>()
+        .get::<ConnectInfo<UdsConnectInfo>>()
         .cloned()
         .map(Extension);
+    let tcp_peer = request.extensions().get::<ConnectInfo<SocketAddr>>().cloned();
     let Json(req) = match Json::<EnsureReq>::from_request(request, &()).await {
         Ok(json) => json,
         Err(rejection) => return rejection.into_response(),
@@ -70,7 +76,7 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
     };
     host.store
         .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
-    let (terminal_session_id, reuse) = terminal_session_for_ensure(&uds, &req);
+    let (terminal_session_id, reuse) = terminal_session_for_ensure(&mut host, &uds, tcp_peer);
     let (status, request_id) = host.store.ensure(
         &terminal_session_id,
         &req.verb,
