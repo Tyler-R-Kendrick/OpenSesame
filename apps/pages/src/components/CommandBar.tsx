@@ -2,7 +2,14 @@ import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js"
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
 import { listedItems } from "@opensesame/vault-core";
-import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
@@ -14,10 +21,13 @@ import {
   commandOptionId,
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
-import { IconArrowRight } from "./Icons.js";
+import { IconArrowRight, IconX } from "./Icons.js";
 import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
+
+/** Success and failure notices clear on their own so the strip cannot cover the shell. */
+const COMMAND_NOTICE_DISMISS_MS = 4000;
 
 function useCommandRunner() {
   const navigate = useNavigate();
@@ -141,6 +151,16 @@ export function CommandBar() {
     },
   });
 
+  useEffect(() => {
+    if (notice === null) return;
+    const timer = setTimeout(() => {
+      setNotice(null);
+    }, COMMAND_NOTICE_DISMISS_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [notice, setNotice]);
+
   const choose = (suggestion: SlashSuggestion) => {
     setValue(suggestion.insert);
     if (!suggestion.run) {
@@ -187,10 +207,19 @@ export function CommandBar() {
           disabled={busy}
           onFocus={() => suggestions.setFocused(true)}
           onBlur={() => suggestions.setFocused(false)}
-          onKeyDown={(event) =>
-            search.onEscape(event, suggestions.open) ||
-            suggestions.onKeyDown(event, choose)
-          }
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && notice !== null) {
+              event.preventDefault();
+              setNotice(null);
+              return;
+            }
+            if (
+              search.onEscape(event, suggestions.open) ||
+              suggestions.onKeyDown(event, choose)
+            ) {
+              return;
+            }
+          }}
           onChange={(event) => {
             suggestions.setDismissed(false);
             setNotice(null);
@@ -216,7 +245,24 @@ export function CommandBar() {
         />
       ) : null}
       {notice !== null && !suggestions.open ? (
-        <output className="command-bar__status">{notice}</output>
+        <output
+          className="command-bar__status"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="command-bar__status-text">{notice}</span>
+          <button
+            type="button"
+            className="icon-btn command-bar__status-dismiss"
+            aria-label="Dismiss command status"
+            title="Dismiss"
+            onClick={() => {
+              setNotice(null);
+            }}
+          >
+            <IconX size={14} />
+          </button>
+        </output>
       ) : null}
     </search>
   );
