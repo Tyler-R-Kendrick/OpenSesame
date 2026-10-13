@@ -1,6 +1,7 @@
 import { memoryObjectStore, sealFile } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { concealedValue, shareText } from "./vault-section-model.js";
+import { concealedValue } from "./vault-section-model.js";
+import { shareText } from "./vault-share-text.js";
 
 describe("a file secret", () => {
   it("does not offer the part key as something to copy or share", async () => {

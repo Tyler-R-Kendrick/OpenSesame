@@ -7,11 +7,8 @@ import {
 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { pepperedAccount, plainAccount } from "../lib/account.test-support.js";
-import {
-  chipTypeIds,
-  concealedValue,
-  shareText,
-} from "./vault-section-model.js";
+import { chipTypeIds, concealedValue } from "./vault-section-model.js";
+import { shareText } from "./vault-share-text.js";
 
 const BOAT = JSON.stringify({
   apiVersion: "opensesame.dev/v1alpha1",
@@ -96,6 +93,9 @@ describe("shareText", () => {
     );
     expect(shareText(plainAccount("GitHub", "hunter2"))).toBe("hunter2");
     expect(
+      shareText(plainAccount("GitHub", "hunter2", { username: "octocat" })),
+    ).toBe("octocat\nhunter2");
+    expect(
       shareText({ ...createItem("card", "Visa"), number: "4242424242424242" }),
     ).toBe("4242424242424242");
     expect(
@@ -119,6 +119,9 @@ describe("shareText", () => {
     const account = pepperedAccount("GitHub", "hunter2");
     expect(concealedValue(account)).toBe("hunter2");
     expect(shareText(account)).toBe("hunter2");
+    expect(shareText({ ...account, username: "octocat" })).toBe(
+      "octocat\nhunter2",
+    );
   });
 
   it("shares nothing of a password with its pepper slot inside it, and falls back to notes", () => {
