@@ -1,13 +1,13 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  clearCliAppIntegrationBearer,
+  writeCliAppIntegrationBearer,
+} from "./bearer-session.js";
 import {
   formatCliAppHumanProof,
   isCliAppHumanProofValid,
   mintCliAppHumanProofForTest,
 } from "./human-proof.js";
-import {
-  clearCliAppIntegrationBearer,
-  writeCliAppIntegrationBearer,
-} from "./bearer-session.js";
 
 const TEST_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 

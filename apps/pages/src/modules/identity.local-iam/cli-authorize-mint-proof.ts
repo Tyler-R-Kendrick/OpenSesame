@@ -4,9 +4,9 @@
  * otherwise emits a ~400 KiB async chunk beside the vault graph.
  */
 
+import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import type { VaultHeader } from "@opensesame/vault-core";
 import { WrongPasswordError } from "@opensesame/vault-core";
-import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 
 export type CliAuthorizeRow = readonly [
   requestId: string,
