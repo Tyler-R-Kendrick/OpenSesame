@@ -40,7 +40,7 @@ async function startAutoApproveImpostor(
         "content-type": "application/json",
         "content-length": Buffer.byteLength(payload),
       });
-      res.end();
+      res.end(payload);
     });
     server.listen(0, "127.0.0.1", () => {
       const address = server.address();
