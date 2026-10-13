@@ -130,7 +130,11 @@ export function ApproveScreen() {
   else if (ready) body = <Review ceremonyRef={entry.ref} />;
   else
     body = (
-      <ConnectIdentityNote online={online} what="the requests sent to you" />
+      <ConnectIdentityNote
+        online={online}
+        what="the requests sent to you"
+        lockIssuer
+      />
     );
   return (
     <div className="section__inner">

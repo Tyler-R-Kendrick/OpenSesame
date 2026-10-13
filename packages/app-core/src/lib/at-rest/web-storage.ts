@@ -5,9 +5,9 @@
  * Key names stay readable — they are what "Reset this browser" removes by
  * (`storage-ownership.ts`) — values never are.
  *
- * A value written before this layer existed is read once as it is and
- * sealed in place, so a device that upgrades loses nothing and keeps no
- * plaintext (`sealLegacyWebStorage` sweeps the ones nobody reads).
+ * Unsealed bytes under an app-owned key are never trusted: they are removed
+ * on read and at boot (`sealLegacyWebStorage`) rather than re-sealed into a
+ * device envelope an attacker could plant in the clear (ADR 0149).
  */
 
 import { host } from "../../host.js";
@@ -86,10 +86,10 @@ function read(
   if (raw === null) return null;
   const atRest = atRestKeyNow();
   if (!isSealedAtRest(raw)) {
-    // Written before values were sealed: read it, and seal it where it lies —
-    // when it is the app's; another writer's key is theirs to read raw.
-    if (atRest?.durable && ownsWebStorageKey(key, area)) {
-      writeSealed(store, area, atRest, key, raw);
+    // Another writer's key is theirs to read raw; ours must open as a seal.
+    if (ownsWebStorageKey(key, area)) {
+      if (!storageWritesHalted()) store.removeItem(key);
+      return null;
     }
     return raw;
   }
@@ -135,30 +135,26 @@ export function sealedWebStorage(
 }
 
 /**
- * Seal every value of the app's own keys still stored in the clear, in the
- * host's own store for `area` (never the ports' sealed view of it, which
- * reads plaintext back). Keys another writer owns — another project site on
- * this origin, MSAL's request records — are left exactly as they are: the
- * app does not read them through this layer, and sealing them would break
- * their owner.
+ * Remove every app-owned key still stored in the clear, in the host's own
+ * store for `area` (never the ports' sealed view of it, which would not
+ * return plaintext). Keys another writer owns are left as they are.
  */
 export function sealLegacyWebStorage(area: WebStorageArea): number {
   const store = host().storage?.[area];
-  const atRest = atRestKeyNow();
-  if (!store || !atRest?.durable) return 0;
+  if (!store || storageWritesHalted()) return 0;
   const keys: string[] = [];
   for (let index = 0; index < store.length; index += 1) {
     const key = store.key(index);
     if (key !== null && ownsWebStorageKey(key, area)) keys.push(key);
   }
-  let sealed = 0;
+  let removed = 0;
   for (const key of keys) {
     const raw = store.getItem(key);
     if (raw === null || isSealedAtRest(raw)) continue;
-    writeSealed(store, area, atRest, key, raw);
-    sealed += 1;
+    store.removeItem(key);
+    removed += 1;
   }
-  return sealed;
+  return removed;
 }
 
 /** Drop held values (tests). */
