@@ -178,7 +178,9 @@ async function presentClaimDefault(
 export const dropOpenSeams = { presentClaim: presentClaimDefault };
 
 function dropPresentFailedForGood(error: DropError): boolean {
-  return error.code !== "invalid_code" && error.code !== "unreachable";
+  return (
+    error.code !== "invalid_code" && error.code !== "unreachable"
+  );
 }
 
 /** Open a drop once — user code + bearer; returns the sealed manifest. */

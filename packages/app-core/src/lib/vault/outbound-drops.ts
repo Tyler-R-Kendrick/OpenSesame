@@ -14,6 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import { activitySeams } from "../activity-log.js";
 import {
+  bindDropLockedOutOutbound,
   bindDropReceiptOutboundTomb,
   flushHeldDropNotes,
   noteDropExpired,
@@ -29,7 +30,12 @@ import { originKvSlot } from "./origin-kv-slot.js";
 
 export const OUTBOUND_DROPS_STORAGE_KEY = "opensesame.outbound-drops.v1";
 
-export type OutboundDropState = "pending" | "consumed" | "expired" | "revoked";
+export type OutboundDropState =
+  | "pending"
+  | "consumed"
+  | "expired"
+  | "revoked"
+  | "locked_out";
 
 export type OutboundDrop = {
   claimId: string;
@@ -117,7 +123,8 @@ function isOutboundState(
     value === "pending" ||
     value === "consumed" ||
     value === "expired" ||
-    value === "revoked"
+    value === "revoked" ||
+    value === "locked_out"
   );
 }
 
@@ -218,7 +225,13 @@ function patchOpenState(
   const store = readStore();
   const row = store.sends[claimId];
   if (!row || row.state === state) return;
-  if (row.state === "revoked" || row.state === "consumed") return;
+  if (
+    row.state === "revoked" ||
+    row.state === "consumed" ||
+    row.state === "locked_out"
+  ) {
+    return;
+  }
   store.sends[claimId] = { ...row, state };
   writeStore(store);
   if (note === "expired") noteDropExpired(claimId);
@@ -269,6 +282,10 @@ export function noteOutboundDropConsumed(claimId: string): void {
   patchOpenState(claimId, "consumed");
 }
 
+export function noteOutboundDropLockedOut(claimId: string): void {
+  patchOpenState(claimId, "locked_out");
+}
+
 /** Revoke when a vault drop record leaves the vault (trash or purge). */
 export async function revokeOutboundForVaultItem(
   claimId: string,
@@ -284,7 +301,13 @@ export async function revokeOutboundLinkedToItem(
   const killed: string[] = [];
   for (const row of Object.values(readStore().sends)) {
     if (row.vaultItemId !== itemId && row.sourceItemId !== itemId) continue;
-    if (row.state === "revoked" || row.state === "consumed") continue;
+    if (
+      row.state === "revoked" ||
+      row.state === "consumed" ||
+      row.state === "locked_out"
+    ) {
+      continue;
+    }
     try {
       const outcome = await revokeOutboundDrop(row.claimId, row.bearerToken);
       if (outcome === "revoked") killed.push(row.claimId);
@@ -323,3 +346,4 @@ function senderTombForClaim(claimId: string): string | null {
 }
 
 bindDropReceiptOutboundTomb(senderTombForClaim);
+bindDropLockedOutOutbound(noteOutboundDropLockedOut);

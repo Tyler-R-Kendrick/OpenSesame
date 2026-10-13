@@ -116,6 +116,7 @@ export function claimRefusal(
 /** A drop recipient's view of a refused presentation. */
 export type DropRefusalCode =
   | "invalid_code"
+  | "locked_out"
   | "already_opened"
   | "expired"
   | "revoked"
@@ -127,6 +128,8 @@ export type DropRefusal = { code: DropRefusalCode; words: string };
 const DROP_WORDS: Record<Exclude<DropRefusalCode, "unreachable">, string> = {
   invalid_code:
     "That code did not match this drop. Check it with the sender and try again.",
+  locked_out:
+    "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
   already_opened: "This drop was already opened.",
   expired: "This drop expired before it was opened.",
   revoked: "This drop was revoked.",
@@ -135,7 +138,7 @@ const DROP_WORDS: Record<Exclude<DropRefusalCode, "unreachable">, string> = {
 
 const DROP_BY_CODE: Readonly<Record<string, DropRefusalCode>> = {
   invalid_user_code: "invalid_code",
-  too_many_attempts: "invalid_code",
+  too_many_attempts: "locked_out",
   EXPIRED: "expired",
   REVOKED: "revoked",
   // The single-use transition refused a second presentation.
@@ -173,10 +176,7 @@ export function dropRefusal(
   const kind = DROP_BY_CODE[code] ?? dropCodeByStatus(status);
   if (detail) return { code: kind, words: detail };
   if (code === "too_many_attempts") {
-    return {
-      code: kind,
-      words: "Too many wrong codes. Ask the sender for a fresh drop.",
-    };
+    return { code: kind, words: DROP_WORDS.locked_out };
   }
   if (kind === "unreachable") {
     return { code: kind, words: `Opening the drop failed (${status}).` };

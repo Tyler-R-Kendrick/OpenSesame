@@ -46,9 +46,17 @@ const FALLBACK = "The drop could not be opened.";
 
 /** Refusals the same link and code could still get past. */
 const RETRYABLE: ReadonlySet<string> = new Set(["invalid_code", "unreachable"]);
+const LOCKED_OUT = "locked_out";
 
 function spent(caught: unknown): boolean {
   return !(caught instanceof DropError && RETRYABLE.has(caught.code));
+}
+
+function failureMark(caught: unknown): { tone: "err"; label: string } {
+  if (caught instanceof DropError && caught.code === LOCKED_OUT) {
+    return { tone: "err", label: "Locked out" };
+  }
+  return { tone: "err", label: DROP_FAILURE_MARK_WITH_TRAY };
 }
 
 function PayloadView({ payload }: { payload: DropPayload }) {
@@ -95,6 +103,7 @@ export function DropClaimScreen({
   const [userCode, setUserCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [failureMarkLabel, setFailureMarkLabel] = useState(DROP_FAILURE_MARK_WITH_TRAY);
   const [payload, setPayload] = useState<DropPayload | null>(null);
   const codeRef = useRef<HTMLInputElement | null>(null);
 
@@ -108,6 +117,7 @@ export function DropClaimScreen({
     if (busy || !userCode.trim()) return;
     setBusy(true);
     setFailed(false);
+    setFailureMarkLabel(DROP_FAILURE_MARK_WITH_TRAY);
     try {
       const { targetManifest } = await presentDrop(token, userCode.trim());
       setPayload(await openDrop(targetManifest, fragmentKey));
@@ -115,6 +125,7 @@ export function DropClaimScreen({
     } catch (caught) {
       const words = caught instanceof Error ? caught.message : FALLBACK;
       reportClaim(words, TITLE);
+      setFailureMarkLabel(failureMark(caught).label);
       setFailed(true);
       // A drop is presented once: past a refusal it cannot come back from,
       // the link is forgotten here too.
@@ -148,12 +159,15 @@ export function DropClaimScreen({
             aria-describedby={failed ? "drop-user-code-mark" : undefined}
             onChange={(event) => {
               setUserCode(event.target.value);
-              if (failed) setFailed(false);
+              if (failed) {
+                setFailed(false);
+                setFailureMarkLabel(DROP_FAILURE_MARK_WITH_TRAY);
+              }
             }}
           />
           <output id="drop-user-code-mark" aria-live="polite">
             {failed ? (
-              <StatusMark tone="err" label={DROP_FAILURE_MARK_WITH_TRAY} />
+              <StatusMark tone="err" label={failureMarkLabel} />
             ) : null}
           </output>
         </div>

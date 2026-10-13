@@ -30,6 +30,7 @@ const STATUS = {
   consumed: { tone: "ok", label: "Opened" },
   expired: { tone: "warn", label: "Expired" },
   revoked: { tone: "err", label: "Revoked" },
+  locked_out: { tone: "err", label: "Locked out" },
 } satisfies Record<
   OutboundDropState,
   { tone: "idle" | "ok" | "warn" | "err"; label: string }

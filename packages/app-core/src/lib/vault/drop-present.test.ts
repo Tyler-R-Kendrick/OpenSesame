@@ -88,8 +88,8 @@ describe("presenting a drop to the Identity API", () => {
       [
         { error: "too_many_attempts" },
         429,
-        "invalid_code",
-        /Too many wrong codes/,
+        "locked_out",
+        /Locked out/,
       ],
       [{ error: "EXPIRED" }, 410, "expired", /expired before it was opened/],
       [

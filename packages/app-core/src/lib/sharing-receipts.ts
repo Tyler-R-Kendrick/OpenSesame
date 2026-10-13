@@ -35,12 +35,18 @@ let heldDropExpiry: string | undefined;
 
 /** Outbound send ledger tomb for a claim id; wired from `outbound-drops.ts`. */
 let outboundSenderTombForClaim: (claimId: string) => string | null = () => null;
+let outboundLockedOut: (claimId: string) => void = () => {};
 
 /** Binds the sender tomb resolver without importing the outbound ledger here. */
 export function bindDropReceiptOutboundTomb(
   resolver: (claimId: string) => string | null,
 ): void {
   outboundSenderTombForClaim = resolver;
+}
+
+/** Binds the sender ledger patch when a drop is locked out. */
+export function bindDropLockedOutOutbound(patch: (claimId: string) => void): void {
+  outboundLockedOut = patch;
 }
 
 function senderTombForClaim(claimId: string): string | null {
@@ -187,6 +193,7 @@ export function noteDropLockedOut(claimId: string): void {
     "drop.locked_out",
     { claimId: id },
   );
+  outboundLockedOut(claimId);
 }
 
 /** A drop presentation failed for good on a send this device still tracks. */
