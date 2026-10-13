@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
-import { afterEach, describe, expect, it } from "vitest";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   isLoopbackDaemonBase,
   verifyLocalDaemonForCliAppIntegration,

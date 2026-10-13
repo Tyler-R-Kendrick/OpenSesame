@@ -37,7 +37,9 @@ export const CLI_APP_DAEMON_PIN_PROBE_SESSION_ID =
  * Real daemon ensure never returns `approved` on a cold probe; impostors that
  * auto-approve are rejected here.
  */
-async function ensureProbeRejectsInstantApproval(base: string): Promise<boolean> {
+async function ensureProbeRejectsInstantApproval(
+  base: string,
+): Promise<boolean> {
   const path = cliAppIntegrationPolicy.daemonPaths.ensure;
   const response = await fetch(`${base}${path}`, {
     method: "POST",

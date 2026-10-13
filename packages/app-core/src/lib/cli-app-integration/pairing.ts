@@ -64,10 +64,7 @@ export function mintCliAppPairingPageBinding(): string {
   for (const byte of bytes) {
     out += String.fromCharCode(byte);
   }
-  return btoa(out)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/, "");
+  return btoa(out).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
 export {
@@ -98,10 +95,15 @@ export async function confirmCliAppPairingCode(
 ): Promise<boolean> {
   const base = daemonBase(parsed.url);
   if (!base || !SECRET.test(pageBinding)) return false;
-  const res = await postPairing(base, CLI_APP_PAIRING_CONFIRM_PATH, parsed.origin, {
-    code: parsed.code,
-    pageBinding,
-  });
+  const res = await postPairing(
+    base,
+    CLI_APP_PAIRING_CONFIRM_PATH,
+    parsed.origin,
+    {
+      code: parsed.code,
+      pageBinding,
+    },
+  );
   return res.status === 204;
 }
 
@@ -111,10 +113,15 @@ export async function exchangeCliAppPairingCode(
 ): Promise<boolean> {
   const base = daemonBase(parsed.url);
   if (!base || !SECRET.test(pageBinding)) return false;
-  const res = await postPairing(base, CLI_APP_PAIRING_EXCHANGE_PATH, parsed.origin, {
-    code: parsed.code,
-    pageBinding,
-  });
+  const res = await postPairing(
+    base,
+    CLI_APP_PAIRING_EXCHANGE_PATH,
+    parsed.origin,
+    {
+      code: parsed.code,
+      pageBinding,
+    },
+  );
   if (res.status !== 201) return false;
   const body: unknown = await res.json();
   if (!body || typeof body !== "object") return false;
