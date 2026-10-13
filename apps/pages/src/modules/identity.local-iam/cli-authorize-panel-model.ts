@@ -6,6 +6,9 @@ import {
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import gate from "../../../../../spec/conformance/cli-app-integration.json" with {
+  type: "json",
+};
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
 import {
@@ -28,13 +31,25 @@ export function useCliAuthorizePanel() {
   const [header, setHeader] = useState<VaultHeader | null>(null);
 
   useEffect(() => {
-    void (async () => {
+    let cancelled = false;
+    async function refresh() {
       const origin = readDaemonOrigin();
       const headers = readCliAppAuthHeaders();
-      if (!origin || !headers) return setRow(null);
+      if (!origin || !headers) {
+        if (!cancelled) setRow(null);
+        return;
+      }
       const pending = await fetchFirstCliAppPending();
-      setRow(pending ? toAuthorizeRow(pending) : null);
-    })();
+      if (!cancelled) setRow(pending ? toAuthorizeRow(pending) : null);
+    }
+    void refresh();
+    const timer = setInterval(() => {
+      void refresh();
+    }, gate.pollIntervalMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, []);
 
   async function finish(decision: "approve" | "deny", humanProof?: string) {
