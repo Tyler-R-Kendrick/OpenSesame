@@ -12,6 +12,7 @@ import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
 import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
 import {
+  type LocalClaimRecord,
   type LocalDropPollState,
   MAX_DROP_CLAIM_ATTEMPTS,
   digestDropBearerToken,
@@ -183,6 +184,23 @@ export type PresentedLocalDrop = {
   targetManifest: JsonObject;
 };
 
+/** Lock a claim out: wipe ciphertext, persist, mirror to the sender ledger. */
+function lockOutLocalDropClaim(
+  record: LocalClaimRecord,
+  claimId: string,
+  persist: (next: LocalClaimRecord) => void,
+  attempts: number,
+): void {
+  persist({
+    ...record,
+    attempts,
+    state: "locked_out",
+    targetManifest: {},
+    version: record.version + 1,
+  });
+  noteDropLockedOut(claimId);
+}
+
 export async function presentLocalDropClaim(
   bearerToken: string,
   userCode: string,
@@ -233,13 +251,7 @@ export async function presentLocalDropClaim(
     throw refuse("invalid_token", "This drop's claim token was refused.");
   }
   if (record.attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
-    persist({
-      ...record,
-      state: "locked_out",
-      targetManifest: {},
-      version: record.version + 1,
-    });
-    noteDropLockedOut(claimId);
+    lockOutLocalDropClaim(record, claimId, persist, record.attempts);
     throw refuse(
       "too_many_attempts",
       "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
@@ -249,14 +261,7 @@ export async function presentLocalDropClaim(
     const attempts = record.attempts + 1;
     const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
     if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) {
-      persist({
-        ...record,
-        attempts,
-        state: "locked_out",
-        targetManifest: {},
-        version: record.version + 1,
-      });
-      noteDropLockedOut(claimId);
+      lockOutLocalDropClaim(record, claimId, persist, attempts);
       throw refuse(
         "too_many_attempts",
         "Locked out. Too many wrong codes — ask the sender for a fresh drop.",

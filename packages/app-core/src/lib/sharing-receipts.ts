@@ -37,27 +37,18 @@ let heldDropExpiry: string | undefined;
 let outboundSenderTombForClaim: (claimId: string) => string | null = () => null;
 let outboundLockedOut: (claimId: string) => void = () => {};
 
-/** Binds the sender tomb resolver without importing the outbound ledger here. */
-export function bindDropReceiptOutboundTomb(
+/** Wires the sender-ledger hooks without importing the outbound ledger here. */
+export function bindDropReceiptOutbound(
   resolver: (claimId: string) => string | null,
+  lockedOut: (claimId: string) => void,
 ): void {
   outboundSenderTombForClaim = resolver;
-}
-
-/** Binds the sender ledger patch when a drop is locked out. */
-export function bindDropLockedOutOutbound(
-  patch: (claimId: string) => void,
-): void {
-  outboundLockedOut = patch;
-}
-
-function senderTombForClaim(claimId: string): string | null {
-  return outboundSenderTombForClaim(claimId);
+  outboundLockedOut = lockedOut;
 }
 
 function tombsForDropReceipt(claimId: string): string[] {
   const tombs: string[] = [];
-  const sender = senderTombForClaim(claimId);
+  const sender = outboundSenderTombForClaim(claimId);
   const active = activitySeams.activeTomb();
   if (sender) tombs.push(sender);
   if (active && active !== sender) tombs.push(active);
@@ -65,7 +56,7 @@ function tombsForDropReceipt(claimId: string): string[] {
 }
 
 function tombForSenderDropReceipt(claimId: string): string | null {
-  return senderTombForClaim(claimId) ?? activitySeams.activeTomb();
+  return outboundSenderTombForClaim(claimId) ?? activitySeams.activeTomb();
 }
 
 export function flushHeldDropNotes(): void {
@@ -180,100 +171,88 @@ export function noteDropOpened(claimId: string): void {
   }
 }
 
-/** The sender's drop passed its TTL with no claim. */
-export function noteDropExpired(claimId: string): void {
+/** One sender-tomb line for a drop terminal state; names the claim id only. */
+function noteSenderDropState(
+  claimId: string,
+  rememberKey: string,
+  vaultType: RecordActivityInput["type"],
+  summary: string,
+  outcome: RecordActivityInput["outcome"],
+  deviceKind: ReceiptKind,
+): boolean {
   const id = blindId(claimId);
-  if (!id) return;
+  if (!id) return false;
   const tomb = tombForSenderDropReceipt(id);
-  if (!tomb) {
-    heldDropExpiry = id;
-    return;
-  }
-  if (!remember(`drop-expired:${tomb}:${id}`)) return;
-  const metadata: JsonObject = { claimId: id };
+  if (!tomb || !remember(`${rememberKey}:${tomb}:${id}`)) return false;
   write(
     tomb,
     {
       category: "vault",
-      type: "vault.drop.expired",
-      summary: "Drop expired",
-      outcome: "succeeded",
+      type: vaultType,
+      summary,
+      outcome,
       targetType: "claim",
       targetId: id,
-      metadata,
+      metadata: { claimId: id },
     },
-    "drop.expired",
+    deviceKind,
     { claimId: id },
+  );
+  return true;
+}
+
+/** The sender's drop passed its TTL with no claim. */
+export function noteDropExpired(claimId: string): void {
+  const id = blindId(claimId);
+  if (!id) return;
+  if (!tombForSenderDropReceipt(id)) {
+    heldDropExpiry = id;
+    return;
+  }
+  noteSenderDropState(
+    claimId,
+    "drop-expired",
+    "vault.drop.expired",
+    "Drop expired",
+    "succeeded",
+    "drop.expired",
   );
 }
 
 /** The sender's drop was locked out after too many wrong codes. */
 export function noteDropLockedOut(claimId: string): void {
-  const id = blindId(claimId);
-  if (!id) return;
-  const tomb = tombForSenderDropReceipt(id);
-  if (!tomb || !remember(`drop-locked:${tomb}:${id}`)) return;
-  const metadata: JsonObject = { claimId: id };
-  write(
-    tomb,
-    {
-      category: "vault",
-      type: "vault.drop.locked_out",
-      summary: "Drop locked out",
-      outcome: "denied",
-      targetType: "claim",
-      targetId: id,
-      metadata,
-    },
+  const wrote = noteSenderDropState(
+    claimId,
+    "drop-locked",
+    "vault.drop.locked_out",
+    "Drop locked out",
+    "denied",
     "drop.locked_out",
-    { claimId: id },
   );
-  outboundLockedOut(claimId);
+  if (wrote) outboundLockedOut(claimId);
 }
 
 /** A drop presentation failed for good on a send this device still tracks. */
 export function noteDropRefused(claimId: string): void {
-  const id = blindId(claimId);
-  if (!id) return;
-  const tomb = tombForSenderDropReceipt(id);
-  if (!tomb || !remember(`drop-refused:${tomb}:${id}`)) return;
-  const metadata: JsonObject = { claimId: id };
-  write(
-    tomb,
-    {
-      category: "vault",
-      type: "vault.drop.refused",
-      summary: "Drop refused",
-      outcome: "denied",
-      targetType: "claim",
-      targetId: id,
-      metadata,
-    },
+  noteSenderDropState(
+    claimId,
+    "drop-refused",
+    "vault.drop.refused",
+    "Drop refused",
+    "denied",
     "drop.refused",
-    { claimId: id },
   );
 }
 
 /** The sender revoked the drop before it was claimed. */
 export function noteDropRevoked(claimId: string): void {
-  const id = blindId(claimId);
-  if (!id) return;
-  const tomb = tombForSenderDropReceipt(id);
-  if (!tomb || !remember(`drop-revoked:${tomb}:${id}`)) return;
-  const metadata: JsonObject = { claimId: id };
-  write(
-    tomb,
-    {
-      category: "vault",
-      type: "vault.drop.revoked",
-      summary: "Drop revoked",
-      outcome: "succeeded",
-      targetType: "claim",
-      targetId: id,
-      metadata,
-    },
+  noteSenderDropState(
+    claimId,
+    "drop-revoked",
+    "vault.drop.revoked",
+    "Drop revoked",
+    "succeeded",
     "drop.revoked",
-    { claimId: id },
   );
 }
 

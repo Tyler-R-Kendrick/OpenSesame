@@ -14,8 +14,7 @@ import {
 } from "@opensesame/os-domain";
 import { activitySeams } from "../activity-log.js";
 import {
-  bindDropLockedOutOutbound,
-  bindDropReceiptOutboundTomb,
+  bindDropReceiptOutbound,
   flushHeldDropNotes,
   noteDropExpired,
   noteDropRevoked,
@@ -352,5 +351,4 @@ function senderTombForClaim(claimId: string): string | null {
   return tomb ?? null;
 }
 
-bindDropReceiptOutboundTomb(senderTombForClaim);
-bindDropLockedOutOutbound(noteOutboundDropLockedOut);
+bindDropReceiptOutbound(senderTombForClaim, noteOutboundDropLockedOut);
