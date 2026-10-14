@@ -156,7 +156,7 @@ describe("a session started right after a route was added", () => {
     expect(currentHostCarriers()?.states.map((state) => state.spec)).toEqual([
       NOSTR,
     ]);
-    expect(opened).toEqual([`nostr ${NOSTR.url}`]);
+    await waitFor(() => expect(opened).toEqual([`nostr ${NOSTR.url}`]));
   });
 
   it("starts with every route when more than one edit is queued behind the seal", async () => {
