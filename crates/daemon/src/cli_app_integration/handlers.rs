@@ -1,10 +1,12 @@
 use axum::extract::connect_info::ConnectInfo;
+#[cfg(unix)]
+use axum::Extension;
 use axum::{
     body::Body,
     extract::{FromRequest, State},
     http::{HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
-    Extension, Json,
+    Json,
 };
 use opensesame_cli_app_integration::sign_daemon_attest;
 #[cfg(unix)]
