@@ -6,7 +6,10 @@
  */
 
 import type { Integration } from "@opensesame/app-core/lib/capabilities/integrations.js";
-import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/catalog-provider.js";
+import {
+  byoProvidersFirst,
+  isConnectionCatalogProvider,
+} from "@opensesame/app-core/lib/catalog-provider.js";
 import type { TileRoad } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Provider,
@@ -58,8 +61,8 @@ function bindingItems(
 }
 
 /**
- * One category's tiles, in catalog order, keeping the connectors a tile has
- * something to offer for on this device (`tile`): a link to a page that has
+ * One category's tiles, BYO first then catalog order, keeping connectors
+ * with something to offer on this device (`tile`): a link to a page that has
  * something to do, or a switch that acts without one. Never a row that leads
  * to a dead end.
  */
@@ -67,7 +70,7 @@ export function providerTileItems(
   category: ProviderCategory,
   tile: (provider: Provider) => TileRoad | null,
 ): ProviderTileItem[] {
-  const providers = getBundledProviders().map(placed);
+  const providers = byoProvidersFirst(getBundledProviders().map(placed));
   const items: ProviderTileItem[] = [];
   for (const provider of bindingItems(providers).get(category) ?? []) {
     const road = tile(provider);
