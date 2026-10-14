@@ -166,6 +166,34 @@ PLAYWRIGHT_CHROMIUM=/usr/bin/chromium node apps/pages/scripts/compose-integratio
 
 ## Build and workspace checks
 
-The final runtime build `e834d91a2bc21e5557e993f54d67212298010897` passes its independent production graph check (zero mismatches or violations) and the reviewed default bundle budget. Both hardened profiles were built at `9202468`; independent checks confirm Networking, External connectors, Remote AI, the popup module, and every Tailscale SDK/worker asset are absent. The subsequent popup-only fix cannot reach those excluded modules. All three bundle budget outputs pass, with hardened limits unchanged.
+The validated assembled source tree is `b0a1576fb717a796aa1e34554bdb68ae5e67f3ab`. Its production build passes
+independent graph checks with **zero mismatches and zero violations**. The actual
+build distribution is
+`dist:0ce48df1a089fe925a88e7c8cdc410683a08067c15a1742ca9061ad7644bd2b2`.
+All three bundle outputs—default, minimal-local-hardened and family-local-hardened—
+pass their budgets. Hardened limits are unchanged; the hardened builds exclude
+Networking, External connectors, Remote AI, the popup module and all Tailscale
+SDK/worker assets.
 
-All 69 workspace typecheck tasks pass without cached results. The full workspace test run is in progress; its result will be recorded before this evidence PR is marked ready. Scoped strict lint, structural checks, package boundaries, and secret scanning are recorded separately in the implementation PRs.
+**72/72 workspace test tasks** and **69/69 typecheck tasks** passed. The final
+Turbo runs reused 71 test-task cache results and 66 typecheck-task cache results;
+the remaining tasks executed successfully. Scoped strict lint, structural checks
+(no new debt), core/package boundaries and log hygiene are clean. These are local
+validation receipts, not a claim about required remote CI status.
+
+The blocked-popup retry regression fails against the old action handler and
+passes with the correction: abort and clear the reserved operation when popup
+reservation is blocked, then allow a fresh attempt. The first failure makes no
+consent/exchange request or credential disclosure; retry consumes one key and
+releases the reservation. The focused combined runner/retry tests pass 12 tests.
+
+The Environments test now awaits the newly selected `staging` tab after
+asynchronous creation before switching to `production`. This is a test-only
+readiness wait, without production behavior changes or a longer timeout. Its
+11-test focused suite and the complete 72-task workspace run pass.
+
+These checks validate the assembled tree above. The visual and browser compiled
+SHAs recorded earlier remain unchanged: **143 browser assertions**
+(**80 AI + 41 official SDK/installed-PWA + 22 management**), zero strict failures.
+The later blocked-popup retry behavior has its separate regression receipt; the
+existing browser run is not relabeled as a new build.

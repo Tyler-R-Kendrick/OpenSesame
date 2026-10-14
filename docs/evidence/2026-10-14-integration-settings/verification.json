@@ -930,5 +930,91 @@
       "observed": "All 22 management functional assertions passed, but 16 strict console events failed the gate.",
       "fix": "Observable same-origin guard survives actual Vite minification; actual minifier regression passed and unchanged strict browser gate now passes on e834d91a2bc21e5557e993f54d67212298010897."
     }
-  ]
+  ],
+  "finalValidation": {
+    "validatedSourceTree": "b0a1576fb717a796aa1e34554bdb68ae5e67f3ab",
+    "productionBuild": {
+      "status": "passed",
+      "distributionId": "dist:0ce48df1a089fe925a88e7c8cdc410683a08067c15a1742ca9061ad7644bd2b2",
+      "fileCount": 249,
+      "graphViolations": 0,
+      "graphMismatches": 0,
+      "sizesBytes": {
+        "javascript": 7274998,
+        "javascriptGzip": 2194080,
+        "css": 184788,
+        "total": 16981011,
+        "largestAsset": 6600192
+      },
+      "receipt": "final-production-graph-ready.json"
+    },
+    "workspaceTests": {
+      "status": "passed",
+      "successfulTasks": 72,
+      "totalTasks": 72,
+      "cachedTasks": 71,
+      "receipt": "final-workspace-tests-ready.log"
+    },
+    "workspaceTypecheck": {
+      "status": "passed",
+      "successfulTasks": 69,
+      "totalTasks": 69,
+      "cachedTasks": 66,
+      "receipt": "final-workspace-typecheck-ready.log"
+    },
+    "bundleBudgets": {
+      "status": "passed",
+      "profiles": [
+        "default",
+        "minimal-local-hardened",
+        "family-local-hardened"
+      ],
+      "hardenedLimitsChanged": false,
+      "receipt": "final-all-profile-budgets-ready.log"
+    },
+    "quality": {
+      "status": "passed",
+      "strictLint": "passed",
+      "structuralRegressions": 0,
+      "trackedStructuralDebt": 643,
+      "trackedStructuralDebtFiles": 416,
+      "appCoreBoundaryViolations": 0,
+      "vaultCoreBoundaryViolations": 0,
+      "restrictedSeamViolations": 0,
+      "packageCycles": 0,
+      "phantomDependencies": 0,
+      "newLogHygieneBypasses": 0,
+      "receipt": "final-overlay-quality-ready.log"
+    },
+    "browserAssertions": {
+      "passed": 143,
+      "ai": 80,
+      "officialSdkAndInstalledPwa": 41,
+      "conditionalManagement": 22,
+      "strictFailures": 0,
+      "compiledSourceShasUnchanged": true
+    },
+    "blockedPopupRetry": {
+      "status": "passed",
+      "oldHandlerNegativeControl": "failed as expected",
+      "correctedHandlerRegression": "passed",
+      "observedBehavior": "Abort and clear a blocked popup reservation so a later attempt can proceed; first failure sends no consent or exchange request and exposes no key. Successful retry releases the reservation and consumes exactly one key.",
+      "negativeControlReceipt": "tailscale-popup-retry/negative-control.log",
+      "positiveReceipt": "tailscale-popup-retry/fixed.log",
+      "combinedRunnerTestsPassed": 12,
+      "combinedRunnerReceipt": "final-runner-and-retry-tests.log"
+    },
+    "environmentReadiness": {
+      "status": "passed",
+      "change": "Test awaits the selected staging tab after asynchronous creation before switching to production.",
+      "productionBehaviorChanged": false,
+      "timeoutRaised": false,
+      "focusedTestsPassed": 11,
+      "focusedReceipt": "environments-sheet-fixed-focused.log"
+    },
+    "limits": [
+      "These receipts describe local verification; remote required CI status is recorded separately.",
+      "Browser compiled source SHAs and screenshots are preserved; later retry behavior is covered by its separate regression, not presented as a new 143-assertion browser run."
+    ]
+  }
 }
