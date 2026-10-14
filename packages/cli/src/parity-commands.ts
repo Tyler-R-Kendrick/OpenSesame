@@ -79,7 +79,7 @@ export async function dispatchParity(
         reference: ref,
         appIntegration: ctx.appIntegration,
       });
-      emitRevealReceipt({ verb: "read", reference: ref });
+      await emitRevealReceipt({ verb: "read", reference: ref });
       emitHumanValue(await agent.read(ref));
       return 0;
     }
@@ -167,7 +167,7 @@ export async function runChild(ctx: ParityContext): Promise<number> {
     desktop: true,
     appIntegration: ctx.appIntegration,
   });
-  emitRevealReceipt({ verb: "run" });
+  await emitRevealReceipt({ verb: "run" });
   return agent.run(assignments, child);
 }
 
@@ -191,7 +191,7 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
       desktop: true,
       appIntegration: ctx.appIntegration,
     });
-    emitRevealReceipt({ verb: "run" });
+    await emitRevealReceipt({ verb: "run" });
     return agent.runFile(file, child, await readFile(file, "utf8"));
   }
   if (verb !== "resolve")
@@ -210,7 +210,7 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
   exhausted(args);
   if (inPlace === (output !== undefined))
     throw new Error("Choose exactly one of --output or --in-place.");
-  emitRevealReceipt({ verb: "env-resolve" });
+  await emitRevealReceipt({ verb: "env-resolve" });
   const result = await agent.resolveEnv(await readFile(file, "utf8"));
   await privateFile(output ?? file, result.content);
   print({ resolved: result.count, file: output ?? file, plaintext: true });

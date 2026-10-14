@@ -2,19 +2,21 @@
  * P-256 signatures for CLI app-integration pairing and approvals (Rust parity).
  */
 
-import { sha256 } from "@noble/hashes/sha2";
-
 const enc = new TextEncoder();
+
+async function sha256(data: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
+}
 
 export const PAIRING_CONFIRM_LABEL = "opensesame-cli-app-pairing-confirm.v1";
 export const APPROVAL_CHALLENGE_LABEL = "opensesame-cli-app-approval.v1";
 
-export function approvalChallengeDigest(
+export async function approvalChallengeDigest(
   requestId: string,
   terminalSessionId: string,
   respondNonce: string,
   verb: string,
-): Uint8Array {
+): Promise<Uint8Array> {
   const parts = [
     enc.encode(APPROVAL_CHALLENGE_LABEL),
     new Uint8Array([0]),
@@ -34,7 +36,7 @@ export function approvalChallengeDigest(
     msg.set(part, off);
     off += part.byteLength;
   }
-  return sha256(msg);
+  return await sha256(msg);
 }
 
 export function pairingConfirmMessage(

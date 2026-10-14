@@ -45,7 +45,7 @@ async function ensureProbeRejectsInstantApproval(
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      terminalSessionId: ephemeralTerminalCorrelationId(),
+      terminalSessionId: await ephemeralTerminalCorrelationId(),
       verb: cliAppIntegrationPolicy.daemonPinProbeVerb,
     }),
   });
