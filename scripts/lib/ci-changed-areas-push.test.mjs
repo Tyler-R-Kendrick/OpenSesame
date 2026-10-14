@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -101,7 +102,7 @@ describe("the Bundle budgets aggregate", () => {
     ];
     const gated = jobs
       .filter(([, , body]) =>
-        /\n {4}if: needs\.changes\.outputs\.(bundle_matrix|push|tutorials|device_inbox|device_identity|live_join) (==|!=) '(true|\[\])'/.test(
+        /\n {4}if: needs\.changes\.outputs\.(bundle|bundle_matrix|push|tutorials|device_inbox|device_identity|live_join) (==|!=) '(true|\[\])'/.test(
           `\n${body}`,
         ),
       )
@@ -117,6 +118,8 @@ describe("the Bundle budgets aggregate", () => {
         "device-inbox",
         "device-identity-e2e",
         "live-join-e2e",
+        "ai-connections-e2e",
+        "tailnet-browser-node-e2e",
       ]),
     );
     for (const name of gated) {
@@ -152,3 +155,54 @@ describe("the Bundle budgets aggregate", () => {
     );
   });
 });
+
+it.each([
+  [
+    "ai-connections-e2e",
+    "build:ai-connections-verify",
+    "verify:ai-connections",
+    "ai-connections-browser",
+    "ai",
+  ],
+  [
+    "tailnet-browser-node-e2e",
+    "build:tailnet-browser-verify",
+    "verify:tailnet-browser-node",
+    "tailnet-browser-node",
+    "tailnet",
+  ],
+])(
+  "requires the separate %s browser result",
+  (id, build, verify, out, result) => {
+    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const job =
+      ci.split(`\n  ${id}:\n`)[1]?.split(/\n {2}[a-z0-9-]+:\n/)[0] ?? "";
+    expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");
+    expect(job).toContain(`pnpm --filter @opensesame/pages ${build}`);
+    expect(job).toContain(`pnpm --filter @opensesame/pages ${verify}`);
+    expect(job).toContain("PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome");
+    expect(job).toContain("VITE_BASE: /OpenSesame/");
+    expect(job).toContain(`PAGES_VERIFY_OUT: \${{ runner.temp }}/${out}`);
+    expect(job).toContain("if: always()");
+    expect(job).toContain("uses: actions/upload-artifact@");
+    expect(job).toContain(`path: \${{ runner.temp }}/${out}/`);
+    const check =
+      ci.split("\n  bundle-check:\n")[1]?.split("\n  rust-check:\n")[0] ?? "";
+    expect(check).toContain(`${result}="\${{ needs.${id}.result }}"`);
+    const report = check.split("run: |\n")[1];
+    expect(report).toBeDefined();
+    for (const state of ["success", "skipped", "failure", "cancelled"]) {
+      const script = report.replace(
+        /\$\{\{ needs\.([a-z0-9-]+)\.result \}\}/g,
+        (_, jobId) => (jobId === id ? state : "success"),
+      );
+      const command = spawnSync("bash", ["-e", "-c", script], {
+        encoding: "utf8",
+      });
+      expect(command.error).toBeUndefined();
+      const accepted = state === "success" || state === "skipped";
+      expect(command.status, command.stderr).toBe(accepted ? 0 : 1);
+      if (!accepted) expect(command.stdout).toContain(state);
+    }
+  },
+);
