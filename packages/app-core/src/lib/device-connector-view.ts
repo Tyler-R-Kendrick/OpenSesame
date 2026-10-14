@@ -3,6 +3,7 @@ import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { Connection } from "./connections.js";
 import { type PublicRow, readDeviceRows } from "./device-connector-records.js";
 import { identityConnectionDeviceSeams } from "./identity-connections-seam.js";
+import { secretBackendDeviceSeams } from "./secret-backends/seam.js";
 
 type AuthorizationView = Pick<
   Connection,
@@ -47,6 +48,16 @@ function authorizationView(row: PublicRow): AuthorizationView {
     refreshable: false,
   };
   if (row.fields.self_hosted_configuration === undefined) return ordinary;
+  if (row.fields.secret_backend_configuration !== undefined) {
+    return (
+      secretBackendDeviceSeams.authorization(row.connectionId) ?? {
+        ...ordinary,
+        status: "pending",
+        statusDetail: "Configured; connect to access items",
+        grantedScopes: [],
+      }
+    );
+  }
   if (row.fields.identity_configuration !== undefined) {
     return (
       identityConnectionDeviceSeams.authorization(row.connectionId) ?? {

@@ -144,7 +144,7 @@ import {
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
-import { type ImportOptions, importSealedInto } from "./store-import.js";
+import { bindSealedImport } from "./store-import.js";
 import {
   installDefinition,
   newVaultFolder,
@@ -1505,13 +1505,10 @@ export class VaultStore {
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
-  importSealed(
-    fileText: string,
-    secret: string | Uint8Array,
-    options: ImportOptions = {},
-  ): Promise<number> {
-    return importSealedInto(this.#bodyPort(), fileText, secret, options);
-  }
+  importSealed = bindSealedImport(
+    () => this.#bodyPort(),
+    () => this.#protectionOperation().active,
+  );
 
   #bodyPort(): VaultBodyPort {
     return makeBodyPort({

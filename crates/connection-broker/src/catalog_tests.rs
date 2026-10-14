@@ -3,17 +3,48 @@ use super::*;
 #[test]
 fn embedded_catalog_is_valid_and_versioned() {
     let catalog = load().expect("embedded catalog");
-    assert_eq!(catalog.revision(), "2026-10-14.1");
-    assert_eq!(catalog.providers().len(), 182);
+    assert_eq!(catalog.revision(), "2026-10-14.2");
+    assert_eq!(catalog.providers().len(), 185);
     assert_eq!(
         catalog
             .providers()
             .iter()
             .filter(|provider| provider.id != "mock")
             .count(),
-        181
+        184
     );
     assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
+}
+
+#[test]
+fn browser_secret_store_rows_do_not_rewrite_host_provider_credentials() {
+    let catalog = load().expect("embedded catalog");
+    for id in ["byo-secret-backend", "local-vault", "browser-credentials"] {
+        let provider = catalog.find(id).expect("browser secret store");
+        assert_eq!(provider.category, Category::PasswordManagers);
+        assert!(matches!(provider.auth, AuthMethod::Configuration));
+        assert_eq!(provider.operations, ["secret.configure"]);
+        assert_eq!(provider.egress.scheme, "none");
+        assert!(provider.egress.authorities.is_empty());
+    }
+    for (id, field) in [
+        ("1password", "service_account_token"),
+        ("bitwarden", "session_token"),
+        ("vaultwarden", "session_token"),
+        ("proton-pass", "agent_token"),
+        ("passwordstate", "api_key"),
+        ("infisical", "token"),
+        ("bitwarden-sm", "access_token"),
+    ] {
+        let provider = catalog.find(id).expect("existing Host provider");
+        assert!(
+            provider
+                .connection_configuration_fields()
+                .iter()
+                .any(|entry| { entry.name == field && entry.secret && entry.required }),
+            "Host credential changed for {id}"
+        );
+    }
 }
 
 #[test]
