@@ -1,6 +1,8 @@
+import { localNetworkFetchSeams } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { type FormEvent, useState } from "react";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { CLI_AUTHORIZE_LOAD_BLOCKED } from "./cli-authorize-panel-model.js";
 
 export function CliAuthorizePairingForm({
   onPaired,
@@ -10,6 +12,7 @@ export function CliAuthorizePairingForm({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [mark, setMark] = useState<string | null>(null);
+  const localCliBlocked = !localNetworkFetchSeams.eligible();
 
   async function onPair(event: FormEvent) {
     event.preventDefault();
@@ -42,6 +45,7 @@ export function CliAuthorizePairingForm({
 
   return (
     <>
+      {localCliBlocked ? <p>{CLI_AUTHORIZE_LOAD_BLOCKED}</p> : null}
       <form className="plugin-tile__pair" onSubmit={onPair}>
         <label htmlFor="cli-authorize-pairing-code">Pairing code</label>
         <div className="field-inline">
@@ -56,17 +60,16 @@ export function CliAuthorizePairingForm({
             readOnly={busy}
             onChange={(event) => setCode(event.target.value)}
           />
-          {code.trim() ? (
-            <button
-              type="submit"
-              className="icon-btn"
-              aria-busy={busy || undefined}
-              aria-label="Pair with the daemon"
-              title="Pair with the daemon"
-            >
-              <IconConnection size={16} />
-            </button>
-          ) : null}
+          <button
+            type="submit"
+            className="icon-btn"
+            disabled={busy || code.trim() === ""}
+            aria-busy={busy || undefined}
+            aria-label="Pair with the daemon"
+            title="Pair with the daemon"
+          >
+            <IconConnection size={16} />
+          </button>
         </div>
       </form>
       {mark ? (

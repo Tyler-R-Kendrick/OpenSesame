@@ -32,9 +32,14 @@ function pageOrigin(): string | null {
   }
 }
 
-const LOAD_BLOCKED =
+export const CLI_AUTHORIZE_LOAD_BLOCKED =
   "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
-const LOAD_UNREADABLE = "Couldn't check for CLI requests.";
+export const CLI_AUTHORIZE_LOAD_UNREADABLE = "Couldn't check for CLI requests.";
+
+const LOAD_BLOCKED = CLI_AUTHORIZE_LOAD_BLOCKED;
+const LOAD_UNREADABLE = CLI_AUTHORIZE_LOAD_UNREADABLE;
+
+const PENDING_POLL_MS = 5000;
 
 /** The deployment fence in `localNetworkFetch` refuses with a SecurityError. */
 function isDeploymentBlocked(error: DOMException | null): boolean {
@@ -118,11 +123,26 @@ export function useCliAuthorizePanel() {
   const [header, setHeader] = useState<VaultHeader | null>(null);
 
   useEffect(() => {
-    void (async () => {
+    let cancelled = false;
+    const refresh = async () => {
       const pending = await loadPending();
+      if (cancelled) return;
       setLoadError(pending.loadError);
       setRow(pending.row);
-    })();
+    };
+    void refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, PENDING_POLL_MS);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(timer);
+    };
   }, []);
 
   async function finish(decision: "approve" | "deny", humanProof?: string) {
