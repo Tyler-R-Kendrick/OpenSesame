@@ -15,6 +15,7 @@ import {
   authKindLabel,
   catalogMethodLabel,
 } from "./CatalogPanel.js";
+import { identityConnectionMethodLabel } from "./identity/identity-ui-values.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
 declareConnectionsTutorial();
 afterEach(cleanup);
@@ -38,6 +39,11 @@ it("shows Adobe's MCP contract on the actual catalog tile instead of its legacy 
 });
 it("uses compiled provider protocols across the full public catalog and keeps legacy feature labels", () => {
   for (const provider of mergeVercelCatalog(getBundledProviders())) {
+    const identity = identityConnectionMethodLabel(provider.id);
+    if (identity) {
+      expect(catalogMethodLabel(provider)).toBe(identity);
+      continue;
+    }
     const plan = connectPlan(provider.id);
     if (!plan) {
       // A model provider's tile also says which API it speaks (ADR 0192).
@@ -61,7 +67,7 @@ it("uses compiled provider protocols across the full public catalog and keeps le
   }
   const provider = catalogProvider("better-auth");
   if (!provider) throw new Error("Missing legacy catalog provider");
-  expect(catalogMethodLabel(provider)).toBe("Configuration");
+  expect(catalogMethodLabel(provider)).toBe("Email/password · OIDC");
 });
 
 it("keeps admitted Notion and MCP alternatives distinct from blocked browser API/OAuth badges", () => {
