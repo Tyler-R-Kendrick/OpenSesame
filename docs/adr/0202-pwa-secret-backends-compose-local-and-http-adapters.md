@@ -87,3 +87,23 @@ Adapters expose item operations and explicit snapshots, not automatic
 synchronization. Destination size limits, permissions and provider retention
 rules remain visible constraints. Operator setup and verification steps live in
 [the secret-backend guide](../operators/secret-backends.md).
+
+## Shipped bundle cost, measured 2026-10-14
+
+The clean production build measures 6,965 KiB of JavaScript and 2,104 KiB
+gzipped, compared with the identity baseline's 6,786/2,056 KiB: +179 KiB raw
+and +48 KiB gzip. This pays for shared BYO/partner configuration and item UI,
+native HTTP and capability transports, verified ciphertext backup controls,
+the official 1Password save button, and official Bitwarden SDK worker/glue.
+Those implementations load on explicit use, while their shipped assets still
+count toward offline installation. The 1,967 KiB official SDK WASM asset fits
+the existing total and largest-asset budgets; total output is 9,984 KiB and
+CSS remains 180 KiB.
+
+Deliberately set only the default Pages JavaScript ceilings to 7,000/2,120 KiB
+(previously 6,800/2,058), leaving 35/16 KiB over this measurement. Minimal-local
+and family-local hardened builds each retain 3,325,650 raw JavaScript bytes,
+at most 1,030,510 gzip bytes and 113 files; their clean composition reports and budgets
+pass unchanged. Profile, total, largest-asset, CSS and structural limits are
+unchanged. This is an explicit feature-cost decision, not a regenerated
+structural baseline.
