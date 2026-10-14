@@ -1,0 +1,64 @@
+import { modelApiOf } from "../ai-model-provider.js";
+import { catalogProvider } from "../connector-catalog.js";
+import type { AiConnectionDraft, AiInferenceFamily } from "./types.js";
+
+export const AI_CONNECTION_FAMILIES = [
+  { id: "openai_chat", label: "OpenAI Chat Completions" },
+  { id: "openai_responses", label: "OpenAI Responses" },
+  { id: "anthropic_messages", label: "Anthropic Messages" },
+  { id: "gemini_generate_content", label: "Gemini Generate Content" },
+] as const;
+
+export function isAiConnectionFamily(
+  value: string,
+): value is AiInferenceFamily {
+  return AI_CONNECTION_FAMILIES.some((family) => family.id === value);
+}
+
+export function aiConnectionFamilies(providerId: string) {
+  const preset = aiConnectionPreset(providerId);
+  return AI_CONNECTION_FAMILIES.filter(
+    (family) =>
+      providerId === "byo-ai" ||
+      family.id === preset?.family ||
+      (providerId === "openai" && family.id === "openai_responses"),
+  );
+}
+
+/** Native catalog metadata supplies partner defaults; BYO exposes the same families. */
+export function aiConnectionPreset(providerId: string) {
+  if (providerId === "byo-ai")
+    return {
+      providerId,
+      name: "BYO AI",
+      family: "openai_chat" as const,
+      baseUrl: "",
+    };
+  const api = modelApiOf(providerId);
+  if (!api || !isAiConnectionFamily(api.protocol)) return null;
+  return {
+    providerId,
+    name: catalogProvider(providerId)?.displayName ?? providerId,
+    family: api.protocol,
+    baseUrl: api.baseUrl ?? "",
+  };
+}
+
+export function isAiConnectionProvider(providerId: string): boolean {
+  return aiConnectionPreset(providerId) !== null;
+}
+
+export function aiConnectionDraft(providerId: string): AiConnectionDraft {
+  const preset = aiConnectionPreset(providerId);
+  if (!preset) throw new Error("This provider has no supported AI protocol.");
+  return {
+    ...preset,
+    model: "",
+    authentication: "api-key",
+    apiKey: "",
+    tokenParameter:
+      providerId === "openai" || providerId === "byo-ai"
+        ? "max_completion_tokens"
+        : "max_tokens",
+  };
+}
