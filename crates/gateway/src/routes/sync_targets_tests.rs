@@ -114,20 +114,18 @@ fn authorized_request(
 async fn create_sync_target(app: &Router, fixture: &SecretLeakFixture) -> String {
     let res = app
         .clone()
-        .oneshot(
-            authorized_request(
-                &fixture.headers,
-                "POST",
-                "/api/v1/sync-targets",
-                json!({
-                    "project_id": "project:1",
-                    "config_id": fixture.config_id,
-                    "connection_id": fixture.connection_id,
-                    "operation": "env.set"
-                })
-                .to_string(),
-            ),
-        )
+        .oneshot(authorized_request(
+            &fixture.headers,
+            "POST",
+            "/api/v1/sync-targets",
+            json!({
+                "project_id": "project:1",
+                "config_id": fixture.config_id,
+                "connection_id": fixture.connection_id,
+                "operation": "env.set"
+            })
+            .to_string(),
+        ))
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::CREATED);
@@ -145,9 +143,12 @@ async fn sync_target(app: &Router, fixture: &SecretLeakFixture, id: &str) {
     let uri = format!("/api/v1/sync-targets/{id}/sync");
     let res = app
         .clone()
-        .oneshot(
-            authorized_request(&fixture.headers, "POST", &uri, "{}".into()),
-        )
+        .oneshot(authorized_request(
+            &fixture.headers,
+            "POST",
+            &uri,
+            "{}".into(),
+        ))
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
