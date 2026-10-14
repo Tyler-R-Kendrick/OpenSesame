@@ -109,6 +109,7 @@
     "@storybook/addon-docs": "10.6.1",
     "@storybook/addon-mcp": "10.6.1",
     "@storybook/react-vite": "10.6.1",
+    "@tailscale/connect": "1.102.3-3-tb31d8a75a-g5e651e16f",
     "@testing-library/react": "16.3.0",
     "@testing-library/user-event": "14.6.1",
     "@types/node": "22.15.29",
