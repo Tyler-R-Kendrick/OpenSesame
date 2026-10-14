@@ -37,7 +37,14 @@ function browser(href = `${origin}/connections`) {
     opener: {},
     closed: false,
     close: vi.fn(),
-    location: { replace: vi.fn() },
+    location: {
+      foreign: false,
+      get href() {
+        if (this.foreign) throw new DOMException("Denied", "SecurityError");
+        return href;
+      },
+      replace: vi.fn(),
+    },
   };
   const value = {
     location: new URL(href),
@@ -94,7 +101,6 @@ describe("originating consent session", () => {
     expect(initiating.popup.close).toHaveBeenCalledOnce();
     expect(channels.size).toBe(0);
   });
-
   it("keeps two concurrent originating sessions separate", async () => {
     browser();
     const one = reserveNativeAuthPopup().wait(request());
@@ -109,7 +115,6 @@ describe("originating consent session", () => {
     await expect(one).resolves.toMatchObject({ code: "first-code" });
     await expect(firstDelivery).resolves.toBe(true);
   });
-
   it("does not interpret a severed COOP WindowProxy as a closed consent window", async () => {
     const initiating = browser();
     initiating.popup.closed = true;
@@ -120,7 +125,6 @@ describe("originating consent session", () => {
     await expect(pending).resolves.toMatchObject({ code: "isolated-code" });
     await expect(delivery).resolves.toBe(true);
   });
-
   it("ignores another callback route and cannot reuse a consumed reservation", async () => {
     browser();
     const reservation = reserveNativeAuthPopup();
@@ -143,16 +147,19 @@ describe("originating consent session", () => {
     await expect(delivery).resolves.toBe(true);
     await expect(reservation.wait(request())).rejects.toThrow("already used");
   });
-
-  it("cancels explicitly and removes the return listener", async () => {
-    browser();
+  it("cancels an isolated foreign popup without trying to close or revive it", async () => {
+    const initiating = browser();
     const reservation = reserveNativeAuthPopup();
     const pending = reservation.wait(request());
     await ready();
+    initiating.popup.location.foreign = true;
     const failure = expect(pending).rejects.toThrow("cancelled or expired");
     reservation.cancel();
     await failure;
+    expect(initiating.popup.close).not.toHaveBeenCalled();
     expect(channels.size).toBe(0);
+    initiating.popup.location.foreign = false;
+    await expect(reservation.wait(request())).rejects.toThrow("already used");
   });
 
   it("returns a denial without treating it as an issued code", async () => {
@@ -251,6 +258,7 @@ describe("provider-native web_message.opener", () => {
       ...request(),
       expectedOrigin: "https://vercel.com",
     });
+    initiating.popup.location.foreign = true;
     const message = (
       eventOrigin: string,
       source: typeof initiating.popup | null,
@@ -270,6 +278,8 @@ describe("provider-native web_message.opener", () => {
     expect(initiating.popup.close).not.toHaveBeenCalled();
     message("https://vercel.com", initiating.popup, state);
     await expect(pending).resolves.toMatchObject({ code: "provider-code" });
+    expect(initiating.popup.opener).not.toBeNull();
+    expect(initiating.popup.close).toHaveBeenCalledOnce();
   });
 
   it("refuses opener messaging under enforced browser isolation", async () => {
@@ -326,14 +336,18 @@ describe("provider-native device consent", () => {
   });
 
   it("aborts polling when the initiating user cancels", () => {
-    browser();
+    vi.useFakeTimers();
+    const initiating = browser();
     const popup = reserveNativeAuthPopup();
     const consent = popup.showDeviceConsent(deviceRequest());
+    initiating.popup.location.foreign = true;
     const aborted = vi.fn();
     consent.signal.addEventListener("abort", aborted);
     popup.cancel();
     expect(consent.signal.aborted).toBe(true);
     expect(aborted).toHaveBeenCalledOnce();
+    expect(initiating.popup.close).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("aborts polling and closes the consent window at the provider deadline", async () => {
