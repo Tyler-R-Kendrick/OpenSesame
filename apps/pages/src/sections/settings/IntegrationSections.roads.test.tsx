@@ -140,13 +140,12 @@ describe("connector tiles once Connections routes its pages", () => {
     installConnections();
     renderIntegrationsPanel();
     expect(screen.queryByRole("heading", { name: "Encryption" })).toBeNull();
-    for (const title of [
-      "Password managers",
-      "Local storage",
-      "Cloud secret storage",
-    ]) {
+    for (const title of ["Password managers", "Cloud secret storage"]) {
       expect(screen.getByRole("heading", { name: title }), title).toBeTruthy();
     }
+    expect(screen.queryByRole("heading", { name: "Local storage" })).toBeNull();
+    for (const name of ["OS Keychain", "KeePass", "S3-compatible bucket"])
+      expect(screen.queryByRole("link", { name: new RegExp(name) })).toBeNull();
     // No section here carries a switch: those are Features.
     expect(screen.queryAllByRole("switch")).toHaveLength(
       screen.queryAllByRole("switch", { name: /vault history/ }).length,
@@ -183,7 +182,8 @@ describe("the rail and the page index list what the page draws", () => {
 
   it("leaves out a section that draws nothing", () => {
     expect(integrations([])).toContain("Password managers");
-    const listed = integrations(["password-managers", "local-storage"]);
+    expect(integrations([])).not.toContain("Local storage");
+    const listed = integrations(["password-managers"]);
     expect(listed).not.toContain("Password managers");
     expect(listed).not.toContain("Local storage");
     expect(listed).toContain("Backups");

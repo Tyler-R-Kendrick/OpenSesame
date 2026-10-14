@@ -43,7 +43,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "vault.item.create": ["/vault"],
     "vault.item.edit": ["/vault/item"],
     "vault.health.review": ["/vault/health"],
-    "settings.model-provider": ["/settings/features", "/settings/integrations"],
+    "settings.model-provider": ["/settings/features"],
     "settings.tailnet-sync": ["/settings/vaults"],
     "settings.notifications": ["/settings/notifications"],
     "settings.local-notifications": ["/settings/features"],
