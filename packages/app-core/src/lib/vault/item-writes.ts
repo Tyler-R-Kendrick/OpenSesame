@@ -10,6 +10,7 @@ import {
   type VaultItem,
   resolveAccounts,
 } from "@opensesame/vault-core";
+import { applyManifestPlan } from "./body-edits.js";
 import { noteSavedItems } from "./item-activity.js";
 import { itemText } from "./item-departure.js";
 import { writeItem } from "./item-path.js";
@@ -23,6 +24,26 @@ export type ItemWriteHost = {
   items: readonly VaultItem[];
   mutate(change: (body: VaultBody) => void): Promise<void>;
 };
+
+export type ManifestWritePlan = {
+  adds: VaultItem[];
+  updates: VaultItem[];
+  newFolders: Folder[];
+};
+
+export type ItemImportPlan = {
+  items: VaultItem[];
+  newFolders: Folder[];
+};
+
+export function writeManifestItems(
+  host: ItemWriteHost,
+  plan: ManifestWritePlan,
+): Promise<void> {
+  if (plan.adds.length + plan.updates.length + plan.newFolders.length === 0)
+    return Promise.resolve();
+  return host.mutate((body) => applyManifestPlan(body, plan));
+}
 
 export async function writeSavedItems(
   host: ItemWriteHost,
