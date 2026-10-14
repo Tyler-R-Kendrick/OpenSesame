@@ -75,6 +75,23 @@ node authorization and peer GET without a TUN. Fixture DNS and certificate trust
 are test-only. These observations do not claim access to a user's hosted tenant
 or that a management fixture proves hosted REST CORS support.
 
+## Measured shipped cost
+
+Frozen production `7bd502e7` has an independently clean ownership/reachability
+graph and measures 7,103 KiB of JavaScript and 2,142 KiB gzip. The final backup
+parent measured 6,979/2,109 KiB; AI and Tailscale together add 124/33 KiB. The
+previous recorded AI phase measured 7,007/2,118 KiB. The bootstrap's static
+closure grows by only 245 raw bytes and 54 gzip bytes over the backup parent;
+the optional client, forms and inference implementations load on explicit use.
+
+Set only the default JavaScript ceilings to 7,140/2,156 KiB, leaving 37/14 KiB
+of measured headroom. Total output is 16,582 KiB, CSS is 180 KiB and the largest
+asset is the official 6,600,192-byte compressed WASM (6,446 KiB), all within
+their existing ceilings. The raw WASM and terminal bundle are absent. Hardened
+profiles must omit the Networking runtime and all three Tailscale public assets;
+their ceilings, and every structural ceiling, remain unchanged. Final profile
+builds and installed-PWA cache checks are recorded separately before readiness.
+
 References:
 
 - [Official AI guidance](https://tailscale.com/docs/develop-with-ai)
