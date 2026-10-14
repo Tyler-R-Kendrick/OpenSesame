@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-14-integration-settings/`](2026-10-14-integration-settings/README.md) | Integration settings: AI and Tailscale |
 | [`2026-10-14-identity-integrations/`](2026-10-14-identity-integrations/README.md) | Configurable identity integrations |
 | [`2026-10-14-backup-integrations/`](2026-10-14-backup-integrations/README.md) | Configurable secret backends and encrypted vault backups |
 | [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
