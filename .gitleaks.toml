@@ -26,6 +26,7 @@ paths = [
   '''(^|/)\.pnpm-store(?:/|$)''',
   '''(^|/)dist(?:/|$)''',
   '''(^|/)dist-identity-verify(?:/|$)''',
+  '''(^|/)dist-secret-backends-verify(?:/|$)''',
   '''(^|/)dist-profiles(?:/|$)''',
   '''(^|/)coverage(?:/|$)''',
   '''(^|/)\.turbo(?:/|$)''',
