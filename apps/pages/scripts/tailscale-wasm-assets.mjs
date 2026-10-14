@@ -18,6 +18,14 @@ const manifest = JSON.parse(
 );
 export const TAILSCALE_SDK = Object.freeze(manifest.sdk);
 export const TAILSCALE_ASSETS = Object.freeze(manifest.assets);
+/** Give this dedicated worker an explicit build identity without renaming other workers. */
+export function tailscaleWorkerFileName(chunk) {
+  return chunk.facadeModuleId
+    ?.replaceAll("\\", "/")
+    .endsWith("/src/modules/networking.tailnet/browser/worker.ts")
+    ? "assets/tailscale-node-[hash].js"
+    : "assets/[name]-[hash].js";
+}
 export function assertTailscaleHash(bytes, expected) {
   if (createHash("sha256").update(bytes).digest("hex") !== expected)
     throw new Error(
@@ -113,6 +121,11 @@ export function tailscaleWasmAssets() {
 
 /** Declare actual browser runtime dependencies for the approved-capability offline plan. */
 export function attachTailscaleAssets(bundle) {
+  const workers = Object.keys(bundle).filter(
+    (file) =>
+      bundle[file].type === "asset" &&
+      /^assets\/tailscale-node-[A-Za-z0-9_-]+\.js$/.test(file),
+  );
   let attached = false;
   for (const output of Object.values(bundle)) {
     if (
@@ -128,6 +141,19 @@ export function attachTailscaleAssets(bundle) {
     };
     for (const file of Object.values(TAILSCALE_ASSETS))
       output.viteMetadata.importedAssets.add(file);
+    if (
+      Object.keys(output.modules).some((id) =>
+        id
+          .replaceAll("\\", "/")
+          .endsWith("/networking.tailnet/browser/controller.ts"),
+      )
+    ) {
+      if (workers.length !== 1)
+        throw new Error(
+          "Tailscale controller needs exactly one emitted dedicated worker.",
+        );
+      output.viteMetadata.importedAssets.add(workers[0]);
+    }
     attached = true;
   }
   if (!attached)
