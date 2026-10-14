@@ -71,7 +71,9 @@
     "capture:backup-integrations": "node scripts/capture-backup-integrations.mjs",
     "compose:backup-integrations": "node scripts/compose-backup-integrations.mjs",
     "build:ai-connections-verify": "PAGES_DEPLOYMENT_PROFILE=loopback_development PAGES_CANONICAL_ORIGIN=http://localhost:41911 node scripts/stamped-build.mjs 'vite build --outDir dist-ai-connections-verify --emptyOutDir && PAGES_OUT_DIR=dist-ai-connections-verify node scripts/build-workers.mjs'",
-    "verify:ai-connections": "node scripts/verify-ai-connections.mjs"
+    "verify:ai-connections": "node scripts/verify-ai-connections.mjs",
+    "build:tailnet-browser-verify": "PAGES_DEPLOYMENT_PROFILE=loopback_development PAGES_CANONICAL_ORIGIN=http://localhost:41911 node scripts/stamped-build.mjs 'vite build --outDir dist-tailscale-browser-verify --emptyOutDir && PAGES_OUT_DIR=dist-tailscale-browser-verify node scripts/build-workers.mjs'",
+    "verify:tailnet-browser-node": "node scripts/verify-tailnet-browser-node.mjs"
   },
   "dependencies": {
     "@1password/save-button": "1.3.0",
