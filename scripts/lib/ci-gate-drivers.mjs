@@ -26,6 +26,7 @@ export const DRIVER_GATES = {
   // Separate jobs use the bundle changed area and report through Bundle budgets.
   "verify-ai-connections.mjs": ["budgets"],
   "verify-tailnet-browser-node.mjs": ["budgets"],
+  "verify-tailscale-provisioning.mjs": ["budgets"],
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],
