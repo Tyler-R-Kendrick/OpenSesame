@@ -39,7 +39,7 @@ function client() {
   );
 }
 function browser(
-  transform: (value: URL) => URL = (url) => url,
+  transform: (value: URLSearchParams) => URLSearchParams = (query) => query,
 ): NativeOAuthBrowserPort {
   return {
     redirectUri: APP.redirectURIs[0] ?? "",
@@ -53,10 +53,12 @@ function browser(
       expect(url.searchParams.get("scope")).toBe("auth_keys:create:once");
       expect(url.searchParams.get("response_type")).toBe("code");
       expect(url.searchParams.get("client_id")).toBe(APP.id);
-      const callback = new URL(APP.redirectURIs[0] ?? "");
-      callback.searchParams.set("state", url.searchParams.get("state") ?? "");
-      callback.searchParams.set("code", "fixture-consent-code");
-      return transform(callback).href;
+      // Match authorizePopup's normalized production return, not a URL.
+      const callback = new URLSearchParams({
+        native_state: url.searchParams.get("state") ?? "",
+        native_code: "fixture-consent-code",
+      });
+      return transform(callback).toString();
     },
   };
 }
@@ -101,6 +103,7 @@ beforeEach(async () => {
   base = `http://127.0.0.1:${address.port}/`;
 });
 afterEach(async () => {
+  vi.restoreAllMocks();
   await new Promise<void>((resolve, reject) =>
     server.close((error) => (error ? reject(error) : resolve())),
   );
@@ -142,27 +145,51 @@ describe("Tailscale OAuth app documented HTTP ceremony", () => {
     });
     expect(requests[2]?.authorization).toBeUndefined();
   });
-  it.each(["state", "origin", "path", "duplicate", "error"])(
-    "refuses invalid consent %s before token exchange",
-    async (failure) => {
-      await expect(
-        client().provision(
-          APP,
-          browser((url) => {
-            if (failure === "state") url.searchParams.set("state", "wrong");
-            if (failure === "origin") url.host = "attacker.example";
-            if (failure === "path") url.pathname = "/other";
-            if (failure === "duplicate")
-              url.searchParams.append("code", "second");
-            if (failure === "error")
-              url.searchParams.set("error", "access_denied");
-            return url;
-          }),
-        ),
-      ).rejects.toThrow();
-      expect(tokenRequests).toBe(0);
-    },
-  );
+  it.each([
+    "state",
+    "duplicate-state",
+    "duplicate-code",
+    "error",
+    "code-and-error",
+    "empty-code",
+  ])("refuses invalid consent %s before token exchange", async (failure) => {
+    await expect(
+      client().provision(
+        APP,
+        browser((query) => {
+          if (failure === "state") query.set("native_state", "a".repeat(32));
+          if (failure === "duplicate-state")
+            query.append("native_state", query.get("native_state") ?? "");
+          if (failure === "duplicate-code")
+            query.append("native_code", "second");
+          if (failure === "error" || failure === "code-and-error")
+            query.set("native_error", "access_denied");
+          if (failure === "error") query.delete("native_code");
+          if (failure === "empty-code") query.set("native_code", "");
+          return query;
+        }),
+      ),
+    ).rejects.toThrow();
+    expect(tokenRequests).toBe(0);
+  });
+  it("refuses an expired normalized callback before token exchange", async () => {
+    const port = browser();
+    port.authorize = async (_href, options) => {
+      vi.spyOn(Date, "now").mockReturnValue(options.expiresAt);
+      return new URLSearchParams({
+        native_state: options.state,
+        native_code: "expired-consent-code",
+      }).toString();
+    };
+    await expect(client().provision(APP, port)).rejects.toThrow("expired");
+    expect(tokenRequests).toBe(0);
+  });
+  it("requires the actual browser port to use the registered callback", async () => {
+    const port = browser();
+    port.redirectUri = "https://attacker.example/callback";
+    await expect(client().provision(APP, port)).rejects.toThrow("callback");
+    expect(tokenRequests).toBe(0);
+  });
   it("refuses a cancelled or locked session before any request", async () => {
     active = false;
     await expect(
