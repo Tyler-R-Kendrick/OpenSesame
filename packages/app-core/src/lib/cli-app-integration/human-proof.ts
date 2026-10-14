@@ -12,7 +12,7 @@ import {
   formatCliAppHumanProofPasskey,
   formatCliAppHumanProofPin,
   isCliAppHumanProofValid,
-} from "./human-proof-crypto.js";
+} from "./device-crypto.js";
 
 export {
   CLI_APP_HUMAN_PROOF_PREFIX,

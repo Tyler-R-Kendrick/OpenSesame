@@ -6,7 +6,7 @@ import {
 import {
   formatCliAppHumanProofPin,
   isCliAppHumanProofValid,
-} from "./human-proof-crypto.js";
+} from "./device-crypto.js";
 
 const TEST_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
