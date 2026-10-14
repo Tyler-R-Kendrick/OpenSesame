@@ -114,9 +114,11 @@ describe("a vault another tab gave something to after the choice was made", () =
     await settle(tabB);
     expect(tabA.getSnapshot().items).toHaveLength(0);
 
+    // The import pins its original protection header. The authenticated peer
+    // refresh changes that header before the queued fresh-vault check runs.
     await expect(
       tabA.importSealed(backup.text, PASSWORD, TAKE),
-    ).rejects.toThrow("changed in another tab");
+    ).rejects.toMatchObject({ code: "stale_operation" });
     forgetDeviceIdentityKeyInFlightForTests();
 
     expect(await principal()).toBe(own);

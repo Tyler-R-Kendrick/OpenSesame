@@ -34,6 +34,74 @@ describe("isDistPath", () => {
   });
 });
 
+it.each(["core", "shared"])(
+  "caches %s lazy identity code with an owner ID without admitting optional code or type packs",
+  (classification) => {
+    const parsed = parseCapabilityGraph({
+      chunks: [
+        {
+          file: "main.js",
+          isEntry: true,
+          core: true,
+          dynamicImports: [
+            "device-identity-carry.js",
+            "optional-identity.js",
+            "mixed.js",
+            "note.js",
+          ],
+        },
+        {
+          file: "device-identity-carry.js",
+          modules: [{ classification, capability: "identity.brokered-signin" }],
+          imports: ["identity-key.js"],
+          importedAssets: ["identity.wasm"],
+        },
+        {
+          file: "identity-key.js",
+          modules: [
+            { classification: "core", capability: "identity.brokered-signin" },
+          ],
+        },
+        {
+          file: "optional-identity.js",
+          modules: [
+            {
+              classification: "optional",
+              capability: "identity.brokered-signin",
+            },
+          ],
+        },
+        {
+          file: "mixed.js",
+          modules: [
+            { classification: "core", capability: "identity.brokered-signin" },
+            { classification: "optional", capability: "wallet.spending" },
+          ],
+        },
+        {
+          file: "note.js",
+          onDemand: true,
+          modules: [{ classification: "shared", capability: null }],
+        },
+      ],
+    });
+    if (!parsed) throw new Error("unparsed");
+    expect(
+      parsed.chunks.find((chunk) => chunk.file === "device-identity-carry.js")
+        ?.modules[0]?.classification,
+    ).toBe(classification);
+    expect(resolvePlanAssets(parsed, [])).toEqual({
+      ok: true,
+      files: [
+        "device-identity-carry.js",
+        "identity-key.js",
+        "identity.wasm",
+        "main.js",
+      ],
+    });
+  },
+);
+
 describe("parseCapabilityGraph", () => {
   it("drops chunks with URL-like files and non-graph inputs", () => {
     expect(parseCapabilityGraph(null)).toBe(null);
@@ -61,7 +129,7 @@ describe("parseCapabilityGraph", () => {
         dynamicImports: ["assets/lazy.js"],
         css: [],
         assets: ["assets/parser.wasm"],
-        modules: [{ moduleId: null, capability: null }],
+        modules: [{ moduleId: null, capability: null, classification: null }],
       },
     ]);
   });

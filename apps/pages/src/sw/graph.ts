@@ -4,8 +4,10 @@
  * The build emits one chunk record per output file (`scripts/lib/
  * capability-graph.mjs`): `file`, `isEntry`, `imports`, `dynamicImports`,
  * `importedCss`, and `modules[]`, each module tagged `classification`
- * (`core` | `shared` | `optional`) and `capability` (the owning capability id,
- * `null` for core and shared code). The worker needs exactly one question
+ * (`core` | `shared` | `optional`) and `capability` (the owning capability id).
+ * Classification governs availability independently of that owner: a core
+ * module may name its capability without becoming optional. The worker needs
+ * exactly one question
  * answered — "which files does this set of approved module ids need
  * offline?" — and this module answers it from that data. A module id maps to
  * the chunks whose modules the id's capability owns; a record that also
@@ -26,8 +28,9 @@ import {
 export type GraphModule = Readonly<{
   /** `connectors.external/runtime` when the build knows it; else null. */
   moduleId: string | null;
-  /** Owning capability id, or null for a core module. */
+  /** Owning capability id; core/shared modules may also name their owner. */
   capability: string | null;
+  classification: "core" | "shared" | "optional" | null;
 }>;
 
 export type GraphChunk = Readonly<{
@@ -75,9 +78,24 @@ function moduleList(value: BoundaryValue): GraphModule[] {
     out.push({
       moduleId: isString(entry.moduleId) ? entry.moduleId : null,
       capability: isString(entry.capability) ? entry.capability : null,
+      classification:
+        entry.classification === "core" ||
+        entry.classification === "shared" ||
+        entry.classification === "optional"
+          ? entry.classification
+          : null,
     });
   }
   return out;
+}
+
+/** A core/shared module may still name its owner; ownership is not optionality. */
+function alwaysAvailable(module: GraphModule): boolean {
+  return (
+    module.classification === "core" ||
+    module.classification === "shared" ||
+    module.capability === null
+  );
 }
 
 function chunkOf(record: JsonObject): GraphChunk | null {
@@ -90,7 +108,7 @@ function chunkOf(record: JsonObject): GraphChunk | null {
     core:
       record.core === true ||
       ownership === "core" ||
-      (modules.length > 0 && modules.every((m) => m.capability === null)),
+      (modules.length > 0 && modules.every(alwaysAvailable)),
     onDemand: record.onDemand === true,
     imports: pathList(record.imports),
     dynamicImports: pathList(record.dynamicImports),
@@ -198,7 +216,8 @@ function approvedLazyChunk(
     (chunk.modules.length > 0 &&
       chunk.modules.every(
         (module) =>
-          module.capability === null || approved.has(module.capability),
+          alwaysAvailable(module) ||
+          (module.capability !== null && approved.has(module.capability)),
       ))
   );
 }
