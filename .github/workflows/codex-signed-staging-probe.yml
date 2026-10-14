@@ -1,0 +1,65 @@
+name: Verify signed staging commits
+on:
+  push:
+    branches: ["work/verified-contents-1253-1792017664643"]
+    paths: [".github/workflows/codex-signed-staging-probe.yml"]
+permissions: {}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Verify isolated GraphQL commits and workflow authority
+        shell: python
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAYLOAD_COMMIT: ${{ github.sha }}
+        run: |
+          import base64, hashlib, json, os, urllib.error, urllib.request
+          REPO = "Tyler-R-Kendrick/OpenSesame"
+          TOKEN = os.environ["GH_TOKEN"]
+          SOURCE = os.environ["PAYLOAD_COMMIT"]
+          def api(path, payload=None):
+              req = urllib.request.Request("https://api.github.com/"+path,
+                  data=json.dumps(payload).encode() if payload is not None else None,
+                  headers={"Authorization":"Bearer "+TOKEN,"Accept":"application/vnd.github+json","Content-Type":"application/json"})
+              try:
+                  with urllib.request.urlopen(req,timeout=40) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  try: message=json.loads(error.read()).get("message","HTTP failure")
+                  except Exception: message="HTTP failure"
+                  raise RuntimeError(f"HTTP {error.code}: {message}") from None
+          raw = api(f"repos/{REPO}/contents/.codex/signed-commit-probe.json?ref={SOURCE}")
+          data=base64.b64decode(raw["content"])
+          assert hashlib.sha256(data).hexdigest()=="2d3cd544ff1a2e351739710ec0fc469cbc4ee2ea3dac2b5c6cc9af8c538b715d"
+          payload=json.loads(data)
+          assert payload["repository"]==REPO
+          assert [p["kind"] for p in payload["probes"]]==["ordinary","workflow"]
+          assert [p["path"] for p in payload["probes"]]==["packages/app-core/src/lib/settings-retired.test.ts",".github/workflows/ci.yml"]
+          results=[]
+          for probe in payload["probes"]:
+              result={"kind":probe["kind"],"parent":probe["parent"],"path":probe["path"]}
+              try:
+                  branch=f"work/signed-probe-{probe['kind']}-{SOURCE[:12]}"
+                  api(f"repos/{REPO}/git/refs",{"ref":"refs/heads/"+branch,"sha":probe["parent"]})
+                  request={"branch":{"repositoryNameWithOwner":REPO,"branchName":branch},"expectedHeadOid":probe["parent"],
+                      "message":{"headline":"test(delivery): verify signed staging-only "+probe["kind"]+" commit"},
+                      "fileChanges":{"additions":[{"path":probe["path"],"contents":probe["contents"]}]}}
+                  reply=api("graphql",{"query":"mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}","variables":{"input":request}})
+                  if reply.get("errors"): raise RuntimeError(json.dumps([e.get("message","GraphQL failure") for e in reply["errors"]]))
+                  sha=reply["data"]["createCommitOnBranch"]["commit"]["oid"]
+                  commit=api(f"repos/{REPO}/commits/{sha}")
+                  verification=commit["commit"]["verification"]
+                  assert verification["verified"] and verification["reason"]=="valid"
+                  assert [p["sha"] for p in commit["parents"]]==[probe["parent"]]
+                  assert commit["commit"]["tree"]["sha"]==probe["expectedTree"]
+                  assert [f["filename"] for f in commit["files"]]==[probe["path"]]
+                  result.update(branch=branch,head=sha,verified=True,tree=probe["expectedTree"])
+              except Exception as error:
+                  result.update(verified=False,error=str(error))
+              results.append(result)
+          print("SIGNED_STAGING_PROBE_RESULT="+json.dumps(results),flush=True)
+          assert all(r["verified"] for r in results),"Staging authority/signature probe failed closed; no production refs were changed"
