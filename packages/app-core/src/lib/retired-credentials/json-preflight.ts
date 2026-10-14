@@ -1,5 +1,5 @@
 /** Lexical refusal checks only; native JSON.parse remains the grammar validator. */
-import { z } from "zod";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 
 const MAX_DEPTH = 8;
 type Frame =
@@ -31,14 +31,15 @@ function utf8Length(text: string, maxBytes: number): void {
 type QuotedStringToken = { text: string; end: number };
 
 function quotedString(raw: string, start: number): QuotedStringToken {
-  const jsonText = z.string();
   let end = start + 1;
   while (end < raw.length && raw.charAt(end) !== '"') {
     if (raw.charAt(end) === "\\") end++;
     end++;
   }
   if (end >= raw.length) invalid();
-  return { text: jsonText.parse(JSON.parse(raw.slice(start, end + 1))), end };
+  const text: BoundaryValue = JSON.parse(raw.slice(start, end + 1));
+  if (!isString(text)) invalid();
+  return { text, end };
 }
 
 function containerToken(ch: string, stack: Frame[]): void {
