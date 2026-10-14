@@ -1,5 +1,6 @@
 //! End-to-end behaviour of `opensesame pass attach`, driven through the real
 //! binary rather than the library.
+#![cfg(unix)]
 //!
 //! The unit and property suites cover the crypto. What they cannot show is
 //! that a person can put a document in and get the same bytes back out, that
