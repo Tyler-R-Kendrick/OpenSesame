@@ -1,5 +1,5 @@
 {
-  "$comment": "CLI app-integration browser pairing (ADR 0186 round 4). Same shape as plugin pairing but prefix opensesame-cli-app:v1: and exchange path /v1/cli/app-integration/pairing.",
+  "$comment": "CLI app-integration browser pairing (ADR 0186 D6). Confirm signs challenge|code|Origin with a device P-256 key; exchange sends only the pairing code after operator registration arm.",
   "version": 1,
   "prefix": "opensesame-cli-app:v1:",
   "exchangePath": "/v1/cli/app-integration/pairing",

@@ -1,3 +1,4 @@
+use axum::extract::connect_info::ConnectInfo;
 use axum::{
     body::Body,
     extract::{FromRequest, State},
@@ -5,16 +6,16 @@ use axum::{
     response::{IntoResponse, Response},
     Extension, Json,
 };
-use axum::extract::connect_info::ConnectInfo;
-use opensesame_cli_app_integration::session_id_from_pid;
+use opensesame_cli_app_integration::{session_id_from_pid, sign_daemon_attest};
 use serde::Deserialize;
 use serde_json::json;
+use sha2::Digest;
 use std::net::SocketAddr;
 
 use crate::peer_auth::UdsConnectInfo;
 use crate::{App, UdsPeer};
 
-use super::auth::{bearer, pairing_error, require_paired_caller};
+use super::auth::{bearer, origin_of, pairing_error, require_paired_caller};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -65,7 +66,10 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         .get::<ConnectInfo<UdsConnectInfo>>()
         .cloned()
         .map(Extension);
-    let tcp_peer = request.extensions().get::<ConnectInfo<SocketAddr>>().cloned();
+    let tcp_peer = request
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .cloned();
     let Json(req) = match Json::<EnsureReq>::from_request(request, &()).await {
         Ok(json) => json,
         Err(rejection) => return rejection.into_response(),
@@ -127,17 +131,37 @@ pub(crate) async fn respond(
     };
     host.store
         .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
-    let pairing_secret = bearer(&headers).unwrap_or("");
+    let (Some(origin), Some(token)) = (origin_of(&headers), bearer(&headers)) else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(json!({ "error": "cli_app_pairing_required" })),
+        )
+            .into_response();
+    };
+    let Some(binding) = host.pairings.binding_for(token, origin) else {
+        return Json(json!({ "status": "wrongSession" })).into_response();
+    };
     let status = match req.decision.as_str() {
         "approve" => {
             let proof = req.human_proof.as_deref().unwrap_or("");
-            host.store.approve(
+            let (approved, passkey_sign_count) = host.store.approve(
                 &req.request_id,
                 &req.terminal_session_id,
                 &req.respond_nonce,
                 proof,
-                pairing_secret,
-            )
+                &binding,
+            );
+            if approved == "wrongSession" {
+                let locked = host.pairings.record_pin_proof_failure(token, origin);
+                if locked {
+                    host.pairings
+                        .revoke_token(origin, &hex::encode(sha2::Sha256::digest(token.as_bytes())));
+                }
+            } else if let Some(count) = passkey_sign_count {
+                host.pairings
+                    .advance_webauthn_sign_count(token, origin, count);
+            }
+            approved
         }
         "deny" => host.store.deny(
             &req.request_id,
@@ -153,4 +177,32 @@ pub(crate) async fn respond(
         }
     };
     Json(json!({ "status": status })).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DaemonAttestReq {
+    nonce: String,
+}
+
+pub(crate) async fn daemon_attest(Json(body): Json<DaemonAttestReq>) -> Response {
+    if body.nonce.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "error": "invalid_nonce" })),
+        )
+            .into_response();
+    }
+    match sign_daemon_attest(body.nonce.trim()) {
+        Some(signature_b64) => (
+            StatusCode::OK,
+            Json(json!({ "signatureB64": signature_b64 })),
+        )
+            .into_response(),
+        None => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({ "error": "daemon_attest_unconfigured" })),
+        )
+            .into_response(),
+    }
 }

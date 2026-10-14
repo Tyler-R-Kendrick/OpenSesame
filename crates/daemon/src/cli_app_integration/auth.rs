@@ -28,14 +28,23 @@ pub(crate) fn require_paired_caller(st: &App, headers: &HeaderMap) -> Result<(),
         return Err(pairing_error(StatusCode::FORBIDDEN, "origin_required"));
     };
     let Some(token) = bearer(headers) else {
-        return Err(pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required"));
+        return Err(pairing_error(
+            StatusCode::UNAUTHORIZED,
+            "cli_app_pairing_required",
+        ));
     };
     let host = st.cli_app_integration.lock().map_err(|_| {
-        pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "cli_app_integration_locked")
+        pairing_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "cli_app_integration_locked",
+        )
     })?;
     if host.pairings.authorizes(token, origin) {
         Ok(())
     } else {
-        Err(pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required"))
+        Err(pairing_error(
+            StatusCode::UNAUTHORIZED,
+            "cli_app_pairing_required",
+        ))
     }
 }

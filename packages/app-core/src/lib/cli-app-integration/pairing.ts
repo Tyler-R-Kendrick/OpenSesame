@@ -2,21 +2,27 @@
  * Pairing code for CLI app-integration (`spec/conformance/cli-app-integration-pairing.json`).
  */
 
-import { b64urlToBytes } from "@opensesame/vault-core";
-import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
+import { SECRET } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
+import {
+  CLI_APP_PAIRING_CHALLENGE_PATH,
+  CLI_APP_PAIRING_CONFIRM_PATH,
+  CLI_APP_PAIRING_EXCHANGE_PATH,
+  type CliAppPairingCode,
+} from "./pairing-code.js";
 
-export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
-export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
-export const CLI_APP_PAIRING_CONFIRM_PATH =
-  "/v1/cli/app-integration/pairing/confirm";
+export {
+  CLI_APP_PAIRING_CHALLENGE_PATH,
+  CLI_APP_PAIRING_CONFIRM_PATH,
+  CLI_APP_PAIRING_EXCHANGE_PATH,
+  CLI_APP_PAIRING_PREFIX,
+  type CliAppPairingCode,
+  parseCliAppPairingCode,
+} from "./pairing-code.js";
 
-export type CliAppPairingCode = Readonly<{
-  url: string;
-  code: string;
-  origin: string;
-  label: string;
+export type CliAppPairingConfirmOutcome = Readonly<{
+  registrationCode: string;
 }>;
 
 function daemonBase(url: string): string | null {
@@ -24,47 +30,19 @@ function daemonBase(url: string): string | null {
   return base && isTailnetOrLoopback(base) ? base : null;
 }
 
-function decodeJson(text: string) {
+function b64urlDecode(value: string): Uint8Array | null {
+  const padded = value.replaceAll("-", "+").replaceAll("_", "/");
+  const pad = (4 - (padded.length % 4)) % 4;
   try {
-    return JSON.parse(new TextDecoder().decode(b64urlToBytes(text)));
+    const binary = atob(padded + "=".repeat(pad));
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      out[i] = binary.charCodeAt(i);
+    }
+    return out;
   } catch {
     return null;
   }
-}
-
-export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith(CLI_APP_PAIRING_PREFIX)) return null;
-  const payload = trimmed.slice(CLI_APP_PAIRING_PREFIX.length);
-  const wire = decodeJson(payload);
-  if (!wire || typeof wire !== "object") return null;
-  const code = wire.code;
-  const origin = wire.origin;
-  const url = wire.url;
-  const label = wire.label;
-  if (
-    typeof code !== "string" ||
-    !SECRET.test(code) ||
-    typeof origin !== "string" ||
-    !isPairableOrigin(origin) ||
-    typeof url !== "string" ||
-    !daemonBase(url) ||
-    typeof label !== "string"
-  ) {
-    return null;
-  }
-  return { code, origin, url, label };
-}
-
-/** One-time binding secret minted in the unlocked PWA when a person confirms the code. */
-export function mintCliAppPairingPageBinding(): string {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  let out = "";
-  for (const byte of bytes) {
-    out += String.fromCharCode(byte);
-  }
-  return btoa(out).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
 export {
@@ -89,37 +67,75 @@ async function postPairing(
   });
 }
 
+export async function fetchCliAppPairingChallenge(
+  parsed: CliAppPairingCode,
+): Promise<Uint8Array | null> {
+  const base = daemonBase(parsed.url);
+  if (!base) return null;
+  const url = new URL(`${base}${CLI_APP_PAIRING_CHALLENGE_PATH}`);
+  url.searchParams.set("code", parsed.code);
+  const res = await fetch(url, {
+    method: "GET",
+    credentials: "omit",
+    headers: { Origin: parsed.origin },
+  });
+  if (!res.ok) return null;
+  const body: unknown = await res.json();
+  if (!body || typeof body !== "object") return null;
+  const challengeB64 = (body as { challengeB64?: string }).challengeB64;
+  if (typeof challengeB64 !== "string") return null;
+  const bytes = b64urlDecode(challengeB64);
+  return bytes && bytes.byteLength === 32 ? bytes : null;
+}
+
 export async function confirmCliAppPairingCode(
   parsed: CliAppPairingCode,
-  pageBinding: string,
-): Promise<boolean> {
+): Promise<CliAppPairingConfirmOutcome | null> {
   const base = daemonBase(parsed.url);
-  if (!base || !SECRET.test(pageBinding)) return false;
+  if (!base) return null;
+  const [{ pairingConfirmMessage }, { ensureCliAppDeviceSigningKey }] =
+    await Promise.all([
+      import("./device-crypto.js"),
+      import("./device-signing-key.js"),
+    ]);
+  const device = await ensureCliAppDeviceSigningKey();
+  if (!device) return null;
+  const challenge = await fetchCliAppPairingChallenge(parsed);
+  if (!challenge) return null;
+  const message = pairingConfirmMessage(challenge, parsed.code, parsed.origin);
+  const pairingSignatureB64 = await device.sign(message);
   const res = await postPairing(
     base,
     CLI_APP_PAIRING_CONFIRM_PATH,
     parsed.origin,
     {
       code: parsed.code,
-      pageBinding,
+      devicePublicKeySpkiB64: device.publicKeySpkiB64,
+      pairingSignatureB64,
     },
   );
-  return res.status === 204;
+  if (!res.ok) return null;
+  const body: unknown = await res.json();
+  if (!body || typeof body !== "object") return null;
+  const registrationCode = (body as { registrationCode?: string })
+    .registrationCode;
+  if (typeof registrationCode !== "string" || registrationCode.length !== 6) {
+    return null;
+  }
+  return { registrationCode };
 }
 
 export async function exchangeCliAppPairingCode(
   parsed: CliAppPairingCode,
-  pageBinding: string,
 ): Promise<boolean> {
   const base = daemonBase(parsed.url);
-  if (!base || !SECRET.test(pageBinding)) return false;
+  if (!base) return false;
   const res = await postPairing(
     base,
     CLI_APP_PAIRING_EXCHANGE_PATH,
     parsed.origin,
     {
       code: parsed.code,
-      pageBinding,
     },
   );
   if (res.status !== 201) return false;
@@ -134,8 +150,9 @@ export async function exchangeCliAppPairingCode(
 /** Confirm in the unlocked PWA, then exchange for the session bearer. */
 export async function completeCliAppPairing(
   parsed: CliAppPairingCode,
-): Promise<boolean> {
-  const pageBinding = mintCliAppPairingPageBinding();
-  if (!(await confirmCliAppPairingCode(parsed, pageBinding))) return false;
-  return exchangeCliAppPairingCode(parsed, pageBinding);
+): Promise<CliAppPairingConfirmOutcome | null> {
+  const confirmed = await confirmCliAppPairingCode(parsed);
+  if (!confirmed) return null;
+  if (!(await exchangeCliAppPairingCode(parsed))) return null;
+  return confirmed;
 }

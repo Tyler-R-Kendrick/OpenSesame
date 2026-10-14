@@ -1,199 +1,138 @@
-//! Human proof tokens minted in Pages after PIN or passkey unlock (`oschip1:pin|passkey:` + HMAC).
+//! Human proof tokens minted in Pages after PIN or passkey unlock (`oschip2:` + signature).
 
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
+use crate::device_crypto::{
+    approval_challenge_digest, parse_verifying_key_spki_b64, verify_p256_sha256,
+};
+use crate::pairing::PairedBinding;
+use crate::webauthn_assertion::verify_passkey_assertion;
 
-type HmacSha256 = Hmac<Sha256>;
+const PROOF_PREFIX: &str = "oschip2:";
 
-/// Canonical HMAC input: `requestId`, `terminalSessionId`, `respondNonce`, `verb`.
-pub(crate) fn human_proof_message(
-    request_id: &str,
-    terminal_session_id: &str,
-    respond_nonce: &str,
-    verb: &str,
-) -> Vec<u8> {
-    let mut msg = Vec::new();
-    msg.extend_from_slice(request_id.as_bytes());
-    msg.push(0);
-    msg.extend_from_slice(terminal_session_id.as_bytes());
-    msg.push(0);
-    msg.extend_from_slice(respond_nonce.as_bytes());
-    msg.push(0);
-    msg.extend_from_slice(verb.as_bytes());
-    msg
-}
-
-pub(crate) fn human_proof_mac_hex(
-    pairing_secret: &str,
-    request_id: &str,
-    terminal_session_id: &str,
-    respond_nonce: &str,
-    verb: &str,
-) -> String {
-    let mut mac = HmacSha256::new_from_slice(pairing_secret.as_bytes())
-        .expect("pairing secret is a valid HMAC key");
-    mac.update(
-        &human_proof_message(request_id, terminal_session_id, respond_nonce, verb),
-    );
-    hex::encode(mac.finalize().into_bytes())
-}
-
-fn same_hex(a: &str, b: &str) -> bool {
-    a.len() == b.len()
-        && a.bytes()
-            .zip(b.bytes())
-            .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-            == 0
-}
-
-/// Verifies shape, kind, and HMAC over the pending row (constant-time MAC compare).
+/// `None` = refused; `Some(None)` = PIN; `Some(Some(n))` = passkey with new sign count.
 pub(crate) fn human_proof_verify(
     proof: &str,
-    pairing_secret: &str,
+    binding: &PairedBinding,
     request_id: &str,
     terminal_session_id: &str,
     respond_nonce: &str,
     verb: &str,
-) -> bool {
+) -> Option<Option<u32>> {
+    if binding.pin_proof_failures >= crate::pairing::MAX_PIN_PROOF_FAILURES {
+        return None;
+    }
     let t = proof.trim();
-    let Some(rest) = t.strip_prefix("oschip1:") else {
-        return false;
+    let Some(rest) = t.strip_prefix(PROOF_PREFIX) else {
+        return None;
     };
-    let Some((kind, mac_hex)) = rest.split_once(':') else {
-        return false;
-    };
-    if kind != "pin" && kind != "passkey" {
-        return false;
+    let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
+    if let Some((kind, tail)) = rest.split_once(':') {
+        if kind == "pin" {
+            let verifying_key = parse_verifying_key_spki_b64(&binding.device_public_key_spki_b64)?;
+            if verify_p256_sha256(&verifying_key, &challenge, tail) {
+                return Some(None);
+            }
+            return None;
+        }
+        if kind == "passkey" {
+            let Some(webauthn) = binding.webauthn.as_ref() else {
+                return None;
+            };
+            return verify_passkey_assertion(tail, &challenge, webauthn).map(Some);
+        }
     }
-    if mac_hex.len() != 64 || !mac_hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return false;
-    }
-    let expected = human_proof_mac_hex(
-        pairing_secret,
-        request_id,
-        terminal_session_id,
-        respond_nonce,
-        verb,
-    );
-    same_hex(mac_hex, &expected)
+    None
 }
 
-/// Mint a human proof string (Pages uses Web Crypto; integration tests call this).
-#[must_use]
-pub fn mint_human_proof(
-    pairing_secret: &str,
-    kind: &str,
+/// Mint a PIN proof for integration tests (device signing key required).
+#[cfg(any(test, feature = "test-seams"))]
+pub fn mint_pin_human_proof(
+    signing_key: &p256::ecdsa::SigningKey,
     request_id: &str,
     terminal_session_id: &str,
     respond_nonce: &str,
     verb: &str,
 ) -> String {
-    let mac = human_proof_mac_hex(
-        pairing_secret,
-        request_id,
-        terminal_session_id,
-        respond_nonce,
-        verb,
-    );
-    format!("oschip1:{kind}:{mac}")
+    use base64::Engine as _;
+    use ecdsa::signature::Signer;
+    let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
+    let sig: p256::ecdsa::Signature = signing_key.sign(&challenge);
+    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
+    format!("{PROOF_PREFIX}pin:{sig_b64}")
 }
 
-#[cfg(test)]
-pub(crate) fn mint_test_human_proof(
-    pairing_secret: &str,
-    request_id: &str,
-    terminal_session_id: &str,
-    respond_nonce: &str,
-    verb: &str,
-) -> String {
-    mint_human_proof(
-        pairing_secret,
-        "passkey",
-        request_id,
-        terminal_session_id,
-        respond_nonce,
-        verb,
-    )
+#[cfg(any(test, feature = "test-seams"))]
+pub fn mint_test_signing_key() -> p256::ecdsa::SigningKey {
+    use rand_core::OsRng;
+    p256::ecdsa::SigningKey::random(&mut OsRng)
 }
-
-#[cfg(test)]
-pub(crate) const TEST_PAIRING_SECRET: &str = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
-#[cfg(test)]
-pub(crate) const TEST_HUMAN_PROOF_ZEROS: &str =
-    "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000";
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pairing::WebAuthnCredential;
+    use base64::Engine as _;
+    use p256::ecdsa::SigningKey;
+    use p256::pkcs8::EncodePublicKey;
+    use rand_core::OsRng;
 
     #[test]
-    fn rejects_all_zeros_mac() {
-        assert!(!human_proof_verify(
-            TEST_HUMAN_PROOF_ZEROS,
-            TEST_PAIRING_SECRET,
-            "clr_1",
-            "term-a",
-            "nonce",
-            "read",
-        ));
-    }
-
-    #[test]
-    fn rejects_proof_for_another_request() {
-        let proof = mint_test_human_proof(
-            TEST_PAIRING_SECRET,
-            "clr_1",
-            "term-a",
-            "nonce",
-            "read",
-        );
-        assert!(!human_proof_verify(
-            &proof,
-            TEST_PAIRING_SECRET,
-            "clr_2",
-            "term-a",
-            "nonce",
-            "read",
-        ));
-    }
-
-    #[test]
-    fn rejects_replayed_proof_after_consume() {
-        let mut store = crate::CliAppIntegrationStore::new();
-        store.set_now_ms(1_000);
-        let (_, req) = store.ensure("term-a", "read", None, false);
-        let request_id = req.expect("pending");
-        let (respond_nonce, verb) = {
-            let row = store.pending.get(&request_id).expect("row");
-            (row.respond_nonce.clone(), row.verb.clone())
+    fn rejects_legacy_oschip1_proofs() {
+        let binding = PairedBinding {
+            device_public_key_spki_b64: String::new(),
+            webauthn: None,
+            pin_proof_failures: 0,
         };
-        let proof = mint_test_human_proof(
-            TEST_PAIRING_SECRET,
-            &request_id,
+        assert!(human_proof_verify(
+            "oschip1:pin:0000000000000000000000000000000000000000000000000000000000000000",
+            &binding,
+            "clr_1",
             "term-a",
-            &respond_nonce,
-            &verb,
+            "nonce",
+            "read",
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn pin_proof_round_trip() {
+        let signing_key = SigningKey::random(&mut OsRng);
+        let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
+        let proof = mint_pin_human_proof(&signing_key, "clr_1", "term-a", "nonce", "read");
+        let binding = PairedBinding {
+            device_public_key_spki_b64: spki,
+            webauthn: None,
+            pin_proof_failures: 0,
+        };
+        assert!(human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", "read").is_some());
+        assert!(
+            human_proof_verify(&proof, &binding, "clr_2", "term-a", "nonce", "read",).is_none()
         );
-        assert_eq!(
-            store.approve(
-                &request_id,
-                "term-a",
-                &respond_nonce,
-                &proof,
-                TEST_PAIRING_SECRET,
-            ),
-            "approved"
+    }
+
+    #[test]
+    fn persona_forged_passkey_bytes_are_rejected_without_webauthn_cred() {
+        let signing_key = SigningKey::random(&mut OsRng);
+        let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
+        let binding = PairedBinding {
+            device_public_key_spki_b64: spki.clone(),
+            webauthn: Some(crate::pairing::WebAuthnCredential {
+                credential_id_b64: "cred".into(),
+                public_key_spki_b64: spki,
+                sign_count: 0,
+            }),
+            pin_proof_failures: 0,
+        };
+        let attack = format!(
+            "{PROOF_PREFIX}passkey:{}",
+            serde_json::json!({
+                "credentialIdB64": "cred",
+                "authenticatorDataB64": "AA",
+                "clientDataJsonB64": "AA",
+                "signatureB64": "AA",
+            })
         );
-        assert_eq!(
-            store.approve(
-                &request_id,
-                "term-a",
-                &respond_nonce,
-                &proof,
-                TEST_PAIRING_SECRET,
-            ),
-            "wrongSession"
+        assert!(
+            human_proof_verify(&attack, &binding, "clr_1", "term-a", "nonce", "read",).is_none()
         );
     }
 }

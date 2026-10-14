@@ -4,10 +4,9 @@ import {
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
 import {
-  formatCliAppHumanProof,
+  formatCliAppHumanProofPin,
   isCliAppHumanProofValid,
-  mintCliAppHumanProofForTest,
-} from "./human-proof.js";
+} from "./human-proof-crypto.js";
 
 const TEST_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
@@ -17,11 +16,16 @@ describe("cli-app-integration human proof", () => {
     writeCliAppIntegrationBearer(TEST_SECRET);
   });
 
-  it("accepts only oschip1 pin or passkey digests", () => {
+  it("accepts only oschip2 pin or passkey payloads", () => {
     expect(
       isCliAppHumanProofValid(
-        formatCliAppHumanProof("passkey", "a".repeat(64)),
+        formatCliAppHumanProofPin(
+          "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        ),
       ),
+    ).toBe(true);
+    expect(
+      isCliAppHumanProofValid('oschip2:passkey:{"credentialIdB64":"x"}'),
     ).toBe(true);
     expect(isCliAppHumanProofValid("pending-ui-human-proof-placeholder")).toBe(
       false,
@@ -29,36 +33,10 @@ describe("cli-app-integration human proof", () => {
     expect(isCliAppHumanProofValid("human-proof-from-test-harness")).toBe(
       false,
     );
-  });
-
-  it("binds HMAC to the pending row and verb", async () => {
-    const binding = {
-      requestId: "clr_1",
-      respondNonce: "nonce-a",
-      terminalSessionId: "term-a",
-      verb: "read",
-    };
-    const proof = await mintCliAppHumanProofForTest(TEST_SECRET, binding);
-    expect(proof).toMatch(/^oschip1:passkey:[0-9a-f]{64}$/);
-    const again = await mintCliAppHumanProofForTest(TEST_SECRET, binding);
-    expect(proof).toBe(again);
-    const other = await mintCliAppHumanProofForTest(TEST_SECRET, {
-      ...binding,
-      requestId: "clr_2",
-    });
-    expect(other).not.toBe(proof);
-  });
-
-  it("rejects the all-zero placeholder mac at verify time in Rust parity vectors", async () => {
-    const binding = {
-      requestId: "clr_1",
-      respondNonce: "nonce-a",
-      terminalSessionId: "term-a",
-      verb: "read",
-    };
-    const valid = await mintCliAppHumanProofForTest(TEST_SECRET, binding);
-    expect(valid).not.toBe(
-      "oschip1:passkey:0000000000000000000000000000000000000000000000000000000000000000",
-    );
+    expect(
+      isCliAppHumanProofValid(
+        "oschip1:pin:0000000000000000000000000000000000000000000000000000000000000000",
+      ),
+    ).toBe(false);
   });
 });

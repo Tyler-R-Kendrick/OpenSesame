@@ -32,7 +32,10 @@ pub(super) async fn cors(
     let admitted = st
         .cli_app_integration
         .lock()
-        .map(|host| host.pairings.admits_origin(&origin, chrono::Utc::now().timestamp() as u64))
+        .map(|host| {
+            host.pairings
+                .admits_origin(&origin, chrono::Utc::now().timestamp() as u64)
+        })
         .unwrap_or(false)
         .then_some(origin);
     if request.method() == Method::OPTIONS

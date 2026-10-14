@@ -1,7 +1,11 @@
 //! CLI ↔ OpenSesame app integration (1Password-style terminal sessions).
+mod daemon_attest;
+mod device_crypto;
 mod human_proof;
 mod pairing;
+mod pairing_code;
 mod terminal_session;
+mod webauthn_assertion;
 
 use human_proof::human_proof_verify;
 
@@ -16,10 +20,15 @@ use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(test)]
 static TEST_TCP_EPHEMERAL: AtomicU64 = AtomicU64::new(0);
 
-pub use human_proof::mint_human_proof;
+pub use daemon_attest::{
+    daemon_attest_public_key_spki_b64, sign_daemon_attest, verify_daemon_attest,
+};
+#[cfg(any(test, feature = "test-seams"))]
+pub use human_proof::{mint_pin_human_proof, mint_test_signing_key};
 pub use pairing::{
-    format_pairing_code, is_pairable_origin, CliAppIntegrationPairings, Issued, PairingError,
-    CODE_TTL_SECS, PAIRING_CODE_PREFIX,
+    format_pairing_code, is_device_public_key_shaped, is_pairable_origin,
+    CliAppIntegrationPairings, ConfirmOutcome, Issued, PairedBinding, PairingError,
+    WebAuthnCredential, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES, PAIRING_CODE_PREFIX,
 };
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
 
@@ -224,28 +233,29 @@ impl CliAppIntegrationStore {
         terminal_session_id: &str,
         respond_nonce: &str,
         human_proof: &str,
-        pairing_secret: &str,
-    ) -> String {
+        binding: &PairedBinding,
+    ) -> (String, Option<u32>) {
         self.expire_idle();
         let Some(row) = self.pending.get(request_id) else {
-            return "wrongSession".into();
+            return ("wrongSession".into(), None);
         };
         if row.terminal_session_id != terminal_session_id {
-            return "wrongSession".into();
+            return ("wrongSession".into(), None);
         }
         if row.respond_nonce != respond_nonce {
-            return "wrongSession".into();
+            return ("wrongSession".into(), None);
         }
-        if !human_proof_verify(
+        let passkey_sign_count = match human_proof_verify(
             human_proof,
-            pairing_secret,
+            binding,
             request_id,
             terminal_session_id,
             respond_nonce,
             &row.verb,
         ) {
-            return "wrongSession".into();
-        }
+            Some(count) => count,
+            None => return ("wrongSession".into(), None),
+        };
         self.pending.remove(request_id);
         self.denied.remove(terminal_session_id);
         self.approved.insert(
@@ -255,7 +265,7 @@ impl CliAppIntegrationStore {
                 last_activity_ms: self.now_ms,
             },
         );
-        "approved".into()
+        ("approved".into(), passkey_sign_count)
     }
 
     pub fn deny(
@@ -309,3 +319,6 @@ pub use seams_test_only::seam_decision;
 
 #[cfg(test)]
 mod store_conformance_tests;
+
+#[cfg(any(test, feature = "test-seams"))]
+pub mod test_support;

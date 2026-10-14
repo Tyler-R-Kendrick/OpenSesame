@@ -27,6 +27,7 @@ struct PolicyDoc {
 #[serde(rename_all = "camelCase")]
 struct DaemonPaths {
     ensure: String,
+    daemon_attest: Option<String>,
 }
 
 fn policy() -> PolicyDoc {
@@ -64,6 +65,52 @@ fn health_looks_like_daemon(base: &str) -> bool {
     }
 }
 
+fn operator_daemon_pin_public_key_spki_b64() -> Option<String> {
+    if let Ok(inline) =
+        std::env::var("OPENSESAME_CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_SPKI_B64")
+    {
+        let trimmed = inline.trim();
+        if !trimmed.is_empty() {
+            return Some(trimmed.to_string());
+        }
+    }
+    let path = std::env::var("OPENSESAME_CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_FILE")
+        .ok()
+        .filter(|value| !value.trim().is_empty())?;
+    std::fs::read_to_string(path.trim())
+        .ok()
+        .map(|text| text.trim().to_string())
+        .filter(|text| !text.is_empty())
+}
+
+fn daemon_attest_verifies(base: &str, path: &str, public_key_spki_b64: &str) -> bool {
+    use rand::Rng;
+    let mut raw = [0u8; 16];
+    rand::thread_rng().fill(&mut raw);
+    let nonce = hex::encode(raw);
+    let payload = serde_json::json!({ "nonce": nonce });
+    let (status, body) =
+        post_json_loopback(base, path, &payload.to_string()).unwrap_or((0, String::new()));
+    if status != 200 {
+        return false;
+    }
+    let parsed = serde_json::from_str::<serde_json::Value>(&body);
+    match parsed {
+        Ok(value) => {
+            let signature = value
+                .get("signatureB64")
+                .and_then(|s| s.as_str())
+                .unwrap_or_default();
+            opensesame_cli_app_integration::verify_daemon_attest(
+                public_key_spki_b64,
+                &nonce,
+                signature,
+            )
+        }
+        Err(_) => false,
+    }
+}
+
 fn ensure_probe_rejects_instant_approval(base: &str, path: &str, probe_verb: &str) -> bool {
     let tcp_correlation = tcp_correlation_id();
     let payload = serde_json::json!({
@@ -97,11 +144,24 @@ pub fn verify_local_daemon_for_cli_app_integration(base: &str) -> bool {
     if !health_looks_like_daemon(base) {
         return false;
     }
-    ensure_probe_rejects_instant_approval(
+    if !ensure_probe_rejects_instant_approval(
         base,
         &policy.daemon_paths.ensure,
         &policy.daemon_pin_probe_verb,
-    )
+    ) {
+        return false;
+    }
+    match operator_daemon_pin_public_key_spki_b64() {
+        Some(public_key) => {
+            let path = policy
+                .daemon_paths
+                .daemon_attest
+                .as_deref()
+                .unwrap_or("/v1/cli/app-integration/daemon-attest");
+            daemon_attest_verifies(base, path, &public_key)
+        }
+        None => true,
+    }
 }
 
 fn daemon_base() -> Option<String> {

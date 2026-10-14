@@ -2,7 +2,7 @@ use super::*;
 use axum::body::Body;
 use axum::extract::connect_info::ConnectInfo;
 use axum::http::{header, Request, StatusCode};
-use opensesame_cli_app_integration::{mint_human_proof, session_id_from_pid};
+use opensesame_cli_app_integration::{session_id_from_pid, test_support};
 use opensesame_uds_authn::PeerCred;
 use tower::ServiceExt;
 
@@ -20,27 +20,11 @@ fn ensure_body(terminal_session_id: &str) -> String {
 
 fn pair_browser(app: &App, origin: &str) -> String {
     let now = chrono::Utc::now().timestamp() as u64;
-    let (code, _) = app
-        .cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .issue(origin, now)
-        .unwrap();
-    let binding = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-    app.cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .confirm(&code, origin, binding, now)
-        .unwrap();
-    app.cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .exchange(&code, origin, binding, now)
-        .unwrap()
-        .token
+    test_support::pair_browser_for_tests(
+        &mut app.cli_app_integration.lock().unwrap().pairings,
+        origin,
+        now,
+    )
 }
 
 #[cfg(unix)]
@@ -100,14 +84,7 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
-    let human_proof = mint_human_proof(
-        &token,
-        "passkey",
-        request_id,
-        &derived,
-        nonce,
-        "read",
-    );
+    let human_proof = test_support::mint_test_human_proof(request_id, &derived, nonce, "read");
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")
@@ -168,7 +145,7 @@ async fn tcp_ensure_never_reuses_approval() {
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
-        .body(Body::from(body))
+        .body(Body::from(body.clone()))
         .unwrap();
     req.extensions_mut().insert(tcp_peer);
     let res = app.clone().oneshot(req).await.unwrap();
@@ -197,14 +174,8 @@ async fn tcp_ensure_never_reuses_approval() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
-    let human_proof = mint_human_proof(
-        &token,
-        "passkey",
-        request_id,
-        terminal_session_id,
-        nonce,
-        "read",
-    );
+    let human_proof =
+        test_support::mint_test_human_proof(request_id, terminal_session_id, nonce, "read");
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")
@@ -228,7 +199,7 @@ async fn tcp_ensure_never_reuses_approval() {
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
-        .body(Body::from(ensure_body(forged_id)))
+        .body(Body::from(body.clone()))
         .unwrap();
     req.extensions_mut().insert(tcp_peer);
     let res = app.clone().oneshot(req).await.unwrap();
@@ -241,7 +212,7 @@ async fn tcp_ensure_never_reuses_approval() {
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
-        .body(Body::from(ensure_body(forged_id)))
+        .body(Body::from(body.clone()))
         .unwrap();
     req.extensions_mut().insert(tcp_peer);
     let res = app.clone().oneshot(req).await.unwrap();
@@ -250,4 +221,107 @@ async fn tcp_ensure_never_reuses_approval() {
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(parsed["status"], "pending");
+}
+
+/// Persona D6: operator token → forged origin + random `root:` hex → fake PIN/passkey proofs.
+#[tokio::test]
+async fn persona_attack_chain_is_refused() {
+    use crate::test_fixtures::test_router;
+    use opensesame_cli_app_integration::PairingError;
+
+    let (app, state) = test_router("http://127.0.0.1:8787");
+    let legit_origin = "http://localhost:5180";
+    let forged_origin = "https://attacker.github.io";
+    let now = chrono::Utc::now().timestamp() as u64;
+    let (code, _) = state
+        .cli_app_integration
+        .lock()
+        .unwrap()
+        .pairings
+        .issue(legit_origin, now)
+        .unwrap();
+    let forged_device_key = "root:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+    let mut host = state.cli_app_integration.lock().unwrap();
+    assert!(matches!(
+        host.pairings.confirm(
+            &code,
+            forged_origin,
+            forged_device_key,
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            now,
+        ),
+        Err(PairingError::Unknown | PairingError::InvalidProof | PairingError::WrongOrigin)
+    ));
+    drop(host);
+
+    let token = pair_browser(&state, legit_origin);
+    let body = ensure_body("persona-attacker");
+    let mut req = Request::builder()
+        .method("POST")
+        .uri("/v1/cli/app-integration/ensure")
+        .header("content-type", "application/json")
+        .body(Body::from(body))
+        .unwrap();
+    req.extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5151))));
+    let res = app.clone().oneshot(req).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let request_id = parsed["requestId"].as_str().expect("request id");
+    let pending = Request::builder()
+        .method("GET")
+        .uri("/v1/cli/app-integration/pending")
+        .header(header::ORIGIN, legit_origin)
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    let res = app.clone().oneshot(pending).await.unwrap();
+    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let terminal_session_id = parsed["pending"][0]["terminalSessionId"]
+        .as_str()
+        .expect("terminal");
+    let nonce = parsed["pending"][0]["respondNonce"]
+        .as_str()
+        .expect("nonce");
+    let fake_pin = "oschip2:pin:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    let fake_passkey = format!(
+        "oschip2:passkey:{}",
+        serde_json::json!({
+            "credentialIdB64": "cred",
+            "authenticatorDataB64": "AA",
+            "clientDataJsonB64": "AA",
+            "signatureB64": "AA",
+        })
+    );
+    for proof in [fake_pin, fake_passkey.as_str()] {
+        let respond = Request::builder()
+            .method("POST")
+            .uri("/v1/cli/app-integration/respond")
+            .header("content-type", "application/json")
+            .header(header::ORIGIN, legit_origin)
+            .header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::from(
+                serde_json::json!({
+                    "requestId": request_id,
+                    "terminalSessionId": terminal_session_id,
+                    "decision": "approve",
+                    "respondNonce": nonce,
+                    "humanProof": proof,
+                })
+                .to_string(),
+            ))
+            .unwrap();
+        let res = app.clone().oneshot(respond).await.unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(parsed["status"], "wrongSession");
+    }
 }

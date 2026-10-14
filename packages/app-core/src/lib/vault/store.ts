@@ -1197,7 +1197,7 @@ export class VaultStore {
   isUnlocked(): boolean {
     return this.#vaultKey !== null;
   }
-
+  readSessionRootDigest = () => this.#sessionRootDigest();
   async changeMasterPassword(
     current: string,
     next: string,

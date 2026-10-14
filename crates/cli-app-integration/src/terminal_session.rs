@@ -53,7 +53,7 @@ pub fn parse_linux_proc_stat(raw: &str) -> Option<(u64, u32)> {
 fn macos_session_id_from_pid(pid: u32) -> Option<String> {
     use std::process::Command;
     let output = Command::new("ps")
-        .args(["-p", pid.to_string(), "-o", "sid=,tty="])
+        .args(["-p", &pid.to_string(), "-o", "sid=,tty="])
         .output()
         .ok()?;
     if !output.status.success() {
