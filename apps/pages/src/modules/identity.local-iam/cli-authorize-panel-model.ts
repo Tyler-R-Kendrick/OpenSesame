@@ -33,7 +33,7 @@ function pageOrigin(): string | null {
 }
 
 const LOAD_BLOCKED =
-  "CLI approval is blocked here. Open OpenSesame on your own site.";
+  "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
 const LOAD_UNREADABLE = "Couldn't check for CLI requests.";
 
 /** The deployment fence in `localNetworkFetch` refuses with a SecurityError. */
