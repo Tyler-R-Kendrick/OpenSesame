@@ -60,26 +60,32 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
 [`.cursor/Dockerfile`](.cursor/Dockerfile) (`rust:1.88.0-bookworm`, aligned with
 `rust-toolchain.toml`).
 
-- **Grok Build** is installed on `PATH` as `grok`
-  (`GROK_BIN_DIR=/usr/local/bin` in the Dockerfile). With
-  `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
-  applicable), headless use looks like:
-  `grok -p "…" --always-approve --output-format json`.
-  A depleted runtime key shadows device OIDC: it shows **403** from
-  `https://api.x.ai/v1/models` or **Not signed in** from the CLI even when
-  `~/.grok/auth.json` is present. `scripts/dev/grok-preflight.sh` prints the
-  key length (never the value), whether `~/.grok/auth.json` exists, and the
-  models HTTP status; run grok via `scripts/dev/grok-headless.sh`
-  (`env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY`) so device login is used.
-  Do not set `auth.preferred_method = "api_key"` in the project
-  `.grok/config.toml` when using device login alongside that runtime key.
-- **Kimi Code CLI** is installed as `@moonshot-ai/kimi-code` (pinned in the
-  Dockerfile) on `PATH` via `/etc/profile.d/kimi-code.sh`. Headless **K3** runs:
-  `scripts/dev/kimi-headless.sh -p "…"` (`-m kimi-code/k3`, `--output-format stream-json`).
-  Auth: `kimi login` OAuth first, else Runtime Secret
-  `KIMI_MODEL_API_KEY` (+ optional `KIMI_MODEL_NAME`, `KIMI_MODEL_BASE_URL`;
-  Kimi ignores plain `KIMI_API_KEY`). Check `scripts/dev/kimi-preflight.sh`
-  before batch work. See `docs/operators/kimi-code-cloud.md`.
+- **Agent coding tier chain** (rules: `.cursor/rules/grok-build-first.mdc`,
+  `.cursor/rules/kimi-first.mdc`). The orchestrating agent plans, reviews, tests,
+  and opens PRs; **implementation edits delegate down the chain** while quota
+  allows. Run `scripts/dev/agent-coding-preflight.sh` to see which tier is live.
+  1. **Grok Build CLI** (`grok`) until weekly limit / quota / 402 / 403 / 429.
+     Model baseline `grok-4.7`; `scripts/dev/grok-resolve-model.sh` upgrades to a
+     newer id from `grok models` when listed. Invoke:
+     `scripts/dev/grok-headless.sh -p "…" -m "$(scripts/dev/grok-resolve-model.sh)" --always-approve --output-format json`.
+     Auth: Cursor Runtime Secret `XAI_API_KEY` (or `GROK_DEPLOYMENT_KEY` where
+     applicable). A depleted runtime key shadows device OIDC — use
+     `scripts/dev/grok-headless.sh` (`env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY`)
+     and `scripts/dev/grok-preflight.sh`. Surface `grok login --device-code`
+     immediately when login is required. Do not set `auth.preferred_method = "api_key"`
+     in `.grok/config.toml` when using device login alongside the runtime key.
+  2. **Kimi Code CLI** (`kimi`, **K3** `kimi-code/k3`) when Grok is exhausted.
+     `scripts/dev/kimi-headless.sh -p "…"`; `scripts/dev/kimi-preflight.sh`.
+     Auth: `kimi login` OAuth first, else `KIMI_MODEL_API_KEY` (+ optional
+     `KIMI_MODEL_NAME`, `KIMI_MODEL_BASE_URL`; plain `KIMI_API_KEY` is ignored).
+     See `docs/operators/kimi-code-cloud.md` and `.cursor/kimi-code.md`.
+  3. **Cursor** when both CLIs are unavailable — **Grok 4.7** for security
+     testing / red-team; **Composer** or **auto** otherwise. Record the tier and
+     reason in the PR Provenance section and `docs/audit/2026-10-provenance.md`.
+- **Grok Build** image install: `curl -fsSL https://x.ai/cli/install.sh | bash`
+  in [`.cursor/Dockerfile`](.cursor/Dockerfile) (`GROK_BIN_DIR=/usr/local/bin`).
+- **Kimi Code CLI** image install: `@moonshot-ai/kimi-code` (pinned) on `PATH`
+  via `/etc/profile.d/kimi-code.sh` (unchanged).
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.

@@ -31,9 +31,14 @@ keeps API-key env for key-only runs). For `-p` runs it adds `--output-format
 stream-json` and `-m kimi-code/k3` when you did not pass them (`--auto` is not combined
 with `-p`).
 
-## When to use Cursor Agent instead
+## Tier 2 in the coding chain
 
-Use Kimi for remaining batch automation while quota allows. Switch to Cursor
-Agent when Kimi returns payment/quota errors or `kimi-preflight.sh` fails with
-no OAuth and no `KIMI_MODEL_API_KEY`. Record the reason in audit/provenance
-notes (see [2026-10-provenance.md](../audit/2026-10-provenance.md)).
+**Grok Build CLI is tier 1** (see `.cursor/rules/grok-build-first.mdc` and
+`scripts/dev/agent-coding-preflight.sh`). Use Kimi for coding **after** Grok
+hits weekly limit or quota (402/403/429), while Kimi subscription allows.
+
+Switch to **Cursor (tier 3)** when Kimi returns payment/quota errors or
+`kimi-preflight.sh` fails with no OAuth and no `KIMI_MODEL_API_KEY`. Security
+testing in Cursor uses **Grok 4.7**; other Cursor work uses Composer / auto.
+Record the tier and reason in audit/provenance notes (see
+[2026-10-provenance.md](../audit/2026-10-provenance.md)).
