@@ -254,3 +254,14 @@ used for this task has neither `grok` nor `kimi` on PATH (checked 2026-10-14);
 no alternate CLI authentication or billing was configured. Implementation was
 already committed when the documentation-only tier-chain update reached main
 at `aaa832e9e`. Codex continued verification, review and verified restacking.
+
+### BYO AI and browser-native Tailscale follow-up
+
+Codex and delegated Codex agents produced this follow-up. The recorded task
+preflight found no authenticated Grok CLI and no Kimi executable, so no
+Grok/Kimi output or model identity is claimed. Commits use GitHub
+`createCommitOnBranch` without author overrides. Tailscale implementation
+research applies the official `tailscale/tailscale-skill` instructions and
+current documentation, the official `@tailscale/connect` browser SDK source,
+and tailcat's browser WASM example. Verification results distinguish real
+vendor protocol/client execution from deterministic local service fixtures.

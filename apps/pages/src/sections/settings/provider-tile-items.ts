@@ -5,10 +5,6 @@
  * (ADR 0158: a row acts, or it is not drawn).
  */
 
-import {
-  featureById,
-  featureState,
-} from "@opensesame/app-core/lib/capabilities/features.js";
 import type { Integration } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/catalog-provider.js";
 import type { TileRoad } from "@opensesame/app-core/lib/connect-roads.js";
@@ -23,7 +19,6 @@ import {
   connectorPath,
   isFeatureBindingCategory,
 } from "@opensesame/app-core/sections/connections/shared.js";
-import type { EffectivePlan } from "@opensesame/capability-composition";
 
 const HISTORY_ROADS = new Set(
   HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds),
@@ -89,37 +84,14 @@ export function providerTileItems(
 }
 
 /**
- * Whether the model picks draw in `integration`: the section carries them, the
- * module that supplies them is active (`panelPresent`), and the feature they
- * configure is on — they probe the browser and the harnesses on mount, so they
- * are that feature's own code, unlike a connector tile.
- */
-export function modelPicksDrawn(
-  integration: Integration,
-  plan: EffectivePlan | null,
-  panelPresent: boolean,
-): boolean {
-  return (
-    integration.models === true &&
-    panelPresent &&
-    integration.extendsFeature !== undefined &&
-    featureState(featureById(integration.extendsFeature), plan).on
-  );
-}
-
-/**
- * Does the section draw anything? A model pick, or a tile. A subheader over
+ * Does the section draw a provider tile? A subheader over
  * nothing is not drawn — the way a group with nothing in it is absent.
  */
 export function integrationDraws(
   integration: Integration,
   tile: (provider: Provider) => TileRoad | null,
-  models = false,
 ): boolean {
-  return (
-    models ||
-    integration.providerCategories.some(
-      (category) => providerTileItems(category, tile).length > 0,
-    )
+  return integration.providerCategories.some(
+    (category) => providerTileItems(category, tile).length > 0,
   );
 }
