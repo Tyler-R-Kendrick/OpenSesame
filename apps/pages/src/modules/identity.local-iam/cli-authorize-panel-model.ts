@@ -3,8 +3,8 @@ import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
-import { z } from "zod";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
 import {
