@@ -1,6 +1,7 @@
 import { performSavedAiInference } from "@opensesame/app-core/lib/ai-connections/runtime.js";
 import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import { useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
@@ -56,6 +57,11 @@ export function AiInferenceWorkspace({
         </h2>
       </div>
       <div className="panel__body cx-form">
+        <FailureNotice
+          id={`ai-inference-${connectionId}`}
+          title="Model inference"
+          message={failure}
+        />
         <FieldShell
           label="Prompt"
           value={prompt}
