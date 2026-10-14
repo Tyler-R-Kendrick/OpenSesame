@@ -15,14 +15,13 @@ export function tailscaleRegistrationRequest(
   config: TailscaleAppConfiguration,
 ) {
   const checked = tailscaleAppConfiguration(config);
-  return {
+  const request = {
     name: checked.name,
     redirectUris: [checked.redirectUri],
     scopes: [TAILSCALE_PROVISION_SCOPE],
-    ...(checked.allowedNodeAttributes?.length
-      ? { allowedNodeAttributes: checked.allowedNodeAttributes }
-      : {}),
   };
+  if (!checked.allowedNodeAttributes?.length) return request;
+  return { ...request, allowedNodeAttributes: checked.allowedNodeAttributes };
 }
 export function tailscaleRegistrationArtifact(
   config: TailscaleAppConfiguration,
