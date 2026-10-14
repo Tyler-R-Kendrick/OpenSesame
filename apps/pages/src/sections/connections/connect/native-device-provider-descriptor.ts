@@ -1,3 +1,4 @@
+import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import {
   type BrowserUnavailableKind,
   browserDisposition,
@@ -25,6 +26,7 @@ function existingSpecializedRoad(providerId: string): boolean {
     isGitBackupProvider(providerId) ||
     identityConnectionPreset(providerId) !== null ||
     isSecretBackendProvider(providerId) ||
+    isAiConnectionProvider(providerId) ||
     nativeKeyDriverFor(providerId) !== null ||
     ["github", "aws-kms", "gcp-kms", "s3"].includes(providerId)
   );
