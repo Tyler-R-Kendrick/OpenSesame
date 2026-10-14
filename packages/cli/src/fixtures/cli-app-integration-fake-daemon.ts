@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import type { AddressInfo } from "node:net";
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { tcpListenPort } from "./net-listen-port.js";
 
@@ -75,7 +76,8 @@ export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFak
       res.end();
     });
     server.listen(0, "127.0.0.1", () => {
-      const port = tcpListenPort(server.address());
+      const bound: AddressInfo = overlapCast(server.address());
+      const port = tcpListenPort(bound);
       if (port === null) {
         reject(new Error("fake daemon has no listen address"));
         return;

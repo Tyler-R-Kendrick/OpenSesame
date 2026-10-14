@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { overlapCast } from "@opensesame/os-domain";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -38,7 +40,8 @@ async function startAutoApproveEnsureStub(): Promise<CliAppIntegrationFakeDaemon
       res.end();
     });
     server.listen(0, "127.0.0.1", () => {
-      const port = tcpListenPort(server.address());
+      const bound: AddressInfo = overlapCast(server.address());
+      const port = tcpListenPort(bound);
       if (port === null) {
         reject(new Error("stub has no listen address"));
         return;
