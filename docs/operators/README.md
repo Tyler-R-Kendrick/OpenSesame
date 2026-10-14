@@ -49,6 +49,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Browser identity verification](host-browser-verification.md) | The host-authorization ceremony that follows pairing, and the one-use browser-control approval. |
 | [Encrypted sync pages](sync-pages.md) | The sync page format and the legacy-ownership migration. |
 | [Tailnet vault sync](tailnet-sync.md) | Run a drive on the daemon, open slots, pair devices over Tailscale (ADR 0144). |
+| [Tailscale in the PWA](tailscale-oauth-app.md) | Join a browser node with the official WASM client, reach tailnet services and configure OAuth app provisioning without an application backend or extension (ADR 0204). |
 | [Tailnet device management](tailnet-devices.md) | Connect the daemon to a tailnet, pair the web app, approve, rename, tag, route, expire, remove and add machines (ADR 0169). |
 
 ## Transport and alerting
