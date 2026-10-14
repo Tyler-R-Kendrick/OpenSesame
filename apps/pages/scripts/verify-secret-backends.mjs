@@ -25,6 +25,7 @@ import {
 } from "./lib/secret-backend-bws-browser.mjs";
 import { startConnectFixture } from "./lib/secret-backend-connect-fixture.mjs";
 import { browserCredentialFlow } from "./lib/secret-backend-credential-browser.mjs";
+import { verifyBackendVaultCredential } from "./lib/secret-backend-custody-browser.mjs";
 import {
   officialOnePasswordHandoff,
   offlineBackendImports,
@@ -150,6 +151,17 @@ async function nativeConnections(page, width) {
       width,
       check: h.check,
     });
+    if (providerId !== "bitwarden")
+      await verifyBackendVaultCredential(page, {
+        base,
+        preset,
+        fixture,
+        width,
+        check: h.check,
+        field: providerId === "infisical" ? "Client secret" : "Access token",
+        value:
+          providerId === "infisical" ? INFISICAL_CLIENT.secret : FIXTURE_TOKEN,
+      });
     await page
       .getByRole("button", { name: "Test secret backend", exact: true })
       .click();

@@ -3,6 +3,11 @@ import { expect } from "@playwright/test";
 import { passTheDoor } from "./front-door.mjs";
 import { PIN, waitOpen } from "./pages-journey.mjs";
 import {
+  openBrowserBackup,
+  verifyRestoredVaultContent,
+  verifyVaultTokensInBackup,
+} from "./secret-backend-backup-oracle.mjs";
+import {
   connectBackend,
   disconnectBackend,
   enableBackendConnections,
@@ -40,7 +45,7 @@ async function connectFixture(page, { base, preset, fixture, width }) {
 }
 async function targetRestore(
   browser,
-  { origin, base, presets, fixture, reference, width, record, check },
+  { origin, base, presets, fixture, reference, source, width, record, check },
 ) {
   const { page, context } = await newBackendPage(browser, {
     origin,
@@ -99,18 +104,20 @@ async function targetRestore(
       `${width}: socket-backed ciphertext backup restores actual items into another browser vault, preserving that vault's different enrolled PIN after cold reload`,
     );
     await disconnectBackend(page);
+    await verifyRestoredSnapshot(page, {
+      base,
+      preset,
+      fixture,
+      source,
+      width,
+      check,
+    });
   } finally {
     await context.close();
   }
 }
 
-export async function encryptedBackupRoundTrip(
-  page,
-  { browser, origin, base, presets, fixture, width, record, check },
-) {
-  const preset = presets.find((entry) => entry.providerId === "1password");
-  await connectFixture(page, { base, preset, fixture, width });
-  const name = `Encrypted browser vault ${width}`;
+async function uploadBackup(page, fixture, name) {
   await page.getByLabel("Backup name", { exact: true }).fill(name);
   await page
     .getByRole("button", { name: "Back up encrypted vault", exact: true })
@@ -126,9 +133,53 @@ export async function encryptedBackupRoundTrip(
     .inputValue();
   const item = fixture.items.get(reference);
   expect(item).toBeTruthy();
-  const serialized = item.fields.find(
-    (field) => field.id === "notesPlain",
-  ).value;
+  return {
+    reference,
+    ciphertext: item.fields.find((field) => field.id === "notesPlain").value,
+  };
+}
+async function deleteUploadedBackup(page, reference) {
+  await page.getByLabel("Item name or ID", { exact: true }).fill(reference);
+  await page
+    .getByRole("button", { name: "Get backend item", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Delete backend item", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirm delete backend item", exact: true })
+    .click();
+}
+async function verifyRestoredSnapshot(
+  page,
+  { base, preset, fixture, source, width, check },
+) {
+  await openBackend(page, base, preset);
+  await connectBackend(page);
+  const uploaded = await uploadBackup(
+    page,
+    fixture,
+    `Restored encrypted vault ${width}`,
+  );
+  const restored = await openBrowserBackup(uploaded.ciphertext, TARGET_PIN);
+  verifyRestoredVaultContent(source, restored, width, check);
+  await deleteUploadedBackup(page, uploaded.reference);
+  await disconnectBackend(page);
+}
+
+export async function encryptedBackupRoundTrip(
+  page,
+  { browser, origin, base, presets, fixture, width, record, check },
+) {
+  const preset = presets.find((entry) => entry.providerId === "1password");
+  await connectFixture(page, { base, preset, fixture, width });
+  const { reference, ciphertext: serialized } = await uploadBackup(
+    page,
+    fixture,
+    `Encrypted browser vault ${width}`,
+  );
+  const source = await openBrowserBackup(serialized, PIN);
+  verifyVaultTokensInBackup(source, serialized, width, check);
   expect(JSON.parse(serialized).format).toBe("opensesame-offline-backup");
   for (const plaintext of [
     PIN,
@@ -148,20 +199,12 @@ export async function encryptedBackupRoundTrip(
     presets,
     fixture,
     reference,
+    source,
     width,
     record,
     check,
   });
-  await page.getByLabel("Item name or ID", { exact: true }).fill(reference);
-  await page
-    .getByRole("button", { name: "Get backend item", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Delete backend item", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Confirm delete backend item", exact: true })
-    .click();
+  await deleteUploadedBackup(page, reference);
   await expect.poll(() => fixture.items.size).toBe(0);
   await disconnectBackend(page);
 }
