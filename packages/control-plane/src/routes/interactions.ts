@@ -28,6 +28,7 @@ import {
   preferredProviderForDetails,
 } from "../interactions/handlers.js";
 import { beginOAuth2Auth, completeOAuth2Auth } from "../interactions/oauth2.js";
+import { organizationHintForDetails } from "../interactions/organization-hint.js";
 import {
   type ProviderDescriptor,
   normalizeIssuer,
@@ -250,9 +251,8 @@ export function createInteractionRoutes(): Hono<
     const csrfToken = csrf.issue(details.uid);
 
     if (details.prompt.name === "login") {
-      // `?org=<slug>` is the second step of organization sign-in (D6): the
-      // slug form 303s back here and the model renders that tenant's methods.
-      const orgSlug = c.req.query("org");
+      // A form lookup or saved connection selects the tenant's hosted methods.
+      const orgSlug = c.req.query("org") ?? organizationHintForDetails(details);
       const fedErrorCode = c.req.query("fed_error");
 
       // Opt-in auto-continue: the relying party already named the provider,

@@ -74,13 +74,32 @@ export const SamlMetadataUrlSchema = OrganizationIssuerUrlSchema;
 /** Inline SAML IdP metadata, for operators who paste the document directly. */
 export const SamlMetadataXmlSchema = z.string().min(32).max(262_144);
 
+/** Native SAML entity IDs name the IdP; URNs are valid and never fetched. */
+export const SamlEntityIdSchema = z
+  .string()
+  .min(1)
+  .max(1024)
+  .refine((value) => {
+    if ([...value].some((ch) => ch <= " " || ch === "\u007f")) return false;
+    try {
+      const url = new URL(value);
+      return (
+        ["https:", "http:", "urn:"].includes(url.protocol) &&
+        !url.username &&
+        !url.password
+      );
+    } catch {
+      return false;
+    }
+  }, "SAML entity ID must be an http(s) URI or URN");
+
 export const UpdateOrganizationRequestSchema = z
   .object({
     displayName: z.string().min(1).max(128).optional(),
     ssoIssuer: OrganizationIssuerUrlSchema.nullable().optional(),
     ssoClientId: OrganizationClientIdSchema.nullable().optional(),
     ssoClientSecret: OrganizationClientSecretSchema.nullable().optional(),
-    samlIssuer: OrganizationIssuerUrlSchema.nullable().optional(),
+    samlIssuer: SamlEntityIdSchema.nullable().optional(),
     samlMetadataUrl: SamlMetadataUrlSchema.nullable().optional(),
     samlMetadataXml: SamlMetadataXmlSchema.nullable().optional(),
     provisioningEnabled: z.boolean().optional(),

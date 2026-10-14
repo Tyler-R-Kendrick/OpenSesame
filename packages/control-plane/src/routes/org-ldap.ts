@@ -155,6 +155,21 @@ export function createOrgLdapRoutes(): Hono<{ Variables: Variables }> {
         );
       }
       const config = configFromRequest(organizationId, parsed.data);
+      // A secret is write-only. Editing another directory field must retain
+      // it, just as an omitted OIDC client secret does on organization PATCH.
+      // Never carry a credential to a newly configured host or service DN.
+      if (config.bindMode === "search_bind" && !config.serviceBindSecret) {
+        const current =
+          await ctx.stores.orgFederation.ldapConfigs.get(organizationId);
+        if (
+          current?.url === config.url &&
+          current.serviceBindDn === config.serviceBindDn &&
+          current.bindMode === "search_bind" &&
+          current.serviceBindSecret
+        ) {
+          config.serviceBindSecret = current.serviceBindSecret;
+        }
+      }
       try {
         // Validated at configuration time, not only at sign-in time: an owner
         // must learn here that ldap:// is refused in production and that the
