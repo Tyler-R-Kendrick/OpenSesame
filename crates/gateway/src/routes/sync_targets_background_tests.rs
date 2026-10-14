@@ -6,13 +6,20 @@ use crate::sync_actor::{self, SyncActorConfig};
 use opensesame_connection_broker::{
     config_access::{self, PolicyActor},
     BrokerConfig, ConnectionBroker, CreateConnection, CreateSecretConfig, CreateSyncTarget,
-    SyncTargetStatus,
+    SyncTargetStatus, SyncTargetView,
 };
-use opensesame_domain::{OrganizationRole, PrincipalId};
+use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId};
 use sqlx::Row;
 
-#[tokio::test]
-async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authority() {
+struct BackgroundSyncFixture {
+    st: crate::app_state::AppState,
+    org: OrganizationId,
+    principal: PrincipalId,
+    config_id: String,
+    target: SyncTargetView,
+}
+
+async fn background_sync_fixture() -> BackgroundSyncFixture {
     let mut st = test_demo_state().await;
     st.connection_broker = Arc::new(
         ConnectionBroker::new(
@@ -86,8 +93,6 @@ async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authorit
         )
         .await
         .unwrap();
-    // Create real dirty events, then remove the only key. Even a regression
-    // can only sync an empty snapshot: this test never contacts a provider.
     let values = BTreeMap::from([("CANARY".into(), "test-only-canary".into())]);
     st.connection_broker
         .put_config_secrets(&org.to_string(), &config.id, &values, None)
@@ -100,6 +105,53 @@ async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authorit
     config_access::set_role_ceiling(st.db.pool(), &org, &principal, None, 1, 0)
         .await
         .unwrap();
+    BackgroundSyncFixture {
+        st,
+        org,
+        principal,
+        config_id: config.id,
+        target,
+    }
+}
+
+async fn assert_background_outbox_attempt(
+    fixture: &BackgroundSyncFixture,
+    attempt: i64,
+    dead_lettered: bool,
+) {
+    let current = fixture
+        .st
+        .connection_broker
+        .get_sync_target(&fixture.org, &fixture.target.id)
+        .await
+        .unwrap();
+    assert_eq!(current.status, SyncTargetStatus::Idle);
+    assert!(current.last_synced_at.is_none());
+    let rows = sqlx::query(
+        "SELECT attempts,published_at,dead_lettered_at,last_error
+         FROM config_sync_outbox WHERE config_id=?",
+    )
+    .bind(&fixture.config_id)
+    .fetch_all(fixture.st.db.pool())
+    .await
+    .unwrap();
+    assert_eq!(rows.len(), 2);
+    for row in rows {
+        assert_eq!(row.get::<i64, _>("attempts"), attempt);
+        assert!(row.get::<Option<String>, _>("published_at").is_none());
+        assert_eq!(
+            row.get::<Option<String>, _>("dead_lettered_at").is_some(),
+            dead_lettered
+        );
+        let reason = row.get::<Option<String>, _>("last_error").unwrap();
+        assert!(reason.contains("sync target not found"), "{reason}");
+        assert!(!reason.contains("test-only"));
+    }
+}
+
+#[tokio::test]
+async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authority() {
+    let fixture = background_sync_fixture().await;
     let cfg = SyncActorConfig {
         backoff_base_seconds: 0,
         max_attempts: 3,
@@ -108,9 +160,9 @@ async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authorit
     for attempt in 1..=3 {
         if attempt == 3 {
             config_access::set_role_ceiling(
-                st.db.pool(),
-                &org,
-                &principal,
+                fixture.st.db.pool(),
+                &fixture.org,
+                &fixture.principal,
                 Some(OrganizationRole::Admin),
                 2,
                 0,
@@ -118,39 +170,13 @@ async fn background_outbox_retries_and_regrant_cannot_resurrect_revoked_authorit
             .await
             .unwrap();
         }
-        sync_actor::pass(&st, &cfg).await.unwrap();
-        let current = st
-            .connection_broker
-            .get_sync_target(&org, &target.id)
-            .await
-            .unwrap();
-        assert_eq!(current.status, SyncTargetStatus::Idle);
-        assert!(current.last_synced_at.is_none());
-        let rows = sqlx::query(
-            "SELECT attempts,published_at,dead_lettered_at,last_error
-             FROM config_sync_outbox WHERE config_id=?",
-        )
-        .bind(&config.id)
-        .fetch_all(st.db.pool())
-        .await
-        .unwrap();
-        assert_eq!(rows.len(), 2);
-        for row in rows {
-            assert_eq!(row.get::<i64, _>("attempts"), attempt);
-            assert!(row.get::<Option<String>, _>("published_at").is_none());
-            assert_eq!(
-                row.get::<Option<String>, _>("dead_lettered_at").is_some(),
-                attempt == 3
-            );
-            let reason = row.get::<Option<String>, _>("last_error").unwrap();
-            assert!(reason.contains("sync target not found"), "{reason}");
-            assert!(!reason.contains("test-only"));
-        }
+        sync_actor::pass(&fixture.st, &cfg).await.unwrap();
+        assert_background_outbox_attempt(&fixture, attempt, attempt == 3).await;
         sqlx::query(
             "UPDATE config_sync_outbox SET available_at=NULL
              WHERE published_at IS NULL AND dead_lettered_at IS NULL",
         )
-        .execute(st.db.pool())
+        .execute(fixture.st.db.pool())
         .await
         .unwrap();
     }
