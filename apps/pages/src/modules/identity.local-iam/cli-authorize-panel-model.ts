@@ -45,6 +45,10 @@ function isDeploymentBlocked(error: DOMException | null): boolean {
   return error?.name === "SecurityError";
 }
 
+function blockedCopy(error: DOMException | null, fallback: string): string {
+  return isDeploymentBlocked(error) ? LOAD_BLOCKED : fallback;
+}
+
 function parseFirst(body: BoundaryValue): CliAuthorizeRow | null {
   if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
   const entry = body.pending[0];
@@ -67,6 +71,38 @@ function authHeaders(): Record<string, string> | null {
   };
 }
 
+type PendingLoad = {
+  row: CliAuthorizeRow | null;
+  loadError: string | null;
+};
+
+async function loadPending(): Promise<PendingLoad> {
+  const origin = daemonOrigin();
+  const headers = authHeaders();
+  if (!origin || !headers) return { row: null, loadError: LOAD_UNREADABLE };
+  try {
+    const res = await localNetworkFetch(
+      `${origin}/v1/cli/app-integration/pending`,
+      {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-store",
+        headers,
+      },
+    );
+    if (!res.ok) return { row: null, loadError: LOAD_UNREADABLE };
+    return { row: parseFirst(await res.json()), loadError: null };
+  } catch (error) {
+    return {
+      row: null,
+      loadError: blockedCopy(
+        error instanceof DOMException ? error : null,
+        LOAD_UNREADABLE,
+      ),
+    };
+  }
+}
+
 export function useCliAuthorizePanel() {
   const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -78,35 +114,9 @@ export function useCliAuthorizePanel() {
 
   useEffect(() => {
     void (async () => {
-      const origin = daemonOrigin();
-      const headers = authHeaders();
-      if (!origin || !headers) {
-        setLoadError(LOAD_UNREADABLE);
-        return setRow(null);
-      }
-      try {
-        const res = await localNetworkFetch(
-          `${origin}/v1/cli/app-integration/pending`,
-          {
-            method: "GET",
-            credentials: "omit",
-            cache: "no-store",
-            headers,
-          },
-        );
-        if (!res.ok) {
-          setLoadError(LOAD_UNREADABLE);
-          return setRow(null);
-        }
-        setRow(parseFirst(await res.json()));
-      } catch (error) {
-        setLoadError(
-          isDeploymentBlocked(error instanceof DOMException ? error : null)
-            ? LOAD_BLOCKED
-            : LOAD_UNREADABLE,
-        );
-        setRow(null);
-      }
+      const pending = await loadPending();
+      setLoadError(pending.loadError);
+      setRow(pending.row);
     })();
   }, []);
 
@@ -133,9 +143,10 @@ export function useCliAuthorizePanel() {
     } catch (error) {
       setBusy(false);
       setMark(
-        isDeploymentBlocked(error instanceof DOMException ? error : null)
-          ? LOAD_BLOCKED
-          : "That did not work.",
+        blockedCopy(
+          error instanceof DOMException ? error : null,
+          "That did not work.",
+        ),
       );
     }
   }
