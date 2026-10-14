@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
-import { createItem } from "@opensesame/vault-core";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  createCredential,
+  createItem,
+  manualPassword,
+} from "@opensesame/vault-core";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { kvDelete } from "../kv.js";
 import { writeLastVaultId } from "../last-vault.js";
 import {
@@ -12,21 +16,11 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
+import {
+  installPasswordDigestStore,
+  resetPasswordHistoryForTest,
+} from "./password-history.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
-
-const gate = vi.hoisted(() => ({ wait: Promise.resolve() }));
-vi.mock("./password-history.js", async (original) => {
-  const actual = await original<typeof import("./password-history.js")>();
-  return {
-    ...actual,
-    preparePasswordRetirement: async (
-      ...args: Parameters<typeof actual.preparePasswordRetirement>
-    ) => {
-      await gate.wait;
-      return actual.preparePasswordRetirement(...args);
-    },
-  };
-});
 
 const PASSWORD = "correct horse battery staple";
 let store: VaultStore;
@@ -43,23 +37,47 @@ beforeEach(async () => {
     kvDelete(tombFileKey(PERSONAL_TOMB, path));
   kvDelete(ATTEMPTS_KEY);
   writeLastVaultId(PERSONAL_TOMB);
-  gate.wait = Promise.resolve();
+  resetPasswordHistoryForTest();
   store = new VaultStore();
   await store.create(PASSWORD);
 });
 
 afterEach(async () => {
   store.lock();
-  gate.wait = Promise.resolve();
+  installPasswordDigestStore(null);
   await vfsFlush();
 });
 
 function pauseRetirement() {
   let resume = () => {};
-  gate.wait = new Promise<void>((resolve) => {
+  let entered = () => {};
+  const reached = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const wait = new Promise<void>((resolve) => {
     resume = resolve;
   });
-  return resume;
+  installPasswordDigestStore({
+    add: async () => true,
+    forget: async () => 0,
+    digestsFor: async () => {
+      entered();
+      await wait;
+      return [];
+    },
+  });
+  return { reached, resume };
+}
+
+function stagedCredential() {
+  return createCredential(
+    manualPassword(
+      crypto.randomUUID(),
+      "Staged password",
+      new Date().toISOString(),
+    ),
+    "Must stay out of the guest",
+  );
 }
 
 it.each(["single", "batch"])(
@@ -67,8 +85,8 @@ it.each(["single", "batch"])(
   async (kind) => {
     const original = createItem("note", "Original vault");
     await store.saveItem(original);
-    const resume = pauseRetirement();
-    const pendingItem = createItem("note", "Must stay out of the guest");
+    const paused = pauseRetirement();
+    const pendingItem = stagedCredential();
     const pending =
       kind === "single"
         ? store.saveItem(pendingItem)
@@ -76,9 +94,10 @@ it.each(["single", "batch"])(
     const refused = expect(pending).rejects.toMatchObject({
       code: "stale_operation",
     });
+    await paused.reached;
     store.lock();
     await store.createGuest();
-    resume();
+    paused.resume();
     await refused;
     expect(store.getSnapshot().items).toEqual([]);
     store.lock();
@@ -94,18 +113,15 @@ it.each(["single", "batch"])(
 );
 
 it("refuses a cancelled connection's staged tokens before the queued mutation", async () => {
-  const resume = pauseRetirement();
+  const paused = pauseRetirement();
   let active = true;
-  const pending = store.saveItems(
-    [createItem("note", "Cancelled staged credential")],
-    undefined,
-    () => {
-      if (!active) throw new Error("Connection cancelled");
-    },
-  );
+  const pending = store.saveItems([stagedCredential()], undefined, () => {
+    if (!active) throw new Error("Connection cancelled");
+  });
   const refused = expect(pending).rejects.toThrow("Connection cancelled");
+  await paused.reached;
   active = false;
-  resume();
+  paused.resume();
   await refused;
   expect(store.getSnapshot().items).toEqual([]);
   await store.flushPendingWrites();
