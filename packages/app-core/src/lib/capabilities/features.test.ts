@@ -132,6 +132,18 @@ describe("switchFeature", () => {
     expect(next.roots).not.toContain("identity.ambient-sso");
   });
 
+  it("still adds Self-issued OpenID when its tile is switched on alone", () => {
+    const next = switchCapability(
+      { roots: [], alternatives: {} },
+      featureById("identity"),
+      "identity.siop",
+      true,
+      planWith([]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.roots).toEqual(["identity.siop"]);
+  });
+
   it("chooses an alternative the switch itself adds, so the review is not blocked", () => {
     const next = switchFeature(
       { roots: [], alternatives: {} },
