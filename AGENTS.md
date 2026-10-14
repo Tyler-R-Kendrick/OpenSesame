@@ -83,6 +83,14 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.
+- **Coding delegation order (Tyler, 2026-10):** for fix and implementation work,
+  try **Grok Build** first (`grok-4.7` via signed-in subscription:
+  `grok login --device-code`, headless through `scripts/dev/grok-headless.sh`
+  with `XAI_API_KEY` unset — no pay-per-use runtime key). If Grok is not signed
+  in or is capped, try **Kimi Code** (`scripts/dev/kimi-headless.sh`, model
+  `kimi-code/k3` after `kimi login`). If Kimi is unavailable, continue with the
+  **Cursor agent (Composer)** and say which tier failed. See
+  `.cursor/kimi-code.md` and `scripts/dev/grok-preflight.sh`.
 
 After checkout, `install` runs `.cursor/install.sh` (`corepack` + `pnpm install`
 + `cargo +1.88.0 fetch`). Prefer the shared cargo target dir documented in §9
