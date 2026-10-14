@@ -179,7 +179,7 @@ pub(crate) fn run_until(
 /// # Errors
 ///
 /// When the child cannot be waited on.
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(crate) fn supervise(
     child: &mut Child,
     session: Option<&SurrogateSession>,
