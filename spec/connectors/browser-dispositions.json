@@ -13,142 +13,6 @@
   },
   "dispositions": [
     {
-      "provider_id": "bitwarden",
-      "kind": "companion",
-      "summary": "Bitwarden reads vault items through its command-line client. Its Vault Management API is the bw serve local server, which blocks any request that carries a browser Origin header unless it is started with --disable-origin-protection. Its cloud Public API manages organizations (members, collections, groups, events), not vault items, and Bitwarden's servers send no CORS headers to this site, so a page here cannot call it. Importing an export copies items into this vault as a local snapshot; it is not a live Bitwarden connection.",
-      "sources": [
-        {
-          "label": "Bitwarden APIs",
-          "url": "https://bitwarden.com/help/bitwarden-apis/"
-        },
-        {
-          "label": "bw serve and origin protection",
-          "url": "https://bitwarden.com/help/cli/"
-        }
-      ],
-      "probes": [
-        {
-          "stage": "preflight",
-          "url": "https://identity.bitwarden.com/connect/token",
-          "method": "POST",
-          "request_header_names": ["content-type"],
-          "status": 204,
-          "allow_origin": null,
-          "allow_methods": null,
-          "allow_headers": null,
-          "checked_at": "2026-10-12T13:24:45+00:00"
-        },
-        {
-          "stage": "preflight",
-          "url": "https://api.bitwarden.com/public/collections",
-          "method": "GET",
-          "request_header_names": ["authorization"],
-          "status": 204,
-          "allow_origin": null,
-          "allow_methods": null,
-          "allow_headers": null,
-          "checked_at": "2026-10-12T13:24:45+00:00"
-        },
-        {
-          "stage": "preflight",
-          "url": "https://identity.bitwarden.com/connect/token",
-          "method": "POST",
-          "request_header_names": ["content-type"],
-          "status": 204,
-          "allow_origin": "https://vault.bitwarden.com",
-          "allow_methods": "POST",
-          "allow_headers": "content-type",
-          "checked_at": "2026-10-12T13:24:45+00:00",
-          "origin": "https://vault.bitwarden.com",
-          "note": "Control: the same request from Bitwarden's own web vault origin is admitted, so the missing header above is an allow-list, not a probe failure."
-        },
-        {
-          "stage": "preflight",
-          "url": "https://api.bitwarden.com/public/collections",
-          "method": "GET",
-          "request_header_names": ["authorization"],
-          "status": 204,
-          "allow_origin": "https://vault.bitwarden.com",
-          "allow_methods": "GET",
-          "allow_headers": "authorization",
-          "checked_at": "2026-10-12T13:24:45+00:00",
-          "origin": "https://vault.bitwarden.com",
-          "note": "Control: the same request from Bitwarden's own web vault origin is admitted."
-        }
-      ],
-      "alternative": {
-        "label": "Open Vault to import a supported export",
-        "to": "/vault?f=all"
-      }
-    },
-    {
-      "provider_id": "bitwarden-sm",
-      "kind": "companion",
-      "summary": "Bitwarden Secrets Manager is used through its web app, its command-line client or its SDK. Its cloud servers send no CORS headers to this site, so a page here cannot call them.",
-      "sources": [
-        {
-          "label": "Secrets Manager overview",
-          "url": "https://bitwarden.com/help/secrets-manager-overview/"
-        }
-      ],
-      "probes": [
-        {
-          "stage": "preflight",
-          "url": "https://identity.bitwarden.com/connect/token",
-          "method": "POST",
-          "request_header_names": ["content-type"],
-          "status": 204,
-          "allow_origin": null,
-          "allow_methods": null,
-          "allow_headers": null,
-          "checked_at": "2026-10-12T13:24:45+00:00"
-        },
-        {
-          "stage": "preflight",
-          "url": "https://api.bitwarden.com/public/collections",
-          "method": "GET",
-          "request_header_names": ["authorization"],
-          "status": 204,
-          "allow_origin": null,
-          "allow_methods": null,
-          "allow_headers": null,
-          "checked_at": "2026-10-12T13:24:45+00:00"
-        }
-      ]
-    },
-    {
-      "provider_id": "vaultwarden",
-      "kind": "companion",
-      "summary": "Vaultwarden is a Bitwarden-compatible server, so vault items are reached the way Bitwarden's are: through a Bitwarden client that holds your master key, such as its command-line client. This catalog entry configures that client, which a browser page cannot run. Importing a Bitwarden-format export copies items into this vault as a local snapshot; it is not a live connection.",
-      "sources": [
-        {
-          "label": "Bitwarden APIs",
-          "url": "https://bitwarden.com/help/bitwarden-apis/"
-        }
-      ],
-      "probes": [],
-      "alternative": {
-        "label": "Open Vault to import a supported export",
-        "to": "/vault?f=all"
-      }
-    },
-    {
-      "provider_id": "1password",
-      "kind": "companion",
-      "summary": "This catalog entry configures 1Password's command-line tool (op), which reads items on the computer it runs on. A browser page cannot run it. Importing an export copies items into this vault as a local snapshot; it is not a live 1Password connection.",
-      "sources": [
-        {
-          "label": "1Password CLI",
-          "url": "https://www.1password.dev/cli"
-        }
-      ],
-      "probes": [],
-      "alternative": {
-        "label": "Open Vault to import a supported export",
-        "to": "/vault?f=all"
-      }
-    },
-    {
       "provider_id": "keychain",
       "kind": "companion",
       "summary": "The operating system's keychain can be read only by native code on the machine that owns it. A web page has no API for it.",
@@ -175,7 +39,7 @@
     {
       "provider_id": "keepass",
       "kind": "companion",
-      "summary": "This catalog entry points at a KeePass database file by path. A browser page cannot open a path, but it can open a file you choose: Vault → Import reads a KeePass database into this vault as a local snapshot.",
+      "summary": "This catalog entry points at a KeePass database file by path. A browser page cannot open a path, but it can open a file you choose: Vault \u2192 Import reads a KeePass database into this vault as a local snapshot.",
       "sources": [
         {
           "label": "KeePass help",
@@ -225,34 +89,6 @@
       ]
     },
     {
-      "provider_id": "proton-pass",
-      "kind": "refuses-browser",
-      "summary": "The Proton Pass endpoint checked (pass.proton.me/api/pass/v1/user/access) answers a browser preflight from this site without CORS headers, so a page here cannot call it. Importing an export copies items into this vault as a local snapshot; it is not a live Proton Pass connection.",
-      "sources": [
-        {
-          "label": "Proton Pass support",
-          "url": "https://proton.me/support/pass"
-        }
-      ],
-      "probes": [
-        {
-          "stage": "preflight",
-          "url": "https://pass.proton.me/api/pass/v1/user/access",
-          "method": "POST",
-          "request_header_names": ["content-type"],
-          "status": 200,
-          "allow_origin": null,
-          "allow_methods": null,
-          "allow_headers": null,
-          "checked_at": "2026-10-12T13:24:46+00:00"
-        }
-      ],
-      "alternative": {
-        "label": "Open Vault to import a supported export",
-        "to": "/vault?f=all"
-      }
-    },
-    {
       "provider_id": "webcrypto",
       "kind": "built-in",
       "summary": "This vault already seals every item with WebCrypto keys that never leave this device, so there is nothing to connect.",
@@ -264,7 +100,7 @@
       ],
       "probes": [],
       "alternative": {
-        "label": "Open Settings › Security",
+        "label": "Open Settings \u203a Security",
         "to": "/settings/security"
       }
     },
@@ -280,7 +116,7 @@
       ],
       "probes": [],
       "alternative": {
-        "label": "Open Settings › Vaults",
+        "label": "Open Settings \u203a Vaults",
         "to": "/settings/vaults"
       }
     },
@@ -296,7 +132,7 @@
       ],
       "probes": [],
       "alternative": {
-        "label": "Open Settings › Security",
+        "label": "Open Settings \u203a Security",
         "to": "/settings/security"
       }
     },
