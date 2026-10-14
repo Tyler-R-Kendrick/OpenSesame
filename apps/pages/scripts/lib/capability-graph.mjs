@@ -7,8 +7,8 @@
  * here — never the other way round.
  *
  * Graph shape (also `dist/capability-graph.json`):
- *   entries:  [{ html, capability, scripts: [file], preloads: [file] }]
- *   chunks:   [{ file, name, isEntry, isDynamicEntry, imports, dynamicImports,
+ *   entries:  [{ html, capability, scripts: [file], preloads: [file], assets: [file] }]
+ *   chunks:   [{ file, name, isEntry, isDynamicEntry, onDemand, imports, dynamicImports,
  *                importedCss, importedAssets, modules: [{ id, classification,
  *                capability, rationale, size }] }]
  *   workers:  [{ variant, file, capability }]
@@ -274,6 +274,33 @@ export function canonicalJson(value, indent = 2) {
  * resolved to dist-relative files. `base` is the build's public base
  * (`/OpenSesame/`); `htmlFile` is the document's own dist-relative path.
  */
+const HTML_ASSET_RELS = new Set([
+  "icon",
+  "apple-touch-icon",
+  "stylesheet",
+  "preload",
+  "manifest",
+]);
+
+/** Same-origin resource links in this document, not a scan of public files. */
+function linkedHtmlAssets(html, resolveRef) {
+  const assets = [];
+  for (const tag of html.matchAll(/<link\b[^>]*>/gi)) {
+    const rel = tag[0].match(/\brel\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (
+      !rel
+        ?.toLowerCase()
+        .split(/\s+/)
+        .some((value) => HTML_ASSET_RELS.has(value))
+    )
+      continue;
+    const href = tag[0].match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1];
+    if (href && !/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(href))
+      assets.push(resolveRef(href));
+  }
+  return [...new Set(assets)].sort();
+}
+
 export function parseHtmlEntry(html, { base, htmlFile }) {
   const scripts = [];
   const preloads = [];
@@ -308,5 +335,6 @@ export function parseHtmlEntry(html, { base, htmlFile }) {
   return {
     scripts: [...new Set(scripts)].sort(),
     preloads: [...new Set(preloads)].sort(),
+    assets: linkedHtmlAssets(html, resolveRef),
   };
 }
