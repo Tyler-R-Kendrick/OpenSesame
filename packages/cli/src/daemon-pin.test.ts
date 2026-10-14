@@ -6,6 +6,7 @@ import {
   verifyLocalDaemonForCliAppIntegration,
 } from "./daemon-pin.js";
 import { startCliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
+import { tcpListenPort } from "./fixtures/net-listen-port.js";
 
 const ensurePath = cliAppIntegrationPolicy.daemonPaths.ensure;
 
@@ -37,13 +38,13 @@ async function startAutoApproveEnsureStub(): Promise<{
       res.end();
     });
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
+      const port = tcpListenPort(server.address());
+      if (port === null) {
         reject(new Error("stub has no listen address"));
         return;
       }
       resolve({
-        baseUrl: `http://127.0.0.1:${address.port}`,
+        baseUrl: `http://127.0.0.1:${port}`,
         close: () =>
           new Promise((done) => {
             server.close(() => {

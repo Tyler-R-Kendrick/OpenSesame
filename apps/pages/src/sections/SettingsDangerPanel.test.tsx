@@ -21,7 +21,7 @@ const vault = vi.hoisted(() => {
   };
   return {
     prefs,
-    items: [] as VaultItem[],
+    items: [] satisfies VaultItem[],
     folders: [],
     header: { wrap: {}, kdf: { iterations: 600_000 } },
   };

@@ -25,7 +25,9 @@ export function walkJsonFiles(dir) {
 
 /** @param {unknown} h */
 export function isWaveProcessComplete(h, marker, agentType) {
-  if (typeof h !== "object" || h === null) return false;
+  if (h === null || Object.prototype.toString.call(h) !== "[object Object]") {
+    return false;
+  }
   const row = h;
   if (row.reinvestigateMarker !== marker) return false;
   if (row.phase === "revalidate") return false;

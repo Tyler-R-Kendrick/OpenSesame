@@ -2,6 +2,12 @@
  * CLI app-integration pairing wire parse (no device crypto — safe for static import).
  */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import { b64urlToBytes } from "@opensesame/vault-core";
 import { SECRET, isPairableOrigin } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
@@ -25,9 +31,9 @@ function daemonBase(url: string): string | null {
   return base && isTailnetOrLoopback(base) ? base : null;
 }
 
-function decodeJson(text: string) {
+function decodeJson(text: string): BoundaryValue | null {
   try {
-    return JSON.parse(new TextDecoder().decode(b64urlToBytes(text)));
+    return overlapCast(JSON.parse(new TextDecoder().decode(b64urlToBytes(text))));
   } catch {
     return null;
   }
@@ -38,19 +44,19 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
   if (!trimmed.startsWith(CLI_APP_PAIRING_PREFIX)) return null;
   const payload = trimmed.slice(CLI_APP_PAIRING_PREFIX.length);
   const wire = decodeJson(payload);
-  if (!wire || typeof wire !== "object") return null;
+  if (!wire || !isJsonObject(wire)) return null;
   const code = wire.code;
   const origin = wire.origin;
   const url = wire.url;
   const label = wire.label;
   if (
-    typeof code !== "string" ||
+    !isString(code) ||
     !SECRET.test(code) ||
-    typeof origin !== "string" ||
+    !isString(origin) ||
     !isPairableOrigin(origin) ||
-    typeof url !== "string" ||
+    !isString(url) ||
     !daemonBase(url) ||
-    typeof label !== "string"
+    !isString(label)
   ) {
     return null;
   }
