@@ -134,7 +134,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.backup",
       "settings.tailnet-sync",
       "integration.networking",
-      "integration.local-storage",
       "feature.encrypted-search",
       "integration.cloud-secret-storage",
       "integration.password-managers",
@@ -207,6 +206,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     title: "Agents, models and extras",
     goals: [
       "settings.model-provider",
+      "integration.ai",
       "settings.notifications",
       "feature.notifications",
       "settings.local-notifications",
