@@ -9,16 +9,22 @@ import type { JsonObject } from "@opensesame/os-domain";
 
 export const MAIN_JS = "assets/main-abc.js";
 export const MAIN_CSS = "assets/main-abc.css";
+export const SHELL_ICON = "icon.svg";
 export const VENDOR_JS = "assets/vendor-111.js";
 export const CONNECTORS_JS = "assets/connectors-222.js";
 export const CONNECTORS_CSS = "assets/connectors-222.css";
 export const SHARED_JS = "assets/shared-333.js";
+export const LAZY_JS = "assets/lazy-parser-555.js";
+export const LAZY_CSS = "assets/lazy-parser-555.css";
+export const LAZY_WASM = "assets/lazy-parser-555.wasm";
+export const ON_DEMAND_JS = "assets/item-type-pack-note-666.js";
 export const EXCLUDED_JS = "assets/excluded-444.js";
 
 export const CONNECTORS_MODULE = "connectors.external/runtime";
 export const EXCLUDED_MODULE = "wallet.spending/runtime";
 
 export const FIXTURE_GRAPH: JsonObject = {
+  entries: [{ html: "index.html", capability: null, assets: [SHELL_ICON] }],
   chunks: [
     {
       file: MAIN_JS,
@@ -31,13 +37,25 @@ export const FIXTURE_GRAPH: JsonObject = {
     {
       file: CONNECTORS_JS,
       imports: [SHARED_JS],
-      dynamicImports: [EXCLUDED_JS],
+      dynamicImports: [EXCLUDED_JS, LAZY_JS, ON_DEMAND_JS],
       css: [CONNECTORS_CSS],
       modules: [
         { moduleId: CONNECTORS_MODULE, capability: "connectors.external" },
       ],
     },
     { file: SHARED_JS, modules: [{ moduleId: null, capability: null }] },
+    {
+      file: LAZY_JS,
+      imports: [SHARED_JS],
+      importedCss: [LAZY_CSS],
+      importedAssets: [LAZY_WASM],
+      modules: [{ moduleId: null, capability: null }],
+    },
+    {
+      file: ON_DEMAND_JS,
+      onDemand: true,
+      modules: [{ moduleId: null, capability: null }],
+    },
     {
       file: EXCLUDED_JS,
       modules: [{ moduleId: EXCLUDED_MODULE, capability: "wallet.spending" }],
@@ -49,10 +67,15 @@ export const FIXTURE_GRAPH: JsonObject = {
 export const ALL_FIXTURE_FILES = [
   MAIN_JS,
   MAIN_CSS,
+  SHELL_ICON,
   VENDOR_JS,
   CONNECTORS_JS,
   CONNECTORS_CSS,
   SHARED_JS,
+  LAZY_JS,
+  LAZY_CSS,
+  LAZY_WASM,
+  ON_DEMAND_JS,
   EXCLUDED_JS,
 ];
 
@@ -60,10 +83,14 @@ export const ALL_FIXTURE_FILES = [
 export const CONNECTORS_PLAN_FILES = [
   CONNECTORS_CSS,
   CONNECTORS_JS,
+  LAZY_CSS,
+  LAZY_JS,
+  LAZY_WASM,
   MAIN_CSS,
   MAIN_JS,
   SHARED_JS,
   VENDOR_JS,
+  SHELL_ICON,
 ];
 
 export const RELEASE_MANIFEST = [

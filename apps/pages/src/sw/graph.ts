@@ -34,12 +34,19 @@ export type GraphChunk = Readonly<{
   file: string;
   isEntry: boolean;
   core: boolean;
+  /** Individually installed resources stay outside a capability's cache plan. */
+  onDemand: boolean;
   imports: readonly string[];
+  dynamicImports: readonly string[];
   css: readonly string[];
+  assets: readonly string[];
   modules: readonly GraphModule[];
 }>;
 
-export type CapabilityGraph = Readonly<{ chunks: readonly GraphChunk[] }>;
+export type CapabilityGraph = Readonly<{
+  chunks: readonly GraphChunk[];
+  shellAssets: readonly string[];
+}>;
 
 export type PlanAssetResolution =
   | Readonly<{ ok: true; files: readonly string[] }>
@@ -84,8 +91,11 @@ function chunkOf(record: JsonObject): GraphChunk | null {
       record.core === true ||
       ownership === "core" ||
       (modules.length > 0 && modules.every((m) => m.capability === null)),
+    onDemand: record.onDemand === true,
     imports: pathList(record.imports),
+    dynamicImports: pathList(record.dynamicImports),
     css: [...pathList(record.importedCss), ...pathList(record.css)],
+    assets: pathList(record.importedAssets),
     modules,
   };
 }
@@ -101,7 +111,19 @@ export function parseCapabilityGraph(
     const chunk = chunkOf(entry);
     if (chunk) chunks.push(chunk);
   }
-  return { chunks };
+  return { chunks, shellAssets: shellAssets(value.entries) };
+}
+
+/** Only the core shell's resource links, never another entry's public assets. */
+function shellAssets(value: BoundaryValue): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) =>
+    isJsonObject(entry) &&
+    entry.html === "index.html" &&
+    entry.capability === null
+      ? pathList(entry.assets)
+      : [],
+  );
 }
 
 function capabilityOf(moduleId: string): string {
@@ -124,10 +146,10 @@ function chunksForModule(
 
 /**
  * Files an approved plan needs: the chunks carrying the requested modules,
- * their static import closure, every stylesheet those chunks import, and the
- * core entry chunks with their own closure. Dynamic imports are not followed
- * — they belong to whichever module owns them, and that module is either in
- * the plan (and therefore requested) or excluded (and therefore not saved).
+ * their import closure, stylesheets and assets, and the core entry chunks.
+ * Lazy imports are included only when every owner is shared or approved;
+ * excluded capabilities and individually installed resources stay outside
+ * the plan. Static dependencies remain necessary to load their owner.
  * Any id the graph does not know fails the whole request (PWA-09).
  */
 export function resolvePlanAssets(
@@ -137,6 +159,7 @@ export function resolvePlanAssets(
   const byFile = new Map<string, GraphChunk>();
   for (const chunk of graph.chunks) byFile.set(chunk.file, chunk);
   const roots: GraphChunk[] = graph.chunks.filter((c) => c.isEntry && c.core);
+  const approved = new Set(moduleIds.map(capabilityOf));
   const unknown: string[] = [];
   for (const id of moduleIds) {
     const owners = chunksForModule(graph, id);
@@ -144,18 +167,38 @@ export function resolvePlanAssets(
     else roots.push(...owners);
   }
   if (unknown.length > 0) return { ok: false, unknown };
-  const files = new Set<string>();
+  const files = new Set(graph.shellAssets);
   const queue = [...roots];
   while (queue.length > 0) {
     const chunk = queue.pop();
     if (!chunk || files.has(chunk.file)) continue;
     files.add(chunk.file);
     for (const css of chunk.css) files.add(css);
+    for (const asset of chunk.assets) files.add(asset);
     for (const dep of chunk.imports) {
       const next = byFile.get(dep);
       if (next) queue.push(next);
       else files.add(dep);
     }
+    for (const dep of chunk.dynamicImports) {
+      const next = byFile.get(dep);
+      if (next && approvedLazyChunk(next, approved)) queue.push(next);
+    }
   }
   return { ok: true, files: [...files].sort() };
+}
+
+function approvedLazyChunk(
+  chunk: GraphChunk,
+  approved: ReadonlySet<string>,
+): boolean {
+  if (chunk.onDemand) return false;
+  return (
+    chunk.core ||
+    (chunk.modules.length > 0 &&
+      chunk.modules.every(
+        (module) =>
+          module.capability === null || approved.has(module.capability),
+      ))
+  );
 }

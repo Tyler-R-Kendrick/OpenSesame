@@ -10,10 +10,14 @@ import {
   CONNECTORS_PLAN_FILES,
   EXCLUDED_JS,
   FIXTURE_GRAPH,
+  LAZY_JS,
+  LAZY_WASM,
+  ON_DEMAND_JS,
   PLAN_DIGEST,
   RELEASE_ID,
   RELEASE_MANIFEST,
   SHARED_JS,
+  SHELL_ICON,
 } from "./test-fixtures.js";
 
 const SCOPE_PATH = "/OpenSesame/";
@@ -59,7 +63,7 @@ function abs(env: FakeWorkerEnv, file: string): string {
 }
 
 describe("PLAN_ASSETS caches only the plan's chunks (PWA-05)", () => {
-  it("saves the module chunk, its static closure, its CSS and the core entry", async () => {
+  it("saves the module's static and shared lazy closure, assets, CSS and core entry", async () => {
     const { env, page, shell } = await ready();
     await env.message(page, plan([CONNECTORS_MODULE]));
     expect(page.messages).toEqual([
@@ -74,7 +78,23 @@ describe("PLAN_ASSETS caches only the plan's chunks (PWA-05)", () => {
       ].sort(),
     );
     expect(env.fetched).not.toContain(abs(env, EXCLUDED_JS));
+    expect(env.fetched).not.toContain(abs(env, ON_DEMAND_JS));
     expect(await env.cacheStorage.has(STAGING)).toBe(false);
+  });
+
+  it("serves shell icons, a first-use lazy parser and its WASM offline after readiness", async () => {
+    const { env, page } = await ready();
+    await env.message(page, plan([CONNECTORS_MODULE]));
+    env.offline(LAZY_JS);
+    env.offline(LAZY_WASM);
+    env.offline(SHELL_ICON);
+    env.fetched.length = 0;
+    for (const file of [LAZY_JS, LAZY_WASM, SHELL_ICON]) {
+      const response = await env.fetchEvent(new Request(abs(env, file)));
+      expect(await response?.text()).toBe(`body of ${file}`);
+    }
+    expect(env.fetched).toEqual([]);
+    expect(page.messages.at(-1)?.type).toBe("OFFLINE_READY");
   });
 
   it("does not fetch again what the release cache already holds", async () => {
@@ -102,12 +122,31 @@ describe("PLAN_ASSETS caches only the plan's chunks (PWA-05)", () => {
         abs(env, "assets/main-abc.js"),
         abs(env, "assets/main-abc.css"),
         abs(env, "assets/vendor-111.js"),
+        abs(env, SHELL_ICON),
       ].sort(),
     );
   });
 });
 
 describe("readiness protocol (PWA-07)", () => {
+  it("reports partial instead of ready when an unvisited shared lazy asset is unavailable", async () => {
+    const { env, page, shell } = await ready();
+    env.offline(LAZY_WASM);
+    await env.message(page, plan([CONNECTORS_MODULE]));
+    expect(page.messages).toEqual([
+      {
+        type: "OFFLINE_PARTIAL",
+        releaseId: RELEASE_ID,
+        planDigest: PLAN_DIGEST,
+        missing: 1,
+      },
+    ]);
+    expect((await env.cacheStorage.open(CURRENT)).urls()).toEqual(
+      [shell, abs(env, GRAPH_FILE)].sort(),
+    );
+    expect(await env.cacheStorage.has(STAGING)).toBe(false);
+  });
+
   it("a partial download reports the count and leaves both caches intact", async () => {
     const { env, page, shell } = await ready();
     const previousShell = abs(env, "index.html");
