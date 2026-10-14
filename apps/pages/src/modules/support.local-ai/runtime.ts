@@ -29,6 +29,7 @@ import { browserInference } from "@opensesame/app-core/lib/browser-inference.js"
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { interpretCommand } from "@opensesame/app-core/lib/command-bar/interpret.js";
 import {
+  MODEL_PROVIDER_KEY,
   autonomousResetAvailable,
   loadModelProvider,
   resolveModelPlane,
@@ -50,6 +51,10 @@ export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
+    if (activation.disposed()) return activation.handle();
+
+    // Optional preferences must be loaded before any contributed consumer reads them.
+    await ctx.hydrate([MODEL_PROVIDER_KEY]);
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(

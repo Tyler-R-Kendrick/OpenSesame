@@ -7,6 +7,7 @@ import {
   MODEL_PROVIDER_PRESETS,
   type ModelProviderPreset,
 } from "@opensesame/app-core/lib/model-catalog.js";
+import { subscribeModelKeys } from "@opensesame/app-core/lib/model-keys/active.js";
 import {
   type ModelProviderRecord,
   NO_MODEL_PROVIDER,
@@ -199,9 +200,11 @@ function useSavedModelChoiceRefresh(
           );
       });
     };
+    const unsubscribe = subscribeModelKeys(refresh);
     window.addEventListener("opensesame:ai-connections-changed", refresh);
     return () => {
       live = false;
+      unsubscribe();
       window.removeEventListener("opensesame:ai-connections-changed", refresh);
     };
   }, [verdict?.plane, setInferenceOptions]);
