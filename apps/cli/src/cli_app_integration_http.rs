@@ -62,6 +62,12 @@ pub fn post_json_uds(sock: &Path, path: &str, json_body: &str) -> Result<(u16, S
     parse_http_response(raw)
 }
 
+/// UDS transport is Unix-only; callers fall back to loopback elsewhere.
+#[cfg(not(unix))]
+pub fn post_json_uds(_sock: &Path, _path: &str, _json_body: &str) -> Result<(u16, String), ()> {
+    Err(())
+}
+
 /// GET on loopback and return status code plus body.
 pub fn get_json_loopback(base: &str, path: &str) -> Result<(u16, String), ()> {
     let base = base.trim_end_matches('/');
