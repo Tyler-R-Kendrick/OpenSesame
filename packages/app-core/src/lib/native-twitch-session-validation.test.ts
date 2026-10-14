@@ -20,6 +20,16 @@ import {
 
 beforeEach(validationBackend);
 afterEach(() => vi.restoreAllMocks());
+it("uses one verification instant even when the clock advances during fixture creation", async () => {
+  let now = Date.now();
+  vi.spyOn(Date, "now").mockImplementation(() => ++now);
+  const id = await saveValidationFixture();
+  const record = loadNativeConnectorRecord(id);
+  expect(record?.privateState.verification?.verifiedAt).toBe(
+    record?.runtime.verifiedAt,
+  );
+  expect(readNativeConnector(id)?.status).toBe("connected");
+});
 it("validates the exact issued token/client/user without rewriting a successful revision", async () => {
   const id = await saveValidationFixture();
   const before = loadNativeConnectorRecord(id);

@@ -2,6 +2,7 @@
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import type { Connection } from "./connections.js";
 import { type PublicRow, readDeviceRows } from "./device-connector-records.js";
+import { identityConnectionDeviceSeams } from "./identity-connections-seam.js";
 
 type AuthorizationView = Pick<
   Connection,
@@ -46,6 +47,16 @@ function authorizationView(row: PublicRow): AuthorizationView {
     refreshable: false,
   };
   if (row.fields.self_hosted_configuration === undefined) return ordinary;
+  if (row.fields.identity_configuration !== undefined) {
+    return (
+      identityConnectionDeviceSeams.authorization(row.connectionId) ?? {
+        ...ordinary,
+        status: "pending",
+        statusDetail: "Configured; sign in to verify identity",
+        grantedScopes: [],
+      }
+    );
+  }
   if (row.fields.native_configuration !== undefined) {
     return (
       nativeDeviceViewSeams.authorization(row.connectionId) ?? {

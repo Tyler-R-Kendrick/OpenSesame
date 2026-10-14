@@ -41,9 +41,14 @@ export const HOST_PROVIDER_IDS = [
 export const LLM_PROVIDER_IDS = AI_MODEL_PROVIDER_IDS;
 
 export const IDENTITY_PROVIDER_IDS = [
+  "byo-identity",
   "better-auth",
+  "supabase",
+  "neon-auth",
+  "clerk",
   "workos",
   "auth0",
+  "okta",
 ] as const;
 
 export const NETWORKING_PROVIDER_IDS = ["tailscale"] as const;
@@ -120,12 +125,6 @@ export const FIELDS = new Map<string, ConfigurationField[]>(
       field("project_id", "Project ID"),
       field("service_account_json", "Service account JSON", true),
     ],
-    "better-auth": [
-      field("base_url", "Base URL"),
-      field("api_key", "API key", true),
-      field("api_key_header", "API key header"),
-      field("config_id", "Config ID", false, false),
-    ],
     tailscale: [
       field("tailnet", "Tailnet"),
       field("hostname", "Hostname", false, false),
@@ -151,12 +150,6 @@ export const FIELDS = new Map<string, ConfigurationField[]>(
     "samsung-wallet": [
       field("service_id", "Service ID"),
       field("api_key", "API key", true),
-    ],
-    auth0: [
-      field("domain", "Tenant domain"),
-      field("client_id", "Client ID"),
-      field("client_secret", "Client secret", true),
-      field("audience", "Audience", false, false),
     ],
     bitwarden: [
       field("session_token", "Session token", true, false),
