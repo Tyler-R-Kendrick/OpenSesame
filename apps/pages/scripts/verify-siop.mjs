@@ -284,13 +284,13 @@ try {
     seedSiopFixture(context, siopFixture, redirectUris),
   );
   await installPasskeyCredentials(page, credentials);
-  // Self-issued OpenID runs on Browser-local IAM (ADR 0153). Identity's
-  // section switch no longer auto-enables SIOP (P6-2), so the walk turns
-  // each capability on explicitly.
+  // `/siop` and the local applications this seeds belong to Self-issued
+  // OpenID and browser-local IAM, which are always on (ADR 0142): the walk
+  // asks for them and `chooseCapabilities` finds nothing to switch.
   await chooseCapabilities(
     context,
     1280,
-    ["Browser-local IAM", "Self-issued OpenID"],
+    ["Self-issued OpenID"],
     `${origin}${base}`.replace(/\/$/, ""),
   );
   await timed("first unlock", () => gotoUnlocked(page, `${origin}${base}`));
