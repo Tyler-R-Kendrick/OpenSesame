@@ -1,10 +1,12 @@
 use axum::extract::connect_info::ConnectInfo;
+#[cfg(unix)]
+use axum::Extension;
 use axum::{
     body::Body,
     extract::{FromRequest, State},
     http::{HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
-    Extension, Json,
+    Json,
 };
 #[cfg(unix)]
 use opensesame_cli_app_integration::session_id_from_pid;
