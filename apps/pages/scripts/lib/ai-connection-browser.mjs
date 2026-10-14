@@ -140,7 +140,7 @@ async function chooseAndColdReload(
 
 async function verifyToken(page, { base, entry, name, width, check }) {
   await visit(page, base, "vault?f=all");
-  const title = `API key · ${name}`;
+  const title = `AI API key · ${name}`;
   const row = page.getByRole("treeitem").filter({ hasText: title });
   await expect(row).toHaveCount(1);
   await row.click();
