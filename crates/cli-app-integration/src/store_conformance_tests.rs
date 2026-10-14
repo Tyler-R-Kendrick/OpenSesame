@@ -50,20 +50,20 @@ fn tcp_transport_consumes_approval_once() {
 #[test]
 fn conformance_session_cases() {
     let raw: Fixture = serde_json::from_str(SOURCE).unwrap();
-    for case in raw.session_cases {
+    for scenario in raw.session_cases {
         let mut store = CliAppIntegrationStore::new();
         store.set_now_ms(1_000_000);
-        let pending = store.ensure(&case.terminal_session_id, "read", None, true);
-        assert_eq!(pending.0, "pending", "case {}", case.id);
+        let pending = store.ensure(&scenario.terminal_session_id, "read", None, true);
+        assert_eq!(pending.0, "pending", "case {}", scenario.id);
         let request_id = pending.1.expect("request id");
-        if case.action == "approve" {
+        if scenario.action == "approve" {
             let (respond_nonce, verb) = {
-                let row = store.pending.get(&request_id).expect("nonce");
-                (row.respond_nonce.clone(), row.verb.clone())
+                let pending_row = store.pending.get(&request_id).expect("nonce");
+                (pending_row.respond_nonce.clone(), pending_row.verb.clone())
             };
             let proof = mint_test_human_proof(
                 &request_id,
-                &case.terminal_session_id,
+                &scenario.terminal_session_id,
                 &respond_nonce,
                 &verb,
             );
@@ -72,7 +72,7 @@ fn conformance_session_cases() {
                 store
                     .approve(
                         &request_id,
-                        &case.terminal_session_id,
+                        &scenario.terminal_session_id,
                         &respond_nonce,
                         &proof,
                         &binding,
@@ -80,45 +80,46 @@ fn conformance_session_cases() {
                     .0,
                 "approved"
             );
-            if let Some(seconds) = case.idle_past_seconds {
+            if let Some(seconds) = scenario.idle_past_seconds {
                 store.set_now_ms(1_000_000 + seconds * 1000);
             }
-            if let Some(seconds) = case.hard_past_seconds {
+            if let Some(seconds) = scenario.hard_past_seconds {
                 store.set_now_ms(1_000_000 + seconds * 1000);
             }
-            let query_id = if case.query_as.as_deref() == Some("other") {
-                case.other_terminal_session_id
+            let query_id = if scenario.query_as.as_deref() == Some("other") {
+                scenario
+                    .other_terminal_session_id
                     .as_deref()
                     .unwrap_or("missing")
             } else {
-                case.terminal_session_id.as_str()
+                scenario.terminal_session_id.as_str()
             };
             let (status, _) = store.ensure(query_id, "read", None, true);
             assert_eq!(
                 status,
-                case.expect_ensure.as_deref().expect("expectEnsure"),
+                scenario.expect_ensure.as_deref().expect("expectEnsure"),
                 "case {}",
-                case.id
+                scenario.id
             );
-        } else if case.action == "pendingExpire" {
-            if let Some(seconds) = case.pending_past_seconds {
+        } else if scenario.action == "pendingExpire" {
+            if let Some(seconds) = scenario.pending_past_seconds {
                 store.set_now_ms(1_000_000 + seconds * 1000);
             }
-            assert!(store.list_pending().is_empty(), "case {}", case.id);
-            let (status, _) = store.ensure(&case.terminal_session_id, "read", None, true);
-            assert_eq!(status, "pending", "case {}", case.id);
-        } else if case.action == "deny" {
+            assert!(store.list_pending().is_empty(), "case {}", scenario.id);
+            let (status, _) = store.ensure(&scenario.terminal_session_id, "read", None, true);
+            assert_eq!(status, "pending", "case {}", scenario.id);
+        } else if scenario.action == "deny" {
             let nonce = store
                 .pending
                 .get(&request_id)
                 .map(|r| r.respond_nonce.clone())
                 .unwrap_or_default();
             assert_eq!(
-                store.deny(&request_id, &case.terminal_session_id, &nonce),
+                store.deny(&request_id, &scenario.terminal_session_id, &nonce),
                 "denied"
             );
-            let (status, _) = store.ensure(&case.terminal_session_id, "read", None, true);
-            assert_eq!(status, "denied", "case {}", case.id);
+            let (status, _) = store.ensure(&scenario.terminal_session_id, "read", None, true);
+            assert_eq!(status, "denied", "case {}", scenario.id);
         }
     }
 }

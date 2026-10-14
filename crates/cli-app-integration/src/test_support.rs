@@ -37,8 +37,12 @@ pub fn test_paired_binding() -> PairedBinding {
     }
 }
 
-#[must_use]
 /// Mint a bearer for daemon HTTP integration tests.
+///
+/// # Panics
+///
+/// Panics when pairing issue, confirm, arm, or exchange fails in the test harness.
+#[must_use]
 pub fn pair_browser_for_tests(
     pairings: &mut CliAppIntegrationPairings,
     origin: &str,

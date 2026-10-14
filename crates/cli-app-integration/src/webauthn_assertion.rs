@@ -1,4 +1,4 @@
-//! Minimal WebAuthn assertion verification for CLI app-integration passkey proofs.
+//! Minimal `WebAuthn` assertion verification for CLI app-integration passkey proofs.
 
 use base64::Engine as _;
 use serde::Deserialize;
@@ -15,12 +15,15 @@ struct ClientData {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct AssertionWire {
-    credential_id_b64: String,
-    authenticator_data_b64: String,
-    client_data_json_b64: String,
-    signature_b64: String,
+    #[serde(rename = "credentialIdB64")]
+    credential_id: String,
+    #[serde(rename = "authenticatorDataB64")]
+    authenticator_data: String,
+    #[serde(rename = "clientDataJsonB64")]
+    client_data_json: String,
+    #[serde(rename = "signatureB64")]
+    signature: String,
 }
 
 fn b64_decode(value: &str) -> Option<Vec<u8>> {
@@ -66,10 +69,10 @@ pub fn verify_passkey_assertion(
     stored: &WebAuthnCredential,
 ) -> Option<u32> {
     let wire: AssertionWire = serde_json::from_str(proof_tail).ok()?;
-    if wire.credential_id_b64 != stored.credential_id_b64 {
+    if wire.credential_id != stored.credential_id_b64 {
         return None;
     }
-    let client_data_bytes = b64_decode(&wire.client_data_json_b64)?;
+    let client_data_bytes = b64_decode(&wire.client_data_json)?;
     let client_data: ClientData = serde_json::from_slice(&client_data_bytes).ok()?;
     if client_data.ty != "webauthn.get" {
         return None;
@@ -77,7 +80,7 @@ pub fn verify_passkey_assertion(
     if !challenge_matches(&client_data.challenge, expected_challenge) {
         return None;
     }
-    let auth_data = b64_decode(&wire.authenticator_data_b64)?;
+    let auth_data = b64_decode(&wire.authenticator_data)?;
     if !user_verified(&auth_data) {
         return None;
     }
@@ -89,7 +92,7 @@ pub fn verify_passkey_assertion(
     let mut signed = auth_data;
     signed.extend_from_slice(&client_hash);
     let verifying_key = parse_verifying_key_spki_b64(&stored.public_key_spki_b64)?;
-    if !verify_p256_sha256(&verifying_key, &signed, &wire.signature_b64) {
+    if !verify_p256_sha256(&verifying_key, &signed, &wire.signature) {
         return None;
     }
     Some(new_count)

@@ -10,8 +10,6 @@ use opensesame_credential_helpers::{default_sock_path, ENV_SOCK};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
-use url::Url;
-
 const POLICY: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
 
 #[derive(Debug, Deserialize)]
@@ -41,16 +39,15 @@ fn is_loopback_daemon_base(base: &str) -> bool {
     } else {
         format!("http://{trimmed}")
     };
-    let url = match url::Url::parse(&with_scheme) {
-        Ok(parsed) => parsed,
-        Err(_) => return false,
+    let Ok(url) = url::Url::parse(&with_scheme) else {
+        return false;
     };
     if url.scheme() != "http" && url.scheme() != "https" {
         return false;
     }
     matches!(
         url.host_str(),
-        Some("localhost") | Some("127.0.0.1") | Some("::1") | Some("[::1]")
+        Some(host) if matches!(host, "localhost" | "127.0.0.1" | "::1" | "[::1]")
     )
 }
 
@@ -135,7 +132,7 @@ fn ensure_probe_rejects_instant_approval(base: &str, path: &str, probe_verb: &st
     }
 }
 
-/// Pin loopback `OPENSESAME_DAEMON_API` to an OpenSesame daemon before trusting ensure.
+/// Pin loopback `OPENSESAME_DAEMON_API` to an `opensesame` daemon before trusting ensure.
 pub fn verify_local_daemon_for_cli_app_integration(base: &str) -> bool {
     if !is_loopback_daemon_base(base) {
         return false;
@@ -219,13 +216,12 @@ pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> 
     let json_body = payload.to_string();
     let daemon_sock = std::env::var_os(ENV_SOCK)
         .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(default_sock_path);
+        .map_or_else(default_sock_path, PathBuf::from);
     while Instant::now() < deadline {
         let response = post_json_uds(daemon_sock.as_path(), &path, &json_body)
             .or_else(|()| post_json_loopback(&base, &path, &json_body));
         match response {
-            Ok((404, _)) | Ok((503, _)) => {
+            Ok((status, _)) if status == 404 || status == 503 => {
                 anyhow::bail!("{}", app_unavailable_message());
             }
             Ok((status, body)) if (200..300).contains(&status) => {

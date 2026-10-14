@@ -50,7 +50,7 @@ pub(super) fn read(reference: &str, desktop: bool, reveal: bool) -> anyhow::Resu
 pub(super) fn run_assignments(
     assignments: &[String],
     command: &[String],
-    desktop: bool,
+    _desktop: bool,
 ) -> anyhow::Result<()> {
     core::validate_run_assignments(assignments)?;
     crate::cli_app_integration::ensure_reveal("run", None)?;

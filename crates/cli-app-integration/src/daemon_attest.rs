@@ -13,7 +13,7 @@ static DAEMON_ATTEST_KEY: OnceLock<Option<SigningKey>> = OnceLock::new();
 
 fn signing_key() -> Option<&'static SigningKey> {
     DAEMON_ATTEST_KEY
-        .get_or_init(|| load_signing_key_from_env())
+        .get_or_init(load_signing_key_from_env)
         .as_ref()
 }
 

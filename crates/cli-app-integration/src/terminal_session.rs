@@ -3,25 +3,28 @@
 use sha2::{Digest, Sha256};
 
 /// Hash of the process session id and controlling tty (Linux `stat` fields).
+#[must_use]
 pub fn stable_session_id(session_id: u64, tty_nr: u32) -> String {
-    stable_session_key(session_id, tty_nr.to_string())
+    let tty_label = tty_nr.to_string();
+    stable_session_key(session_id, &tty_label)
 }
 
-fn stable_session_key(session_id: u64, tty_label: String) -> String {
+fn stable_session_key(session_id: u64, tty_label: &str) -> String {
     let payload = format!("{session_id}\0{tty_label}");
     let digest = Sha256::digest(payload.as_bytes());
     hex::encode(digest)[..32].to_string()
 }
 
 /// Read session + tty for a live pid. Linux uses `/proc`; macOS uses `ps`.
+#[must_use]
 pub fn session_id_from_pid(pid: u32) -> Option<String> {
     #[cfg(target_os = "linux")]
     {
-        return linux_session_id_from_pid(pid);
+        linux_session_id_from_pid(pid)
     }
     #[cfg(target_os = "macos")]
     {
-        return macos_session_id_from_pid(pid);
+        macos_session_id_from_pid(pid)
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     {
@@ -38,6 +41,7 @@ fn linux_session_id_from_pid(pid: u32) -> Option<String> {
 }
 
 /// Parse `sid` and `tty_nr` from a `/proc/pid/stat` line (comm may contain spaces).
+#[must_use]
 pub fn parse_linux_proc_stat(raw: &str) -> Option<(u64, u32)> {
     let after_comm = raw.rsplit_once(')')?.1.trim();
     let fields: Vec<&str> = after_comm.split_whitespace().collect();
@@ -63,7 +67,7 @@ fn macos_session_id_from_pid(pid: u32) -> Option<String> {
     let line = text.lines().next()?.trim();
     let (sid_raw, tty_raw) = line.split_once(char::is_whitespace)?;
     let session_id = sid_raw.trim().parse::<u64>().ok()?;
-    Some(stable_session_key(session_id, tty_raw.trim().to_string()))
+    Some(stable_session_key(session_id, tty_raw.trim()))
 }
 
 #[cfg(test)]
