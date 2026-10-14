@@ -48,12 +48,18 @@ const FALLBACK = "The drop could not be opened.";
 const RETRYABLE: ReadonlySet<string> = new Set(["invalid_code", "unreachable"]);
 const LOCKED_OUT = "locked_out";
 
-function spent(caught: unknown): boolean {
-  return !(caught instanceof DropError && RETRYABLE.has(caught.code));
+type DropFailureMark = Readonly<{ tone: "err"; label: string }>;
+
+function openFailure(caught: unknown): Error {
+  return caught instanceof Error ? caught : new Error(FALLBACK);
 }
 
-function failureMark(caught: unknown): { tone: "err"; label: string } {
-  if (caught instanceof DropError && caught.code === LOCKED_OUT) {
+function spent(err: Error): boolean {
+  return !(err instanceof DropError && RETRYABLE.has(err.code));
+}
+
+function failureMark(err: Error): DropFailureMark {
+  if (err instanceof DropError && err.code === LOCKED_OUT) {
     return { tone: "err", label: "Locked out" };
   }
   return { tone: "err", label: DROP_FAILURE_MARK_WITH_TRAY };
@@ -125,13 +131,13 @@ export function DropClaimScreen({
       setPayload(await openDrop(targetManifest, fragmentKey));
       onSettled();
     } catch (caught) {
-      const words = caught instanceof Error ? caught.message : FALLBACK;
-      reportClaim(words, TITLE);
-      setFailureMarkLabel(failureMark(caught).label);
+      const err = openFailure(caught);
+      reportClaim(err.message, TITLE);
+      setFailureMarkLabel(failureMark(err).label);
       setFailed(true);
       // A drop is presented once: past a refusal it cannot come back from,
       // the link is forgotten here too.
-      if (spent(caught)) onSettled();
+      if (spent(err)) onSettled();
       else codeRef.current?.focus();
     } finally {
       setBusy(false);

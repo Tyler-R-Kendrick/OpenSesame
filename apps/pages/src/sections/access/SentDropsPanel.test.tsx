@@ -1,5 +1,12 @@
 /** @vitest-environment jsdom */
+import { configureHost } from "@opensesame/app-core/host.js";
 import { activitySeams } from "@opensesame/app-core/lib/activity-log.js";
+import type { CompositionSnapshot } from "@opensesame/app-core/lib/capabilities/store-types.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import {
+  double,
+  installDoublePorts,
+} from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { sealDrop } from "@opensesame/app-core/lib/vault/drop.js";
 import {
   createLocalDropClaim,
@@ -7,61 +14,71 @@ import {
   resetLocalDropClaimsForTests,
 } from "@opensesame/app-core/lib/vault/local-drop-claims.js";
 import {
+  listOutboundDrops,
   recordOutboundDrop,
   resetOutboundDropsForTests,
 } from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import { unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { SentDropsPanel } from "./SentDropsPanel.js";
 import { renderAccess } from "./workspace-test-support.js";
 
-const revokeOutboundDropByIdMock = vi.fn<
-  (claimId: string, tombArg: string) => Promise<"revoked">
->(async () => "revoked");
+const realUseVault = vaultHooksSeams.useVault;
 
-vi.mock(
-  "@opensesame/app-core/lib/vault/outbound-drops.js",
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import("@opensesame/app-core/lib/vault/outbound-drops.js")
-      >();
-    return {
-      ...actual,
-      listOutboundDrops: actual.listOutboundDrops,
-      revokeOutboundDropById: (claimId: string, tombArg: string) =>
-        revokeOutboundDropByIdMock(claimId, tombArg),
-    };
-  },
-);
+installDoublePorts();
 
-vi.mock("../../app-root.js", () => ({
-  useCapabilityGate: () => ({ approved: true }),
-}));
-
-vi.mock("../../lib/vault/hooks.js", () => ({
-  useVault: () => ({ tomb: "tomb.sent-panel" }),
-}));
+function snapshotWithDrops(): CompositionSnapshot {
+  const base = double.getSnapshot();
+  if (base.plan === null) throw new Error("the double resolves a plan");
+  const approved = [...base.plan.approvedCapabilities];
+  if (!approved.includes("sharing.drops")) approved.push("sharing.drops");
+  const capabilities = { ...base.plan.capabilities };
+  const prior = capabilities["sharing.drops"];
+  if (prior) {
+    capabilities["sharing.drops"] = { ...prior, approved: true };
+  }
+  return {
+    ...base,
+    plan: {
+      ...base.plan,
+      approvedCapabilities: approved,
+      capabilities,
+    },
+  };
+}
 
 describe("SentDropsPanel revoke", () => {
   const tomb = "tomb.sent-panel";
+  let claimId = "";
+  let dropsSnapshot: CompositionSnapshot;
 
   beforeEach(async () => {
-    revokeOutboundDropByIdMock.mockClear();
+    configureHost(createTestHost());
+    dropsSnapshot = snapshotWithDrops();
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
     localDropClaimSeams.claimBase = () => "http://localhost:5180/OpenSesame";
     unlockTomb(tomb, (await mintVaultKey()).vaultKey);
     activitySeams.activeTomb = () => tomb;
+    vaultHooksSeams.useVault = () => ({ ...realUseVault(), tomb });
+    Object.assign(capabilityPorts, {
+      compositionStore: {
+        ...double,
+        getSnapshot: () => dropsSnapshot,
+      },
+    });
     const { manifest } = await sealDrop({
       kind: "text",
       name: "API token",
       text: "secret",
     });
     const session = await createLocalDropClaim(manifest, 600_000);
+    claimId = session.claimId;
     recordOutboundDrop({
       claimId: session.claimId,
       bearerToken: session.bearerToken,
@@ -74,6 +91,7 @@ describe("SentDropsPanel revoke", () => {
 
   afterEach(() => {
     cleanup();
+    vaultHooksSeams.useVault = realUseVault;
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
   });
@@ -83,12 +101,12 @@ describe("SentDropsPanel revoke", () => {
     const key = await screen.findByRole("button", { name: "Revoke" });
     await userEvent.click(key);
     expect(key.className).toContain("is-armed");
-    expect(revokeOutboundDropByIdMock).not.toHaveBeenCalled();
+    expect(listOutboundDrops(tomb)[0]?.state).toBe("pending");
     await userEvent.click(
       await screen.findByRole("button", { name: "Confirm" }),
     );
     await waitFor(() =>
-      expect(revokeOutboundDropByIdMock).toHaveBeenCalledOnce(),
+      expect(listOutboundDrops(tomb)[0]?.state).toBe("revoked"),
     );
   });
 
@@ -109,5 +127,7 @@ describe("SentDropsPanel revoke", () => {
     await waitFor(() => expect(key.className).not.toContain("is-armed"), {
       timeout: 4500,
     });
+    expect(listOutboundDrops(tomb)[0]?.state).toBe("pending");
+    expect(claimId).toBeTruthy();
   });
 });

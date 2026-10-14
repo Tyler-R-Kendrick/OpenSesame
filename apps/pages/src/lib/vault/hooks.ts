@@ -10,6 +10,7 @@ import {
   type VaultState,
   vaultStore,
 } from "@opensesame/app-core/lib/vault/store.js";
+import { overlapCast } from "@opensesame/os-domain";
 import { packsVersion, subscribePacks } from "@opensesame/vault-item-types";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
@@ -160,7 +161,7 @@ async function clipboardReadIsGranted(): Promise<boolean> {
   if (!navigator.permissions?.query) return false;
   try {
     const status = await navigator.permissions.query({
-      name: "clipboard-read" as PermissionName,
+      name: overlapCast<"clipboard-read", PermissionName>("clipboard-read"),
     });
     return status.state === "granted";
   } catch {
