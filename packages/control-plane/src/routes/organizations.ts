@@ -39,7 +39,10 @@ import {
   verifyOrgIdToken,
 } from "./org-assertion.js";
 import { normalizeEmailDomain } from "./org-domains.js";
-import { issuerConfigurationError } from "./org-issuer-guard.js";
+import {
+  issuerConfigurationError,
+  samlConfigurationError,
+} from "./org-issuer-guard.js";
 import { type OrgOwnerSource, asOrgOwner } from "./org-owner-gate.js";
 // One direction of a deliberate cycle: SCIM is per-organization, so its router
 // reuses this module's membership helpers, and this module asks it what role a
@@ -605,14 +608,6 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
           400,
         );
       }
-      const unsafeIssuer =
-        issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
-        issuerConfigurationError(ctx.config, parsed.data.samlIssuer) ??
-        issuerConfigurationError(ctx.config, parsed.data.samlMetadataUrl);
-      if (unsafeIssuer) {
-        return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
-      }
-
       const patch = <T>(
         submitted: T | null | undefined,
         current: T | undefined,
@@ -621,7 +616,9 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
       const ssoClientId = patch(parsed.data.ssoClientId, org.ssoClientId);
       const ssoClientSecret = patch(
         parsed.data.ssoClientSecret,
-        org.ssoClientSecret,
+        ssoIssuer === org.ssoIssuer && ssoClientId === org.ssoClientId
+          ? org.ssoClientSecret
+          : undefined,
       );
       const samlIssuer = patch(parsed.data.samlIssuer, org.samlIssuer);
       const samlMetadataUrl = patch(
@@ -632,17 +629,18 @@ organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
         parsed.data.samlMetadataXml,
         org.samlMetadataXml,
       );
-      // Exactly one metadata source may survive the merge, or a later fetch has no
-      // deterministic answer to "which document describes this IdP".
-      if (samlMetadataUrl && samlMetadataXml) {
-        return c.json(
-          {
-            error: "validation_error",
-            message:
-              "samlMetadataUrl and samlMetadataXml are mutually exclusive",
-          },
-          400,
-        );
+      const samlError = samlConfigurationError(ctx.config, {
+        issuer: samlIssuer,
+        metadataUrl: samlMetadataUrl,
+        metadataXml: samlMetadataXml,
+      });
+      if (samlError) return c.json(samlError, 400);
+      const unsafeIssuer = issuerConfigurationError(
+        ctx.config,
+        parsed.data.ssoIssuer,
+      );
+      if (unsafeIssuer) {
+        return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
       }
       const updated: Organization = {
         id: org.id,
