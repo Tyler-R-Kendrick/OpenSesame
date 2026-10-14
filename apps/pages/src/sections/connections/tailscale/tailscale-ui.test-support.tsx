@@ -188,10 +188,10 @@ export function resetFixture() {
   });
   fixture.authorize.mockImplementation(async (href) => {
     const url = new URL(href);
-    const callback = new URL("https://operator.example/oauth-callback");
-    callback.searchParams.set("state", url.searchParams.get("state") ?? "");
-    callback.searchParams.set("code", "consent-code");
-    return callback.href;
+    return new URLSearchParams({
+      native_state: url.searchParams.get("state") ?? "",
+      native_code: "consent-code",
+    }).toString();
   });
 }
 export function closeFixture() {

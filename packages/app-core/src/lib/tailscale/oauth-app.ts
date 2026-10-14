@@ -3,6 +3,7 @@ import type { BoundaryValue } from "@opensesame/os-domain";
 import { randomString } from "@opensesame/sdk-browser";
 import { z } from "zod";
 import type { NativeOAuthBrowserPort } from "../native-oauth-browser-port.js";
+import { parseNativeOAuthCallback } from "../native-oauth-session.js";
 import {
   createBackendHttp,
   secretBackendUrl,
@@ -118,9 +119,9 @@ async function registerApp(
       name: config.name.trim(),
       redirectUris: [config.redirectUri],
       scopes: [TAILSCALE_PROVISION_SCOPE],
-      ...(config.allowedNodeAttributes?.length
-        ? { allowedNodeAttributes: config.allowedNodeAttributes }
-        : {}),
+      allowedNodeAttributes: config.allowedNodeAttributes?.length
+        ? config.allowedNodeAttributes
+        : undefined,
     }),
     signal,
   });
@@ -151,33 +152,20 @@ async function verifyApp(
   transport.assertCurrent();
 }
 function callbackCode(
-  callback: URL,
-  redirectUri: string,
+  search: string,
   state: string,
   expiresAt: number,
 ): string {
-  const expected = new URL(redirectUri);
-  if (
-    !!callback.hash ||
-    callback.origin !== expected.origin ||
-    callback.pathname !== expected.pathname ||
-    callback.searchParams.getAll("state").length !== 1 ||
-    callback.searchParams.get("state") !== state ||
-    Date.now() >= expiresAt
-  )
+  // The browser port verifies the callback URL before normalizing its fields.
+  const callback = parseNativeOAuthCallback(search);
+  if (callback.state !== state || Date.now() >= expiresAt)
     throw new Error(
       "The Tailscale authorization callback is invalid or expired.",
     );
-  if (callback.searchParams.has("error"))
-    throw new Error("Tailscale authorization was declined.");
-  const code = callback.searchParams.get("code");
-  if (
-    !code ||
-    code.length > 16384 ||
-    callback.searchParams.getAll("code").length !== 1
-  )
+  if (callback.error) throw new Error("Tailscale authorization was declined.");
+  if (!callback.code)
     throw new Error("Tailscale did not return an authorization code.");
-  return code;
+  return callback.code;
 }
 async function provisionDevice(
   ctx: ClientContext,
@@ -201,16 +189,14 @@ async function provisionDevice(
     state,
     response_type: "code",
   }).toString();
-  const callback = new URL(
-    await browser.authorize(url.href, {
-      state,
-      expiresAt,
-      redirectUri: config.redirectUri,
-      signal,
-    }),
-  );
+  const callback = await browser.authorize(url.href, {
+    state,
+    expiresAt,
+    redirectUri: config.redirectUri,
+    signal,
+  });
   transport.assertCurrent();
-  const code = callbackCode(callback, config.redirectUri, state, expiresAt);
+  const code = callbackCode(callback, state, expiresAt);
   const raw = await http("api/v2/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
