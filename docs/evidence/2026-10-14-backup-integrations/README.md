@@ -8,6 +8,10 @@ The baseline production artifact is commit `e1c048e63`, read unchanged from the 
 
 The final canonical run passed **194 assertions**, at both desktop and touch-phone widths, with no page, console, HTTP, missing-asset, unexpected-external-request or worker errors. The five HTTP fixtures received 246 actual API requests and 246 native CORS preflights, including 84 of each through the official Bitwarden Secrets Manager SDK. No hosted partner account is claimed.
 
+The frozen source also passed the complete workspace run: 72 of 72 tasks, including 8,917 app-core tests and 5,342 Pages tests. The standard touch contract passed at 320, 390, 430, 844, 1024 and 1366 pixels. The changed-source secret scan checked 141 files (1.48 MB) with no findings.
+
+Desktop and phone keyboard assertions passed in explicitly scoped runs. The full keyboard gate remains blocked at its live WebRTC step: this environment enforces Chromium's `WebRtcIPHandling=disable_non_proxied_udp` policy. Both this build and the saved pre-backup identity build failed identically twice, with successful signaling, zero ICE candidates and no page errors. No browser policy, production behavior, assertion or timeout was changed to turn that unavailable check into a pass.
+
 The browser explicitly reads and reveals actual Token items after cold unlock. An external Node reader uses the real PIN and vault-core crypto to open the actual uploaded backup and the restored vault’s re-backup: all 13 source items and two folders survive, including four active Token items, while the destination retains its different PIN. Token plaintext is absent from the uploaded ciphertext.
 
 The exact passed checks and canceled-preview diagnostics are recorded in [verification.json](verification.json). The earlier `ca6e7f8` checkpoint passed 178 checks; the final run adds 16 custody and complete-content checks. The new custody assertion also correctly rejected that earlier build, where a saved configuration did not create a vault Token item.
