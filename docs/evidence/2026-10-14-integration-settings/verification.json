@@ -1,0 +1,934 @@
+{
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 900,
+      "isMobile": false,
+      "hasTouch": false
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "isMobile": true,
+      "hasTouch": true
+    }
+  ],
+  "ai": {
+    "compiledSourceCommit": "92024686885d00a3c0a05f8cf95d743dfb872cf2",
+    "status": "passed",
+    "assertions": [
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat inference selection names the saved connection"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_chat genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses inference selection names the saved connection"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: openai_responses genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages inference selection names the saved connection"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: anthropic_messages genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content inference selection names the saved connection"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: gemini_generate_content genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: real browser CORS preflights reached the AI HTTP fixture"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: all four inference protocols passed the fixture's independent request validation"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: Integrations removes the Local storage provider group"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: Integrations removes the Local storage navigation entry"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: Voice model is absent from Integrations"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: Inference model is absent from Integrations"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: Voice and Inference model choices compose the standard AI feature settings"
+      },
+      {
+        "step": "1280-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "1280: standard AI feature settings fit the actual viewport"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat inference selection names the saved connection"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_chat genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses inference selection names the saved connection"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: openai_responses genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages inference selection names the saved connection"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: anthropic_messages genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content Test performs authenticated inference on its exact custom mount"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content Save independently verifies its actual protocol before retaining vault custody"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content inference selection names the saved connection"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content exact inference choice survives cold reload and PIN unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content API key is a real readable Token item after cold unlock"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content API key is absent from plaintext browser configuration storage"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content JSON inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: gemini_generate_content genuine SSE inference uses the saved exact endpoint and auth"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: real browser CORS preflights reached the AI HTTP fixture"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: all four inference protocols passed the fixture's independent request validation"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: Integrations removes the Local storage provider group"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: Integrations removes the Local storage navigation entry"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: Voice model is absent from Integrations"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: Inference model is absent from Integrations"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: Voice and Inference model choices compose the standard AI feature settings"
+      },
+      {
+        "step": "390-real-ai-configuration",
+        "kind": "PASS",
+        "detail": "390: standard AI feature settings fit the actual viewport"
+      }
+    ],
+    "requests": 32,
+    "preflights": 32,
+    "strictFailures": [],
+    "limits": [
+      "Real protocol fixtures were used; no hosted AI partner account is claimed."
+    ]
+  },
+  "tailnet": {
+    "compiledSourceCommit": "ffaab80f8de45809defee51134c4a97f9c6d94b5",
+    "status": "passed",
+    "assertions": [
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "browser-node auth key stays concealed"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "transient browser auth key is cleared after submission"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "real native tailnet peer received the SDK GET through DERP"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "locking terminates the node and does not silently reconnect on unlock"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "1280: actual vault Token contains persisted SDK private state after cold PIN unlock"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "1280: cold-unlocked private state reconnects without another auth key and reaches the actual native peer"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "1280: explicit forget removes the node's vault credential and saved connection"
+      },
+      {
+        "step": "1280-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "1280: actual Tailnet journey fits the viewport"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "browser-node auth key stays concealed"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "transient browser auth key is cleared after submission"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "real native tailnet peer received the SDK GET through DERP"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "locking terminates the node and does not silently reconnect on unlock"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "390: actual vault Token contains persisted SDK private state after cold PIN unlock"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "390: cold-unlocked private state reconnects without another auth key and reaches the actual native peer"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "390: explicit forget removes the node's vault credential and saved connection"
+      },
+      {
+        "step": "390-official-sdk-real-tailnet",
+        "kind": "PASS",
+        "detail": "390: actual Tailnet journey fits the viewport"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: installed cache excludes unapproved Tailscale wasm"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: installed cache excludes unapproved Tailscale runtime"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: installed cache excludes unapproved Tailscale license"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: installed cache excludes unapproved Tailscale worker"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: same-release/digest approved PWA cache includes official Tailscale wasm before first SDK connection"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: same-release/digest approved PWA cache includes official Tailscale runtime before first SDK connection"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: same-release/digest approved PWA cache includes official Tailscale license before first SDK connection"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: same-release/digest approved PWA cache includes official Tailscale worker before first SDK connection"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: emitted SDK worker was already in the approved installed cache before first use"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: actual app HTTP socket is closed while real control/DERP/native peer remain live"
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "1280: installed PWA cold-reloads with its app socket stopped, reconnects from vault-held state without another auth key and reaches the real native peer"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: installed cache excludes unapproved Tailscale wasm"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: installed cache excludes unapproved Tailscale runtime"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: installed cache excludes unapproved Tailscale license"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: installed cache excludes unapproved Tailscale worker"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: same-release/digest approved PWA cache includes official Tailscale wasm before first SDK connection"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: same-release/digest approved PWA cache includes official Tailscale runtime before first SDK connection"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: same-release/digest approved PWA cache includes official Tailscale license before first SDK connection"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: same-release/digest approved PWA cache includes official Tailscale worker before first SDK connection"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: emitted SDK worker was already in the approved installed cache before first use"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: actual app HTTP socket is closed while real control/DERP/native peer remain live"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "390: installed PWA cold-reloads with its app socket stopped, reconnects from vault-held state without another auth key and reaches the real native peer"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "Actual browser WebSocket carried the official Noise control protocol"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "Actual browser WebSocket carried encrypted peer traffic through real DERP"
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "kind": "PASS",
+        "detail": "The emitted official WASM asset loaded in the real browser"
+      }
+    ],
+    "cacheSnapshots": [
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "phase": "tailnet-unapproved-cache",
+        "releaseId": "b7de12c6b5504dcc3d078183779d62f9",
+        "planDigest": "sha256:e8fad2cb10d014471fee2ad5a7ea1440033b6e6534f2f4ea2318a5f36c1aee09",
+        "urlCount": 137,
+        "tailAssets": []
+      },
+      {
+        "step": "1280-installed-pwa-cold-tailnet",
+        "phase": "tailnet-installed-cache",
+        "releaseId": "b7de12c6b5504dcc3d078183779d62f9",
+        "planDigest": "sha256:c93b020f299ad32cd952c28a4fbe3bce1c370cbaea6a27bba176ab674cc47979",
+        "urlCount": 145,
+        "tailAssets": [
+          "http://localhost:41911/OpenSesame/assets/tailscale-node-CjVovgpR.js",
+          "http://localhost:41911/OpenSesame/tailscale/LICENSE.txt",
+          "http://localhost:41911/OpenSesame/tailscale/go-runtime-3990fa87.js",
+          "http://localhost:41911/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+        ]
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "phase": "tailnet-unapproved-cache",
+        "releaseId": "b7de12c6b5504dcc3d078183779d62f9",
+        "planDigest": "sha256:c7ab12589a4008189e8d5deea9855e9106bef325757cb705fec85c71426f6889",
+        "urlCount": 137,
+        "tailAssets": []
+      },
+      {
+        "step": "390-installed-pwa-cold-tailnet",
+        "phase": "tailnet-installed-cache",
+        "releaseId": "b7de12c6b5504dcc3d078183779d62f9",
+        "planDigest": "sha256:20ec162d3d503e118a49ea98a4db3e712af5c3649f6bf5724b3b7df786bc2cac",
+        "urlCount": 145,
+        "tailAssets": [
+          "http://localhost:41911/OpenSesame/assets/tailscale-node-CjVovgpR.js",
+          "http://localhost:41911/OpenSesame/tailscale/LICENSE.txt",
+          "http://localhost:41911/OpenSesame/tailscale/go-runtime-3990fa87.js",
+          "http://localhost:41911/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+        ]
+      }
+    ],
+    "browserControlConnections": 8,
+    "browserDerpConnections": 8,
+    "peerGetRequests": 8,
+    "strictFailures": [],
+    "limits": [
+      "Real pinned Headscale/DERP/native peer test infrastructure; no hosted Tailscale tenant is claimed.",
+      "The official SDK exposes GET; mutating tailnet service operations are not claimed."
+    ]
+  },
+  "management": {
+    "compiledSourceCommit": "e834d91a2bc21e5557e993f54d67212298010897",
+    "status": "passed",
+    "assertions": [
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale real socket app creation and verification"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale generated client secret is absent from rendered inputs"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale bootstrap admin token is cleared"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale wrong state prevents token exchange"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale cancelling pending consent issues no device key"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale consent exchange returns actual one-use fixture key"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale device key is concealed"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: Tailscale lock or dismissal clears issued device key"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: management app client secret is a real vault Token item after cold PIN unlock"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: real conditional management API accepted native CORS preflights and the exact app origin"
+      },
+      {
+        "step": "1280-conditional-management-http",
+        "kind": "PASS",
+        "detail": "1280: explicitly synthetic consent used actual pinned HTTPS sockets without browser request interception"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale real socket app creation and verification"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale generated client secret is absent from rendered inputs"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale bootstrap admin token is cleared"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale wrong state prevents token exchange"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale cancelling pending consent issues no device key"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale consent exchange returns actual one-use fixture key"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale device key is concealed"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: Tailscale lock or dismissal clears issued device key"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: management app client secret is a real vault Token item after cold PIN unlock"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: real conditional management API accepted native CORS preflights and the exact app origin"
+      },
+      {
+        "step": "390-conditional-management-http",
+        "kind": "PASS",
+        "detail": "390: explicitly synthetic consent used actual pinned HTTPS sockets without browser request interception"
+      }
+    ],
+    "observations": [
+      {
+        "width": 1280,
+        "requests": [
+          {
+            "method": "OPTIONS",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps",
+            "originAllowed": true
+          },
+          {
+            "method": "POST",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps",
+            "originAllowed": true
+          },
+          {
+            "method": "OPTIONS",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps/fixture-d7caf296-709c-44f8-8fe8-7d4fd671b9ca",
+            "originAllowed": true
+          },
+          {
+            "method": "GET",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps/fixture-d7caf296-709c-44f8-8fe8-7d4fd671b9ca",
+            "originAllowed": true
+          },
+          {
+            "method": "POST",
+            "path": "/tailscale-fixture/api/v2/oauth/token",
+            "originAllowed": true
+          }
+        ],
+        "consentRequests": [
+          {
+            "method": "GET",
+            "path": "/a/oauth_authorize"
+          },
+          {
+            "method": "GET",
+            "path": "/a/oauth_authorize"
+          },
+          {
+            "method": "GET",
+            "path": "/a/oauth_authorize"
+          }
+        ],
+        "stats": {
+          "registrations": 1,
+          "verifications": 1,
+          "consents": 3,
+          "exchanges": 1,
+          "consumedDeviceKeys": 1
+        }
+      },
+      {
+        "width": 390,
+        "requests": [
+          {
+            "method": "OPTIONS",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps",
+            "originAllowed": true
+          },
+          {
+            "method": "POST",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps",
+            "originAllowed": true
+          },
+          {
+            "method": "OPTIONS",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps/fixture-875613e2-ab7b-47b7-b1aa-1d6e16506607",
+            "originAllowed": true
+          },
+          {
+            "method": "GET",
+            "path": "/tailscale-fixture/api/v2/tailnet/-/oauth-apps/fixture-875613e2-ab7b-47b7-b1aa-1d6e16506607",
+            "originAllowed": true
+          },
+          {
+            "method": "POST",
+            "path": "/tailscale-fixture/api/v2/oauth/token",
+            "originAllowed": true
+          }
+        ],
+        "consentRequests": [
+          {
+            "method": "GET",
+            "path": "/a/oauth_authorize"
+          },
+          {
+            "method": "GET",
+            "path": "/a/oauth_authorize"
+          },
+          {
+            "method": "GET",
+            "path": "/a/oauth_authorize"
+          }
+        ],
+        "stats": {
+          "registrations": 1,
+          "verifications": 1,
+          "consents": 3,
+          "exchanges": 1,
+          "consumedDeviceKeys": 1
+        }
+      }
+    ],
+    "strictFailures": [],
+    "limits": [
+      "Hosted Tailscale account consent was replaced by an explicitly synthetic test page.",
+      "Management HTTP endpoints are real socket protocol fixtures; this does not establish CORS permission on Tailscale's hosted management API.",
+      "Actual browser-node enrollment/control/DERP is tested separately against real Headscale and a native peer."
+    ]
+  },
+  "negativeControls": [
+    {
+      "case": "AI cold selection",
+      "observed": "Saved model selection disappeared after cold reload and PIN unlock.",
+      "fix": "Await durable preference hydration and republish model availability after vault Token readiness."
+    },
+    {
+      "case": "Installed PWA dedicated worker ownership",
+      "observed": "Approved cache had SDK runtime/WASM/license but omitted the emitted dedicated worker; cold reconnect failed.",
+      "fix": "Associate emitted dedicated worker asset with the approved Networking capability chunk."
+    },
+    {
+      "case": "Minified popup cleanup guard",
+      "observed": "All 22 management functional assertions passed, but 16 strict console events failed the gate.",
+      "fix": "Observable same-origin guard survives actual Vite minification; actual minifier regression passed and unchanged strict browser gate now passes on e834d91a2bc21e5557e993f54d67212298010897."
+    }
+  ]
+}
