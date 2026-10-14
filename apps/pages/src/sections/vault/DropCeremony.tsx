@@ -148,7 +148,9 @@ export function DropCard({
             />
           }
         >
-          <span className="frow__value frow__value--mono">Sealed in this drop</span>
+          <span className="frow__value frow__value--mono">
+            Sealed in this drop
+          </span>
         </FieldRow>
       ) : null}
       <div className="drop-card__qr">
