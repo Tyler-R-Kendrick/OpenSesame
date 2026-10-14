@@ -178,6 +178,8 @@ export function runTailscaleAction(
     if (action === "provision")
       releasePopup = deps.browser().prepareAuthorization?.();
   } catch {
+    controller.abort();
+    if (model.abort.current === controller) model.abort.current = null;
     model.setBusy(false);
     model.setFailure("Could not open Tailscale authorization.");
     return;
