@@ -5,15 +5,15 @@ import {
   isLoopbackDaemonBase,
   verifyLocalDaemonForCliAppIntegration,
 } from "./daemon-pin.js";
-import { startCliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
+import {
+  type CliAppIntegrationFakeDaemon,
+  startCliAppIntegrationFakeDaemon,
+} from "./fixtures/cli-app-integration-fake-daemon.js";
 import { tcpListenPort } from "./fixtures/net-listen-port.js";
 
 const ensurePath = cliAppIntegrationPolicy.daemonPaths.ensure;
 
-async function startAutoApproveEnsureStub(): Promise<{
-  baseUrl: string;
-  close: () => Promise<void>;
-}> {
+async function startAutoApproveEnsureStub(): Promise<CliAppIntegrationFakeDaemon> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       if (req.method === "GET" && req.url === "/health") {

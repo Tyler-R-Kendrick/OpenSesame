@@ -33,7 +33,9 @@ function daemonBase(url: string): string | null {
 
 function decodeJson(text: string): BoundaryValue | null {
   try {
-    return overlapCast(JSON.parse(new TextDecoder().decode(b64urlToBytes(text))));
+    return overlapCast(
+      JSON.parse(new TextDecoder().decode(b64urlToBytes(text))),
+    );
   } catch {
     return null;
   }
