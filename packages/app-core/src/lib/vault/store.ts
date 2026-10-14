@@ -10,7 +10,6 @@ import {
   emptyBody,
   importVaultKey,
   mintVaultKey,
-  resolveAccounts,
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import {
@@ -66,6 +65,7 @@ import {
   type ItemImportPlan,
   type ItemWriteHost,
   type ManifestWritePlan,
+  originalItemWriteHost,
   writeManifestItems,
   writeSavedItems,
 } from "./item-writes.js";
@@ -1398,12 +1398,11 @@ export class VaultStore {
   }
 
   #writes(check?: () => void): ItemWriteHost {
-    const original = this.#protectionOperation(check);
-    return {
-      tomb: original.scope.tomb,
-      items: resolveAccounts(this.#body.items),
-      mutate: (change) => this.#mutate(change, original.active),
-    };
+    return originalItemWriteHost(
+      this.#protectionOperation(check),
+      this.#body.items,
+      (change, current) => this.#mutate(change, current),
+    );
   }
 
   async trashItem(id: string): Promise<void> {

@@ -18,12 +18,35 @@ import {
   preparePasswordRetirement,
   rememberRetiredDigests,
 } from "./password-history.js";
+import type { captureStoreOperation } from "./store-operation-check.js";
 
 export type ItemWriteHost = {
   tomb: string;
   items: readonly VaultItem[];
   mutate(change: (body: VaultBody) => void): Promise<void>;
 };
+
+/** Hand the original session to a new write turn, which owns authenticated peer-header adoption. */
+export function originalItemWriteHost(
+  original: Pick<
+    ReturnType<typeof captureStoreOperation>,
+    "scope" | "active" | "context"
+  >,
+  items: readonly VaultItem[],
+  mutate: (
+    change: (body: VaultBody) => void,
+    check: () => void,
+  ) => Promise<void>,
+): ItemWriteHost {
+  return {
+    tomb: original.scope.tomb,
+    items: resolveAccounts(items),
+    mutate: (change) => {
+      original.active();
+      return mutate(change, original.context);
+    },
+  };
+}
 
 export type ManifestWritePlan = {
   adds: VaultItem[];
