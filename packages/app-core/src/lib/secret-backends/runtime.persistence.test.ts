@@ -72,7 +72,13 @@ it("blank credentials survive an unchanged target edit but cannot be spent at an
     { ...publicDraft, name: "Renamed" },
     saved.connectionId,
   );
-  expect(readDeviceSecrets()[saved.connectionId]?.token).toBe(draft.token);
+  expect(readDeviceSecrets()[saved.connectionId]?.token).toBeUndefined();
+  expect(
+    secretBackendRuntimeConfiguration(
+      saved.connectionId,
+      vaultStore.getSnapshot().tomb,
+    )?.token,
+  ).toBe(draft.token);
   for (const change of [
     { baseUrl: "https://other.example.com" },
     { vaultId: "other-vault" },
@@ -88,7 +94,13 @@ it("blank credentials survive an unchanged target edit but cannot be spent at an
   expect(
     secretBackendRuntimeConfiguration(saved.connectionId, "different-vault"),
   ).toBeNull();
-  expect(readDeviceSecrets()[saved.connectionId]?.token).toBe(draft.token);
+  expect(readDeviceSecrets()[saved.connectionId]?.token).toBeUndefined();
+  expect(
+    secretBackendRuntimeConfiguration(
+      saved.connectionId,
+      vaultStore.getSnapshot().tomb,
+    )?.token,
+  ).toBe(draft.token);
 });
 it("a failed disk write retains the previous sealed record and a probe never creates a saved connection", async () => {
   const saved = await saveSecretBackendConnection(remoteDraft());

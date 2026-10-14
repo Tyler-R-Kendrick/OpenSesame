@@ -51,11 +51,14 @@ fetch is an RPC to the captured application transport, pinned to the configured
 API and identity services; the main realm's global fetch is never replaced.
 Closing or cancelling the session terminates its owned worker.
 
-Saved metadata and write-only credentials share the atomic device-sealed
-connector ledger. Records bind to a real owning vault; credentials are opened
-only while that vault is current and unlocked. This is a runtime ownership
-boundary, not a claim that the ledger is encrypted with the vault's content
-key. Blank credentials survive edits only for an unchanged target and scope.
+Saved access tokens and client secrets are first-class Token credential items
+inside the owning vault's sealed body. They share its content-key protection,
+rotation, synchronization and encrypted backup. The device-sealed connector
+ledger publishes public configuration and exact credential-item references.
+New immutable item versions are staged before atomic metadata publication;
+guarded cleanup removes only the unchanged original items. An interrupted
+cleanup can leave a visible unreferenced credential for the owner to inspect.
+Blank credentials survive edits only for an unchanged target and scope.
 Guards run before and after network legs and result delivery. Lock, vault
 switch, configuration replacement or capability deactivation invalidates old
 sessions; late authentication handles are disconnected rather than admitted.

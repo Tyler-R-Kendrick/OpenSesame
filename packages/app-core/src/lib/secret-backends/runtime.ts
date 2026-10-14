@@ -181,6 +181,7 @@ export async function saveSecretBackendConnection(
       guard.tomb,
       existingId,
       lease.check,
+      () => assertVaultCurrent(guard),
     );
   } finally {
     guard.close();
@@ -298,6 +299,7 @@ export async function deleteSecretBackendConnection(
       connectionId,
       guard.tomb,
       lease.check,
+      () => assertVaultCurrent(guard),
     );
   } finally {
     guard.close();

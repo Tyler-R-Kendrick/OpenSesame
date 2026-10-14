@@ -2,12 +2,20 @@ import type { Connection } from "../connections.js";
 import {
   DEVICE_CONNECTOR_KEYS,
   readDeviceRows,
-  readDeviceSecrets,
   removeDeviceConfigurationDurable,
 } from "../device-connector-records.js";
 import { deviceConnectorView } from "../device-connector-view.js";
 import { saveDeviceConnectorConfigurationDurable } from "../device-connectors.js";
 import { kvHydrate } from "../kv.js";
+import { assertVaultCredentials } from "../vault-credential-custody.js";
+import {
+  discardSecretBackendCredentials,
+  initializeSecretBackendCustody,
+  readSecretBackendCredentialItems,
+  readSecretBackendCredentials,
+  secretBackendCredentialTarget,
+  stageSecretBackendCredentials,
+} from "./credential-custody.js";
 import {
   SECRET_BACKEND_CREDENTIAL_FIELDS,
   publicSecretBackendDraft,
@@ -16,8 +24,10 @@ import {
 import { type SecretBackendDraft, SecretBackendError } from "./types.js";
 
 const FIELD = "secret_backend_configuration";
+const CREDENTIALS = "secret_backend_credentials";
 
 export async function hydrateSecretBackendConnections(): Promise<void> {
+  await initializeSecretBackendCustody();
   await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
 }
 
@@ -64,30 +74,27 @@ export function secretBackendRuntimeConfiguration(
   const draft = readSecretBackendConnection(connectionId);
   if (!draft || secretBackendConnectionVault(connectionId) !== vaultTomb)
     return null;
-  const secrets = readDeviceSecrets()[connectionId] ?? {};
-  for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS)
-    draft[field] = secrets[field] ?? "";
-  return draft;
+  try {
+    const row = readDeviceRows().find(
+      (entry) => entry.connectionId === connectionId,
+    );
+    return validateSecretBackendDraft(
+      readSecretBackendCredentials(
+        draft,
+        vaultTomb,
+        row?.fields[CREDENTIALS] ?? "",
+      ),
+    );
+  } catch {
+    return null;
+  }
 }
 
 function sameCredentialTarget(
   a: SecretBackendDraft,
   b: SecretBackendDraft,
 ): boolean {
-  const fields = [
-    "providerId",
-    "mode",
-    "baseUrl",
-    "identityUrl",
-    "vaultId",
-    "projectId",
-    "organizationId",
-    "environment",
-    "secretPath",
-    "clientId",
-    "passwordListId",
-  ] as const;
-  return fields.every((field) => a[field] === b[field]);
+  return secretBackendCredentialTarget(a) === secretBackendCredentialTarget(b);
 }
 
 export function resolveSecretBackendConfiguration(
@@ -101,58 +108,117 @@ export function resolveSecretBackendConfiguration(
     existingId,
     vaultTomb ?? "",
   );
-  if (!previous || previous.providerId !== draft.providerId)
+  const publicPrevious = readSecretBackendConnection(existingId);
+  if (
+    !publicPrevious ||
+    publicPrevious.providerId !== draft.providerId ||
+    secretBackendConnectionVault(existingId) !== vaultTomb
+  )
     throw new SecretBackendError(
       "configuration",
       "This saved secret backend does not match the provider.",
     );
-  if (sameCredentialTarget(previous, draft)) {
+  if (previous && sameCredentialTarget(previous, draft)) {
     for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS)
       if (!draft[field]) draft[field] = previous[field];
   }
   return validateSecretBackendDraft(draft);
 }
 
-export function writeSecretBackendConnection(
+function cleanupItems(
+  draft: SecretBackendDraft | null,
+  tomb: string,
+  reference: string,
+) {
+  try {
+    return draft
+      ? readSecretBackendCredentialItems(draft, tomb, reference)
+      : [];
+  } catch {
+    // A broken reference cannot authorize deleting an unrelated vault item.
+    return [];
+  }
+}
+
+export async function writeSecretBackendConnection(
   draft: SecretBackendDraft,
   vaultTomb: string,
   existingId?: string,
-  beforeCommit?: () => void,
+  beforeCommit: () => void = () => {},
+  cleanupCheck: () => void = beforeCommit,
 ): Promise<Connection> {
-  return saveDeviceConnectorConfigurationDurable(
-    () => {
-      beforeCommit?.();
-      const resolved = resolveSecretBackendConfiguration(
-        draft,
-        existingId,
-        vaultTomb,
-      );
-      const secrets: Record<string, string> = {};
-      for (const field of SECRET_BACKEND_CREDENTIAL_FIELDS)
-        if (resolved[field]) secrets[field] = resolved[field];
-      return {
-        providerId: resolved.providerId,
-        displayName: resolved.name,
-        scopes: [],
-        fields: {
-          [FIELD]: JSON.stringify(publicSecretBackendDraft(resolved)),
-          self_hosted_configuration: "secret-backend-v1",
-          secret_backend_vault: vaultTomb,
-        },
-        secrets,
-      };
-    },
+  const resolved = resolveSecretBackendConfiguration(
+    draft,
     existingId,
+    vaultTomb,
+  );
+  const previous = existingId
+    ? readDeviceRows().find((row) => row.connectionId === existingId)
+    : undefined;
+  const previousDraft = existingId
+    ? readSecretBackendConnection(existingId)
+    : null;
+  const oldItems = cleanupItems(
+    previousDraft,
+    vaultTomb,
+    previous?.fields[CREDENTIALS] ?? "",
+  );
+  const staged = await stageSecretBackendCredentials(
+    resolved,
+    vaultTomb,
     beforeCommit,
   );
+  const publicationCheck = () =>
+    assertVaultCredentials(staged, vaultTomb, beforeCommit);
+  let saved: Connection;
+  try {
+    saved = await saveDeviceConnectorConfigurationDurable(
+      () => {
+        publicationCheck();
+        return {
+          providerId: resolved.providerId,
+          displayName: resolved.name,
+          scopes: [],
+          fields: {
+            [FIELD]: JSON.stringify(publicSecretBackendDraft(resolved)),
+            self_hosted_configuration: "secret-backend-v1",
+            secret_backend_vault: vaultTomb,
+            [CREDENTIALS]: staged.reference,
+          },
+          secrets: {},
+        };
+      },
+      existingId,
+      publicationCheck,
+    );
+  } catch (error) {
+    await discardSecretBackendCredentials(
+      staged.items,
+      vaultTomb,
+      cleanupCheck,
+    ).catch(() => undefined);
+    throw error;
+  }
+  await discardSecretBackendCredentials(
+    oldItems,
+    vaultTomb,
+    cleanupCheck,
+  ).catch(() => undefined);
+  return saved;
 }
 
-export function removeSecretBackendConnection(
+export async function removeSecretBackendConnection(
   connectionId: string,
   vaultTomb: string,
-  beforeCommit?: () => void,
+  beforeCommit: () => void = () => {},
+  cleanupCheck: () => void = beforeCommit,
 ): Promise<boolean> {
-  return removeDeviceConfigurationDurable(
+  const draft = readSecretBackendConnection(connectionId);
+  const row = readDeviceRows().find(
+    (entry) => entry.connectionId === connectionId,
+  );
+  const items = cleanupItems(draft, vaultTomb, row?.fields[CREDENTIALS] ?? "");
+  const removed = await removeDeviceConfigurationDurable(
     connectionId,
     () => {
       beforeCommit?.();
@@ -167,4 +233,9 @@ export function removeSecretBackendConnection(
     },
     beforeCommit,
   );
+  if (removed)
+    await discardSecretBackendCredentials(items, vaultTomb, cleanupCheck).catch(
+      () => undefined,
+    );
+  return removed;
 }

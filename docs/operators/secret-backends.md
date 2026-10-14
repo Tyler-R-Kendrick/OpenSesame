@@ -46,12 +46,22 @@ and scope are unchanged. Changing those targets requires new credentials.
 Picked file contents and file passwords are transient and are not saved with
 the connection.
 
-Configuration and credentials are committed together in the existing
-device-sealed connector ledger. The saved record is bound to its owning vault;
-runtime checks require that real vault to remain unlocked. This ownership check
-does **not** mean the connector ledger is encrypted by that vault's content key.
-Public settings projections omit private credentials. Guest sessions cannot
-save secret-backend credentials.
+Access tokens and client secrets are ordinary Token credential items in the
+owning vault, encrypted with its content key and included in sealed vault
+backups. Their names identify the connection and credential field. The
+device-sealed connection ledger contains configuration and credential-item
+references; public Settings projections omit the secret values. Connecting
+requires that owning vault to remain unlocked. Guest sessions cannot save
+secret-backend credentials.
+
+Saving stages new credential items before atomically publishing their exact
+references. A failed publication retains the previous configuration. Cleanup
+removes only unchanged items from the original vault; cancellation, a vault
+switch or an intervening edit can leave an unreferenced credential item for
+the owner to inspect. Editing, trashing or deleting a referenced credential
+invalidates the connection; explicitly entering and saving new credentials
+repairs it. After restoring a backup onto another device, its credential items
+are available in the vault; configure that device's connection separately.
 
 ## Prepare an HTTP endpoint
 
