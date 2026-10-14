@@ -369,6 +369,8 @@ jobs:
           pnpm --filter @opensesame/pages verify:provider-auth
           pnpm --filter @opensesame/pages build:identity-verify
           pnpm --filter @opensesame/pages verify:identity-connections
+          pnpm --filter @opensesame/pages build:secret-backends-verify
+          pnpm --filter @opensesame/pages verify:secret-backends
       - name: Experience journeys
         # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
         if: startsWith(matrix.shard, 'journeys')
