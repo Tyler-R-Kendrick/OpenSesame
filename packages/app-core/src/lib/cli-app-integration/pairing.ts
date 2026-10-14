@@ -3,6 +3,7 @@
  * Conformance: `spec/conformance/cli-app-integration-pairing.json`.
  */
 
+import { z } from "zod";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
 
@@ -27,13 +28,24 @@ export type CliAppPairingConfirmOutcome = Readonly<{
   registrationCode: string;
 }>;
 
-function wireString(
-  record: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = record[key];
-  return typeof value === "string" ? value : null;
-}
+const pairingPayloadSchema = z.object({
+  code: z.string(),
+  origin: z.string(),
+  url: z.string(),
+  label: z.string(),
+});
+
+const pairingChallengeBodySchema = z.object({
+  challengeB64: z.string(),
+});
+
+const pairingConfirmBodySchema = z.object({
+  registrationCode: z.string().length(6),
+});
+
+const pairingExchangeBodySchema = z.object({
+  token: z.string(),
+});
 
 function isPairableOrigin(origin: string): boolean {
   let url: URL;
@@ -54,7 +66,9 @@ function daemonBase(url: string): string | null {
   return base && isTailnetOrLoopback(base) ? base : null;
 }
 
-function decodePairingPayload(text: string): Record<string, unknown> | null {
+function decodePairingPayload(
+  text: string,
+): z.infer<typeof pairingPayloadSchema> | null {
   const padded = text.replaceAll("-", "+").replaceAll("_", "/");
   const pad = (4 - (padded.length % 4)) % 4;
   try {
@@ -63,9 +77,10 @@ function decodePairingPayload(text: string): Record<string, unknown> | null {
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
     }
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed as Record<string, unknown>;
+    const parsed = pairingPayloadSchema.safeParse(
+      JSON.parse(new TextDecoder().decode(bytes)),
+    );
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
@@ -78,18 +93,11 @@ export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
     trimmed.slice(CLI_APP_PAIRING_PREFIX.length),
   );
   if (!wire) return null;
-  const code = wireString(wire, "code");
-  const origin = wireString(wire, "origin");
-  const url = wireString(wire, "url");
-  const label = wireString(wire, "label");
+  const { code, origin, url, label } = wire;
   if (
-    !code ||
     !CLI_APP_PAIRING_SECRET.test(code) ||
-    !origin ||
     !isPairableOrigin(origin) ||
-    !url ||
-    !daemonBase(url) ||
-    !label
+    !daemonBase(url)
   ) {
     return null;
   }
@@ -136,13 +144,9 @@ export async function fetchCliAppPairingChallenge(
     headers: { Origin: parsed.origin },
   });
   if (!res.ok) return null;
-  const body: unknown = await res.json();
-  if (!body || typeof body !== "object") return null;
-  const challengeB64 = wireString(
-    body as Record<string, unknown>,
-    "challengeB64",
-  );
-  if (!challengeB64) return null;
+  const body = pairingChallengeBodySchema.safeParse(await res.json());
+  if (!body.success) return null;
+  const challengeB64 = body.data.challengeB64;
   const { b64urlDecode } = await import("./device-crypto.js");
   const bytes = b64urlDecode(challengeB64);
   return bytes && bytes.byteLength === 32 ? bytes : null;
@@ -173,16 +177,9 @@ export async function confirmCliAppPairingCode(
     },
   );
   if (!res.ok) return null;
-  const body: unknown = await res.json();
-  if (!body || typeof body !== "object") return null;
-  const registrationCode = wireString(
-    body as Record<string, unknown>,
-    "registrationCode",
-  );
-  if (!registrationCode || registrationCode.length !== 6) {
-    return null;
-  }
-  return { registrationCode };
+  const body = pairingConfirmBodySchema.safeParse(await res.json());
+  if (!body.success) return null;
+  return { registrationCode: body.data.registrationCode };
 }
 
 export async function exchangeCliAppPairingCode(
@@ -199,10 +196,11 @@ export async function exchangeCliAppPairingCode(
     },
   );
   if (res.status !== 201) return false;
-  const body: unknown = await res.json();
-  if (!body || typeof body !== "object") return false;
-  const token = wireString(body as Record<string, unknown>, "token");
-  if (!token || !CLI_APP_PAIRING_SECRET.test(token)) return false;
+  const body = pairingExchangeBodySchema.safeParse(await res.json());
+  if (!body.success || !CLI_APP_PAIRING_SECRET.test(body.data.token)) {
+    return false;
+  }
+  const token = body.data.token;
   writeCliAppIntegrationBearer(token);
   return true;
 }

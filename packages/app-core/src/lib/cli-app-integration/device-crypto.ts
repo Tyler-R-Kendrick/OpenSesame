@@ -2,7 +2,14 @@
  * P-256 signatures for CLI app-integration pairing and approvals (Rust parity).
  */
 
+import { z } from "zod";
+
 const enc = new TextEncoder();
+
+const storedDeviceKeySchema = z.object({
+  publicKeySpkiB64: z.string(),
+  wrappedPkcs8B64: z.string(),
+});
 
 async function readCliAppPairingVaultSessionRoot(): Promise<string | null> {
   const { vaultStore } = await import("../vault/store.js");
@@ -205,31 +212,13 @@ async function unwrapDeviceKeyMaterial(
   }
 }
 
-function storedString(
-  record: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = record[key];
-  return typeof value === "string" ? value : null;
-}
-
 async function readStoredDeviceKey(): Promise<StoredDeviceKey | null> {
   const { localStore } = await import("../../ports.js");
   const raw = localStore().getItem(DEVICE_SIGNING_STORAGE_KEY);
   if (!raw) return null;
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    const record = parsed as Record<string, unknown>;
-    const publicKeySpkiB64 = storedString(record, "publicKeySpkiB64");
-    const wrappedPkcs8B64 = storedString(record, "wrappedPkcs8B64");
-    if (!publicKeySpkiB64 || !wrappedPkcs8B64) {
-      return null;
-    }
-    return {
-      publicKeySpkiB64,
-      wrappedPkcs8B64,
-    };
+    const parsed = storedDeviceKeySchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
