@@ -23,6 +23,17 @@ export function CommandBarNotice({
     };
   }, [notice, setNotice]);
 
+  useEffect(() => {
+    if (notice === null) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setNotice(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [notice, setNotice]);
+
   if (notice === null || open) return null;
 
   return (
