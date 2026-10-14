@@ -163,7 +163,56 @@ try {
       contexts.delete(current);
     }
   }
-  await one("roundtrip");
+  for (const name of [
+    "roundtrip",
+    "no-initialization",
+    "key-replacement",
+    "provider-replacement",
+    "root-replacement",
+    "catalogue-drift",
+    "all-causes-bound",
+  ])
+    await one(name);
+  const loss = await context("missing-key");
+  try {
+    const target = await page(loss);
+    const seeded = await invoke(target, "seed-key-loss");
+    await target.reload();
+    report.cases.push({
+      name: "missing-key",
+      result: await invoke(target, "missing-key", seeded.before),
+    });
+  } finally {
+    await loss.close();
+    contexts.delete(loss);
+  }
+  const shared = await context("shared-cas");
+  try {
+    const a = await page(shared);
+    const b = await page(shared);
+    await Promise.all([
+      invoke(a, "prepare-cas", "A"),
+      invoke(b, "prepare-cas", "B"),
+    ]);
+    const outcomes = await Promise.all([
+      invoke(a, "commit-cas"),
+      invoke(b, "commit-cas"),
+    ]);
+    if (outcomes.filter((outcome) => outcome.committed).length !== 1)
+      throw new Error("Native CAS did not yield exactly one winner.");
+    const first = await invoke(a, "read-cas");
+    const second = await invoke(b, "read-cas");
+    if (first.value !== second.value)
+      throw new Error("Native documents did not read the same CAS winner.");
+    report.cases.push({
+      name: "two-document-shared-cas",
+      committed: 1,
+      checks: [...first.checks, ...second.checks],
+    });
+  } finally {
+    await shared.close();
+    contexts.delete(shared);
+  }
   if (report.status !== "FAIL") report.status = "PASS";
 } catch (error) {
   report.status = "FAIL";
