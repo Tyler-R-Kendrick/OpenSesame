@@ -93,20 +93,23 @@ rules remain visible constraints. Operator setup and verification steps live in
 
 ## Shipped bundle cost, measured 2026-10-14
 
-The clean production build measures 6,965 KiB of JavaScript and 2,104 KiB
-gzipped, compared with the identity baseline's 6,786/2,056 KiB: +179 KiB raw
-and +48 KiB gzip. This pays for shared BYO/partner configuration and item UI,
-native HTTP and capability transports, verified ciphertext backup controls,
+The final clean production build (`6ad7b281d`) measures 6,979 KiB of JavaScript
+and 2,109 KiB gzipped, compared with the identity baseline's 6,786/2,056 KiB:
++193 KiB raw and +53 KiB gzip. This pays for shared BYO/partner configuration
+and item UI, native HTTP and capability transports, verified ciphertext backup
+controls, actual vault credential custody and held-item offline definitions,
 the official 1Password save button, and official Bitwarden SDK worker/glue.
 Those implementations load on explicit use, while their shipped assets still
 count toward offline installation. The 1,967 KiB official SDK WASM asset fits
-the existing total and largest-asset budgets; total output is 9,984 KiB and
+the existing total and largest-asset budgets; total output is 10,001 KiB and
 CSS remains 180 KiB.
 
 Deliberately set only the default Pages JavaScript ceilings to 7,000/2,120 KiB
-(previously 6,800/2,058), leaving 35/16 KiB over this measurement. Minimal-local
-and family-local hardened builds each retain 3,325,650 raw JavaScript bytes,
-at most 1,030,510 gzip bytes and 113 files; their clean composition reports and budgets
-pass unchanged. Profile, total, largest-asset, CSS and structural limits are
+(previously 6,800/2,058), leaving 21/11 KiB over this final measurement.
+Minimal-local and family-local hardened builds each retain 3,326,736 raw
+JavaScript bytes, at most 1,030,779 gzip bytes and 113 files on disk. Independent
+reconstruction from disk reports no ownership/reachability violations or
+asset mismatches; Networking is absent from both. Their existing budgets pass
+unchanged. Profile, total, largest-asset, CSS and structural limits are
 unchanged. This is an explicit feature-cost decision, not a regenerated
 structural baseline.

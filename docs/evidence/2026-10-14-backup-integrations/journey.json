@@ -43,10 +43,12 @@
     "Every canonical preset exposes its declared editable connection methods.",
     "BYO composes all eight protocol configurations.",
     "Connect, Infisical Universal Auth, Passwordstate and Bitwarden Vault Management: save, cold reload, authenticate, create, list, read, read notes, update and delete over real CORS sockets.",
+    "After cold unlock, read and explicitly reveal actual vault Token credentials for Connect, Infisical and Passwordstate; verify plaintext storage absence.",
     "Official Bitwarden Secrets Manager WASM worker: authenticated encrypted CRUD, independent Node crypto validation, actual preflights; repeat under the active PWA service worker.",
     "Real local-vault login and note CRUD.",
     "Real Bitwarden JSON, 1Password CSV, Proton JSON, Proton ZIP and environment-file preview/import with the browser offline, followed by cold vault readback.",
     "Canonical encrypted vault backup through Connect and restore into an independently sealed vault whose different enrolled PIN survives cold reload.",
+    "Use real PIN/vault-core crypto to open the actual uploaded source and target re-backup; compare every source item and folder, including Token items, under the destination PIN.",
     "Official Save in 1Password custom element, activation event and explicit payload clearing; no extension account-save claim.",
     "Actual Chromium PasswordCredential and credentials.store; no enumeration, deletion or vendor-selection claim.",
     "Installed PWA: explicitly approve Secure note online, await the exact approved connection plan's OFFLINE_READY, stop the actual app socket, cold reload, first-use import Proton ZIP, cold reload again and read the persisted local note.",
@@ -58,5 +60,5 @@
     "A real unlocked 1Password extension account is unavailable; its official handoff activation is tested without emulating extension success.",
     "Proton hosted PAT CORS was measured anonymously; local export import is the supported browser path."
   ],
-  "compiledSourceCommit": "ca6e7f8e5ef2d32ade17dc9c6e58d00cc9221872"
+  "compiledSourceCommit": "6ad7b281d6ce450af711e5de2d4e496fb65ba1db"
 }

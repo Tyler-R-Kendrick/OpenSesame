@@ -1,8 +1,8 @@
 {
-  "compiledSourceCommit": "ca6e7f8e5ef2d32ade17dc9c6e58d00cc9221872",
+  "compiledSourceCommit": "6ad7b281d6ce450af711e5de2d4e496fb65ba1db",
   "command": "pnpm --filter @opensesame/pages build:secret-backends-verify && pnpm --filter @opensesame/pages verify:secret-backends",
   "result": "PASS",
-  "assertionsPassed": 178,
+  "assertionsPassed": 194,
   "failures": [],
   "strictErrorCounts": {
     "PAGE-ERROR": 0,
@@ -40,8 +40,8 @@
   "httpFixtures": [
     {
       "name": "Connect protocol fixture",
-      "apiRequests": 52,
-      "nativeCorsPreflights": 52,
+      "apiRequests": 68,
+      "nativeCorsPreflights": 68,
       "serverErrors": []
     },
     {
@@ -94,16 +94,22 @@
     "1280: BYO composes editable infisical configuration",
     "1280: BYO composes editable passwordstate configuration",
     "1280: 1password configuration survives cold reload while its volatile session does not",
+    "1280: 1password access token is an actual vault Token item readable after cold unlock",
+    "1280: 1password credential is absent from plaintext browser configuration storage",
     "1280: browser-1password-1280 create/list/get/getNotes return real stored values",
     "1280: browser-1password-1280 update is visible through a new backend read",
     "1280: browser-1password-1280 confirmed delete removes the stored item",
     "1280: 1password CRUD leaves the real HTTP fixture empty after deletion",
     "1280: infisical configuration survives cold reload while its volatile session does not",
+    "1280: infisical client secret is an actual vault Token item readable after cold unlock",
+    "1280: infisical credential is absent from plaintext browser configuration storage",
     "1280: browser-infisical-1280 create/list/get/getNotes return real stored values",
     "1280: browser-infisical-1280 update is visible through a new backend read",
     "1280: browser-infisical-1280 confirmed delete removes the stored item",
     "1280: infisical CRUD leaves the real HTTP fixture empty after deletion",
     "1280: passwordstate configuration survives cold reload while its volatile session does not",
+    "1280: passwordstate access token is an actual vault Token item readable after cold unlock",
+    "1280: passwordstate credential is absent from plaintext browser configuration storage",
     "1280: browser-passwordstate-1280 create/list/get/getNotes return real stored values",
     "1280: browser-passwordstate-1280 update is visible through a new backend read",
     "1280: browser-passwordstate-1280 confirmed delete removes the stored item",
@@ -135,8 +141,10 @@
     "1280: imported proton-browser.json is readable from the real local vault after cold reload",
     "1280: imported proton-browser.zip is readable from the real local vault after cold reload",
     "1280: imported browser.env is readable from the real local vault after cold reload",
+    "1280: actual uploaded backup decrypts to 4 vault Token items; their plaintext is absent from the transmitted ciphertext",
     "1280: actual Connect item holds a verified canonical encrypted vault envelope without source PIN or item plaintext",
     "1280: socket-backed ciphertext backup restores actual items into another browser vault, preserving that vault's different enrolled PIN after cold reload",
+    "1280: target re-backup opens with its own PIN and preserves all 13 source items, including vault tokens, and 2 source folders",
     "1280: official 1Password1.3 custom element and activation event are real; unlocked extension save is not claimed",
     "1280: explicit clear removes the volatile 1Password save payload",
     "1280: Chromium exposes actual secure-origin PasswordCredential and credentials.store",
@@ -168,16 +176,22 @@
     "390: BYO composes editable infisical configuration",
     "390: BYO composes editable passwordstate configuration",
     "390: 1password configuration survives cold reload while its volatile session does not",
+    "390: 1password access token is an actual vault Token item readable after cold unlock",
+    "390: 1password credential is absent from plaintext browser configuration storage",
     "390: browser-1password-390 create/list/get/getNotes return real stored values",
     "390: browser-1password-390 update is visible through a new backend read",
     "390: browser-1password-390 confirmed delete removes the stored item",
     "390: 1password CRUD leaves the real HTTP fixture empty after deletion",
     "390: infisical configuration survives cold reload while its volatile session does not",
+    "390: infisical client secret is an actual vault Token item readable after cold unlock",
+    "390: infisical credential is absent from plaintext browser configuration storage",
     "390: browser-infisical-390 create/list/get/getNotes return real stored values",
     "390: browser-infisical-390 update is visible through a new backend read",
     "390: browser-infisical-390 confirmed delete removes the stored item",
     "390: infisical CRUD leaves the real HTTP fixture empty after deletion",
     "390: passwordstate configuration survives cold reload while its volatile session does not",
+    "390: passwordstate access token is an actual vault Token item readable after cold unlock",
+    "390: passwordstate credential is absent from plaintext browser configuration storage",
     "390: browser-passwordstate-390 create/list/get/getNotes return real stored values",
     "390: browser-passwordstate-390 update is visible through a new backend read",
     "390: browser-passwordstate-390 confirmed delete removes the stored item",
@@ -209,8 +223,10 @@
     "390: imported proton-browser.json is readable from the real local vault after cold reload",
     "390: imported proton-browser.zip is readable from the real local vault after cold reload",
     "390: imported browser.env is readable from the real local vault after cold reload",
+    "390: actual uploaded backup decrypts to 4 vault Token items; their plaintext is absent from the transmitted ciphertext",
     "390: actual Connect item holds a verified canonical encrypted vault envelope without source PIN or item plaintext",
     "390: socket-backed ciphertext backup restores actual items into another browser vault, preserving that vault's different enrolled PIN after cold reload",
+    "390: target re-backup opens with its own PIN and preserves all 13 source items, including vault tokens, and 2 source folders",
     "390: official 1Password1.3 custom element and activation event are real; unlocked extension save is not claimed",
     "390: explicit clear removes the volatile 1Password save payload",
     "390: Chromium exposes actual secure-origin PasswordCredential and credentials.store",
@@ -253,5 +269,26 @@
     "Bitwarden Vault Management protocol fixture: socket received POST",
     "Bitwarden Vault Management protocol fixture: socket received DELETE",
     "Bitwarden Vault Management protocol fixture: socket received the protocol's real update method"
-  ]
+  ],
+  "custodyChecks": [
+    "1280: 1password access token is an actual vault Token item readable after cold unlock",
+    "1280: infisical client secret is an actual vault Token item readable after cold unlock",
+    "1280: passwordstate access token is an actual vault Token item readable after cold unlock",
+    "1280: actual uploaded backup decrypts to 4 vault Token items; their plaintext is absent from the transmitted ciphertext",
+    "1280: target re-backup opens with its own PIN and preserves all 13 source items, including vault tokens, and 2 source folders",
+    "390: 1password access token is an actual vault Token item readable after cold unlock",
+    "390: infisical client secret is an actual vault Token item readable after cold unlock",
+    "390: passwordstate access token is an actual vault Token item readable after cold unlock",
+    "390: actual uploaded backup decrypts to 4 vault Token items; their plaintext is absent from the transmitted ciphertext",
+    "390: target re-backup opens with its own PIN and preserves all 13 source items, including vault tokens, and 2 source folders"
+  ],
+  "previousCheckpoint": {
+    "compiledSourceCommit": "ca6e7f8e5ef2d32ade17dc9c6e58d00cc9221872",
+    "assertionsPassed": 178,
+    "strictErrors": 0
+  },
+  "custodyNegativeControl": {
+    "compiledSourceCommit": "ca6e7f8e5ef2d32ade17dc9c6e58d00cc9221872",
+    "result": "Correctly rejected: saved configuration survived cold reload, but no actual vault Token item existed."
+  }
 }
