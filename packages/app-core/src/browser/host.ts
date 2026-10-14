@@ -9,7 +9,6 @@ import type {
   Ports,
   StoragePorts,
 } from "../ports.js";
-import { createBrowserPhysicalVaultPorts } from "./physical-vault-ports.js";
 /**
  * The browser's ports (ADR 0133 §2). This is the one place outside the
  * worker entries (`*.worker.ts`) where the core touches browser globals; every other module
@@ -18,6 +17,7 @@ import { createBrowserPhysicalVaultPorts } from "./physical-vault-ports.js";
  * the stub.
  */
 import { createBrowserOriginFileProvider } from "./origin-file-provider.js";
+import { createBrowserPhysicalVaultPorts } from "./physical-vault-ports.js";
 
 const storage: StoragePorts = {
   get local() {
