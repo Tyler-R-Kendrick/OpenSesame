@@ -1,7 +1,6 @@
 /** @vitest-environment jsdom */
 import { configureHost } from "@opensesame/app-core/host.js";
 import { activitySeams } from "@opensesame/app-core/lib/activity-log.js";
-import { createTestHost } from "@opensesame/app-core/test-host.js";
 import type { CompositionSnapshot } from "@opensesame/app-core/lib/capabilities/store-types.js";
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import {
@@ -19,6 +18,7 @@ import {
   resetOutboundDropsForTests,
 } from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import { unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

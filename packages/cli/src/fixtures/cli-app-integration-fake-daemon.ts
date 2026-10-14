@@ -1,10 +1,6 @@
 import { createServer } from "node:http";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
-import {
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
+import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { tcpListenPort } from "./net-listen-port.js";
 
 const ensurePath = cliAppIntegrationPolicy.daemonPaths.ensure;
@@ -14,11 +10,16 @@ export interface CliAppIntegrationFakeDaemon {
   close: () => Promise<void>;
 }
 
+export interface CliAppIntegrationFakeDaemonEnv {
+  env: NodeJS.ProcessEnv;
+  close: () => Promise<void>;
+}
+
 /** Loopback stub for journey tests; not shipped in production code. */
 /** Journey env: loopback fake daemon, no seam/listen overrides. */
 export async function envWithFakeCliAppIntegrationDaemon(
   base: NodeJS.ProcessEnv,
-): Promise<{ env: NodeJS.ProcessEnv; close: () => Promise<void> }> {
+): Promise<CliAppIntegrationFakeDaemonEnv> {
   const fakeDaemon = await startCliAppIntegrationFakeDaemon();
   const env: NodeJS.ProcessEnv = {
     ...base,

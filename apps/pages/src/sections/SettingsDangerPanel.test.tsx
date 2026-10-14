@@ -19,9 +19,10 @@ const vault = vi.hoisted(() => {
     lockOnHide: false,
     signOutOnLock: false,
   };
+  const items: VaultItem[] = [];
   return {
     prefs,
-    items: [] satisfies VaultItem[],
+    items,
     folders: [],
     header: { wrap: {}, kdf: { iterations: 600_000 } },
   };
