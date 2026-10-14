@@ -76,6 +76,7 @@ import { registerTutorial } from "../tutorial-contributions.js";
 import { bindAiConnectionRuntime } from "./ai-connection-runtime.js";
 import { bindProviderRuntime } from "./native-runtime.js";
 import { bindSecretBackendRuntime } from "./secret-backend-runtime.js";
+import { bindTailscaleRuntime } from "./tailscale-runtime.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 
 export const CAPABILITY = "connectors.external";
@@ -139,6 +140,7 @@ function bindConnectionRuntimes(
   bindProviderRuntime(ctx, activation);
   bindSecretBackendRuntime(ctx, activation);
   bindAiConnectionRuntime(ctx, activation);
+  bindTailscaleRuntime(ctx, activation);
 }
 
 export const capabilityRuntime: CapabilityRuntime = {

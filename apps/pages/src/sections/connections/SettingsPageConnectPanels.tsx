@@ -13,6 +13,7 @@ import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
 import { NativeConnectorPanels } from "./connect/NativeConnectorPanels.js";
 import { IdentityConnectionPanels } from "./identity/IdentityConnectionPanels.js";
 import { SecretBackendPanels } from "./secret-backends/SecretBackendPanels.js";
+import { TailscalePanels } from "./tailscale/TailscalePanels.js";
 
 type Props = {
   provider: Provider;
@@ -46,6 +47,8 @@ function NativeSettingsPanels(props: Props) {
 }
 export function SettingsPageConnectPanels(props: Props) {
   const { provider, connection, nativeExperience, identityExperience } = props;
+  if (provider.id === "tailscale" && !isConnectConnection(connection))
+    return <TailscalePanels {...props} />;
   if (isAiConnectionProvider(provider.id) && !isConnectConnection(connection))
     return <AiSettingsPanels {...props} />;
   if (isSecretBackendProvider(provider.id) && !isConnectConnection(connection))
