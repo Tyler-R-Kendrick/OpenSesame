@@ -1,3 +1,4 @@
+import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { connectSubjectId } from "@opensesame/app-core/lib/connect-draft.js";
 import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import type {
@@ -8,6 +9,7 @@ import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-conn
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useIdentitySession } from "../../../bindings/identity.js";
 import { useVault } from "../../../lib/vault/hooks.js";
+import { AiConnectionPanels } from "../ai/AiConnectionPanels.js";
 import {
   IdentityConnectionPanels,
   isIdentityConnectionProvider,
@@ -82,10 +84,25 @@ function ImportedConnectPanels({
 
 /** New provider configuration is local; imported hosted connections retain their ceremony. */
 export function ConnectPanels(props: Props) {
-  const { provider, connection, onFlash, onChanged } = props;
+  const { provider, connection } = props;
   const plan = connectPlan(provider.id);
   if (plan && !plan.refused && connection && isConnectConnection(connection))
     return <ImportedConnectPanels {...props} connection={connection} />;
+  return <LocalConnectPanels {...props} />;
+}
+
+function LocalConnectPanels(props: Props) {
+  const { provider, connection, onFlash, onChanged } = props;
+  const plan = connectPlan(provider.id);
+  if (isAiConnectionProvider(provider.id))
+    return (
+      <AiConnectionPanels
+        providerId={provider.id}
+        connectionId={connection?.connectionId}
+        onFlash={onFlash}
+        onChanged={onChanged}
+      />
+    );
   if (isIdentityConnectionProvider(provider.id))
     return (
       <IdentityConnectionPanels

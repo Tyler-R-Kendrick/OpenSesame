@@ -24,7 +24,10 @@
  *    user-initiated.
  */
 
-import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import type {
+  ApprovedCapabilityContext,
+  CapabilityRuntime,
+} from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
 import {
   connectRoadSeams,
@@ -67,9 +70,10 @@ import {
   resetConnectorMarkLookup,
 } from "../../sections/connections/ConnectorMark.js";
 import { connectorMark } from "../../sections/connections/connector-marks.js";
-import { createActivation } from "../activation.js";
+import { type Activation, createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
+import { bindAiConnectionRuntime } from "./ai-connection-runtime.js";
 import { bindProviderRuntime } from "./native-runtime.js";
 import { bindSecretBackendRuntime } from "./secret-backend-runtime.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
@@ -128,6 +132,15 @@ export function runSavedExternalConnectors(): FeatureRequest[] {
   return startExternalConnectors();
 }
 
+function bindConnectionRuntimes(
+  ctx: ApprovedCapabilityContext,
+  activation: Activation,
+): void {
+  bindProviderRuntime(ctx, activation);
+  bindSecretBackendRuntime(ctx, activation);
+  bindAiConnectionRuntime(ctx, activation);
+}
+
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -141,8 +154,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     applyConnectCallbackBase(ctx.runtimeConfig.endpoints.connectCallbackBase);
     activation.onDispose(() => applyConnectCallbackBase(undefined));
 
-    bindProviderRuntime(ctx, activation);
-    bindSecretBackendRuntime(ctx, activation);
+    bindConnectionRuntimes(ctx, activation);
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
