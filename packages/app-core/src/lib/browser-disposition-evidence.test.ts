@@ -12,6 +12,7 @@ import {
   browserDisposition,
 } from "./browser-disposition.js";
 import { catalogProvider } from "./connector-catalog.js";
+import { isSecretBackendProvider } from "./secret-backends/presets.js";
 
 const probeSchema = z
   .object({
@@ -178,17 +179,20 @@ describe("the row a browser reads is the row the evidence backs", () => {
     }
   });
 
-  it("backs Bitwarden's refusal with a control from Bitwarden's own origin", () => {
-    const bitwarden = rows.find((row) => row.provider_id === "bitwarden");
-    const probes = bitwarden?.probes ?? [];
-    const refused = probes.filter((probe) => probe.origin === undefined);
-    const control = probes.filter((probe) => probe.origin !== undefined);
-    expect(refused.length).toBeGreaterThan(0);
-    expect(refused.every((probe) => !admits(probe))).toBe(true);
-    // The same requests from Bitwarden's own origin are admitted: an allow-list.
-    expect(control.length).toBe(refused.length);
-    expect(control.every((probe) => probe.allow_origin === probe.origin)).toBe(
-      true,
+  it("does not publish old generic refusal evidence for providers with specialized secret-backend support", () => {
+    expect(
+      rows.filter((row) => isSecretBackendProvider(row.provider_id)),
+    ).toEqual([]);
+    const native = rows.find((row) => row.provider_id === "keepass");
+    expect(native?.kind).toBe("companion");
+    expect(native?.alternative?.to).toBe("/vault?f=all");
+    const tailscale = rows.find((row) => row.provider_id === "tailscale");
+    expect(tailscale?.probes).toContainEqual(
+      expect.objectContaining({
+        url: "https://api.tailscale.com/api/v2/tailnet/-/devices",
+        status: 200,
+        allow_origin: null,
+      }),
     );
   });
 });

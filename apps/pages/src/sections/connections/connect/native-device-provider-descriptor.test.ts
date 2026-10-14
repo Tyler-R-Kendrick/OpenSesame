@@ -4,6 +4,10 @@ import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
+import {
+  isSecretBackendProvider,
+  secretBackendPreset,
+} from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { expect, it, vi } from "vitest";
 import {
   type NativeDeviceAvailability,
@@ -37,7 +41,23 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   // address or a probe nobody has run (ADR 0192, ADR 0198), and the ones bundled for their
   // drivers, which have a specialized road. Seventeen model providers left it when their key
   // check was found (ADR 0199).
-  expect(visible).toHaveLength(44);
+  expect(
+    visible
+      .filter((provider) => isSecretBackendProvider(provider.id))
+      .map((provider) => provider.id)
+      .sort(),
+  ).toEqual([
+    "1password",
+    "bitwarden",
+    "bitwarden-secrets-manager",
+    "browser-credentials",
+    "byo-secret-backend",
+    "infisical",
+    "local-vault",
+    "passwordstate",
+    "proton-pass",
+    "vaultwarden",
+  ]);
   expect(
     visible
       .filter((provider) => identityConnectionPreset(provider.id))
@@ -49,7 +69,8 @@ it("covers every visible bundled provider without a plan or replacing a speciali
     if (
       ["git", "aws-kms", "gcp-kms", "s3"].includes(provider.id) ||
       nativeKeyDriverFor(provider.id) !== null ||
-      identityConnectionPreset(provider.id) !== null
+      identityConnectionPreset(provider.id) !== null ||
+      isSecretBackendProvider(provider.id)
     ) {
       expect(descriptor).toBeNull();
       continue;
@@ -115,13 +136,7 @@ it("offers the vault import only where an import exists, and says it is a snapsh
         (link) => link.to === "/vault?f=all",
       ),
     );
-  expect(withImport.map(({ id }) => id).sort()).toEqual([
-    "1password",
-    "bitwarden",
-    "keepass",
-    "proton-pass",
-    "vaultwarden",
-  ]);
+  expect(withImport.map(({ id }) => id).sort()).toEqual(["keepass"]);
   for (const { descriptor } of withImport) {
     expect(descriptor?.methods[0]?.available).toBe(false);
     expect(descriptor?.methods[0]?.unavailableReason).toContain(
@@ -130,31 +145,27 @@ it("offers the vault import only where an import exists, and says it is a snapsh
   }
 });
 
-it("says Bitwarden's real constraint, with Bitwarden's own pages, not fnox's", () => {
-  const descriptor = nativeDeviceProviderDescriptor("bitwarden", {
-    has: () => false,
-  });
-  const method = descriptor?.methods[0];
-  expect(method?.unavailableKind).toBe("companion");
-  expect(method?.label).toBe("Companion configuration");
-  expect(method?.unavailableReason).toContain("bw serve");
-  expect(method?.unavailableReason).toContain("Origin header");
-  expect(method?.unavailableReason).not.toContain(
-    "no supported browser driver",
-  );
-  expect(descriptor?.docsUrl).toBe(
-    "https://bitwarden.com/help/bitwarden-apis/",
-  );
-  // The APIs page is already the documentation link: it is not listed twice.
-  expect(descriptor?.externalLinks?.map((link) => link.url)).toEqual([
-    "https://bitwarden.com/help/cli/",
-  ]);
-  for (const url of [
-    descriptor?.docsUrl,
-    ...(descriptor?.externalLinks ?? []).map((link) => link.url),
-  ])
-    expect(new URL(url ?? "").hostname).toBe("bitwarden.com");
-});
+it.each([
+  ["byo-secret-backend", "local"],
+  ["local-vault", "local"],
+  ["browser-credentials", "credential-management"],
+  ["1password", "onepassword-connect"],
+  ["bitwarden", "bitwarden-api"],
+  ["vaultwarden", "bitwarden-api"],
+  ["bitwarden-sm", "bitwarden-secrets"],
+  ["bitwarden-secrets-manager", "bitwarden-secrets"],
+  ["infisical", "infisical"],
+  ["passwordstate", "passwordstate"],
+  ["proton-pass", "file-import"],
+])(
+  "routes %s to its shared secret-backend configuration instead of a refusal",
+  (id, mode) => {
+    expect(secretBackendPreset(id)?.modes).toContain(mode);
+    const has = vi.fn(() => false);
+    expect(nativeDeviceProviderDescriptor(id, { has })).toBeNull();
+    expect(has).not.toHaveBeenCalled();
+  },
+);
 
 it("does not call a provider whose API a browser can reach a companion", async () => {
   const { authoredDispositionIds, browserDisposition } = await import(
