@@ -2,6 +2,7 @@ import { hasConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
+import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { expect, it, vi } from "vitest";
 import {
@@ -36,13 +37,19 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   // address or a probe nobody has run (ADR 0192, ADR 0198), and the ones bundled for their
   // drivers, which have a specialized road. Seventeen model providers left it when their key
   // check was found (ADR 0199).
-  expect(visible).toHaveLength(42);
+  expect(visible).toHaveLength(44);
+  expect(
+    visible
+      .filter((provider) => identityConnectionPreset(provider.id))
+      .map((provider) => provider.id),
+  ).toEqual(["byo-identity", "better-auth", "neon-auth"]);
   const has = vi.fn<NativeDeviceAvailability["has"]>(() => false);
   for (const provider of visible) {
     const descriptor = nativeDeviceProviderDescriptor(provider.id, { has });
     if (
       ["git", "aws-kms", "gcp-kms", "s3"].includes(provider.id) ||
-      nativeKeyDriverFor(provider.id) !== null
+      nativeKeyDriverFor(provider.id) !== null ||
+      identityConnectionPreset(provider.id) !== null
     ) {
       expect(descriptor).toBeNull();
       continue;

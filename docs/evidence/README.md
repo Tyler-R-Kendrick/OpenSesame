@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
+| [`2026-10-14-identity-integrations/`](2026-10-14-identity-integrations/README.md) | Configurable identity integrations |
 | [`2026-10-12-transfer-vault-ownership/`](2026-10-12-transfer-vault-ownership/README.md) | Transfer ownership in Settings › Danger (ADR 0195) |
 | [`2026-10-12-key-driven-providers/`](2026-10-12-key-driven-providers/README.md) | Connections — providers that connect with the person's own key |
 | [`2026-10-12-honest-dispositions/`](2026-10-12-honest-dispositions/README.md) | Connections — honest reasons, real docs links, AWS in the browser |

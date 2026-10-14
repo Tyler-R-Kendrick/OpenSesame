@@ -25,6 +25,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../../bindings/identity.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
+import { isIdentityConnectionProvider } from "../identity/IdentityConnectionPanels.js";
 import { ConnectPanels } from "./ConnectPanels.js";
 import { nativeSettingsDescriptor } from "./NativeConnectorPanels.js";
 import {
@@ -144,6 +145,18 @@ describe("no connector page is blank", () => {
     "%s opens its own configuration or explicit browser refusal",
     (id) => {
       draw(id);
+      if (isIdentityConnectionProvider(id)) {
+        const identity = screen.getByRole("region", {
+          name: "Identity configuration",
+        });
+        expect(
+          within(identity).getByRole("button", {
+            name: "Save identity connection",
+          }),
+        ).toBeTruthy();
+        expect(within(identity).getByLabelText("Protocol")).toBeTruthy();
+        return;
+      }
       const panel = screen.getByRole("region", { name: "Connector" });
       if (id === "linear") {
         expect(

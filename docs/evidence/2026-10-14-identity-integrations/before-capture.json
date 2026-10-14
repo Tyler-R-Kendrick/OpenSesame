@@ -1,0 +1,62 @@
+{
+  "phase": "before",
+  "origin": "https://tyler-r-kendrick.github.io",
+  "base": "/OpenSesame/",
+  "metrics": [
+    {
+      "width": 1280,
+      "screen": "catalog",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nGeneral\nKeybindings\nSecurity\nVaults\nFeatures\nIntegrations\nDanger\nIntegrations\nIdentity\nB\nBetter Auth\nW\nWorkOS\nAuth0\nEncryption\nA\nAWS KMS\nGoogle Cloud KMS\nCertificate authority\nL\nLet's Encrypt\nBackups\nGit (any remote)\npassword-store\nGitHub\nGitLab\nBitbucket\nCodeberg\nC\nCursor Origin\nPassword managers\n1Password\nBitwarden\nVaultwarden\nI\nInfisical\nProton Pass\nP\nPasswordstate\nCloud secret storage\nA\nAWS Parameter Store\nA\nAWS Secrets Manager\nA\nAzure App Configuration\nA\nAzure Key Vault Secrets\nG\nGoogle Cloud Secret Manager\nD\nDoppler\nF\nFOKS\nB\nBitwarden Secrets Manager\nHashiCorp Vault\nO\nOpenBao\nE\nEncrypted Remote Store\nA\nAWS STS\nG\nGoogle Cloud IAM credentials\nLocal storage\nO\nOS Keychain\nKeePass\nS\nS3-compatible bucket\nPayments\nC\nCloudflare Wallet\nG\nGoogle Wallet\nA\nApple Wallet\nS\nSamsung Wallet\nP\nPrivacy.com\nL\nLithic\nM\nMarqeta\nS\nStripe Issuing\nAI\nOpenAI\nAnthropic\nC\nCohere\nMistral AI\nG\nGroq\nPerplexity\nT\nTogether AI\nReplicate\nHugging Face\nElevenLabs\nS\nStability AI\nDeepgram\nA\nAssemblyAI\nGoogle Gemini\nF\nFireworks AI\nAzure OpenAI\nA\nAmazon Bedrock\nO\nOpenRouter\nX\nxAI\nM\nMeta\nZ\nZ.AI\nD\nDeepSeek\nN\nNvidia\nM\nMiniMax (minimax.io)\nM\nMoonshot AI\nA\nAlibaba\nB\nBaseten\nC\nCerebras\nC\nChutes\nD\nDeep Infra\nD\nDigitalOcean AI\nT\nThinking Machines\nP\nPoolside\nS\nSiliconFlow\nV\nVultr\nV\nVenice AI\nV\nVercel AI Gateway\nX\nXiaomi\nA\nAI21 Labs\nN\nNebius Token Factory\nN\nNovita AI\nS\nScaleway\nO\nOVHcloud AI Endpoints\nF\nFriendli\nU\nUpstage\nS\nSarvam AI\nS\nStepFun (Global)\nZ\nZhipu AI\nM\nMoonshot AI (China)\nA\nAlibaba (China)\nV\nVolcengine Ark\nI\nInception\nA\nArcee\nA\nAmazon Nova\nC\nClarifai\nM\nModal\nC\nCoreWeave\nC\nCrusoe\nH\nHetzner\nN\nNEAR AI Cloud\nI\nIO.NET\nG\nGMI Cloud\nT\nTinfoil\nB\nBerget.AI\nO\nOllama Cloud\nH\nHelicone\nR\nRequesty\nE\nEden AI\nP\nPoe\n3\n302.AI\nN\nNanoGPT\nK\nKilo Gateway\nL\nLLM Gateway\nA\nAbacus\nO\nOpenCode Zen\nA\nAIHubMix\nS\nSynthetic\nG\nGoogle Vertex AI\nC\nCloudflare AI Gateway\nC\nCloudflare Workers AI\nD\nDatabricks AI Gateway\nS\nSnowflake Cortex\nI\nIBM watsonx.ai\nL\nLiteLLM\nNetworking\nT\nTailscale\nCommand",
+      "fields": [],
+      "identityProviders": ["BBetter Auth", "WWorkOS", "Auth0"],
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "screen": "better-auth",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nIntegrations\nbetter-auth\nConnections\nB\nBetter Auth\n\nConfiguration · Identity\n\nDocs\n2 Connect\nBetter Auth configuration\nWhy not\n\nBrowser connection: OpenSesame has no browser connection for Better Auth. Its catalog entry names no HTTPS API a browser could call.\n\nBetter Auth documentation\nCommand",
+      "fields": [],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "catalog",
+      "text": "Skip to content\nSettings\nSettings\nGeneral\nKeybindings\nSecurity\nVaults\nFeatures\nIntegrations\nDanger\nIdentity\nEncryption\nCertificate authority\nBackups\nPassword managers\nCloud secret storage\nLocal storage\nPayments\nAI\nNetworking\nIntegrations\nIdentity\nB\nBetter Auth\nW\nWorkOS\nAuth0\nEncryption\nA\nAWS KMS\nGoogle Cloud KMS\nCertificate authority\nL\nLet's Encrypt\nBackups\nGit (any remote)\npassword-store\nGitHub\nGitLab\nBitbucket\nCodeberg\nC\nCursor Origin\nPassword managers\n1Password\nBitwarden\nVaultwarden\nI\nInfisical\nProton Pass\nP\nPasswordstate\nCloud secret storage\nA\nAWS Parameter Store\nA\nAWS Secrets Manager\nA\nAzure App Configuration\nA\nAzure Key Vault Secrets\nG\nGoogle Cloud Secret Manager\nD\nDoppler\nF\nFOKS\nB\nBitwarden Secrets Manager\nHashiCorp Vault\nO\nOpenBao\nE\nEncrypted Remote Store\nA\nAWS STS\nG\nGoogle Cloud IAM credentials\nLocal storage\nO\nOS Keychain\nKeePass\nS\nS3-compatible bucket\nPayments\nC\nCloudflare Wallet\nG\nGoogle Wallet\nA\nApple Wallet\nS\nSamsung Wallet\nP\nPrivacy.com\nL\nLithic\nM\nMarqeta\nS\nStripe Issuing\nAI\nOpenAI\nAnthropic\nC\nCohere\nMistral AI\nG\nGroq\nPerplexity\nT\nTogether AI\nReplicate\nHugging Face\nElevenLabs\nS\nStability AI\nDeepgram\nA\nAssemblyAI\nGoogle Gemini\nF\nFireworks AI\nAzure OpenAI\nA\nAmazon Bedrock\nO\nOpenRouter\nX\nxAI\nM\nMeta\nZ\nZ.AI\nD\nDeepSeek\nN\nNvidia\nM\nMiniMax (minimax.io)\nM\nMoonshot AI\nA\nAlibaba\nB\nBaseten\nC\nCerebras\nC\nChutes\nD\nDeep Infra\nD\nDigitalOcean AI\nT\nThinking Machines\nP\nPoolside\nS\nSiliconFlow\nV\nVultr\nV\nVenice AI\nV\nVercel AI Gateway\nX\nXiaomi\nA\nAI21 Labs\nN\nNebius Token Factory\nN\nNovita AI\nS\nScaleway\nO\nOVHcloud AI Endpoints\nF\nFriendli\nU\nUpstage\nS\nSarvam AI\nS\nStepFun (Global)\nZ\nZhipu AI\nM\nMoonshot AI (China)\nA\nAlibaba (China)\nV\nVolcengine Ark\nI\nInception\nA\nArcee\nA\nAmazon Nova\nC\nClarifai\nM\nModal\nC\nCoreWeave\nC\nCrusoe\nH\nHetzner\nN\nNEAR AI Cloud\nI\nIO.NET\nG\nGMI Cloud\nT\nTinfoil\nB\nBerget.AI\nO\nOllama Cloud\nH\nHelicone\nR\nRequesty\nE\nEden AI\nP\nPoe\n3\n302.AI\nN\nNanoGPT\nK\nKilo Gateway\nL\nLLM Gateway\nA\nAbacus\nO\nOpenCode Zen\nA\nAIHubMix\nS\nSynthetic\nG\nGoogle Vertex AI\nC\nCloudflare AI Gateway\nC\nCloudflare Workers AI\nD\nDatabricks AI Gateway\nS\nSnowflake Cortex\nI\nIBM watsonx.ai\nL\nLiteLLM\nNetworking\nT\nTailscale\nCommand",
+      "fields": [],
+      "identityProviders": ["BBetter Auth", "WWorkOS", "Auth0"],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "better-auth",
+      "text": "Skip to content\nSettings\nSettings\nIntegrations\nbetter-auth\nConnections\nB\nBetter Auth\n\nConfiguration · Identity\n\nDocs\n2 Connect\nBetter Auth configuration\nWhy not\n\nBrowser connection: OpenSesame has no browser connection for Better Auth. Its catalog entry names no HTTPS API a browser could call.\n\nBetter Auth documentation\nCommand",
+      "fields": [],
+      "identityProviders": [],
+      "overflow": false
+    }
+  ],
+  "log": [
+    {
+      "step": "before-1280-catalog",
+      "kind": "PASS",
+      "detail": "1280: catalog fits the viewport"
+    },
+    {
+      "step": "before-1280-better-auth",
+      "kind": "PASS",
+      "detail": "1280: better-auth fits the viewport"
+    },
+    {
+      "step": "before-390-catalog",
+      "kind": "PASS",
+      "detail": "390: catalog fits the viewport"
+    },
+    {
+      "step": "before-390-better-auth",
+      "kind": "PASS",
+      "detail": "390: better-auth fits the viewport"
+    }
+  ],
+  "failures": []
+}

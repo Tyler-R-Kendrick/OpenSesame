@@ -80,20 +80,29 @@ afterEach(() => {
 });
 
 describe("a connector page on a device with no Host", () => {
-  it("explains why unsupported Better Auth cannot be configured in a browser", async () => {
+  it("offers Better Auth session and OIDC configuration without a named Host", async () => {
     renderAt("/connections/better-auth");
     await screen.findByRole("heading", { name: "Better Auth" });
+    expect(screen.getByLabelText("Auth API base URL")).toBeTruthy();
+    expect(screen.getByLabelText("Allowed browser origin")).toHaveProperty(
+      "readOnly",
+      true,
+    );
     expect(
-      screen.queryByRole("button", {
-        name: /Save configuration|Verify and connect/,
-      }),
-    ).toBeNull();
-    expect(screen.queryByLabelText(/Base URL/)).toBeNull();
-    expect(
-      screen.getByText(
-        /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
-      ),
+      screen.getByRole("button", { name: "Save identity connection" }),
     ).toBeTruthy();
+    await userEvent.selectOptions(screen.getByLabelText("Protocol"), "oidc");
+    expect(screen.getByLabelText("Issuer URL")).toBeTruthy();
+    expect(screen.getByLabelText("Public client ID")).toBeTruthy();
+    expect(screen.getByLabelText("Redirect URI to register")).toHaveProperty(
+      "readOnly",
+      true,
+    );
+    expect(
+      screen.queryByText(
+        /OpenSesame has no browser connection for Better Auth/,
+      ),
+    ).toBeNull();
     expect(listNotices()).toEqual([]);
   });
 

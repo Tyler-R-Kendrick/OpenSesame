@@ -1,0 +1,638 @@
+{
+  "phase": "after",
+  "origin": "https://tyler-r-kendrick.github.io",
+  "base": "/OpenSesame/",
+  "metrics": [
+    {
+      "width": 1280,
+      "screen": "catalog",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nGeneral\nKeybindings\nSecurity\nVaults\nFeatures\nIntegrations\nDanger\nIntegrations\nIdentity\nB\nBYO Identity\nB\nBetter Auth\nS\nSupabase\nN\nNeon Auth\nClerk\nW\nWorkOS\nAuth0\nO\nOkta\nEncryption\nA\nAWS KMS\nGoogle Cloud KMS\nCertificate authority\nL\nLet's Encrypt\nBackups\nGit (any remote)\npassword-store\nGitHub\nGitLab\nBitbucket\nCodeberg\nC\nCursor Origin\nPassword managers\n1Password\nBitwarden\nVaultwarden\nI\nInfisical\nProton Pass\nP\nPasswordstate\nCloud secret storage\nA\nAWS Parameter Store\nA\nAWS Secrets Manager\nA\nAzure App Configuration\nA\nAzure Key Vault Secrets\nG\nGoogle Cloud Secret Manager\nD\nDoppler\nF\nFOKS\nB\nBitwarden Secrets Manager\nHashiCorp Vault\nO\nOpenBao\nE\nEncrypted Remote Store\nA\nAWS STS\nG\nGoogle Cloud IAM credentials\nLocal storage\nO\nOS Keychain\nKeePass\nS\nS3-compatible bucket\nPayments\nC\nCloudflare Wallet\nG\nGoogle Wallet\nA\nApple Wallet\nS\nSamsung Wallet\nP\nPrivacy.com\nL\nLithic\nM\nMarqeta\nS\nStripe Issuing\nAI\nOpenAI\nAnthropic\nC\nCohere\nMistral AI\nG\nGroq\nPerplexity\nT\nTogether AI\nReplicate\nHugging Face\nElevenLabs\nS\nStability AI\nDeepgram\nA\nAssemblyAI\nGoogle Gemini\nF\nFireworks AI\nAzure OpenAI\nA\nAmazon Bedrock\nO\nOpenRouter\nX\nxAI\nM\nMeta\nZ\nZ.AI\nD\nDeepSeek\nN\nNvidia\nM\nMiniMax (minimax.io)\nM\nMoonshot AI\nA\nAlibaba\nB\nBaseten\nC\nCerebras\nC\nChutes\nD\nDeep Infra\nD\nDigitalOcean AI\nT\nThinking Machines\nP\nPoolside\nS\nSiliconFlow\nV\nVultr\nV\nVenice AI\nV\nVercel AI Gateway\nX\nXiaomi\nA\nAI21 Labs\nN\nNebius Token Factory\nN\nNovita AI\nS\nScaleway\nO\nOVHcloud AI Endpoints\nF\nFriendli\nU\nUpstage\nS\nSarvam AI\nS\nStepFun (Global)\nZ\nZhipu AI\nM\nMoonshot AI (China)\nA\nAlibaba (China)\nV\nVolcengine Ark\nI\nInception\nA\nArcee\nA\nAmazon Nova\nC\nClarifai\nM\nModal\nC\nCoreWeave\nC\nCrusoe\nH\nHetzner\nN\nNEAR AI Cloud\nI\nIO.NET\nG\nGMI Cloud\nT\nTinfoil\nB\nBerget.AI\nO\nOllama Cloud\nH\nHelicone\nR\nRequesty\nE\nEden AI\nP\nPoe\n3\n302.AI\nN\nNanoGPT\nK\nKilo Gateway\nL\nLLM Gateway\nA\nAbacus\nO\nOpenCode Zen\nA\nAIHubMix\nS\nSynthetic\nG\nGoogle Vertex AI\nC\nCloudflare AI Gateway\nC\nCloudflare Workers AI\nD\nDatabricks AI Gateway\nS\nSnowflake Cortex\nI\nIBM watsonx.ai\nL\nLiteLLM\nNetworking\nT\nTailscale\nCommand",
+      "fields": [],
+      "identityProviders": [
+        "BBYO Identity",
+        "BBetter Auth",
+        "SSupabase",
+        "NNeon Auth",
+        "Clerk",
+        "WWorkOS",
+        "Auth0",
+        "OOkta"
+      ],
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "screen": "better-auth",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nIntegrations\nbetter-auth\nConnections\nB\nBetter Auth\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nEmail and password\nOpenID Connect (OIDC)\nAllowed browser origin\nAuth API base URL\nToken verification\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Allowed browser origin",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Auth API base URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Token issuer override",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Token audience override",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "JWKS URL override",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "screen": "byo-oidc",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nIntegrations\nbyo-identity\nConnections\nB\nBYO Identity\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nOpenID Connect (OIDC)\nSAML 2.0\nLDAP / Active Directory\nCookie session (Better Auth API)\nToken session (Supabase Auth API)\nRedirect URI to register\nIssuer URL\nPublic client ID\nSign-in options\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Redirect URI to register",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Issuer URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Public client ID",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Scopes",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "password",
+          "label": "Client secret (server client)",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "screen": "byo-saml",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nIntegrations\nbyo-identity\nConnections\nB\nBYO Identity\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nOpenID Connect (OIDC)\nSAML 2.0\nLDAP / Active Directory\nCookie session (Better Auth API)\nToken session (Supabase Auth API)\nAllowed browser origin\nSAML entity ID\nSAML metadata URL\nSign-in service\nIdentity service URL\nOrganization\nChoose an organization\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Allowed browser origin",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "SAML entity ID",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "SAML metadata URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Identity service URL",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Organization",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "screen": "byo-ldap",
+      "text": "Skip to content\n\nopen-sesame\n\nguest\n@\npersonal\n:/\nvault/\nsettings/\ngs\nGeneral\n-\nKeybindings\n-\nSecurity\n-\nVaults\n-\nFeatures\n-\nIntegrations\n-\nDanger\n-\nSettings\nIntegrations\nbyo-identity\nConnections\nB\nBYO Identity\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nOpenID Connect (OIDC)\nSAML 2.0\nLDAP / Active Directory\nCookie session (Better Auth API)\nToken session (Supabase Auth API)\nAllowed browser origin\nLDAP server URL\nSearch base DN\nDirectory options\nSign-in service\nIdentity service URL\nOrganization\nChoose an organization\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Allowed browser origin",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "LDAP server URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Search base DN",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Bind mode",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Bind DN template",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Search filter",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Service bind DN",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "password",
+          "label": "Service bind password",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Subject attribute",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Email attribute",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Name attribute",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Identity service URL",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Organization",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "catalog",
+      "text": "Skip to content\nSettings\nSettings\nGeneral\nKeybindings\nSecurity\nVaults\nFeatures\nIntegrations\nDanger\nIdentity\nEncryption\nCertificate authority\nBackups\nPassword managers\nCloud secret storage\nLocal storage\nPayments\nAI\nNetworking\nIntegrations\nIdentity\nB\nBYO Identity\nB\nBetter Auth\nS\nSupabase\nN\nNeon Auth\nClerk\nW\nWorkOS\nAuth0\nO\nOkta\nEncryption\nA\nAWS KMS\nGoogle Cloud KMS\nCertificate authority\nL\nLet's Encrypt\nBackups\nGit (any remote)\npassword-store\nGitHub\nGitLab\nBitbucket\nCodeberg\nC\nCursor Origin\nPassword managers\n1Password\nBitwarden\nVaultwarden\nI\nInfisical\nProton Pass\nP\nPasswordstate\nCloud secret storage\nA\nAWS Parameter Store\nA\nAWS Secrets Manager\nA\nAzure App Configuration\nA\nAzure Key Vault Secrets\nG\nGoogle Cloud Secret Manager\nD\nDoppler\nF\nFOKS\nB\nBitwarden Secrets Manager\nHashiCorp Vault\nO\nOpenBao\nE\nEncrypted Remote Store\nA\nAWS STS\nG\nGoogle Cloud IAM credentials\nLocal storage\nO\nOS Keychain\nKeePass\nS\nS3-compatible bucket\nPayments\nC\nCloudflare Wallet\nG\nGoogle Wallet\nA\nApple Wallet\nS\nSamsung Wallet\nP\nPrivacy.com\nL\nLithic\nM\nMarqeta\nS\nStripe Issuing\nAI\nOpenAI\nAnthropic\nC\nCohere\nMistral AI\nG\nGroq\nPerplexity\nT\nTogether AI\nReplicate\nHugging Face\nElevenLabs\nS\nStability AI\nDeepgram\nA\nAssemblyAI\nGoogle Gemini\nF\nFireworks AI\nAzure OpenAI\nA\nAmazon Bedrock\nO\nOpenRouter\nX\nxAI\nM\nMeta\nZ\nZ.AI\nD\nDeepSeek\nN\nNvidia\nM\nMiniMax (minimax.io)\nM\nMoonshot AI\nA\nAlibaba\nB\nBaseten\nC\nCerebras\nC\nChutes\nD\nDeep Infra\nD\nDigitalOcean AI\nT\nThinking Machines\nP\nPoolside\nS\nSiliconFlow\nV\nVultr\nV\nVenice AI\nV\nVercel AI Gateway\nX\nXiaomi\nA\nAI21 Labs\nN\nNebius Token Factory\nN\nNovita AI\nS\nScaleway\nO\nOVHcloud AI Endpoints\nF\nFriendli\nU\nUpstage\nS\nSarvam AI\nS\nStepFun (Global)\nZ\nZhipu AI\nM\nMoonshot AI (China)\nA\nAlibaba (China)\nV\nVolcengine Ark\nI\nInception\nA\nArcee\nA\nAmazon Nova\nC\nClarifai\nM\nModal\nC\nCoreWeave\nC\nCrusoe\nH\nHetzner\nN\nNEAR AI Cloud\nI\nIO.NET\nG\nGMI Cloud\nT\nTinfoil\nB\nBerget.AI\nO\nOllama Cloud\nH\nHelicone\nR\nRequesty\nE\nEden AI\nP\nPoe\n3\n302.AI\nN\nNanoGPT\nK\nKilo Gateway\nL\nLLM Gateway\nA\nAbacus\nO\nOpenCode Zen\nA\nAIHubMix\nS\nSynthetic\nG\nGoogle Vertex AI\nC\nCloudflare AI Gateway\nC\nCloudflare Workers AI\nD\nDatabricks AI Gateway\nS\nSnowflake Cortex\nI\nIBM watsonx.ai\nL\nLiteLLM\nNetworking\nT\nTailscale\nCommand",
+      "fields": [],
+      "identityProviders": [
+        "BBYO Identity",
+        "BBetter Auth",
+        "SSupabase",
+        "NNeon Auth",
+        "Clerk",
+        "WWorkOS",
+        "Auth0",
+        "OOkta"
+      ],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "better-auth",
+      "text": "Skip to content\nSettings\nSettings\nIntegrations\nbetter-auth\nConnections\nB\nBetter Auth\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nEmail and password\nOpenID Connect (OIDC)\nAllowed browser origin\nAuth API base URL\nToken verification\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Allowed browser origin",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Auth API base URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Token issuer override",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Token audience override",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "JWKS URL override",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "byo-oidc",
+      "text": "Skip to content\nSettings\nSettings\nIntegrations\nbyo-identity\nConnections\nB\nBYO Identity\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nOpenID Connect (OIDC)\nSAML 2.0\nLDAP / Active Directory\nCookie session (Better Auth API)\nToken session (Supabase Auth API)\nRedirect URI to register\nIssuer URL\nPublic client ID\nSign-in options\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Redirect URI to register",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Issuer URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Public client ID",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Scopes",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "password",
+          "label": "Client secret (server client)",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "byo-saml",
+      "text": "Skip to content\nSettings\nSettings\nIntegrations\nbyo-identity\nConnections\nB\nBYO Identity\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nOpenID Connect (OIDC)\nSAML 2.0\nLDAP / Active Directory\nCookie session (Better Auth API)\nToken session (Supabase Auth API)\nAllowed browser origin\nSAML entity ID\nSAML metadata URL\nSign-in service\nIdentity service URL\nOrganization\nChoose an organization\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Allowed browser origin",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "SAML entity ID",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "SAML metadata URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Identity service URL",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Organization",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    },
+    {
+      "width": 390,
+      "screen": "byo-ldap",
+      "text": "Skip to content\nSettings\nSettings\nIntegrations\nbyo-identity\nConnections\nB\nBYO Identity\n\nConfiguration · Identity\n\nDocs\n2 Configure identity\nConnection name\nProtocol\nOpenID Connect (OIDC)\nSAML 2.0\nLDAP / Active Directory\nCookie session (Better Auth API)\nToken session (Supabase Auth API)\nAllowed browser origin\nLDAP server URL\nSearch base DN\nDirectory options\nSign-in service\nIdentity service URL\nOrganization\nChoose an organization\nSetup guide\nSave identity connection\nCommand",
+      "fields": [
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Connection name",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Protocol",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Allowed browser origin",
+          "readonly": true
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "LDAP server URL",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Search base DN",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Bind mode",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Bind DN template",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Search filter",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Service bind DN",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "password",
+          "label": "Service bind password",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Subject attribute",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Email attribute",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "text",
+          "label": "Name attribute",
+          "readonly": false
+        },
+        {
+          "tag": "INPUT",
+          "type": "url",
+          "label": "Identity service URL",
+          "readonly": false
+        },
+        {
+          "tag": "SELECT",
+          "type": "select-one",
+          "label": "Organization",
+          "readonly": false
+        }
+      ],
+      "identityProviders": [],
+      "overflow": false
+    }
+  ],
+  "log": [
+    {
+      "step": "after-1280-catalog",
+      "kind": "PASS",
+      "detail": "1280: catalog fits the viewport"
+    },
+    {
+      "step": "after-1280-better-auth",
+      "kind": "PASS",
+      "detail": "1280: better-auth fits the viewport"
+    },
+    {
+      "step": "after-1280-better-auth",
+      "kind": "PASS",
+      "detail": "1280: better-auth configuration controls are present"
+    },
+    {
+      "step": "after-1280-byo-oidc",
+      "kind": "PASS",
+      "detail": "1280: byo-oidc fits the viewport"
+    },
+    {
+      "step": "after-1280-byo-oidc",
+      "kind": "PASS",
+      "detail": "1280: byo-oidc configuration controls are present"
+    },
+    {
+      "step": "after-1280-byo-saml",
+      "kind": "PASS",
+      "detail": "1280: byo-saml fits the viewport"
+    },
+    {
+      "step": "after-1280-byo-saml",
+      "kind": "PASS",
+      "detail": "1280: byo-saml configuration controls are present"
+    },
+    {
+      "step": "after-1280-byo-ldap",
+      "kind": "PASS",
+      "detail": "1280: byo-ldap fits the viewport"
+    },
+    {
+      "step": "after-1280-byo-ldap",
+      "kind": "PASS",
+      "detail": "1280: byo-ldap configuration controls are present"
+    },
+    {
+      "step": "after-390-catalog",
+      "kind": "PASS",
+      "detail": "390: catalog fits the viewport"
+    },
+    {
+      "step": "after-390-better-auth",
+      "kind": "PASS",
+      "detail": "390: better-auth fits the viewport"
+    },
+    {
+      "step": "after-390-better-auth",
+      "kind": "PASS",
+      "detail": "390: better-auth configuration controls are present"
+    },
+    {
+      "step": "after-390-byo-oidc",
+      "kind": "PASS",
+      "detail": "390: byo-oidc fits the viewport"
+    },
+    {
+      "step": "after-390-byo-oidc",
+      "kind": "PASS",
+      "detail": "390: byo-oidc configuration controls are present"
+    },
+    {
+      "step": "after-390-byo-saml",
+      "kind": "PASS",
+      "detail": "390: byo-saml fits the viewport"
+    },
+    {
+      "step": "after-390-byo-saml",
+      "kind": "PASS",
+      "detail": "390: byo-saml configuration controls are present"
+    },
+    {
+      "step": "after-390-byo-ldap",
+      "kind": "PASS",
+      "detail": "390: byo-ldap fits the viewport"
+    },
+    {
+      "step": "after-390-byo-ldap",
+      "kind": "PASS",
+      "detail": "390: byo-ldap configuration controls are present"
+    }
+  ],
+  "failures": []
+}
