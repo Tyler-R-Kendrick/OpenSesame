@@ -13,32 +13,23 @@
 
 import type { Integration } from "@opensesame/app-core/lib/capabilities/integrations.js";
 import { useCallback } from "react";
-import { useContributions } from "../../bindings/contributions.js";
-import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { SectionHead } from "./CapabilitySwitch.js";
 import { ProviderTiles } from "./ProviderTiles.js";
 import { WithdrawnMark } from "./SectionMarks.js";
 import {
   type DrawnIntegration,
-  MODEL_PROVIDER_PANEL,
   useIntegrationsDrawn,
 } from "./use-integrations-drawn.js";
 
 type SectionProps = {
   integration: Integration;
-  /** The model picks draw here: the feature they configure is on. */
-  models: boolean;
   /** The first section drawn: its subheader stands for the list in a tutorial. */
   first: boolean;
   sectionRef?: (element: HTMLElement | null) => void;
 };
 
-function IntegrationSection({
-  integration,
-  models,
-  first,
-  sectionRef,
-}: SectionProps) {
+function IntegrationSection({ integration, first, sectionRef }: SectionProps) {
   const ownHead = useGuideTarget<HTMLDivElement>(
     `integration.${integration.id}`,
   );
@@ -51,9 +42,6 @@ function IntegrationSection({
     [ownHead, listHead, first],
   );
   const id = `integration-${integration.id}`;
-  const ModelPanel = useContributions("settings-panel").find(
-    (panel) => panel.id === MODEL_PROVIDER_PANEL,
-  )?.Panel;
   return (
     <section
       className="conn-group capsection"
@@ -68,11 +56,6 @@ function IntegrationSection({
       >
         <WithdrawnMark backedBy={integration.backedBy} />
       </SectionHead>
-      {models && ModelPanel ? (
-        <GuideTarget id="settings.model-provider">
-          <ModelPanel />
-        </GuideTarget>
-      ) : null}
       {integration.providerCategories.map((category) => (
         <ProviderTiles
           key={category}
@@ -102,14 +85,13 @@ export function IntegrationSections() {
   const drawn: readonly DrawnIntegration[] = useIntegrationsDrawn();
   return (
     <div className="capsections" id="settings-integrations">
-      {drawn.map(({ integration, models }, index) => {
+      {drawn.map(({ integration }, index) => {
         const Section =
           integration.id === "backups" ? BackupsSection : IntegrationSection;
         return (
           <Section
             key={integration.id}
             integration={integration}
-            models={models}
             first={index === 0}
           />
         );
