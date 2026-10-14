@@ -187,7 +187,11 @@ export default defineConfig({
   build: {
     // Compress the shipped offline PWA without changing its capability graph.
     minify: "terser",
-    terserOptions: { compress: { passes: 3 } },
+    terserOptions: {
+      compress: { passes: 4, pure_getters: true },
+      format: { comments: false },
+      mangle: { toplevel: true },
+    },
     // esbuild 0.28 cannot downlevel some destructuring forms used by react-router
     // to Vite's default legacy browser set; GitHub Pages clients are modern.
     target: ["es2022", "chrome100", "firefox100", "safari15"],

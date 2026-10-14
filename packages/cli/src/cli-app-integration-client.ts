@@ -91,6 +91,6 @@ export function createCliAppIntegrationPort(): CliAppIntegrationPort {
   };
 }
 
-export function terminalSessionIdForReveal(): string {
-  return ephemeralTerminalCorrelationId();
+export async function terminalSessionIdForReveal(): Promise<string> {
+  return await ephemeralTerminalCorrelationId();
 }

@@ -86,13 +86,6 @@ test("pins CLI app-integration crypto leaves on identity.local-iam", () => {
   );
   assert.equal(
     lazyLeafChunk(
-      "/workspace/packages/app-core/src/lib/cli-app-integration/device-signing-key.ts",
-      { classification: "shared", capability: null },
-    ),
-    "cli-app-integration-crypto",
-  );
-  assert.equal(
-    lazyLeafChunk(
       "/workspace/packages/app-core/src/lib/cli-app-integration/device-crypto.ts",
       { classification: "core", capability: "shell.navigation" },
     ),

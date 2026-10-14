@@ -1,14 +1,10 @@
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
-import {
-  type BoundaryValue,
-  isJsonObject,
-  readString,
-} from "@opensesame/os-domain";
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
 import {
@@ -49,17 +45,16 @@ function blockedCopy(error: DOMException | null, fallback: string): string {
   return isDeploymentBlocked(error) ? LOAD_BLOCKED : fallback;
 }
 
-function parseFirst(body: BoundaryValue): CliAuthorizeRow | null {
-  if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
-  const entry = body.pending[0];
-  if (!isJsonObject(entry)) return null;
-  const requestId = readString(entry.requestId);
-  const terminalSessionId = readString(entry.terminalSessionId);
-  const verb = readString(entry.verb);
-  const respondNonce = readString(entry.respondNonce);
-  if (!requestId || !terminalSessionId || !verb || !respondNonce) return null;
-  return [requestId, terminalSessionId, verb, respondNonce];
-}
+const cliAuthorizePendingBodySchema = z.object({
+  pending: z.array(
+    z.object({
+      requestId: z.string(),
+      terminalSessionId: z.string(),
+      verb: z.string(),
+      respondNonce: z.string(),
+    }),
+  ),
+});
 
 function authHeaders(): Record<string, string> | null {
   const token = readCliAppIntegrationBearer();
@@ -91,7 +86,17 @@ async function loadPending(): Promise<PendingLoad> {
       },
     );
     if (!res.ok) return { row: null, loadError: LOAD_UNREADABLE };
-    return { row: parseFirst(await res.json()), loadError: null };
+    const body = cliAuthorizePendingBodySchema.safeParse(await res.json());
+    if (!body.success) return { row: null, loadError: null };
+    const entry = body.data.pending[0];
+    if (!entry) return { row: null, loadError: null };
+    const row: CliAuthorizeRow = [
+      entry.requestId,
+      entry.terminalSessionId,
+      entry.verb,
+      entry.respondNonce,
+    ];
+    return { row, loadError: null };
   } catch (error) {
     return {
       row: null,

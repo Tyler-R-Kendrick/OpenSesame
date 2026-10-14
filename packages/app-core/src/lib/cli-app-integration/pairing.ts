@@ -1,60 +1,108 @@
 /**
- * Pairing code for CLI app-integration (`spec/conformance/cli-app-integration-pairing.json`).
+ * CLI app-integration pairing wire + session bearer (ADR 0186).
+ * Conformance: `spec/conformance/cli-app-integration-pairing.json`.
  */
 
-import {
-  type BoundaryValue,
-  isJsonObject,
-  overlapCast,
-  readString,
-} from "@opensesame/os-domain";
-import { SECRET } from "../tailnet-sync/plugin-pairing.js";
+import { z } from "zod";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
-import {
-  CLI_APP_PAIRING_CHALLENGE_PATH,
-  CLI_APP_PAIRING_CONFIRM_PATH,
-  CLI_APP_PAIRING_EXCHANGE_PATH,
-  type CliAppPairingCode,
-} from "./pairing-code.js";
 
-export {
-  CLI_APP_PAIRING_CHALLENGE_PATH,
-  CLI_APP_PAIRING_CONFIRM_PATH,
-  CLI_APP_PAIRING_EXCHANGE_PATH,
-  CLI_APP_PAIRING_PREFIX,
-  type CliAppPairingCode,
-  parseCliAppPairingCode,
-} from "./pairing-code.js";
+/** 32 random bytes, unpadded base64url — same as `plugin-pairing.ts` SECRET. */
+export const CLI_APP_PAIRING_SECRET = /^[A-Za-z0-9_-]{43}$/;
+
+export const CLI_APP_PAIRING_PREFIX = "opensesame-cli-app:v1:";
+export const CLI_APP_PAIRING_EXCHANGE_PATH = "/v1/cli/app-integration/pairing";
+export const CLI_APP_PAIRING_CONFIRM_PATH =
+  "/v1/cli/app-integration/pairing/confirm";
+export const CLI_APP_PAIRING_CHALLENGE_PATH =
+  "/v1/cli/app-integration/pairing/challenge";
+
+export type CliAppPairingCode = Readonly<{
+  url: string;
+  code: string;
+  origin: string;
+  label: string;
+}>;
 
 export type CliAppPairingConfirmOutcome = Readonly<{
   registrationCode: string;
 }>;
+
+const pairingPayloadSchema = z.object({
+  code: z.string(),
+  origin: z.string(),
+  url: z.string(),
+  label: z.string(),
+});
+
+const pairingChallengeBodySchema = z.object({
+  challengeB64: z.string(),
+});
+
+const pairingConfirmBodySchema = z.object({
+  registrationCode: z.string().length(6),
+});
+
+const pairingExchangeBodySchema = z.object({
+  token: z.string(),
+});
+
+function isPairableOrigin(origin: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (url.origin !== origin || url.username || url.password) return false;
+  if (url.protocol === "https:") return !url.hostname.endsWith(".");
+  return (
+    url.protocol === "http:" && url.hostname === "localhost" && url.port !== ""
+  );
+}
 
 function daemonBase(url: string): string | null {
   const base = normalizeTailnetBase(url);
   return base && isTailnetOrLoopback(base) ? base : null;
 }
 
-function b64urlDecode(value: string): Uint8Array | null {
-  const padded = value.replaceAll("-", "+").replaceAll("_", "/");
+function decodePairingPayload(
+  text: string,
+): z.infer<typeof pairingPayloadSchema> | null {
+  const padded = text.replaceAll("-", "+").replaceAll("_", "/");
   const pad = (4 - (padded.length % 4)) % 4;
   try {
     const binary = atob(padded + "=".repeat(pad));
-    const out = new Uint8Array(binary.length);
+    const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
-      out[i] = binary.charCodeAt(i);
+      bytes[i] = binary.charCodeAt(i);
     }
-    return out;
+    const parsed = pairingPayloadSchema.safeParse(
+      JSON.parse(new TextDecoder().decode(bytes)),
+    );
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
 }
 
-export {
-  readCliAppIntegrationBearer,
-  writeCliAppIntegrationBearer,
-} from "./bearer-session.js";
+export function parseCliAppPairingCode(raw: string): CliAppPairingCode | null {
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith(CLI_APP_PAIRING_PREFIX)) return null;
+  const wire = decodePairingPayload(
+    trimmed.slice(CLI_APP_PAIRING_PREFIX.length),
+  );
+  if (!wire) return null;
+  const { code, origin, url, label } = wire;
+  if (
+    !CLI_APP_PAIRING_SECRET.test(code) ||
+    !isPairableOrigin(origin) ||
+    !daemonBase(url)
+  ) {
+    return null;
+  }
+  return { code, origin, url, label };
+}
 
 type PairingConfirmBody = Readonly<{
   code: string;
@@ -96,10 +144,10 @@ export async function fetchCliAppPairingChallenge(
     headers: { Origin: parsed.origin },
   });
   if (!res.ok) return null;
-  const body: BoundaryValue = overlapCast(await res.json());
-  if (!isJsonObject(body)) return null;
-  const challengeB64 = readString(body.challengeB64);
-  if (!challengeB64) return null;
+  const body = pairingChallengeBodySchema.safeParse(await res.json());
+  if (!body.success) return null;
+  const challengeB64 = body.data.challengeB64;
+  const { b64urlDecode } = await import("./device-crypto.js");
   const bytes = b64urlDecode(challengeB64);
   return bytes && bytes.byteLength === 32 ? bytes : null;
 }
@@ -109,11 +157,9 @@ export async function confirmCliAppPairingCode(
 ): Promise<CliAppPairingConfirmOutcome | null> {
   const base = daemonBase(parsed.url);
   if (!base) return null;
-  const [{ pairingConfirmMessage }, { ensureCliAppDeviceSigningKey }] =
-    await Promise.all([
-      import("./device-crypto.js"),
-      import("./device-signing-key.js"),
-    ]);
+  const { pairingConfirmMessage, ensureCliAppDeviceSigningKey } = await import(
+    "./device-crypto.js"
+  );
   const device = await ensureCliAppDeviceSigningKey();
   if (!device) return null;
   const challenge = await fetchCliAppPairingChallenge(parsed);
@@ -131,13 +177,9 @@ export async function confirmCliAppPairingCode(
     },
   );
   if (!res.ok) return null;
-  const body: BoundaryValue = overlapCast(await res.json());
-  if (!isJsonObject(body)) return null;
-  const registrationCode = readString(body.registrationCode);
-  if (!registrationCode || registrationCode.length !== 6) {
-    return null;
-  }
-  return { registrationCode };
+  const body = pairingConfirmBodySchema.safeParse(await res.json());
+  if (!body.success) return null;
+  return { registrationCode: body.data.registrationCode };
 }
 
 export async function exchangeCliAppPairingCode(
@@ -154,10 +196,11 @@ export async function exchangeCliAppPairingCode(
     },
   );
   if (res.status !== 201) return false;
-  const body: BoundaryValue = overlapCast(await res.json());
-  if (!isJsonObject(body)) return false;
-  const token = readString(body.token);
-  if (!token || !SECRET.test(token)) return false;
+  const body = pairingExchangeBodySchema.safeParse(await res.json());
+  if (!body.success || !CLI_APP_PAIRING_SECRET.test(body.data.token)) {
+    return false;
+  }
+  const token = body.data.token;
   writeCliAppIntegrationBearer(token);
   return true;
 }
