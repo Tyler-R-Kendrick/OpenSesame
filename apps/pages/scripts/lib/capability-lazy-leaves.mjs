@@ -82,14 +82,41 @@ const LAZY_LEAVES = [
     "cap-identity.claim-different-link",
   ],
   [
+    "/src/modules/identity.local-iam/cli-authorize-panel",
+    "identity.local-iam",
+    "cli-app-integration-crypto",
+  ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize-pairing-form",
+    "identity.local-iam",
+    "cli-app-integration-crypto",
+  ],
+  [
     "/src/modules/identity.local-iam/cli-authorize-mint-proof",
     "identity.local-iam",
-    "cli-authorize-mint",
+    "cli-app-integration-crypto",
   ],
   [
     "/src/modules/identity.local-iam/cli-authorize-proof-run",
     "identity.local-iam",
-    "cli-authorize-mint",
+    "cli-app-integration-crypto",
+  ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize-panel-model",
+    "identity.local-iam",
+    "cli-app-integration-crypto",
+  ],
+  [
+    "/src/modules/identity.local-iam/cli-authorize-net",
+    "identity.local-iam",
+    "cli-app-integration-crypto",
+  ],
+  // Device signing, oschip2 formatters, pairing confirm, and vault-session-root
+  // (dynamic vault/store) load only with the authorize sheet — one lazy chunk.
+  [
+    "/packages/app-core/src/lib/cli-app-integration/",
+    "identity.local-iam",
+    "cli-app-integration-crypto",
   ],
 ];
 
@@ -100,7 +127,18 @@ export function lazyLeafChunk(id, entry) {
     const pinSharedVaultLeaf =
       entry.classification === "shared" &&
       dir.startsWith("/packages/app-core/src/lib/vault/");
-    if (entry.capability === capability || pinSharedVaultLeaf) return name;
+    const pinSharedCliAppLeaf =
+      entry.classification === "shared" &&
+      dir.startsWith("/packages/app-core/src/lib/cli-app-integration/");
+    const pinAppCoreCliAppCrypto =
+      dir === "/packages/app-core/src/lib/cli-app-integration/";
+    if (
+      entry.capability === capability ||
+      pinSharedVaultLeaf ||
+      pinSharedCliAppLeaf ||
+      pinAppCoreCliAppCrypto
+    )
+      return name;
   }
   return undefined;
 }

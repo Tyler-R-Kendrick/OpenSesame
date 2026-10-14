@@ -3,10 +3,6 @@
  */
 
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
-import {
-  formatCliAppHumanProofPasskey,
-  formatCliAppHumanProofPin,
-} from "@opensesame/app-core/lib/cli-app-integration/human-proof-crypto.js";
 import type { VaultHeader } from "@opensesame/vault-core";
 import { WrongPasswordError } from "@opensesame/vault-core";
 
@@ -39,9 +35,10 @@ export async function mintCliAuthorizePasskeyProof(
 ): Promise<string> {
   requirePairingSecret();
   const binding = bindingFromRow(row);
-  const { approvalChallengeDigest } = await import(
-    "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
-  );
+  const {
+    approvalChallengeDigest,
+    formatCliAppHumanProofPasskey,
+  } = await import("@opensesame/app-core/lib/cli-app-integration/device-crypto.js");
   const challenge = approvalChallengeDigest(
     binding.requestId,
     binding.terminalSessionId,
@@ -108,13 +105,13 @@ export async function mintCliAuthorizePinProof(
   );
   raw.fill(0);
   requirePairingSecret();
-  const [{ approvalChallengeDigest }, { ensureCliAppDeviceSigningKey }] =
-    await Promise.all([
-      import("@opensesame/app-core/lib/cli-app-integration/device-crypto.js"),
-      import(
-        "@opensesame/app-core/lib/cli-app-integration/device-signing-key.js"
-      ),
-    ]);
+  const [
+    { approvalChallengeDigest, formatCliAppHumanProofPin },
+    { ensureCliAppDeviceSigningKey },
+  ] = await Promise.all([
+    import("@opensesame/app-core/lib/cli-app-integration/device-crypto.js"),
+    import("@opensesame/app-core/lib/cli-app-integration/device-signing-key.js"),
+  ]);
   const device = await ensureCliAppDeviceSigningKey();
   if (!device) throw new WrongPasswordError("That PIN did not work.");
   const challenge = approvalChallengeDigest(
