@@ -89,6 +89,11 @@ fi
 # OIDC on disk or a working key is enough to proceed. 403 is still reported
 # above, because the runtime secret shadows device login until it is unset.
 if [[ "$http_code" == "200" || "$oidc" -eq 1 ]]; then
+  resolve_script="$(dirname "$0")/grok-resolve-model.sh"
+  if [[ -x "$resolve_script" ]]; then
+    resolved="$("$resolve_script" 2>/dev/null || printf '%s' 'grok-4.7')"
+    printf 'grok resolved model: %s\n' "$resolved"
+  fi
   exit 0
 fi
 

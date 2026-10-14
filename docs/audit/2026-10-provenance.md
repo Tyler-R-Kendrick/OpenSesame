@@ -205,18 +205,29 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 | `e7d30760` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | point evidence README at Vercelignore tip |
 | `028c3035` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | provenance for evidence and Vercelignore commits |
 
-## Kimi vs Grok vs Cursor (Tyler, 2026-10-08)
+## Three-tier coding chain (Tyler, 2026-10-14)
 
-**Remaining automation should go through Kimi first:** run
-`scripts/dev/kimi-preflight.sh`, then `scripts/dev/kimi-headless.sh -p "…"`
-with **K3** pinned (`-m kimi-code/k3`). Auth order is OAuth from `kimi login`, else
-optional Runtime Secret `KIMI_MODEL_API_KEY` (not plain `KIMI_API_KEY`).
+**Order:** Grok Build CLI → Kimi Code CLI (K3) → Cursor. Rules:
+`.cursor/rules/grok-build-first.mdc`, `.cursor/rules/kimi-first.mdc`.
+Preflight: `scripts/dev/agent-coding-preflight.sh`.
 
-Use **Cursor Agent** only when Kimi cannot run (quota/payment/auth failure
-after preflight, or headless `-p` errors that are not fixable in-env). Record
-where and why in the PR Provenance section and any `/tmp/kimi-*.log` path.
-Grok Build stays available but was exhausted for the 2026-10 stacks above;
-prefer Kimi over re-labeling commits as Grok.
+1. **Grok Build** — `scripts/dev/grok-preflight.sh`, model
+   `$(scripts/dev/grok-resolve-model.sh)` (baseline `grok-4.7`), then
+   `scripts/dev/grok-headless.sh -p "…" -m … --always-approve --output-format json`.
+   Auth: `XAI_API_KEY` runtime secret and/or `grok login --device-code`.
+   Leave tier 1 on weekly limit, quota, 402, 403 credits, or 429.
+
+2. **Kimi Code** — when Grok is exhausted, run `scripts/dev/kimi-preflight.sh`
+   then `scripts/dev/kimi-headless.sh -p "…"` with **K3** (`-m kimi-code/k3`).
+   Auth: `kimi login` OAuth, else `KIMI_MODEL_API_KEY` (not plain `KIMI_API_KEY`).
+
+3. **Cursor** — when both CLIs cannot run. Security testing: **Grok 4.7** in
+   Cursor; other work: **Composer** / **auto**. Record tier and reason in the PR
+   Provenance section and log paths (`/tmp/grok-*.log`, `/tmp/kimi-*.log`).
+
+Historical note: Grok Build returned HTTP 402 during the 2026-10 stacks above;
+many commits labeled Author Grok were Cursor replays — see counts in this file.
+Do not re-label commits; new work follows the tier chain.
 
 Operator detail: [kimi-code-cloud.md](../operators/kimi-code-cloud.md).
 

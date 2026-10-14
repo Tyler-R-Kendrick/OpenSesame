@@ -1,6 +1,11 @@
 # Kimi Code CLI on Cursor Cloud Agents
 
-OpenSesame cloud agents use **`kimi`** (Kimi Code CLI) for delegated fix work, parallel to **`grok`** (Grok Build). The image installs the official binary; each VM still needs a one-time **Kimi Code subscription** sign-in (`kimi login`, OAuth device code — not a Kimi Open Platform API key).
+OpenSesame cloud agents use **`kimi`** (Kimi Code CLI) as **tier 2** coding
+delegation — after **Grok Build** (tier 1) exhausts weekly quota, before
+**Cursor** (tier 3). See `.cursor/rules/kimi-first.mdc` and
+`scripts/dev/agent-coding-preflight.sh`. The image installs the official
+binary; each VM still needs a one-time **Kimi Code subscription** sign-in
+(`kimi login`, OAuth device code — not a Kimi Open Platform API key).
 
 Upstream reference: [Kimi Code docs](https://moonshotai.github.io/kimi-code/) (configuration, `kimi` command, providers).
 
@@ -85,9 +90,11 @@ kimi -m kimi-code/k3 -p "List changed files" --output-format stream-json
 
 **Resume context:** print mode can attach to the working directory’s session store; for a clean one-shot fix, run from the task worktree without `-c` / `--continue` unless you intentionally want prior session state.
 
-## When Kimi is unavailable — fall back to Cursor Composer
+## When Kimi is unavailable — tier 3 (Cursor)
 
-Treat Kimi as **optional capacity**. If the probe or fix invocation fails for auth, configuration, or subscription usage, continue the task with the Cursor agent (Composer) instead of blocking.
+Use Kimi only after Grok Build (tier 1) is exhausted. If Kimi fails for auth,
+configuration, or subscription usage, continue with **Cursor (tier 3)** —
+Grok 4.7 for security testing; Composer otherwise — instead of blocking.
 
 ### Detecting failures
 
@@ -109,11 +116,17 @@ if ! kimi -m kimi-code/k3 -p "say OK" >/tmp/kimi-probe.out 2>/tmp/kimi-probe.err
 fi
 ```
 
-## Parity with Grok Build
+## Tier chain (Grok → Kimi → Cursor)
 
-| | Grok Build | Kimi Code CLI |
+| Tier | Engine | When |
+| --- | --- | --- |
+| 1 | Grok Build (`grok`) | Default coding delegation while weekly quota allows |
+| 2 | Kimi Code (`kimi`, K3) | After Grok limit / quota errors |
+| 3 | Cursor | After both CLIs unavailable |
+
+| | Grok Build (tier 1) | Kimi Code CLI (tier 2) |
 | --- | --- | --- |
 | Binary | `grok` | `kimi` |
-| Auth | Cursor secret `XAI_API_KEY` | `kimi login` (device code) |
-| Headless | `grok -p "…" --always-approve --output-format json` | `kimi -m kimi-code/k3 -p "…"` |
-| Default model | Grok deployment via API key | `default_model = "kimi-code/k3"` or `-m kimi-code/k3` |
+| Auth | Cursor secret `XAI_API_KEY` / device OAuth | `kimi login` (device code) |
+| Headless | `grok-headless.sh -p "…" --always-approve --output-format json` | `kimi-headless.sh -p "…"` |
+| Default model | `grok-resolve-model.sh` (≥ `grok-4.7`) | `kimi-code/k3` |
