@@ -23,6 +23,16 @@ function isDeploymentIssuer(
   );
 }
 
+/** The tenant claim fence also applies to native, non-dereferenced entityIDs. */
+export function issuerClaimConfigurationError(
+  config: ControlPlaneConfig,
+  value: string | null | undefined,
+): string | undefined {
+  return value && isDeploymentIssuer(config, value)
+    ? "An organization cannot claim this deployment's own issuer."
+    : undefined;
+}
+
 /**
  * Refuse an issuer this deployment must not dereference or defer to (T21).
  *
@@ -38,9 +48,8 @@ export function issuerConfigurationError(
   value: string | null | undefined,
 ): string | undefined {
   if (!value) return undefined;
-  if (isDeploymentIssuer(config, value)) {
-    return "An organization cannot claim this deployment's own issuer.";
-  }
+  const claimError = issuerClaimConfigurationError(config, value);
+  if (claimError) return claimError;
   if (config.allowDevDefaults) return undefined;
   try {
     assertPublicUpstreamUrl(value);
@@ -49,4 +58,37 @@ export function issuerConfigurationError(
     if (error instanceof UnsafeUpstreamError) return error.message;
     throw error;
   }
+}
+
+/** Validate the merged native metadata or legacy OIDC-broker configuration. */
+export function samlConfigurationError(
+  config: ControlPlaneConfig,
+  upstream: {
+    issuer: string | undefined;
+    metadataUrl: string | undefined;
+    metadataXml: string | undefined;
+  },
+):
+  | { error: "validation_error" | "unsafe_issuer"; message: string }
+  | undefined {
+  if (upstream.metadataUrl && upstream.metadataXml) {
+    return {
+      error: "validation_error",
+      message: "samlMetadataUrl and samlMetadataXml are mutually exclusive",
+    };
+  }
+  const native = Boolean(upstream.metadataUrl || upstream.metadataXml);
+  if (!native && upstream.issuer?.toLowerCase().startsWith("urn:")) {
+    return {
+      error: "validation_error",
+      message:
+        "A SAML entity URN requires IdP metadata. Legacy SAML brokers must use an http(s) issuer.",
+    };
+  }
+  const unsafe =
+    (native
+      ? issuerClaimConfigurationError(config, upstream.issuer)
+      : issuerConfigurationError(config, upstream.issuer)) ??
+    issuerConfigurationError(config, upstream.metadataUrl);
+  return unsafe ? { error: "unsafe_issuer", message: unsafe } : undefined;
 }
