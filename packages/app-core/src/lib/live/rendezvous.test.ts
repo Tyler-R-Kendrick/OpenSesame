@@ -24,6 +24,9 @@ import type { LiveTransport } from "./transport.js";
 
 const SECRET = "correct horse battery staple";
 const github = plainAccount("GitHub", SECRET);
+/** Long enough not to appear by chance inside base64url frame chunks. */
+const WIRE_NAME_PROBE =
+  "plaintext-wire-probe-open-live-carrier-Z9k2mNp4rQx7vL8wH3jF6n";
 
 async function settle(rounds = 80): Promise<void> {
   for (let round = 0; round < rounds; round += 1)
@@ -179,7 +182,7 @@ describe("a session paired over a carrier", () => {
     const guest = await joinLive({
       link: owner.link,
       code: null,
-      name: "Ada",
+      name: WIRE_NAME_PROBE,
       note: "",
       transport: net.transports(),
       useRoutes: true,
@@ -188,18 +191,28 @@ describe("a session paired over a carrier", () => {
     await settle();
     expect(guest.status.at).toBe("joined");
     expect(owner.state.guests[0]).toMatchObject({
-      name: "Ada",
+      name: WIRE_NAME_PROBE,
       state: "joined",
     });
     expect(await guest.request("reveal", github.id, "password")).toBe(SECRET);
     // What crossed the service: framed, sealed, on the link's own topic.
     const topic = await carrierTopic(owner.link.secret);
     expect(bus.seen.every((entry) => entry.topic === topic)).toBe(true);
-    const everything = bus.seen.map((entry) => entry.frame).join("\n");
-    // Short display names can appear as substrings inside sealed base64 by chance;
-    // pairing seals are covered in pairing tests. Wire checks target SDP and secrets.
+    const frames = bus.seen.map((entry) => entry.frame);
+    const wire = frames.join("\n");
+    const jsonNameLeak = `"name":"${WIRE_NAME_PROBE}"`;
+    const reassembler = new Reassembler();
+    const assembled: string[] = [];
+    for (const frame of frames) {
+      const code = reassembler.push(frame);
+      if (code !== null) assembled.push(code);
+    }
+    for (const blob of [wire, ...assembled]) {
+      expect(blob).not.toContain(WIRE_NAME_PROBE);
+      expect(blob).not.toContain(jsonNameLeak);
+    }
     for (const plain of ["v=0", "a=fake", owner.link.secret, SECRET])
-      expect(everything).not.toContain(plain);
+      expect(wire).not.toContain(plain);
   });
 
   it("an invite session still waits for the owner, then carries the reply", async () => {
