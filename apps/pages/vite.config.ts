@@ -12,7 +12,10 @@ import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
-import { tailscaleWasmAssets } from "./scripts/tailscale-wasm-assets.mjs";
+import {
+  tailscaleWasmAssets,
+  tailscaleWorkerFileName,
+} from "./scripts/tailscale-wasm-assets.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -253,7 +256,12 @@ export default defineConfig({
   // as a bare `error` event with no message. Emitting real ES modules is
   // what makes a module worker start at all. Every target engine here
   // (Chrome 100, Firefox 100, Safari 15) supports module workers.
-  worker: { format: "es" },
+  worker: {
+    format: "es",
+    rollupOptions: {
+      output: { entryFileNames: tailscaleWorkerFileName },
+    },
+  },
   plugins: [
     nativeClientMetadataPlugin(base),
     githubAppRelayPlugin(),
