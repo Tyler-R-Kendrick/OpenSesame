@@ -76,6 +76,7 @@ export function openTailscaleApp(
   saved: SavedTailscaleApp,
   tomb: string,
 ): TailscaleApp {
+  assertTailscaleAppCurrent(saved);
   if (saved.vaultTomb !== tomb)
     throw new Error("Open the vault that owns this Tailscale app.");
   const credentials = readVaultCredentials(
@@ -87,16 +88,16 @@ export function openTailscaleApp(
   const clientSecret = credentials.fields.get("clientSecret");
   if (!clientSecret)
     throw new Error("The Tailscale app credential is unavailable.");
-  return {
+  const app: TailscaleApp = {
     id: saved.id,
     name: saved.name,
     clientSecret,
     redirectURIs: saved.redirectURIs,
     scopes: saved.scopes,
-    ...(saved.allowedNodeAttributes
-      ? { allowedNodeAttributes: saved.allowedNodeAttributes }
-      : {}),
   };
+  if (saved.allowedNodeAttributes)
+    app.allowedNodeAttributes = saved.allowedNodeAttributes;
+  return app;
 }
 export async function saveTailscaleApp(
   config: TailscaleAppConfiguration,
@@ -168,23 +169,35 @@ export async function forgetTailscaleApp(
   check();
   if (saved.vaultTomb !== tomb)
     throw new Error("Open the vault that owns this Tailscale app.");
-  const capture = readVaultCredentials(
-    saved.credentialReference,
-    binding(saved, saved.id),
-    ["clientSecret"],
-    tomb,
-  );
+  await initializeVaultCredentialCustody();
+  const assertCurrentScope = () =>
+    assertVaultCredentials({ items: [] }, tomb, check);
+  assertCurrentScope();
+  let capture: ReturnType<typeof readVaultCredentials> | null = null;
+  try {
+    capture = readVaultCredentials(
+      saved.credentialReference,
+      binding(saved, saved.id),
+      ["clientSecret"],
+      tomb,
+    );
+  } catch {
+    assertCurrentScope();
+  }
   await removeDeviceConfigurationDurable(
     saved.connectionId,
     () => {
-      check();
+      assertCurrentScope();
       const current = readTailscaleApp(saved.connectionId);
       if (!current || canonicalize(current) !== canonicalize(saved))
         throw new Error("The Tailscale configuration changed; reload it.");
     },
-    check,
+    assertCurrentScope,
   );
-  await discardVaultCredentials(capture, tomb, check);
+  if (capture)
+    await discardVaultCredentials(capture, tomb, assertCurrentScope).catch(
+      assertCurrentScope,
+    );
 }
 
 export function assertTailscaleAppCurrent(saved: SavedTailscaleApp): void {
