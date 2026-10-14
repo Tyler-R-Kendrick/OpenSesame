@@ -15,11 +15,14 @@ use std::net::SocketAddr;
 use crate::peer_auth::UdsConnectInfo;
 use crate::{App, UdsPeer};
 
-use super::auth::{bearer, origin_of, pairing_error, require_paired_caller};
+use super::auth::{bearer, origin_of, require_paired_caller};
+use super::now_millis;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EnsureReq {
+    /// Present on the wire; session id is derived from UDS peer or TCP connect info.
+    #[allow(dead_code)]
     terminal_session_id: String,
     verb: String,
     reference: Option<String>,
@@ -41,21 +44,18 @@ fn terminal_session_for_ensure(
     tcp_peer: Option<ConnectInfo<SocketAddr>>,
 ) -> (String, bool) {
     #[cfg(unix)]
-    if let Some(Extension(ConnectInfo(UdsConnectInfo(cred)))) = uds.as_ref() {
-        if let Some(cred) = cred {
-            if let Some(derived) = session_id_from_pid(cred.pid) {
-                return (derived, true);
-            }
+    if let Some(Extension(ConnectInfo(UdsConnectInfo(Some(cred))))) = uds.as_ref() {
+        if let Some(derived) = session_id_from_pid(cred.pid) {
+            return (derived, true);
         }
     }
-    let peer_key = tcp_peer
-        .map(|ConnectInfo(addr)| format!("tcp:{addr}"))
-        .unwrap_or_else(|| {
-            format!(
-                "tcp:anon-{}",
-                chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-            )
-        });
+    let peer_key = match tcp_peer {
+        Some(ConnectInfo(addr)) => format!("tcp:{addr}"),
+        None => format!(
+            "tcp:anon-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
+        ),
+    };
     let (id, _) = host.terminal_session_for_tcp(&peer_key);
     (id, false)
 }
@@ -64,12 +64,12 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
     let uds: UdsPeer = request
         .extensions()
         .get::<ConnectInfo<UdsConnectInfo>>()
-        .cloned()
+        .copied()
         .map(Extension);
     let tcp_peer = request
         .extensions()
         .get::<ConnectInfo<SocketAddr>>()
-        .cloned();
+        .copied();
     let Json(req) = match Json::<EnsureReq>::from_request(request, &()).await {
         Ok(json) => json,
         Err(rejection) => return rejection.into_response(),
@@ -78,8 +78,7 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    host.store
-        .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
+    host.store.set_now_ms(now_millis());
     let (terminal_session_id, reuse) = terminal_session_for_ensure(&mut host, &uds, tcp_peer);
     let (status, request_id) = host.store.ensure(
         &terminal_session_id,
@@ -98,8 +97,7 @@ pub(crate) async fn pending(State(st): State<App>, headers: HeaderMap) -> Respon
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    host.store
-        .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
+    host.store.set_now_ms(now_millis());
     let rows = host
         .store
         .list_pending()
@@ -129,8 +127,7 @@ pub(crate) async fn respond(
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    host.store
-        .set_now_ms(chrono::Utc::now().timestamp_millis() as u64);
+    host.store.set_now_ms(now_millis());
     let (Some(origin), Some(token)) = (origin_of(&headers), bearer(&headers)) else {
         return (
             StatusCode::UNAUTHORIZED,

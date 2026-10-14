@@ -3,16 +3,14 @@
 use base64::Engine as _;
 use ecdsa::signature::Verifier;
 use p256::ecdsa::{Signature, VerifyingKey};
-use p256::elliptic_curve::pkcs8::EncodePublicKey;
 use p256::pkcs8::DecodePublicKey;
-use p256::PublicKey;
 use sha2::{Digest, Sha256};
 
 pub const PAIRING_CONFIRM_LABEL: &[u8] = b"opensesame-cli-app-pairing-confirm.v1";
 pub const APPROVAL_CHALLENGE_LABEL: &[u8] = b"opensesame-cli-app-approval.v1";
 pub const DAEMON_ATTEST_LABEL: &[u8] = b"opensesame-cli-app-daemon-attest.v1";
 
-/// SHA-256 over the frozen approval binding (WebAuthn challenge + ECDSA message).
+/// SHA-256 over the frozen approval binding (`WebAuthn` challenge + ECDSA message).
 #[must_use]
 pub fn approval_challenge_digest(
     request_id: &str,
@@ -44,8 +42,12 @@ pub fn pairing_confirm_message(challenge: &[u8], code: &str, origin: &str) -> Ve
     msg
 }
 
+#[cfg(any(test, feature = "test-seams"))]
+#[allow(dead_code)] // `test-seams` is enabled for the daemon crate; unit tests are the callers.
 #[must_use]
 pub fn verifying_key_spki_b64(verifying_key: &VerifyingKey) -> String {
+    use p256::elliptic_curve::pkcs8::EncodePublicKey;
+    use p256::PublicKey;
     let public_key = PublicKey::from(*verifying_key);
     let der = public_key
         .to_public_key_der()

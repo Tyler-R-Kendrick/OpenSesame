@@ -70,9 +70,11 @@ pub struct WebAuthnCredential {
 
 #[derive(Clone, Debug)]
 struct PairedPage {
+    #[allow(dead_code)]
     id: String,
     token_sha256: String,
     origin: String,
+    #[allow(dead_code)]
     paired_at: u64,
     device_public_key_spki_b64: String,
     webauthn: Option<WebAuthnCredential>,
@@ -108,6 +110,10 @@ pub struct CliAppIntegrationPairings {
 
 impl CliAppIntegrationPairings {
     /// Record a one-time code for `origin`; the code is returned once.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when the origin is invalid or the pending queue is full.
     pub fn issue(&mut self, origin: &str, now: u64) -> Result<(String, u64), PairingError> {
         if !is_pairable_origin(origin) {
             return Err(PairingError::InvalidOrigin);
@@ -133,6 +139,10 @@ impl CliAppIntegrationPairings {
     }
 
     /// Pages calls this after a person confirms the printed code while the vault is unlocked.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when the code, origin, or pairing signature is invalid.
     pub fn confirm(
         &mut self,
         code: &str,
@@ -170,6 +180,10 @@ impl CliAppIntegrationPairings {
     }
 
     /// Operator CLI arms the registration code before the PWA may exchange (first pairing).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when no pending pairing matches or the registration code differs.
     pub fn arm_registration(
         &mut self,
         origin: &str,
@@ -196,6 +210,11 @@ impl CliAppIntegrationPairings {
         Ok(())
     }
 
+    /// Exchange a confirmed pairing code for a bearer token.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when the code is unknown, expired, or not ready to exchange.
     pub fn exchange(&mut self, code: &str, origin: &str, now: u64) -> Result<Issued, PairingError> {
         let digest = digest_hex(code);
         let found = find_digest(self.pending.iter().map(|p| p.code_sha256.as_str()), &digest);
@@ -256,6 +275,11 @@ impl CliAppIntegrationPairings {
             })
     }
 
+    /// Attach a `WebAuthn` credential to an existing bearer pairing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError::Unknown`] when the bearer or public key is invalid.
     pub fn register_webauthn(
         &mut self,
         token: &str,
@@ -345,6 +369,7 @@ impl CliAppIntegrationPairings {
     }
 
     /// Challenge for the unlocked PWA to sign during pairing confirm (origin must match).
+    #[must_use]
     pub fn pairing_challenge_for_confirm(
         &self,
         code: &str,
@@ -366,6 +391,7 @@ impl CliAppIntegrationPairings {
     }
 
     #[cfg(any(test, feature = "test-seams"))]
+    #[must_use]
     pub fn pairing_challenge_for_code(
         &self,
         code: &str,

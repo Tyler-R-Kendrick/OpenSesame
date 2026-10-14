@@ -10,6 +10,8 @@ use crate::peer_auth::UdsConnectInfo;
 use crate::App;
 use std::net::SocketAddr;
 
+use super::now_unix;
+
 fn ensure_body(terminal_session_id: &str) -> String {
     serde_json::json!({
         "terminalSessionId": terminal_session_id,
@@ -19,7 +21,7 @@ fn ensure_body(terminal_session_id: &str) -> String {
 }
 
 fn pair_browser(app: &App, origin: &str) -> String {
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     test_support::pair_browser_for_tests(
         &mut app.cli_app_integration.lock().unwrap().pairings,
         origin,
@@ -232,7 +234,7 @@ async fn persona_attack_chain_is_refused() {
     let (app, state) = test_router("http://127.0.0.1:8787");
     let legit_origin = "http://localhost:5180";
     let forged_origin = "https://attacker.github.io";
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let (code, _) = state
         .cli_app_integration
         .lock()

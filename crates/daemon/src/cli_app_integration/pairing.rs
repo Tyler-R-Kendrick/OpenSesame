@@ -13,6 +13,7 @@ use sha2::Digest;
 use crate::{require_operator, App, UdsPeer};
 
 use super::auth::{bearer, origin_of, pairing_error};
+use super::now_unix;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -64,7 +65,7 @@ pub(crate) async fn pairing_challenge(
     let Some(origin) = origin_of(&headers).filter(|o| is_pairable_origin(o)) else {
         return pairing_error(StatusCode::FORBIDDEN, "origin_required");
     };
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -92,7 +93,7 @@ pub(crate) async fn pairing_confirm(
     let Some(origin) = origin_of(&headers).filter(|o| is_pairable_origin(o)) else {
         return pairing_error(StatusCode::FORBIDDEN, "origin_required");
     };
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -109,17 +110,17 @@ pub(crate) async fn pairing_confirm(
             Json(json!({ "registrationCode": outcome.registration_code })),
         )
             .into_response(),
-        Err(PairingError::WrongOrigin) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
-        Err(PairingError::InvalidProof) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
-        Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
-        Err(PairingError::Full | PairingError::NotConfirmed) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
-        Err(PairingError::RegistrationRequired | PairingError::RegistrationMismatch) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
+        Err(
+            PairingError::WrongOrigin
+            | PairingError::InvalidProof
+            | PairingError::Unknown
+            | PairingError::Expired
+            | PairingError::InvalidOrigin
+            | PairingError::Full
+            | PairingError::NotConfirmed
+            | PairingError::RegistrationRequired
+            | PairingError::RegistrationMismatch,
+        ) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
     }
 }
 
@@ -131,7 +132,7 @@ pub(crate) async fn pairing_exchange(
     let Some(origin) = origin_of(&headers).filter(|o| is_pairable_origin(o)) else {
         return pairing_error(StatusCode::FORBIDDEN, "origin_required");
     };
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -146,21 +147,21 @@ pub(crate) async fn pairing_exchange(
             })),
         )
             .into_response(),
-        Err(PairingError::WrongOrigin) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
-        Err(PairingError::Unknown | PairingError::Expired | PairingError::InvalidOrigin) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
         Err(PairingError::NotConfirmed) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_confirm_required")
         }
         Err(PairingError::RegistrationRequired) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_registration_required")
         }
-        Err(PairingError::RegistrationMismatch) => {
-            pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
-        }
-        Err(PairingError::InvalidProof) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
         Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
+        Err(
+            PairingError::WrongOrigin
+            | PairingError::Unknown
+            | PairingError::Expired
+            | PairingError::InvalidOrigin
+            | PairingError::RegistrationMismatch
+            | PairingError::InvalidProof,
+        ) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
     }
 }
 
@@ -203,7 +204,7 @@ pub(crate) async fn pairing_arm_registration(
     if !is_pairable_origin(&body.origin) {
         return pairing_error(StatusCode::BAD_REQUEST, "invalid_origin");
     }
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
@@ -253,7 +254,7 @@ pub(crate) async fn pairing_issue_operator(
     if !is_pairable_origin(&body.origin) {
         return pairing_error(StatusCode::BAD_REQUEST, "invalid_origin");
     }
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
