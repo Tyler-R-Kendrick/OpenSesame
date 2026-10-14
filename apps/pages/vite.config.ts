@@ -12,6 +12,7 @@ import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
+import { tailscaleWasmAssets } from "./scripts/tailscale-wasm-assets.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -258,6 +259,7 @@ export default defineConfig({
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
+    tailscaleWasmAssets(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
       // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
@@ -317,7 +319,7 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2,json}"],
+        globPatterns: ["**/*.{js,wasm,gz,css,html,svg,ico,webp,woff2,json}"],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },
