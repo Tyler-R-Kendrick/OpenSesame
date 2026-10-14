@@ -32,10 +32,11 @@ export async function saveValidationFixture(
   expiresAt = Date.now() + 4 * 60 * 60_000,
 ): Promise<string> {
   const fingerprint = "a".repeat(64);
+  const verifiedAt = Date.now();
   const privateState = emptyNativePrivate();
   privateState.verification = {
     fingerprint,
-    verifiedAt: Date.now(),
+    verifiedAt,
     kind: "provider",
   };
   privateState.grants.user = {
@@ -69,7 +70,7 @@ export async function saveValidationFixture(
       configuration,
       privateState,
       runtime: {
-        verifiedAt: Date.now(),
+        verifiedAt,
         identity: {
           id: "12345",
           label: "Engineer",

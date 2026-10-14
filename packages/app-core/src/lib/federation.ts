@@ -15,7 +15,14 @@ import { page } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
 import { parseAuthCallback } from "./federation-callback.js";
+import {
+  applyConfiguredIdentityNonce,
+  configuredIdentityNonce,
+  configuredIdentitySessionTrusted,
+  verifyConfiguredIdentityToken,
+} from "./federation-configured-token.js";
 import { FederationError } from "./federation-error.js";
+import { isOperatorIdpIssuer } from "./federation-operator.js";
 import {
   originCallbackUri,
   originClientId,
@@ -39,7 +46,10 @@ import {
 } from "./identity.js";
 import { rememberLastSignIn } from "./last-sign-in.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
-import { type OperatorIdp, signInMethods } from "./settings.js";
+export {
+  operatorUpstream,
+  isOperatorIdpIssuer,
+} from "./federation-operator.js";
 
 export { FederationError } from "./federation-error.js";
 export {
@@ -73,6 +83,8 @@ export type TrustedUpstream = {
    * `aud` claim is checked against (ADR 0078).
    */
   clientId?: string;
+  scope?: string;
+  providerHint?: string;
   /**
    * Compiled OIDC endpoints. A static page cannot discover these when the
    * broker omits CORS on `/.well-known/openid-configuration` (shoo.dev serves
@@ -147,45 +159,6 @@ function defaultUpstreamDefault(): TrustedUpstream {
 
 export function upstreamByIssuer(issuer: string): TrustedUpstream | undefined {
   return TRUSTED_UPSTREAMS.find((u) => u.issuer === issuer);
-}
-
-/**
- * One operator-configured provider, as an upstream this app runs the code flow
- * against directly (ADR 0078).
- *
- * This is the road that makes an external IdP *be* the identity service. It
- * needs no OpenSesame identity service behind it: the browser is a public
- * OAuth client, PKCE binds the exchange, and the provider's own discovery
- * document supplies every endpoint. Its `clientId` is whatever the operator
- * registered for this origin at their provider — configuration, never a
- * credential, and useless without the redirect URI it is bound to.
- */
-export function operatorUpstream(idp: OperatorIdp): TrustedUpstream {
-  return {
-    id: `operator:${idp.issuer}`,
-    displayName: idp.label,
-    issuer: idp.issuer,
-    accountKind: idp.label,
-    clientId: idp.clientId,
-  };
-}
-
-/**
- * An operator's own provider is a trusted issuer for this deployment.
- *
- * `TRUSTED_UPSTREAMS` is compiled in because a *runtime-discovered* issuer
- * must never become trusted by completing a flow (ADR 0033 §2). This is the
- * other case: an issuer the operator durably configured, which is the same
- * trust relationship the configured Identity API already has in
- * `isBrokeredIssuer` — somebody with the deployment's settings said "this one
- * speaks for my users". It admits exactly the stored issuers, never whatever a
- * response happens to claim.
- */
-export function isOperatorIdpIssuer(issuer: string): boolean {
-  const wanted = trimSlashes(issuer);
-  return signInMethods().providers.some(
-    (idp) => trimSlashes(idp.issuer) === wanted,
-  );
 }
 
 function trimSlashes(value: string): string {
@@ -300,7 +273,7 @@ export async function discover(issuer: string): Promise<OidcDiscovery> {
     );
   }
   return {
-    issuer,
+    issuer: isString(doc.issuer) ? doc.issuer : issuer,
     authorization_endpoint: doc.authorization_endpoint,
     token_endpoint: doc.token_endpoint,
     jwks_uri: doc.jwks_uri,
@@ -373,10 +346,13 @@ async function beginSignInDefault(
   const discovery = await discoveryFor(upstream);
   const { verifier, challenge } = await createPkce();
   const state = randomString(16);
+  const nonce = configuredIdentityNonce(upstream.id);
   // An operator's own provider needs a subject and a name to be worth signing
   // in with; the origin-profile brokers have always answered `openid` alone.
   const scope =
-    options.scope ?? (upstream.clientId ? "openid profile email" : "openid");
+    options.scope ??
+    upstream.scope ??
+    (upstream.clientId ? "openid profile email" : "openid");
   // Brokered legs return to the Identity API's registered canonical callback;
   // direct legs to the app base the loopback/mock brokers accept — which is
   // also the URI an operator registers at their own provider.
@@ -387,9 +363,10 @@ async function beginSignInDefault(
 
   storePending({
     upstreamId: upstream.id,
-    issuer: upstream.issuer,
+    issuer: discovery.issuer,
     verifier,
     state,
+    nonce,
     tokenEndpoint: discovery.token_endpoint,
     jwksUri: discovery.jwks_uri,
     scope,
@@ -405,6 +382,7 @@ async function beginSignInDefault(
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", returnUri);
   url.searchParams.set("state", state);
+  applyConfiguredIdentityNonce(url, nonce);
   url.searchParams.set("code_challenge", challenge);
   url.searchParams.set("code_challenge_method", "S256");
   if (upstream.protocol === "shoo") {
@@ -418,11 +396,12 @@ async function beginSignInDefault(
   } else {
     url.searchParams.set("response_type", "code");
     url.searchParams.set("scope", scope);
-    if (options.providerHint) {
+    const providerHint = options.providerHint ?? upstream.providerHint;
+    if (providerHint) {
       // Both names, because the hosted login page reads either one and the
       // SDK has always sent both.
-      url.searchParams.set("kc_idp_hint", options.providerHint);
-      url.searchParams.set("login_hint_provider", options.providerHint);
+      url.searchParams.set("kc_idp_hint", providerHint);
+      url.searchParams.set("login_hint_provider", providerHint);
     }
     if (options.loginHint)
       url.searchParams.set("login_hint", options.loginHint);
@@ -622,6 +601,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     );
   }
 
+  await verifyConfiguredIdentityToken(tokens.id_token, pending, pinned.jwksUri);
   const identity = readIdentity(tokens.id_token, pending, pinned.jwksUri);
   // "We actually have an authorized user": where the broker offers a session
   // check (shoo does; its JWKS serves no CORS, so this is the one signature-
@@ -719,15 +699,7 @@ async function adoptBrokeredSessionDefault(
   return session;
 }
 
-/**
- * Claims are checked; the signature is not re-checked here. The token arrived
- * over TLS directly from the compiled token endpoint, or from a URL on the
- * issuer origin, in response to this tab's own PKCE-bound request. That is
- * the case OpenID Connect Core §3.1.3.7 allows to skip signature validation
- * for. The pending record does not choose that URL. Relying parties are in a
- * different position — they receive it second-hand — and must verify it
- * properly (§3 of the wire contract).
- */
+/** Read claims after configured signature validation or a compiled broker's pinned TLS exchange. */
 function readIdentity(
   idToken: string,
   pending: PendingAuth,
@@ -854,7 +826,7 @@ function loadSessionDefault(): UpstreamIdentity | null {
   const raw = readFederationSessionJson();
   if (!raw) return null;
   const identity = readStoredSessionSync(raw, issuerIsTrusted);
-  if (!identity) {
+  if (!identity || !configuredIdentitySessionTrusted(identity)) {
     clearSessionDefault();
     return null;
   }

@@ -25,6 +25,7 @@ export type PendingAuth = {
   sessionCheckEndpoint?: string | undefined;
   redirectUri?: string;
   clientId?: string;
+  nonce?: string | undefined;
   returnTo?: string | undefined;
   orgSlug?: string | undefined;
   orgMethod?: "sso" | "saml" | undefined;
@@ -76,6 +77,7 @@ function applyOptionalPendingFields(
   if (isString(raw.redirectUri)) {
     pending.redirectUri = raw.redirectUri;
   }
+  if (isString(raw.nonce) && raw.nonce.length >= 8) pending.nonce = raw.nonce;
   if (isString(raw.clientId)) {
     pending.clientId = raw.clientId;
   }

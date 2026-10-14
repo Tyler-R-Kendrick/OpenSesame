@@ -226,7 +226,7 @@ describe("discover", () => {
     const spy = stubDiscovery(doc);
     const result = await discover("http://127.0.0.1:9090/");
     expect(result.token_endpoint).toBe(doc.token_endpoint);
-    expect(result.issuer).toBe("http://127.0.0.1:9090/");
+    expect(result.issuer).toBe(doc.issuer);
     expect(String(spy.mock.calls[0]?.[0])).toBe(
       "http://127.0.0.1:9090/.well-known/openid-configuration",
     );
