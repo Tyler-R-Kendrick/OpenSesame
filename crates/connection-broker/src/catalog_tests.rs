@@ -3,15 +3,15 @@ use super::*;
 #[test]
 fn embedded_catalog_is_valid_and_versioned() {
     let catalog = load().expect("embedded catalog");
-    assert_eq!(catalog.revision(), "2026-10-14.2");
-    assert_eq!(catalog.providers().len(), 185);
+    assert_eq!(catalog.revision(), "2026-10-14.3");
+    assert_eq!(catalog.providers().len(), 186);
     assert_eq!(
         catalog
             .providers()
             .iter()
             .filter(|provider| provider.id != "mock")
             .count(),
-        184
+        185
     );
     assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
 }
@@ -45,6 +45,23 @@ fn browser_secret_store_rows_do_not_rewrite_host_provider_credentials() {
             "Host credential changed for {id}"
         );
     }
+}
+
+#[test]
+fn byo_ai_has_no_static_endpoint_or_delegated_protocol() {
+    let catalog = load().expect("embedded catalog");
+    let provider = catalog.find("byo-ai").expect("BYO AI");
+    assert_eq!(provider.category, Category::AiModelProvider);
+    assert!(matches!(provider.auth, AuthMethod::Configuration));
+    let api = provider.model_api.as_ref().expect("model API descriptor");
+    assert_eq!(api.protocol, ModelProtocol::RestJson);
+    assert_eq!(api.base_url, None);
+    assert_eq!(provider.egress.scheme, "none");
+    assert!(provider.egress.authorities.is_empty());
+    assert_eq!(provider.operations, ["ai.configure"]);
+    assert!(provider.connection_configuration_fields().iter().any(|field| {
+        field.name == "api_key" && field.secret && !field.required
+    }));
 }
 
 #[test]
