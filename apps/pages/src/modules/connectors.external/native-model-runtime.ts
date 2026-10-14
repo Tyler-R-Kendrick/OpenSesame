@@ -1,3 +1,5 @@
+import { executeAiDelegatedRequest } from "@opensesame/app-core/lib/ai-connections/delegation.js";
+import { readAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 /** Only External connectors reads native authority and attaches model provider credentials. */
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import {
@@ -12,14 +14,20 @@ import type { Activation } from "../activation.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
 function modelConnection(id: string): HostedModelConnection | null {
   const view = readNativeConnector(id);
-  return view
-    ? {
-        connectionId: id,
-        providerId: view.providerId,
-        status: view.status,
-        method: view.configuration.method,
-      }
-    : null;
+  const ai = readAiConnection(id);
+  if (!view) return null;
+  const connection: HostedModelConnection = {
+    connectionId: id,
+    providerId: view.providerId,
+    status: view.status,
+    method: view.configuration.method,
+  };
+  if (ai) {
+    connection.model = ai.model;
+    connection.endpoint = ai.baseUrl;
+    connection.name = ai.name;
+  }
+  return connection;
 }
 export function bindNativeModelRuntime(activation: Activation): void {
   const captured = nativeProviderTransport();
@@ -55,8 +63,23 @@ export function bindNativeModelRuntime(activation: Activation): void {
           return view ? [view] : [];
         });
       },
-      execute: (id, definition, body, project, fence) =>
-        executeNativeApiRequest(id, definition, body, project, fenced(fence)),
+      execute: (id, definition, body, project, fence) => {
+        if (readAiConnection(id))
+          return executeAiDelegatedRequest(
+            id,
+            definition,
+            body,
+            project,
+            fence,
+          );
+        return executeNativeApiRequest(
+          id,
+          definition,
+          body,
+          project,
+          fenced(fence),
+        );
+      },
     }),
   );
 }
