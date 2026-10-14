@@ -36,6 +36,19 @@ function pageOrigin(): string | null {
   }
 }
 
+const LOAD_BLOCKED =
+  "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
+const LOAD_UNREADABLE = "Couldn't check for CLI requests.";
+
+/** The deployment fence in `localNetworkFetch` refuses with a SecurityError. */
+function isDeploymentBlocked(error: DOMException | null): boolean {
+  return error?.name === "SecurityError";
+}
+
+function blockedCopy(error: DOMException | null, fallback: string): string {
+  return isDeploymentBlocked(error) ? LOAD_BLOCKED : fallback;
+}
+
 function parseFirst(body: BoundaryValue): CliAuthorizeRow | null {
   if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
   const entry = body.pending[0];
@@ -58,8 +71,41 @@ function authHeaders(): Record<string, string> | null {
   };
 }
 
+type PendingLoad = {
+  row: CliAuthorizeRow | null;
+  loadError: string | null;
+};
+
+async function loadPending(): Promise<PendingLoad> {
+  const origin = daemonOrigin();
+  const headers = authHeaders();
+  if (!origin || !headers) return { row: null, loadError: LOAD_UNREADABLE };
+  try {
+    const res = await localNetworkFetch(
+      `${origin}/v1/cli/app-integration/pending`,
+      {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-store",
+        headers,
+      },
+    );
+    if (!res.ok) return { row: null, loadError: LOAD_UNREADABLE };
+    return { row: parseFirst(await res.json()), loadError: null };
+  } catch (error) {
+    return {
+      row: null,
+      loadError: blockedCopy(
+        error instanceof DOMException ? error : null,
+        LOAD_UNREADABLE,
+      ),
+    };
+  }
+}
+
 export function useCliAuthorizePanel() {
   const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
   const [pin, setPin] = useState("");
@@ -68,20 +114,9 @@ export function useCliAuthorizePanel() {
 
   useEffect(() => {
     void (async () => {
-      const origin = daemonOrigin();
-      const headers = authHeaders();
-      if (!origin || !headers) return setRow(null);
-      const res = await localNetworkFetch(
-        `${origin}/v1/cli/app-integration/pending`,
-        {
-          method: "GET",
-          credentials: "omit",
-          cache: "no-store",
-          headers,
-        },
-      );
-      if (!res.ok) return setRow(null);
-      setRow(parseFirst(await res.json()));
+      const pending = await loadPending();
+      setLoadError(pending.loadError);
+      setRow(pending.row);
     })();
   }, []);
 
@@ -94,10 +129,26 @@ export function useCliAuthorizePanel() {
       setBusy(false);
       return;
     }
-    const ok = await postCliRespond(origin, headers, row, decision, humanProof);
-    setBusy(false);
-    if (ok) setRow(null);
-    else setMark("That did not work.");
+    try {
+      const ok = await postCliRespond(
+        origin,
+        headers,
+        row,
+        decision,
+        humanProof,
+      );
+      setBusy(false);
+      if (ok) setRow(null);
+      else setMark("That did not work.");
+    } catch (error) {
+      setBusy(false);
+      setMark(
+        blockedCopy(
+          error instanceof DOMException ? error : null,
+          "That did not work.",
+        ),
+      );
+    }
   }
 
   const proofInput = {
@@ -112,6 +163,7 @@ export function useCliAuthorizePanel() {
 
   return {
     row,
+    loadError,
     busy,
     pinOpen,
     pin,
