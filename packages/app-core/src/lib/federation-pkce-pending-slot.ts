@@ -37,13 +37,17 @@ export function dropPkcePending(key: string): void {
   sessionStore().removeItem(key);
 }
 
-export function readPkcePendingRaw(key: string): {
+export type PkcePendingRaw = Readonly<{
   raw: string | null;
   swapped: boolean;
-} {
+}>;
+
+const EMPTY_PKCE_PENDING: PkcePendingRaw = { raw: null, swapped: false };
+
+export function readPkcePendingRaw(key: string): PkcePendingRaw {
   const localRaw = localStore().getItem(key);
   const sessionRaw = sessionStore().getItem(key);
-  if (!localRaw && !sessionRaw) return { raw: null, swapped: false };
+  if (!localRaw && !sessionRaw) return EMPTY_PKCE_PENDING;
   if (
     localRaw &&
     sessionRaw &&
@@ -52,5 +56,6 @@ export function readPkcePendingRaw(key: string): {
     dropPkcePending(key);
     return { raw: null, swapped: true };
   }
-  return { raw: localRaw ?? sessionRaw, swapped: false };
+  const raw = localRaw ?? sessionRaw;
+  return { raw, swapped: false };
 }

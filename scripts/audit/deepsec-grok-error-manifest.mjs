@@ -25,6 +25,12 @@ function inScope(filePath) {
   return prefixes.some((p) => filePath.startsWith(p));
 }
 
+function isString(value) {
+  return (
+    value != null && Object.prototype.toString.call(value) === "[object String]"
+  );
+}
+
 const paths = [];
 for (const entry of fs.readdirSync(filesDir, {
   withFileTypes: true,
@@ -38,7 +44,7 @@ for (const entry of fs.readdirSync(filesDir, {
   } catch {
     continue;
   }
-  if (data.status !== "error" || typeof data.filePath !== "string") continue;
+  if (data.status !== "error" || !isString(data.filePath)) continue;
   if (!inScope(data.filePath)) continue;
   paths.push(data.filePath);
 }

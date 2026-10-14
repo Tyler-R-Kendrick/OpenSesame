@@ -4,6 +4,20 @@ import type { CliAppIntegrationPort } from "./cli-app-integration-client.js";
 import { type ParityContext, runChild, runEnv } from "./parity-commands.js";
 import { createCredentialStore } from "./parity-credentials.js";
 
+function agentWithRun(run: PasswordAgent["run"]): PasswordAgent {
+  return (
+    // SAFETY: runChild only invokes agent.run; the stub implements that method.
+    { run } as PasswordAgent
+  );
+}
+
+function agentWithRunFile(runFile: PasswordAgent["runFile"]): PasswordAgent {
+  return (
+    // SAFETY: runEnv only invokes agent.runFile after approval; the stub implements that method.
+    { runFile } as PasswordAgent
+  );
+}
+
 function baseCtx(
   overrides: Partial<ParityContext> & {
     agent: PasswordAgent;
@@ -37,8 +51,7 @@ describe("parity run approval", () => {
     const denyPort: CliAppIntegrationPort = {
       ensureReveal: async () => "deny",
     };
-    // SAFETY: runChild only calls agent.run in this test.
-    const agent = { run } as unknown as PasswordAgent;
+    const agent = agentWithRun(run);
     await expect(
       runChild(
         baseCtx({
@@ -55,8 +68,7 @@ describe("parity run approval", () => {
     const approvePort: CliAppIntegrationPort = {
       ensureReveal: async () => "approve",
     };
-    // SAFETY: runChild only calls agent.run in this test.
-    const agent = { run } as unknown as PasswordAgent;
+    const agent = agentWithRun(run);
     await expect(
       runChild(
         baseCtx({
@@ -73,8 +85,7 @@ describe("parity run approval", () => {
     const denyPort: CliAppIntegrationPort = {
       ensureReveal: async () => "deny",
     };
-    // SAFETY: runEnv only calls agent.runFile after approval in this test.
-    const agent = { runFile } as unknown as PasswordAgent;
+    const agent = agentWithRunFile(runFile);
     await expect(
       runEnv({
         ...baseCtx({ agent, appIntegration: denyPort }),

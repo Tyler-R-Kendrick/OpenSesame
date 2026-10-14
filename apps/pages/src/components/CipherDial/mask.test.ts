@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QUIET_FEATHER, QUIET_RING_KEEP, buildQuietMask } from "./mask.js";
 
@@ -28,10 +29,14 @@ function recordingContext(ops: Op[]) {
   return ctx;
 }
 
+function canvasContextStub(ops: Op[]): CanvasRenderingContext2D {
+  return overlapCast(recordingContext(ops));
+}
+
 function draw(soft: boolean): Op[] {
   const ops: Op[] = [];
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-    recordingContext(ops) as unknown as CanvasRenderingContext2D,
+    canvasContextStub(ops),
   );
   vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockReturnValue("data:,");
   buildQuietMask(800, 600, [{ x: 100, y: 200, w: 300, h: 150 }], soft);

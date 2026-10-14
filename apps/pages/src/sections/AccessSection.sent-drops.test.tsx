@@ -1,5 +1,12 @@
 /** @vitest-environment jsdom */
+import { configureHost } from "@opensesame/app-core/host.js";
 import { activitySeams } from "@opensesame/app-core/lib/activity-log.js";
+import type { CompositionSnapshot } from "@opensesame/app-core/lib/capabilities/store-types.js";
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
+import {
+  double,
+  installDoublePorts,
+} from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { sealDrop } from "@opensesame/app-core/lib/vault/drop.js";
 import {
   createLocalDropClaim,
@@ -11,40 +18,60 @@ import {
   resetOutboundDropsForTests,
 } from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import { unlockTomb } from "@opensesame/app-core/lib/vfs.js";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { cleanup, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { useOnlineSeams } from "../lib/use-online.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { AccessSection } from "./AccessSection.js";
 import { renderAccess } from "./access/workspace-test-support.js";
 
 const realUseVault = vaultHooksSeams.useVault;
+const realUseOnline = useOnlineSeams.useOnline;
 
-vi.mock("../app-root.js", () => ({
-  useCapabilityGate: () => ({ approved: true }),
-}));
+installDoublePorts();
 
-vi.mock("../lib/use-configured.js", () => ({
-  useHostConfigured: () => false,
-  useIdentityConfigured: () => false,
-  useIdentityPlane: () => "device",
-  useIdentityServes: () => false,
-}));
-
-vi.mock("../lib/use-online.js", () => ({
-  useOnline: () => true,
-}));
+function snapshotWithDrops(): CompositionSnapshot {
+  const base = double.getSnapshot();
+  if (base.plan === null) throw new Error("the double resolves a plan");
+  const approved = [...base.plan.approvedCapabilities];
+  if (!approved.includes("sharing.drops")) approved.push("sharing.drops");
+  const capabilities = { ...base.plan.capabilities };
+  const prior = capabilities["sharing.drops"];
+  if (prior) {
+    capabilities["sharing.drops"] = { ...prior, approved: true };
+  }
+  return {
+    ...base,
+    plan: {
+      ...base.plan,
+      approvedCapabilities: approved,
+      capabilities,
+    },
+  };
+}
 
 describe("AccessSection sent drops", () => {
   const tomb = "sent-drops-access";
+  let dropsSnapshot: CompositionSnapshot;
 
   beforeEach(async () => {
+    configureHost(createTestHost());
+    dropsSnapshot = snapshotWithDrops();
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
     localDropClaimSeams.claimBase = () => "http://localhost:5180/OpenSesame";
     unlockTomb(tomb, (await mintVaultKey()).vaultKey);
     activitySeams.activeTomb = () => tomb;
     vaultHooksSeams.useVault = () => ({ ...realUseVault(), tomb });
+    useOnlineSeams.useOnline = () => true;
+    Object.assign(capabilityPorts, {
+      compositionStore: {
+        ...double,
+        getSnapshot: () => dropsSnapshot,
+      },
+    });
     const { manifest } = await sealDrop({
       kind: "text",
       name: "API token",
@@ -64,6 +91,7 @@ describe("AccessSection sent drops", () => {
   afterEach(() => {
     cleanup();
     vaultHooksSeams.useVault = realUseVault;
+    useOnlineSeams.useOnline = realUseOnline;
     resetLocalDropClaimsForTests();
     resetOutboundDropsForTests();
   });

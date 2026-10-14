@@ -1,18 +1,21 @@
 import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   isLoopbackDaemonBase,
   verifyLocalDaemonForCliAppIntegration,
 } from "./daemon-pin.js";
-import { startCliAppIntegrationFakeDaemon } from "./fixtures/cli-app-integration-fake-daemon.js";
+import {
+  type CliAppIntegrationFakeDaemon,
+  startCliAppIntegrationFakeDaemon,
+} from "./fixtures/cli-app-integration-fake-daemon.js";
+import { tcpListenPort } from "./fixtures/net-listen-port.js";
 
 const ensurePath = cliAppIntegrationPolicy.daemonPaths.ensure;
 
-async function startAutoApproveEnsureStub(): Promise<{
-  baseUrl: string;
-  close: () => Promise<void>;
-}> {
+async function startAutoApproveEnsureStub(): Promise<CliAppIntegrationFakeDaemon> {
   return new Promise((resolve, reject) => {
     const server = createServer((req, res) => {
       if (req.method === "GET" && req.url === "/health") {
@@ -37,13 +40,14 @@ async function startAutoApproveEnsureStub(): Promise<{
       res.end();
     });
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
+      const bound: AddressInfo = overlapCast(server.address());
+      const port = tcpListenPort(bound);
+      if (port === null) {
         reject(new Error("stub has no listen address"));
         return;
       }
       resolve({
-        baseUrl: `http://127.0.0.1:${address.port}`,
+        baseUrl: `http://127.0.0.1:${port}`,
         close: () =>
           new Promise((done) => {
             server.close(() => {

@@ -3,15 +3,15 @@
  * `VITE_LIVE_PUBLIC_RELAY_URL` is unset — ADR 0150 default-deny stands.
  */
 
+import { isString } from "@opensesame/os-domain";
+
 export type PublicRelayBuildDefault = Readonly<{
   /** HTTPS origin of the operator's Vercel relay API, if stamped at build. */
   relayApiOrigin: string;
 }>;
 
 export function publicRelayBuildDefault(): PublicRelayBuildDefault {
-  const relayApiOrigin =
-    typeof import.meta.env.VITE_LIVE_PUBLIC_RELAY_URL === "string"
-      ? import.meta.env.VITE_LIVE_PUBLIC_RELAY_URL.trim()
-      : "";
+  const stamped = import.meta.env.VITE_LIVE_PUBLIC_RELAY_URL;
+  const relayApiOrigin = isString(stamped) ? stamped.trim() : "";
   return { relayApiOrigin };
 }

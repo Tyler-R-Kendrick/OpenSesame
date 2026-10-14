@@ -8,6 +8,7 @@ use axum::{
 use crate::App;
 
 use super::auth::origin_of;
+use super::now_unix;
 
 const ALLOW_METHODS: &str = "GET, POST, DELETE";
 const ALLOW_HEADERS: &str = "authorization, content-type";
@@ -32,10 +33,7 @@ pub(super) async fn cors(
     let admitted = st
         .cli_app_integration
         .lock()
-        .map(|host| {
-            host.pairings
-                .admits_origin(&origin, chrono::Utc::now().timestamp() as u64)
-        })
+        .map(|host| host.pairings.admits_origin(&origin, now_unix()))
         .unwrap_or(false)
         .then_some(origin);
     if request.method() == Method::OPTIONS

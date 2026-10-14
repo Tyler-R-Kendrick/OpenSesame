@@ -1,4 +1,4 @@
-//! CLI ↔ OpenSesame app integration (1Password-style terminal sessions).
+//! `CLI` ↔ `OpenSesame` app integration (1Password-style terminal sessions).
 mod daemon_attest;
 mod device_crypto;
 mod human_proof;
@@ -38,6 +38,12 @@ pub struct CliAppIntegrationHost {
     pub pairings: CliAppIntegrationPairings,
     /// TCP peers (or test harness keys) bound to a daemon-issued terminal session id.
     tcp_terminal_sessions: HashMap<String, String>,
+}
+
+impl Default for CliAppIntegrationHost {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CliAppIntegrationHost {
@@ -133,7 +139,14 @@ pub struct CliAppIntegrationStore {
     now_ms: u64,
 }
 
+impl Default for CliAppIntegrationStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CliAppIntegrationStore {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             approved: HashMap::new(),
@@ -174,6 +187,31 @@ impl CliAppIntegrationStore {
             .retain(|_, row| self.now_ms.saturating_sub(row.created_at_ms) <= ttl_ms);
     }
 
+    fn resume_approved_session(
+        &mut self,
+        terminal_session_id: &str,
+        reuse_approved_session: bool,
+    ) -> Option<(String, Option<String>)> {
+        let session = self.approved.get(terminal_session_id)?;
+        if self.hard_expired(session) {
+            self.approved.remove(terminal_session_id);
+            return Some(("expired".into(), None));
+        }
+        if !reuse_approved_session {
+            self.approved.remove(terminal_session_id);
+            self.expire_idle();
+            return Some(("approved".into(), None));
+        }
+        if self.idle_expired(session) {
+            self.approved.remove(terminal_session_id);
+            return None;
+        }
+        let session = self.approved.get_mut(terminal_session_id)?;
+        session.last_activity_ms = self.now_ms;
+        self.expire_idle();
+        Some(("approved".into(), None))
+    }
+
     pub fn ensure(
         &mut self,
         terminal_session_id: &str,
@@ -185,25 +223,10 @@ impl CliAppIntegrationStore {
         if self.denied.contains(terminal_session_id) {
             return ("denied".into(), None);
         }
-        if let Some(session) = self.approved.get(terminal_session_id) {
-            if self.hard_expired(session) {
-                self.approved.remove(terminal_session_id);
-                return ("expired".into(), None);
-            }
-            if reuse_approved_session {
-                if self.idle_expired(session) {
-                    self.approved.remove(terminal_session_id);
-                } else {
-                    let session = self.approved.get_mut(terminal_session_id).expect("session");
-                    session.last_activity_ms = self.now_ms;
-                    self.expire_idle();
-                    return ("approved".into(), None);
-                }
-            } else {
-                self.approved.remove(terminal_session_id);
-                self.expire_idle();
-                return ("approved".into(), None);
-            }
+        if let Some(outcome) =
+            self.resume_approved_session(terminal_session_id, reuse_approved_session)
+        {
+            return outcome;
         }
         self.expire_idle();
         for row in self.pending.values() {
@@ -245,17 +268,17 @@ impl CliAppIntegrationStore {
         if row.respond_nonce != respond_nonce {
             return ("wrongSession".into(), None);
         }
-        let passkey_sign_count = match human_proof_verify(
+        let Some(outcome) = human_proof_verify(
             human_proof,
             binding,
             request_id,
             terminal_session_id,
             respond_nonce,
             &row.verb,
-        ) {
-            Some(count) => count,
-            None => return ("wrongSession".into(), None),
+        ) else {
+            return ("wrongSession".into(), None);
         };
+        let passkey_sign_count = outcome.into_sign_count();
         self.pending.remove(request_id);
         self.denied.remove(terminal_session_id);
         self.approved.insert(
@@ -295,18 +318,22 @@ impl CliAppIntegrationStore {
     }
 }
 
+#[must_use]
 pub fn app_unavailable_message() -> &'static str {
     &policy().messages.app_unavailable
 }
 
+#[must_use]
 pub fn denied_message() -> &'static str {
     &policy().messages.denied
 }
 
+#[must_use]
 pub fn expired_message() -> &'static str {
     &policy().messages.expired
 }
 
+#[must_use]
 pub fn request_timeout_message() -> &'static str {
     &policy().messages.request_timeout
 }

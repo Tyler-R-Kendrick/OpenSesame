@@ -5,14 +5,14 @@
 import { isPublicKeyCredential, requireCredentials } from "../../ports.js";
 import { readCliAppIntegrationBearer } from "./bearer-session.js";
 import { approvalChallengeDigest } from "./device-crypto.js";
-import { ensureCliAppDeviceSigningKey } from "./device-signing-key.js";
 import {
   CLI_APP_HUMAN_PROOF_PREFIX,
   type CliAppHumanProofBinding,
   formatCliAppHumanProofPasskey,
   formatCliAppHumanProofPin,
   isCliAppHumanProofValid,
-} from "./human-proof-crypto.js";
+} from "./device-crypto.js";
+import { ensureCliAppDeviceSigningKey } from "./device-signing-key.js";
 
 export {
   CLI_APP_HUMAN_PROOF_PREFIX,

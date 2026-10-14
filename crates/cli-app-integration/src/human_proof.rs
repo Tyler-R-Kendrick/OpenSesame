@@ -8,7 +8,23 @@ use crate::webauthn_assertion::verify_passkey_assertion;
 
 const PROOF_PREFIX: &str = "oschip2:";
 
-/// `None` = refused; `Some(None)` = PIN; `Some(Some(n))` = passkey with new sign count.
+/// Verified human proof: PIN unlock or passkey with monotonic sign count.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HumanProofOutcome {
+    Pin,
+    Passkey(u32),
+}
+
+impl HumanProofOutcome {
+    #[must_use]
+    pub(crate) fn into_sign_count(self) -> Option<u32> {
+        match self {
+            Self::Pin => None,
+            Self::Passkey(count) => Some(count),
+        }
+    }
+}
+
 pub(crate) fn human_proof_verify(
     proof: &str,
     binding: &PairedBinding,
@@ -16,28 +32,25 @@ pub(crate) fn human_proof_verify(
     terminal_session_id: &str,
     respond_nonce: &str,
     verb: &str,
-) -> Option<Option<u32>> {
+) -> Option<HumanProofOutcome> {
     if binding.pin_proof_failures >= crate::pairing::MAX_PIN_PROOF_FAILURES {
         return None;
     }
     let t = proof.trim();
-    let Some(rest) = t.strip_prefix(PROOF_PREFIX) else {
-        return None;
-    };
+    let rest = t.strip_prefix(PROOF_PREFIX)?;
     let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
     if let Some((kind, tail)) = rest.split_once(':') {
         if kind == "pin" {
             let verifying_key = parse_verifying_key_spki_b64(&binding.device_public_key_spki_b64)?;
             if verify_p256_sha256(&verifying_key, &challenge, tail) {
-                return Some(None);
+                return Some(HumanProofOutcome::Pin);
             }
             return None;
         }
         if kind == "passkey" {
-            let Some(webauthn) = binding.webauthn.as_ref() else {
-                return None;
-            };
-            return verify_passkey_assertion(tail, &challenge, webauthn).map(Some);
+            let webauthn = binding.webauthn.as_ref()?;
+            return verify_passkey_assertion(tail, &challenge, webauthn)
+                .map(HumanProofOutcome::Passkey);
         }
     }
     None
@@ -45,6 +58,7 @@ pub(crate) fn human_proof_verify(
 
 /// Mint a PIN proof for integration tests (device signing key required).
 #[cfg(any(test, feature = "test-seams"))]
+#[must_use]
 pub fn mint_pin_human_proof(
     signing_key: &p256::ecdsa::SigningKey,
     request_id: &str,
@@ -61,6 +75,7 @@ pub fn mint_pin_human_proof(
 }
 
 #[cfg(any(test, feature = "test-seams"))]
+#[must_use]
 pub fn mint_test_signing_key() -> p256::ecdsa::SigningKey {
     use rand_core::OsRng;
     p256::ecdsa::SigningKey::random(&mut OsRng)
@@ -69,10 +84,7 @@ pub fn mint_test_signing_key() -> p256::ecdsa::SigningKey {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pairing::WebAuthnCredential;
-    use base64::Engine as _;
     use p256::ecdsa::SigningKey;
-    use p256::pkcs8::EncodePublicKey;
     use rand_core::OsRng;
 
     #[test]
@@ -103,10 +115,11 @@ mod tests {
             webauthn: None,
             pin_proof_failures: 0,
         };
-        assert!(human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", "read").is_some());
-        assert!(
-            human_proof_verify(&proof, &binding, "clr_2", "term-a", "nonce", "read",).is_none()
+        assert_eq!(
+            human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", "read"),
+            Some(HumanProofOutcome::Pin)
         );
+        assert!(human_proof_verify(&proof, &binding, "clr_2", "term-a", "nonce", "read").is_none());
     }
 
     #[test]
@@ -132,7 +145,7 @@ mod tests {
             })
         );
         assert!(
-            human_proof_verify(&attack, &binding, "clr_1", "term-a", "nonce", "read",).is_none()
+            human_proof_verify(&attack, &binding, "clr_1", "term-a", "nonce", "read").is_none()
         );
     }
 }

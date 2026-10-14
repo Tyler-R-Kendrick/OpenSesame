@@ -1,6 +1,10 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { bootPersonalLocal, freshRealm } from "./__tests__/harness.js";
+import {
+  bootPersonalLocal,
+  draftFor,
+  freshRealm,
+} from "./__tests__/harness.js";
 import {
   applyPersonalLocalPwaDefaults,
   needsPersonalLocalPwaDefaults,
@@ -42,78 +46,43 @@ describe("personal-local PWA defaults on boot", () => {
 });
 
 describe("needsPersonalLocalPwaDefaults", () => {
-  const plan = {
-    identity: {
-      instanceId: "personal-local",
-      installationId: "inst",
-      policyRevision: "0",
-    },
-  } as CompositionSnapshot["plan"];
+  it("is true with no persisted selection", async () => {
+    await bootPersonalLocal();
+    expect(needsPersonalLocalPwaDefaults(compositionStore.getSnapshot())).toBe(
+      true,
+    );
+  });
 
-  function snap(overrides: Partial<CompositionSnapshot>): CompositionSnapshot {
-    return {
-      plan,
-      provenance: "personal-local",
-      selection: null,
+  it("is true for a legacy empty selection with no consent receipt", async () => {
+    await bootPersonalLocal();
+    const snap = compositionStore.getSnapshot();
+    const plan = snap.plan;
+    if (!plan) throw new Error("store not resolved");
+    const legacy: CompositionSnapshot = {
+      ...snap,
+      selection: {
+        schemaVersion: 1,
+        kind: "InstallationCapabilitySelection",
+        instanceId: plan.identity.instanceId,
+        installationId: plan.identity.installationId,
+        basePolicyRevision: plan.identity.policyRevision,
+        revision: "legacy",
+        acceptedRequired: [],
+        selectedOptional: [],
+        chosenAlternatives: {},
+        delivery: { prefetch: "none", offlineCache: "shell-only" },
+      },
       receipt: null,
-      ...overrides,
-    } as CompositionSnapshot;
-  }
-
-  it("is true with no persisted selection", () => {
-    expect(needsPersonalLocalPwaDefaults(snap({}))).toBe(true);
+    };
+    expect(needsPersonalLocalPwaDefaults(legacy)).toBe(true);
   });
 
-  it("is true for a legacy empty selection with no consent receipt", () => {
-    expect(
-      needsPersonalLocalPwaDefaults(
-        snap({
-          selection: {
-            schemaVersion: 1,
-            kind: "InstallationCapabilitySelection",
-            instanceId: "personal-local",
-            installationId: "inst",
-            basePolicyRevision: "0",
-            revision: "legacy",
-            acceptedRequired: [],
-            selectedOptional: [],
-            chosenAlternatives: {},
-            delivery: { prefetch: "none", offlineCache: "shell-only" },
-          },
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("is false once a receipt exists", () => {
-    expect(
-      needsPersonalLocalPwaDefaults(
-        snap({
-          selection: {
-            schemaVersion: 1,
-            kind: "InstallationCapabilitySelection",
-            instanceId: "personal-local",
-            installationId: "inst",
-            basePolicyRevision: "0",
-            revision: "legacy",
-            acceptedRequired: [],
-            selectedOptional: [],
-            chosenAlternatives: {},
-            delivery: { prefetch: "none", offlineCache: "shell-only" },
-          },
-          receipt: {
-            schemaVersion: 1,
-            instanceId: "personal-local",
-            installationId: "inst",
-            policyRevision: "0",
-            selectionRevision: "legacy",
-            acceptedAt: "2020-01-01T00:00:00.000Z",
-            roots: [],
-            exposure: {},
-            receiptDigest: "00",
-          },
-        }),
-      ),
-    ).toBe(false);
+  it("is false once a receipt exists", async () => {
+    await bootPersonalLocal();
+    const { draft, receipt } = draftFor(compositionStore, [], "legacy");
+    await compositionStore.commit(draft, receipt);
+    expect(needsPersonalLocalPwaDefaults(compositionStore.getSnapshot())).toBe(
+      false,
+    );
   });
 });

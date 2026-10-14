@@ -72,6 +72,34 @@ test("pins the claim different-link control on identity.ceremonies", () => {
   assert.equal(lazyLeafChunk(file, entry), "cap-identity.claim-different-link");
 });
 
+test("pins CLI app-integration crypto leaves on identity.local-iam", () => {
+  const entry = {
+    classification: "optional",
+    capability: "identity.local-iam",
+  };
+  assert.equal(
+    lazyLeafChunk(
+      "/workspace/packages/app-core/src/lib/cli-app-integration/device-crypto.ts",
+      entry,
+    ),
+    "cli-app-integration-crypto",
+  );
+  assert.equal(
+    lazyLeafChunk(
+      "/workspace/packages/app-core/src/lib/cli-app-integration/device-signing-key.ts",
+      { classification: "shared", capability: null },
+    ),
+    "cli-app-integration-crypto",
+  );
+  assert.equal(
+    lazyLeafChunk(
+      "/workspace/packages/app-core/src/lib/cli-app-integration/device-crypto.ts",
+      { classification: "core", capability: "shell.navigation" },
+    ),
+    "cli-app-integration-crypto",
+  );
+});
+
 test("pins optional vault.security-checks app-core leaf when Rollup classifies it shared", () => {
   const file = "/workspace/packages/app-core/src/lib/vault/security-checks.ts";
   const entry = {

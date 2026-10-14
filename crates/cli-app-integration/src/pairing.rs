@@ -17,6 +17,8 @@ pub use crate::pairing_code::{
     format_pairing_code, is_device_public_key_shaped, is_pairable_origin, is_secret_shaped,
 };
 
+mod binding;
+
 pub const PAIRING_CODE_PREFIX: &str = "opensesame-cli-app:v1:";
 pub const CODE_TTL_SECS: u64 = 300;
 pub const MAX_PENDING: usize = 8;
@@ -70,9 +72,11 @@ pub struct WebAuthnCredential {
 
 #[derive(Clone, Debug)]
 struct PairedPage {
+    #[allow(dead_code)]
     id: String,
     token_sha256: String,
     origin: String,
+    #[allow(dead_code)]
     paired_at: u64,
     device_public_key_spki_b64: String,
     webauthn: Option<WebAuthnCredential>,
@@ -108,6 +112,10 @@ pub struct CliAppIntegrationPairings {
 
 impl CliAppIntegrationPairings {
     /// Record a one-time code for `origin`; the code is returned once.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when the origin is invalid or the pending queue is full.
     pub fn issue(&mut self, origin: &str, now: u64) -> Result<(String, u64), PairingError> {
         if !is_pairable_origin(origin) {
             return Err(PairingError::InvalidOrigin);
@@ -133,6 +141,10 @@ impl CliAppIntegrationPairings {
     }
 
     /// Pages calls this after a person confirms the printed code while the vault is unlocked.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when the code, origin, or pairing signature is invalid.
     pub fn confirm(
         &mut self,
         code: &str,
@@ -170,6 +182,10 @@ impl CliAppIntegrationPairings {
     }
 
     /// Operator CLI arms the registration code before the PWA may exchange (first pairing).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when no pending pairing matches or the registration code differs.
     pub fn arm_registration(
         &mut self,
         origin: &str,
@@ -196,6 +212,11 @@ impl CliAppIntegrationPairings {
         Ok(())
     }
 
+    /// Exchange a confirmed pairing code for a bearer token.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError`] when the code is unknown, expired, or not ready to exchange.
     pub fn exchange(&mut self, code: &str, origin: &str, now: u64) -> Result<Issued, PairingError> {
         let digest = digest_hex(code);
         let found = find_digest(self.pending.iter().map(|p| p.code_sha256.as_str()), &digest);
@@ -240,111 +261,8 @@ impl CliAppIntegrationPairings {
         Ok(issued)
     }
 
-    #[must_use]
-    pub fn binding_for(&self, token: &str, origin: &str) -> Option<PairedBinding> {
-        if !is_secret_shaped(token) {
-            return None;
-        }
-        let digest = digest_hex(token);
-        self.paired
-            .iter()
-            .find(|page| page.origin == origin && same(page.token_sha256.as_str(), digest.as_str()))
-            .map(|page| PairedBinding {
-                device_public_key_spki_b64: page.device_public_key_spki_b64.clone(),
-                webauthn: page.webauthn.clone(),
-                pin_proof_failures: page.pin_proof_failures,
-            })
-    }
-
-    pub fn register_webauthn(
-        &mut self,
-        token: &str,
-        origin: &str,
-        credential_id_b64: &str,
-        public_key_spki_b64: &str,
-        sign_count: u32,
-    ) -> Result<(), PairingError> {
-        if !is_secret_shaped(token) || !is_device_public_key_shaped(public_key_spki_b64) {
-            return Err(PairingError::Unknown);
-        }
-        let digest = digest_hex(token);
-        let Some(page) = self.paired.iter_mut().find(|page| {
-            page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
-        }) else {
-            return Err(PairingError::Unknown);
-        };
-        page.webauthn = Some(WebAuthnCredential {
-            credential_id_b64: credential_id_b64.to_string(),
-            public_key_spki_b64: public_key_spki_b64.to_string(),
-            sign_count,
-        });
-        Ok(())
-    }
-
-    pub fn record_pin_proof_failure(&mut self, token: &str, origin: &str) -> bool {
-        if !is_secret_shaped(token) {
-            return false;
-        }
-        let digest = digest_hex(token);
-        let Some(page) = self.paired.iter_mut().find(|page| {
-            page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
-        }) else {
-            return false;
-        };
-        page.pin_proof_failures += 1;
-        page.pin_proof_failures >= MAX_PIN_PROOF_FAILURES
-    }
-
-    pub fn advance_webauthn_sign_count(
-        &mut self,
-        token: &str,
-        origin: &str,
-        sign_count: u32,
-    ) -> bool {
-        if !is_secret_shaped(token) {
-            return false;
-        }
-        let digest = digest_hex(token);
-        let Some(page) = self.paired.iter_mut().find(|page| {
-            page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
-        }) else {
-            return false;
-        };
-        let Some(webauthn) = page.webauthn.as_mut() else {
-            return false;
-        };
-        if sign_count <= webauthn.sign_count {
-            return false;
-        }
-        webauthn.sign_count = sign_count;
-        true
-    }
-
-    #[must_use]
-    pub fn authorizes(&self, token: &str, origin: &str) -> bool {
-        self.binding_for(token, origin).is_some()
-    }
-
-    #[must_use]
-    pub fn admits_origin(&self, origin: &str, now: u64) -> bool {
-        self.pending
-            .iter()
-            .any(|p| p.origin == origin && p.expires_at > now)
-            || self.paired.iter().any(|p| p.origin == origin)
-    }
-
-    #[must_use]
-    pub fn paired_len(&self) -> usize {
-        self.paired.len()
-    }
-
-    pub fn revoke_token(&mut self, origin: &str, token_digest_hex: &str) {
-        self.paired.retain(|page| {
-            !(page.origin == origin && same(page.token_sha256.as_str(), token_digest_hex))
-        });
-    }
-
     /// Challenge for the unlocked PWA to sign during pairing confirm (origin must match).
+    #[must_use]
     pub fn pairing_challenge_for_confirm(
         &self,
         code: &str,
@@ -366,6 +284,7 @@ impl CliAppIntegrationPairings {
     }
 
     #[cfg(any(test, feature = "test-seams"))]
+    #[must_use]
     pub fn pairing_challenge_for_code(
         &self,
         code: &str,

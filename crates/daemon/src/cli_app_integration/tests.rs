@@ -1,4 +1,3 @@
-use super::*;
 use axum::body::Body;
 use axum::extract::connect_info::ConnectInfo;
 use axum::http::{header, Request, StatusCode};
@@ -10,6 +9,8 @@ use crate::peer_auth::UdsConnectInfo;
 use crate::App;
 use std::net::SocketAddr;
 
+use super::now_unix;
+
 fn ensure_body(terminal_session_id: &str) -> String {
     serde_json::json!({
         "terminalSessionId": terminal_session_id,
@@ -19,7 +20,7 @@ fn ensure_body(terminal_session_id: &str) -> String {
 }
 
 fn pair_browser(app: &App, origin: &str) -> String {
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     test_support::pair_browser_for_tests(
         &mut app.cli_app_integration.lock().unwrap().pairings,
         origin,
@@ -141,15 +142,15 @@ async fn tcp_ensure_never_reuses_approval() {
     let forged_id = "tcp-correlation-1";
     let body = ensure_body(forged_id);
     let tcp_peer = ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 4242)));
-    let mut req = Request::builder()
+    let mut ensure_req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
         .body(Body::from(body.clone()))
         .unwrap();
-    req.extensions_mut().insert(tcp_peer);
-    let res = app.clone().oneshot(req).await.unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+    ensure_req.extensions_mut().insert(tcp_peer);
+    let response = app.clone().oneshot(ensure_req).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -162,8 +163,8 @@ async fn tcp_ensure_never_reuses_approval() {
         .header(header::AUTHORIZATION, format!("Bearer {token}"))
         .body(Body::empty())
         .unwrap();
-    let res = app.clone().oneshot(pending).await.unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+    let response = app.clone().oneshot(pending).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -193,30 +194,30 @@ async fn tcp_ensure_never_reuses_approval() {
             .to_string(),
         ))
         .unwrap();
-    let res = app.clone().oneshot(respond).await.unwrap();
-    assert_eq!(res.status(), StatusCode::OK);
-    let mut req = Request::builder()
+    let response = app.clone().oneshot(respond).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let mut ensure_req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
         .body(Body::from(body.clone()))
         .unwrap();
-    req.extensions_mut().insert(tcp_peer);
-    let res = app.clone().oneshot(req).await.unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+    ensure_req.extensions_mut().insert(tcp_peer);
+    let response = app.clone().oneshot(ensure_req).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(parsed["status"], "approved");
-    let mut req = Request::builder()
+    let mut ensure_req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
         .body(Body::from(body.clone()))
         .unwrap();
-    req.extensions_mut().insert(tcp_peer);
-    let res = app.clone().oneshot(req).await.unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+    ensure_req.extensions_mut().insert(tcp_peer);
+    let response = app.clone().oneshot(ensure_req).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -232,7 +233,7 @@ async fn persona_attack_chain_is_refused() {
     let (app, state) = test_router("http://127.0.0.1:8787");
     let legit_origin = "http://localhost:5180";
     let forged_origin = "https://attacker.github.io";
-    let now = chrono::Utc::now().timestamp() as u64;
+    let now = now_unix();
     let (code, _) = state
         .cli_app_integration
         .lock()
@@ -241,31 +242,33 @@ async fn persona_attack_chain_is_refused() {
         .issue(legit_origin, now)
         .unwrap();
     let forged_device_key = "root:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-    let mut host = state.cli_app_integration.lock().unwrap();
-    assert!(matches!(
-        host.pairings.confirm(
-            &code,
-            forged_origin,
-            forged_device_key,
-            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-            now,
-        ),
-        Err(PairingError::Unknown | PairingError::InvalidProof | PairingError::WrongOrigin)
-    ));
-    drop(host);
+    {
+        let mut host = state.cli_app_integration.lock().unwrap();
+        assert!(matches!(
+            host.pairings.confirm(
+                &code,
+                forged_origin,
+                forged_device_key,
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                now,
+            ),
+            Err(PairingError::Unknown | PairingError::InvalidProof | PairingError::WrongOrigin)
+        ));
+    }
 
     let token = pair_browser(&state, legit_origin);
     let body = ensure_body("persona-attacker");
-    let mut req = Request::builder()
+    let mut ensure_req = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/ensure")
         .header("content-type", "application/json")
         .body(Body::from(body))
         .unwrap();
-    req.extensions_mut()
+    ensure_req
+        .extensions_mut()
         .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5151))));
-    let res = app.clone().oneshot(req).await.unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+    let response = app.clone().oneshot(ensure_req).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -277,8 +280,8 @@ async fn persona_attack_chain_is_refused() {
         .header(header::AUTHORIZATION, format!("Bearer {token}"))
         .body(Body::empty())
         .unwrap();
-    let res = app.clone().oneshot(pending).await.unwrap();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+    let response = app.clone().oneshot(pending).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -316,9 +319,9 @@ async fn persona_attack_chain_is_refused() {
                 .to_string(),
             ))
             .unwrap();
-        let res = app.clone().oneshot(respond).await.unwrap();
-        assert_eq!(res.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
+        let response = app.clone().oneshot(respond).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
             .await
             .unwrap();
         let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();

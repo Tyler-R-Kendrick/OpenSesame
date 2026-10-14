@@ -1,6 +1,14 @@
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 
+type CliRespondBody = Readonly<{
+  requestId: string;
+  terminalSessionId: string;
+  decision: "approve" | "deny";
+  respondNonce: string;
+  humanProof?: string;
+}>;
+
 export async function postCliRespond(
   origin: string,
   headers: Record<string, string>,
@@ -8,13 +16,14 @@ export async function postCliRespond(
   decision: "approve" | "deny",
   humanProof?: string,
 ): Promise<boolean> {
-  const body: Record<string, string> = {
+  const base: CliRespondBody = {
     requestId: row[0],
     terminalSessionId: row[1],
     decision,
     respondNonce: row[3],
   };
-  if (decision === "approve" && humanProof) body.humanProof = humanProof;
+  const body: CliRespondBody =
+    decision === "approve" && humanProof ? { ...base, humanProof } : base;
   const res = await localNetworkFetch(
     `${origin}/v1/cli/app-integration/respond`,
     {
