@@ -11,6 +11,21 @@ const toPosix = (path) => path.replace(/\\/g, "/");
  * when classification matches that capability.
  */
 const LAZY_LEAVES = [
+  [
+    "/packages/app-core/src/lib/secret-backends/",
+    "connectors.external",
+    "secret-backends",
+  ],
+  [
+    "/node_modules/@1password/save-button/",
+    "connectors.external",
+    "vendor-1password-save",
+  ],
+  [
+    "/src/sections/access/HostedRequestsPanel",
+    "access.authority",
+    "cap-access.authority",
+  ],
   // Mailbox protocol/data leaves are optional password-reset code. Keep
   // their shared helpers with that capability when pure chunks coalesce.
   [

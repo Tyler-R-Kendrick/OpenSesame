@@ -128,3 +128,5 @@ artifacts/mtls/
 # Dedicated loopback build used by the identity integration browser gate.
 apps/pages/dist-identity-verify/
 apps/pages/work/
+
+apps/pages/dist-secret-backends-verify/

@@ -1,5 +1,5 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { SecretBackendError, type SecretBackendFetch } from "./types.js";
+import { SecretBackendError } from "./types.js";
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 
@@ -105,7 +105,10 @@ async function readReply(response: Response): Promise<BoundaryValue> {
 /** Credentials follow only the configured origin and base path; redirects are refused. */
 export function createBackendHttp(
   baseUrl: string,
-  fetcher: SecretBackendFetch = globalThis.fetch,
+  fetcher: (
+    input: string | URL,
+    init?: RequestInit,
+  ) => Promise<Response> = globalThis.fetch,
 ) {
   const base = secretBackendUrl(baseUrl);
   return async function request(

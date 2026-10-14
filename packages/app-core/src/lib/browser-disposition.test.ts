@@ -9,6 +9,7 @@ import {
   UNAVAILABLE_LABEL,
   UNAVAILABLE_PRIORITY,
   auditedOrigin,
+  authoredDisposition,
   authoredDispositionIds,
   browserDisposition,
   browserDispositionSpec,
@@ -22,6 +23,10 @@ import {
   catalogProviders,
 } from "./connector-catalog.js";
 import { isFnoxLink } from "./doc-link.js";
+import {
+  isSecretBackendProvider,
+  secretBackendPreset,
+} from "./secret-backends/presets.js";
 
 const spec = () => browserDispositionSpec();
 
@@ -60,11 +65,16 @@ describe("the authored spec", () => {
   });
 
   it("describes only providers that have no compiled browser contract", () => {
-    for (const id of authoredDispositionIds())
+    for (const id of authoredDispositionIds()) {
       expect(
         hasConnectPlan(id),
         `${id} has a plan; browser-policy.json owns it`,
       ).toBe(false);
+      expect(
+        isSecretBackendProvider(id),
+        `${id} has a secret-backend form`,
+      ).toBe(false);
+    }
   });
 
   it("labels every kind a row may use", () => {
@@ -82,7 +92,8 @@ describe("the authored spec", () => {
 
 describe("every provider without a road gets an honest statement", () => {
   const roadless = catalogProviders().filter(
-    (provider) => !hasConnectPlan(provider.id),
+    (provider) =>
+      !hasConnectPlan(provider.id) && !isSecretBackendProvider(provider.id),
   );
 
   it("is never the catch-all", () => {
@@ -135,30 +146,19 @@ describe("every provider without a road gets an honest statement", () => {
   });
 });
 
-describe("Bitwarden, which the catch-all got wrong", () => {
-  const bitwarden = catalogProvider("bitwarden");
-  const disposition = bitwarden && browserDisposition(bitwarden);
-
-  it("says what Bitwarden's two APIs are, and that one is a local CLI server", () => {
-    expect(disposition?.kind).toBe("companion");
-    expect(disposition?.summary).toContain("bw serve");
-    expect(disposition?.summary).toContain("Origin header");
-    expect(disposition?.summary).toContain("Public API manages organizations");
-  });
-
-  it("is backed by Bitwarden's own documentation", () => {
-    expect(
-      disposition?.sources.map((link) => new URL(link.url).hostname),
-    ).toEqual(["bitwarden.com", "bitwarden.com"]);
-  });
-
-  it("offers the route that works today", () => {
-    expect(disposition?.alternative).toEqual({
-      label: "Open Vault to import a supported export",
-      to: "/vault?f=all",
-    });
-  });
-});
+it.each([
+  ["1password", "onepassword-connect"],
+  ["bitwarden", "bitwarden-api"],
+  ["vaultwarden", "bitwarden-api"],
+  ["bitwarden-sm", "bitwarden-secrets"],
+  ["proton-pass", "file-import"],
+])(
+  "retires %s's generic refusal when its specialized adapter ships",
+  (id, mode) => {
+    expect(authoredDisposition(id)).toBeUndefined();
+    expect(secretBackendPreset(id)?.modes).toContain(mode);
+  },
+);
 
 describe("the kinds a tile can show", () => {
   it("has a label for every kind", () => {

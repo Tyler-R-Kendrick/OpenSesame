@@ -17,6 +17,7 @@ import {
 import { FIELDS } from "./embedded-catalog-data.js";
 import { getBundledProviders } from "./embedded-catalog.js";
 import { GIT_BACKUP_PROVIDER_IDS } from "./git-backup-forges.js";
+import { SECRET_BACKEND_PRESETS } from "./secret-backends/presets.generated.js";
 import { WALLET_ISSUER_IDS } from "./wallet-issuers.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -66,6 +67,71 @@ describe("the one integration catalog", () => {
     expect(unknown(CAPABILITIES.flatMap((c) => c.connectorIds))).toEqual([]);
     expect(unknown(WALLET_ISSUER_IDS)).toEqual([]);
     expect(unknown(GIT_BACKUP_PROVIDER_IDS)).toEqual([]);
+  });
+
+  it("bundles every shared secret backend preset through its canonical catalog row", () => {
+    const bundledIds = new Set(
+      getBundledProviders().map((provider) => canonicalProviderId(provider.id)),
+    );
+    for (const preset of SECRET_BACKEND_PRESETS) {
+      const row = catalogProvider(preset.providerId);
+      expect(row, preset.providerId).toBeDefined();
+      expect(row?.displayName, preset.providerId).toBe(preset.label);
+      expect(["password_managers", "cloud_secret_storage"]).toContain(
+        row?.category,
+      );
+      expect(bundledIds.has(preset.providerId), preset.providerId).toBe(true);
+    }
+    expect(catalogProviders()).toHaveLength(185);
+  });
+
+  it("keeps native Host credential fields separate from browser secret backend configuration", () => {
+    const hostFields = {
+      "1password": ["service_account_token", "account", "vault"],
+      bitwarden: [
+        "session_token",
+        "server_url",
+        "organization_id",
+        "collection_id",
+      ],
+      vaultwarden: [
+        "session_token",
+        "server_url",
+        "organization_id",
+        "collection_id",
+      ],
+      "proton-pass": ["agent_token", "vault"],
+      passwordstate: ["base_url", "api_key", "password_list_id"],
+      infisical: ["token", "host", "project_id", "environment"],
+      "bitwarden-sm": [
+        "access_token",
+        "organization_id",
+        "project_id",
+        "server_url",
+      ],
+    };
+    for (const [id, fields] of Object.entries(hostFields)) {
+      const row = catalogProvider(id);
+      expect(
+        row?.configurationFields?.map((entry) => entry.name),
+        id,
+      ).toEqual(fields);
+      expect(row?.operations, id).toEqual(["secret.configure"]);
+    }
+    for (const id of [
+      "byo-secret-backend",
+      "local-vault",
+      "browser-credentials",
+    ]) {
+      const row = catalogProvider(id);
+      expect(row?.category).toBe("password_managers");
+      expect(row?.egress).toEqual({
+        scheme: "none",
+        authorities: [],
+        pathPrefixes: [],
+      });
+      expect(row?.operations).toEqual(["secret.configure"]);
+    }
   });
 
   it("takes each listed row's data from the catalog", () => {
