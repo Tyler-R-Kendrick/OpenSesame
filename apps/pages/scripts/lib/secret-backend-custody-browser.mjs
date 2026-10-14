@@ -7,14 +7,14 @@ export async function verifyBackendVaultCredential(
   { base, preset, fixture, width, check, field, value },
 ) {
   const name = `${field} · ${fixture.name} ${width}`;
-  await visitBackendRoute(page, base, "vault/");
+  await visitBackendRoute(page, base, "vault?f=all");
   const row = page.getByRole("treeitem").filter({ hasText: name });
   await expect(row).toHaveCount(1);
   await row.click();
   await page.getByRole("heading", { name, exact: true }).waitFor();
-  await page.getByRole("button", { name: "Reveal Token", exact: true }).click();
+  await page.getByRole("button", { name: "Reveal token", exact: true }).click();
   await expect(page.getByText(value, { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Hide Token", exact: true }).click();
+  await page.getByRole("button", { name: "Hide token", exact: true }).click();
   check(
     true,
     `${width}: ${preset.providerId} ${field.toLowerCase()} is an actual vault Token item readable after cold unlock`,
