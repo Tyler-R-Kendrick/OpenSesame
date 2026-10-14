@@ -1,3 +1,4 @@
+import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { hasConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isConnectionCatalogProvider } from "@opensesame/app-core/lib/connector-guidance.js";
@@ -33,6 +34,16 @@ function expectHonestReason(
   expect(method?.unavailableReason).not.toContain("cannot run that companion");
 }
 
+function hasSpecializedConfiguration(providerId: string): boolean {
+  return (
+    ["git", "aws-kms", "gcp-kms", "s3"].includes(providerId) ||
+    isAiConnectionProvider(providerId) ||
+    nativeKeyDriverFor(providerId) !== null ||
+    identityConnectionPreset(providerId) !== null ||
+    isSecretBackendProvider(providerId)
+  );
+}
+
 it("covers every visible bundled provider without a plan or replacing a specialized road", () => {
   const visible = getBundledProviders()
     .filter(isConnectionCatalogProvider)
@@ -66,12 +77,7 @@ it("covers every visible bundled provider without a plan or replacing a speciali
   const has = vi.fn<NativeDeviceAvailability["has"]>(() => false);
   for (const provider of visible) {
     const descriptor = nativeDeviceProviderDescriptor(provider.id, { has });
-    if (
-      ["git", "aws-kms", "gcp-kms", "s3"].includes(provider.id) ||
-      nativeKeyDriverFor(provider.id) !== null ||
-      identityConnectionPreset(provider.id) !== null ||
-      isSecretBackendProvider(provider.id)
-    ) {
+    if (hasSpecializedConfiguration(provider.id)) {
       expect(descriptor).toBeNull();
       continue;
     }
