@@ -288,7 +288,7 @@ export function ConnectorSettingsPage({
       {nativeExperience ||
       identityExperience ||
       secretBackendExperience ||
-      (isAiConnectionProvider(provider.id) &&
+      ((isAiConnectionProvider(provider.id) || provider.id === "tailscale") &&
         !isConnectConnection(connection)) ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">

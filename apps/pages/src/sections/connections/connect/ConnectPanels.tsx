@@ -14,6 +14,7 @@ import {
   IdentityConnectionPanels,
   isIdentityConnectionProvider,
 } from "../identity/IdentityConnectionPanels.js";
+import { TailscalePanels } from "../tailscale/TailscalePanels.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
@@ -94,6 +95,7 @@ export function ConnectPanels(props: Props) {
 function LocalConnectPanels(props: Props) {
   const { provider, connection, onFlash, onChanged } = props;
   const plan = connectPlan(provider.id);
+  if (provider.id === "tailscale") return <TailscalePanels {...props} />;
   if (isAiConnectionProvider(provider.id))
     return (
       <AiConnectionPanels
