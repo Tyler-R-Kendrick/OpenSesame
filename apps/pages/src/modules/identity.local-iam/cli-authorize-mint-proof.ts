@@ -35,10 +35,10 @@ export async function mintCliAuthorizePasskeyProof(
 ): Promise<string> {
   requirePairingSecret();
   const binding = bindingFromRow(row);
-  const {
-    approvalChallengeDigest,
-    formatCliAppHumanProofPasskey,
-  } = await import("@opensesame/app-core/lib/cli-app-integration/device-crypto.js");
+  const { approvalChallengeDigest, formatCliAppHumanProofPasskey } =
+    await import(
+      "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
+    );
   const challenge = approvalChallengeDigest(
     binding.requestId,
     binding.terminalSessionId,
@@ -110,7 +110,9 @@ export async function mintCliAuthorizePinProof(
     { ensureCliAppDeviceSigningKey },
   ] = await Promise.all([
     import("@opensesame/app-core/lib/cli-app-integration/device-crypto.js"),
-    import("@opensesame/app-core/lib/cli-app-integration/device-signing-key.js"),
+    import(
+      "@opensesame/app-core/lib/cli-app-integration/device-signing-key.js"
+    ),
   ]);
   const device = await ensureCliAppDeviceSigningKey();
   if (!device) throw new WrongPasswordError("That PIN did not work.");
