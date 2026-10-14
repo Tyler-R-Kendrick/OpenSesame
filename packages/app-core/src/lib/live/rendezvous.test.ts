@@ -196,7 +196,9 @@ describe("a session paired over a carrier", () => {
     const topic = await carrierTopic(owner.link.secret);
     expect(bus.seen.every((entry) => entry.topic === topic)).toBe(true);
     const everything = bus.seen.map((entry) => entry.frame).join("\n");
-    for (const plain of ["Ada", "v=0", "a=fake", owner.link.secret])
+    // Short display names can appear as substrings inside sealed base64 by chance;
+    // pairing seals are covered in pairing tests. Wire checks target SDP and secrets.
+    for (const plain of ["v=0", "a=fake", owner.link.secret, SECRET])
       expect(everything).not.toContain(plain);
   });
 
