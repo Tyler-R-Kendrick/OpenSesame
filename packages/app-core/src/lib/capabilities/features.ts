@@ -251,7 +251,14 @@ export function switchFeature(
     );
     return { roots: kept, alternatives };
   }
-  const added = featureState(feature, plan).available;
+  let added = featureState(feature, plan).available;
+  if (feature.id === "identity" && on) {
+    const skip = new Set<CapabilityId>([
+      "identity.siop",
+      "identity.ambient-sso",
+    ]);
+    added = added.filter((id) => !skip.has(id));
+  }
   const alternatives = { ...current.alternatives };
   const runnable = (id: CapabilityId) => {
     const state = plan?.capabilities[id];

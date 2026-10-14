@@ -119,6 +119,19 @@ describe("switchFeature", () => {
     ]);
   });
 
+  it("does not auto-enable Self-issued OpenID or Ambient SSO when Identity is switched on", () => {
+    const next = switchFeature(
+      { roots: [], alternatives: {} },
+      featureById("identity"),
+      true,
+      planWith([]),
+      CAPABILITY_CATALOG,
+    );
+    expect(next.roots).toEqual(["identity.local-iam", "identity.federation"]);
+    expect(next.roots).not.toContain("identity.siop");
+    expect(next.roots).not.toContain("identity.ambient-sso");
+  });
+
   it("chooses an alternative the switch itself adds, so the review is not blocked", () => {
     const next = switchFeature(
       { roots: [], alternatives: {} },
