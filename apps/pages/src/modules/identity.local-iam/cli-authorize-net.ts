@@ -23,9 +23,7 @@ export async function postCliRespond(
     respondNonce: row[3],
   };
   const body: CliRespondBody =
-    decision === "approve" && humanProof
-      ? { ...base, humanProof }
-      : base;
+    decision === "approve" && humanProof ? { ...base, humanProof } : base;
   const res = await localNetworkFetch(
     `${origin}/v1/cli/app-integration/respond`,
     {
