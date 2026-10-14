@@ -34,6 +34,8 @@ dev-dist/
 dist-profiles/
 dist-live-dedicated/
 dist-push-verify/
+dist-ai-connections-verify/
+dist-tailscale-browser-verify/
 
 *storybook.log
 storybook-static
