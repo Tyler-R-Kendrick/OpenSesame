@@ -10,7 +10,11 @@ import { type JsonObject, isString } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
-import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
+import {
+  noteDropLockedOut,
+  noteDropOpened,
+  noteDropRefused,
+} from "../sharing-receipts.js";
 import {
   type LocalClaimRecord,
   type LocalDropPollState,
@@ -218,6 +222,7 @@ export async function presentLocalDropClaim(
   const store = readLocalDropClaimStore();
   const raw = store.claims[claimId];
   if (!raw) {
+    noteDropRefused(claimId);
     throw refuse(
       "not_found",
       "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
@@ -231,17 +236,21 @@ export async function presentLocalDropClaim(
   if (record.state !== "pending") {
     if (record !== raw) persist(record);
     if (record.state === "revoked") {
+      noteDropRefused(claimId);
       throw refuse("REVOKED", "This drop was revoked.");
     }
     if (record.state === "expired") {
+      noteDropRefused(claimId);
       throw refuse("EXPIRED", "This drop has expired.");
     }
     if (record.state === "locked_out") {
+      noteDropRefused(claimId);
       throw refuse(
         "too_many_attempts",
         "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
       );
     }
+    noteDropRefused(claimId);
     throw refuse(
       "INVALID_TRANSITION",
       "This drop was already opened and cannot be opened again.",
