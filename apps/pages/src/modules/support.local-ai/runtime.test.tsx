@@ -51,8 +51,8 @@ describe("support.local-ai runtime", () => {
     expect(t.entries("item-draft-assist").map((a) => a.id)).toEqual([
       "on-device",
     ]);
-    expect(t.entries("settings-panel").map((p) => p.id)).toEqual([
-      "model-provider",
+    expect(t.entries("settings-panel").map((p) => [p.id, p.category])).toEqual([
+      ["model-provider", "features.feature-ai"],
     ]);
     await handle.dispose();
   });
