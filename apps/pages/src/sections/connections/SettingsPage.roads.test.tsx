@@ -132,26 +132,40 @@ describe("a key or a configuration seals on this device", () => {
     },
   );
 
-  it("asks for Anthropic's API key when Vercel also lists it", () => {
+  it("configures Anthropic through the shared inference form when Vercel also lists it", () => {
     connectorIntegration();
     draw("anthropic");
-    expect(screen.getByLabelText("Anthropic API key")).toBeTruthy();
+    expect(screen.getByLabelText("API key", { exact: true })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Verify and connect Anthropic" }),
+      screen.getByRole("button", { name: "Save AI connection" }),
     ).toBeTruthy();
   });
 
-  it("explains Tailscale's native daemon requirement without collecting an auth key", () => {
+  it("composes real Tailscale node and OAuth configuration without the legacy daemon refusal or duplicate generic form", () => {
     draw("tailscale");
-    expect(screen.queryByLabelText(/Tailnet|Auth key/)).toBeNull();
+    expect(screen.getByLabelText("Browser node hostname")).toBeTruthy();
+    expect(screen.getByLabelText("Tailscale control server")).toBeTruthy();
     expect(
-      screen.queryByRole("button", {
-        name: /Save configuration|Verify and connect/,
-      }),
-    ).toBeNull();
+      screen.getByLabelText("Optional node auth key").getAttribute("type"),
+    ).toBe("password");
+    expect(screen.getByLabelText("Tailscale API base URL")).toBeTruthy();
+    expect(screen.getByLabelText("Provisioned node attributes")).toBeTruthy();
     expect(
-      screen.getByText(/device enrollment requires tailscaled/),
+      screen.getByRole("button", { name: "Connect browser node" }),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Download registration request" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(/device enrollment requires tailscaled/),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Auth key (required)")).toBeNull();
+    expect(screen.getAllByLabelText("Tailnet", { exact: true })).toHaveLength(
+      1,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Save configuration" }),
+    ).toBeNull();
   });
 });
 

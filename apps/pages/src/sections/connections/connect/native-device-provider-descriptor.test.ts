@@ -36,7 +36,7 @@ function expectHonestReason(
 
 function hasSpecializedConfiguration(providerId: string): boolean {
   return (
-    ["git", "aws-kms", "gcp-kms", "s3"].includes(providerId) ||
+    ["git", "aws-kms", "gcp-kms", "s3", "tailscale"].includes(providerId) ||
     isAiConnectionProvider(providerId) ||
     nativeKeyDriverFor(providerId) !== null ||
     identityConnectionPreset(providerId) !== null ||

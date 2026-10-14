@@ -28,7 +28,7 @@ function existingSpecializedRoad(providerId: string): boolean {
     isSecretBackendProvider(providerId) ||
     isAiConnectionProvider(providerId) ||
     nativeKeyDriverFor(providerId) !== null ||
-    ["github", "aws-kms", "gcp-kms", "s3"].includes(providerId)
+    ["github", "aws-kms", "gcp-kms", "s3", "tailscale"].includes(providerId)
   );
 }
 
