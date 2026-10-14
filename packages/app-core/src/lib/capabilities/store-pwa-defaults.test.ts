@@ -48,7 +48,7 @@ describe("needsPersonalLocalPwaDefaults", () => {
       installationId: "inst",
       policyRevision: "0",
     },
-  } as CompositionSnapshot["plan"];
+  } satisfies CompositionSnapshot["plan"];
 
   function snap(overrides: Partial<CompositionSnapshot>): CompositionSnapshot {
     return {
@@ -57,7 +57,7 @@ describe("needsPersonalLocalPwaDefaults", () => {
       selection: null,
       receipt: null,
       ...overrides,
-    } as CompositionSnapshot;
+    } satisfies CompositionSnapshot;
   }
 
   it("is true with no persisted selection", () => {

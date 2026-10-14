@@ -2,6 +2,12 @@
  * Pairing code for CLI app-integration (`spec/conformance/cli-app-integration-pairing.json`).
  */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  overlapCast,
+  readString,
+} from "@opensesame/os-domain";
 import { SECRET } from "../tailnet-sync/plugin-pairing.js";
 import { isTailnetOrLoopback, normalizeTailnetBase } from "../urls.js";
 import { writeCliAppIntegrationBearer } from "./bearer-session.js";
@@ -50,11 +56,21 @@ export {
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
 
+type PairingConfirmBody = Readonly<{
+  code: string;
+  devicePublicKeySpkiB64: string;
+  pairingSignatureB64: string;
+}>;
+
+type PairingExchangeBody = Readonly<{
+  code: string;
+}>;
+
 async function postPairing(
   base: string,
   path: string,
   origin: string,
-  body: Record<string, string>,
+  body: PairingConfirmBody | PairingExchangeBody,
 ): Promise<Response> {
   return fetch(`${base}${path}`, {
     method: "POST",
@@ -80,10 +96,10 @@ export async function fetchCliAppPairingChallenge(
     headers: { Origin: parsed.origin },
   });
   if (!res.ok) return null;
-  const body: unknown = await res.json();
-  if (!body || typeof body !== "object") return null;
-  const challengeB64 = (body as { challengeB64?: string }).challengeB64;
-  if (typeof challengeB64 !== "string") return null;
+  const body: BoundaryValue = overlapCast(await res.json());
+  if (!isJsonObject(body)) return null;
+  const challengeB64 = readString(body.challengeB64);
+  if (!challengeB64) return null;
   const bytes = b64urlDecode(challengeB64);
   return bytes && bytes.byteLength === 32 ? bytes : null;
 }
@@ -115,11 +131,10 @@ export async function confirmCliAppPairingCode(
     },
   );
   if (!res.ok) return null;
-  const body: unknown = await res.json();
-  if (!body || typeof body !== "object") return null;
-  const registrationCode = (body as { registrationCode?: string })
-    .registrationCode;
-  if (typeof registrationCode !== "string" || registrationCode.length !== 6) {
+  const body: BoundaryValue = overlapCast(await res.json());
+  if (!isJsonObject(body)) return null;
+  const registrationCode = readString(body.registrationCode);
+  if (!registrationCode || registrationCode.length !== 6) {
     return null;
   }
   return { registrationCode };
@@ -139,10 +154,10 @@ export async function exchangeCliAppPairingCode(
     },
   );
   if (res.status !== 201) return false;
-  const body: unknown = await res.json();
-  if (!body || typeof body !== "object") return false;
-  const token = (body as { token?: string }).token;
-  if (typeof token !== "string" || !SECRET.test(token)) return false;
+  const body: BoundaryValue = overlapCast(await res.json());
+  if (!isJsonObject(body)) return false;
+  const token = readString(body.token);
+  if (!token || !SECRET.test(token)) return false;
   writeCliAppIntegrationBearer(token);
   return true;
 }

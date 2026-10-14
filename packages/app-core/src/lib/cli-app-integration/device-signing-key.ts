@@ -2,6 +2,12 @@
  * Per-device P-256 signing key for CLI app-integration (vault-wrapped at rest).
  */
 
+import {
+  type BoundaryValue,
+  isJsonObject,
+  overlapCast,
+  readString,
+} from "@opensesame/os-domain";
 import { exportSpkiB64 } from "./device-crypto.js";
 import { readCliAppPairingVaultSessionRoot } from "./vault-session-root.js";
 
@@ -105,21 +111,16 @@ async function readStored(): Promise<StoredDeviceKey | null> {
   const raw = localStore().getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    const record = parsed as {
-      publicKeySpkiB64?: string;
-      wrappedPkcs8B64?: string;
-    };
-    if (
-      typeof record.publicKeySpkiB64 !== "string" ||
-      typeof record.wrappedPkcs8B64 !== "string"
-    ) {
+    const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
+    if (!isJsonObject(parsed)) return null;
+    const publicKeySpkiB64 = readString(parsed.publicKeySpkiB64);
+    const wrappedPkcs8B64 = readString(parsed.wrappedPkcs8B64);
+    if (!publicKeySpkiB64 || !wrappedPkcs8B64) {
       return null;
     }
     return {
-      publicKeySpkiB64: record.publicKeySpkiB64,
-      wrappedPkcs8B64: record.wrappedPkcs8B64,
+      publicKeySpkiB64,
+      wrappedPkcs8B64,
     };
   } catch {
     return null;

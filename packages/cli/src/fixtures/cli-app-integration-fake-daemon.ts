@@ -1,5 +1,11 @@
 import { createServer } from "node:http";
 import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
+import {
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { tcpListenPort } from "./net-listen-port.js";
 
 const ensurePath = cliAppIntegrationPolicy.daemonPaths.ensure;
 
@@ -18,7 +24,7 @@ export async function envWithFakeCliAppIntegrationDaemon(
     ...base,
     OPENSESAME_DAEMON_API: fakeDaemon.baseUrl,
   };
-  env.OPENSESAME_DAEMON_LISTEN = undefined;
+  Reflect.deleteProperty(env, "OPENSESAME_DAEMON_LISTEN");
   Reflect.deleteProperty(env, "OPENSESAME_CLI_APP_INTEGRATION_SEAM");
   return { env, close: fakeDaemon.close };
 }
@@ -45,10 +51,11 @@ export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFak
         req.on("end", () => {
           let status = "approved";
           try {
-            const body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as {
-              verb?: string;
-            };
-            if (body.verb === pinProbeVerb) {
+            const parsed = overlapCast(
+              JSON.parse(Buffer.concat(chunks).toString("utf8")),
+            );
+            const verb = isJsonObject(parsed) ? parsed.verb : undefined;
+            if (isString(verb) && verb === pinProbeVerb) {
               status = "pending";
             }
           } catch {
@@ -67,13 +74,13 @@ export function startCliAppIntegrationFakeDaemon(): Promise<CliAppIntegrationFak
       res.end();
     });
     server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
+      const port = tcpListenPort(server.address());
+      if (port === null) {
         reject(new Error("fake daemon has no listen address"));
         return;
       }
       resolve({
-        baseUrl: `http://127.0.0.1:${address.port}`,
+        baseUrl: `http://127.0.0.1:${port}`,
         close: () =>
           new Promise((done) => {
             server.close(() => {
