@@ -5,6 +5,7 @@ import {
   AI_FIXTURE_MODEL,
 } from "./ai-connection-http-fixture.mjs";
 import { addCapabilities, unlockWithPin } from "./pages-journey.mjs";
+import { enableBackendConnections } from "./secret-backend-browser.mjs";
 
 const CASES = [
   {
@@ -206,7 +207,8 @@ export async function verifyAiConnections({
   width,
   check,
 }) {
-  await addCapabilities(page, ["Connections", "On-device model"]);
+  await enableBackendConnections(page, base);
+  await addCapabilities(page, ["On-device model"]);
   const beforePreflights = fixture.preflights.length;
   for (const entry of CASES) {
     const name = `AI ${entry.family} ${width}`;
