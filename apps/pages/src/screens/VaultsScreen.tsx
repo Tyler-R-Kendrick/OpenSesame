@@ -149,7 +149,11 @@ export function VaultsScreen({ providers, onPicked }: Props) {
         </div>
 
         {tab === "signin" ? (
-          <SignInPanel placement="secondary" providers={providers} />
+          <SignInPanel
+            placement="secondary"
+            providers={providers}
+            onSignedIn={() => setTab("device")}
+          />
         ) : (
           <div className="vaults" ref={listRef}>
             <GuideTarget id="vaults.list">

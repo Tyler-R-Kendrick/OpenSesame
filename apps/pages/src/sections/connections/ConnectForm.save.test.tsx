@@ -61,12 +61,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function drawBetterAuth() {
+function drawSamsungWallet() {
   const onFlash = vi.fn();
   const onConnected = vi.fn();
   render(
     <ConnectForm
-      provider={provider("better-auth")}
+      provider={provider("samsung-wallet")}
       online
       onFlash={onFlash}
       onConnected={onConnected}
@@ -75,30 +75,27 @@ function drawBetterAuth() {
   return { onFlash, onConnected };
 }
 
-async function fillBetterAuth() {
-  await userEvent.type(
-    screen.getByLabelText(/Base URL/),
-    "https://auth.example.com/api/auth",
-  );
+async function fillSamsungWallet() {
+  await userEvent.type(screen.getByLabelText(/^Service ID/), "service-example");
   await userEvent.type(
     screen.getByLabelText(/^API key \(required\)/),
-    "ba_key",
+    "wallet-api-key",
   );
 }
 
 describe("a configuration form", () => {
   it("is drawn on this device", () => {
-    const { onFlash } = drawBetterAuth();
+    const { onFlash } = drawSamsungWallet();
     expect(
       screen.getByRole("button", { name: /Save configuration/ }),
     ).toBeTruthy();
-    expect(screen.getByLabelText(/Base URL/)).toBeTruthy();
+    expect(screen.getByLabelText(/^Service ID/)).toBeTruthy();
     expect(onFlash).not.toHaveBeenCalled();
   });
 
   it("is drawn the same with a Host named: it still saves on this device", () => {
     nameAHostWithALiveGrant();
-    drawBetterAuth();
+    drawSamsungWallet();
     expect(
       screen.getByRole("button", { name: /Save configuration/ }),
     ).toBeTruthy();
@@ -109,8 +106,8 @@ describe("a configuration save that fails", () => {
   it("keeps everything the person typed", async () => {
     const create = vi.fn().mockRejectedValue(refusal);
     connectionSeams.createConnection = create;
-    const { onConnected } = drawBetterAuth();
-    await fillBetterAuth();
+    const { onConnected } = drawSamsungWallet();
+    await fillSamsungWallet();
     await userEvent.click(
       screen.getByRole("button", { name: /Save configuration/ }),
     );
@@ -118,21 +115,21 @@ describe("a configuration save that fails", () => {
     // after the save has failed, not while it is still being asked.
     await screen.findByRole("img", { name: "Nothing could be sealed." });
     expect(create).toHaveBeenCalled();
-    expect(screen.getByLabelText(/Base URL/)).toHaveProperty(
+    expect(screen.getByLabelText(/^Service ID/)).toHaveProperty(
       "value",
-      "https://auth.example.com/api/auth",
+      "service-example",
     );
     expect(screen.getByLabelText(/^API key \(required\)/)).toHaveProperty(
       "value",
-      "ba_key",
+      "wallet-api-key",
     );
     expect(onConnected).not.toHaveBeenCalled();
   });
 
   it("says why beside the key that was pressed", async () => {
     connectionSeams.createConnection = vi.fn().mockRejectedValue(refusal);
-    drawBetterAuth();
-    await fillBetterAuth();
+    drawSamsungWallet();
+    await fillSamsungWallet();
     await userEvent.click(
       screen.getByRole("button", { name: /Save configuration/ }),
     );
@@ -144,17 +141,17 @@ describe("a configuration save that fails", () => {
 
   it("also puts the sentence in the bell, where it can be read", async () => {
     connectionSeams.createConnection = vi.fn().mockRejectedValue(refusal);
-    drawBetterAuth();
-    await fillBetterAuth();
+    drawSamsungWallet();
+    await fillSamsungWallet();
     await userEvent.click(
       screen.getByRole("button", { name: /Save configuration/ }),
     );
     await waitFor(() =>
       expect(listNotices()).toMatchObject([
         {
-          id: "connector:better-auth",
+          id: "connector:samsung-wallet",
           tone: "err",
-          title: "Better Auth",
+          title: "Samsung Wallet",
           body: "Nothing could be sealed.",
         },
       ]),
@@ -162,15 +159,15 @@ describe("a configuration save that fails", () => {
   });
 
   it("retries into the connection the failed try made, then clears the sentence", async () => {
-    const created = makeConnection({ providerId: "better-auth" });
+    const created = makeConnection({ providerId: "samsung-wallet" });
     const create = vi.fn().mockResolvedValue(created);
     connectionSeams.createConnection = create;
     connectionSeams.setConnectionConfiguration = vi
       .fn()
       .mockRejectedValueOnce(refusal)
       .mockResolvedValue(created);
-    const { onConnected, onFlash } = drawBetterAuth();
-    await fillBetterAuth();
+    const { onConnected, onFlash } = drawSamsungWallet();
+    await fillSamsungWallet();
     const save = screen.getByRole("button", { name: /Save configuration/ });
     await userEvent.click(save);
     await screen.findByRole("img", { name: "Nothing could be sealed." });
@@ -187,7 +184,7 @@ describe("a configuration save that fails", () => {
     expect(listNotices()).toEqual([]);
     expect(onFlash).toHaveBeenCalledWith({
       tone: "ok",
-      text: "Better Auth configuration saved.",
+      text: "Samsung Wallet configuration saved.",
     });
     // Sealed now: the secret does not stay in the form.
     expect(screen.getByLabelText(/^API key \(required\)/)).toHaveProperty(

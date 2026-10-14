@@ -32,6 +32,7 @@ import {
   rememberLocalGitRemote,
 } from "./git-remote-local.js";
 import { bindHistoryConnection } from "./history-backups.js";
+import { identityConnectionDeviceSeams } from "./identity-connections-seam.js";
 
 const ID_PREFIX = "conn_local_";
 export const deviceProviderRevokers: Record<
@@ -266,6 +267,10 @@ export async function revokeDeviceConnection(id: string): Promise<{
 } | null> {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
+  if (row.fields.identity_configuration !== undefined) {
+    await identityConnectionDeviceSeams.revoke(id);
+    return { revoked: true, providerRevocation: "ok" };
+  }
   if (row.fields.native_configuration !== undefined) {
     const revoke = deviceProviderRevokers[row.providerId];
     if (!revoke)

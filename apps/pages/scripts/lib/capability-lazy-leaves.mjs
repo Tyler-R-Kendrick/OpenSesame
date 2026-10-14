@@ -11,6 +11,13 @@ const toPosix = (path) => path.replace(/\\/g, "/");
  * when classification matches that capability.
  */
 const LAZY_LEAVES = [
+  // Mailbox protocol/data leaves are optional password-reset code. Keep
+  // their shared helpers with that capability when pure chunks coalesce.
+  [
+    "/packages/app-core/src/lib/password-reset/",
+    "ai.password-reset",
+    "cap-ai.password-reset",
+  ],
   ["/src/tutorial/agents/prompt-api/", "support.local-ai", "agent-prompt-api"],
   ["/src/tutorial/agents/ag-ui/", "support.remote-ai", "agent-ag-ui"],
   ["/src/tutorial/agents/provider/", "support.remote-ai", "agent-provider"],

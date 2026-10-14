@@ -1,4 +1,3 @@
-import { isAiModelProvider } from "@opensesame/app-core/lib/ai-model-provider.js";
 import { connectFormDraws } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Connection,
@@ -41,18 +40,16 @@ import { ConnectionCard } from "./ConnectionCard.js";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
+import { SettingsPageConnectPanels } from "./SettingsPageConnectPanels.js";
 import { nativeConnectorHeaderStatus } from "./SettingsPageNativeStatus.js";
 import {
   AuthorizedAccount,
   githubConnectorStatus,
 } from "./SettingsPageStatus.js";
 import { VaultReminderBanner } from "./VaultReminderBanner.js";
-import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
-import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
-import {
-  NativeConnectorPanels,
-  nativeSettingsDescriptor,
-} from "./connect/NativeConnectorPanels.js";
+import { isConnectConnection } from "./connect/ConnectPanels.js";
+import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
+import { isIdentityConnectionProvider } from "./identity/IdentityConnectionPanels.js";
 
 /**
  * Registry services get the provider configuration experience. Existing
@@ -113,7 +110,12 @@ export function ConnectorSettingsPage({
     () => null,
   );
   const roads = useConnectorRoads();
-  const nativeDescriptor = provider ? nativeSettingsDescriptor(provider) : null;
+  const identityExperience =
+    provider !== null &&
+    isIdentityConnectionProvider(provider.id) &&
+    !isConnectConnection(connection);
+  const nativeDescriptor =
+    provider && !identityExperience ? nativeSettingsDescriptor(provider) : null;
   const nativeExperience =
     nativeDescriptor !== null && !isConnectConnection(connection);
   const headerDocs = provider
@@ -272,7 +274,7 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {nativeExperience ? null : automatic ? (
+      {nativeExperience || identityExperience ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
@@ -363,35 +365,17 @@ export function ConnectorSettingsPage({
           }
         />
       )}
-      {nativeExperience ? (
-        <>
-          <NativeConnectorPanels
-            key={`${provider.id}/${connection?.connectionId ?? "new"}`}
-            provider={provider}
-            connection={connection}
-            onFlash={onFlash}
-            onChanged={onChanged}
-          />
-          {connection?.status === "active" && isAiModelProvider(provider) ? (
-            <ModelKeysPanel
-              providerId={provider.id}
-              providerName={provider.displayName}
-              connectionId={connection.connectionId}
-            />
-          ) : null}
-        </>
-      ) : onConnect &&
-        (!deviceSeal ||
-          isSelfHostedConnector(connection) ||
-          isConnectConnection(connection)) ? (
-        <ConnectPanels
-          provider={provider}
-          connection={connection}
-          online={online}
-          onFlash={onFlash}
-          onChanged={onChanged}
-        />
-      ) : null}
+      <SettingsPageConnectPanels
+        provider={provider}
+        connection={connection}
+        online={online}
+        onFlash={onFlash}
+        onChanged={onChanged}
+        identityExperience={identityExperience}
+        nativeExperience={nativeExperience}
+        onConnect={onConnect}
+        deviceSeal={deviceSeal}
+      />
     </div>
   );
 }

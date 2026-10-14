@@ -15,6 +15,7 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
+import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
 function whereFocus(selector) {
@@ -301,27 +302,19 @@ export async function liveKeyboardContract({
       // "Connecting" until the wait expires. The keyboard contract is about
       // where focus goes (verify:live-join walks the real network paths).
       "--disable-ipv6",
-      "--disable-features=LocalNetworkAccessChecks,WebRtcHideLocalIpsWithMdns",
+      "--disable-features=WebRtcHideLocalIpsWithMdns",
     ],
   });
   try {
     const device = async () => {
       const made = await harness.newPage(browser);
-      await made.context.grantPermissions(
-        ["clipboard-read", "clipboard-write"],
-        {
-          origin,
-        },
-      );
       // A public origin pairing over loopback is a local-network access.
-      // Headless has no prompt to allow it, and a pending check stays on
-      // "Connecting" instead of failing. Same grant as verify:live-join.
-      const cdp = await made.context.newCDPSession(made.page);
-      await cdp.send("Browser.setPermission", {
-        permission: { name: "local-network-access" },
-        setting: "granted",
-        origin,
-      });
+      // Headless has no prompt to allow it. Grant this device's real
+      // context both local-network and (Chrome 151+) loopback permission.
+      await allowLoopbackDevelopment(made.page, origin, [
+        "clipboardReadWrite",
+        "clipboardSanitizedWrite",
+      ]);
       await made.page.setViewportSize({
         width,
         height: width < 600 ? 640 : 900,

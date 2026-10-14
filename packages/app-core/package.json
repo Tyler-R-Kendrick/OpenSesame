@@ -18,13 +18,15 @@
     "generate:quorum-types": "node scripts/emit-quorum-types.mjs && biome format --write src/lib/quorum/item-types.generated.ts",
     "generate:reset-mail-types": "node scripts/emit-reset-mail-types.mjs && biome format --write src/lib/password-reset/mail-type.generated.ts",
     "generate:connect": "node scripts/emit-connect-presets.mjs && biome format --write src/lib/connect-presets.generated.ts",
-    "generate:dispositions": "node scripts/emit-browser-dispositions.mjs && biome format --write src/lib/browser-dispositions.generated.ts"
+    "generate:dispositions": "node scripts/emit-browser-dispositions.mjs && biome format --write src/lib/browser-dispositions.generated.ts",
+    "generate:identity": "node scripts/emit-identity-presets.mjs && biome format --write src/lib/identity-presets.generated.ts"
   },
   "devDependencies": {
     "@opensesame/testing": "workspace:*",
     "@types/node": "22.15.29",
     "@types/react": "19.2.7",
     "@types/whatwg-url": "13.0.0",
+    "better-auth": "1.6.26",
     "esbuild": "0.25.12",
     "fake-indexeddb": "6.2.5",
     "fast-check": "4.9.0",

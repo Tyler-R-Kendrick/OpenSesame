@@ -117,7 +117,7 @@ export function SignInSocialBar({
           const brand = brandFor(idp.providerId);
           return (
             <SocialButton
-              key={idp.issuer}
+              key={idp.connectionId ?? idp.issuer}
               last={isLastSignInMethod(idp.providerId, lastMethod)}
               label={`Continue with ${idp.label}`}
               brandClass={brand?.className}

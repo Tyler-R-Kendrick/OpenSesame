@@ -61,7 +61,11 @@
     "verify:trusted-contacts": "node scripts/verify-trusted-contacts.mjs",
     "storybook": "storybook dev -p 6006 --no-open",
     "build-storybook": "storybook build --output-dir storybook-static",
-    "typecheck:storybook": "tsc -p .storybook/tsconfig.json"
+    "typecheck:storybook": "tsc -p .storybook/tsconfig.json",
+    "compose:identity-integrations": "node scripts/compose-identity-integrations.mjs",
+    "capture:identity-integrations": "node scripts/capture-identity-integrations.mjs",
+    "verify:identity-connections": "PAGES_VERIFY_DIST=dist-identity-verify node scripts/verify-identity-connections.mjs",
+    "build:identity-verify": "PAGES_DEPLOYMENT_PROFILE=loopback_development PAGES_CANONICAL_ORIGIN=http://localhost:41899 node scripts/stamped-build.mjs 'vite build --outDir dist-identity-verify --emptyOutDir && PAGES_OUT_DIR=dist-identity-verify node scripts/build-workers.mjs'"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",

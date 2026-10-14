@@ -36,6 +36,8 @@ const GATES = [
   "verify:native-connectors",
   "verify:native-public-protocol",
   "verify:provider-auth",
+  "build:identity-verify",
+  "verify:identity-connections",
   "verify:keyboard",
   "verify:push-worker",
   "verify:mobile",

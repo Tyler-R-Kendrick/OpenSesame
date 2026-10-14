@@ -25,6 +25,7 @@ paths = [
   '''(^|/)node_modules(?:/|$)''',
   '''(^|/)\.pnpm-store(?:/|$)''',
   '''(^|/)dist(?:/|$)''',
+  '''(^|/)dist-identity-verify(?:/|$)''',
   '''(^|/)dist-profiles(?:/|$)''',
   '''(^|/)coverage(?:/|$)''',
   '''(^|/)\.turbo(?:/|$)''',

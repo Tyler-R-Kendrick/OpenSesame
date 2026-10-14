@@ -115,21 +115,20 @@ describe("a Host opens no road", () => {
 
 describe("a key or a configuration seals on this device", () => {
   it.each([false, true])(
-    "refuses unsupported Better Auth configuration with a named Host=%s",
+    "configures Better Auth through shared identity fields with a named Host=%s",
     (namedHost) => {
       if (namedHost) nameAHostWithALiveGrant();
       draw("better-auth");
-      expect(screen.queryByLabelText(/Base URL/)).toBeNull();
+      expect(screen.getByLabelText("Auth API base URL")).toBeTruthy();
+      expect(screen.getByLabelText("Protocol")).toBeTruthy();
       expect(
-        screen.queryByRole("button", {
-          name: /Save configuration|Verify and connect/,
-        }),
-      ).toBeNull();
-      expect(
-        screen.getByText(
-          /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
-        ),
+        screen.getByRole("button", { name: "Save identity connection" }),
       ).toBeTruthy();
+      expect(
+        screen.queryByText(
+          /OpenSesame has no browser connection for Better Auth/,
+        ),
+      ).toBeNull();
     },
   );
 

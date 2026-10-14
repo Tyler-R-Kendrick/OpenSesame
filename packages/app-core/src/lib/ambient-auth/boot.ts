@@ -41,6 +41,7 @@ function revalidateStoredSession(): ReturnType<typeof loadSession> {
       result.kind === "rejected" &&
       (result.reason === "suppressed" ||
         result.reason === "untrusted" ||
+        result.reason === "revoked" ||
         result.reason === "expired")
     ) {
       clearSession();

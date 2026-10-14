@@ -17,19 +17,12 @@ import {
   bindingsFromStored,
   scopeCapabilityConnectorsForSave,
 } from "./capability-connector-scope.js";
-import { kvGet, kvSet } from "./kv.js";
+import { kvGet, kvSet, kvSetDurable } from "./kv.js";
+import { type OperatorIdp, readOperatorIdp } from "./operator-idp-config.js";
 import { assertGuestMayNotChangeTrustAnchors } from "./settings-guest-trust.js";
 import { isLoopbackUrl } from "./urls.js";
-
-export type OperatorIdp = {
-  providerId: string;
-  /** The OIDC issuer, as published in its discovery document. */
-  issuer: string;
-  /** The public client id the operator registered for this origin. */
-  clientId: string;
-  /** What the sign-in button calls it. */
-  label: string;
-};
+export type { OperatorIdp } from "./operator-idp-config.js";
+export { normalizeOperatorIdp } from "./operator-idp-config.js";
 
 /** Allowlist of sign-in roads; the screen renders exactly this. */
 export type SignInMethods = {
@@ -57,8 +50,6 @@ export type PagesSettings = {
    */
   activeProjectId?: string;
 };
-
-const TRAILING_SLASHES = /\/+$/;
 
 type PersistedSettings = {
   hostApi: string;
@@ -210,57 +201,11 @@ export function defaultSignInMethods(): SignInMethods {
 }
 
 /**
- * A provider is admitted only whole: an absolute https issuer (or loopback
- * http, for a local IdP) and a non-empty client id. A half-written record
- * would otherwise become a trusted issuer with nothing behind it — see
- * `isOperatorIdpIssuer` in `federation.ts`, which reads this.
- */
-export function normalizeOperatorIdp(
-  providerId: string,
-  issuer: string,
-  clientId: string,
-  label?: string,
-): OperatorIdp | null {
-  const trimmedIssuer = issuer.trim().replace(TRAILING_SLASHES, "");
-  const trimmedClientId = clientId.trim();
-  if (!trimmedIssuer || !trimmedClientId) return null;
-  let parsed: URL;
-  try {
-    parsed = new URL(trimmedIssuer);
-  } catch {
-    return null;
-  }
-  // https, or loopback http for a local IdP. Anything else would send an
-  // authorization code over the wire in the clear.
-  if (parsed.protocol !== "https:" && !isLoopbackUrl(trimmedIssuer)) {
-    return null;
-  }
-  return {
-    providerId: providerId.trim(),
-    issuer: trimmedIssuer,
-    clientId: trimmedClientId,
-    label: label?.trim() || parsed.hostname,
-  };
-}
-
-function readOperatorIdp(value: JsonValue | undefined): OperatorIdp | null {
-  if (!isJsonObject(value)) return null;
-  const { providerId, issuer, clientId, label } = value;
-  if (!isString(issuer) || !isString(clientId)) return null;
-  return normalizeOperatorIdp(
-    isString(providerId) ? providerId : "",
-    issuer,
-    clientId,
-    isString(label) ? label : undefined,
-  );
-}
-
-/**
  * The ways in, read back whole.
  *
  * A provider is admitted only if it could actually run a flow, and only once
- * per issuer: two entries for one issuer would put the same button on the
- * sign-in screen twice and make "remove" ambiguous.
+ * per legacy issuer or saved connection: distinct brokered organizations
+ * share the Identity service issuer but retain their own sign-in method.
  */
 function readSignInMethods(value: JsonValue | undefined): SignInMethods {
   if (!isJsonObject(value)) return defaultSignInMethods();
@@ -270,8 +215,12 @@ function readSignInMethods(value: JsonValue | undefined): SignInMethods {
   if (Array.isArray(listed)) {
     for (const entry of listed) {
       const idp = readOperatorIdp(entry);
-      if (!idp || seen.has(idp.issuer)) continue;
-      seen.add(idp.issuer);
+      if (!idp) continue;
+      const key = idp.connectionId
+        ? `connection:${idp.connectionId}`
+        : idp.issuer;
+      if (seen.has(key)) continue;
+      seen.add(key);
       providers.push(idp);
     }
   }
@@ -422,4 +371,11 @@ export function shouldAutoConnect(
 ): boolean {
   if (settings === undefined) return settingsSeams.shouldAutoConnect();
   return settingsSeams.shouldAutoConnect(settings, hostname);
+}
+
+/** Persist a public identity trust projection before reporting configuration changes complete. */
+export async function saveSettingsDurable(next: PagesSettings): Promise<void> {
+  assertGuestMayNotChangeTrustAnchors(loadSettings(), next, defaultsForPage());
+  await kvSetDurable(PERSIST_KEY, JSON.stringify(persistRecord(next)));
+  emitSettings();
 }
