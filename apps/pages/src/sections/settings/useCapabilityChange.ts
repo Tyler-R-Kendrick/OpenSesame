@@ -40,7 +40,7 @@ type Snapshot = ReturnType<typeof useComposition>;
 
 /** The selection a proposal makes of the installation's current one. */
 export function selectionFor(snapshot: Snapshot, proposal: FeatureProposal) {
-  return draftToSelection(
+  const selection = draftToSelection(
     {
       ...draftFromSelection(snapshot.selection, "customize"),
       roots: currentRoots({ selectedOptional: proposal.roots }),
@@ -48,6 +48,10 @@ export function selectionFor(snapshot: Snapshot, proposal: FeatureProposal) {
     },
     baseFromSnapshot(snapshot, capabilitiesPanelSeams.now()),
   );
+  return {
+    ...selection,
+    delivery: snapshot.selection?.delivery ?? selection.delivery,
+  };
 }
 
 /**

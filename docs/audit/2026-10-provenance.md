@@ -243,3 +243,14 @@ Operator detail: [kimi-code-cloud.md](../operators/kimi-code-cloud.md).
   `KIMI_API_KEY` is ignored by Kimi Code.
 
 Producer label `live_kimi_code`: Kimi Code CLI session produced the patch via `scripts/dev/kimi-headless.sh` with model **K3** (`-m kimi-code/k3`) after `kimi login` OAuth or `KIMI_MODEL_API_KEY`; logs under `/tmp/kimi-*.log` or the agent store.
+
+
+### Identity and PWA backup stack — #1246, #1247, #1249, #1250, #1251
+
+Codex produced and reviewed this stack with delegated Codex agents. Commits were
+created through GitHub `createCommitOnBranch`, without author overrides, for
+verified GitHub signatures. They are not Grok or Kimi output. The environment
+used for this task has neither `grok` nor `kimi` on PATH (checked 2026-10-14);
+no alternate CLI authentication or billing was configured. Implementation was
+already committed when the documentation-only tier-chain update reached main
+at `aaa832e9e`. Codex continued verification, review and verified restacking.
