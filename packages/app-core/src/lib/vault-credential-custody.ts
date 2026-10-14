@@ -9,6 +9,7 @@ import { FIELD_LIMITS } from "./vault/field-limits.js";
 import { itemText } from "./vault/item-departure.js";
 import type { VaultStore } from "./vault/store.js";
 
+const MARKER_FIELD_ID = "opensesame-integration-binding";
 const Field = z.string().regex(/^[a-zA-Z][a-zA-Z0-9_]{0,99}$/);
 const Reference = z
   .object({
@@ -124,7 +125,12 @@ export function readVaultCredentials(
   const items: CredentialItem[] = [];
   for (const entry of reference.entries) {
     const item = credentialItem(entry.id, tomb);
-    const marker = Marker.parse(JSON.parse(item.notes));
+    const bindings = item.fields.filter(
+      (field) => field.id === MARKER_FIELD_ID,
+    );
+    const binding = bindings[0];
+    if (bindings.length !== 1 || !binding?.hidden) return unavailable();
+    const marker = Marker.parse(JSON.parse(binding.value));
     if (
       marker.revision !== reference.revision ||
       marker.field !== entry.field ||
@@ -163,7 +169,7 @@ export async function stageVaultCredentials(
       { id, type: "token", token: field.value, expiresAt: "" },
       `${field.label} · ${input.name}`.slice(0, FIELD_LIMITS.name),
     );
-    item.notes = JSON.stringify(
+    const binding = JSON.stringify(
       Marker.parse({
         format: "opensesame-vault-credential",
         v: 1,
@@ -172,6 +178,12 @@ export async function stageVaultCredentials(
         targetBinding: input.targetBinding,
       }),
     );
+    item.fields.push({
+      id: MARKER_FIELD_ID,
+      name: "Connection binding",
+      hidden: true,
+      value: binding,
+    });
     reference.entries.push({ field: field.field, id });
     items.push(item);
   }

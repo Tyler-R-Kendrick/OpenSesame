@@ -38,6 +38,12 @@ it("stores independent allowed fields in the actual vault and refuses a differen
     "AI API key · Generic integration",
     "OAuth app secret · Generic integration",
   ]);
+  expect(capture.items.every((item) => item.notes === "")).toBe(true);
+  expect(
+    capture.items.every(
+      (item) => item.fields.length === 1 && item.fields[0]?.hidden,
+    ),
+  ).toBe(true);
   const read = readVaultCredentials(
     capture.reference,
     input.targetBinding,
@@ -110,4 +116,27 @@ it("supports explicit no-auth configurations while refusing duplicate fields and
     stageVaultCredentials(input, vaultStore.getSnapshot().tomb, () => {}),
   ).rejects.toMatchObject({ code: "locked" });
   expect(vaultStore.getSnapshot().items).toEqual([]);
+});
+
+it("requires exactly one concealed binding field and rejects metadata moved into user notes", async () => {
+  const tomb = vaultStore.getSnapshot().tomb;
+  const capture = await stageVaultCredentials(input, tomb, () => {});
+  const item = capture.items[0];
+  const binding = item?.fields[0];
+  if (!item || !binding) throw new Error("Expected an integration binding");
+  for (const changed of [
+    { ...item, fields: [], notes: binding.value },
+    { ...item, fields: [{ ...binding, hidden: false }] },
+    { ...item, fields: [binding, binding] },
+  ]) {
+    await vaultStore.saveItem(changed);
+    expect(() =>
+      readVaultCredentials(
+        capture.reference,
+        input.targetBinding,
+        ["apiKey", "clientSecret"],
+        tomb,
+      ),
+    ).toThrow();
+  }
 });
