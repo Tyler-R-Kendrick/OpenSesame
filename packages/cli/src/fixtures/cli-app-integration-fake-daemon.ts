@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
-import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import type { AddressInfo } from "node:net";
+import { cliAppIntegrationPolicy } from "@opensesame/app-core/lib/cli-app-integration/index.js";
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { tcpListenPort } from "./net-listen-port.js";
 
