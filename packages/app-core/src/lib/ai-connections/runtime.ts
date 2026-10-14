@@ -232,14 +232,31 @@ export async function deleteAiConnection(id: string): Promise<void> {
         "configuration",
         "Saved AI connection not found.",
       );
-    await resolvedAiConnection(record, guard.tomb);
-    const capture = await capturedAiCredentials(record, guard.tomb);
+    if (record.configuration.parameters.vault_tomb !== guard.tomb)
+      throw new AiConnectionError(
+        "authentication",
+        "Unlock the vault that saved this AI connection.",
+      );
     const check = () => {
       guard.check();
       savedGuard(id, record.revision, record.configuration.fingerprint)();
     };
-    await removeDeviceConfigurationDurable(id, check);
-    await discardVaultCredentials(capture, guard.tomb, () => guard.check());
+    let capture: Awaited<ReturnType<typeof capturedAiCredentials>> | null =
+      null;
+    try {
+      const held = await capturedAiCredentials(record, guard.tomb);
+      await resolvedAiConnection(record, guard.tomb);
+      assertVaultCredentials(held, guard.tomb, check);
+      capture = held;
+    } catch {
+      // A missing or edited token must not prevent removing its metadata.
+      check();
+    }
+    await removeDeviceConfigurationDurable(id, check, check);
+    if (capture)
+      await discardVaultCredentials(capture, guard.tomb, () =>
+        guard.check(),
+      ).catch(() => undefined);
   } finally {
     guard.close();
   }

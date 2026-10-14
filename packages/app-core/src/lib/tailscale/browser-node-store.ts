@@ -190,23 +190,35 @@ export async function forgetBrowserNodeState(
   tomb: string,
   check: () => void,
 ): Promise<void> {
+  await initializeVaultCredentialCustody();
+  const assertCurrentScope = () =>
+    assertVaultCredentials({ items: [] }, tomb, check);
+  assertCurrentScope();
   const row = savedNodeRow(tomb);
   if (!row) return;
   const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
   if (record.tomb !== tomb)
     throw new Error("Open the vault that owns this browser node.");
-  const capture = captureState(record);
+  let capture: ReturnType<typeof captureState> | null = null;
+  try {
+    capture = captureState(record);
+  } catch {
+    assertCurrentScope();
+  }
   await removeDeviceConfigurationDurable(
     row.connectionId,
     () => {
-      check();
+      assertCurrentScope();
       const current = readDeviceRows().find(
         (entry) => entry.connectionId === row.connectionId,
       );
       if (!current || current.fields[FIELD] !== row.fields[FIELD])
         throw new Error("Browser node configuration changed.");
     },
-    check,
+    assertCurrentScope,
   );
-  await discardVaultCredentials(capture, tomb, check);
+  if (capture)
+    await discardVaultCredentials(capture, tomb, assertCurrentScope).catch(
+      assertCurrentScope,
+    );
 }
