@@ -23,8 +23,9 @@ export const DRIVER_GATES = {
   "verify-provider-auth.mjs": ["native-public-protocol"],
   "verify-identity-connections.mjs": ["native-public-protocol"],
   "verify-secret-backends.mjs": ["native-public-protocol"],
-  "verify-ai-connections.mjs": null,
-  "verify-tailnet-browser-node.mjs": null,
+  // Separate jobs use the bundle changed area and report through Bundle budgets.
+  "verify-ai-connections.mjs": ["budgets"],
+  "verify-tailnet-browser-node.mjs": ["budgets"],
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],
