@@ -1,14 +1,14 @@
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
-
 /** Per-attempt correlation id for TCP daemon calls (approval is single-use). */
-export function ephemeralTerminalCorrelationId(): string {
+export async function ephemeralTerminalCorrelationId(): Promise<string> {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
-  return bytesToHex(sha256(bytes)).slice(0, 32);
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return Array.from(digest, (b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
 }
 
 /** @deprecated Use {@link ephemeralTerminalCorrelationId}; daemon derives UDS sessions. */
-export function deriveTerminalSessionId(): string {
-  return ephemeralTerminalCorrelationId();
+export async function deriveTerminalSessionId(): Promise<string> {
+  return await ephemeralTerminalCorrelationId();
 }

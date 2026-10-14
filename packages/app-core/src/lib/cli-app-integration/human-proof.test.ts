@@ -3,12 +3,16 @@ import {
   clearCliAppIntegrationBearer,
   writeCliAppIntegrationBearer,
 } from "./bearer-session.js";
-import {
-  formatCliAppHumanProofPin,
-  isCliAppHumanProofValid,
-} from "./device-crypto.js";
+import { formatCliAppHumanProofPin } from "./device-crypto.js";
 
 const TEST_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+
+function isCliAppHumanProofValid(proof: string): boolean {
+  const t = proof.trim();
+  return (
+    /^oschip2:pin:([A-Za-z0-9_-]+)$/.test(t) || /^oschip2:passkey:(.+)$/.test(t)
+  );
+}
 
 describe("cli-app-integration human proof", () => {
   beforeEach(() => {

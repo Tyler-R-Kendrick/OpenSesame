@@ -66,7 +66,7 @@ export async function humanRevealAppIntegrationRefusal(
   if (staticRefusal) return staticRefusal;
   const port = request.appIntegration ?? createCliAppIntegrationPort();
   const terminalSessionId =
-    request.terminalSessionId ?? terminalSessionIdForReveal();
+    request.terminalSessionId ?? (await terminalSessionIdForReveal());
   const decision = await port.ensureReveal({
     verb: request.verb,
     terminalSessionId,
@@ -104,18 +104,18 @@ export interface RevealReceipt {
   at: string;
 }
 
-export function emitRevealReceipt(
+export async function emitRevealReceipt(
   request: Pick<
     HumanRevealRequest,
     "verb" | "reference" | "env" | "terminalSessionId"
   >,
-): void {
+): Promise<void> {
   const receipt: RevealReceipt = {
     verb: request.verb,
     lane: "reveal",
     principal: "human",
     terminalSessionId:
-      request.terminalSessionId ?? terminalSessionIdForReveal(),
+      request.terminalSessionId ?? (await terminalSessionIdForReveal()),
     at: new Date().toISOString(),
   };
   const line = JSON.stringify(
