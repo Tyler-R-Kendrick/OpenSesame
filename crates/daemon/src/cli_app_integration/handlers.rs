@@ -6,9 +6,9 @@ use axum::{
     response::{IntoResponse, Response},
     Extension, Json,
 };
-use opensesame_cli_app_integration::sign_daemon_attest;
 #[cfg(unix)]
 use opensesame_cli_app_integration::session_id_from_pid;
+use opensesame_cli_app_integration::sign_daemon_attest;
 use serde::Deserialize;
 use serde_json::json;
 use sha2::Digest;
