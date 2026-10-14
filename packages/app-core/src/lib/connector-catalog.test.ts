@@ -82,7 +82,7 @@ describe("the one integration catalog", () => {
       );
       expect(bundledIds.has(preset.providerId), preset.providerId).toBe(true);
     }
-    expect(catalogProviders()).toHaveLength(185);
+    expect(catalogProviders()).toHaveLength(186);
   });
 
   it("keeps native Host credential fields separate from browser secret backend configuration", () => {
@@ -132,6 +132,32 @@ describe("the one integration catalog", () => {
       });
       expect(row?.operations).toEqual(["secret.configure"]);
     }
+  });
+
+  it("offers BYO AI without granting a static host or a delegated model protocol", () => {
+    const row = catalogProvider("byo-ai");
+    expect(row?.category).toBe("ai_model_provider");
+    expect(row?.authKind).toBe("configuration");
+    expect(row?.modelApi).toEqual({ protocol: "rest_json" });
+    expect(row?.egress).toEqual({
+      scheme: "none",
+      authorities: [],
+      pathPrefixes: [],
+    });
+    expect(
+      row?.configurationFields?.map(({ name, secret, required }) => [
+        name,
+        secret,
+        required,
+      ]),
+    ).toEqual([
+      ["family", false, true],
+      ["base_url", false, true],
+      ["model", false, true],
+      ["authentication", false, true],
+      ["api_key", true, false],
+    ]);
+    expect(getBundledProviders().some(({ id }) => id === "byo-ai")).toBe(true);
   });
 
   it("takes each listed row's data from the catalog", () => {

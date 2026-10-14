@@ -1,3 +1,4 @@
+import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { leadingUnavailableKind } from "@opensesame/app-core/lib/browser-disposition.js";
 import type {
   Connection,
@@ -11,7 +12,11 @@ import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backend
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 
 function specializedRoute(providerId: string): boolean {
-  return providerId === "linear" || isSecretBackendProvider(providerId);
+  return (
+    providerId === "linear" ||
+    isSecretBackendProvider(providerId) ||
+    isAiConnectionProvider(providerId)
+  );
 }
 
 function specializedProof(connection: Connection | null, now: number): boolean {
@@ -33,9 +38,10 @@ export function catalogConnectorAction(
   provider: Provider,
   connection: Connection | null,
 ) {
-  const descriptor = isSecretBackendProvider(provider.id)
-    ? null
-    : nativeSettingsDescriptor(provider);
+  const descriptor =
+    isSecretBackendProvider(provider.id) || isAiConnectionProvider(provider.id)
+      ? null
+      : nativeSettingsDescriptor(provider);
   const routes = descriptor?.methods.map((method) => ({
     method: method.id,
     available: method.available,
