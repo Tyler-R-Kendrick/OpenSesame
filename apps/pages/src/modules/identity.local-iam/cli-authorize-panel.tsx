@@ -10,13 +10,24 @@ import { useCliAuthorizePanel } from "./cli-authorize-panel-model.js";
 
 function CliAuthorizePairedPanel() {
   const panel = useCliAuthorizePanel();
-  const { row, busy, pinOpen, pin, mark, setPin, onPasskey, onPin, onDeny } =
-    panel;
+  const {
+    row,
+    loadError,
+    busy,
+    pinOpen,
+    pin,
+    mark,
+    setPin,
+    onPasskey,
+    onPin,
+    onDeny,
+  } = panel;
 
   return (
     <>
       {row === undefined ? <output>Reading CLI request…</output> : null}
-      {row === null ? <p>No CLI request is waiting.</p> : null}
+      {row === null && loadError ? <p>{loadError}</p> : null}
+      {row === null && !loadError ? <p>No CLI request is waiting.</p> : null}
       {row ? (
         <p>
           <code className="identity-ref">{row[2]}</code>
