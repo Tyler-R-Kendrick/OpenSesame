@@ -35,10 +35,14 @@ export async function mintCliAuthorizePasskeyProof(
 ): Promise<string> {
   requirePairingSecret();
   const binding = bindingFromRow(row);
-  const { approvalChallengeDigest, formatCliAppHumanProofPasskey } =
-    await import(
-      "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
-    );
+  const crypto = await import(
+    "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
+  );
+  const {
+    approvalChallengeDigest,
+    formatCliAppHumanProofPasskey,
+    b64urlEncode,
+  } = crypto;
   const challenge = await approvalChallengeDigest(
     binding.requestId,
     binding.terminalSessionId,
@@ -59,16 +63,13 @@ export async function mintCliAuthorizePasskeyProof(
   if (!(response instanceof AuthenticatorAssertionResponse)) {
     throw new WrongPasswordError("Passkey confirmation was cancelled.");
   }
-  const b64url = (bytes: ArrayBuffer) =>
-    btoa(String.fromCharCode(...new Uint8Array(bytes)))
-      .replaceAll("+", "-")
-      .replaceAll("/", "_")
-      .replace(/=+$/, "");
   const wire = JSON.stringify({
-    credentialIdB64: b64url(assertion.rawId),
-    authenticatorDataB64: b64url(response.authenticatorData),
-    clientDataJsonB64: b64url(response.clientDataJSON),
-    signatureB64: b64url(response.signature),
+    credentialIdB64: b64urlEncode(new Uint8Array(assertion.rawId)),
+    authenticatorDataB64: b64urlEncode(
+      new Uint8Array(response.authenticatorData),
+    ),
+    clientDataJsonB64: b64urlEncode(new Uint8Array(response.clientDataJSON)),
+    signatureB64: b64urlEncode(new Uint8Array(response.signature)),
   });
   return formatCliAppHumanProofPasskey(wire);
 }
@@ -105,15 +106,13 @@ export async function mintCliAuthorizePinProof(
   );
   raw.fill(0);
   requirePairingSecret();
-  const [
-    { approvalChallengeDigest, formatCliAppHumanProofPin },
-    { ensureCliAppDeviceSigningKey },
-  ] = await Promise.all([
-    import("@opensesame/app-core/lib/cli-app-integration/device-crypto.js"),
-    import(
-      "@opensesame/app-core/lib/cli-app-integration/device-signing-key.js"
-    ),
-  ]);
+  const {
+    approvalChallengeDigest,
+    formatCliAppHumanProofPin,
+    ensureCliAppDeviceSigningKey,
+  } = await import(
+    "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
+  );
   const device = await ensureCliAppDeviceSigningKey();
   if (!device) throw new WrongPasswordError("That PIN did not work.");
   const challenge = await approvalChallengeDigest(

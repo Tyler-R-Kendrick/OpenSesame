@@ -1,4 +1,3 @@
-import { parseCliAppPairingCode } from "@opensesame/app-core/lib/cli-app-integration/pairing-code.js";
 import { type FormEvent, useState } from "react";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -16,16 +15,18 @@ export function CliAuthorizePairingForm({
     event.preventDefault();
     const raw = code.trim();
     if (!raw || busy) return;
-    const parsed = parseCliAppPairingCode(raw);
+    setBusy(true);
+    setMark(null);
+    const pairing = await import(
+      "@opensesame/app-core/lib/cli-app-integration/pairing.js"
+    );
+    const parsed = pairing.parseCliAppPairingCode(raw);
     if (!parsed) {
+      setBusy(false);
       setMark("Not a pairing code.");
       return;
     }
-    setBusy(true);
-    setMark(null);
-    const { completeCliAppPairing } = await import(
-      "@opensesame/app-core/lib/cli-app-integration/pairing.js"
-    );
+    const { completeCliAppPairing } = pairing;
     const outcome = await completeCliAppPairing(parsed);
     setBusy(false);
     if (!outcome) {

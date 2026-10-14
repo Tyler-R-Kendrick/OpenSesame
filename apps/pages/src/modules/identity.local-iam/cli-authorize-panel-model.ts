@@ -1,11 +1,6 @@
 import { readCliAppIntegrationBearer } from "@opensesame/app-core/lib/cli-app-integration/bearer-session.js";
 import { localNetworkFetch } from "@opensesame/app-core/lib/local-network-fetch.js";
 import { loadSettings } from "@opensesame/app-core/lib/settings.js";
-import {
-  type BoundaryValue,
-  isJsonObject,
-  readString,
-} from "@opensesame/os-domain";
 import type { VaultHeader } from "@opensesame/vault-core";
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
@@ -37,7 +32,7 @@ function pageOrigin(): string | null {
 }
 
 const LOAD_BLOCKED =
-  "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
+  "CLI approval is blocked here. Open OpenSesame on your own site.";
 const LOAD_UNREADABLE = "Couldn't check for CLI requests.";
 
 /** The deployment fence in `localNetworkFetch` refuses with a SecurityError. */
@@ -49,14 +44,25 @@ function blockedCopy(error: DOMException | null, fallback: string): string {
   return isDeploymentBlocked(error) ? LOAD_BLOCKED : fallback;
 }
 
-function parseFirst(body: BoundaryValue): CliAuthorizeRow | null {
-  if (!isJsonObject(body) || !Array.isArray(body.pending)) return null;
-  const entry = body.pending[0];
-  if (!isJsonObject(entry)) return null;
-  const requestId = readString(entry.requestId);
-  const terminalSessionId = readString(entry.terminalSessionId);
-  const verb = readString(entry.verb);
-  const respondNonce = readString(entry.respondNonce);
+function wireString(
+  record: Record<string, unknown>,
+  key: string,
+): string | null {
+  const value = record[key];
+  return typeof value === "string" ? value : null;
+}
+
+function parseFirst(body: unknown): CliAuthorizeRow | null {
+  if (!body || typeof body !== "object") return null;
+  const pending = (body as Record<string, unknown>).pending;
+  if (!Array.isArray(pending)) return null;
+  const entry = pending[0];
+  if (!entry || typeof entry !== "object") return null;
+  const row = entry as Record<string, unknown>;
+  const requestId = wireString(row, "requestId");
+  const terminalSessionId = wireString(row, "terminalSessionId");
+  const verb = wireString(row, "verb");
+  const respondNonce = wireString(row, "respondNonce");
   if (!requestId || !terminalSessionId || !verb || !respondNonce) return null;
   return [requestId, terminalSessionId, verb, respondNonce];
 }

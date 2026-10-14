@@ -97,17 +97,7 @@ const LAZY_LEAVES = [
     "cli-app-integration-crypto",
   ],
   [
-    "/src/modules/identity.local-iam/cli-authorize-proof-run",
-    "identity.local-iam",
-    "cli-app-integration-crypto",
-  ],
-  [
     "/src/modules/identity.local-iam/cli-authorize-panel-model",
-    "identity.local-iam",
-    "cli-app-integration-crypto",
-  ],
-  [
-    "/src/modules/identity.local-iam/cli-authorize-net",
     "identity.local-iam",
     "cli-app-integration-crypto",
   ],
