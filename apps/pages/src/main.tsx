@@ -10,6 +10,7 @@ import { BrowserRouter } from "react-router";
 import { bootCore } from "./bootstrap/boot.js";
 import { armInstall, ensurePersistence } from "./lib/install.js";
 import { watchLinkedPairing } from "./lib/pairing-link.js";
+import { importAppRoot, StaleBuildError } from "./lib/load-shell.js";
 import { bootTrayNotices } from "./lib/tray-boot.js";
 import { ResetGate } from "./screens/unlock/ResetGate.js";
 // The shell and the vault load behind the unlock gate (app-root.tsx), but
@@ -103,7 +104,16 @@ void (async () => {
 
   // The shell arrives only after the plan is resolved: optional code is
   // imported by the loader under a lease, never by the entry.
-  const { AppRoot } = await import("./app-root.js");
+  let AppRoot: (typeof import("./app-root.js"))["AppRoot"];
+  try {
+    ({ AppRoot } = await importAppRoot());
+  } catch (caught) {
+    if (caught instanceof StaleBuildError) {
+      root.textContent = caught.message;
+      return;
+    }
+    throw caught;
+  }
   createRoot(root).render(
     <StrictMode>
       <ResetGate>
