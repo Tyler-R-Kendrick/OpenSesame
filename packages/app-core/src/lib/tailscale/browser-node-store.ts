@@ -1,0 +1,212 @@
+/** SDK private keys remain actual Token CredentialItems under the vault key. */
+import { canonicalize } from "@opensesame/os-domain";
+import { z } from "zod";
+import {
+  readDeviceRows,
+  removeDeviceConfigurationDurable,
+} from "../device-connector-records.js";
+import { saveDeviceConnectorConfigurationDurable } from "../device-connectors.js";
+import {
+  assertVaultCredentials,
+  discardVaultCredentials,
+  initializeVaultCredentialCustody,
+  readVaultCredentials,
+  stageVaultCredentials,
+} from "../vault-credential-custody.js";
+import { vaultStore } from "../vault/store.js";
+import type { TailscaleNodeConfiguration } from "./browser-node-port.js";
+const FIELD = "tailscale_browser_node";
+const Metadata = z
+  .object({
+    hostname: z.string(),
+    controlURL: z.string().url(),
+    reference: z.string(),
+    tomb: z.string(),
+  })
+  .strict();
+const State = z.record(z.string(), z.string().max(1_000_000));
+export type TailscaleNodeRecord = z.infer<typeof Metadata>;
+function binding(
+  config: Pick<TailscaleNodeConfiguration, "hostname" | "controlURL">,
+): string {
+  return canonicalize({
+    providerId: "tailscale-browser-node",
+    hostname: config.hostname,
+    controlURL: config.controlURL,
+  });
+}
+function savedNodeRow(tomb: string) {
+  return readDeviceRows().find(
+    (entry) =>
+      entry.providerId === "tailscale" &&
+      entry.fields[FIELD] &&
+      Metadata.parse(JSON.parse(entry.fields[FIELD])).tomb === tomb,
+  );
+}
+export async function openBrowserNodeState(
+  config: TailscaleNodeConfiguration,
+  tomb: string,
+  check: () => void,
+) {
+  await initializeVaultCredentialCustody();
+  check();
+  const row = savedNodeRow(tomb);
+  if (row) {
+    const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
+    if (record.tomb !== tomb || binding(record) !== binding(config))
+      throw new Error(
+        "This vault has a different saved browser node. Use its hostname and control server.",
+      );
+    return { record, state: readBrowserNodeState(record) };
+  }
+  const capture = await stageVaultCredentials(
+    {
+      name: config.hostname,
+      targetBinding: binding(config),
+      fields: [
+        {
+          field: "nodeState",
+          label: "Tailscale browser node private state",
+          value: "{}",
+        },
+      ],
+    },
+    tomb,
+    check,
+  );
+  const record = {
+    hostname: config.hostname,
+    controlURL: config.controlURL,
+    reference: capture.reference,
+    tomb,
+  };
+  let published = false;
+  try {
+    await saveDeviceConnectorConfigurationDurable(
+      () => ({
+        providerId: "tailscale",
+        displayName: config.hostname,
+        scopes: [],
+        fields: {
+          [FIELD]: JSON.stringify(record),
+          self_hosted_configuration: "tailscale-browser-v1",
+        },
+        secrets: {},
+      }),
+      undefined,
+      () => assertVaultCredentials(capture, tomb, check),
+    );
+    published = true;
+    check();
+    return { record, state: {} };
+  } catch (error) {
+    if (!published)
+      await discardVaultCredentials(capture, tomb, check).catch(
+        () => undefined,
+      );
+    throw error;
+  }
+}
+export function savedBrowserNodeConfiguration(): {
+  hostname: string;
+  controlURL: string;
+} | null {
+  try {
+    const row = savedNodeRow(vaultStore.getSnapshot().tomb);
+    if (!row) return null;
+    const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
+    return { hostname: record.hostname, controlURL: record.controlURL };
+  } catch {
+    return null;
+  }
+}
+function captureState(record: TailscaleNodeRecord) {
+  const row = savedNodeRow(record.tomb);
+  if (
+    !row ||
+    canonicalize(Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""))) !==
+      canonicalize(record)
+  )
+    throw new Error("The saved Tailscale browser node changed.");
+  return readVaultCredentials(
+    record.reference,
+    binding(record),
+    ["nodeState"],
+    record.tomb,
+  );
+}
+export function browserNodeCredentialFingerprint(
+  record: TailscaleNodeRecord,
+): string {
+  return JSON.stringify(captureState(record).items);
+}
+export function readBrowserNodeState(
+  record: TailscaleNodeRecord,
+): Record<string, string> {
+  const raw = captureState(record).fields.get("nodeState");
+  if (!raw || raw.length > 4_000_000)
+    throw new Error("Tailscale node state is missing or oversized.");
+  return State.parse(JSON.parse(raw));
+}
+export async function writeBrowserNodeState(
+  record: TailscaleNodeRecord,
+  expected: Record<string, string>,
+  next: Record<string, string>,
+  check: () => void,
+): Promise<void> {
+  const capture = captureState(record);
+  if (canonicalize(readBrowserNodeState(record)) !== canonicalize(expected))
+    throw new Error(
+      "Tailscale private state changed. Reconnect the browser node.",
+    );
+  State.parse(next);
+  const serialized = JSON.stringify(next);
+  if (serialized.length > 4_000_000)
+    throw new Error("Tailscale node state exceeds its limit.");
+  const items = capture.items.map((item) => {
+    if (item.method.type !== "token")
+      throw new Error("Tailscale node credential changed.");
+    return { ...item, method: { ...item.method, token: serialized } };
+  });
+  assertVaultCredentials(capture, record.tomb, check);
+  // VaultStore captures exact prior item bytes and checks them inside its queued
+  // cross-tab body mutation. Its external guard also runs after normalization.
+  await vaultStore.saveItems(items, undefined, () => {
+    check();
+    const row = savedNodeRow(record.tomb);
+    if (
+      !row ||
+      canonicalize(Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""))) !==
+        canonicalize(record)
+    )
+      throw new Error("Browser node configuration changed during persistence.");
+  });
+  if (canonicalize(readBrowserNodeState(record)) !== canonicalize(next))
+    throw new Error("The saved browser node private state differs.");
+  check();
+}
+
+export async function forgetBrowserNodeState(
+  tomb: string,
+  check: () => void,
+): Promise<void> {
+  const row = savedNodeRow(tomb);
+  if (!row) return;
+  const record = Metadata.parse(JSON.parse(row.fields[FIELD] ?? ""));
+  if (record.tomb !== tomb)
+    throw new Error("Open the vault that owns this browser node.");
+  const capture = captureState(record);
+  await removeDeviceConfigurationDurable(
+    row.connectionId,
+    () => {
+      check();
+      const current = readDeviceRows().find(
+        (entry) => entry.connectionId === row.connectionId,
+      );
+      if (!current || current.fields[FIELD] !== row.fields[FIELD])
+        throw new Error("Browser node configuration changed.");
+    },
+    check,
+  );
+  await discardVaultCredentials(capture, tomb, check);
+}
