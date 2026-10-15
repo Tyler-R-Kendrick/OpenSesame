@@ -1,14 +1,14 @@
-import { slashSections } from "@opensesame/app-core/lib/command-bar/slash.js";
-import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import {
   NOT_AVAILABLE_MESSAGE,
   executeCommand,
 } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { parseCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
+import { slashSections } from "@opensesame/app-core/lib/command-bar/slash.js";
 import {
   commandPathAuthorized,
   commandSections,
 } from "@opensesame/app-core/lib/command-bar/types.js";
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { describe, expect, it } from "vitest";
 
 // Pair CLI is registered exactly as `identity.local-iam` does in runtime.ts.

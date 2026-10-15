@@ -8,10 +8,10 @@ describe("deviceWorkspaceRows", () => {
   });
 
   it("adds tailnet and approval rows when those surfaces are drawn", () => {
-    const rows = deviceWorkspaceRows(
-      [{ id: "dev_1", name: "Desk" }],
-      { tailnet: true, approval: true },
-    );
+    const rows = deviceWorkspaceRows([{ id: "dev_1", name: "Desk" }], {
+      tailnet: true,
+      approval: true,
+    });
     expect(rows.map((row) => row.id)).toEqual([
       "dev_1",
       "tailnet-devices",

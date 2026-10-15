@@ -10,10 +10,10 @@ import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
 import { IdentityFact } from "./IdentityRecordFields.js";
-import { deviceWorkspaceRows } from "./device-workspace-rows.js";
 import { DeviceForm, type DevicesModel } from "./LocalDeviceRows.js";
 import { useDevices } from "./LocalDevicesPanel.js";
 import { LocalIdentityNotices } from "./LocalIdentityNotices.js";
+import { deviceWorkspaceRows } from "./device-workspace-rows.js";
 import { identityRecordId } from "./identity-record-selection.js";
 
 export function DevicesWorkspace({
