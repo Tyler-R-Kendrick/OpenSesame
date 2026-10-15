@@ -118,6 +118,19 @@ describe("signed peer trust store (IndexedDB)", () => {
     expect(loaded.sas).toBe(committed.sas);
   });
 
+  it("refuses persisted epoch below high-water mark", async () => {
+    const { factory } = fakeIndexedDb();
+    configureHost(createTestHost({ indexedDB: factory }));
+    const first = await commitPeerTrustEnrollment(undefined);
+    expect(first.ok).toBe(true);
+    const second = await commitPeerTrustEnrollment(undefined);
+    expect(second.ok).toBe(true);
+    const loaded = await loadPeerTrustStore();
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.record.enrollmentEpoch).toBe(2);
+  });
+
   it("bumps epoch on re-enrollment", async () => {
     const { factory } = fakeIndexedDb();
     configureHost(createTestHost({ indexedDB: factory }));
