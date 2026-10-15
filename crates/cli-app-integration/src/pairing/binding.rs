@@ -30,7 +30,8 @@ impl CliAppIntegrationPairings {
     ///
     /// # Errors
     ///
-    /// Returns [`PairingError::Unknown`] when the bearer or public key is invalid.
+    /// Returns [`PairingError::RootKeyNotEnrolled`] before the root trust key is enrolled,
+    /// and [`PairingError::Unknown`] when the bearer or public key is invalid.
     pub fn register_webauthn(
         &mut self,
         token: &str,
@@ -41,6 +42,7 @@ impl CliAppIntegrationPairings {
         public_key_spki_b64: &str,
         sign_count: u32,
     ) -> Result<(), PairingError> {
+        self.require_root_key_enrolled()?;
         if !is_secret_shaped(token)
             || !is_device_public_key_shaped(public_key_spki_b64)
             || !is_vault_session_root_digest_shaped(vault_session_root_digest)
@@ -56,14 +58,14 @@ impl CliAppIntegrationPairings {
         if page.vault_session_root_digest.as_deref() != Some(vault_session_root_digest) {
             return Err(PairingError::InvalidProof);
         }
-        if same(page.device_public_key_spki_b64.as_str(), public_key_spki_b64) {
+        if same(
+            page.device_public_key_spki_b64.as_str(),
+            public_key_spki_b64,
+        ) {
             return Err(PairingError::InvalidProof);
         }
-        let challenge = webauthn_register_challenge_digest(
-            token,
-            origin,
-            vault_session_root_digest,
-        );
+        let challenge =
+            webauthn_register_challenge_digest(token, origin, vault_session_root_digest);
         let stored = WebAuthnCredential {
             credential_id_b64: credential_id_b64.to_string(),
             public_key_spki_b64: public_key_spki_b64.to_string(),

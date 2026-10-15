@@ -114,6 +114,9 @@ pub(crate) async fn pairing_confirm(
             Json(json!({ "registrationCode": outcome.registration_code })),
         )
             .into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(
             PairingError::WrongOrigin
             | PairingError::InvalidProof
@@ -151,6 +154,9 @@ pub(crate) async fn pairing_exchange(
             })),
         )
             .into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(PairingError::NotConfirmed) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_confirm_required")
         }
@@ -191,6 +197,9 @@ pub(crate) async fn pairing_register_webauthn(
         body.sign_count,
     ) {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(PairingError::Unknown) => {
             pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required")
         }
@@ -220,6 +229,9 @@ pub(crate) async fn pairing_arm_registration(
         .arm_registration(&body.origin, &body.registration_code, now)
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(PairingError::RegistrationMismatch) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
         }
@@ -279,6 +291,9 @@ pub(crate) async fn pairing_issue_operator(
         Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
         Err(PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::BAD_REQUEST, "invalid_origin")
+        }
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
         }
         Err(
             PairingError::Unknown

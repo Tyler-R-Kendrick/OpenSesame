@@ -108,6 +108,7 @@ pub fn pair_browser_for_tests(
     origin: &str,
     now: u64,
 ) -> String {
+    pairings.enroll_root_key_for_tests();
     let (code, _) = pairings.issue(origin, now).expect("issue");
     let challenge = pairings
         .pairing_challenge_for_code(&code, now)
@@ -132,11 +133,8 @@ pub fn pair_browser_for_tests(
         .exchange(&code, origin, now)
         .expect("exchange")
         .token;
-    let register_challenge = webauthn_register_challenge_digest(
-        &token,
-        origin,
-        TEST_VAULT_SESSION_ROOT_DIGEST,
-    );
+    let register_challenge =
+        webauthn_register_challenge_digest(&token, origin, TEST_VAULT_SESSION_ROOT_DIGEST);
     let human_proof = mint_passkey_proof_for_challenge(
         &approval_fixture().0,
         "test-cli-app-cred",
