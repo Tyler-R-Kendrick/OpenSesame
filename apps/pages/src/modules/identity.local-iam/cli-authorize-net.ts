@@ -22,7 +22,7 @@ export async function postCliRespond(
     decision,
     respondNonce: row[3],
   };
-  const body: CliRespondBody =
+  const requestBody: CliRespondBody =
     decision === "approve" && humanProof ? { ...base, humanProof } : base;
   const res = await localNetworkFetch(
     `${origin}/v1/cli/app-integration/respond`,
@@ -31,8 +31,12 @@ export async function postCliRespond(
       credentials: "omit",
       cache: "no-store",
       headers: { ...headers, "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(requestBody),
     },
   );
-  return res.ok;
+  if (!res.ok) return false;
+  const responseBody = (await res.json()) as { status?: string };
+  return (
+    responseBody.status === "approved" || responseBody.status === "denied"
+  );
 }
