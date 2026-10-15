@@ -172,11 +172,11 @@ describe("SB-069 a vault import lands whole or not at all", () => {
   // (`sections/settings/sops/useVaultSecrets.boundary.test.ts`).
   it("the store's batch write is one change", () => {
     const store = readFileSync(join(coreSrc, "lib/vault/store.ts"), "utf8");
-    const saveStart = store.indexOf("saveItems(items:");
-    const saveItems = store.slice(
-      saveStart,
-      store.indexOf("#writes():", saveStart),
-    );
+    const saveStart = store.indexOf("\n  saveItems(");
+    const writesStart = store.indexOf("\n  #writes(", saveStart);
+    expect(saveStart).toBeGreaterThan(0);
+    expect(writesStart).toBeGreaterThan(saveStart);
+    const saveItems = store.slice(saveStart, writesStart);
     expect(saveItems).toMatch(/return writeSavedItems\(/u);
     expect(saveItems).not.toMatch(/#mutate/u);
     const writes = readFileSync(
