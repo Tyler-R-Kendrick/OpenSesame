@@ -1,6 +1,1 @@
-{
-  "sequence": 0,
-  "payloadSha256": "83b0ee09b0982beb053185d190e4bcc5bdc3d3a4f8bf4608b27bfa8db59b02a7",
-  "resultTree": "47c818c3a9fe1de488949be748b27918fc26d152",
-  "sourceCommit": "99e2158167a9c151067bd2ad45cbf6433ca1b6c2"
-}
+{"sequence":1,"payloadSha256":"42dce43d4c48824e2529b5f7be60267debf84f51ce78d4debde5bfa31e0c4fe7","resultTree":"8b02a756b1f4f88d4a4cc1e47c689ff13276c0a7","sourceCommit":"b262bf541ca2d512907dbc8ac8628f76b6976fa5"}
