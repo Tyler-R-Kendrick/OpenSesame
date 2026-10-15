@@ -1,6 +1,7 @@
 import { bindAiConnectionTransport } from "@opensesame/app-core/lib/ai-connections/transport.js";
 import { AiConnectionError } from "@opensesame/app-core/lib/ai-connections/types.js";
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
+import { EgressDenied } from "@opensesame/app-core/lib/capabilities/egress.js";
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { notifyModelKeys } from "@opensesame/app-core/lib/model-keys/active.js";
 import { initializeVaultCredentialCustody } from "@opensesame/app-core/lib/vault-credential-custody.js";
@@ -24,6 +25,20 @@ export function bindAiConnectionRuntime(
   const release = bindAiConnectionTransport({
     assertCurrent,
     signal,
+    assertEndpointAllowed(endpoint) {
+      assertCurrent();
+      const decision = ctx.egress.decide(endpoint, {
+        capability: "connectors.external",
+        purpose: NATIVE_PROVIDER_PURPOSE,
+      });
+      if (!decision.ok)
+        throw new EgressDenied(
+          decision.code,
+          "connectors.external",
+          decision.destination,
+        );
+      assertCurrent();
+    },
     fetch: async (input, init) => {
       assertCurrent();
       const requestSignal = init?.signal

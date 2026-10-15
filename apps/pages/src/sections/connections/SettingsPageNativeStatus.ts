@@ -4,12 +4,31 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
 import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import type { ConnectorTitleStatus } from "./SettingsPageStatus.js";
 
 export type NativeHeaderStatus = ConnectorTitleStatus & { sentence: string };
+function aiHeader(
+  view: NativeConnectorView,
+  provider: Provider,
+  connectionId: string,
+): NativeHeaderStatus {
+  const current = nativeDeviceViewSeams.authorization(connectionId);
+  return current?.status === "active" &&
+    view.status === "connected" &&
+    view.verifiedAt !== null
+    ? verifiedHeader(view, provider)
+    : {
+        tone: "warn",
+        label: "Verification pending",
+        sentence:
+          current?.statusDetail ??
+          "Verify this AI connection in its owning vault.",
+      };
+}
 function verifiedHeader(
   view: NativeConnectorView,
   provider: Provider,
@@ -54,6 +73,8 @@ export function nativeConnectorHeaderStatus(
   )
     return null;
   const view = readNativeConnector(connection.connectionId);
+  if (view?.configuration.parameters.ai_contract !== undefined)
+    return aiHeader(view, provider, connection.connectionId);
   if (view && view.status !== "cleanup") {
     const policy = nativeBrowserMethodPolicy(
       view.providerId,
