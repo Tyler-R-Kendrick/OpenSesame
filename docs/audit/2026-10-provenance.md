@@ -469,3 +469,39 @@ authentication. The original phone post-HTTP200 abort remains unresolved and
 is not retrospectively passed; two Node instrumentation warnings are retained.
 Pending caller cancellation, native activation, remaining integrations,
 required CI, security landing gates and verified restacking remain OPEN.
+
+
+Codex and delegated Codex agents implemented and reviewed the retained-session
+slice, PR #1327, `b3a322b5382f1dde8584410a39adcf8a3bd8b830`, under the
+recorded fallback: Grok authentication unavailable and Kimi absent. Its 66
+UI tests across six files (15 new), both typechecks, static rules and full
+quality (546 script plus 17 security tests) passed. Scoped scans covered all
+38,268 bytes in four frozen files with zero findings and detection controls.
+
+The actual desktop/touch comparison uses before `fb53fee2` and after
+`b3a322b5` immutable builds with the same executed harness. Before, each
+pending socket stayed open through deliberate release and made one next
+authenticated GET; after, both sockets closed before release with zero next
+GETs. Four later logins completed with retained List, real feature disable,
+local Copy and reconnect. Four native images document unchanged page context;
+protocol traces establish the lifecycle change. These are owned REST-fixture
+journeys in a declared loopback profile, not hosted/native-SDK authentication
+or all-integrations completion. Two expected pre-response cancellations were
+observed; there were no unexpected errors or Node warnings. No live owned
+processes/listeners/workers remained; two terminated zombies are separate.
+The prior action-only post-200 abort remains a separate unexplained record.
+Native activation, remaining callers/providers, required CI, full security
+landing gates and verified bottom-up restacking remain OPEN.
+
+
+Codex and delegated Codex agents implemented and reviewed the on-demand cache
+root fix, PR #1328, `8d20c9f6d0a108004b74f79e981f7b7b4b7eb30f`, under
+the same recorded fallback. One production line and eight new regression cases
+preserve known-owner detection, core roots and static-required assets. The
+unchanged-parent emitted-shape case reproduces unwanted SDK assets; its static
+countercase passes. Final 33 graph/plan-assets tests, Pages types, exact static
+checks and full quality (546 script plus 17 security tests) pass. The initial
+sandbox failure is retained; the existing local fixtures pass with required
+process/socket permissions. Scoped unchanged-rule scans cover all 12,315 bytes
+in two files with zero findings and working controls. This is cache-plan unit
+behavior, not installed-SW/download/native-provider activation proof.
