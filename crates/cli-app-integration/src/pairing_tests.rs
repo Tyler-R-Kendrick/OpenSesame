@@ -69,3 +69,42 @@ fn persona_random_root_shaped_secret_cannot_confirm() {
         Err(PairingError::WrongOrigin | PairingError::Unknown)
     ));
 }
+
+#[test]
+fn exchange_requires_operator_armed_registration_every_time() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    let origin = "http://localhost:5180";
+    let now = 1_000;
+    let (code, _) = pairings.issue(origin, now).unwrap();
+    let (signing_key, spki) = device_key_b64();
+    let challenge = pairings.pending[0].pairing_challenge;
+    let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
+    let outcome = pairings
+        .confirm(&code, origin, &spki, &sig, now)
+        .expect("confirm");
+    assert!(!pairings.pending[0].registration_armed);
+    assert!(matches!(
+        pairings.exchange(&code, origin, now),
+        Err(PairingError::RegistrationRequired)
+    ));
+    pairings
+        .arm_registration(origin, &outcome.registration_code, now)
+        .expect("arm");
+    let issued = pairings.exchange(&code, origin, now).unwrap();
+    assert!(pairings.authorizes(&issued.token, origin));
+
+    let (code2, _) = pairings.issue(origin, now).unwrap();
+    let sig2 = sign_pairing_confirm(&signing_key, &pairings.pending[0].pairing_challenge, &code2, origin);
+    let outcome2 = pairings
+        .confirm(&code2, origin, &spki, &sig2, now)
+        .expect("confirm second");
+    assert!(!pairings.pending.iter().any(|p| p.registration_armed));
+    assert!(matches!(
+        pairings.exchange(&code2, origin, now),
+        Err(PairingError::RegistrationRequired)
+    ));
+    pairings
+        .arm_registration(origin, &outcome2.registration_code, now)
+        .expect("arm second");
+    assert!(pairings.exchange(&code2, origin, now).is_ok());
+}

@@ -47,6 +47,9 @@ const pairingExchangeBodySchema = z.object({
   token: z.string(),
 });
 
+const CLI_APP_PAIRING_WEBAUTHN_PATH =
+  "/v1/cli/app-integration/pairing/webauthn";
+
 function isPairableOrigin(origin: string): boolean {
   let url: URL;
   try {
@@ -182,6 +185,36 @@ export async function confirmCliAppPairingCode(
   return { registrationCode: body.data.registrationCode };
 }
 
+async function registerCliAppHumanProofCredential(
+  base: string,
+  origin: string,
+  token: string,
+): Promise<boolean> {
+  const { ensureCliAppDeviceSigningKey, b64urlEncode } = await import(
+    "./device-crypto.js"
+  );
+  const device = await ensureCliAppDeviceSigningKey();
+  if (!device) return false;
+  const credentialIdB64 = b64urlEncode(
+    new TextEncoder().encode(device.publicKeySpkiB64),
+  );
+  const res = await fetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
+    method: "POST",
+    credentials: "omit",
+    headers: {
+      "content-type": "application/json",
+      Origin: origin,
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      credentialIdB64,
+      publicKeySpkiB64: device.publicKeySpkiB64,
+      signCount: 0,
+    }),
+  });
+  return res.status === 204;
+}
+
 export async function exchangeCliAppPairingCode(
   parsed: CliAppPairingCode,
 ): Promise<boolean> {
@@ -202,6 +235,9 @@ export async function exchangeCliAppPairingCode(
   }
   const token = body.data.token;
   writeCliAppIntegrationBearer(token);
+  if (!(await registerCliAppHumanProofCredential(base, parsed.origin, token))) {
+    return false;
+  }
   return true;
 }
 

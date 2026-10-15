@@ -1,8 +1,6 @@
 //! Human proof tokens minted in Pages after PIN or passkey unlock (`oschip2:` + signature).
 
-use crate::device_crypto::{
-    approval_challenge_digest, parse_verifying_key_spki_b64, verify_p256_sha256,
-};
+use crate::device_crypto::approval_challenge_digest;
 use crate::pairing::PairedBinding;
 use crate::webauthn_assertion::verify_passkey_assertion;
 
@@ -41,10 +39,7 @@ pub(crate) fn human_proof_verify(
     let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
     if let Some((kind, tail)) = rest.split_once(':') {
         if kind == "pin" {
-            let verifying_key = parse_verifying_key_spki_b64(&binding.device_public_key_spki_b64)?;
-            if verify_p256_sha256(&verifying_key, &challenge, tail) {
-                return Some(HumanProofOutcome::Pin);
-            }
+            // Pairing device keys are client-chosen; PIN proofs must not verify against them.
             return None;
         }
         if kind == "passkey" {
@@ -106,7 +101,7 @@ mod tests {
     }
 
     #[test]
-    fn pin_proof_round_trip() {
+    fn pin_proof_does_not_verify_against_pairing_device_key() {
         let signing_key = SigningKey::random(&mut OsRng);
         let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
         let proof = mint_pin_human_proof(&signing_key, "clr_1", "term-a", "nonce", "read");
@@ -115,11 +110,7 @@ mod tests {
             webauthn: None,
             pin_proof_failures: 0,
         };
-        assert_eq!(
-            human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", "read"),
-            Some(HumanProofOutcome::Pin)
-        );
-        assert!(human_proof_verify(&proof, &binding, "clr_2", "term-a", "nonce", "read").is_none());
+        assert!(human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", "read").is_none());
     }
 
     #[test]
