@@ -14,9 +14,7 @@ describe("default extensions", () => {
   it("is Identity, Connections, Access and item types, without SIOP or ambient sign-in", () => {
     const fromSections = FEATURES.filter((feature) => SECTIONS.has(feature.id))
       .flatMap((feature) => [...feature.capabilities])
-      .filter(
-        (id) => id !== "identity.ambient-sso" && id !== "identity.siop",
-      )
+      .filter((id) => id !== "identity.ambient-sso" && id !== "identity.siop")
       .sort();
     expect([...DEFAULT_EXTENSIONS].sort()).toEqual(fromSections);
     for (const id of DEFAULT_EXTENSIONS) {
