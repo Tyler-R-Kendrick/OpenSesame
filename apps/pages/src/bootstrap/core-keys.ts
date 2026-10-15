@@ -15,6 +15,7 @@ import {
 } from "@opensesame/app-core/lib/local-guest.js";
 import { PROJECTS_KEY } from "@opensesame/app-core/lib/projects.js";
 import { TRAVEL_SAFE_KEY } from "@opensesame/app-core/lib/travel/safe-flags.js";
+import { HELD_PACKS_KEY } from "@opensesame/app-core/lib/type-packs/held-cache.js";
 import { PACKS_KEY } from "@opensesame/app-core/lib/type-packs/persist.js";
 import { TOMBS_REGISTRY_KEY } from "@opensesame/app-core/lib/vfs.js";
 import { THEME_KEY } from "../lib/theme.js";
@@ -41,6 +42,8 @@ export const CORE_BOOT_KEYS: readonly string[] = [
   TRAVEL_SAFE_KEY,
   // The built-in item types this device switched on, kept to work offline.
   PACKS_KEY,
+  // Definition bytes for actual held items, activated only by the open vault.
+  HELD_PACKS_KEY,
   // The armed duress code and the incident journals that hold a device fenced.
   // Journal reads are synchronous: unhydrated, the code typed after a reload
   // matches nothing and fails like a wrong password.

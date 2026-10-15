@@ -213,6 +213,7 @@ describe("the Environments sheet", () => {
       "staging",
     );
     await user.click(screen.getByRole("button", { name: "Add environment" }));
+    await screen.findByRole("tab", { name: "staging", selected: true });
     await user.click(screen.getByRole("tab", { name: "production" }));
     await addKey(user, "Stripe key");
     await user.type(

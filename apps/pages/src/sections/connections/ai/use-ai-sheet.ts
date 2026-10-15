@@ -7,6 +7,10 @@ import type {
   Connection,
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
+import {
+  connectionRouteMatches,
+  connectionRouteProvider,
+} from "@opensesame/app-core/sections/connections/provider-route.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
@@ -34,9 +38,11 @@ export function useAiSheet({
   onFlash,
 }: Options) {
   const navigate = useNavigate();
-  const provider = providers?.find((item) => item.id === providerId) ?? null;
+  const provider = connectionRouteProvider(providers, providerId);
   const providerConnections = (connections ?? []).filter(
-    (item) => item.providerId === providerId && item.status !== "revoked",
+    (item) =>
+      connectionRouteMatches(item.providerId, providerId) &&
+      item.status !== "revoked",
   );
   // The route decides once, on arrival, whether it is a first connection (the
   // sheet) or a connection's page. Removing the connection from its page leaves

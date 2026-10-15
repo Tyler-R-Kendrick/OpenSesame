@@ -7,16 +7,19 @@ import {
 } from "./embedded-catalog.js";
 
 describe("embedded connector catalog", () => {
-  it("contains every Fnox, LLM, and identity provider once", () => {
+  it("contains every Fnox, LLM, identity and browser secret backend provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(138);
+    expect(ids).toHaveLength(141);
     for (const id of [
       "webcrypto",
       "aws-kms",
       "gcp-kms",
       "azure-key-vault-secrets",
       "bitwarden",
+      "byo-secret-backend",
+      "local-vault",
+      "browser-credentials",
       "github",
       "gitlab",
       "bitbucket",

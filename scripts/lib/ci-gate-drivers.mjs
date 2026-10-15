@@ -22,6 +22,7 @@ export const DRIVER_GATES = {
   "verify-native-public-protocol.mjs": ["native-public-protocol"],
   "verify-provider-auth.mjs": ["native-public-protocol"],
   "verify-identity-connections.mjs": ["native-public-protocol"],
+  "verify-secret-backends.mjs": ["native-public-protocol"],
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],

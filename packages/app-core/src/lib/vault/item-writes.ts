@@ -10,6 +10,7 @@ import {
   type VaultItem,
   resolveAccounts,
 } from "@opensesame/vault-core";
+import { applyManifestPlan } from "./body-edits.js";
 import { noteSavedItems } from "./item-activity.js";
 import { itemText } from "./item-departure.js";
 import { writeItem } from "./item-path.js";
@@ -17,12 +18,55 @@ import {
   preparePasswordRetirement,
   rememberRetiredDigests,
 } from "./password-history.js";
+import type { captureStoreOperation } from "./store-operation-check.js";
 
 export type ItemWriteHost = {
   tomb: string;
   items: readonly VaultItem[];
   mutate(change: (body: VaultBody) => void): Promise<void>;
 };
+
+/** Hand the original session to a new write turn, which owns authenticated peer-header adoption. */
+export function originalItemWriteHost(
+  original: Pick<
+    ReturnType<typeof captureStoreOperation>,
+    "scope" | "active" | "context"
+  >,
+  items: readonly VaultItem[],
+  mutate: (
+    change: (body: VaultBody) => void,
+    check: () => void,
+  ) => Promise<void>,
+): ItemWriteHost {
+  return {
+    tomb: original.scope.tomb,
+    items: resolveAccounts(items),
+    mutate: (change) => {
+      original.active();
+      return mutate(change, original.context);
+    },
+  };
+}
+
+export type ManifestWritePlan = {
+  adds: VaultItem[];
+  updates: VaultItem[];
+  newFolders: Folder[];
+};
+
+export type ItemImportPlan = {
+  items: VaultItem[];
+  newFolders: Folder[];
+};
+
+export function writeManifestItems(
+  host: ItemWriteHost,
+  plan: ManifestWritePlan,
+): Promise<void> {
+  if (plan.adds.length + plan.updates.length + plan.newFolders.length === 0)
+    return Promise.resolve();
+  return host.mutate((body) => applyManifestPlan(body, plan));
+}
 
 export async function writeSavedItems(
   host: ItemWriteHost,

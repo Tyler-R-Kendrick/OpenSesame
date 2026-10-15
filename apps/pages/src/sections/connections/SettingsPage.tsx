@@ -10,6 +10,10 @@ import {
   readLocalGithubApp,
   subscribeLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
+import {
+  isSecretBackendProvider,
+  secretBackendPreset,
+} from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import {
   hasConnectRoute,
@@ -114,8 +118,14 @@ export function ConnectorSettingsPage({
     provider !== null &&
     isIdentityConnectionProvider(provider.id) &&
     !isConnectConnection(connection);
+  const secretBackendExperience =
+    provider !== null &&
+    isSecretBackendProvider(provider.id) &&
+    !isConnectConnection(connection);
   const nativeDescriptor =
-    provider && !identityExperience ? nativeSettingsDescriptor(provider) : null;
+    provider && !identityExperience && !secretBackendExperience
+      ? nativeSettingsDescriptor(provider)
+      : null;
   const nativeExperience =
     nativeDescriptor !== null && !isConnectConnection(connection);
   const headerDocs = provider
@@ -123,7 +133,7 @@ export function ConnectorSettingsPage({
         provider.displayName,
         nativeExperience
           ? (nativeDescriptor.docsUrl ?? provider.docsUrl)
-          : provider.docsUrl,
+          : (secretBackendPreset(provider.id)?.docsUrl ?? provider.docsUrl),
       )
     : null;
   useEffect(() => {
@@ -274,7 +284,9 @@ export function ConnectorSettingsPage({
         />
       ) : null}
 
-      {nativeExperience || identityExperience ? null : automatic ? (
+      {nativeExperience ||
+      identityExperience ||
+      secretBackendExperience ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>
@@ -372,6 +384,7 @@ export function ConnectorSettingsPage({
         onFlash={onFlash}
         onChanged={onChanged}
         identityExperience={identityExperience}
+        secretBackendExperience={secretBackendExperience}
         nativeExperience={nativeExperience}
         onConnect={onConnect}
         deviceSeal={deviceSeal}

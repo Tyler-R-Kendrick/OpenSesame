@@ -136,3 +136,43 @@ test("keeps password-reset mailbox leaves within their matching optional capabil
     );
   }
 });
+
+test("keeps backup SDKs and authority UI in separate lazy capability chunks", () => {
+  const paths = [
+    [
+      "/packages/app-core/src/lib/secret-backends/bitwarden.worker.ts",
+      "connectors.external",
+      "secret-backends",
+    ],
+    [
+      "/node_modules/@1password/save-button/dist/index.js",
+      "connectors.external",
+      "vendor-1password-save",
+    ],
+    [
+      "/src/sections/access/HostedRequestsPanel.tsx",
+      "access.authority",
+      "cap-access.authority",
+    ],
+  ];
+  for (const [path, capability, chunk] of paths) {
+    assert.equal(
+      lazyLeafChunk(path, { classification: "optional", capability }),
+      chunk,
+    );
+    assert.equal(
+      lazyLeafChunk(path, {
+        classification: "core",
+        capability: "shell.navigation",
+      }),
+      undefined,
+    );
+    assert.equal(
+      lazyLeafChunk(path, {
+        classification: "optional",
+        capability: "sharing.live",
+      }),
+      undefined,
+    );
+  }
+});

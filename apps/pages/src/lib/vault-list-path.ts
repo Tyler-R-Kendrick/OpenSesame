@@ -63,6 +63,6 @@ export function vaultPane(
   pathname: string,
   params: URLSearchParams,
 ): VaultPane {
-  if (pathname !== "/vault") return "detail";
+  if (pathname !== "/vault" && pathname !== "/vault/") return "detail";
   return params.has("f") || params.has("folder") ? "list" : "tree";
 }

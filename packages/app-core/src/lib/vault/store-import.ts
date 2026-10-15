@@ -64,6 +64,58 @@ export type ImportOptions = Readonly<{
   adoptIdentity?: boolean;
 }>;
 
+/** Async decrypt and key vetting must never redirect a restore into a later vault session. */
+export function guardedImportPort(
+  port: VaultBodyPort,
+  check: () => void,
+): VaultBodyPort {
+  const read =
+    <T>(get: () => T) =>
+    () => {
+      check();
+      return get();
+    };
+  return {
+    tomb: read(port.tomb),
+    open: read(port.open),
+    carries: read(port.carries),
+    header: read(port.header),
+    body: read(port.body),
+    mutate: (change) => {
+      check();
+      return port.mutate((body) => {
+        check();
+        change(body);
+      });
+    },
+    publishKey: async (field) => {
+      check();
+      await port.publishKey(field);
+      check();
+    },
+  };
+}
+
+/** Bind the public operation while capturing its destination anew for every restore. */
+export function bindSealedImport(
+  getPort: () => VaultBodyPort,
+  capture: () => () => void,
+) {
+  return (
+    fileText: string,
+    secret: string | Uint8Array,
+    options: ImportOptions = {},
+  ) => {
+    const check = capture();
+    return importSealedInto(
+      guardedImportPort(getPort(), check),
+      fileText,
+      secret,
+      options,
+    );
+  };
+}
+
 /** The sealed backup `VaultStore.exportSealed` writes. */
 export function sealedVaultExport(
   header: VaultHeader | null,
