@@ -18,6 +18,7 @@ const CONNECTOR_FILES = [
   "self-hosted-connectors",
   "github-installation-access",
   "identity-graph",
+  "secret-backends/",
 ];
 
 export const CONNECTOR_LIB_RULES = each(L, CONNECTOR_FILES, (p) =>
