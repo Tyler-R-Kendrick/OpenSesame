@@ -1,16 +1,16 @@
-/** GitHub App assertions are signed locally; the private key never leaves this device. */
-import {
-  base64ToBytes,
-  bytesToBase64Url,
-  textToBase64Url,
-} from "./native-base64.js";
 import {
   objectIdentifier,
   octetString,
   sequence,
   smallInteger,
   tlv,
-} from "./x509/der.js";
+} from "./der.js";
+/** GitHub App assertions are signed locally; the private key never leaves this device. */
+import {
+  base64ToBytes,
+  bytesToBase64Url,
+  textToBase64Url,
+} from "./native-base64.js";
 
 export type GithubDirectGuard = {
   signal: AbortSignal;
