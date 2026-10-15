@@ -339,3 +339,28 @@ The initial hostname-helper diagnostic is preserved and excluded from 184.
 Focused tests, actual browser proof and full package runs are separately
 reported. Non-2xx service-probe presentation and other audited integrations
 remain unfinished; this entry UI does not complete them or waive landing CI.
+
+### Actual Tailscale service failure and retry
+
+Codex and delegated Codex agents implemented and independently reviewed signed
+commit `c55d195c8b5f84b400dde7efaf78430df4da9a37` (PR #1306). Grok
+authentication remains unavailable and Kimi is absent. The shared service
+probe accepts only 2xx, places service errors beside Test, routes the existing
+notification, clears stale outcomes and preserves independent node membership.
+The saved public-field readiness ordering exposed by regression tests is fixed
+without weakening its assertion. Final validation includes 157 focused tests,
+5,520 Pages and 114 server tests, both package types, full repository quality,
+two actual final builds and zero public capability graph violations/mismatches.
+Actual before/after Chromium journeys pass 108 checks (52 before/56 after),
+with real native-peer 404s and 200 retries through unchanged official WASM,
+Noise and DERP. The eight native gallery viewports and two complete lossless
+WebP sheets preserve every decoded pixel. Full original metrics and exact
+historical-build equivalence receipts remain intact. Superseded two-file
+AFTER52, the harness diagnostic and initial cold-test failures are excluded
+and retained privately. Provider-side CORS/TLS fixture edges and a DERP-only
+SPKI exception are explicit; no hosted-account/ordinary-PKI, installed-offline
+or general VPN claim is made. The source commit was created with the reviewed
+GraphQL publisher using recovered CLI authentication and independently
+verified through the connector; no queued Actions result was promoted. Other
+native provider and broker-backed identity gaps remain separate work. Required
+CI, signed bottom-up restack and security landing gates remain mandatory.
