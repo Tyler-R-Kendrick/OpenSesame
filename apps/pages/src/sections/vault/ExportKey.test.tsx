@@ -73,6 +73,17 @@ describe("Export key", () => {
     vi.clearAllMocks();
   });
 
+  it("names the open vault through openVaultLabel, not a raw tomb id", async () => {
+    const vaults = await import("@opensesame/app-core/lib/vaults.js");
+    vi.spyOn(vaults, "openVaultLabel").mockReturnValue("project · work");
+    await passwordVault();
+    vault.current.tomb = "prj_0000-work";
+    render(<ExportKey />);
+    await userEvent.click(screen.getByRole("button", { name: "Export items" }));
+    expect(screen.getByText("project · work")).toBeTruthy();
+    vi.restoreAllMocks();
+  });
+
   it("is an icon key that opens the encrypted-backup sheet", async () => {
     await passwordVault();
     render(<ExportKey />);
