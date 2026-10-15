@@ -5,6 +5,24 @@
 
 const toPosix = (path) => path.replace(/\\/g, "/");
 
+const ONEPASSWORD_SOURCE =
+  /\/packages\/app-core\/src\/lib\/secret-backends\/onepassword-(?:sdk(?:-[a-z0-9-]+|\.worker)?|worker-[a-z0-9-]+)\.[jt]s$/;
+
+/** Native SDK implementation only; Connect and common configuration keep their ordinary leaf. */
+export function secretBackendSdkChunk(id, entry) {
+  if (
+    entry.classification !== "optional" ||
+    entry.capability !== "connectors.external" ||
+    id.includes("\0") ||
+    id.startsWith("virtual:")
+  )
+    return undefined;
+  const path = toPosix(id).split(/[?#]/, 1)[0];
+  return ONEPASSWORD_SOURCE.test(path)
+    ? "secret-backend-onepassword-sdk"
+    : undefined;
+}
+
 /**
  * Optional import() leaves, one chunk each. Rollup otherwise fused the
  * agent SDKs, so loading one evaluated the others. A row applies only
@@ -145,6 +163,8 @@ const LAZY_LEAVES = [
 ];
 
 export function lazyLeafChunk(id, entry) {
+  const sdk = secretBackendSdkChunk(id, entry);
+  if (sdk) return sdk;
   const path = toPosix(id);
   for (const [dir, capability, name] of LAZY_LEAVES) {
     if (!path.includes(dir)) continue;

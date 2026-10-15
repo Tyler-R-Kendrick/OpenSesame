@@ -13,6 +13,7 @@ import {
   isUnclassified,
   parseHtmlEntry,
 } from "./capability-graph.mjs";
+import { secretBackendSdkChunk } from "./capability-lazy-leaves.mjs";
 import { itemTypePackChunk } from "./item-type-pack-chunks.mjs";
 
 /**
@@ -40,10 +41,12 @@ function chunkRecord(file, output, classify) {
     name: output.name,
     isEntry: output.isEntry,
     isDynamicEntry: output.isDynamicEntry,
-    // A type switch installs and seals its own text (ADR 0165). Merely
-    // approving a capability must not download every disabled type pack.
+    // Type packs install individually (ADR 0165); native SDKs initialize on demand.
+    // Approving a capability must not eagerly cache these optional resources.
     onDemand: Object.keys(output.modules).some(
-      (id) => itemTypePackChunk(id) !== undefined,
+      (id) =>
+        itemTypePackChunk(id) !== undefined ||
+        secretBackendSdkChunk(id, classify(id)) !== undefined,
     ),
     imports: [...new Set(output.imports)].sort(),
     dynamicImports: [...new Set(output.dynamicImports)].sort(),
