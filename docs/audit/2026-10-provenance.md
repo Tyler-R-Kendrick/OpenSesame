@@ -265,3 +265,17 @@ research applies the official `tailscale/tailscale-skill` instructions and
 current documentation, the official `@tailscale/connect` browser SDK source,
 and tailcat's browser WASM example. Verification results distinguish real
 vendor protocol/client execution from deterministic local service fixtures.
+
+### Browser-native GitHub integration follow-up
+
+Codex and delegated Codex agents implemented and reviewed the direct GitHub
+App REST/crypto core, registration custody, and App/token configuration entry.
+Task preflights again found no authenticated Grok session and no Kimi binary.
+GitHub GraphQL `createCommitOnBranch` produced signed commits, independently
+checked for parent, tree, inventory, and verified signature before promotion.
+Actual Chromium protocol tests use a local HTTP GitHub fixture; desktop and
+touch UI evidence uses two actual static production builds. Neither is a live
+GitHub account registration or installation claim. The evidence gallery also
+records a rejected plaintext-storage fixture as unverified, rather than as a
+passing saved-App check. Repository selection and backup caller migration are
+separate implementation slices and are not completed by the entry UI.

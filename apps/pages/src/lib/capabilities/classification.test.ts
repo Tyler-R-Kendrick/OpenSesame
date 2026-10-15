@@ -101,6 +101,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     // setup's federation steps draw connector cards: code reached from more
     // than one optional capability is owned by none of them (BUILD-04/05).
     for (const path of [
+      "src/lib/der.ts",
       "src/lib/local-directory.ts",
       "src/lib/local-sessions.ts",
       "src/lib/local-share-reach.ts",

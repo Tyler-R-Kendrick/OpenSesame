@@ -133,7 +133,9 @@ export function ConnectorSettingsPage({
     ? docLink(
         provider.displayName,
         nativeExperience
-          ? (nativeDescriptor.docsUrl ?? provider.docsUrl)
+          ? provider.id === "github"
+            ? "https://docs.github.com/en/apps"
+            : (nativeDescriptor.docsUrl ?? provider.docsUrl)
           : (secretBackendPreset(provider.id)?.docsUrl ?? provider.docsUrl),
       )
     : null;
@@ -176,7 +178,7 @@ export function ConnectorSettingsPage({
           label: nativeDescriptor.methods.some((method) => method.available)
             ? "Not connected"
             : "Not available here",
-          sentence: `${provider.id === "github" ? "Personal access token" : authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`,
+          sentence: `${provider.id === "github" ? "App or token" : authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`,
         }
       : null);
   const automatic = canConfigureAutomatically(provider);
