@@ -250,6 +250,7 @@ async fn persona_attack_chain_is_refused() {
                 forged_origin,
                 forged_device_key,
                 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                None,
                 now,
             ),
             Err(PairingError::Unknown | PairingError::InvalidProof | PairingError::WrongOrigin)
@@ -374,6 +375,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
                 "code": code,
                 "devicePublicKeySpkiB64": attacker_spki,
                 "pairingSignatureB64": sig_b64,
+                "vaultSessionRootDigest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             })
             .to_string(),
         ))
@@ -446,7 +448,14 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     {
         let mut host = state.cli_app_integration.lock().unwrap();
         host.pairings
-            .confirm(&code2, origin, &attacker_spki, &sig2_b64, now)
+            .confirm(
+                &code2,
+                origin,
+                &attacker_spki,
+                &sig2_b64,
+                Some("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+                now,
+            )
             .expect("confirm2");
         assert!(matches!(
             host.pairings.exchange(&code2, origin, now),

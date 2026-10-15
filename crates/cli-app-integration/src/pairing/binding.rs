@@ -1,10 +1,13 @@
 //! Paired-page binding lookups and `WebAuthn` credential state for pairings.
 
 use super::{
-    is_device_public_key_shaped, is_secret_shaped, CliAppIntegrationPairings, PairedBinding,
-    PairingError, WebAuthnCredential, MAX_PIN_PROOF_FAILURES,
+    is_device_public_key_shaped, is_secret_shaped, is_vault_session_root_digest_shaped,
+    CliAppIntegrationPairings, PairedBinding, PairingError, WebAuthnCredential,
+    MAX_PIN_PROOF_FAILURES,
 };
+use crate::device_crypto::webauthn_register_challenge_digest;
 use crate::pairing_code::{digest_hex, same};
+use crate::webauthn_assertion::verify_passkey_assertion;
 
 impl CliAppIntegrationPairings {
     #[must_use]
@@ -23,7 +26,7 @@ impl CliAppIntegrationPairings {
             })
     }
 
-    /// Attach a `WebAuthn` credential to an existing bearer pairing.
+    /// Attach a vault-bound `WebAuthn` credential to an existing bearer pairing.
     ///
     /// # Errors
     ///
@@ -32,14 +35,47 @@ impl CliAppIntegrationPairings {
         &mut self,
         token: &str,
         origin: &str,
+        vault_session_root_digest: &str,
+        human_proof_passkey: &str,
         credential_id_b64: &str,
         public_key_spki_b64: &str,
         sign_count: u32,
     ) -> Result<(), PairingError> {
-        if !is_secret_shaped(token) || !is_device_public_key_shaped(public_key_spki_b64) {
+        if !is_secret_shaped(token)
+            || !is_device_public_key_shaped(public_key_spki_b64)
+            || !is_vault_session_root_digest_shaped(vault_session_root_digest)
+        {
             return Err(PairingError::Unknown);
         }
         let digest = digest_hex(token);
+        let Some(page) = self.paired.iter().find(|page| {
+            page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
+        }) else {
+            return Err(PairingError::Unknown);
+        };
+        if page.vault_session_root_digest.as_deref() != Some(vault_session_root_digest) {
+            return Err(PairingError::InvalidProof);
+        }
+        if same(page.device_public_key_spki_b64.as_str(), public_key_spki_b64) {
+            return Err(PairingError::InvalidProof);
+        }
+        let challenge = webauthn_register_challenge_digest(
+            token,
+            origin,
+            vault_session_root_digest,
+        );
+        let stored = WebAuthnCredential {
+            credential_id_b64: credential_id_b64.to_string(),
+            public_key_spki_b64: public_key_spki_b64.to_string(),
+            sign_count: 0,
+        };
+        let proof_tail = human_proof_passkey
+            .trim()
+            .strip_prefix("oschip2:passkey:")
+            .ok_or(PairingError::InvalidProof)?;
+        if verify_passkey_assertion(proof_tail, &challenge, &stored).is_none() {
+            return Err(PairingError::InvalidProof);
+        }
         let Some(page) = self.paired.iter_mut().find(|page| {
             page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
         }) else {
