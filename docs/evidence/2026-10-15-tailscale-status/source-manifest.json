@@ -1,0 +1,113 @@
+{
+  "before": {
+    "parent": "c2f227d97dab7e0d2c10dd5220d4892299fd792c",
+    "sourceOverlay": "exactfourfiles /workspace/work/pwa-tailscale-state-adoption/manifest.json",
+    "tree": "5a87eff485c82da3ac906eeaa979c3b4ff9a5f52",
+    "profile": "loopback_development",
+    "canonicalOrigin": "http://localhost:41911",
+    "dist": "/workspace/work/pwa-tailscale-status-before-dist",
+    "indexSha256": "bbf3879d816d803891b128db373a26f8b8f7fa9fed2cce4ee9be0373e3858d3d",
+    "equivalentSignedCommit": "e9b48f1a794bcfe57a9f0d8b6414a2efc89d2fdd",
+    "files": [
+      {
+        "path": "packages/app-core/src/lib/tailscale/browser-node-store.ts",
+        "sha256": "67979b836e0a6ce445ec77d2a73c858b56a33703d896a1789cad4275c0de3d38",
+        "bytes": 7310
+      },
+      {
+        "path": "packages/app-core/src/lib/tailscale/browser-node-store.test.ts",
+        "sha256": "fdd41612bbcc048a9bb2a54384025739f212f9c9a94775926d0bbf3970adbb01",
+        "bytes": 6549
+      },
+      {
+        "path": "apps/pages/src/modules/networking.tailnet/browser/controller.ts",
+        "sha256": "1308d7615adfdd61a230ea875a6fa0a5cf6e3f023f792104365e6fd608d3ce90",
+        "bytes": 11329
+      },
+      {
+        "path": "apps/pages/src/modules/networking.tailnet/browser/controller.test.ts",
+        "sha256": "9934f82335594e3278738a3d2d8e9f68c02b6e9d4eff8a60f018a416a876d3b6",
+        "bytes": 13090
+      }
+    ]
+  },
+  "after": {
+    "parent": "e9b48f1a794bcfe57a9f0d8b6414a2efc89d2fdd",
+    "sourceOverlay": "exact11files /workspace/work/pwa-tailscale-live-status/manifest.json",
+    "tree": "d3b5b806196b9049843b5f7308e8e7df9b9d755d",
+    "profile": "loopback_development",
+    "canonicalOrigin": "http://localhost:41911",
+    "dist": "/workspace/work/pwa-tailscale-status-after-dist",
+    "indexSha256": "c40853241d4b1a958b87a01327b5c8d925cac487cedfd7062000c620b32e5b86",
+    "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+    "exit": 0,
+    "qualification": "Actual build of signed parent plus exact frozen11 source overlay; not a clean future-signed-head build.",
+    "equivalentSignedCommit": "1093cff9e0e0a194b2aea529dfa3351d1770c92a",
+    "files": [
+      {
+        "path": "packages/app-core/src/lib/tailscale/browser-node-port.ts",
+        "sha256": "3c1666024c513dcc9c32cbdc2c988191b1029ee09cd58dad4ac22d3e77d71b5d",
+        "bytes": 1764
+      },
+      {
+        "path": "packages/app-core/src/lib/tailscale/browser-node-store.ts",
+        "sha256": "93a32806bad1cf3fde52a277d8d8c78ba81873c416b245f0bfc4ddb6877ba124",
+        "bytes": 8501
+      },
+      {
+        "path": "apps/pages/src/modules/networking.tailnet/browser/controller.ts",
+        "sha256": "3783c6942d69903a39d68a6663743979a72e46e51403945cc1990b7ba06faac9",
+        "bytes": 12808
+      },
+      {
+        "path": "packages/app-core/src/lib/device-connector-view.ts",
+        "sha256": "9abdfdf0bc0aea0e502d54c19be51bc6ced798ee3ab8fac62ea4110afb2194a8",
+        "bytes": 5500
+      },
+      {
+        "path": "apps/pages/src/sections/connections/SettingsPageNativeStatus.ts",
+        "sha256": "9ae024ad234cb5ac8ba5ab116034a5b760ab069f5aaaa161434d619ce7559248",
+        "bytes": 5129
+      },
+      {
+        "path": "apps/pages/src/sections/connections/SettingsPage.tsx",
+        "sha256": "355eb07c583e967a46e4d6f066f31aea75631856c6221a253858bc7b1d2ae746",
+        "bytes": 14051
+      },
+      {
+        "path": "apps/pages/src/sections/ConnectionsSection.tsx",
+        "sha256": "8fa59ba6fc5bea3df3dfc0e5eb3422c6cce5b5803015d0f0bb79f7acf5ae90bf",
+        "bytes": 12529
+      },
+      {
+        "path": "apps/pages/src/sections/connections/tailscale/useTailscaleConnectionState.ts",
+        "sha256": "f3e44b8144e85236339cb3921b493ba6656d2138aa845fa63e9bd3feaafa20bb",
+        "bytes": 2424
+      },
+      {
+        "path": "apps/pages/src/modules/networking.tailnet/browser/authorization.test-support.ts",
+        "sha256": "34f9d5ee812edcb8a549c9112617595e4dfc12af32406e985856ca5575eb1ddf",
+        "bytes": 6128
+      },
+      {
+        "path": "apps/pages/src/modules/networking.tailnet/browser/authorization.integration.test.ts",
+        "sha256": "84de2181e8b2f2c77f88da42cab3f790b4828b4fa3e3f9874482488f9662897f",
+        "bytes": 12254
+      },
+      {
+        "path": "apps/pages/src/sections/connections/tailscale/TailscaleStatus.integration.test.tsx",
+        "sha256": "c9e5470ff5f6b48fcdd8b7950bc9b81466ebaebaea71c1c92bd6e615f338c8fb",
+        "bytes": 12353
+      }
+    ],
+    "sourcePr": "https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1301"
+  },
+  "qualification": "Both builds compiled signed parents plus exact frozen overlays. Root independently verified before and after signed-equivalent trees, parents, inventories and bytes. Neither was built as a clean future-head checkout.",
+  "sdk": {
+    "version": "1.102.3-3-tb31d8a75a-g5e651e16f",
+    "jsHash": "318a91bdbc32d4aa57a7ffa554368d390e96bf7128419b4561f98001e86e3795",
+    "gzipHash": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52",
+    "wasmHash": "a36372a325e1bd88a6fb60c8b08abcc4e38d7d1aad7b1467022d76435d97c895",
+    "runtimeHash": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+  }
+}

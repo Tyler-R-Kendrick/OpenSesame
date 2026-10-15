@@ -296,3 +296,25 @@ status and sticky earlier failed-Test flash as unresolved UI findings.
 Lossless WebP gallery compression independently compares every decoded pixel.
 Full package runs and required security landing checks remain separately
 reported; focused tests and browser results are not an aggregate pass.
+
+### Live Tailscale browser-node status
+
+Codex and delegated Codex agents implemented and independently reviewed the
+current browser-node authority projection in signed commit
+`1093cff9e0e0a194b2aea529dfa3351d1770c92a` (PR #1301). Grok authentication
+remains unavailable and Kimi is absent. Before and after were actual matched
+loopback production builds of signed parents plus exact frozen overlays;
+their trees were independently matched to the later verified signed commits.
+Official pinned WASM, real Headscale/DERP and a native peer produced 120 checks
+across desktop and touch, including live membership before any service GET,
+actual peer HTTP 200, current home/navigation and worker termination on stop,
+vault lock and capability withdrawal. Transparent provider-side fixture edges
+and a DERP SPKI-only test exception are explicit; no hosted account, ordinary
+hosted PKI, general VPN or universal integration completion is claimed. All
+12 gallery viewports retain exact native pixels, and full-sheet lossless WebP
+compression independently preserves every decoded pixel. The final portable
+after-capture replay passed another 66 checks, excluded from the primary 120.
+Full repository quality and public static verification passed separately;
+required CI and complete security landing gates are not inferred from these
+results. OAuth-management UI removal and remaining provider gaps continue in
+separate slices.
