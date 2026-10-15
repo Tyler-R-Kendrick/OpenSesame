@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import * as codec from "./onepassword-sdk-codec.js";
 import * as loader from "./onepassword-sdk-loader.js";
 import { createOnePasswordSdkBackend } from "./onepassword-sdk.js";
 import {
@@ -45,14 +46,19 @@ it("captures frozen owned assets and the whole port without allocating until exp
   expect(f.backend.capabilities).toMatchObject({
     list: true,
     get: true,
-    create: false,
-    update: false,
-    delete: false,
+    create: true,
+    update: true,
+    delete: true,
     import: false,
   });
-  for (const key of ["createItem", "updateItem", "deleteItem", "importToLocal"])
-    expect(key in f.backend).toBe(false);
-  expect(f.backend.capabilities.vaultBackup).toBeUndefined();
+  for (const key of ["createItem", "updateItem", "deleteItem"])
+    expect(key in f.backend).toBe(true);
+  expect("importToLocal" in f.backend).toBe(false);
+  expect(f.backend.capabilities.vaultBackup).toEqual({
+    kind: "note",
+    field: "notes",
+    maxBytes: 128 * 1024,
+  });
   await f.backend.disconnect(session);
 });
 it("defaults to the actual browser SDK loader dependency without constructing it eagerly", async () => {
@@ -227,3 +233,21 @@ it("sanitizes factory and ordinary native errors while leaving a nonterminal ses
   expect(await f.backend.listItems(session)).toHaveLength(1);
   await f.backend.disconnect(session);
 });
+it.each(["owner", "native"] as const)(
+  "checks %s again at the public item publication boundary",
+  async (cause) => {
+    const f = sdkFixture();
+    const session = await f.backend.authenticate(f.config);
+    const realDecoder = codec.readOnePasswordSdkItem;
+    vi.spyOn(codec, "readOnePasswordSdkItem").mockImplementation((...args) => {
+      const decoded = realDecoder(...args);
+      queueMicrotask(() => f[cause].abort());
+      return decoded;
+    });
+    await expect(f.backend.getItem(itemId, session)).rejects.toMatchObject({
+      code: "stale",
+    });
+    expect(session.signal?.aborted).toBe(true);
+    await vi.waitFor(() => expect(f.dispose).toHaveBeenCalledOnce());
+  },
+);
