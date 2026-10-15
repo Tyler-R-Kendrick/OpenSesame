@@ -1584,8 +1584,8 @@
       "id": "better-auth",
       "display_name": "Better Auth",
       "category": "identity",
-      "docs_url": "https://better-auth.com/docs/plugins/api-key",
-      "provenance_url": "https://better-auth.com/docs/plugins/api-key/reference",
+      "docs_url": "https://better-auth.com/docs/plugins/jwt",
+      "provenance_url": "https://better-auth.com/docs/plugins/oauth-provider",
       "auth": {
         "kind": "configuration"
       },
@@ -1642,7 +1642,7 @@
       "id": "auth0",
       "display_name": "Auth0",
       "category": "identity",
-      "docs_url": "https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens",
+      "docs_url": "https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce",
       "provenance_url": "https://auth0.com/docs/api/authentication/client-credential-flow/get-token",
       "auth": {
         "kind": "configuration"
@@ -5191,8 +5191,366 @@
       "model_api": {
         "protocol": "openai_chat"
       }
+    },
+    {
+      "id": "byo-identity",
+      "display_name": "BYO Identity",
+      "category": "identity",
+      "docs_url": "https://openid.net/specs/openid-connect-core-1_0.html",
+      "provenance_url": "https://openid.net/specs/openid-connect-core-1_0.html",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "protocol",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "issuer",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "public_key",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "broker_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_slug",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_metadata_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_entity_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_base_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_password",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["identity.configure"]
+    },
+    {
+      "id": "supabase",
+      "display_name": "Supabase",
+      "category": "identity",
+      "docs_url": "https://supabase.com/docs/guides/auth",
+      "provenance_url": "https://supabase.com/docs/guides/auth",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "protocol",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "issuer",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "public_key",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "broker_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_slug",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_metadata_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_entity_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_base_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_password",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["identity.configure"],
+      "aliases": ["supabase-auth"]
+    },
+    {
+      "id": "neon-auth",
+      "display_name": "Neon Auth",
+      "category": "identity",
+      "docs_url": "https://neon.com/docs/auth/overview",
+      "provenance_url": "https://neon.com/docs/auth/overview",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "protocol",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "issuer",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "public_key",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "broker_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_slug",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_metadata_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_entity_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_base_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_password",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["identity.configure"],
+      "aliases": ["neon-identity"]
+    },
+    {
+      "id": "okta",
+      "display_name": "Okta",
+      "category": "identity",
+      "docs_url": "https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/",
+      "provenance_url": "https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "protocol",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "issuer",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "public_key",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "broker_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_slug",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_metadata_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "saml_entity_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_base_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_dn",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "ldap_bind_password",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["identity.configure"]
     }
   ],
-  "revision": "2026-10-12.2",
+  "revision": "2026-10-14.1",
   "schema_version": 1
 }

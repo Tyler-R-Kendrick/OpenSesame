@@ -84,9 +84,7 @@ describe("the one integration catalog", () => {
       [
         "age",
         "apple-wallet",
-        "auth0",
         "aws-kms",
-        "better-auth",
         "bitwarden",
         "bitwarden-secrets-manager",
         "cloudflare-wallet",

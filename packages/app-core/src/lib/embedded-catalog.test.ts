@@ -10,7 +10,7 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(133);
+    expect(ids).toHaveLength(138);
     for (const id of [
       "webcrypto",
       "aws-kms",
@@ -39,6 +39,11 @@ describe("embedded connector catalog", () => {
       "aws-bedrock",
       "openrouter",
       "huggingface",
+      "byo-identity",
+      "supabase",
+      "neon-auth",
+      "clerk",
+      "okta",
       "better-auth",
       "workos",
       "auth0",

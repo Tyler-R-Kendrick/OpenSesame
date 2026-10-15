@@ -214,6 +214,7 @@ export const LIB_RULES = [
     L,
     [
       "settings",
+      "operator-idp-config",
       "capability-connector-scope",
       "password-reset-mail",
       "setup",

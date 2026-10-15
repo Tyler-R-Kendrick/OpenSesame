@@ -7,6 +7,7 @@ import type { Provider } from "@opensesame/app-core/lib/connections.js";
 /** Device catalog configuration is distinct from a running browser connection. */
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
+import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import type {
@@ -21,6 +22,7 @@ export type NativeDeviceAvailability = {
 function existingSpecializedRoad(providerId: string): boolean {
   return (
     isGitBackupProvider(providerId) ||
+    identityConnectionPreset(providerId) !== null ||
     nativeKeyDriverFor(providerId) !== null ||
     ["github", "aws-kms", "gcp-kms", "s3"].includes(providerId)
   );

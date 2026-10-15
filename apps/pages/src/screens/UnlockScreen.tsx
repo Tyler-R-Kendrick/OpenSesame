@@ -29,13 +29,11 @@ import {
   usePendingImport,
 } from "../bindings/pending-import.js";
 import { FailureNotice } from "../components/FailureNotice.js";
-import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
   IconEye,
   IconEyeOff,
   IconPasskey,
-  IconSettings,
 } from "../components/Icons.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
@@ -52,6 +50,7 @@ import { DurabilityNote, LockoutNote } from "./unlock/Notes.js";
 import { PasskeyChoice } from "./unlock/PasskeyChoice.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
+import { SignInConfigurationNote } from "./unlock/SignInConfigurationNote.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
 import { UnlockFoot } from "./unlock/UnlockFoot.js";
 import { UnlockStage } from "./unlock/UnlockStage.js";
@@ -482,22 +481,11 @@ function UnlockForm({
         onOpenSetup={(join) => onOpenSetup("capabilities", join)}
       />
       {/* Setup left no way in: one sentence and the road that fixes it. */}
-      {nothingSignsIn && (signInStage || showSignIn) ? (
-        <div className="note unlock__unset">
-          <span>
-            No way in is configured for this deployment yet, so sign-in has
-            nowhere to go.
-          </span>
-          <IconKey
-            label="Set it up"
-            small
-            keyRef={setupRef}
-            onClick={() => onOpenSetup("identity")}
-          >
-            <IconSettings size={16} />
-          </IconKey>
-        </div>
-      ) : null}
+      <SignInConfigurationNote
+        shown={nothingSignsIn && (signInStage || showSignIn)}
+        keyRef={setupRef}
+        onConfigure={() => onOpenSetup("identity")}
+      />
 
       {signInStage ? (
         <GuideTarget id="unlock.signin">
@@ -505,11 +493,19 @@ function UnlockForm({
             placement="primary"
             providers={providers}
             onUseLocalOnly={() => setLocalOnly(true)}
+            onSignedIn={() => {
+              setSigningIn(false);
+              setLocalOnly(true);
+            }}
           />
         </GuideTarget>
       ) : showSignIn ? (
         <GuideTarget id="unlock.signin">
-          <SignInPanel placement="secondary" providers={providers} />
+          <SignInPanel
+            placement="secondary"
+            providers={providers}
+            onSignedIn={() => setSigningIn(false)}
+          />
         </GuideTarget>
       ) : (
         <form

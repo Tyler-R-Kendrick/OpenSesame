@@ -317,14 +317,23 @@ try {
     await plainPage.goto(`${staticOrigin}/OpenSesame/`, {
       waitUntil: "domcontentloaded",
     });
-    await plainPage.waitForTimeout(1500);
+    // Module hydration and the first service-worker reload can outlast a
+    // fixed delay on a loaded runner. Wait for the actual fresh-device road;
+    // a blank document must still fail with a recorded scenario result.
+    const ready = await plainPage
+      .getByRole("button", { name: "Set up your own", exact: true })
+      .waitFor({ state: "visible", timeout: 30_000 })
+      .then(
+        () => true,
+        () => false,
+      );
     const rendered = await plainPage.evaluate(
       () => (document.body?.innerText ?? "").trim().length,
     );
     check(
       "static-app-without-any-certificate",
-      rendered > 0 && errors.length === 0,
-      `rendered ${rendered} chars, ${errors.length} errors: ${errors.slice(0, 2).join(" | ").slice(0, 200)}`,
+      ready && rendered > 0 && errors.length === 0,
+      `front door ready ${ready}, rendered ${rendered} chars, ${errors.length} errors: ${errors.slice(0, 2).join(" | ").slice(0, 200)}`,
       ["AT-STATIC-EMPTY"],
     );
     await plain.close();

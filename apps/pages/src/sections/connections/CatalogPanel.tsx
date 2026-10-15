@@ -32,6 +32,7 @@ import {
   catalogConnectorAction,
   preferredCatalogConnection,
 } from "./catalog-connector-action.js";
+import { identityConnectionMethodLabel } from "./identity/identity-ui-values.js";
 import { catalogPageSections } from "./page-tree.js";
 
 export function authKindLabel(provider: Provider): string {
@@ -63,6 +64,8 @@ function withModelProtocol(provider: Provider, label: string): string {
 }
 
 export function catalogMethodLabel(provider: Provider): string {
+  const identity = identityConnectionMethodLabel(provider.id);
+  if (identity) return identity;
   const plan = connectPlan(provider.id);
   if (!plan) return withModelProtocol(provider, authKindLabel(provider));
   const labels = plan.methods.flatMap((method) => {

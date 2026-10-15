@@ -105,3 +105,34 @@ test("pins optional vault.security-checks app-core leaf when Rollup classifies i
     "cap-vault.security-checks",
   );
 });
+
+test("keeps password-reset mailbox leaves within their matching optional capability", () => {
+  const entry = { classification: "optional", capability: "ai.password-reset" };
+  for (const name of [
+    "handled",
+    "jmap",
+    "legacy-emails",
+    "mail-type.generated",
+    "mail-type",
+    "mailbox-connection",
+    "mailbox-store",
+  ]) {
+    const path = `/workspace/packages/app-core/src/lib/password-reset/${name}.ts`;
+    assert.equal(lazyLeafChunk(path, entry), "cap-ai.password-reset");
+    assert.equal(
+      lazyLeafChunk(path.replaceAll("/", "\\"), entry),
+      "cap-ai.password-reset",
+    );
+    assert.equal(
+      lazyLeafChunk(path, { classification: "shared", capability: null }),
+      undefined,
+    );
+    assert.equal(
+      lazyLeafChunk(path, {
+        classification: "optional",
+        capability: "connectors.external",
+      }),
+      undefined,
+    );
+  }
+});

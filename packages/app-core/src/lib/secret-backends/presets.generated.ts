@@ -1,0 +1,185 @@
+// Generated from spec/connectors/secret-backend-presets.json; do not edit.
+import type { SecretBackendPreset } from "./presets.js";
+export const SECRET_BACKEND_PRESETS: readonly SecretBackendPreset[] = [
+  {
+    providerId: "byo-secret-backend",
+    label: "BYO Secret Backend",
+    modes: [
+      "local",
+      "file-import",
+      "credential-management",
+      "onepassword-connect",
+      "bitwarden-api",
+      "bitwarden-secrets",
+      "infisical",
+      "passwordstate",
+    ],
+    defaultMode: "local",
+    docsUrl: "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
+    setup:
+      "Choose a local vault, an export file, browser credentials, or a documented HTTP protocol. HTTP connections use your supplied endpoint and credential; allow this browser origin through CORS. No local process is started.",
+    fileFormats: [
+      {
+        id: "bitwarden-json",
+        label: "Bitwarden JSON",
+      },
+      {
+        id: "bitwarden-csv",
+        label: "Bitwarden CSV",
+      },
+      {
+        id: "1password-1pux",
+        label: "1Password 1PUX",
+      },
+      {
+        id: "1password-csv",
+        label: "1Password CSV",
+      },
+      {
+        id: "protonpass-json",
+        label: "Proton Pass JSON or ZIP",
+      },
+      {
+        id: "keepass-kdbx",
+        label: "KeePass KDBX",
+      },
+      {
+        id: "keepassxc-csv",
+        label: "KeePassXC CSV",
+      },
+      {
+        id: "env-file",
+        label: "Environment file",
+      },
+      {
+        id: "generic-csv",
+        label: "CSV",
+      },
+    ],
+  },
+  {
+    providerId: "local-vault",
+    label: "Local vault",
+    modes: ["local"],
+    defaultMode: "local",
+    docsUrl:
+      "https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system",
+    setup:
+      "Use the open vault on this device. Items stay in its encrypted storage and follow its existing lock and backup rules.",
+    fileFormats: [],
+  },
+  {
+    providerId: "browser-credentials",
+    label: "Browser credentials",
+    modes: ["credential-management"],
+    defaultMode: "credential-management",
+    docsUrl:
+      "https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API",
+    setup:
+      "Request an origin-scoped password through your browser. The browser chooses the credential; this method cannot enumerate or delete password-manager vaults.",
+    fileFormats: [],
+  },
+  {
+    providerId: "1password",
+    label: "1Password",
+    modes: ["onepassword-connect", "file-import"],
+    defaultMode: "onepassword-connect",
+    docsUrl: "https://www.1password.dev/connect/api-reference",
+    setup:
+      "Connect a 1Password Connect server and vault with a scoped access token and CORS for this origin. You can also import 1PUX/CSV or explicitly save an item through the official Save in 1Password button.",
+    fileFormats: [
+      {
+        id: "1password-1pux",
+        label: "1Password 1PUX",
+      },
+      {
+        id: "1password-csv",
+        label: "1Password CSV",
+      },
+    ],
+  },
+  {
+    providerId: "bitwarden",
+    label: "Bitwarden",
+    modes: ["bitwarden-api", "bitwarden-secrets", "file-import"],
+    defaultMode: "bitwarden-api",
+    docsUrl: "https://bitwarden.com/help/bitwarden-apis/",
+    setup:
+      "Use a configured Vault Management API endpoint, Secrets Manager machine account, or export file. Vault Management is an existing bw serve service (or a protected same-origin endpoint); the PWA calls HTTP and starts no process. The organization Public API does not expose vault items.",
+    fileFormats: [
+      {
+        id: "bitwarden-json",
+        label: "Bitwarden JSON",
+      },
+      {
+        id: "bitwarden-csv",
+        label: "Bitwarden CSV",
+      },
+    ],
+  },
+  {
+    providerId: "vaultwarden",
+    label: "Vaultwarden",
+    modes: ["bitwarden-api", "file-import"],
+    defaultMode: "bitwarden-api",
+    docsUrl: "https://github.com/dani-garcia/vaultwarden/wiki",
+    setup:
+      "Use a Vault Management API service signed into your Vaultwarden server, or import a Bitwarden-compatible export. The Vaultwarden server URL itself is not the decrypted Vault Management API.",
+    fileFormats: [
+      {
+        id: "bitwarden-json",
+        label: "Bitwarden JSON",
+      },
+      {
+        id: "bitwarden-csv",
+        label: "Bitwarden CSV",
+      },
+    ],
+  },
+  {
+    providerId: "bitwarden-sm",
+    label: "Bitwarden Secrets Manager",
+    modes: ["bitwarden-secrets"],
+    defaultMode: "bitwarden-secrets",
+    docsUrl: "https://bitwarden.com/help/secrets-manager-sdk/",
+    setup:
+      "Use a scoped machine account access token. The official browser WebAssembly SDK decrypts secrets locally. Configure your regional or self-hosted API and identity URLs with CORS for this browser.",
+    fileFormats: [],
+  },
+  {
+    providerId: "infisical",
+    label: "Infisical",
+    modes: ["infisical"],
+    defaultMode: "infisical",
+    docsUrl: "https://infisical.com/docs/api-reference/overview/introduction",
+    setup:
+      "Use your Infisical API endpoint, project, environment and folder. Authenticate with a machine identity through Universal Auth, or a scoped access token. Permit this browser origin through CORS.",
+    fileFormats: [],
+  },
+  {
+    providerId: "passwordstate",
+    label: "Passwordstate",
+    modes: ["passwordstate"],
+    defaultMode: "passwordstate",
+    docsUrl:
+      "https://www.clickstudios.com.au/passwordstate/application-programming-interface",
+    setup:
+      "Use your Passwordstate site URL, password list ID and scoped API key. Permit this browser origin through CORS and give the key only the item permissions you need.",
+    fileFormats: [],
+  },
+  {
+    providerId: "proton-pass",
+    label: "Proton Pass",
+    modes: ["file-import"],
+    defaultMode: "file-import",
+    docsUrl: "https://proton.me/support/pass-export",
+    setup:
+      "Choose your Proton Pass unencrypted JSON or ZIP export. The file is parsed locally, previewed and copied only when you import. No file is uploaded and no CLI runs.",
+    fileFormats: [
+      {
+        id: "protonpass-json",
+        label: "Proton Pass JSON or ZIP",
+      },
+    ],
+  },
+];

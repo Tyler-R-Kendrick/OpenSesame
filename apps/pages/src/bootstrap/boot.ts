@@ -27,6 +27,7 @@ import {
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
 import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
+import { restoreConfiguredIdentityAtBootIfPresent } from "@opensesame/app-core/lib/federation-configured-lazy.js";
 import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
 import { captureInvocationArrivalFromPage } from "@opensesame/app-core/lib/invoke-link.js";
 import {
@@ -71,6 +72,16 @@ export const bootSeams = {
   now: (): string => new Date().toISOString(),
 };
 
+async function hydrateBootConfiguration(): Promise<ParsedRuntimeConfig> {
+  const runtimeConfig = await loadRuntimeConfig();
+  await kvHydrate([...CORE_BOOT_KEYS]);
+  // A configured provider revalidates its assertion while the local vault
+  // opens. Unconfigured installations make no identity request.
+  restoreConfiguredIdentityAtBootIfPresent();
+  await bootBucket();
+  return runtimeConfig;
+}
+
 export async function bootCore(): Promise<CoreBoot> {
   // An invite's bearer leaves the address bar before anything else runs or
   // paints: history, a bookmark or a shared screen must never carry it.
@@ -112,9 +123,7 @@ export async function bootCore(): Promise<CoreBoot> {
   // persisted keys into the KV cache and re-read before the first paint.
   // Deployment endpoints load before settings are first read, so an unbaked
   // static deploy still knows its Identity API without a rebuild.
-  const runtimeConfig = await loadRuntimeConfig();
-  await kvHydrate([...CORE_BOOT_KEYS]);
-  await bootBucket();
+  const runtimeConfig = await hydrateBootConfiguration();
   // The item types this device switched on come back from their sealed copy,
   // with no request, before anything draws a type (ADR 0165).
   await restorePacks();

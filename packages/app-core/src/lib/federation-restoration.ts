@@ -19,6 +19,7 @@ import {
   verifyRestoredBrowserIdToken,
 } from "@opensesame/sdk-browser";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
+import { restoreConfiguredIdentityIfNative } from "./federation-configured-lazy.js";
 import type { UpstreamIdentity } from "./federation.js";
 
 export type RestorationTrust = {
@@ -36,7 +37,7 @@ export type RestorationResult =
   | { kind: "remembered"; issuer: string; audience: string }
   | {
       kind: "rejected";
-      reason: "suppressed" | "untrusted" | "invalid" | "expired";
+      reason: "suppressed" | "untrusted" | "invalid" | "expired" | "revoked";
     };
 
 function parseStoredAssertion(raw: string): JsonObject | null {
@@ -58,7 +59,7 @@ function parseStoredAssertion(raw: string): JsonObject | null {
 function trustMatches(
   stored: JsonObject,
   trust: RestorationTrust | null,
-): boolean {
+): trust is RestorationTrust {
   if (!trust || trim(trust.issuer) !== trim(String(stored.issuer)))
     return false;
   return isString(stored.audience) && stored.audience === trust.clientId;
@@ -74,9 +75,11 @@ export async function restoreAuthenticatedSession(
     return { kind: "rejected", reason: "suppressed" };
   const stored = parseStoredAssertion(raw);
   if (!stored) return { kind: "rejected", reason: "invalid" };
-  if (!trustMatches(stored, trust) || !trust) {
+  if (!trustMatches(stored, trust)) {
     return { kind: "rejected", reason: "untrusted" };
   }
+  const native = await restoreConfiguredIdentityIfNative(stored, trust);
+  if (native) return native;
   try {
     const claims = await verifyRestoredBrowserIdToken({
       token: String(stored.idToken),

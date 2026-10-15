@@ -156,7 +156,7 @@ describe("a session started right after a route was added", () => {
     expect(currentHostCarriers()?.states.map((state) => state.spec)).toEqual([
       NOSTR,
     ]);
-    expect(opened).toEqual([`nostr ${NOSTR.url}`]);
+    await waitFor(() => expect(opened).toEqual([`nostr ${NOSTR.url}`]));
   });
 
   it("starts with every route when more than one edit is queued behind the seal", async () => {
@@ -164,19 +164,28 @@ describe("a session started right after a route was added", () => {
     const routes = renderHook(() => useLiveTransport());
     await waitFor(() => expect(routes.result.current.loaded).toBe(true));
     control.sealMs = 100;
+    const queuedSeals: Promise<string | null>[] = [];
     act(() => {
-      void routes.result.current.change((now) => withCarrier(now, NOSTR));
-      void routes.result.current.change((now) =>
-        withCarrier(now, { kind: "mqtt", url: "wss://broker.example.com" }),
+      queuedSeals.push(
+        routes.result.current.change((now) => withCarrier(now, NOSTR)),
+      );
+      queuedSeals.push(
+        routes.result.current.change((now) =>
+          withCarrier(now, { kind: "mqtt", url: "wss://broker.example.com" }),
+        ),
       );
     });
     start(panel);
     await waitFor(() => expect(currentHost()).not.toBeNull());
 
-    expect(opened.sort()).toEqual([
-      "mqtt wss://broker.example.com",
-      `nostr ${NOSTR.url}`,
-    ]);
+    await waitFor(() =>
+      expect(opened.slice().sort()).toEqual([
+        "mqtt wss://broker.example.com",
+        `nostr ${NOSTR.url}`,
+      ]),
+    );
+    // Finish this test's writes before restoring the memory store for the next session.
+    await Promise.all(queuedSeals);
   });
 
   it("starts direct when no route was added, and does not wait for one", async () => {

@@ -320,26 +320,32 @@ describe("ConnectionsSection connector page", () => {
     expect(startGithubAppRegistration).not.toHaveBeenCalled();
   });
 
-  it("refuses unsupported Better Auth without collecting or saving credentials", async () => {
+  it("opens Better Auth shared configuration without the legacy unsupported refusal", async () => {
     renderAt("/connections/better-auth");
     await screen.findByRole("heading", { name: "Better Auth" });
+    expect(screen.getByLabelText("Auth API base URL")).toBeTruthy();
+    expect(screen.getByLabelText("Protocol")).toBeTruthy();
+    expect(screen.getByLabelText("Allowed browser origin")).toHaveProperty(
+      "readOnly",
+      true,
+    );
     expect(
-      screen.getByText(
-        /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
+      screen.getByRole("button", { name: "Save identity connection" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByText(
+        /OpenSesame has no browser connection for Better Auth/,
       ),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("img", {
-        name: "Better Auth: No browser connection",
-      }),
-    ).toBeTruthy();
-    expect(screen.queryByLabelText(/Base URL/)).toBeNull();
-    expect(screen.queryByLabelText(/^API key/)).toBeNull();
-    expect(
-      screen.queryByRole("button", {
-        name: /Save configuration|Verify and connect|Authorize with/,
-      }),
     ).toBeNull();
+    expect(screen.queryByLabelText(/^API key/)).toBeNull();
+    await userEvent.type(
+      screen.getByLabelText("Auth API base URL"),
+      "https://auth.example.com/api/auth",
+    );
+    expect(screen.getByLabelText("Auth API base URL")).toHaveProperty(
+      "value",
+      "https://auth.example.com/api/auth",
+    );
     expect(createConnection).not.toHaveBeenCalled();
     expect(setConnectionConfiguration).not.toHaveBeenCalled();
     expect(setConnectionCredential).not.toHaveBeenCalled();

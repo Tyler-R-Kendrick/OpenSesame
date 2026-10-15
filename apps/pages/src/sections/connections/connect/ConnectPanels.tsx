@@ -8,6 +8,10 @@ import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-conn
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useIdentitySession } from "../../../bindings/identity.js";
 import { useVault } from "../../../lib/vault/hooks.js";
+import {
+  IdentityConnectionPanels,
+  isIdentityConnectionProvider,
+} from "../identity/IdentityConnectionPanels.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
@@ -80,9 +84,16 @@ function ImportedConnectPanels({
 export function ConnectPanels(props: Props) {
   const { provider, connection, onFlash, onChanged } = props;
   const plan = connectPlan(provider.id);
-  if (!plan || plan.refused) return null;
-  if (connection && isConnectConnection(connection))
+  if (plan && !plan.refused && connection && isConnectConnection(connection))
     return <ImportedConnectPanels {...props} connection={connection} />;
+  if (isIdentityConnectionProvider(provider.id))
+    return (
+      <IdentityConnectionPanels
+        key={`${provider.id}/${connection?.connectionId ?? "new"}`}
+        {...props}
+      />
+    );
+  if (!plan || plan.refused) return null;
   if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
   const local = isSelfHostedConnector(connection) ? connection : null;
   const connectorId = local?.connectionId;

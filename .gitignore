@@ -125,3 +125,6 @@ artifacts/mtls/
 # Stitch prototypes and extracted HTML (docs/design/tooling.md); DESIGN.md stays
 .stitch/designs/
 .stitch/*.html
+# Dedicated loopback build used by the identity integration browser gate.
+apps/pages/dist-identity-verify/
+apps/pages/work/

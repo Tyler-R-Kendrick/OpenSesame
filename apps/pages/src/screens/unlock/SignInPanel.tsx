@@ -46,7 +46,6 @@ import {
   type TrustedUpstream,
   beginSignIn as beginFederatedSignIn,
   defaultUpstream,
-  operatorUpstream,
 } from "@opensesame/app-core/lib/federation.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
 import { readLastSignIn } from "@opensesame/app-core/lib/last-sign-in.js";
@@ -75,12 +74,16 @@ import { FailureNotice } from "../../components/FailureNotice.js";
 import { landFocus } from "../../lib/focus.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
+import {
+  ConfiguredIdentityStage,
+  useConfiguredIdentityController,
+} from "./ConfiguredIdentityStage.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { ImportRoadButton } from "./ImportRoad.js";
 import { MagicLinkStage } from "./MagicLinkStage.js";
 import { SignInSocialBar } from "./SignInSocialBar.js";
 
-type Props =
+type Props = (
   | {
       /** First run: this panel is the screen. */
       placement: "primary";
@@ -93,10 +96,11 @@ type Props =
       /** A vault already exists here: the unlock form is the screen. */
       placement: "secondary";
       providers: FederatedProviderSummary[];
-    };
+    }
+) & { onSignedIn?: () => void };
 
 /** Which single step of the ceremony is on screen. */
-type Stage = "hub" | "magic-link" | "byo";
+type Stage = "hub" | "magic-link" | "byo" | "identity";
 
 export function SignInPanel(props: Props) {
   const { providers } = props;
@@ -201,6 +205,14 @@ export function SignInPanel(props: Props) {
       : beginFederatedSignIn(upstream, merged);
   }
 
+  const configured = useConfiguredIdentityController({
+    onOpen: () => setStage("identity"),
+    onError: setError,
+    setBusy,
+    start: startFederated,
+    legacy: beginSignIn,
+  });
+
   function startProvider(provider: FederatedProviderSummary): void {
     const upstream = providerUpstream(provider);
     // No returnTo: the return screen already lands on the app root, and an
@@ -270,6 +282,22 @@ export function SignInPanel(props: Props) {
     <FailureNotice id="unlock:sign-in" title="Sign-in" message={error} />
   );
 
+  if (stage === "identity" && configured.connection) {
+    return (
+      <ConfiguredIdentityStage
+        connection={configured.connection}
+        busy={busy}
+        setBusy={setBusy}
+        onComplete={() => {
+          configured.reset();
+          setStage("hub");
+          props.onSignedIn?.();
+        }}
+        back={backButton("Back to sign-in", "hub")}
+      />
+    );
+  }
+
   if (stage === "magic-link") {
     return (
       <MagicLinkStage
@@ -306,9 +334,7 @@ export function SignInPanel(props: Props) {
               menuRef={menuRef}
               onToggleMenu={() => setMenuOpen((open) => !open)}
               onCloseMenu={() => setMenuOpen(false)}
-              onOperator={(idp) =>
-                startFederated(() => beginSignIn(operatorUpstream(idp)))
-              }
+              onOperator={configured.start}
               onProvider={startProvider}
               onFallback={() => {
                 if (fallbackUpstream) {
