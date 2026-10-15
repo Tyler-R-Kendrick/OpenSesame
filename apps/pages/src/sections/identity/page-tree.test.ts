@@ -62,7 +62,7 @@ describe("identity page tree", () => {
     expect(leaves("service-accounts")).toEqual(["Wiki"]);
     expect(leaves("organization")).toEqual(["Acme"]);
     expect(leaves("providers")).toEqual(["Google"]);
-    expect(leaves("devices")).toEqual(["Desk laptop"]);
+    expect(leaves("devices")).toEqual(["Desk laptop", "Terminal CLI"]);
   });
 
   it("counts Devices rail rows the same way as the Devices workspace list (B7-6)", () => {

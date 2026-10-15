@@ -1,3 +1,4 @@
+import { slashSections } from "@opensesame/app-core/lib/command-bar/slash.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import {
   NOT_AVAILABLE_MESSAGE,
@@ -53,5 +54,12 @@ describe("B7-6 Pair CLI command bar", () => {
     });
     expect(outcome).toEqual({ ok: false, message: NOT_AVAILABLE_MESSAGE });
     expect(navigated).toEqual([]);
+  });
+
+  it("lists Pair CLI in slash destinations while the path is contributed", () => {
+    const revoke = registerContributionForTest("command-path", PAIR_CLI);
+    const rows = slashSections([PAIR_CLI], () => true);
+    expect(rows.map((row) => row.path)).toContain(PAIR_CLI.path);
+    revoke();
   });
 });

@@ -85,7 +85,7 @@ it("updates every identity subtree when directory or providers change", async ()
   expect(countOf("Organizations")).toBe("1");
   expect(countOf("Agents")).toBe("1");
   expect(countOf("Providers")).toBe("-");
-  expect(countOf("Devices")).toBe("-");
+    expect(countOf("Devices")).toBe("1");
   read.mockResolvedValue({
     version: 2,
     revision: 2,
@@ -135,6 +135,6 @@ it("updates every identity subtree when directory or providers change", async ()
     expect(countOf("Applications")).toBe("1");
     expect(countOf("Organizations")).toBe("1");
     expect(countOf("Providers")).toBe("1");
-    expect(countOf("Devices")).toBe("1");
+    expect(countOf("Devices")).toBe("2");
   });
 });

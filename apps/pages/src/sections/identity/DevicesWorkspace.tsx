@@ -10,6 +10,7 @@ import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconEdit, IconTrash, IconX } from "../../components/Icons.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
 import { IdentityFact } from "./IdentityRecordFields.js";
+import { deviceWorkspaceRows } from "./device-workspace-rows.js";
 import { DeviceForm, type DevicesModel } from "./LocalDeviceRows.js";
 import { useDevices } from "./LocalDevicesPanel.js";
 import { LocalIdentityNotices } from "./LocalIdentityNotices.js";
@@ -58,7 +59,16 @@ export function DevicesWorkspace({
         );
     },
   };
-  const rows = deviceWorkspaceRows(devices ?? [], !!tailnet, !!approval);
+  const deviceIds = new Set((devices ?? []).map((device) => device.id));
+  const rows = deviceWorkspaceRows(devices ?? [], {
+    tailnet: !!tailnet,
+    approval: !!approval,
+  }).map((row) => ({
+    id: row.id,
+    label: row.label,
+    extension: deviceIds.has(row.id) ? "device" : "",
+    to: row.href,
+  }));
   return (
     <RecordWorkspace
       section="Identity"
@@ -112,40 +122,6 @@ export function DevicesWorkspace({
   );
 }
 
-function deviceWorkspaceRows(
-  devices: LocalDevice[],
-  tailnet: boolean,
-  approval: boolean,
-) {
-  const listPath = "/identity?view=devices";
-  const rows = devices.map((device) => ({
-    id: device.id,
-    label: device.name,
-    extension: "device",
-    to: `${listPath}#${encodeURIComponent(device.id)}`,
-  }));
-  if (tailnet)
-    rows.push({
-      id: "tailnet-devices",
-      label: "Tailnet devices",
-      extension: "",
-      to: `${listPath}#tailnet-devices`,
-    });
-  if (approval)
-    rows.push({
-      id: "approve-device",
-      label: "Approve a device",
-      extension: "",
-      to: `${listPath}#approve-device`,
-    });
-  rows.push({
-    id: "cli-terminal",
-    label: "Terminal CLI",
-    extension: "",
-    to: "/identity/authorize?cli=1",
-  });
-  return rows;
-}
 function DeviceDetail({
   model,
   device,
