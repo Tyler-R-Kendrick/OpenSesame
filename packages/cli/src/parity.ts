@@ -7,9 +7,11 @@ import type {
 } from "@opensesame/app-core/lib/password-agent/transport.js";
 import { z } from "zod";
 import { createCredentialStore } from "./parity-credentials.js";
+import { readLocalReference } from "./parity-local.js";
 import {
   invokeOp,
   readPrivateInput,
+  runChildWithValues,
   runEnvFileSnapshot,
   runOpChild,
   writePrivateFile,
@@ -54,6 +56,8 @@ export async function runParity(
     invoke: invokeOp,
     run: runOpChild,
     runEnvFile: runEnvFileSnapshot,
+    readLocal: readLocalReference,
+    runWithValues: runChildWithValues,
   };
   const port = authenticatedPort(
     raw,
