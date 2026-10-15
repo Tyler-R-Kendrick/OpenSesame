@@ -8,9 +8,29 @@ use sha2::{Digest, Sha256};
 
 pub const PAIRING_CONFIRM_LABEL: &[u8] = b"opensesame-cli-app-pairing-confirm.v1";
 pub const APPROVAL_CHALLENGE_LABEL: &[u8] = b"opensesame-cli-app-approval.v1";
+pub const WEBAUTHN_REGISTER_LABEL: &[u8] = b"opensesame-cli-app-webauthn-register.v1";
 pub const DAEMON_ATTEST_LABEL: &[u8] = b"opensesame-cli-app-daemon-attest.v1";
 
 /// SHA-256 over the frozen approval binding (`WebAuthn` challenge + ECDSA message).
+#[must_use]
+#[must_use]
+pub fn webauthn_register_challenge_digest(
+    token: &str,
+    origin: &str,
+    vault_session_root_digest: &str,
+) -> [u8; 32] {
+    let mut msg = Vec::from(WEBAUTHN_REGISTER_LABEL);
+    msg.push(0);
+    for part in [token, origin, vault_session_root_digest] {
+        msg.extend_from_slice(part.as_bytes());
+        msg.push(0);
+    }
+    let digest = Sha256::digest(&msg);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&digest);
+    out
+}
+
 #[must_use]
 pub fn approval_challenge_digest(
     request_id: &str,
