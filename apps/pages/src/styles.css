@@ -1670,6 +1670,11 @@ body {
     margin: -0.75rem;
   }
 
+  /* Panel headers reserve the full touch target within their bounds. */
+  .panel__head > .status-mark[data-touch-twin] {
+    margin: 0;
+  }
+
   .btn,
   .fill,
   .conn-doc-link,
