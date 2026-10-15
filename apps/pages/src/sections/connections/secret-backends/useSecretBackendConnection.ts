@@ -114,21 +114,24 @@ export function useSecretBackendConnection(props: SecretBackendPanelProps) {
     filePassword: editor.password,
   });
   function probe() {
-    void status.run(async () => {
+    void status.run(async (action) => {
       try {
         await dependencies.probeSecretBackend(
           config(),
           editor.saved?.connectionId,
+          action.signal,
         );
+        action.check();
         return "Secret backend connection verified";
       } finally {
-        editor.setPassword("");
+        if (action.current()) editor.setPassword("");
       }
     });
   }
   function connect() {
     void status.run(async (action) => {
       const attempt = session.begin(action.signal);
+      const current = () => action.current() && attempt.current();
       if (!attempt.current()) return undefined;
       try {
         const savedId = editor.saved?.connectionId;
@@ -151,13 +154,15 @@ export function useSecretBackendConnection(props: SecretBackendPanelProps) {
             attempt.signal,
           ),
         );
-        return accepted ? "Secret backend session connected" : undefined;
+        return accepted && current()
+          ? "Secret backend session connected"
+          : undefined;
       } catch (error) {
         if (attempt.current()) throw error;
         return undefined;
       } finally {
+        if (current()) editor.setPassword("");
         session.end(attempt);
-        editor.setPassword("");
       }
     });
   }

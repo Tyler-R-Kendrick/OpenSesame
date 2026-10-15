@@ -214,6 +214,7 @@ it("tests current settings without saving or collecting a configured connection"
   expect(dependencies.probeSecretBackend).toHaveBeenCalledWith(
     expect.objectContaining({ baseUrl: "https://passwords.example.com" }),
     undefined,
+    expect.any(AbortSignal),
   );
   expect(dependencies.saveSecretBackendConnection).not.toHaveBeenCalled();
   expect(dependencies.connectSecretBackend).not.toHaveBeenCalled();
