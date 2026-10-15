@@ -11,6 +11,10 @@ import {
   createBrowserOnePasswordClient,
 } from "./onepassword-sdk-loader.js";
 import {
+  createOnePasswordSdkItem,
+  patchOnePasswordSdkItem,
+} from "./onepassword-sdk-write.js";
+import {
   type OnePasswordAssets,
   OnePasswordAssetsSchema,
   type OnePasswordCommand,
@@ -26,6 +30,7 @@ import {
   type SecretBackend,
   type SecretBackendConfiguration,
   SecretBackendError,
+  type SecretBackendItemInput,
   type SecretBackendSession,
 } from "./types.js";
 
@@ -151,10 +156,11 @@ class OnePasswordSdkBackend implements SecretBackend {
     itemFields: ["username", "url", "notes", "secret"],
     list: true,
     get: true,
-    create: false,
-    update: false,
-    delete: false,
+    create: true,
+    update: true,
+    delete: true,
     import: false,
+    vaultBackup: { kind: "note", field: "notes", maxBytes: 128 * 1024 },
   };
   readonly #sessions = createSecretBackendSessions<State>(this.id);
   readonly #cleanup = new WeakMap<SecretBackendSession, () => Promise<void>>();
@@ -266,15 +272,25 @@ class OnePasswordSdkBackend implements SecretBackend {
     this.#owned(session);
     return items;
   }
-  async getItem(selector: string, session: SecretBackendSession) {
+  async #item(selector: string, session: SecretBackendSession, exact = false) {
     const { state } = this.#owned(session);
     const rows = await this.#call(session, { name: "ItemsList" });
     const itemId = onePasswordSdkSelect(rows, state.vaultId, selector);
+    if (exact && itemId !== selector)
+      throw new SecretBackendError(
+        "not-found",
+        "The selected native item ID no longer exists.",
+      );
     const item = readOnePasswordSdkItem(
       await this.#call(session, { name: "ItemsGet", itemId }),
       state.vaultId,
       itemId,
     );
+    this.#owned(session);
+    return item;
+  }
+  async getItem(selector: string, session: SecretBackendSession) {
+    const item = await this.#item(selector, session);
     this.#owned(session);
     return item.normalized;
   }
@@ -282,6 +298,54 @@ class OnePasswordSdkBackend implements SecretBackend {
     const item = await this.getItem(selector, session);
     this.#owned(session);
     return item.notes || item.secret;
+  }
+  async createItem(
+    input: SecretBackendItemInput,
+    session: SecretBackendSession,
+  ) {
+    const { state } = this.#owned(session);
+    const params = createOnePasswordSdkItem(input, state.vaultId);
+    const result = await this.#call(session, { name: "ItemsCreate", params });
+    const identity = z.object({ id: Id }).safeParse(result);
+    if (!identity.success) response();
+    const stored = readOnePasswordSdkItem(
+      result,
+      state.vaultId,
+      identity.data.id,
+    );
+    if (stored.data.category !== params.category) response();
+    this.#owned(session);
+    return stored.normalized;
+  }
+  async updateItem(
+    id: string,
+    input: SecretBackendItemInput,
+    session: SecretBackendSession,
+  ) {
+    const current = await this.#item(id, session, true);
+    const item = patchOnePasswordSdkItem(
+      current.raw,
+      input,
+      current.data.vaultId,
+      id,
+    );
+    const stored = readOnePasswordSdkItem(
+      await this.#call(session, { name: "ItemsPut", item }),
+      current.data.vaultId,
+      id,
+    );
+    if (stored.data.category !== current.data.category) response();
+    this.#owned(session);
+    return stored.normalized;
+  }
+  async deleteItem(id: string, session: SecretBackendSession) {
+    await this.#item(id, session, true);
+    const result = await this.#call(session, {
+      name: "ItemsDelete",
+      itemId: id,
+    });
+    if (result !== null) response();
+    this.#owned(session);
   }
   disconnect(session: SecretBackendSession): Promise<void> {
     const cleanup = this.#cleanup.get(session);
