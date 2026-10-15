@@ -6,21 +6,14 @@ import type {
   SecretBackendConfiguration,
   SecretBackendDraft,
 } from "@opensesame/app-core/lib/secret-backends/types.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import {
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type FormEvent, useState } from "react";
 import {
   currentSecretBackend,
   secretBackendDependencies as dependencies,
 } from "./secret-backend-dependencies.js";
 import { useSecretBackendAction } from "./useSecretBackendAction.js";
-import type { SecretBackendHandle } from "./useSecretBackendWorkspace.js";
+import { useSecretBackendSession } from "./useSecretBackendSession.js";
 
 export type SecretBackendPanelProps = {
   provider: Provider;
@@ -50,36 +43,6 @@ function useBackendDraft(props: SecretBackendPanelProps) {
     password,
     setPassword,
   };
-}
-function useBackendSession() {
-  const [active, setActive] = useState<SecretBackendHandle | null>(null);
-  const current = useRef<SecretBackendHandle | null>(null);
-  const revision = useRef(0);
-  const disconnect = useCallback(() => {
-    revision.current += 1;
-    const previous = current.current;
-    current.current = null;
-    setActive(null);
-    if (previous)
-      void previous.backend.disconnect(previous.session).catch(() => {});
-  }, []);
-  function accept(handle: SecretBackendHandle, started: number) {
-    if (revision.current !== started) {
-      void handle.backend.disconnect(handle.session).catch(() => {});
-      return false;
-    }
-    current.current = handle;
-    setActive(handle);
-    return true;
-  }
-  useEffect(() => {
-    const unsubscribe = vaultStore.onLock(disconnect);
-    return () => {
-      unsubscribe();
-      disconnect();
-    };
-  }, [disconnect]);
-  return { active, revision, disconnect, accept };
 }
 function configurationActions(
   editor: ReturnType<typeof useBackendDraft>,
@@ -144,7 +107,7 @@ function configurationActions(
 export function useSecretBackendConnection(props: SecretBackendPanelProps) {
   const editor = useBackendDraft(props);
   const status = useSecretBackendAction(props.onFlash);
-  const session = useBackendSession();
+  const session = useSecretBackendSession(status.clear);
   const config = (): SecretBackendConfiguration => ({
     ...editor.draft,
     file: editor.file ?? undefined,
@@ -164,8 +127,9 @@ export function useSecretBackendConnection(props: SecretBackendPanelProps) {
     });
   }
   function connect() {
-    const started = session.revision.current;
-    void status.run(async () => {
+    void status.run(async (action) => {
+      const attempt = session.begin(action.signal);
+      if (!attempt.current()) return undefined;
       try {
         const savedId = editor.saved?.connectionId;
         const saved = savedId
@@ -180,14 +144,19 @@ export function useSecretBackendConnection(props: SecretBackendPanelProps) {
                 filePassword: editor.password,
               };
         const accepted = session.accept(
+          attempt,
           await dependencies.connectSecretBackend(
             input,
             editor.saved?.connectionId,
+            attempt.signal,
           ),
-          started,
         );
         return accepted ? "Secret backend session connected" : undefined;
+      } catch (error) {
+        if (attempt.current()) throw error;
+        return undefined;
       } finally {
+        session.end(attempt);
         editor.setPassword("");
       }
     });
