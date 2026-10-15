@@ -1,0 +1,55 @@
+{
+  "name": "Integration settings, AI inference and real Tailscale browser node",
+  "beforeCompiledSourceCommit": "ca6e7f8e5ef2d32ade17dc9c6e58d00cc9221872",
+  "viewports": [
+    {
+      "width": 1280,
+      "height": 900,
+      "isMobile": false,
+      "hasTouch": false
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "isMobile": true,
+      "hasTouch": true
+    }
+  ],
+  "capture": {
+    "script": "apps/pages/scripts/capture-integration-settings.mjs",
+    "compose": "apps/pages/scripts/compose-integration-settings.mjs",
+    "steps": [
+      "Open the actual production build and create a local vault with the Device PIN form.",
+      "Enable Connections and On-device model through the Features switches.",
+      "Open Integrations at the former Local storage anchor and scroll Payments into the same viewport.",
+      "Open Integrations AI and record the actual controls and viewport.",
+      "Open Features AI and record the actual controls and viewport.",
+      "Open Tailscale connection settings and record its actual editable fields.",
+      "On the changed build, open the newly added BYO AI configuration."
+    ]
+  },
+  "functionalVerification": {
+    "aiScript": "apps/pages/scripts/verify-ai-connections.mjs",
+    "tailnetScript": "apps/pages/scripts/verify-tailnet-browser-node.mjs",
+    "ai": [
+      "Configure native OpenAI Chat and Responses, then BYO Anthropic and Gemini against real HTTP sockets with custom API mount paths.",
+      "Test and save each protocol through authenticated inference, select the saved model in Features, cold reload and unlock with the PIN.",
+      "Reveal and hide its actual vault Token item, then send JSON and genuine SSE inference through the saved connection."
+    ],
+    "tailnet": [
+      "Start pinned real Headscale, its embedded DERP, and a native Tailscale userspace peer with a real HTTP proof service.",
+      "Configure the browser through the Tailscale form and connect the actual emitted official SDK/WASM worker.",
+      "Verify real Noise control and DERP WebSocket traffic, authorization, and an actual GET to the native peer.",
+      "Lock, cold reload, unlock, read the vault-held private state and reconnect without another enrollment key.",
+      "Explicitly disconnect and forget the local node, then verify its vault credential was removed.",
+      "In a fresh installed PWA, verify the unapproved cache excludes all SDK assets, then approve Networking and await matching release/digest readiness before first SDK use. Stop the real app server, cold reload and PIN-unlock from the service worker, reconnect and GET the separate real peer."
+    ],
+    "limits": [
+      "No hosted AI partner or Tailscale tenant account is claimed.",
+      "Headscale, DERP and native peer are real test infrastructure, not an application backend dependency.",
+      "The public official SDK fetch interface supports GET; mutation of tailnet services is not claimed."
+    ],
+    "managementScript": "apps/pages/scripts/verify-tailscale-provisioning.mjs"
+  },
+  "afterCompiledSourceCommit": "92024686885d00a3c0a05f8cf95d743dfb872cf2"
+}
