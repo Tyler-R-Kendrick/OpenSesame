@@ -1,17 +1,22 @@
 use axum::extract::connect_info::ConnectInfo;
+#[cfg(unix)]
+use axum::Extension;
 use axum::{
     body::Body,
     extract::{FromRequest, State},
     http::{HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
-    Extension, Json,
+    Json,
 };
-use opensesame_cli_app_integration::{session_id_from_pid, sign_daemon_attest};
+#[cfg(unix)]
+use opensesame_cli_app_integration::session_id_from_pid;
+use opensesame_cli_app_integration::sign_daemon_attest;
 use serde::Deserialize;
 use serde_json::json;
 use sha2::Digest;
 use std::net::SocketAddr;
 
+#[cfg(unix)]
 use crate::peer_auth::UdsConnectInfo;
 use crate::{App, UdsPeer};
 
@@ -49,6 +54,8 @@ fn terminal_session_for_ensure(
             return (derived, true);
         }
     }
+    #[cfg(not(unix))]
+    let _ = uds;
     let peer_key = match tcp_peer {
         Some(ConnectInfo(addr)) => format!("tcp:{addr}"),
         None => format!(
@@ -61,11 +68,14 @@ fn terminal_session_for_ensure(
 }
 
 pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Response {
+    #[cfg(unix)]
     let uds: UdsPeer = request
         .extensions()
         .get::<ConnectInfo<UdsConnectInfo>>()
         .copied()
         .map(Extension);
+    #[cfg(not(unix))]
+    let uds: UdsPeer = None;
     let tcp_peer = request
         .extensions()
         .get::<ConnectInfo<SocketAddr>>()

@@ -10,7 +10,11 @@ import { type JsonObject, isString } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
-import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
+import {
+  noteDropLockedOut,
+  noteDropOpened,
+  noteDropRefused,
+} from "../sharing-receipts.js";
 import {
   type LocalClaimRecord,
   type LocalDropPollState,
@@ -201,6 +205,37 @@ function lockOutLocalDropClaim(
   noteDropLockedOut(claimId);
 }
 
+function throwTerminalPresentRefusal(
+  claimId: string,
+  record: LocalClaimRecord,
+  raw: LocalClaimRecord,
+  persist: (next: LocalClaimRecord) => void,
+  refuse: (
+    wire: string,
+    message: string,
+    attemptsLeft?: number,
+  ) => LocalDropClaimError,
+): never {
+  if (record !== raw) persist(record);
+  noteDropRefused(claimId);
+  if (record.state === "revoked") {
+    throw refuse("REVOKED", "This drop was revoked.");
+  }
+  if (record.state === "expired") {
+    throw refuse("EXPIRED", "This drop has expired.");
+  }
+  if (record.state === "locked_out") {
+    throw refuse(
+      "too_many_attempts",
+      "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
+    );
+  }
+  throw refuse(
+    "INVALID_TRANSITION",
+    "This drop was already opened and cannot be opened again.",
+  );
+}
+
 export async function presentLocalDropClaim(
   bearerToken: string,
   userCode: string,
@@ -218,6 +253,7 @@ export async function presentLocalDropClaim(
   const store = readLocalDropClaimStore();
   const raw = store.claims[claimId];
   if (!raw) {
+    noteDropRefused(claimId);
     throw refuse(
       "not_found",
       "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
@@ -229,23 +265,7 @@ export async function presentLocalDropClaim(
     writeLocalDropClaimStore(store);
   };
   if (record.state !== "pending") {
-    if (record !== raw) persist(record);
-    if (record.state === "revoked") {
-      throw refuse("REVOKED", "This drop was revoked.");
-    }
-    if (record.state === "expired") {
-      throw refuse("EXPIRED", "This drop has expired.");
-    }
-    if (record.state === "locked_out") {
-      throw refuse(
-        "too_many_attempts",
-        "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
-      );
-    }
-    throw refuse(
-      "INVALID_TRANSITION",
-      "This drop was already opened and cannot be opened again.",
-    );
+    throwTerminalPresentRefusal(claimId, record, raw, persist, refuse);
   }
   if (!timingSafeEqual(tokenDigest, record.tokenDigest)) {
     throw refuse("invalid_token", "This drop's claim token was refused.");

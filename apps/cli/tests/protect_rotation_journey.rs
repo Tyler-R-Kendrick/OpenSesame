@@ -1,6 +1,7 @@
 //! `opensesame pass protect root-rotate | rewrap` driven through the real
 //! binary: after a rotation the store still opens with its passphrase, and the
 //! key file as git history keeps it no longer opens anything in the store.
+#![cfg(unix)]
 
 use std::io::{Read, Write};
 use std::os::unix::io::FromRawFd;
