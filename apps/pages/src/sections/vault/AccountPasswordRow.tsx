@@ -27,10 +27,11 @@ type Copying = {
 
 /**
  * One password method on the detail page, produced through the one facade
- * (ADR 0174). With *Include pepper* the password is shown with the slot marked,
- * a copy puts out what comes before the slot, and a second key copies what
- * follows it; the pepper is never asked for and never kept. A password an older
- * version made from a typed pepper is converted once, here.
+ * (ADR 0174). Reveal shows the stored password (`completePassword`, or the
+ * parts around a pepper slot joined). A copy puts out what comes before the
+ * slot, and a second key copies what follows it; the pepper is never asked
+ * for, never kept, and never painted into the revealed value. A password an
+ * older version made from a typed pepper is converted once, here.
  */
 export function AccountPasswordRow({
   item,
@@ -80,10 +81,11 @@ export function AccountPasswordRow({
 
   const out = handoff(produced);
   const whole = completePassword(produced);
+  // A slotted password has no complete value: the stored password is the
+  // parts around the slot, with nothing painted where the pepper goes.
   const shown =
-    produced.status === "slotted"
-      ? `${produced.head}‹pepper›${produced.tail}`
-      : (whole ?? "");
+    whole ??
+    (produced.status === "slotted" ? `${produced.head}${produced.tail}` : "");
   return (
     <FieldRow
       label={title}
