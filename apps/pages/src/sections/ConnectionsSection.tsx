@@ -9,6 +9,7 @@ import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
+import { connectionRouteProvider } from "@opensesame/app-core/sections/connections/provider-route.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router";
 import { usePublishConnections } from "../components/ConnectionsNavigation.js";
@@ -99,7 +100,7 @@ export function ConnectionsSection() {
   useFlashNotice(
     flash,
     flashScope,
-    providers?.find((item) => item.id === providerId)?.displayName ??
+    connectionRouteProvider(providers, providerId)?.displayName ??
       "Connections",
   );
 
