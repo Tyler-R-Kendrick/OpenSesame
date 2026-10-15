@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { fakeIndexedDb } from "../at-rest/fake-idb.test-support.js";
@@ -7,14 +7,31 @@ import {
   buildPeerTrustSignal,
   encodePeerTrustSignal,
 } from "../peer-trust/signaling.js";
+import { FakeBus, FakeNet } from "./live-fakes.js";
 import {
   createLivePeerJoinApproval,
   exportLivePeerTrustSignal,
   gateLivePeerTrustSignal,
 } from "./peer-trust-peering.js";
+import { endHosting, joinLive, leaveLive, startHosting } from "./session.js";
+import type { LiveTransport } from "./transport.js";
+
+const PROFILE: LiveTransport = {
+  addresses: [],
+  ice: [],
+  relay: false,
+  carriers: [],
+};
 
 describe("live peer trust peering (PWA-only)", () => {
+  beforeEach(() => {
+    const { factory } = fakeIndexedDb();
+    configureHost(createTestHost({ indexedDB: factory }));
+  });
+
   afterEach(() => {
+    endHosting();
+    leaveLive();
     configureHost(createTestHost());
   });
 
@@ -80,5 +97,61 @@ describe("live peer trust peering (PWA-only)", () => {
     );
     expect(gate.passkeyAllowsVerb("passkey", "peer-reveal")).toBe(true);
     expect(gate.passkeyAllowsVerb("software-passkey", "peer-join")).toBe(true);
+  });
+
+  it("joinLive refuses an invalid peer trust signal before connecting", async () => {
+    const net = new FakeNet();
+    const bus = new FakeBus();
+    const owner = await startHosting({
+      title: "Peer trust",
+      scope: { kind: "vault" },
+      policy: "read",
+      admission: "open",
+      minutes: 30,
+      transport: net.transports(),
+      routes: PROFILE,
+      carriers: bus.factory(),
+    });
+    await expect(
+      joinLive({
+        link: owner.link,
+        code: null,
+        name: "Joiner",
+        note: "",
+        transport: net.transports(),
+        useRoutes: false,
+        peerTrustSignal: "not-a-valid-signal",
+      }),
+    ).rejects.toThrow(/peer_trust_refused:invalid-signal/);
+  });
+
+  it("joinLive admits a valid exported signal on the joiner", async () => {
+    const ownerExport = await exportLivePeerTrustSignal();
+    expect(ownerExport.ok).toBe(true);
+    if (!ownerExport.ok) return;
+
+    const net = new FakeNet();
+    const bus = new FakeBus();
+    const owner = await startHosting({
+      title: "Peer trust",
+      scope: { kind: "vault" },
+      policy: "read",
+      admission: "open",
+      minutes: 30,
+      transport: net.transports(),
+      routes: PROFILE,
+      carriers: bus.factory(),
+    });
+    const guest = await joinLive({
+      link: owner.link,
+      code: null,
+      name: "Joiner",
+      note: "",
+      transport: net.transports(),
+      useRoutes: false,
+      peerTrustSignal: ownerExport.signal,
+    });
+    expect(guest).toBeTruthy();
+    guest.leave();
   });
 });
