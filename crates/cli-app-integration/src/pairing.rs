@@ -177,7 +177,6 @@ impl CliAppIntegrationPairings {
         let registration_code = registration_code();
         pending.device_public_key_spki_b64 = Some(device_public_key_spki_b64.to_string());
         pending.registration_code_sha256 = Some(digest_hex(&registration_code));
-        pending.registration_armed = self.paired.is_empty();
         Ok(ConfirmOutcome { registration_code })
     }
 
@@ -227,7 +226,7 @@ impl CliAppIntegrationPairings {
         if pending.device_public_key_spki_b64.as_deref().is_none() {
             return Err(PairingError::NotConfirmed);
         }
-        if self.paired.is_empty() && !pending.registration_armed {
+        if !pending.registration_armed {
             return Err(PairingError::RegistrationRequired);
         }
         if pending.expires_at > now && pending.origin == origin && self.paired.len() >= MAX_PAIRED {

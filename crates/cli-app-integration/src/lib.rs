@@ -24,6 +24,8 @@ pub use daemon_attest::{
     daemon_attest_public_key_spki_b64, sign_daemon_attest, verify_daemon_attest,
 };
 #[cfg(any(test, feature = "test-seams"))]
+pub use device_crypto::{pairing_confirm_message, verifying_key_spki_b64};
+#[cfg(any(test, feature = "test-seams"))]
 pub use human_proof::{mint_pin_human_proof, mint_test_signing_key};
 pub use pairing::{
     format_pairing_code, is_device_public_key_shaped, is_pairable_origin,
