@@ -129,7 +129,7 @@ it("offers GitHub App registration and nothing a Host would take", async () => {
   );
   expect(
     await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+      name: "Create GitHub App",
     }),
   ).toBeTruthy();
   // Each of these saved through a Host, which Pages does not speak to: a key
@@ -159,7 +159,7 @@ it("offers the same with a Host named and granted: it opens no road", async () =
   );
   expect(
     await screen.findByRole("button", {
-      name: /Create GitHub App for this organization/i,
+      name: "Create GitHub App",
     }),
   ).toBeTruthy();
   expect(
