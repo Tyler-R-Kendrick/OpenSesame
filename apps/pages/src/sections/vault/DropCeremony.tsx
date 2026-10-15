@@ -27,6 +27,8 @@ import {
   type DropItem,
   type VaultItem,
   b64ToBytes,
+  handoff,
+  produceAccountPassword,
 } from "@opensesame/vault-core";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import {
@@ -68,6 +70,7 @@ export function DropCard({
   now,
   username,
   shareClipboard,
+  passwordInCopy = false,
 }: {
   drop: SharedOnce;
   /** The TTL the person sealed, from the choices the form offers. */
@@ -77,6 +80,8 @@ export function DropCard({
   username?: string;
   /** Full share text (username line + secret) for one-shot copy. */
   shareClipboard?: string | null;
+  /** That copy includes the account password. */
+  passwordInCopy?: boolean;
 }) {
   const { copied, failed, copy } = useCopyFeedback();
   const user = username?.trim() ?? "";
@@ -151,6 +156,9 @@ export function DropCard({
           <span className="frow__value frow__value--mono">
             Sealed in this drop
           </span>
+          {passwordInCopy ? (
+            <span className="hint">Contains the password.</span>
+          ) : null}
         </FieldRow>
       ) : null}
       <div className="drop-card__qr">
@@ -158,6 +166,16 @@ export function DropCard({
       </div>
     </section>
   );
+}
+
+/**
+ * The share-text copy holds an account password the row does not paint.
+ * A pepper slot in the middle leaves no single password to share.
+ */
+function shareCopyContainsPassword(item: VaultItem): boolean {
+  if (item.kind !== "account") return false;
+  const out = handoff(produceAccountPassword(item));
+  return out !== null && out.later === "" && out.now !== "";
 }
 
 /**
@@ -215,6 +233,7 @@ export function ShareSecretDrop({
         now={now}
         username={accountUsernameLine(item)}
         shareClipboard={text}
+        passwordInCopy={shareCopyContainsPassword(item)}
       />
     );
   }
