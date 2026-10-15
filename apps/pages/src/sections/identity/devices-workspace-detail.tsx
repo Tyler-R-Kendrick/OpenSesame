@@ -16,7 +16,6 @@ export function DevicesWorkspaceBody({
   draft,
   selected,
   selectedId,
-  listPath,
   approval,
   tailnet,
   onEditSelected,
@@ -26,7 +25,6 @@ export function DevicesWorkspaceBody({
   draft: DevicesModel["draft"];
   selected: LocalDevice | undefined;
   selectedId: string | null;
-  listPath: string;
   approval?: ReactNode;
   tailnet?: ReactNode;
   onEditSelected: () => void;
