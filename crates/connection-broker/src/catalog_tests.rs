@@ -59,9 +59,10 @@ fn byo_ai_has_no_static_endpoint_or_delegated_protocol() {
     assert_eq!(provider.egress.scheme, "none");
     assert!(provider.egress.authorities.is_empty());
     assert_eq!(provider.operations, ["ai.configure"]);
-    assert!(provider.connection_configuration_fields().iter().any(|field| {
-        field.name == "api_key" && field.secret && !field.required
-    }));
+    assert!(provider
+        .connection_configuration_fields()
+        .iter()
+        .any(|field| { field.name == "api_key" && field.secret && !field.required }));
 }
 
 #[test]
