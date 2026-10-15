@@ -1,17 +1,17 @@
 name: Publish focused PWA integration slice
-run-name: Verify focused PWA slice 7916ef58820d616c
+run-name: Verify focused PWA slice 2be03528db2314fd
 on:
   push:
     branches: ["work/verified-contents-1253-1792017664643"]
     paths: [".github/workflows/connector-pwa-slice.yml"]
 permissions: {}
 concurrency:
-  group: connector-pwa-slice-7916ef58820d616c
+  group: connector-pwa-slice-2be03528db2314fd
   cancel-in-progress: false
 jobs:
   staging:
     if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/work/verified-contents-1253-1792017664643' }}
-    runs-on: macos-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 6
     permissions:
       contents: write
@@ -38,9 +38,9 @@ jobs:
           REPOSITORY = 'Tyler-R-Kendrick/OpenSesame'
           API = 'https://api.github.com'
           PAYLOAD_PATH = '.github/connector-stack/payload.json'
-          PAYLOAD_SHA256 = '7916ef58820d616c4b500a6fa601cef13c73f2e130a388ea5fd44a9283343474'
-          NEW_BASE = '0b40c6cc5039f5097a2143773efb80f8f01358fd'
-          FINAL_TREE = '9bd01eae458dd41536c6aeea2267e8f7f19e3be6'
+          PAYLOAD_SHA256 = '2be03528db2314fdf59de6a9e3d3abf76ec4ac19dcdf8026b0767bbcbe65f134'
+          NEW_BASE = '6993ab1257548c93542193930c7f5c832c50d5d5'
+          FINAL_TREE = 'c024177982509a3b24a33b0d41b819ecb1947480'
           SHA1 = re.compile(r'[0-9a-f]{40}\Z')
           SHA256 = re.compile(r'[0-9a-f]{64}\Z')
           STAGE_PREFIX = 'connector-signed-stage/' + PAYLOAD_SHA256[:16] + '/'
@@ -277,7 +277,7 @@ jobs:
           def create_signed_commit(api, branch, parent, row, blobs, payload):
               require(branch.startswith(STAGE_PREFIX), 'Non-staging commit target refused')
               additions = [{'path': c['path'], 'contents': blobs[c['blobOid']]} for c in row['changes']]
-              body = 'Reviewed standalone BYO-first catalog ordering change.\nFrozen plan SHA256: ' + payload['planSha256']
+              body = 'Reviewed focused PWA integration slice.\nFrozen plan SHA256: ' + payload['planSha256']
               body += '\nExpected branch head: ' + row['oldHead'] + '\nExpected tree: ' + row['resultTree']
               result, _ = api.call('POST', '/graphql', {'query': MUTATION, 'variables': {'input': {
                   'branch': {'repositoryNameWithOwner': REPOSITORY, 'branchName': branch},
