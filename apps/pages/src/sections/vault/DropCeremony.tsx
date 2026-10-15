@@ -19,7 +19,10 @@ import {
   shareOnce,
   sweepDrop,
 } from "@opensesame/app-core/lib/vault/drop.js";
-import { shareText } from "@opensesame/app-core/sections/vault-share-text.js";
+import {
+  accountUsernameLine,
+  shareText,
+} from "@opensesame/app-core/sections/vault-share-text.js";
 import {
   type DropItem,
   type VaultItem,
@@ -63,16 +66,29 @@ export function DropCard({
   drop,
   opensFor,
   now,
+  username,
+  shareClipboard,
 }: {
   drop: SharedOnce;
   /** The TTL the person sealed, from the choices the form offers. */
   opensFor: string;
   now: number;
+  /** Account username sealed into the drop, when set. */
+  username?: string;
+  /** Full share text (username line + secret) for one-shot copy. */
+  shareClipboard?: string | null;
 }) {
   const { copied, failed, copy } = useCopyFeedback();
+  const user = username?.trim() ?? "";
+  const clipboard = shareClipboard?.trim() ?? "";
   return (
     <section className="detail__group" aria-label="Drop ready">
       <h2 className="detail__grouphead">Drop ready</h2>
+      {user !== "" ? (
+        <FieldRow label="Username">
+          <span className="frow__value">{user}</span>
+        </FieldRow>
+      ) : null}
       <FieldRow
         label="Link"
         actions={
@@ -118,6 +134,25 @@ export function DropCard({
       <FieldRow label="Expires">
         <span className="frow__value">{clockExpiry(drop.expiresAt, now)}</span>
       </FieldRow>
+      {clipboard !== "" ? (
+        <FieldRow
+          label="Share text"
+          actions={
+            <CopyButton
+              value={clipboard}
+              label="share text"
+              fieldKey="drop-share-text"
+              copied={copied}
+              failed={failed}
+              onCopy={copy}
+            />
+          }
+        >
+          <span className="frow__value frow__value--mono">
+            Sealed in this drop
+          </span>
+        </FieldRow>
+      ) : null}
       <div className="drop-card__qr">
         <QrCode value={drop.link} label="Scan to open this drop" size={144} />
       </div>
@@ -173,7 +208,15 @@ export function ShareSecretDrop({
   if (text === null || !open) return null;
 
   if (drop) {
-    return <DropCard drop={drop} opensFor={dropTtlLabel(ttlMs)} now={now} />;
+    return (
+      <DropCard
+        drop={drop}
+        opensFor={dropTtlLabel(ttlMs)}
+        now={now}
+        username={accountUsernameLine(item)}
+        shareClipboard={text}
+      />
+    );
   }
 
   return (
