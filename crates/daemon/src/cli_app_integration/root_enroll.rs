@@ -67,6 +67,9 @@ pub(crate) async fn finish(State(st): State<App>, headers: HeaderMap, body: Byte
     if headers.contains_key(header::ORIGIN) {
         return pairing_error(StatusCode::FORBIDDEN, "origin_forbidden");
     }
+    let Some(enroll_entry) = enroll_entry_from_headers(&headers) else {
+        return pairing_error(StatusCode::FORBIDDEN, "root_enroll_refused");
+    };
     let Some(dir) = st.cli_root_trust_dir.clone() else {
         return pairing_error(
             StatusCode::SERVICE_UNAVAILABLE,
@@ -90,7 +93,18 @@ pub(crate) async fn finish(State(st): State<App>, headers: HeaderMap, body: Byte
         tracing::warn!(%err, "cli root trust store write failed");
         return pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "root_trust_store_failed");
     }
-    enrolled_response(&mut host, outcome)
+    enrolled_response(&mut host, outcome, enroll_entry)
+}
+
+fn enroll_entry_from_headers(headers: &HeaderMap) -> Option<&'static str> {
+    let value = headers
+        .get("x-opensesame-enroll-entry")
+        .and_then(|v| v.to_str().ok())?;
+    match value {
+        "secure-prompt" => Some("secure-prompt"),
+        "tty-opt-in" => Some("tty-opt-in"),
+        _ => None,
+    }
 }
 
 #[derive(Deserialize)]
@@ -171,12 +185,18 @@ fn map_finish_error(err: RootEnrollError) -> Response {
 fn enrolled_response(
     host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
     outcome: RootEnrollFinish,
+    enroll_entry: &str,
 ) -> Response {
     let epoch = outcome.record.enrollment_epoch();
     let fingerprint = outcome.record.spki_fingerprint().to_string();
     let confirm = b64(&outcome.daemon_confirm);
     host.pairings.mark_root_key_enrolled(outcome.record);
-    tracing::info!(epoch, "cli root trust key enrolled via pake");
+    tracing::info!(
+        epoch,
+        enroll_entry,
+        event = "cli_root_trust_enrolled",
+        "cli root trust key enrolled via pake"
+    );
     Json(json!({
         "enrolled": true,
         "spkiFingerprint": fingerprint,

@@ -12,8 +12,10 @@ Units U1–U11 on top of #1352 + D7-1b folded in.
 ## U3
 - **PAKE enrollment** protocol to enroll the root key (before pairing flows work).
 
-## U4 — host-side enrollment entry (held until headless Linux policy confirmed)
-- OS secure prompt where available; refuse TTY by default; opt-in `--allow-tty-enroll` with audit log (Tyler queue message may override hold).
+## U4 — host-side enrollment entry
+- `opensesame daemon root-trust enroll` with OS secure prompt when available.
+- Headless hosts without one refuse unless `--allow-tty-enroll` (prints risk, reads `/dev/tty`).
+- Finish sends `x-opensesame-enroll-entry: secure-prompt|tty-opt-in`; daemon logs `cli_root_trust_enrolled` with `enroll_entry`.
 
 ## U7 / U8 (also close Infisical N7-2/N7-3 style findings)
 - U7: daemon pin default-on + verify transport actually used (UDS vs TCP).

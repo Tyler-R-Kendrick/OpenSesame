@@ -86,10 +86,15 @@ fn proof(started: &Started, spki: &[u8], confirm: &[u8], message: &[u8]) -> Stri
 }
 
 fn finish_request(body: String, origin: bool) -> Request<Body> {
+    finish_request_with_entry(body, origin, "secure-prompt")
+}
+
+fn finish_request_with_entry(body: String, origin: bool, enroll_entry: &str) -> Request<Body> {
     let mut builder = Request::builder()
         .method("POST")
         .uri(ROOT_ENROLL_FINISH_PATH)
-        .header("content-type", "application/json");
+        .header("content-type", "application/json")
+        .header("x-opensesame-enroll-entry", enroll_entry);
     if origin {
         builder = builder.header(header::ORIGIN, "http://localhost:5180");
     }
@@ -235,6 +240,27 @@ async fn finish_origin_does_not_burn_the_session() {
     let (status, parsed, _) = read_json(response).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(parsed["enrollmentEpoch"], 1);
+}
+
+#[tokio::test]
+async fn finish_without_enroll_entry_header_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    let (app, _) = router_at(Some(dir.path()));
+    let started = begin(&app).await;
+    let spki = root_spki_der(&generate_root_signing_key());
+    let (message, confirm) = honest(&started, &spki);
+    let body = proof(&started, &spki, confirm.client_confirm(), &message);
+    let mut builder = Request::builder()
+        .method("POST")
+        .uri(ROOT_ENROLL_FINISH_PATH)
+        .header("content-type", "application/json");
+    let refused = app
+        .oneshot(builder.body(Body::from(body)).unwrap())
+        .await
+        .unwrap();
+    let (status, parsed, _) = read_json(refused).await;
+    assert_eq!(status, StatusCode::FORBIDDEN);
+    assert_eq!(parsed["error"], "root_enroll_refused");
 }
 
 #[tokio::test]

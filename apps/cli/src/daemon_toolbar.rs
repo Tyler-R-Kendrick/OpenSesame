@@ -21,7 +21,7 @@ fn operator_hint(status: reqwest::StatusCode, had_token: bool) -> &'static str {
 }
 
 /// Operator token is for this machine. A remote base would ship it off-box.
-fn assert_daemon_url_allowed(url: &str) -> Result<(), String> {
+pub(crate) fn assert_daemon_url_allowed(url: &str) -> Result<(), String> {
     if opensesame_host_core::daemon::base_url_is_local(url) {
         return Ok(());
     }
