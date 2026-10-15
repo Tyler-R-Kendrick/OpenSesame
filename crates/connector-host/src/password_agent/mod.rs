@@ -3,6 +3,7 @@ pub mod app_integration;
 pub mod discover;
 pub mod env;
 pub mod lease;
+pub mod mask;
 pub mod policy;
 pub mod request;
 pub mod reveal_gate;

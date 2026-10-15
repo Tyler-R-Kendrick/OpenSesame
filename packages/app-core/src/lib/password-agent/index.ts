@@ -30,24 +30,16 @@ export class PasswordAgent {
   }
   resolveEnv(content: string) {
     return environment.resolveEnv(content, async (refs) => {
-      if (refs.some((reference) => !reference.startsWith("op://")))
-        throw new Error("1Password resolution requires op:// references");
-      if (!this.port.readMany)
-        throw new Error("Batched secret resolution is unavailable");
-      try {
-        return await this.port.readMany(refs);
-      } catch {
-        throw new Error(
-          "Batched secret resolution failed (details suppressed)",
-        );
-      }
+      const resolved = await environment.resolveReferences(this.port, refs);
+      return refs.map((reference) => resolved.get(reference) ?? "");
     });
   }
   run(
     assignments: readonly environment.Assignment[],
     command: readonly string[],
+    mounts: readonly environment.Assignment[] = [],
   ) {
-    return environment.run(this.port, assignments, command);
+    return environment.run(this.port, assignments, command, mounts);
   }
   runFile(file: string, command: readonly string[], content: string) {
     return environment.runFile(this.port, file, command, content);

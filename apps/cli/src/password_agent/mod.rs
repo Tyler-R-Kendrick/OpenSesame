@@ -3,6 +3,8 @@ mod consume;
 mod credential;
 mod io;
 mod lease_store;
+mod os_child;
+mod os_run;
 mod process_io;
 mod request;
 mod service;
@@ -74,8 +76,12 @@ pub(crate) enum Command {
         reference: String,
     },
     Run {
-        #[arg(long = "env", required = true)]
+        #[arg(long = "env", required_unless_present = "mount")]
         env: Vec<String>,
+        /// Mount a referenced secret as a private temp file for the child;
+        /// NAME receives the file path and the file is removed afterwards.
+        #[arg(long = "mount", required_unless_present = "env")]
+        mount: Vec<String>,
         #[arg(last = true, required = true)]
         command: Vec<String>,
     },
@@ -244,9 +250,34 @@ pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Re
             apply,
             repair_imported_fields,
         )?,
-        Command::Read { reference } => consume::read(&reference, desktop, reveal)?,
-        Command::Run { env, command } => consume::run_assignments(&env, &command, desktop)?,
-        Command::Env { cmd } => consume::env(cmd, desktop, reveal)?,
+        Command::Read { reference } => {
+            if reference.starts_with("os://") {
+                os_run::read(&reference, desktop, reveal)?;
+            } else {
+                consume::read(&reference, desktop, reveal)?;
+            }
+        }
+        Command::Run {
+            env,
+            mount,
+            command,
+        } => {
+            if !mount.is_empty()
+                || core::env::has_os_reference(&env)
+                || core::env::has_os_reference(&mount)
+            {
+                os_run::run_assignments(&env, &mount, &command)?;
+            } else {
+                consume::run_assignments(&env, &command, desktop)?;
+            }
+        }
+        Command::Env { cmd } => {
+            if os_run::template_has_os(&cmd) {
+                os_run::env(cmd, desktop, reveal)?;
+            } else {
+                consume::env(cmd, desktop, reveal)?;
+            }
+        }
         Command::InternalExec { command } => consume::internal_exec(&command)?,
         Command::InternalBatch { count } => consume::internal_batch(count)?,
         Command::Request(options) => request::execute(options).await?,
