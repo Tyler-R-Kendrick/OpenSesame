@@ -104,7 +104,10 @@ async function rejectedRequest(
   throw new Error("Expected a controlled request failure");
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("safe HTTP status evidence", () => {
   it.each([
@@ -230,4 +233,105 @@ describe("safe HTTP status evidence", () => {
     expect(timeout).toHaveBeenCalledExactlyOnceWith(20_000);
     expect(fetcher.mock.calls[0]?.[1]?.signal).toBe(bound.signal);
   });
+});
+
+function pendingHttp() {
+  vi.useFakeTimers();
+  const deadline = new AbortController();
+  const timeout = vi
+    .spyOn(AbortSignal, "timeout")
+    .mockImplementation((delay) => {
+      setTimeout(
+        () => deadline.abort(new Error("private-deadline-reason")),
+        delay,
+      );
+      return deadline.signal;
+    });
+  const fetcher = vi.fn<SecretBackendFetch>((_input, init) => {
+    const signal = init?.signal;
+    if (!signal) return Promise.reject(new Error("Missing request signal"));
+    return new Promise<Response>((_resolve, reject) => {
+      const abort = () => reject(signal.reason);
+      if (signal.aborted) abort();
+      else signal.addEventListener("abort", abort, { once: true });
+    });
+  });
+  const request = createBackendHttp("https://configured.example.test", fetcher);
+  return { deadline, timeout, fetcher, request };
+}
+function sanitizedAbort(error: Error) {
+  expect(error).toMatchObject({ code: "network", name: "SecretBackendError" });
+  expect(error).not.toBeInstanceOf(SecretBackendHttpError);
+  expect(error).not.toHaveProperty("cause");
+  expect(error).not.toHaveProperty("status");
+  expect(JSON.stringify(Object.getOwnPropertyDescriptors(error))).not.toContain(
+    "private-",
+  );
+}
+
+describe("request timeout and caller composition", () => {
+  it.each([false, true])(
+    "ends pending HTTP at twenty seconds with supplied caller=%s",
+    async (supplied) => {
+      const f = pendingHttp();
+      const caller = new AbortController();
+      const init = Object.freeze({
+        signal: supplied ? caller.signal : undefined,
+      });
+      const result = f.request("/items", init).catch((error: Error) => error);
+      const captured = f.fetcher.mock.calls[0]?.[1]?.signal;
+      expect(captured?.aborted).toBe(false);
+      expect(f.timeout).toHaveBeenCalledExactlyOnceWith(20_000);
+      await vi.advanceTimersByTimeAsync(19_999);
+      expect(captured?.aborted).toBe(false);
+      expect(f.deadline.signal.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const error = await result;
+      if (!(error instanceof Error))
+        throw new Error("Expected bounded request rejection");
+      sanitizedAbort(error);
+      expect(captured?.aborted).toBe(true);
+      expect(f.deadline.signal.aborted).toBe(true);
+      expect(caller.signal.aborted).toBe(false);
+      expect(init.signal).toBe(supplied ? caller.signal : undefined);
+    },
+  );
+
+  it.each(["session", "operation"] as const)(
+    "honors the earlier %s abort without mutating the deadline or other source",
+    async (source) => {
+      const f = pendingHttp();
+      const session = new AbortController();
+      const operation = new AbortController();
+      const caller = AbortSignal.any([session.signal, operation.signal]);
+      const init = Object.freeze({
+        signal: caller,
+        method: "POST",
+        body: "unchanged-request-body",
+      });
+      const result = f.request("/items", init).catch((error: Error) => error);
+      const captured = f.fetcher.mock.calls[0]?.[1]?.signal;
+      expect(captured).not.toBe(caller);
+      expect(captured).not.toBe(f.deadline.signal);
+      await vi.advanceTimersByTimeAsync(100);
+      (source === "session" ? session : operation).abort(
+        new Error("private-caller-reason"),
+      );
+      const error = await result;
+      if (!(error instanceof Error))
+        throw new Error("Expected caller request rejection");
+      sanitizedAbort(error);
+      expect(captured?.aborted).toBe(true);
+      expect(caller.aborted).toBe(true);
+      expect(f.deadline.signal.aborted).toBe(false);
+      expect((source === "session" ? operation : session).signal.aborted).toBe(
+        false,
+      );
+      expect(init.signal).toBe(caller);
+      expect(f.fetcher.mock.calls[0]?.[1]?.body).toBe(init.body);
+      expect(f.fetcher.mock.calls[0]?.[1]?.method).toBe(init.method);
+      await vi.advanceTimersByTimeAsync(19_900);
+      expect(f.deadline.signal.aborted).toBe(true);
+    },
+  );
 });

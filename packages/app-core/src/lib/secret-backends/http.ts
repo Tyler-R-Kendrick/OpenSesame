@@ -150,13 +150,15 @@ export function createBackendHttp(
       );
     let response: Response;
     try {
+      const caller = init.signal;
+      const timeout = AbortSignal.timeout(20_000);
       response = await fetcher(target.href, {
         ...init,
         redirect: "error",
         credentials: "omit",
         cache: "no-store",
         referrerPolicy: "no-referrer",
-        signal: init.signal ?? AbortSignal.timeout(20_000),
+        signal: caller ? AbortSignal.any([caller, timeout]) : timeout,
       });
     } catch (error) {
       if (error instanceof SecretBackendError) throw error;
