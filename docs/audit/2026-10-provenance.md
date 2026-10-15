@@ -456,3 +456,16 @@ hosted CRUD. The earlier 47 actual Chromium/WASM denial/cancellation checks
 remain separate. Configuration, production transport/cache/asset ownership
 and UI activation, React ownership/status consumers, other audited providers,
 required CI, full security gates and verified bottom-up restacking remain open.
+
+Codex and delegated Codex agents implemented and reviewed the mounted-action
+slice, PR #1325, `fb53fee28c7d3943c4120232d09a0161b2f5cc41`, under the
+recorded fallback: Grok authentication unavailable and Kimi absent. Its 51
+affected tests (20 new), both typechecks, static rules and full quality
+(546 script plus 17 security tests) passed. Scoped scans of the two frozen
+files accounted for all 17,780 bytes with zero findings. The actual gallery
+uses parent `80e245ef` and after `fb53fee2` builds; the approved after trace
+confirms six successful owned-REST logins, not native 1Password or hosted
+authentication. The original phone post-HTTP200 abort remains unresolved and
+is not retrospectively passed; two Node instrumentation warnings are retained.
+Pending caller cancellation, native activation, remaining integrations,
+required CI, security landing gates and verified restacking remain OPEN.
