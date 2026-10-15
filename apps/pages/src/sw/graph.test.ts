@@ -12,6 +12,7 @@ import {
   FIXTURE_GRAPH,
   MAIN_CSS,
   MAIN_JS,
+  SHELL_ICON,
   VENDOR_JS,
 } from "./test-fixtures.js";
 
@@ -33,6 +34,74 @@ describe("isDistPath", () => {
   });
 });
 
+it.each(["core", "shared"])(
+  "caches %s lazy identity code with an owner ID without admitting optional code or type packs",
+  (classification) => {
+    const parsed = parseCapabilityGraph({
+      chunks: [
+        {
+          file: "main.js",
+          isEntry: true,
+          core: true,
+          dynamicImports: [
+            "device-identity-carry.js",
+            "optional-identity.js",
+            "mixed.js",
+            "note.js",
+          ],
+        },
+        {
+          file: "device-identity-carry.js",
+          modules: [{ classification, capability: "identity.brokered-signin" }],
+          imports: ["identity-key.js"],
+          importedAssets: ["identity.wasm"],
+        },
+        {
+          file: "identity-key.js",
+          modules: [
+            { classification: "core", capability: "identity.brokered-signin" },
+          ],
+        },
+        {
+          file: "optional-identity.js",
+          modules: [
+            {
+              classification: "optional",
+              capability: "identity.brokered-signin",
+            },
+          ],
+        },
+        {
+          file: "mixed.js",
+          modules: [
+            { classification: "core", capability: "identity.brokered-signin" },
+            { classification: "optional", capability: "wallet.spending" },
+          ],
+        },
+        {
+          file: "note.js",
+          onDemand: true,
+          modules: [{ classification: "shared", capability: null }],
+        },
+      ],
+    });
+    if (!parsed) throw new Error("unparsed");
+    expect(
+      parsed.chunks.find((chunk) => chunk.file === "device-identity-carry.js")
+        ?.modules[0]?.classification,
+    ).toBe(classification);
+    expect(resolvePlanAssets(parsed, [])).toEqual({
+      ok: true,
+      files: [
+        "device-identity-carry.js",
+        "identity-key.js",
+        "identity.wasm",
+        "main.js",
+      ],
+    });
+  },
+);
+
 describe("parseCapabilityGraph", () => {
   it("drops chunks with URL-like files and non-graph inputs", () => {
     expect(parseCapabilityGraph(null)).toBe(null);
@@ -43,6 +112,8 @@ describe("parseCapabilityGraph", () => {
         {
           file: "assets/ok.js",
           imports: ["/abs.js", "assets/dep.js"],
+          dynamicImports: ["https://evil.test/lazy.js", "assets/lazy.js"],
+          importedAssets: ["../secret.wasm", "assets/parser.wasm"],
           modules: [{ capability: null }],
         },
         "junk",
@@ -53,9 +124,12 @@ describe("parseCapabilityGraph", () => {
         file: "assets/ok.js",
         isEntry: false,
         core: true,
+        onDemand: false,
         imports: ["assets/dep.js"],
+        dynamicImports: ["assets/lazy.js"],
         css: [],
-        modules: [{ moduleId: null, capability: null }],
+        assets: ["assets/parser.wasm"],
+        modules: [{ moduleId: null, capability: null, classification: null }],
       },
     ]);
   });
@@ -85,6 +159,31 @@ describe("parseCapabilityGraph", () => {
       false,
     ]);
   });
+
+  it("includes only valid shell resource links, never other entries or arbitrary public files", () => {
+    const parsed = parseCapabilityGraph({
+      entries: [
+        {
+          html: "index.html",
+          capability: null,
+          assets: ["icon.svg", "https://evil.test/icon.svg", "../private.json"],
+        },
+        {
+          html: "auth/redirect.html",
+          capability: "identity.ambient-sso",
+          assets: ["providers/auth0.svg"],
+        },
+        { html: "other.html", capability: null, assets: ["other.svg"] },
+      ],
+      publicFiles: [{ file: "providers/clerk.svg", capability: null }],
+      chunks: [],
+    });
+    if (!parsed) throw new Error("unparsed");
+    expect(resolvePlanAssets(parsed, [])).toEqual({
+      ok: true,
+      files: ["icon.svg"],
+    });
+  });
 });
 
 describe("resolvePlanAssets", () => {
@@ -97,7 +196,7 @@ describe("resolvePlanAssets", () => {
   it("with no modules returns only the core entries and their closure", () => {
     expect(resolvePlanAssets(graph(), [])).toEqual({
       ok: true,
-      files: [MAIN_CSS, MAIN_JS, VENDOR_JS],
+      files: [MAIN_CSS, MAIN_JS, VENDOR_JS, SHELL_ICON],
     });
   });
 
@@ -138,6 +237,58 @@ describe("resolvePlanAssets", () => {
     expect(resolvePlanAssets(parsed, [])).toEqual({
       ok: true,
       files: ["a.js", "assets/vendor-x.js"],
+    });
+  });
+
+  it("follows approved lazy owners and shared dependencies without crossing excluded or on-demand edges", () => {
+    const parsed = parseCapabilityGraph({
+      chunks: [
+        {
+          file: "main.js",
+          isEntry: true,
+          core: true,
+          dynamicImports: [
+            "connector.js",
+            "disabled.js",
+            "note.js",
+            "unknown.js",
+          ],
+        },
+        {
+          file: "connector.js",
+          modules: [
+            { moduleId: CONNECTORS_MODULE, capability: "connectors.external" },
+          ],
+          dynamicImports: ["shared.js", "mixed.js"],
+        },
+        {
+          file: "shared.js",
+          modules: [{ capability: null }],
+          importedAssets: ["parser.wasm"],
+        },
+        { file: "disabled.js", modules: [{ capability: "wallet.spending" }] },
+        {
+          file: "mixed.js",
+          modules: [
+            { capability: "connectors.external" },
+            { capability: "wallet.spending" },
+          ],
+        },
+        {
+          file: "note.js",
+          onDemand: true,
+          modules: [{ capability: null }],
+        },
+      ],
+    });
+    if (!parsed) throw new Error("unparsed");
+    expect(resolvePlanAssets(parsed, [CONNECTORS_MODULE])).toEqual({
+      ok: true,
+      files: ["connector.js", "main.js", "parser.wasm", "shared.js"],
+    });
+    expect(resolvePlanAssets(parsed, [])).toEqual({
+      ok: true,
+      files: ["main.js"],
     });
   });
 });
