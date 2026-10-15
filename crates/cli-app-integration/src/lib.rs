@@ -280,7 +280,7 @@ impl CliAppIntegrationStore {
         ) else {
             return ("wrongSession".into(), None);
         };
-        let passkey_sign_count = outcome.into_sign_count();
+        let passkey_sign_count = Some(outcome);
         self.pending.remove(request_id);
         self.denied.remove(terminal_session_id);
         self.approved.insert(

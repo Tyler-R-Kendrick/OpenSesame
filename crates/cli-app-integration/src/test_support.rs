@@ -136,5 +136,5 @@ pub fn mint_test_passkey_human_proof(
         "clientDataJsonB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_data_bytes),
         "signatureB64": sig_b64,
     });
-    format!("oschip2:passkey:{}", wire)
+    format!("oschip2:passkey:{wire}")
 }

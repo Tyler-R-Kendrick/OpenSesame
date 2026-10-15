@@ -6,23 +6,6 @@ use crate::webauthn_assertion::verify_passkey_assertion;
 
 const PROOF_PREFIX: &str = "oschip2:";
 
-/// Verified human proof: PIN unlock or passkey with monotonic sign count.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum HumanProofOutcome {
-    Pin,
-    Passkey(u32),
-}
-
-impl HumanProofOutcome {
-    #[must_use]
-    pub(crate) fn into_sign_count(self) -> Option<u32> {
-        match self {
-            Self::Pin => None,
-            Self::Passkey(count) => Some(count),
-        }
-    }
-}
-
 pub(crate) fn human_proof_verify(
     proof: &str,
     binding: &PairedBinding,
@@ -30,7 +13,7 @@ pub(crate) fn human_proof_verify(
     terminal_session_id: &str,
     respond_nonce: &str,
     verb: &str,
-) -> Option<HumanProofOutcome> {
+) -> Option<u32> {
     if binding.pin_proof_failures >= crate::pairing::MAX_PIN_PROOF_FAILURES {
         return None;
     }
@@ -44,8 +27,7 @@ pub(crate) fn human_proof_verify(
         }
         if kind == "passkey" {
             let webauthn = binding.webauthn.as_ref()?;
-            return verify_passkey_assertion(tail, &challenge, webauthn)
-                .map(HumanProofOutcome::Passkey);
+            return verify_passkey_assertion(tail, &challenge, webauthn);
         }
     }
     None
