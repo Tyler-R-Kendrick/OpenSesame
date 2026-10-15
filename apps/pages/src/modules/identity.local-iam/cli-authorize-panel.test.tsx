@@ -37,54 +37,62 @@ afterEach(() => {
 });
 
 describe("Authorize CLI pending check", () => {
-  afterEach(() => {
-    // Pairing writes the CLI bearer under a key the storage-ownership
-    // registry does not own yet (it predates this suite). Drain the recorded
-    // writes so the setup's ownership assert judges only new keys, and pin
-    // the known gap so any other unowned write still fails here.
-    const unowned = takeStorageWrites().filter(
-      (write) => !ownsWebStorageKey(write.key, write.area),
-    );
-    expect(unowned).toEqual([
-      { area: "session", key: CLI_APP_INTEGRATION_BEARER_KEY },
-    ]);
+  it("keeps the pair control visible but disabled until a code is entered", () => {
+    render(<CliAuthorizePanel />);
+    const pair = screen.getByRole("button", { name: "Pair with the daemon" });
+    expect(pair.hasAttribute("disabled")).toBe(true);
   });
 
-  it("explains that local approval is blocked on this site instead of hanging or claiming an empty queue", async () => {
-    // The test host stamps the shared-origin (GitHub Pages) profile, so the
-    // real fence in localNetworkFetch throws before any fetch is attempted.
-    showPaired();
-    expect(await screen.findByText(BLOCKED)).toBeTruthy();
-    expect(screen.queryByText(LOADING)).toBeNull();
-    expect(screen.queryByText(EMPTY)).toBeNull();
-  });
+  describe("paired daemon check", () => {
+    afterEach(() => {
+      // Pairing writes the CLI bearer under a key the storage-ownership
+      // registry does not own yet (it predates this suite). Drain the recorded
+      // writes so the setup's ownership assert judges only new keys, and pin
+      // the known gap so any other unowned write still fails here.
+      const unowned = takeStorageWrites().filter(
+        (write) => !ownsWebStorageKey(write.key, write.area),
+      );
+      expect(unowned).toEqual([
+        { area: "session", key: CLI_APP_INTEGRATION_BEARER_KEY },
+      ]);
+    });
 
-  it("says the check failed when the daemon refuses, not that no request is waiting", async () => {
-    localNetworkFetchSeams.eligible = () => true;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("no", { status: 401 })),
-    );
-    showPaired();
-    expect(await screen.findByText(UNREADABLE)).toBeTruthy();
-    expect(screen.queryByText(EMPTY)).toBeNull();
-  });
+    it("explains that local approval is blocked on this site instead of hanging or claiming an empty queue", async () => {
+      // The test host stamps the shared-origin (GitHub Pages) profile, so the
+      // real fence in localNetworkFetch throws before any fetch is attempted.
+      showPaired();
+      expect(await screen.findByText(BLOCKED)).toBeTruthy();
+      expect(screen.queryByText(LOADING)).toBeNull();
+      expect(screen.queryByText(EMPTY)).toBeNull();
+    });
 
-  it("still says no request is waiting when the daemon answers with an empty queue", async () => {
-    localNetworkFetchSeams.eligible = () => true;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          new Response(JSON.stringify({ pending: [] }), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-          }),
-      ),
-    );
-    showPaired();
-    expect(await screen.findByText(EMPTY)).toBeTruthy();
-    expect(screen.queryByText(BLOCKED)).toBeNull();
-    expect(screen.queryByText(UNREADABLE)).toBeNull();
+    it("says the check failed when the daemon refuses, not that no request is waiting", async () => {
+      localNetworkFetchSeams.eligible = () => true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response("no", { status: 401 })),
+      );
+      showPaired();
+      expect(await screen.findByText(UNREADABLE)).toBeTruthy();
+      expect(screen.queryByText(EMPTY)).toBeNull();
+    });
+
+    it("still says no request is waiting when the daemon answers with an empty queue", async () => {
+      localNetworkFetchSeams.eligible = () => true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response(JSON.stringify({ pending: [] }), {
+              status: 200,
+              headers: { "content-type": "application/json" },
+            }),
+        ),
+      );
+      showPaired();
+      expect(await screen.findByText(EMPTY)).toBeTruthy();
+      expect(screen.queryByText(BLOCKED)).toBeNull();
+      expect(screen.queryByText(UNREADABLE)).toBeNull();
+    });
   });
 });
