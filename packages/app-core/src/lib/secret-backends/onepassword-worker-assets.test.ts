@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+import { gzipSync } from "node:zlib";
 import { afterEach, expect, it, vi } from "vitest";
 import artifacts from "./onepassword-artifacts.json" with { type: "json" };
 import { createOnePasswordAssetFetch } from "./onepassword-worker-assets.js";
@@ -14,12 +15,16 @@ const raw = readFileSync(
     "nodejs/core_bg.wasm",
   ),
 );
+const wire = gzipSync(raw, { level: artifacts.sdk.wasmGzipLevel });
 const assets = {
   origin: "https://app.example",
   runtimeUrl: `https://app.example/subpath/${artifacts.assets.runtime}`,
   wasmUrl: `https://app.example/subpath/${artifacts.assets.wasm}`,
 };
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 function stream(bytes: Uint8Array) {
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -29,7 +34,7 @@ function stream(bytes: Uint8Array) {
   });
 }
 function response(
-  body: ReadableStream<Uint8Array> | null = stream(raw),
+  body: ReadableStream<Uint8Array> | null = stream(wire),
   init?: ResponseInit,
 ) {
   const reply = new Response(body, init);
@@ -61,15 +66,21 @@ function deferred<T>() {
 }
 
 it("returns fresh raw WASM with exact actual package length/hash and no upstream headers", async () => {
+  expect(wire.length).toBe(artifacts.sdk.wasmGzipBytes);
+  expect(createHash("sha256").update(wire).digest("hex")).toBe(
+    artifacts.sdk.wasmGzipHash,
+  );
   expect(raw.length).toBe(artifacts.sdk.wasmBytes);
   expect(createHash("sha256").update(raw).digest("hex")).toBe(
     artifacts.sdk.wasmHash,
   );
   const f = fixture();
-  const upstream = response(stream(raw), {
+  const upstream = response(stream(wire), {
     headers: {
       "Content-Type": "application/octet-stream",
       "X-Fixture": "not forwarded",
+      "Content-Encoding": "gzip",
+      "Content-Length": String(wire.length),
     },
   });
   f.native.mockResolvedValueOnce(upstream);
@@ -77,6 +88,8 @@ it("returns fresh raw WASM with exact actual package length/hash and no upstream
   expect(output === upstream).toBe(false);
   expect(output.headers.get("Content-Type")).toBe("application/wasm");
   expect(output.headers.has("X-Fixture")).toBe(false);
+  expect(output.headers.has("Content-Encoding")).toBe(false);
+  expect(output.headers.has("Content-Length")).toBe(false);
   expect(output.url).toBe("");
   const bytes = await output.arrayBuffer();
   expect(bytes.byteLength).toBe(raw.length);
@@ -139,7 +152,7 @@ it.each(["status", "redirect", "url", "body"] as const)(
     const reply =
       change === "body"
         ? response(null)
-        : response(stream(raw), { status: change === "status" ? 404 : 200 });
+        : response(stream(wire), { status: change === "status" ? 404 : 200 });
     if (change === "redirect")
       Object.defineProperty(reply, "redirected", { value: true });
     if (change === "url")
@@ -154,22 +167,24 @@ it.each(["status", "redirect", "url", "body"] as const)(
 );
 
 it.each(["short", "oversize", "hash"] as const)(
-  "refuses %s raw bytes without logging their contents",
+  "refuses %s compressed bytes before decoding without logging their contents",
   async (change) => {
     const f = fixture();
     const bytes =
       change === "short"
-        ? raw.subarray(0, raw.length - 1)
+        ? wire.subarray(0, wire.length - 1)
         : change === "oversize"
-          ? new Uint8Array(raw.length + 1)
-          : new Uint8Array(raw);
+          ? new Uint8Array(wire.length + 1)
+          : new Uint8Array(wire);
     if (change === "hash") bytes[0] = (bytes[0] ?? 0) ^ 1;
     f.native.mockResolvedValueOnce(response(stream(bytes)));
     const digest = vi.spyOn(crypto.subtle, "digest");
+    const decoder = vi.spyOn(globalThis, "DecompressionStream");
     await expect(f.fetcher(assets.wasmUrl)).rejects.toThrow(
       "The 1Password network request failed",
     );
     expect(digest).toHaveBeenCalledTimes(change === "hash" ? 1 : 0);
+    expect(decoder).not.toHaveBeenCalled();
   },
 );
 
@@ -229,7 +244,7 @@ it.each(["owner", "request", "guard"] as const)(
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         sourceController.resolve(controller);
-        controller.enqueue(raw.subarray(0, 64));
+        controller.enqueue(wire.subarray(0, 64));
       },
       cancel,
     });
@@ -241,7 +256,7 @@ it.each(["owner", "request", "guard"] as const)(
       f.guard.mockImplementation(() => {
         throw new Error("Guard ended");
       });
-      (await sourceController.promise).enqueue(raw.subarray(64, 128));
+      (await sourceController.promise).enqueue(wire.subarray(64, 128));
       expect(f.owner.signal.aborted).toBe(false);
       expect(f.request.signal.aborted).toBe(false);
     } else f[source].abort();
@@ -250,15 +265,28 @@ it.each(["owner", "request", "guard"] as const)(
   },
 );
 
-it.each(["owner", "request", "guard"] as const)(
-  "discards a completed digest after %s withdrawal",
-  async (source) => {
+it.each([
+  ["compressed", "owner"],
+  ["compressed", "request"],
+  ["compressed", "guard"],
+  ["raw", "owner"],
+  ["raw", "request"],
+  ["raw", "guard"],
+] as const)(
+  "discards a completed %s digest after %s withdrawal",
+  async (stage, source) => {
     const f = fixture();
     const nativeDigest = crypto.subtle.digest.bind(crypto.subtle);
     const result = deferred<ArrayBuffer>();
-    const digest = vi
-      .spyOn(crypto.subtle, "digest")
-      .mockReturnValueOnce(result.promise);
+    const started = deferred<void>();
+    let count = 0;
+    vi.spyOn(crypto.subtle, "digest").mockImplementation((algorithm, bytes) => {
+      if (++count === (stage === "compressed" ? 1 : 2)) {
+        started.resolve();
+        return result.promise;
+      }
+      return nativeDigest(algorithm, bytes);
+    });
     let completed = false;
     const pending = f
       .fetcher(assets.wasmUrl, { signal: f.request.signal })
@@ -267,15 +295,99 @@ it.each(["owner", "request", "guard"] as const)(
         return value;
       });
     const cancelled = expect(pending).rejects.toThrow();
-    await vi.waitFor(() => expect(digest).toHaveBeenCalledOnce());
+    await started.promise;
     if (source === "guard")
       f.guard.mockImplementation(() => {
         throw new Error("Guard ended");
       });
     else f[source].abort();
     expect(completed).toBe(false);
-    result.resolve(await nativeDigest("SHA-256", new Uint8Array(raw).buffer));
+    result.resolve(
+      await nativeDigest(
+        "SHA-256",
+        new Uint8Array(stage === "compressed" ? wire : raw).buffer,
+      ),
+    );
     await cancelled;
     expect(completed).toBe(false);
+  },
+);
+
+function fakeDecoder(body: ReadableStream<Uint8Array>, started = () => {}) {
+  vi.stubGlobal(
+    "DecompressionStream",
+    class {
+      readonly readable = body;
+      readonly writable = new WritableStream<Uint8Array>();
+      constructor() {
+        started();
+      }
+    },
+  );
+}
+it.each(["short", "oversize", "hash"] as const)(
+  "checks decoded %s bounds/hash after authenticated transport (decoder fault injection)",
+  async (change) => {
+    const bytes =
+      change === "short"
+        ? raw.subarray(0, raw.length - 1)
+        : change === "oversize"
+          ? new Uint8Array(raw.length + 1)
+          : new Uint8Array(raw);
+    if (change === "hash") bytes[0] = (bytes[0] ?? 0) ^ 1;
+    fakeDecoder(stream(bytes));
+    const digest = vi.spyOn(crypto.subtle, "digest");
+    await expect(fixture().fetcher(assets.wasmUrl)).rejects.toThrow(
+      "The 1Password network request failed",
+    );
+    expect(digest).toHaveBeenCalledTimes(change === "hash" ? 2 : 1);
+  },
+);
+it("rejects a gzip CRC failure with the native decoder (compressed digest fault injection)", async () => {
+  const bytes = new Uint8Array(wire);
+  bytes[bytes.length - 8] ^= 1;
+  vi.spyOn(crypto.subtle, "digest").mockResolvedValueOnce(
+    Uint8Array.from(Buffer.from(artifacts.sdk.wasmGzipHash, "hex")).buffer,
+  );
+  const f = fixture();
+  f.native.mockResolvedValueOnce(response(stream(bytes)));
+  await expect(f.fetcher(assets.wasmUrl)).rejects.toThrow(
+    "The 1Password network request failed",
+  );
+});
+it("fails closed when native gzip decoding is unavailable", async () => {
+  vi.stubGlobal("DecompressionStream", undefined);
+  await expect(fixture().fetcher(assets.wasmUrl)).rejects.toThrow(
+    "The 1Password network request failed",
+  );
+});
+it.each(["owner", "request", "guard"] as const)(
+  "cancels decoded reads on %s loss without publishing raw bytes (decoder fault injection)",
+  async (source) => {
+    const f = fixture();
+    const started = deferred<void>();
+    const cancel = vi.fn();
+    let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+    fakeDecoder(
+      new ReadableStream<Uint8Array>({
+        start(value) {
+          controller = value;
+        },
+        cancel,
+      }),
+      started.resolve,
+    );
+    const pending = f.fetcher(assets.wasmUrl, { signal: f.request.signal });
+    const rejected = expect(pending).rejects.toThrow();
+    await started.promise;
+    if (source === "guard") {
+      f.guard.mockImplementation(() => {
+        throw new Error("Guard ended");
+      });
+      controller?.enqueue(raw.subarray(0, 64));
+      expect(f.owner.signal.aborted || f.request.signal.aborted).toBe(false);
+    } else f[source].abort();
+    await rejected;
+    await vi.waitFor(() => expect(cancel).toHaveBeenCalledOnce());
   },
 );

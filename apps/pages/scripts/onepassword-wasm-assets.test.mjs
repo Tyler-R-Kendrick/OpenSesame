@@ -7,7 +7,6 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
@@ -55,31 +54,6 @@ function fixture({
     );
   return root;
 }
-it("reads the real pinned dependency without executing its Node entry and returns unchanged WASM", () => {
-  const require = createRequire(
-    new URL("../../../packages/app-core/package.json", import.meta.url),
-  );
-  const entry = require.resolve("@1password/sdk-core");
-  expect(require.cache[entry]).toBeUndefined();
-  const assets = loadOnePasswordAssets();
-  expect(require.cache[entry]).toBeUndefined();
-  expect(ONEPASSWORD_SDK.version).toBe("0.5.0");
-  expect(ONEPASSWORD_SDK.build).toBe("0050002");
-  expect(ONEPASSWORD_SDK.integrity).toBe(
-    "sha512-9g7LWOKRKdePZ85evVgE9xEom3DAg3hRIyQdOwLPvpL/F7KpDXmUHMi72rsqJxKaDbWApXmrYjDExMSPqUg7xw==",
-  );
-  const wasm = assets.get(ONEPASSWORD_ASSETS.wasm);
-  expect(
-    wasm.equals(readFileSync(join(packageRoot, "nodejs/core_bg.wasm"))),
-  ).toBe(true);
-  expect(wasm.length).toBe(13_954_367);
-  expect(createHash("sha256").update(wasm).digest("hex")).toBe(
-    "97aa9140c5c923b39b41c059d5ab98e214b5fc78a80203d0026708cfbce8d6ab",
-  );
-  expect([...assets.keys()].sort()).toEqual(
-    Object.values(ONEPASSWORD_ASSETS).sort(),
-  );
-});
 it("preserves every upstream business statement and adds only static browser bootstrap", () => {
   const runtime = loadOnePasswordAssets().get(ONEPASSWORD_ASSETS.runtime);
   expect(runtime.match(/const module = \{ exports: \{\} \};/g)).toHaveLength(1);
@@ -162,13 +136,23 @@ it.each([
     expect(() => loadOnePasswordAssets(fixture({ glue }))).toThrow(/digest/);
   },
 );
-it("rejects modified WASM and does not mutate the real dependency while testing failures", () => {
-  expect(() =>
-    loadOnePasswordAssets(fixture({ wasm: Buffer.from("not-wasm") })),
-  ).toThrow(/digest/);
-  const bytes = readFileSync(join(packageRoot, "nodejs/core_bg.wasm"));
-  assertOnePasswordHash(bytes, ONEPASSWORD_SDK.wasmHash);
-});
+it.each(["length", "digest"])(
+  "rejects modified WASM %s without mutating the dependency",
+  (change) => {
+    const bytes =
+      change === "length"
+        ? Buffer.from("not-wasm")
+        : readFileSync(join(packageRoot, "nodejs/core_bg.wasm"));
+    if (change === "digest") bytes[0] ^= 1;
+    expect(() => loadOnePasswordAssets(fixture({ wasm: bytes }))).toThrow(
+      new RegExp(change),
+    );
+    assertOnePasswordHash(
+      readFileSync(join(packageRoot, "nodejs/core_bg.wasm")),
+      ONEPASSWORD_SDK.wasmHash,
+    );
+  },
+);
 it("registers the owner-gated asset plugin without changing ES worker naming", () => {
   const vite = readFileSync(
     new URL("../vite.config.ts", import.meta.url),
@@ -377,7 +361,7 @@ it.each(["/", "/OpenSesame/", "/operator/nested/pwa/"])(
     expect(loadAssets).not.toHaveBeenCalled();
     expect(res.end).not.toHaveBeenCalled();
     for (const [file, mime] of [
-      [ONEPASSWORD_ASSETS.wasm, "application/wasm"],
+      [ONEPASSWORD_ASSETS.wasm, "application/gzip"],
       [ONEPASSWORD_ASSETS.runtime, "text/javascript"],
       [ONEPASSWORD_ASSETS.license, "text/plain; charset=utf-8"],
     ]) {
@@ -393,5 +377,10 @@ it.each(["/", "/OpenSesame/", "/operator/nested/pwa/"])(
     );
     expect(res.end).toHaveBeenLastCalledWith(undefined);
     expect(loadAssets).toHaveBeenCalledTimes(1);
+    expect(
+      res.setHeader.mock.calls.some(
+        ([name]) => name.toLowerCase() === "content-encoding",
+      ),
+    ).toBe(false);
   },
 );
