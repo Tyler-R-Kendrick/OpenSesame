@@ -563,3 +563,90 @@ remains under diagnosis, with immutable failed receipt and clean owned closure.
 PR #1338 remains draft. Positive native/hosted authorization, decryption/CRUD,
 strict hosting, caching/offline behavior, remaining integrations, required CI,
 full security landing and verified restacking remain OPEN.
+
+Codex and delegated Codex agents implemented and reviewed Infisical lifetime PR
+#1345, `c3221680d0379d4e7bc0e50b60e315935de2fcdb`, under the recorded fallback:
+Grok authentication unavailable and Kimi absent. Issued UniversalAuth lifetimes
+now own deadline checks, idle withdrawal and captured-session termination for
+HTTP 401 or exact 403 TokenError; PermissionDenied remains nonterminal. Manual
+opaque tokens receive no invented TTL. The 114 scoped tests across eight files
+include 32 lifetime and two credential cases, each credential case covering
+three variants. Core types, exact static checks, anti-slop baseline and full
+quality passed. Scoped unchanged-rule scans covered all 27,026 bytes in four
+files, including 10,915 production bytes, with zero findings and working
+controls. Response-based/fake-clock cases are not hosted-account or browser
+proof.
+
+Test-only PR #1346, `fffa80768d3df40f67447d33652568968bca8a6e`, added seven
+actual-provider/production-vault composition cases among 162 scoped tests across
+11 files; these totals overlap the earlier supporting suites and are not
+additive. Its one 9,809-byte test file passed scoped scans with working
+controls, core types, static/baseline checks and full quality. Both source
+slices recorded 557 script and 17 security quality tests. The runtime fixture
+uses controlled Responses, fake clocks and a Map-backed filesystem consumed by
+production vault code, not physical browser OPFS.
+
+Evidence-only PR #1349, `bb350569e2020b945823f8210af12715a19e99ee`, preserves
+[the Infisical
+observations](../evidence/2026-10-15-infisical-lifetime/README.md). Fresh
+normal/root/subpath artifacts were compiled from fffa; all 14,868 tracked input
+identities were restored, independent graphs passed and the five ordinary
+budgets remained unchanged and passed. Old subpath is a508; old root is dbb.
+Terminal execution used ef70 with only CI delivery and two JSON-whitespace
+maintenance changes, without relabeling the fffa artifacts.
+
+Both original paired idle phases remain FAILED. Desktop branches showed the old
+session stale past TTL and new withdrawal first observed after 5,991 ms on
+subpath and 5,998 ms on root. Subpath touch failed on the new Connect; root
+touch failed on the old dbb Connect before selecting the new artifact. Each
+received HTTP 200 and full expected 14 decoded/24 encoded bytes, then an
+unexplained native abort without completion. Full byte counts are not
+application EOF proof, and the cause remains unresolved. A separate after-only
+touch/subpath observation passed strict admission and withdrawal after 5,989 ms
+with no idle I/O, interaction or navigation; it does not clear either earlier
+failure.
+
+Both after-only terminal matrices passed on desktop and actual touch, at root
+and subpath: 12 cases and 12 strict positive admissions, 80 native requests, 76
+native finishes and four precisely established selected-401 body cancellations.
+Cancellations remain labeled canceled, never native finished. All four
+TokenError403 and four PermissionDenied403 responses finished; PermissionDenied
+retried HTTP 200 with the same auth and no new login. Terminal 401/TokenError
+recovery obtained fresh auth. Twelve expected browser denial-console messages
+matched their exact selected cases; there were no unmatched console/page errors.
+All successful-200 and unrelated aborts remained strict failures.
+
+Six lossless WebPs total 85,894 bytes and independently decode through Pillow
+and FFmpeg to the unchanged native PNG RGBA pixels. No crop, resize, stitch or
+overlay was applied. Four published text files, 64,965 bytes, passed
+unchanged-config Gitleaks with before/after detection controls; JSON is not
+claimed as semantic AST proof. JSON identity, changed-file lint, generated
+index, whitespace and selected-original preservation checks passed. The initial
+full `pnpm lint` stopped on nested-git EPERM before tests and remains recorded;
+root reran that identical command with the required local process capability and
+obtained exit zero, 107 existing tests and changed-file lint over 535 files
+without fixes.
+
+These are controlled real Infisical HTTP/CORS and PIN/physical-OPFS
+observations, not hosted authentication or all integrations working.
+Verification used localhost, header security false and blocked service workers;
+normal build header security was also false. Existing helpers enter
+Features/detail through History API/popstate; configuration/actions use actual
+controls. No application backend, extension, interception, fake SDK, storage
+seed or component-state injection was introduced. Captures are viewports, not
+full nested-form coverage. Recorded runtime closures left no owned
+processes/listeners. Strict hosting/CSP/SW/offline behavior, required CI, full
+security and landing remain separate gates.
+
+Under the same recorded fallback, PR #1353,
+`1a644d1d72a8ec31d70349074aba01fa395d6363`, changed one 8,508-byte source file.
+Conditional assignment of RequestInit.body for a present body fixes the actual
+client CLI TS2375 exact-optional-property failure without adding undefined to
+bodyless requests. All three typechecks, 16 existing controlled HTTP tests, full
+pnpm lint (107 existing tests and 535 files), full quality (557 script plus 17
+security tests), and the unchanged baseline with zero regressions passed. The
+existing eleven AST rules and Gitleaks covered all 8,508 source bytes with zero
+findings and before/after detection controls. The initial spread/strict-check
+failure and Cargo PATH diagnostic remain preserved. This uses the recorded
+fallback, not a new preflight claim. Actual CI is still pending; inherited/stale
+browser gates remain open.
