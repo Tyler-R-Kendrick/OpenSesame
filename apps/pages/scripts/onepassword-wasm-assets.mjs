@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, posix } from "node:path";
+import { gzipSync } from "node:zlib";
 import ts from "typescript";
 import { composeState } from "./lib/capability-compose-state.mjs";
 import { secretBackendSdkChunk } from "./lib/capability-lazy-leaves.mjs";
@@ -72,7 +73,13 @@ export function loadOnePasswordAssets(packageRoot = onePasswordPackageRoot()) {
   )
     throw new Error("Unpinned 1Password SDK package/version.");
   const wasm = readFileSync(join(packageRoot, "nodejs/core_bg.wasm"));
+  if (wasm.length !== ONEPASSWORD_SDK.wasmBytes)
+    throw new Error("Pinned 1Password raw WASM length differs.");
   assertOnePasswordHash(wasm, ONEPASSWORD_SDK.wasmHash);
+  const compressed = gzipSync(wasm, { level: ONEPASSWORD_SDK.wasmGzipLevel });
+  if (compressed.length !== ONEPASSWORD_SDK.wasmGzipBytes)
+    throw new Error("Pinned 1Password compressed WASM length differs.");
+  assertOnePasswordHash(compressed, ONEPASSWORD_SDK.wasmGzipHash);
   const runtime = adaptOnePasswordGlue(
     readFileSync(join(packageRoot, "nodejs/core.js"), "utf8"),
   );
@@ -82,7 +89,7 @@ export function loadOnePasswordAssets(packageRoot = onePasswordPackageRoot()) {
   );
   assertOnePasswordHash(license, ONEPASSWORD_SDK.licenseHash);
   return new Map([
-    [ONEPASSWORD_ASSETS.wasm, wasm],
+    [ONEPASSWORD_ASSETS.wasm, compressed],
     [ONEPASSWORD_ASSETS.runtime, runtime],
     [ONEPASSWORD_ASSETS.license, license],
   ]);
@@ -181,7 +188,7 @@ export function onePasswordWasmAssets({
   let base = "/";
   let assets;
   const contentTypes = new Map([
-    [ONEPASSWORD_ASSETS.wasm, "application/wasm"],
+    [ONEPASSWORD_ASSETS.wasm, "application/gzip"],
     [ONEPASSWORD_ASSETS.runtime, "text/javascript"],
     [ONEPASSWORD_ASSETS.license, "text/plain; charset=utf-8"],
   ]);

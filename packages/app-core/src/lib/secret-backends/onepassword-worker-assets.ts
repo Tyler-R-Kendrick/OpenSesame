@@ -5,7 +5,40 @@ import {
 } from "./onepassword-worker-protocol.js";
 import type { SecretBackendFetch } from "./types.js";
 
-/** Verify exact owned raw WASM bytes before the SDK can instantiate them. */
+type AssetPin = { bytes: number; hash: string };
+async function verifiedBytes(
+  body: ReadableStream<Uint8Array>,
+  pin: AssetPin,
+  signal: AbortSignal,
+  check: () => void,
+): Promise<ArrayBuffer> {
+  let size = 0;
+  const bounded = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      check();
+      signal.throwIfAborted();
+      size += chunk.byteLength;
+      if (size > pin.bytes) throw onePasswordNetworkError();
+      controller.enqueue(chunk);
+    },
+  });
+  const bytes = await new Response(
+    body.pipeThrough(bounded, { signal }),
+  ).arrayBuffer();
+  check();
+  signal.throwIfAborted();
+  if (bytes.byteLength !== pin.bytes) throw onePasswordNetworkError();
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  check();
+  signal.throwIfAborted();
+  const hex = [...new Uint8Array(hash)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  if (hex !== pin.hash) throw onePasswordNetworkError();
+  return bytes;
+}
+
+/** Authenticate bounded gzip transport, then the official raw WASM, before instantiation. */
 export function createOnePasswordAssetFetch(
   assets: OnePasswordAssets,
   signal: AbortSignal,
@@ -34,30 +67,36 @@ export function createOnePasswordAssetFetch(
       !response.body
     )
       throw onePasswordNetworkError();
-    let size = 0;
-    const bounded = new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        check();
-        combined.throwIfAborted();
-        size += chunk.byteLength;
-        if (size > artifacts.sdk.wasmBytes) throw onePasswordNetworkError();
-        controller.enqueue(chunk);
+    const compressed = await verifiedBytes(
+      response.body,
+      {
+        bytes: artifacts.sdk.wasmGzipBytes,
+        hash: artifacts.sdk.wasmGzipHash,
       },
-    });
-    const bytes = await new Response(
-      response.body.pipeThrough(bounded, { signal: combined }),
-    ).arrayBuffer();
+      combined,
+      check,
+    );
     check();
     combined.throwIfAborted();
-    if (bytes.byteLength !== artifacts.sdk.wasmBytes)
+    let bytes: ArrayBuffer;
+    try {
+      const decoded = new Blob([compressed])
+        .stream()
+        .pipeThrough(new DecompressionStream("gzip"), { signal: combined });
+      bytes = await verifiedBytes(
+        decoded,
+        {
+          bytes: artifacts.sdk.wasmBytes,
+          hash: artifacts.sdk.wasmHash,
+        },
+        combined,
+        check,
+      );
+    } catch {
       throw onePasswordNetworkError();
-    const hash = await crypto.subtle.digest("SHA-256", bytes);
+    }
     check();
     combined.throwIfAborted();
-    const hex = [...new Uint8Array(hash)]
-      .map((byte) => byte.toString(16).padStart(2, "0"))
-      .join("");
-    if (hex !== artifacts.sdk.wasmHash) throw onePasswordNetworkError();
     return new Response(bytes, {
       headers: { "Content-Type": "application/wasm" },
     });
