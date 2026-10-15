@@ -7,14 +7,28 @@ use p256::PublicKey;
 use rand_core::OsRng;
 use serde_json::json;
 
-use crate::device_crypto::pairing_confirm_message;
+use crate::device_crypto::{pairing_confirm_message, webauthn_register_challenge_digest};
 use crate::pairing::{CliAppIntegrationPairings, PairedBinding, WebAuthnCredential};
 use ecdsa::signature::Signer;
 
-static TEST_SIGNING: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
+static TEST_PAIRING: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
+static TEST_APPROVAL: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
 
-fn fixture() -> &'static (SigningKey, String) {
-    TEST_SIGNING.get_or_init(|| {
+pub const TEST_VAULT_SESSION_ROOT_DIGEST: &str =
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+fn pairing_fixture() -> &'static (SigningKey, String) {
+    TEST_PAIRING.get_or_init(|| {
+        let key = SigningKey::random(&mut OsRng);
+        let public_key = PublicKey::from(key.verifying_key());
+        let spki = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(public_key.to_public_key_der().expect("spki").as_ref());
+        (key, spki)
+    })
+}
+
+fn approval_fixture() -> &'static (SigningKey, String) {
+    TEST_APPROVAL.get_or_init(|| {
         let key = SigningKey::random(&mut OsRng);
         let public_key = PublicKey::from(key.verifying_key());
         let spki = base64::engine::general_purpose::URL_SAFE_NO_PAD
@@ -25,14 +39,19 @@ fn fixture() -> &'static (SigningKey, String) {
 
 #[must_use]
 pub fn test_device_public_key_spki_b64() -> &'static str {
-    &fixture().1
+    &pairing_fixture().1
+}
+
+#[must_use]
+pub fn test_approval_public_key_spki_b64() -> &'static str {
+    &approval_fixture().1
 }
 
 #[must_use]
 pub fn test_webauthn_credential() -> WebAuthnCredential {
     WebAuthnCredential {
         credential_id_b64: "test-cli-app-cred".into(),
-        public_key_spki_b64: test_device_public_key_spki_b64().to_string(),
+        public_key_spki_b64: test_approval_public_key_spki_b64().to_string(),
         sign_count: 0,
     }
 }
@@ -44,6 +63,38 @@ pub fn test_paired_binding() -> PairedBinding {
         webauthn: Some(test_webauthn_credential()),
         pin_proof_failures: 0,
     }
+}
+
+fn mint_passkey_proof_for_challenge(
+    signing_key: &SigningKey,
+    credential_id: &str,
+    challenge: [u8; 32],
+    sign_count: u32,
+) -> String {
+    use sha2::{Digest, Sha256};
+
+    let challenge_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(challenge);
+    let client_data_json = json!({
+        "type": "webauthn.get",
+        "challenge": challenge_b64,
+    })
+    .to_string();
+    let client_data_bytes = client_data_json.as_bytes();
+    let client_hash = Sha256::digest(client_data_bytes);
+    let mut auth_data = vec![0u8; 37];
+    auth_data[32] = 0x05;
+    auth_data[33..37].copy_from_slice(&sign_count.to_be_bytes());
+    let mut signed = auth_data.clone();
+    signed.extend_from_slice(&client_hash);
+    let sig: p256::ecdsa::Signature = signing_key.sign(&signed);
+    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
+    let wire = json!({
+        "credentialIdB64": credential_id,
+        "authenticatorDataB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&auth_data),
+        "clientDataJsonB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_data_bytes),
+        "signatureB64": sig_b64,
+    });
+    format!("oschip2:passkey:{}", wire)
 }
 
 /// Mint a bearer for daemon HTTP integration tests.
@@ -62,7 +113,7 @@ pub fn pair_browser_for_tests(
         .pairing_challenge_for_code(&code, now)
         .expect("pending challenge");
     let message = pairing_confirm_message(&challenge, &code, origin);
-    let sig: p256::ecdsa::Signature = fixture().0.sign(&message);
+    let sig: p256::ecdsa::Signature = pairing_fixture().0.sign(&message);
     let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
     let outcome = pairings
         .confirm(
@@ -70,6 +121,7 @@ pub fn pair_browser_for_tests(
             origin,
             test_device_public_key_spki_b64(),
             &sig_b64,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
             now,
         )
         .expect("confirm");
@@ -80,13 +132,26 @@ pub fn pair_browser_for_tests(
         .exchange(&code, origin, now)
         .expect("exchange")
         .token;
+    let register_challenge = webauthn_register_challenge_digest(
+        &token,
+        origin,
+        TEST_VAULT_SESSION_ROOT_DIGEST,
+    );
+    let human_proof = mint_passkey_proof_for_challenge(
+        &approval_fixture().0,
+        "test-cli-app-cred",
+        register_challenge,
+        1,
+    );
     pairings
         .register_webauthn(
             &token,
             origin,
+            TEST_VAULT_SESSION_ROOT_DIGEST,
+            &human_proof,
             "test-cli-app-cred",
-            test_device_public_key_spki_b64(),
-            0,
+            test_approval_public_key_spki_b64(),
+            1,
         )
         .expect("register webauthn");
     token
@@ -100,7 +165,7 @@ pub fn mint_test_human_proof(
     respond_nonce: &str,
     verb: &str,
 ) -> String {
-    mint_test_passkey_human_proof(request_id, terminal_session_id, respond_nonce, verb, 1)
+    mint_test_passkey_human_proof(request_id, terminal_session_id, respond_nonce, verb, 2)
 }
 
 #[must_use]
@@ -112,29 +177,12 @@ pub fn mint_test_passkey_human_proof(
     sign_count: u32,
 ) -> String {
     use crate::device_crypto::approval_challenge_digest;
-    use sha2::{Digest, Sha256};
 
     let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
-    let challenge_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(challenge);
-    let client_data_json = json!({
-        "type": "webauthn.get",
-        "challenge": challenge_b64,
-    })
-    .to_string();
-    let client_data_bytes = client_data_json.as_bytes();
-    let client_hash = Sha256::digest(client_data_bytes);
-    let mut auth_data = vec![0u8; 37];
-    auth_data[32] = 0x05;
-    auth_data[33..37].copy_from_slice(&sign_count.to_be_bytes());
-    let mut signed = auth_data.clone();
-    signed.extend_from_slice(&client_hash);
-    let sig: p256::ecdsa::Signature = fixture().0.sign(&signed);
-    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
-    let wire = json!({
-        "credentialIdB64": "test-cli-app-cred",
-        "authenticatorDataB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&auth_data),
-        "clientDataJsonB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_data_bytes),
-        "signatureB64": sig_b64,
-    });
-    format!("oschip2:passkey:{wire}")
+    mint_passkey_proof_for_challenge(
+        &approval_fixture().0,
+        "test-cli-app-cred",
+        challenge,
+        sign_count,
+    )
 }
