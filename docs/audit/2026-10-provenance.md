@@ -531,3 +531,35 @@ UniversalAuth HTTP observations, not native 1Password SDK or hosted-account
 authentication. No application backend, extension, interception, raw storage
 seeding or component-state injection was introduced. Remaining callers/providers,
 required CI, full security landing gates and verified restacking remain OPEN.
+
+
+Codex and delegated Codex agents implemented and reviewed native 1Password
+configuration PR #1338, `a50848dfe53fdaffc220604e55fc42697573f617`,
+under the recorded fallback: Grok authentication unavailable and Kimi absent.
+Its 619 core tests across 39 suites and 109 UI tests across nine suites
+(35 new tests combined), both typechecks, static checks and full quality
+(557 script tests plus 17 security tests) passed. Scoped scans covered all
+64,975 frozen bytes with working controls and no findings. MJS used explicit
+byte-identical TypeScript parser aliases; JSON received syntax checks only.
+Signed readback preserved the source tree on a fresh stack branch after an
+externally merged parent; the rejected force-reset was never executed.
+
+Budget PR #1339, `dbb1729bed6229c1b74f8841873f209e110e9fb6`, changes
+only ordinary Pages total/JS/gzip ceilings to 21050/7320/2210 KiB, about 1%
+headroom above measured native-feature cost. CSS, largest asset, other app and
+hardened data are unchanged. All 57,219 JSON bytes passed scoped Gitleaks
+checks with working controls; metadata is not semantic AST proof. The first
+unchanged-budget subpath result remains RED.
+
+The actual desktop/touch UI retained saved Connect across an archive swap,
+completed a controlled Connect REST GET, showed native-first partner and shared
+BYO fields, and restored partner Save/cold unlock with a blank token input.
+Twelve no-action checkpoints loaded no native SDK assets, workers or API calls.
+Eight lossless native images and qualified root/subpath/minimal/family static
+receipts are in `docs/evidence/2026-10-15-onepassword-native-configuration/`.
+The first separate native SDK action run FAILED before its intended fixture 401;
+no native action completed. Its complete gzip HTTP 200 then unexpected abort
+remains under diagnosis, with immutable failed receipt and clean owned closure.
+PR #1338 remains draft. Positive native/hosted authorization, decryption/CRUD,
+strict hosting, caching/offline behavior, remaining integrations, required CI,
+full security landing and verified restacking remain OPEN.
