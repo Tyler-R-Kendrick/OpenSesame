@@ -70,7 +70,10 @@ export async function dispatchParity(
       print(await agent.audit(scope));
       return 0;
     case "read": {
-      const ref = required(args.shift(), "read requires op://reference.");
+      const ref = required(
+        args.shift(),
+        "read requires an op:// or os:// reference.",
+      );
       exhausted(args);
       await assertHumanReveal({
         verb: "read",
@@ -158,9 +161,21 @@ export async function runChild(ctx: ParityContext): Promise<number> {
         ),
       ),
     );
+  const mounts = [];
+  while (args.includes("--mount"))
+    mounts.push(
+      parseAssignment(
+        required(
+          option(args, "--mount"),
+          "--mount requires a reference assignment.",
+        ),
+      ),
+    );
   exhausted(args);
-  if (!assignments.length)
-    throw new Error("run requires --env NAME=op://reference.");
+  if (!assignments.length && !mounts.length)
+    throw new Error(
+      "run requires --env or --mount NAME=op://reference or NAME=os://reference.",
+    );
   await assertHumanReveal({
     verb: "run",
     reveal: true,
@@ -168,7 +183,7 @@ export async function runChild(ctx: ParityContext): Promise<number> {
     appIntegration: ctx.appIntegration,
   });
   await emitRevealReceipt({ verb: "run" });
-  return agent.run(assignments, child);
+  return agent.run(assignments, child, mounts);
 }
 
 export async function runEnv(ctx: ParityContext): Promise<number> {

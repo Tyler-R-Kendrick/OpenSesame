@@ -69,6 +69,8 @@ opensesame-id find openai stripe
 opensesame-id create api-credential --title "OpenAI API Key" --vault Automation --stdin
 opensesame-id password "Example Login" --vault Automation --stdin --apply
 opensesame-id run --env "OPENAI_API_KEY=op://Automation/OpenAI API Key/credential" -- node app.js
+opensesame-id run --env "API_KEY=os://personal/<item-id>/apiKey" -- node app.js
+opensesame-id run --mount "CERT_FILE=os://personal/<item-id>/certificatePem" -- node app.js
 opensesame-id env write .env.tpl "OPENAI_API_KEY=op://Automation/OpenAI API Key/credential"
 opensesame-id env run .env.tpl -- node app.js
 opensesame-id service-account setup --vault Automation --create-vault --write --save-vault Personal
@@ -87,7 +89,11 @@ clear message. Each allowed reveal writes a value-free receipt to stderr. Prefer
 `opensesame-id run` / `os run` with
 `--env NAME=op://…` or `os://…` (1Password-style references), or `env run`, for
 scripts — the same `run` wrapper pattern as `op run`, `infisical run`, and
-`doppler run`. `env resolve` is deprecated in favor of `env run`. A future
+`doppler run`. An `os://vault/item/field` reference resolves against this
+device's OpenSesame vault (unlocked on the terminal); `--mount NAME=<ref>`
+instead writes the secret to a private temp file for the child's lifetime,
+sets `NAME` to its path, and removes it when the child exits. Injected
+values are masked wherever the child prints them. `env resolve` is deprecated in favor of `env run`. A future
 broker lane (network stand-in swap) extends `run`, not a separate top-level
 command. The selected child receives
 injected secrets and
