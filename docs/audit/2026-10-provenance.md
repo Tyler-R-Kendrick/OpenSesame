@@ -414,3 +414,45 @@ Its 355 backend tests include 21 new cases covering normal probe disposal
 versus provider loss. This continues the same reviewed Codex fallback and
 signed GraphQL/readback provenance. CI remains queued; the known formatting
 hunk is corrected, without implying native CI or full security/restack success.
+
+### 2026-10-15 — PWA secret-backend ownership and native 1Password
+
+Codex and delegated Codex agents continued under the recorded fallback: Grok
+authentication and Kimi were unavailable. Each scope was frozen, signed through
+GitHub GraphQL without an author override, checked for its sole parent and
+exact published tree/blob bytes, and opened as a separate stacked PR before
+the next implementation scope began.
+
+- #1320, `58ed49b93c9603edc5539609b46db489baf7dc0c`: caller cancellation before
+  vault capture and exact per-connection pending ownership; 22 new tests,
+  377 backend tests passing. Controlled vault/fetch fixtures establish
+  ownership; they are separate from the earlier actual socket proof.
+- #1321, `33b8bb39f5eb8bc775e5812e78e29d33a5527cfa`: captured external-feature
+  lifetime withdraws idle admission and cancels probe disposal. Two parent
+  regression failures were preserved; 20 new tests and 397 backend tests pass.
+  Controlled lifetime fixtures do not establish browser or hosted access.
+- #1322, `3dc1a05ff69c026852ae14a67f5a728e207039d5`: standalone native 1Password
+  authentication/read adapter, actual SDK-loader default, exact vault/item
+  probes, original opaque sessions and idempotent native cleanup. Its 52
+  injected-client cases and all 449 backend tests pass; writers are absent
+  in that exact source slice. It is not yet selectable configuration.
+- #1323, `5aa2d136b6d53ce04a710d9a67b9aa7d05c39a37`: native create/update/delete
+  command mapping, full-item metadata/version preservation and bounded backup
+  payloads. There are 23 new mutation cases plus two read-publication
+  regressions; 77 native adapter cases and all 474 backend tests pass.
+  Injected native results prove mapping/lifetime behavior, not hosted writes.
+
+Both typechecks, exact-file lint/structural/security rules and full quality
+passed for these scopes. Focused Gitleaks scans accounted for all source
+bytes and detected generated negative controls before and after scanning.
+The bounded published-source review at `a39b16ea` visited 447 files with
+11 AST rules. Gitleaks directory mode omitted one 3,874-byte test filename;
+the unchanged bytes were scanned explicitly via stdin. No findings were
+reported under those rules. This is scoped SAST, not full security completion.
+
+Native authentication/read and mutation adapters are implemented but remain
+unactivated. Injected responses do not prove encrypted SDK authentication or
+hosted CRUD. The earlier 47 actual Chromium/WASM denial/cancellation checks
+remain separate. Configuration, production transport/cache/asset ownership
+and UI activation, React ownership/status consumers, other audited providers,
+required CI, full security gates and verified bottom-up restacking remain open.
