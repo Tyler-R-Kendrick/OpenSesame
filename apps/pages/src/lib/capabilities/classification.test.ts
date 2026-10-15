@@ -137,6 +137,33 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     ).toBe("access.authority");
   });
 
+  it("shares pinned native SDK metadata without promoting provider code", () => {
+    const metadata = classify(
+      "src/lib/secret-backends/onepassword-artifacts.json",
+    );
+    expect(metadata?.classification).toBe("shared");
+    expect(metadata?.capability).toBeNull();
+    expect(classify("src/lib/capabilities/ownership.ts")?.classification).toBe(
+      "core",
+    );
+    for (const name of [
+      "onepassword-sdk.ts",
+      "onepassword-sdk-loader.ts",
+      "onepassword-sdk-codec.ts",
+      "onepassword-sdk-write.ts",
+      "onepassword-sdk.worker.ts",
+      "onepassword-worker-http.ts",
+      "onepassword-worker-protocol.ts",
+      "onepassword.ts",
+      "onepassword-artifacts-other.json",
+      "onepassword-artifacts.js",
+    ]) {
+      const rule = classify(`src/lib/secret-backends/${name}`);
+      expect(rule?.classification, name).toBe("optional");
+      expect(rule?.capability, name).toBe("connectors.external");
+    }
+  });
+
   it("classifies every exclusive package", () => {
     const expectations = {
       "node_modules/@azure/msal-browser/redirect-bridge":
