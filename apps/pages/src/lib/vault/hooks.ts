@@ -173,8 +173,19 @@ async function clearIfOurs(
   value: string,
   mode: "timer" | "lock",
 ): Promise<void> {
-  if (mode === "timer" && !(await clipboardReadIsGranted())) {
-    // A timed clear must not surprise someone mid-navigation with a read prompt.
+  const readGranted = await clipboardReadIsGranted();
+  if (!readGranted) {
+    if (mode === "timer") {
+      // A timed clear must not surprise someone mid-navigation with a read prompt.
+      return;
+    }
+    // Lock must not open a clipboard-read permission dialog either.
+    try {
+      await navigator.clipboard.writeText("");
+    } catch {
+      /* clipboard unavailable — nothing further we can do */
+    }
+    if (lastCopied === value) lastCopied = null;
     return;
   }
   // The read is what prompts. The tray sentence is up before it, and leaves
