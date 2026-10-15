@@ -33,6 +33,7 @@ import {
 } from "./git-remote-local.js";
 import { bindHistoryConnection } from "./history-backups.js";
 import { identityConnectionDeviceSeams } from "./identity-connections-seam.js";
+import { secretBackendDeviceSeams } from "./secret-backends/seam.js";
 
 const ID_PREFIX = "conn_local_";
 export const deviceProviderRevokers: Record<
@@ -218,11 +219,12 @@ function configurationRow(
 export async function saveDeviceConnectorConfigurationDurable(
   makeInput: () => DeviceConnectorConfiguration,
   existingId?: string,
+  beforeCommit?: () => void,
 ): Promise<Connection> {
   const row = await writeDeviceConfigurationDurable(() => {
     const input = makeInput();
     return { row: configurationRow(input, existingId), secrets: input.secrets };
-  });
+  }, beforeCommit);
   return deviceConnectorView(row);
 }
 
@@ -267,6 +269,10 @@ export async function revokeDeviceConnection(id: string): Promise<{
 } | null> {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
+  if (row.fields.secret_backend_configuration !== undefined) {
+    await secretBackendDeviceSeams.revoke(id);
+    return { revoked: true, providerRevocation: "ok" };
+  }
   if (row.fields.identity_configuration !== undefined) {
     await identityConnectionDeviceSeams.revoke(id);
     return { revoked: true, providerRevocation: "ok" };
