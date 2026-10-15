@@ -23,17 +23,24 @@ export default function LivePeerTrustExport() {
 
   useEffect(() => {
     let cancelled = false;
-    void import("@opensesame/app-core/lib/live/peer-trust-peering.js").then(
-      (peering) =>
-        peering.exportLivePeerTrustSignal().then((result) => {
-          if (cancelled) return;
-          if (!result.ok) {
-            setReady({ failed: true });
-            return;
-          }
-          setReady({ signal: result.signal, sas: result.sas });
-        }),
-    );
+    const fail = () => {
+      if (!cancelled) setReady({ failed: true });
+    };
+    void import("@opensesame/app-core/lib/live/peer-trust-peering.js")
+      .then((peering) =>
+        peering
+          .exportLivePeerTrustSignal()
+          .then((result) => {
+            if (cancelled) return;
+            if (!result.ok) {
+              setReady({ failed: true });
+              return;
+            }
+            setReady({ signal: result.signal, sas: result.sas });
+          })
+          .catch(fail),
+      )
+      .catch(fail);
     return () => {
       cancelled = true;
     };
