@@ -1,5 +1,4 @@
 /** @vitest-environment jsdom */
-import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import type { NativeOAuthBrowserPort } from "@opensesame/app-core/lib/native-oauth-browser-port.js";
 import type { TailscaleApp } from "@opensesame/app-core/lib/tailscale/oauth-app.js";
 import type { SavedTailscaleApp } from "@opensesame/app-core/lib/tailscale/store.js";
@@ -12,8 +11,13 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { expect, vi } from "vitest";
-import { TailscalePanels } from "./TailscalePanels.js";
+import {
+  TailscaleAppImport,
+  TailscaleConfiguration,
+} from "./TailscaleConfiguration.js";
+import { TailscaleDevicePanel } from "./TailscaleDevicePanel.js";
 import { tailscaleAppDependencies as deps } from "./tailscale-dependencies.js";
+import { useTailscaleApp } from "./useTailscaleApp.js";
 
 type Fixture = {
   saved: SavedTailscaleApp | null;
@@ -99,35 +103,21 @@ function bindPorts() {
     fixture.app = null;
   });
 }
-const provider: Provider = {
-  id: "tailscale",
-  displayName: "Tailscale",
-  category: "networking",
-  authKind: "configuration",
-  configured: false,
-  docsUrl: "https://tailscale.com/docs/features/oauth-apps/device-provisioning",
-  supportsRefresh: false,
-  autoConfigurable: false,
-  missingConfig: [],
-  callbackUrl: null,
-  scopes: [],
-  operations: [],
-  egress: {
-    scheme: "https",
-    authorities: ["api.tailscale.com"],
-    pathPrefixes: [],
-  },
-};
-export function mount() {
-  return render(
-    <TailscalePanels
-      provider={provider}
-      connection={null}
-      online
-      onChanged={fixture.changed}
-      onFlash={fixture.flash}
-    />,
+/** Explicit lower-level OAuth composition; never the primary peering page. */
+function LegacyOAuthPanels() {
+  const model = useTailscaleApp(undefined, fixture.changed, fixture.flash);
+  const callback =
+    model.saved?.redirectUri ?? deps.optionalBrowser()?.redirectUri ?? "";
+  return (
+    <>
+      <TailscaleConfiguration model={model} callback={callback} online />
+      <TailscaleAppImport model={model} online />
+      <TailscaleDevicePanel model={model} />
+    </>
   );
+}
+export function mount() {
+  return render(<LegacyOAuthPanels />);
 }
 export async function register() {
   fireEvent.click(screen.getByText("Direct API registration"));
