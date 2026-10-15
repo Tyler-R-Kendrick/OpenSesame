@@ -364,3 +364,53 @@ GraphQL publisher using recovered CLI authentication and independently
 verified through the connector; no queued Actions result was promoted. Other
 native provider and broker-backed identity gaps remain separate work. Required
 CI, signed bottom-up restack and security landing gates remain mandatory.
+
+### Native 1Password assets, worker boundary and item codecs
+
+Codex and delegated Codex agents implemented and independently reviewed these
+small signed slices. Grok authentication remains unavailable and Kimi is absent.
+The MIT `@1password/sdk-core` 0.5.0 pin, unchanged asset hashes and build helper
+were published in `30a74f480d8a367e977287946f70761f32fe4cad` (PR #1308).
+The guarded HTTP boundary followed in `eced3d8f48892f61f0c3c67cc3c2ac585086021a`
+(#1309), and the worker/loader in `0c0f025d569f716ff4055b437e50f909eeb25284`
+with the CSP correction `5d0389c6e29836948af5fc3f1aa29ae62cb9f9fc` (#1310).
+Actual official-WASM source proof passed 47 checks with zero failures across six
+workers and zero CSP violations, covering owned HTTPS 401 responses and
+cancellation. This was not positive provider authentication or a production
+capability-graph result. Private proof compilations did not activate product
+assets, factory, UI, build emission or cache ownership; those remain unfinished.
+Native read mapping was published in `7c55012fae082aedb59c16ba1bd658ff24368721`
+(#1311), and metadata-preserving write codec in
+`326a97f0772b1b12c86799ac6b70224966156a20` (#1312). Pure codec fixtures establish
+shape, identity and preservation, not hosted access or encrypted provider CRUD.
+
+### Shared secret-backend ownership and inherited formatting
+
+Codex and delegated Codex agents implemented and independently reviewed session
+lifetimes in `d601301caea81f3f259c83b3ad1337927c269d5b` (#1313), owner transport
+cancellation in `2ee8830c73ba729d4420953c258caf0de70120c9` (#1314), and early
+vault-authority cancellation in `6f5cb1eea850fa071d8d0dd9ef8608c770beedc3` (#1315).
+Grok authentication remains unavailable and Kimi is absent. The transport slice
+passed 315 backend tests, including four real socket aborts; early authority
+passed 330 backend tests including 15 new cases using cooperative fetch/Promise
+fixtures. These are scoped backend results, not whole-core or browser proof.
+`61be3e73c251e0efb5897f36a13978a0b2422cae` (#1316) fixes one inherited Rustfmt
+hunk; its pinned formatting gate passed, while native tests and Clippy remain
+unproven. Across both groups, reviewed GraphQL publishing, verified signatures
+and independent exact-byte readback preceded adoption. SDK activation, positive
+hosted 1Password authentication/CRUD, cloud transport and UI completion remain
+open; required CI, full security landing gates and verified restack remain due.
+
+Controlled exact-handle closure in
+`59158ea7a6230468026af84138ed3ca113beefed` (#1317) distinguishes local removal
+from provider-ended sessions and preserves the default AbortError. Its 334
+backend tests include 16 registry cases; these are scoped fixtures, not mounted
+UI or native-provider completion.
+
+Distinct runtime admission in
+`7264241ca0a879b3ee90170073c2421a50ae2a7c` (#1318) withdraws the exact held handle
+synchronously and publishes through the existing SDK-free seam revision.
+Its 355 backend tests include 21 new cases covering normal probe disposal
+versus provider loss. This continues the same reviewed Codex fallback and
+signed GraphQL/readback provenance. CI remains queued; the known formatting
+hunk is corrected, without implying native CI or full security/restack success.
