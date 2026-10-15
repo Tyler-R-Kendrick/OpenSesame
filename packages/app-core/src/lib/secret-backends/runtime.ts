@@ -13,6 +13,12 @@ import {
   awaitSecretBackendOwner,
   secretBackendVaultGuard,
 } from "./runtime-guard.js";
+import {
+  advanceSecretBackendGeneration as advance,
+  captureSecretBackendVault,
+  registerPendingSecretBackend,
+  secretBackendGeneration,
+} from "./runtime-owners.js";
 import { secretBackendDeviceSeams } from "./seam.js";
 import {
   hydrateSecretBackendConnections,
@@ -31,17 +37,11 @@ import {
 
 type VaultGuard = Awaited<ReturnType<typeof secretBackendVaultGuard>>;
 const active = new Map<string, HeldSecretBackend>();
-const generations = new Map<string, number>();
 const SavedConnectionId = z.string();
 function isSavedConnectionId(
   value: SecretBackendConfiguration | string,
 ): value is string {
   return SavedConnectionId.safeParse(value).success;
-}
-function advance(connectionId: string): number {
-  const next = (generations.get(connectionId) ?? 0) + 1;
-  generations.set(connectionId, next);
-  return next;
 }
 /** The factory retains its capability fence; tests can supply an actual protocol fixture. */
 export const secretBackendRuntimeSeams = { createBackend: createSecretBackend };
@@ -77,7 +77,7 @@ function lifecycle(
     !signal.aborted &&
     guard.current() &&
     (!id ||
-      (generations.get(id) === generation &&
+      (secretBackendGeneration(id) === generation &&
         signature(id, guard.tomb) === before));
   return {
     current,
@@ -187,12 +187,18 @@ export async function saveSecretBackendConnection(
 export async function connectSecretBackend(
   value: SecretBackendConfiguration | string,
   existingId?: string,
+  callerSignal?: AbortSignal,
 ): Promise<OpenBackend> {
-  const guard = await secretBackendVaultGuard();
+  const guard = await captureSecretBackendVault(callerSignal);
   let retained = false;
   let close = guard.close;
+  let releasePending = () => {};
   try {
-    await hydrateSecretBackendConnections();
+    assertVaultCurrent(guard);
+    await awaitSecretBackendOwner(
+      hydrateSecretBackendConnections(),
+      guard.signal,
+    );
     assertVaultCurrent(guard);
     const id = isSavedConnectionId(value) ? value : existingId;
     if (id) assertSavedScope(id, guard);
@@ -219,6 +225,7 @@ export async function connectSecretBackend(
     const generation = id ? advance(id) : 0;
     const lease = lifecycle(guard, id, before, generation);
     close = lease.close;
+    releasePending = registerPendingSecretBackend(id, generation, lease);
     if (id) await awaitSecretBackendOwner(disconnectSaved(id), lease.signal);
     lease.check();
     const input = isSavedConnectionId(value)
@@ -252,6 +259,7 @@ export async function connectSecretBackend(
       throw error;
     }
   } finally {
+    releasePending();
     if (!retained) close();
   }
 }
@@ -260,19 +268,28 @@ export async function connectSecretBackend(
 export async function probeSecretBackend(
   draft: SecretBackendConfiguration,
   existingId?: string,
+  callerSignal?: AbortSignal,
 ): Promise<void> {
-  const guard = await secretBackendVaultGuard();
+  const guard = await captureSecretBackendVault(callerSignal);
   let close = guard.close;
+  let releasePending = () => {};
   try {
-    await hydrateSecretBackendConnections();
+    assertVaultCurrent(guard);
+    await awaitSecretBackendOwner(
+      hydrateSecretBackendConnections(),
+      guard.signal,
+    );
     assertVaultCurrent(guard);
     if (existingId) assertSavedScope(existingId, guard);
     const before = existingId ? signature(existingId, guard.tomb) : null;
-    const generation = existingId ? (generations.get(existingId) ?? 0) : 0;
-    if (existingId && !generations.has(existingId))
-      generations.set(existingId, generation);
+    const generation = existingId ? secretBackendGeneration(existingId) : 0;
     const lease = lifecycle(guard, existingId, before, generation);
     close = lease.close;
+    releasePending = registerPendingSecretBackend(
+      existingId,
+      generation,
+      lease,
+    );
     lease.check();
     const config = resolveSecretBackendConfiguration(
       draft,
@@ -285,6 +302,7 @@ export async function probeSecretBackend(
     );
     await disposeSecretBackendProbe(raw, lease);
   } finally {
+    releasePending();
     close();
   }
 }
