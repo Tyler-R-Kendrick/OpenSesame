@@ -12,6 +12,7 @@ mod auth;
 mod cors;
 mod handlers;
 mod pairing;
+mod root_enroll;
 mod root_trust;
 
 pub(crate) use root_trust::daemon_state_dir;
@@ -78,8 +79,11 @@ pub(crate) fn routes(app: &App) -> Router<App> {
             "/v1/operator/cli-app-integration/pair",
             post(pairing::pairing_issue_operator),
         )
+        .merge(root_enroll::routes())
         .merge(browser)
 }
 
+#[cfg(test)]
+mod root_enroll_tests;
 #[cfg(test)]
 mod tests;

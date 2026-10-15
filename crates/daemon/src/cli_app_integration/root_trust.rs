@@ -135,17 +135,13 @@ pub(crate) fn load(state_dir: &Path) -> Result<LoadOutcome, TrustStoreError> {
 
 /// Seal `record` under `state_dir`, reusing the existing key when one is present.
 ///
-/// The PAKE enrollment unit is the production writer. Tests call this now, so the
-/// non-test library build would otherwise treat the writer as unused.
+/// PAKE enrollment calls this after key confirmation. Startup loads the record
+/// and marks the root key enrolled.
 ///
 /// # Errors
 ///
 /// Returns [`TrustStoreError`] when the directory or files cannot be written,
 /// or the record cannot be sealed.
-#[allow(
-    dead_code,
-    reason = "U3 enrollment is the production writer; tests call save until then"
-)]
 pub(crate) fn save(state_dir: &Path, record: &RootTrustRecord) -> Result<(), TrustStoreError> {
     let dir = trust_dir(state_dir);
     ensure_private_dir(&dir)?;

@@ -64,6 +64,7 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
         .redirect(reqwest::redirect::Policy::none())
         .build()?;
     let duress_peer = build_duress_peer_state()?;
+    let state_dir = super::cli_app_integration::daemon_state_dir();
 
     Ok((
         App {
@@ -85,9 +86,8 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
                 .map(|dir| Arc::new(crate::vault_drive::DriveStore::new(dir))),
             plugins: crate::plugin_routes::PluginHost::from_process(),
             tailnet: crate::tailnet_admin_routes::TailnetAdminHost::from_process(),
-            cli_app_integration: super::cli_app_integration::open_store(
-                super::cli_app_integration::daemon_state_dir().as_deref(),
-            ),
+            cli_app_integration: super::cli_app_integration::open_store(state_dir.as_deref()),
+            cli_root_trust_dir: state_dir,
         },
         hsts,
     ))

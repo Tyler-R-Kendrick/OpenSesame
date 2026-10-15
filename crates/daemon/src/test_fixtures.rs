@@ -47,6 +47,7 @@ pub(crate) fn test_state(host_api: &str) -> App {
         vault_drive: None,
         plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
         cli_app_integration: cli_app_integration::open_store(None),
+        cli_root_trust_dir: None,
         tailnet: tailnet_admin_routes::TailnetAdminHost::detached(),
     }
 }
