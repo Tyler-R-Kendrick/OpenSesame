@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { readDeviceRows } from "../device-connector-records.js";
+import { createProject, setActiveProject } from "../projects.js";
 import {
   runtimeFixture,
   runtimePassword,
 } from "../secret-backends/runtime.test-support.js";
-import { createProject, setActiveProject } from "../projects.js";
-import { vfsFlush } from "../vfs.js";
 import { vaultStore } from "../vault/store.js";
+import { vfsFlush } from "../vfs.js";
 import { aiConnectionDraft } from "./presets.js";
 import {
   deleteAiConnection,
