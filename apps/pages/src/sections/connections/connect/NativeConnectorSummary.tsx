@@ -3,18 +3,16 @@ import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connec
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
 import { useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
-import {
-  IconExternal,
-  IconRefresh,
-  IconTrash,
-  IconX,
-} from "../../../components/Icons.js";
+import { IconTrash, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { NativeCancelSignIn } from "./NativeCancelSignIn.js";
+import {
+  NativeAuthorizationControls,
+  useNativeSignInUiLifetime,
+} from "./NativeCancelSignIn.js";
 import { NativeConnectorActions } from "./NativeConnectorActions.js";
-import { nativeSignInRequired } from "./NativeConnectorFormOptions.js";
 import { NativeConnectorRecovery } from "./NativeConnectorRecovery.js";
 import { Facts } from "./fields.js";
+import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
 import { nativeError, nativeVerified } from "./native-connector-ui-values.js";
 import type {
   NativeConnectorCallbacks,
@@ -128,132 +126,83 @@ type Props = NativeConnectorCallbacks & {
   controller: NativeConnectorController;
   view: NativeConnectorView;
   onRemoved: () => void;
+  authorization?: NativeAuthorizationTicket | null;
 };
 
-function useNativeSummary({
-  descriptor,
-  controller,
-  onChanged,
-  onFlash,
-  onRemoved,
-}: Props) {
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [failure, setFailure] = useState("");
-  async function perform(action: () => Promise<void>) {
+function useNativeSummary(props: Props) {
+  const {
+    descriptor,
+    controller,
+    onChanged,
+    onFlash,
+    onRemoved,
+    authorization,
+  } = props;
+  const lifetime = useNativeSignInUiLifetime(props);
+  const initial = {
+    owner: lifetime.owner,
+    busy: false,
+    confirming: false,
+    failure: "",
+  };
+  const [stored, setStored] = useState(initial);
+  const model = stored.owner === lifetime.owner ? stored : initial;
+  const busy = model.busy || !!authorization?.current();
+  const update = (patch: Partial<Omit<typeof initial, "owner">>) =>
+    setStored((previous) => ({
+      ...(previous.owner === lifetime.owner ? previous : initial),
+      ...patch,
+    }));
+  async function perform(action: (current: () => boolean) => Promise<void>) {
     if (busy) return;
-    setBusy(true);
-    setFailure("");
+    const attempt = lifetime.begin();
+    if (!attempt.current()) return;
+    update({ busy: true, failure: "" });
     try {
-      await action();
+      await action(attempt.current);
     } catch (error) {
-      const text = nativeError(errorText(error), {});
-      setFailure(text);
-      onFlash({ tone: "err", text });
+      if (attempt.current()) {
+        const text = nativeError(errorText(error), {});
+        update({ failure: text });
+        onFlash({ tone: "err", text });
+      }
     } finally {
-      setBusy(false);
-      onChanged(controller.load());
+      try {
+        if (attempt.current()) {
+          update({ busy: false });
+          const next = controller.load();
+          if (attempt.current()) onChanged(next);
+        }
+      } finally {
+        attempt.finish();
+      }
     }
   }
   async function remove() {
     if (busy) return;
-    if (!confirming) {
-      setConfirming(true);
+    if (!model.confirming) {
+      update({ confirming: true });
       return;
     }
-    await perform(async () => {
+    update({ confirming: false });
+    await perform(async (current) => {
       await controller.remove();
+      if (!current()) return;
       onRemoved();
+      if (!current()) return;
       onFlash({
         tone: "ok",
         text: `${descriptor.name} connection removed from this device.`,
       });
     });
-    setConfirming(false);
   }
   return {
+    ...model,
     busy,
-    confirming,
-    failure,
     perform,
     remove,
-    cancel: () => setConfirming(false),
+    cancel: () => update({ confirming: false }),
   };
-}
-
-function NativeAuthorizationControls({
-  descriptor,
-  controller,
-  view,
-  busy,
-  perform,
-}: {
-  descriptor: NativeConnectorDescriptor;
-  controller: NativeConnectorController;
-  view: NativeConnectorView;
-  busy: boolean;
-  perform: (action: () => Promise<void>) => Promise<void>;
-}) {
-  const method = descriptor.methods.find(
-    (item) => item.id === view.configuration.method && item.available,
-  );
-  const authorizes = method ? nativeSignInRequired(method) : false;
-  const groups = method?.scopeGroups ?? [];
-  const [authorizing, setAuthorizing] = useState(false);
-  async function authorize(actor?: string) {
-    setAuthorizing(true);
-    try {
-      await perform(() => controller.authorize(actor));
-    } finally {
-      setAuthorizing(false);
-    }
-  }
-  return (
-    <div className="cx-form">
-      {authorizes &&
-      view.status !== "connected" &&
-      view.status !== "cleanup" ? (
-        <div className="cx-links">
-          {groups.length > 0 ? (
-            groups.map((group) => (
-              <IconKey
-                label={`Authorize ${group.label}`}
-                key={group.actor}
-                disabled={busy}
-                onClick={() => void authorize(group.actor)}
-              >
-                <IconExternal size={16} />
-              </IconKey>
-            ))
-          ) : (
-            <IconKey
-              label={`Authorize ${descriptor.name}`}
-              disabled={busy}
-              onClick={() => void authorize()}
-            >
-              <IconExternal size={16} />
-            </IconKey>
-          )}
-        </div>
-      ) : null}
-      <NativeCancelSignIn
-        busy={authorizing}
-        method={method}
-        onCancel={controller.cancelAuthorization}
-      />
-      <IconKey
-        label={`Verify ${descriptor.name} access`}
-        disabled={busy || !method || view.status === "cleanup"}
-        onClick={() =>
-          void perform(async () => {
-            await controller.verify();
-          })
-        }
-      >
-        <IconRefresh size={16} />
-      </IconKey>
-    </div>
-  );
 }
 
 function NativeIdentityFacts({
@@ -328,6 +277,7 @@ export function NativeConnectorSummary(props: Props) {
           view={view}
           busy={model.busy}
           perform={model.perform}
+          authorization={props.authorization}
         />
         <NativeConnectorRecovery
           view={view}
