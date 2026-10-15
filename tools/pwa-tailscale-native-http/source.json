@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "scope": "Proposed unactivated official-source-derived raw js/wasm compile foundation only. No binary committed; no build-pkg/wasm-opt/peering/DNS/TLS/provider success claim.",
+  "scope": "Unactivated bounded native Go HTTPS core, owned host TLS test sources and official-source-derived raw js/wasm compile foundation. No binary committed; no browser transport, routing, DNS, peering or provider-operation success claim.",
   "source": {
     "repository": "https://github.com/tailscale/tailscale",
     "commit": "b31d8a75af155bcf19853d1a66041782d13e56ae",
@@ -66,5 +66,23 @@
     "metadataQualification": "archive has no source-repository VCS metadata; GOFLAGS includes -buildvcs=false; VERSION_LONG and VERSION_SHORT unset. No byte-identical npm claim.",
     "officialNpmRawSha256": "51c03c72a840062306ab8e39bde92e77dc068583c08a6b6cf759ceaae99b6d46",
     "environmentPolicy": "Only locale/time/PATH, explicit proxy variants and SSL_CERT_FILE/DIR may be inherited. No HOME, tokens, keys, unrelated flags or arbitrary parent environment."
+  },
+  "nativeHttp": {
+    "packagePath": "cmd/tsconnect/nativehttp",
+    "files": [
+      {
+        "path": "nativehttp.go",
+        "sha256": "c62f507034f6017c3e6d4cc327d223170ca6dfbe5285b4e1f9f3a64520f82c16"
+      },
+      {
+        "path": "nativehttp_test.go",
+        "sha256": "c945abbff4b1bf3845942f9320d9e909589fd37cf33eb6dd545ee0dd72843fa1"
+      },
+      {
+        "path": "nativehttp_security_test.go",
+        "sha256": "f0ba8d3c0f15cfdd1f5703db662df9c6d5e9a6ebebb08566398304a5e9930343"
+      }
+    ],
+    "qualification": "Stage only these three pinned overlays into a fresh owned directory. The pinned compiler runs fresh bounded host tests before the four unchanged raw-WASM phases. Host tests do not activate browser transport or certify public trust, routes, DNS, exit selection or provider integrations."
   }
 }
