@@ -135,6 +135,7 @@ export function fenceSecretBackend(
   const fenced: SecretBackend = {
     id: backend.id,
     name: backend.name,
+    signal: transport.signal,
     capabilities: backend.capabilities,
     authenticate: (config) =>
       duringLease(

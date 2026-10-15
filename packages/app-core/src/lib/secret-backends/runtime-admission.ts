@@ -47,6 +47,7 @@ export function holdSecretBackend(
   lease: BackendLease,
   onClosed: (held: HeldSecretBackend) => void,
 ): HeldSecretBackend {
+  const backendSignal = raw.backend.signal;
   const lifetime = new AbortController();
   let closed = false;
   let disposal: Promise<void> | undefined;
@@ -66,6 +67,7 @@ export function holdSecretBackend(
     void disposal.catch(() => undefined);
     lease.signal.removeEventListener("abort", terminate);
     raw.session.signal?.removeEventListener("abort", terminate);
+    backendSignal?.removeEventListener("abort", terminate);
     lease.close();
     lifetime.abort();
     onClosed(held);
@@ -75,7 +77,10 @@ export function holdSecretBackend(
     void close(raw.session).catch(() => undefined);
   };
   const current = () =>
-    !closed && lease.current() && !raw.session.signal?.aborted;
+    !closed &&
+    lease.current() &&
+    !raw.session.signal?.aborted &&
+    !backendSignal?.aborted;
   const check = () => {
     lease.check();
     if (!current()) throw ended();
@@ -95,8 +100,16 @@ export function holdSecretBackend(
     close: () => close(raw.session),
   };
   lease.signal.addEventListener("abort", terminate, { once: true });
-  raw.session.signal?.addEventListener("abort", terminate, { once: true });
-  if (lease.signal.aborted || raw.session.signal?.aborted) terminate();
+  if (!closed)
+    raw.session.signal?.addEventListener("abort", terminate, { once: true });
+  if (!closed)
+    backendSignal?.addEventListener("abort", terminate, { once: true });
+  if (
+    lease.signal.aborted ||
+    raw.session.signal?.aborted ||
+    backendSignal?.aborted
+  )
+    terminate();
   return held;
 }
 
@@ -105,6 +118,7 @@ export async function disposeSecretBackendProbe(
   raw: SecretBackendHandle,
   lease: BackendLease,
 ): Promise<void> {
+  const backendSignal = raw.backend.signal;
   const unexpected = new AbortController();
   let disposing = false;
   const providerEnded = () => {
@@ -121,10 +135,15 @@ export async function disposeSecretBackendProbe(
   try {
     await awaitSecretBackendOwner(
       cleanup,
-      AbortSignal.any([lease.signal, unexpected.signal]),
+      AbortSignal.any([
+        lease.signal,
+        unexpected.signal,
+        ...(backendSignal ? [backendSignal] : []),
+      ]),
     );
     if (unexpected.signal.aborted) throw ended();
     lease.check();
+    if (backendSignal?.aborted) throw ended();
   } finally {
     raw.session.signal?.removeEventListener("abort", providerEnded);
   }

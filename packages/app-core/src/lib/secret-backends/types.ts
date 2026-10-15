@@ -90,6 +90,8 @@ export type SecretBackendImportReport = {
 export interface SecretBackend {
   readonly id: string;
   readonly name: string;
+  /** This instance's captured capability/owner lifetime, separate from provider sessions. */
+  readonly signal?: AbortSignal;
   readonly capabilities: SecretBackendCapabilities;
   authenticate(
     config: SecretBackendConfiguration,
