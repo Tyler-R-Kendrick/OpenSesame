@@ -3,6 +3,27 @@ import { SecretBackendError } from "./types.js";
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 
+/** Only a received HTTP response supplies status; provider payloads are never retained. */
+export class SecretBackendHttpError extends SecretBackendError {
+  private constructor(
+    code: SecretBackendError["code"],
+    message: string,
+    readonly status: number,
+  ) {
+    super(code, message);
+  }
+  static fromResponse(
+    response: Response,
+    code: SecretBackendError["code"],
+    message: string,
+  ): SecretBackendError {
+    const status = response.status;
+    if (!Number.isInteger(status) || status < 100 || status > 599)
+      return new SecretBackendError(code, message);
+    return new SecretBackendHttpError(code, message, status);
+  }
+}
+
 export function secretBackendUrl(value: string): URL {
   let url: URL;
   try {
@@ -31,16 +52,19 @@ export function secretBackendUrl(value: string): URL {
 function checkStatus(response: Response): void {
   if (response.ok) return;
   if (response.status === 401 || response.status === 403)
-    throw new SecretBackendError(
+    throw SecretBackendHttpError.fromResponse(
+      response,
       "authentication",
       "The backend refused these credentials or permissions.",
     );
   if (response.status === 404)
-    throw new SecretBackendError(
+    throw SecretBackendHttpError.fromResponse(
+      response,
       "not-found",
       "The requested backend item was not found.",
     );
-  throw new SecretBackendError(
+  throw SecretBackendHttpError.fromResponse(
+    response,
     "response",
     `The backend request failed (HTTP ${response.status}).`,
   );
