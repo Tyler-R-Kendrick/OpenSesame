@@ -58,7 +58,16 @@ export async function openBrowserNodeState(
       throw new Error(
         "This vault has a different saved browser node. Use its hostname and control server.",
       );
-    return { record, state: readBrowserNodeState(record) };
+    const capture = captureState(record);
+    const state = decodeState(capture.fields.get("nodeState"));
+    assertVaultCredentials(capture, tomb, check);
+    return {
+      record,
+      state,
+      connectionId: row.connectionId,
+      credentialReceipt: JSON.stringify(capture.items),
+      publicReceipt: browserNodePublicFingerprint(record, row.connectionId),
+    };
   }
   const capture = await stageVaultCredentials(
     {
@@ -83,7 +92,7 @@ export async function openBrowserNodeState(
   };
   let published = false;
   try {
-    await saveDeviceConnectorConfigurationDurable(
+    const connection = await saveDeviceConnectorConfigurationDurable(
       () => ({
         providerId: "tailscale",
         displayName: config.hostname,
@@ -99,7 +108,17 @@ export async function openBrowserNodeState(
     );
     published = true;
     check();
-    return { record, state: {} };
+    assertVaultCredentials(capture, tomb, check);
+    return {
+      record,
+      state: {},
+      connectionId: connection.connectionId,
+      credentialReceipt: JSON.stringify(capture.items),
+      publicReceipt: browserNodePublicFingerprint(
+        record,
+        connection.connectionId,
+      ),
+    };
   } catch (error) {
     if (!published)
       await discardVaultCredentials(capture, tomb, check).catch(
@@ -120,6 +139,22 @@ export function savedBrowserNodeConfiguration(): {
   } catch {
     return null;
   }
+}
+/** The exact public row is independent of a legitimate pending private-state write. */
+export function browserNodePublicFingerprint(
+  record: TailscaleNodeRecord,
+  connectionId: string,
+): string {
+  const row = readDeviceRows().find(
+    (entry) => entry.connectionId === connectionId,
+  );
+  if (
+    !row ||
+    row.providerId !== "tailscale" ||
+    row.fields[FIELD] !== JSON.stringify(record)
+  )
+    throw new Error("The saved Tailscale browser node changed.");
+  return JSON.stringify(row);
 }
 function captureState(record: TailscaleNodeRecord) {
   const row = savedNodeRow(record.tomb);
@@ -144,7 +179,9 @@ export function browserNodeCredentialFingerprint(
 export function readBrowserNodeState(
   record: TailscaleNodeRecord,
 ): Record<string, string> {
-  const raw = captureState(record).fields.get("nodeState");
+  return decodeState(captureState(record).fields.get("nodeState"));
+}
+function decodeState(raw: string | undefined): TailscaleNodeState {
   if (!raw || raw.length > 4_000_000)
     throw new Error("Tailscale node state is missing or oversized.");
   return State.parse(JSON.parse(raw));

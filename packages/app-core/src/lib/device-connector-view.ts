@@ -4,6 +4,7 @@ import type { Connection } from "./connections.js";
 import { type PublicRow, readDeviceRows } from "./device-connector-records.js";
 import { identityConnectionDeviceSeams } from "./identity-connections-seam.js";
 import { secretBackendDeviceSeams } from "./secret-backends/seam.js";
+import { tailscaleNodeAuthorization } from "./tailscale/browser-node-port.js";
 
 type AuthorizationView = Pick<
   Connection,
@@ -38,6 +39,35 @@ function grantedScopes(raw: string | undefined): string[] {
   }
 }
 
+function tailscaleAuthorization(
+  row: PublicRow,
+  ordinary: AuthorizationView,
+): AuthorizationView {
+  if (
+    row.fields.native_configuration !== undefined &&
+    row.fields.tailscale_browser_node === undefined &&
+    row.fields.self_hosted_configuration !== "tailscale-browser-v1"
+  )
+    return (
+      nativeDeviceViewSeams.authorization(row.connectionId) ?? {
+        ...ordinary,
+        status: "pending",
+        statusDetail: "Verify this saved Tailscale configuration",
+        grantedScopes: [],
+      }
+    );
+  const node = tailscaleNodeAuthorization();
+  const connected = node?.connectionId === row.connectionId && node.connected;
+  return {
+    ...ordinary,
+    status: connected ? "active" : "pending",
+    statusDetail: connected
+      ? "Browser node connected"
+      : "Browser node not connected",
+    grantedScopes: [],
+  };
+}
+
 function authorizationView(row: PublicRow): AuthorizationView {
   const ordinary: AuthorizationView = {
     status: "active",
@@ -47,6 +77,8 @@ function authorizationView(row: PublicRow): AuthorizationView {
     expiresAt: null,
     refreshable: false,
   };
+  if (row.providerId === "tailscale")
+    return tailscaleAuthorization(row, ordinary);
   if (row.fields.self_hosted_configuration === undefined) return ordinary;
   if (row.fields.secret_backend_configuration !== undefined) {
     return (
@@ -120,10 +152,13 @@ export function deviceConnectorView(row: PublicRow): Connection {
 
 /** Recognize the public native marker without reading sealed credentials or loading a driver. */
 export function isNativeDeviceConnection(connection: Connection): boolean {
+  if (connection.connectionRef !== `local/connector/${connection.connectionId}`)
+    return false;
   return readDeviceRows().some(
     (row) =>
       row.connectionId === connection.connectionId &&
-      row.fields.native_configuration !== undefined,
+      (row.fields.native_configuration !== undefined ||
+        row.providerId === "tailscale"),
   );
 }
 

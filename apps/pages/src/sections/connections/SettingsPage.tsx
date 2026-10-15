@@ -46,7 +46,6 @@ import { ConnectorMark } from "./ConnectorMark.js";
 import { GithubAppForgetButton } from "./GithubAppConfigRows.js";
 import { GithubAppPresence } from "./GithubAppPresence.js";
 import { SettingsPageConnectPanels } from "./SettingsPageConnectPanels.js";
-import { nativeConnectorHeaderStatus } from "./SettingsPageNativeStatus.js";
 import {
   AuthorizedAccount,
   githubConnectorStatus,
@@ -55,6 +54,7 @@ import { VaultReminderBanner } from "./VaultReminderBanner.js";
 import { isConnectConnection } from "./connect/ConnectPanels.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 import { isIdentityConnectionProvider } from "./identity/IdentityConnectionPanels.js";
+import { useTailscaleHeaderStatus } from "./tailscale/useTailscaleConnectionState.js";
 
 /**
  * Registry services get the provider configuration experience. Existing
@@ -101,6 +101,7 @@ export function ConnectorSettingsPage({
   ) => void;
   onChanged: () => void;
 }) {
+  const liveHeader = useTailscaleHeaderStatus(connection, provider);
   const { pathname } = useLocation();
   const ceremonyRoot = connectorCeremonyRoot(pathname);
   const backRef = useGuideTarget<HTMLAnchorElement>("connections.back");
@@ -171,7 +172,7 @@ export function ConnectorSettingsPage({
   }
 
   const nativeHeader =
-    nativeConnectorHeaderStatus(connection, provider) ??
+    liveHeader ??
     (nativeExperience
       ? {
           tone: "idle" as const,
