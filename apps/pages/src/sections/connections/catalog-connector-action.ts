@@ -7,10 +7,11 @@ import type {
 import { connectorCardAction } from "@opensesame/app-core/lib/connector-action-capability.js";
 import { readLinearConnector } from "@opensesame/app-core/lib/linear-store.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
+import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
 
 function specializedRoute(providerId: string): boolean {
-  return providerId === "linear";
+  return providerId === "linear" || isSecretBackendProvider(providerId);
 }
 
 function specializedProof(connection: Connection | null, now: number): boolean {
@@ -32,7 +33,9 @@ export function catalogConnectorAction(
   provider: Provider,
   connection: Connection | null,
 ) {
-  const descriptor = nativeSettingsDescriptor(provider);
+  const descriptor = isSecretBackendProvider(provider.id)
+    ? null
+    : nativeSettingsDescriptor(provider);
   const routes = descriptor?.methods.map((method) => ({
     method: method.id,
     available: method.available,
