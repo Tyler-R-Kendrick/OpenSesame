@@ -110,6 +110,10 @@ describe("a connector page on a device with no Host", () => {
     const fixture = connectorIntegration();
     fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     const page = renderAt("/connections/github");
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Connection method"),
+      "token",
+    );
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",

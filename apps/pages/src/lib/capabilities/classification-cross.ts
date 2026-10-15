@@ -129,6 +129,10 @@ const CONNECTOR_RECORDS = [
 
 export const CROSS_RULES = [
   shared(
+    `${L}der.ts`,
+    "pure DER encoding shared by certificate issuance and browser GitHub App signing",
+  ),
+  shared(
     `${L}model-provider-record`,
     "model selections shared by local and remote AI without provider implementations",
   ),
