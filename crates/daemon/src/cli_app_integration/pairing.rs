@@ -27,6 +27,7 @@ pub(crate) struct PairingConfirm {
     code: String,
     device_public_key_spki_b64: String,
     pairing_signature_b64: String,
+    vault_session_root_digest: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,6 +40,8 @@ pub(crate) struct PairingRegistrationArm {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PairingWebAuthnRegister {
+    vault_session_root_digest: String,
+    human_proof: String,
     credential_id_b64: String,
     public_key_spki_b64: String,
     sign_count: u32,
@@ -103,6 +106,7 @@ pub(crate) async fn pairing_confirm(
         origin,
         &body.device_public_key_spki_b64,
         &body.pairing_signature_b64,
+        Some(body.vault_session_root_digest.as_str()),
         now,
     ) {
         Ok(outcome) => (
@@ -180,6 +184,8 @@ pub(crate) async fn pairing_register_webauthn(
     match host.pairings.register_webauthn(
         token,
         origin,
+        &body.vault_session_root_digest,
+        &body.human_proof,
         &body.credential_id_b64,
         &body.public_key_spki_b64,
         body.sign_count,
