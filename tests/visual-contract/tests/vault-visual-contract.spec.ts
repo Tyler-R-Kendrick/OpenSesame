@@ -37,6 +37,8 @@ async function settleFonts(page: Page): Promise<void> {
 const strays = new WeakMap<Page, string[]>();
 
 test.beforeEach(async ({ page, baseURL }) => {
+  // Hold cipher plates still: settled shimmer exceeds the pixel budget on CI.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const origin = new URL(baseURL ?? "http://127.0.0.1").origin;
   const seen: string[] = [];
   strays.set(page, seen);
