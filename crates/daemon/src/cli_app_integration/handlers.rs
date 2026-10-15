@@ -110,7 +110,13 @@ pub(crate) async fn pending(State(st): State<App>, headers: HeaderMap) -> Respon
     host.store.set_now_ms(now_millis());
     let rows = host
         .store
-        .list_pending()
+        .list_pending();
+    let active_ids = rows
+        .iter()
+        .map(|row| row.terminal_session_id.clone())
+        .collect::<Vec<_>>();
+    host.prune_stale_tcp_terminal_sessions(&active_ids);
+    let rows = rows
         .into_iter()
         .map(|row| {
             json!({

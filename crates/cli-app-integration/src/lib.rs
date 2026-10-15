@@ -71,6 +71,13 @@ impl CliAppIntegrationHost {
         (id, false)
     }
 
+    pub fn prune_stale_tcp_terminal_sessions(&mut self, active_terminal_ids: &[String]) {
+        let active: std::collections::HashSet<&str> =
+            active_terminal_ids.iter().map(String::as_str).collect();
+        self.tcp_terminal_sessions
+            .retain(|_, terminal_id| active.contains(terminal_id.as_str()));
+    }
+
     #[cfg(test)]
     pub fn terminal_session_for_tcp_test_harness(&mut self) -> (String, bool) {
         let n = TEST_TCP_EPHEMERAL.fetch_add(1, Ordering::Relaxed);
@@ -99,7 +106,12 @@ struct Policy {
     idle_timeout_seconds: u64,
     hard_limit_seconds: u64,
     request_timeout_seconds: u64,
+    daemon_pin_probe_verb: String,
     messages: Messages,
+}
+
+fn is_pin_probe_verb(verb: &str) -> bool {
+    verb == policy().daemon_pin_probe_verb.as_str()
 }
 
 #[derive(Debug, Deserialize)]
@@ -221,6 +233,9 @@ impl CliAppIntegrationStore {
         reference: Option<&str>,
         reuse_approved_session: bool,
     ) -> (String, Option<String>) {
+        if is_pin_probe_verb(verb) {
+            return ("denied".into(), None);
+        }
         self.expire_pending();
         if self.denied.contains(terminal_session_id) {
             return ("denied".into(), None);
@@ -316,7 +331,11 @@ impl CliAppIntegrationStore {
 
     pub fn list_pending(&mut self) -> Vec<PendingRequest> {
         self.expire_pending();
-        self.pending.values().cloned().collect()
+        self.pending
+            .values()
+            .filter(|row| !is_pin_probe_verb(&row.verb))
+            .cloned()
+            .collect()
     }
 }
 
