@@ -42,7 +42,10 @@ export default function LivePeerTrustExport() {
   if (!ready) return null;
   if ("failed" in ready) {
     return (
-      <StatusMark tone="warn" label="Peer trust is not available on this device" />
+      <StatusMark
+        tone="warn"
+        label="Peer trust is not available on this device"
+      />
     );
   }
 

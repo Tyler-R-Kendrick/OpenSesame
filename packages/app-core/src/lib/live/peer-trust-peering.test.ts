@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { fakeIndexedDb } from "../at-rest/fake-idb.test-support.js";
-import { commitPeerTrustEnrollment } from "../peer-trust/store.js";
 import {
   buildPeerTrustSignal,
   encodePeerTrustSignal,
 } from "../peer-trust/signaling.js";
+import { commitPeerTrustEnrollment } from "../peer-trust/store.js";
 import { FakeBus, FakeNet } from "./live-fakes.js";
 import {
   createLivePeerJoinApproval,

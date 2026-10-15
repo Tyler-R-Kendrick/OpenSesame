@@ -17,7 +17,7 @@ import {
   currentHostCarriers,
   endHosting,
 } from "@opensesame/app-core/lib/live/session.js";
-import { lazy, Suspense, useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import {
@@ -34,9 +34,7 @@ import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
 
-const LivePeerTrustExport = lazy(
-  () => import("./LivePeerTrustExport.js"),
-);
+const LivePeerTrustExport = lazy(() => import("./LivePeerTrustExport.js"));
 
 function Log({ host, state }: { host: LiveHost; state: HostState }) {
   const { items } = useVault();
