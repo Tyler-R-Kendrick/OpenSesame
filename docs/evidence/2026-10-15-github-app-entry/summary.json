@@ -1,0 +1,11 @@
+{
+  "result": "primary journeys passed",
+  "beforeChecks": 13,
+  "afterChecks": 59,
+  "browserErrors": 0,
+  "externalProviderRequests": 0,
+  "optionalSavedMetadataFixture": "not exercised: unsealed app-owned localStorage values are rejected by production storage port",
+  "compiledParent": "d7729f546c23699aa1553b2e02c7b77d8f3f4ba8",
+  "compiledAfterTree": "4595630ce41c148925a359f3f6c74929846e5bc2",
+  "overlayManifestSha256": "47169594cf5984912d8004af5512384ea16924589e170061574eb617373dfb92"
+}
