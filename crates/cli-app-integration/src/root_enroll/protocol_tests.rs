@@ -72,6 +72,7 @@ struct Opened {
 }
 
 fn open(host: &mut CliAppIntegrationHost, now: u64) -> Opened {
+    host.arm_root_enrollment(now);
     let begun = host.begin_root_enroll(now).expect("begin");
     let spki = root_spki_der(&generate_root_signing_key());
     Opened {

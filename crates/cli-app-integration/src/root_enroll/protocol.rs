@@ -17,6 +17,9 @@ use super::RootEnrollError;
 use crate::root_trust::{fingerprint_of_spki, RootTrustRecord};
 use crate::CliAppIntegrationHost;
 
+/// Operator route that arms enrollment after an OS secure prompt on the host.
+pub const ROOT_ENROLL_ARM_PATH: &str =
+    "/v1/operator/cli-app-integration/root-trust/enroll/arm";
 /// Operator route that mints the enrollment secret and the daemon SPAKE2 message.
 pub const ROOT_ENROLL_BEGIN_PATH: &str = "/v1/operator/cli-app-integration/root-trust/enroll/begin";
 /// Client route that finishes enrollment. The secret is not on this request.
@@ -176,6 +179,9 @@ impl CliAppIntegrationHost {
     /// Returns [`RootEnrollError::InvalidSecret`] only when a minted secret
     /// cannot be reduced, which a caller may retry.
     pub fn begin_root_enroll(&mut self, now: u64) -> Result<RootEnrollBegin, RootEnrollError> {
+        if !self.enrollment_arm.is_armed(now) {
+            return Err(RootEnrollError::NotArmed);
+        }
         for _ in 0..4 {
             let secret = random_secret();
             if let Ok(opened) = Pending::open(secret.as_slice(), now) {
@@ -218,6 +224,7 @@ impl CliAppIntegrationHost {
         if pending.expires_at <= now {
             return Err(RootEnrollError::Expired);
         }
+        self.enrollment_arm.disarm();
         pending.complete(&request, epoch)
     }
 }

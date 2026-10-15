@@ -13,8 +13,8 @@ mod spake2;
 pub(crate) use protocol::Sessions;
 pub use protocol::{
     generate_root_signing_key, root_spki_der, EnrollmentConfirm, RootEnrollBegin, RootEnrollClient,
-    RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_BEGIN_PATH, ROOT_ENROLL_FINISH_PATH,
-    ROOT_ENROLL_TTL_SECS,
+    RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_ARM_PATH, ROOT_ENROLL_BEGIN_PATH,
+    ROOT_ENROLL_FINISH_PATH, ROOT_ENROLL_TTL_SECS,
 };
 
 use thiserror::Error;
@@ -43,4 +43,7 @@ pub enum RootEnrollError {
     /// The next enrollment epoch would not fit in a `u64`.
     #[error("the enrollment epoch is exhausted")]
     EpochExhausted,
+    /// Enrollment was not armed after an OS prompt.
+    #[error("root trust enrollment is not armed")]
+    NotArmed,
 }

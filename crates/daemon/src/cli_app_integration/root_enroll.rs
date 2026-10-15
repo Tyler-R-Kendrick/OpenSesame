@@ -14,8 +14,8 @@ use axum::{
 };
 use base64::Engine as _;
 use opensesame_cli_app_integration::{
-    RootEnrollError, RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_BEGIN_PATH,
-    ROOT_ENROLL_FINISH_PATH,
+    process_executable_sha256_hex, sas_from_fingerprint, RootEnrollError, RootEnrollFinish,
+    RootEnrollRequest, ROOT_ENROLL_ARM_PATH, ROOT_ENROLL_BEGIN_PATH, ROOT_ENROLL_FINISH_PATH,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -29,9 +29,26 @@ const MAX_BODY: usize = 2048;
 
 pub(crate) fn routes() -> Router<App> {
     Router::new()
+        .route(ROOT_ENROLL_ARM_PATH, post(arm))
         .route(ROOT_ENROLL_BEGIN_PATH, post(begin))
         .route(ROOT_ENROLL_FINISH_PATH, post(finish))
         .layer(DefaultBodyLimit::max(MAX_BODY))
+}
+
+pub(crate) async fn arm(
+    State(st): State<App>,
+    headers: HeaderMap,
+    uds: UdsPeer,
+    _body: Bytes,
+) -> Response {
+    if let Err(resp) = require_operator(&st, &headers, &uds) {
+        return resp;
+    }
+    let now = now_unix();
+    let mut host = lock_host(&st);
+    host.arm_root_enrollment(now);
+    Json(json!({ "armedUntil": now + opensesame_cli_app_integration::ENROLLMENT_ARM_TTL_SECS }))
+        .into_response()
 }
 
 pub(crate) async fn begin(
@@ -52,13 +69,20 @@ pub(crate) async fn begin(
     let now = now_unix();
     let mut host = lock_host(&st);
     match host.begin_root_enroll(now) {
-        Ok(begun) => Json(json!({
-            "sessionId": begun.session_id,
-            "enrollmentSecretB64": b64(begun.enrollment_secret.as_slice()),
-            "messageB64": b64(&begun.daemon_message),
-            "expiresAt": begun.expires_at,
-        }))
-        .into_response(),
+        Ok(begun) => {
+            let daemon_binary_sha256 = process_executable_sha256_hex();
+            Json(json!({
+                "sessionId": begun.session_id,
+                "enrollmentSecretB64": b64(begun.enrollment_secret.as_slice()),
+                "messageB64": b64(&begun.daemon_message),
+                "expiresAt": begun.expires_at,
+                "daemonBinarySha256": daemon_binary_sha256,
+            }))
+            .into_response()
+        }
+        Err(RootEnrollError::NotArmed) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_enroll_not_armed")
+        }
         Err(_) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "root_enroll_failed"),
     }
 }
@@ -174,6 +198,7 @@ fn map_finish_error(err: RootEnrollError) -> Response {
         RootEnrollError::Expired => (StatusCode::FORBIDDEN, "root_enroll_expired"),
         RootEnrollError::InvalidSpki => (StatusCode::BAD_REQUEST, "invalid_root_spki"),
         RootEnrollError::EpochExhausted => (StatusCode::CONFLICT, "root_enroll_epoch_exhausted"),
+        RootEnrollError::NotArmed => (StatusCode::FORBIDDEN, "root_enroll_not_armed"),
         RootEnrollError::InvalidSecret
         | RootEnrollError::InvalidMessage
         | RootEnrollError::InvalidConfirm => (StatusCode::FORBIDDEN, "root_enroll_refused"),
@@ -188,6 +213,7 @@ fn enrolled_response(
 ) -> Response {
     let epoch = outcome.record.enrollment_epoch();
     let fingerprint = outcome.record.spki_fingerprint().to_string();
+    let sas = sas_from_fingerprint(&fingerprint);
     let confirm = b64(&outcome.daemon_confirm);
     host.pairings.mark_root_key_enrolled(outcome.record);
     tracing::info!(
@@ -199,6 +225,7 @@ fn enrolled_response(
     Json(json!({
         "enrolled": true,
         "spkiFingerprint": fingerprint,
+        "spkiSas": sas,
         "enrollmentEpoch": epoch,
         "confirmB64": confirm,
     }))

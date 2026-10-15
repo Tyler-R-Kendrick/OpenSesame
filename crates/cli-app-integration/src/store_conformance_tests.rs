@@ -32,6 +32,26 @@ fn pin_probe_verb_is_omitted_from_pending_list() {
 }
 
 #[test]
+fn ensure_coalesces_same_verb_and_reference() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    let (_, first) = store.ensure("term-a", "read", Some("ref"), false);
+    let (_, second) = store.ensure("term-a", "read", Some("ref"), false);
+    assert_eq!(first, second);
+    assert_eq!(store.list_pending().len(), 1);
+}
+
+fn ensure_rate_limit_denies_after_burst() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    for i in 0..8 {
+        let (status, _) = store.ensure(&format!("term-{i}"), "read", None, false);
+        assert_eq!(status, "pending");
+    }
+    let (status, _) = store.ensure("term-overflow", "read", None, false);
+    assert_eq!(status, "denied");
+}
+
 fn more_than_one_pending_clears_the_queue() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);

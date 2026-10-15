@@ -1,12 +1,15 @@
 //! `CLI` ↔ `OpenSesame` app integration (1Password-style terminal sessions).
+mod binary_identity;
 mod daemon_attest;
 mod device_crypto;
+mod enrollment_arm;
 mod human_proof;
 mod pairing;
 mod pairing_code;
 mod root_enroll;
 mod root_trust;
 mod terminal_session;
+mod trust_sas;
 mod webauthn_assertion;
 
 use human_proof::human_proof_verify;
@@ -39,10 +42,13 @@ pub use pairing::{
 };
 pub use root_enroll::{
     generate_root_signing_key, root_spki_der, EnrollmentConfirm, RootEnrollBegin, RootEnrollClient,
-    RootEnrollError, RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_BEGIN_PATH,
+    RootEnrollError,     RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_ARM_PATH, ROOT_ENROLL_BEGIN_PATH,
     ROOT_ENROLL_FINISH_PATH, ROOT_ENROLL_TTL_SECS,
 };
+pub use binary_identity::{pin_matches, process_executable_sha256_hex};
+pub use enrollment_arm::{EnrollmentArm, ENROLLMENT_ARM_TTL_SECS};
 pub use root_trust::{fingerprint_of_spki, RootTrustError, RootTrustRecord};
+pub use trust_sas::sas_from_fingerprint;
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
 
 /// Daemon-held integration state and browser pairings.
@@ -51,6 +57,8 @@ pub struct CliAppIntegrationHost {
     pub pairings: CliAppIntegrationPairings,
     /// One pending PAKE enrollment. A new begin replaces it.
     root_enroll: root_enroll::Sessions,
+    /// Enrollment may begin only while this window is armed (OS prompt on operator path).
+    pub enrollment_arm: enrollment_arm::EnrollmentArm,
     /// TCP peers (or test harness keys) bound to a daemon-issued terminal session id.
     tcp_terminal_sessions: HashMap<String, String>,
 }
@@ -68,8 +76,13 @@ impl CliAppIntegrationHost {
             store: CliAppIntegrationStore::new(),
             pairings: CliAppIntegrationPairings::default(),
             root_enroll: root_enroll::Sessions::default(),
+            enrollment_arm: enrollment_arm::EnrollmentArm::default(),
             tcp_terminal_sessions: HashMap::new(),
         }
+    }
+
+    pub fn arm_root_enrollment(&mut self, now_unix: u64) {
+        self.enrollment_arm.arm(now_unix, enrollment_arm::ENROLLMENT_ARM_TTL_SECS);
     }
 
     /// Issue or return the terminal session id for a non-UDS ensure (never trusts the client body).
@@ -147,10 +160,14 @@ pub struct PendingRequest {
 }
 
 /// In-memory integration state held by the daemon.
+const ENSURE_RATE_WINDOW_MS: u64 = 60_000;
+const ENSURE_RATE_MAX: usize = 8;
+
 pub struct CliAppIntegrationStore {
     approved: HashMap<String, ApprovedSession>,
     pending: HashMap<String, PendingRequest>,
     denied: HashSet<String>,
+    ensure_rate: HashMap<String, Vec<u64>>,
     next_request: u64,
     now_ms: u64,
 }
@@ -168,9 +185,24 @@ impl CliAppIntegrationStore {
             approved: HashMap::new(),
             pending: HashMap::new(),
             denied: HashSet::new(),
+            ensure_rate: HashMap::new(),
             next_request: 0,
             now_ms: 0,
         }
+    }
+
+    fn ensure_rate_limited(&mut self, terminal_session_id: &str) -> bool {
+        let window_start = self.now_ms.saturating_sub(ENSURE_RATE_WINDOW_MS);
+        let bucket = self
+            .ensure_rate
+            .entry(terminal_session_id.to_string())
+            .or_default();
+        bucket.retain(|t| *t >= window_start);
+        if bucket.len() >= ENSURE_RATE_MAX {
+            return true;
+        }
+        bucket.push(self.now_ms);
+        false
     }
 
     pub fn set_now_ms(&mut self, now_ms: u64) {
@@ -243,6 +275,9 @@ impl CliAppIntegrationStore {
     ) -> (String, Option<String>) {
         self.expire_pending();
         self.refuse_ambiguous_pending();
+        if self.ensure_rate_limited(terminal_session_id) {
+            return ("denied".into(), None);
+        }
         if self.denied.contains(terminal_session_id) {
             return ("denied".into(), None);
         }
@@ -253,7 +288,10 @@ impl CliAppIntegrationStore {
         }
         self.expire_idle();
         for row in self.pending.values() {
-            if row.terminal_session_id == terminal_session_id {
+            if row.terminal_session_id == terminal_session_id
+                && row.verb == verb
+                && row.reference.as_deref() == reference
+            {
                 return ("pending".into(), Some(row.request_id.clone()));
             }
         }
@@ -375,6 +413,10 @@ pub use seams_test_only::seam_decision;
 
 #[cfg(test)]
 mod store_conformance_tests;
+
+#[cfg(test)]
+#[path = "trust_sas_tests.rs"]
+mod trust_sas_tests;
 
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;

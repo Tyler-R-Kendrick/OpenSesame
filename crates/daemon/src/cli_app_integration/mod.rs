@@ -14,6 +14,7 @@ mod handlers;
 mod pairing;
 mod root_enroll;
 mod root_trust;
+mod root_trust_status;
 
 pub(crate) use root_trust::daemon_state_dir;
 
@@ -44,6 +45,10 @@ pub(crate) fn open_store(state_dir: Option<&Path>) -> SharedCliAppIntegration {
 pub(crate) fn routes(app: &App) -> Router<App> {
     let browser = Router::new()
         .route("/v1/cli/app-integration/pending", get(handlers::pending))
+        .route(
+            "/v1/cli/app-integration/root-trust/status",
+            get(root_trust_status::root_trust_status),
+        )
         .route("/v1/cli/app-integration/respond", post(handlers::respond))
         .route(
             "/v1/cli/app-integration/pairing/confirm",

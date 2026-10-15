@@ -122,7 +122,7 @@ fn trust_dir(state_dir: &Path) -> PathBuf {
 ///
 /// Returns [`TrustStoreError`] when the seal or key cannot be opened, or the
 /// plaintext is not a version-1 record bound to the seal revision.
-fn effective_guard_socket() -> Option<PathBuf> {
+pub(crate) fn effective_guard_socket() -> Option<PathBuf> {
     socket_path_from_env().or_else(|| {
         let path = PathBuf::from(DEFAULT_SOCKET_PATH);
         path.exists().then_some(path)

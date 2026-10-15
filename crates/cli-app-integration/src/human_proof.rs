@@ -45,6 +45,9 @@ pub(crate) fn human_proof_verify(
     }
     let rest = t.strip_prefix(PROOF_PREFIX)?;
     let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
+    if binding.webauthn.is_some() && !rest.starts_with("passkey:") && !rest.starts_with("software-passkey:") {
+        return None;
+    }
     if let Some((kind, tail)) = rest.split_once(':') {
         if kind == "pin" {
             // Pairing device keys are client-chosen; PIN proofs must not verify against them.

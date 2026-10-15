@@ -7,7 +7,7 @@ use axum::http::{header, Request, StatusCode};
 use base64::Engine as _;
 use opensesame_cli_app_integration::{
     fingerprint_of_spki, generate_root_signing_key, root_spki_der, RootEnrollClient,
-    RootTrustRecord, ROOT_ENROLL_BEGIN_PATH, ROOT_ENROLL_FINISH_PATH,
+    RootTrustRecord, ROOT_ENROLL_ARM_PATH, ROOT_ENROLL_BEGIN_PATH, ROOT_ENROLL_FINISH_PATH,
 };
 use tower::ServiceExt;
 
@@ -26,6 +26,15 @@ fn router_at(dir: Option<&Path>) -> (axum::Router, crate::App) {
     state.cli_root_trust_dir = dir.map(Path::to_path_buf);
     let app = crate::router(state.clone());
     (app, state)
+}
+
+fn arm_request() -> Request<Body> {
+    Request::builder()
+        .method("POST")
+        .uri(ROOT_ENROLL_ARM_PATH)
+        .header("x-opensesame-operator", crate::test_operator_token())
+        .body(Body::empty())
+        .unwrap()
 }
 
 fn begin_request(operator: bool, origin: bool) -> Request<Body> {
@@ -59,6 +68,8 @@ struct Started {
 }
 
 async fn begin(app: &axum::Router) -> Started {
+    let arm = app.clone().oneshot(arm_request()).await.unwrap();
+    assert_eq!(arm.status(), StatusCode::OK);
     let response = app
         .clone()
         .oneshot(begin_request(true, false))

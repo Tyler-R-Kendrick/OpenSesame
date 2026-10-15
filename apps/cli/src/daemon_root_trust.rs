@@ -2,8 +2,8 @@
 
 use base64::Engine as _;
 use opensesame_cli_app_integration::{
-    generate_root_signing_key, root_spki_der, RootEnrollClient, ROOT_ENROLL_BEGIN_PATH,
-    ROOT_ENROLL_FINISH_PATH,
+    generate_root_signing_key, pin_matches, root_spki_der, sas_from_fingerprint, RootEnrollClient,
+    ROOT_ENROLL_ARM_PATH, ROOT_ENROLL_BEGIN_PATH, ROOT_ENROLL_FINISH_PATH,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -24,6 +24,15 @@ pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
         })?;
     let entry = confirm_enrollment()?;
     let client = reqwest::Client::new();
+    let arm = client
+        .post(format!("{base}{ROOT_ENROLL_ARM_PATH}"))
+        .header("x-opensesame-operator", token)
+        .body(String::new())
+        .send()
+        .await?;
+    if !arm.status().is_success() {
+        anyhow::bail!("root trust enroll arm refused ({})", arm.status());
+    }
     let health = client.get(format!("{base}/health")).send().await?;
     if !health.status().is_success() {
         anyhow::bail!("daemon is not healthy at {base}");
@@ -43,6 +52,16 @@ pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
         anyhow::bail!("root trust enroll begin refused ({status}): {body}");
     }
     let begun: BeginBody = begin.json().await?;
+    let enroll_pin = std::env::var("OPENSESAME_ENROLL_BINARY_SHA256").unwrap_or_default();
+    if !enroll_pin.is_empty() && !pin_matches(&enroll_pin) {
+        anyhow::bail!("enroll CLI binary identity does not match the pinned hash");
+    }
+    if let Some(ref daemon_hash) = begun.daemon_binary_sha256 {
+        let expected = std::env::var("OPENSESAME_DAEMON_BINARY_SHA256").unwrap_or_default();
+        if !expected.is_empty() && daemon_hash != &expected {
+            anyhow::bail!("daemon binary identity does not match the pinned hash");
+        }
+    }
     let secret = decode_b64(&begun.enrollment_secret_b64)?;
     let daemon_message = decode_b64(&begun.message_b64)?;
     let signing = generate_root_signing_key();
@@ -70,9 +89,12 @@ pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
     let finished: FinishBody = finish.json().await?;
     let daemon_confirm = decode_b64(&finished.confirm_b64)?;
     confirm.verify_daemon(&daemon_confirm)?;
+    let sas = sas_from_fingerprint(&finished.spki_fingerprint)
+        .unwrap_or_else(|| "????-????-????-????".into());
     println!(
-        "CLI root trust enrolled (epoch {}, fingerprint {}).",
+        "CLI root trust enrolled (epoch {}, SAS {}, full fingerprint {}).",
         finished.enrollment_epoch,
+        sas,
         finished.spki_fingerprint
     );
     Ok(())
@@ -84,12 +106,14 @@ struct BeginBody {
     session_id: String,
     enrollment_secret_b64: String,
     message_b64: String,
+    daemon_binary_sha256: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FinishBody {
     spki_fingerprint: String,
+    spki_sas: Option<String>,
     enrollment_epoch: u64,
     confirm_b64: String,
 }
