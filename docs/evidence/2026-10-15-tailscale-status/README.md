@@ -9,7 +9,15 @@ The official Tailscale WASM SDK joins a real Headscale/DERP tailnet from the PWA
 
 Both are actual Vite production builds of the declared `loopback_development` tailnet verification profile, canonical origin `http://localhost:41911`. They were compiled from signed parents plus frozen overlays, not clean future-head checkouts. Root independently verified the before tree against signed commit `e9b48f1a794bcfe57a9f0d8b6414a2efc89d2fdd` in [PR1300](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1300). Root subsequently independently verified the after tree, parent, inventory and bytes against signed commit `1093cff9e0e0a194b2aea529dfa3351d1770c92a` in [PR1301](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/1301). The existing overlay build was retained; it was not rebuilt at that signed HEAD. `source-manifest.json` includes both exact source inventories, build receipts and SDK pins. Chromium is 151.0.7922.173. The static app server serves built files only.
 
+## Desktop: 1280 × 900 native viewports
+
+Three matched before/after states; full gallery 2638 × 3256 pixels.
+
 ![Desktop: real peer, live Connections home and capability withdrawal](1280-tailscale-status.webp)
+
+## Touch phone: 390 × 900 native viewports
+
+Three matched before/after states; full gallery 858 × 3256 pixels.
 
 ![Touch phone: real peer, live Connections home and capability withdrawal](390-tailscale-status.webp)
 
