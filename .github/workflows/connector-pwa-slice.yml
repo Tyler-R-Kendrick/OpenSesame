@@ -7,7 +7,7 @@ on:
 permissions: {}
 concurrency:
   group: connector-pwa-slice-6ab83118ea25e918
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   staging:
     if: ${{ github.repository == 'Tyler-R-Kendrick/OpenSesame' && github.ref == 'refs/heads/work/verified-contents-1253-1792017664643' }}
