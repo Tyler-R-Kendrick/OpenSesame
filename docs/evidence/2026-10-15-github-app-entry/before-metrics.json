@@ -1,0 +1,1266 @@
+{
+  "phase": "before",
+  "dist": "/workspace/work/pwa-github-entry-before/apps/pages/dist",
+  "distInventorySha256": "bb0d1101ec5423b9f0023d54679453cbb584e13c58b359df5f4862b2b90f7f6d",
+  "distFiles": [
+    {
+      "path": "assets/agent-ag-ui-R6rVfj6_.js",
+      "sha256": "6b8a808d3cd9ca4a5569e3f0998c1e0dd5ceb5d4b9b2233c511c3cfb31e982ea"
+    },
+    {
+      "path": "assets/agent-boundary-68bp64X_.js",
+      "sha256": "b6e3446b38673b8894920d4119cd39b85e590167844c3292a3b316954003ea20"
+    },
+    {
+      "path": "assets/agent-prompt-api-Z6v4KtNU.js",
+      "sha256": "f16e73b73688b21d57f0dfafb60e11fb8be7a172fe8ae8a84e85e1348430138c"
+    },
+    {
+      "path": "assets/agent-provider-D3fLiG1t.js",
+      "sha256": "c5f2bae47876bf21f70457ae6f0ebc1fe2172ff348fa69902041ed62e375a22c"
+    },
+    {
+      "path": "assets/AmbientAuthPanel-DvAlYFW2.js",
+      "sha256": "2424ce377c9dddb2179e0539bb24f2b12c8a7a1e05dbb1c33f6410dd928d0709"
+    },
+    {
+      "path": "assets/ApproveScreen-KUWDtBLd.js",
+      "sha256": "754df41941b498a03b48256ba6e1fa38aa342468bc3d153e39a95639a342851f"
+    },
+    {
+      "path": "assets/AppShell-BAlkbehk.js",
+      "sha256": "61adbcd0cca3cf4621813626541d2c5d530519123b5c47c8f5d7b9059f6b46f0"
+    },
+    {
+      "path": "assets/AppShell-BBeW7zoR.css",
+      "sha256": "39f9804ae1ede887a2cfeaa8508ded182b39f1d9828492d2ee1d386c0ded91fe"
+    },
+    {
+      "path": "assets/auth-outcome-weFuoELe.js",
+      "sha256": "5ec96f76ab29c87888d08c5e503ba8d1ed46706559bb615f2f4823d3660f2400"
+    },
+    {
+      "path": "assets/BackupEnableSwitch-BNv8QmI2.js",
+      "sha256": "6acd68754aecc640a7ac8a52251114ed6b24f14e94b168824fa6d4a181822c89"
+    },
+    {
+      "path": "assets/BackupEnableSwitch-Cn-nedP2.css",
+      "sha256": "85a816099de36415aef5aabdefdbd5d791f3cb0ec3f89a5b4a92618f1393f783"
+    },
+    {
+      "path": "assets/bitwarden_wasm_bg-BCWewrZg.wasm",
+      "sha256": "3722dfbef74f28d49c8e70aeeb532a4be21a1884abcc6292f0d1a58b0c612861"
+    },
+    {
+      "path": "assets/bitwarden_wasm_bg-CMaeY5j7.js",
+      "sha256": "e03f7e458fc8c1d31d88c8b6d9775616c11f05347ac144dba5e7b4473dcc2963"
+    },
+    {
+      "path": "assets/bitwarden_wasm_bg-CpUgD306.js",
+      "sha256": "167e5fcd70298965abe6bffed024385e7cf5abf87b150e5aa8419f4cbe55b01d"
+    },
+    {
+      "path": "assets/bitwarden-secrets.worker-BcnT2rKz.js",
+      "sha256": "9d9fcaf9fc1150d9bccdb7066af937767d768be0b2f50ab0df597e76bf5e1dd8"
+    },
+    {
+      "path": "assets/bucket-boot-Dc0E_4-t.js",
+      "sha256": "af994cfe6a2a083d877d9997603068fb184ce60e91057dfcd42020bc5d7d4241"
+    },
+    {
+      "path": "assets/cap-access.authority-DP3Gr1Ki.js",
+      "sha256": "8f7e219eac300a39be6c5cd41f4aaa09d9217e3c9d9f702a79dfd16b57d6eac2"
+    },
+    {
+      "path": "assets/cap-agents.surrogate-credentials-jXP2s13k.js",
+      "sha256": "78fdaf47ac285627c607fef1c5ebb5456df7e2eeb5e2b8519b61b6a24b87efa5"
+    },
+    {
+      "path": "assets/cap-agents.webmcp-B1WoBbOK.js",
+      "sha256": "f6978bb24236ca9f5dd37c9d3b8a29d0ae354ee5034626cd8c34e23551ee20df"
+    },
+    {
+      "path": "assets/cap-ai.password-reset-5f167k0x.js",
+      "sha256": "116cccbc750079ba1490e4a996025896bc8710596eca5e0d5acae20eccf34b18"
+    },
+    {
+      "path": "assets/cap-connectors.external-CsgAhXJ5.js",
+      "sha256": "4c79ce3f9ba71173fb34b1b89b5f35bc49d865965d04fea9546a95df589f5a1d"
+    },
+    {
+      "path": "assets/cap-enterprise.ca-administration-DFBMJr2z.js",
+      "sha256": "5c0d060f6ec8e4ff2175f3ba5d16b752feb29618853e468b315b0c56a0fed533"
+    },
+    {
+      "path": "assets/cap-enterprise.directory-provisioning-BNyDj4lT.js",
+      "sha256": "8f7ab7e9284fa9b32eb6c9c82d2275dc56b5196b0af30942db549308caf131ea"
+    },
+    {
+      "path": "assets/cap-identity.ambient-sso-DKT_FyBD.js",
+      "sha256": "443557a98c334d4eb0d9aad8cc6b322f6f87497192c0e225e66503d9a5c128e7"
+    },
+    {
+      "path": "assets/cap-identity.claim-different-link-DOtJ869m.js",
+      "sha256": "b1709e50a9cad722709df7a1b5a44d87eaa71897da5b8861e529866abab02889"
+    },
+    {
+      "path": "assets/cap-identity.federation-CIBVWLpJ.js",
+      "sha256": "717ae8425ac935945895d6a3c1ddb31d413540ddcabe08b40aeac099726c7b07"
+    },
+    {
+      "path": "assets/cap-identity.local-iam-BTcdSQIR.js",
+      "sha256": "da94d1d76beb2bbb0cc38c818577c72812ce353295e143df7eff14a10c4ef686"
+    },
+    {
+      "path": "assets/cap-identity.siop-BVoWZAst.js",
+      "sha256": "fd56db7d0f78fe465e361532235009e59de354315fdde860bd735f05c800b8d4"
+    },
+    {
+      "path": "assets/cap-networking.tailnet-devices-DCQZmKUZ.js",
+      "sha256": "47fb10342fc92a0b9a6a8760ef1c395abed9f22d77fc559b2e3e583a294bdf99"
+    },
+    {
+      "path": "assets/cap-networking.tailnet-yY3u4PsB.js",
+      "sha256": "ec842312fde25bdd81ace80cfac91f94da9140c44f7b79a001bed9d29c5802ab"
+    },
+    {
+      "path": "assets/cap-notifications.local-Blw1mQ14.js",
+      "sha256": "cbbb32cf089ebfa2515bb9634a7b9f7872e7b12a87d79f96e3ce98308211cade"
+    },
+    {
+      "path": "assets/cap-notifications.routing-BU6lPxLQ.js",
+      "sha256": "95443ce29d535f827535ed91a1d862c96b8753a8076c96e33edae9d0b3418c02"
+    },
+    {
+      "path": "assets/cap-notifications.web-push-BOIsOfeq.js",
+      "sha256": "435016479e6753ee0e7a5f910bb8659e15fb5c052400190235f976d0b28958fe"
+    },
+    {
+      "path": "assets/cap-sharing.household-B9C15KfX.js",
+      "sha256": "1366be23e8b57225550ebdc4974037d7bda0b52f6d15ddc816ae51553d53d77c"
+    },
+    {
+      "path": "assets/cap-sharing.live-DMSe5P2C.js",
+      "sha256": "bd49336479c95c4ab786ca8775d8ca0d44bc487a8b8bb0e0b7d60a78893513a1"
+    },
+    {
+      "path": "assets/cap-sharing.relay-6_ub65OR.js",
+      "sha256": "b8a33125a3ce3c85c5574781e2d9b1a0ad9eee58ab6994c57997587f8843dcba"
+    },
+    {
+      "path": "assets/cap-sharing.trusted-contacts-1xAxFhL5.js",
+      "sha256": "6c11f4ada8554d34009e48a39f03833ab40411401de0123122cb753be57d7bac"
+    },
+    {
+      "path": "assets/cap-storage.encrypted-search-Dl96F-S9.js",
+      "sha256": "d46e2baad24c91bf319e428c1d4fe5d7a830e6f11795f47c57e3c0208408d846"
+    },
+    {
+      "path": "assets/cap-support.local-ai-CzrXwcpW.js",
+      "sha256": "fbe95a209f3523c405628d9ce6ca6e5f292eb899ddc1fd25359360819eca4fac"
+    },
+    {
+      "path": "assets/cap-support.remote-ai-CXygTSw2.js",
+      "sha256": "2761739ef16f8096cb4f12241134dd6721c855ee44e51ffec55b4dce77c86073"
+    },
+    {
+      "path": "assets/cap-telemetry.external-DAdBlWzh.js",
+      "sha256": "345fa4bdf39a6a2701ece9b2cddfaee42fe532aa692ec08067021511437b66c6"
+    },
+    {
+      "path": "assets/cap-vault.browser-autofill-vupuDwhF.js",
+      "sha256": "28e9e5d0b4b5ceef9a27dbc2a57b8b41430b0ad08457948305bd8eb6a7880944"
+    },
+    {
+      "path": "assets/cap-vault.certificate-records-D7VpU8NV.js",
+      "sha256": "0b0483332ba7b7278c72502b7dc420035adce632ecfdb617cee33718dbb50d25"
+    },
+    {
+      "path": "assets/cap-vault.derived-records-C_F-dQT9.js",
+      "sha256": "f8848f37a4ffce0b3f8d51f149469bbe66e5aeb1965973b75d1f8b808664006f"
+    },
+    {
+      "path": "assets/cap-vault.environments-cnnlePgg.js",
+      "sha256": "30820aa7618f858e60445b98e4fdfed11139d4a8e45d9c98707d57283b409238"
+    },
+    {
+      "path": "assets/cap-vault.passkey-records-CKzuY6ui.js",
+      "sha256": "6a2352420f69a3fc28659a25f736d1bd55754beb60c9019d74f67c60259ec7c6"
+    },
+    {
+      "path": "assets/cap-vault.security-checks-DROSI8Ht.js",
+      "sha256": "67e0cfe7e409ac72f79652ce9808ad8c924fddc6d4388f304f5f6b4aeff17595"
+    },
+    {
+      "path": "assets/cap-wallet.spending-BnXvqzm0.js",
+      "sha256": "8b15245dfc657dfeebc957bf775091d7beda3e0321fcb92a6d96dc6ba8e2ba9d"
+    },
+    {
+      "path": "assets/CapabilitySwitch-CdNXNAwY.js",
+      "sha256": "cb065997c02fa38f2ff0cffec20d6f85e36d3b04586f611c889608072c2d5150"
+    },
+    {
+      "path": "assets/cli-app-integration-crypto-noKQjQK0.js",
+      "sha256": "8a25549cdb1e70aa63520d9c211f31fb0aa451cb2e901d10556cd60a6e8cd7b0"
+    },
+    {
+      "path": "assets/CoachHud-9Bqu4Gtl.css",
+      "sha256": "4ceed6d6fe00c049921bdbe5f444546d033089f2d75ba81dafaae14f8f27de7e"
+    },
+    {
+      "path": "assets/CoachHud-BF7AGXLU.js",
+      "sha256": "2bd3bf2ed1d44eee66af4e527f4a7d47e9b2552cced93d784472f723d2de9ecf"
+    },
+    {
+      "path": "assets/connect-plan-Cw8tGAKK.js",
+      "sha256": "481e6d8c5dfe34599e85afbb5dd0237d7a20a3007ef458304756caf498a3e7c1"
+    },
+    {
+      "path": "assets/connections-D8rgvDCC.js",
+      "sha256": "d1d8484a60921e72ea6c98561d9623c0a90e1395a7b323566956ee873d1ee568"
+    },
+    {
+      "path": "assets/connections-error-D7zbatLJ.js",
+      "sha256": "74280ab207c3d53b5c76e1d01f0988963440b765ba927bef898cbc86e7912441"
+    },
+    {
+      "path": "assets/connectivity-monitor-B9e_zfl2.js",
+      "sha256": "8fda5e281371fdfcabb8daedd3648d42ad9cc8355b3be5329fd51463c2dc92a5"
+    },
+    {
+      "path": "assets/connector-marks-BA_Uk7CW.js",
+      "sha256": "897a1d2c0962833ce48ac7091fa7b7ce3b29f729c7a396003a7be2c1b3e422e0"
+    },
+    {
+      "path": "assets/ConnectorMark-vobDd8Ld.js",
+      "sha256": "35a00486e1939b17ac136f1cf588e8fe8f7cbdb0f47dc1a99ca808c7dc021da6"
+    },
+    {
+      "path": "assets/consent-CxRXukUi.js",
+      "sha256": "4db7af9bb762f6a153c16bf2c813826a30549858234e6c6b497c6dc537903806"
+    },
+    {
+      "path": "assets/context-BuqXRH4F.js",
+      "sha256": "bb8eebebf4d13a82e5c673d581e2f71499c0697000e920a009c21e636aef3543"
+    },
+    {
+      "path": "assets/context-xg1gjulE.js",
+      "sha256": "877e432eda132a46635a686f17137b6036ea66c54a68d2aa6eb8a58163cb4706"
+    },
+    {
+      "path": "assets/Crumbs-41qsRfl-.js",
+      "sha256": "2f4569424f3ac4d368f4a44ecc3f13941b761fe1a0a84e0eb57261bb5132a87b"
+    },
+    {
+      "path": "assets/device-allow-CK5Z9z9j.js",
+      "sha256": "f61a7fdb493eda8413cc178af10371bb5ae89167e458ec115e600d28ebc835b7"
+    },
+    {
+      "path": "assets/device-allow-CxCVH4O3.css",
+      "sha256": "1ef8a42d3cac2469c0c4f19a438df1872cdf01c868bdb4d66d028d32b15c3b52"
+    },
+    {
+      "path": "assets/device-identity-carry-5fFplob2.js",
+      "sha256": "b6d7174dbb444e02f641ec3cccd670c199e565f3e30eeb9de935e54d3e4ef17b"
+    },
+    {
+      "path": "assets/device-identity-host-oklaaIXz.js",
+      "sha256": "1389e7cbe72cbbd369c35b86b1390c6eee1c6c70f7d903c5fb1f1bfc02e9a6b7"
+    },
+    {
+      "path": "assets/device-inbox-CaW8R0XY.js",
+      "sha256": "7dcb37c4b8f02821c661500807c4455d8632ef1d5079542fc719d4135fc65a6a"
+    },
+    {
+      "path": "assets/directory-panels-Df28_bb6.js",
+      "sha256": "aadd17674e973ffa04817d573169e204656df5899b10c5622435bd375d14cbfd"
+    },
+    {
+      "path": "assets/directory-panels-DiZjkKtX.css",
+      "sha256": "eee2d5dba9f14ffffdceb8c35c4f8c31000dfb1488ba2f645f223df5514e8419"
+    },
+    {
+      "path": "assets/DraftSuggestions-B889r1Ev.js",
+      "sha256": "313db8b7d5ec4bceaf2dbca2684d69900d55ff73f176baecd9ce1b9cf36c2c25"
+    },
+    {
+      "path": "assets/DraftSuggestions-DuLxCyqM.css",
+      "sha256": "91285e61703b6cc6ec23ae81dd6cfcc1614c7589e2942aed390800f3d6e4980d"
+    },
+    {
+      "path": "assets/EmptyTip-Dq8rQeoO.js",
+      "sha256": "5ed841dedfcb5607e47de704f7907874d2612f2202ea9df40fe395cb3d73f999"
+    },
+    {
+      "path": "assets/environments-Cnk2aurt.css",
+      "sha256": "f61dc408c49083e23404a252243d24ff5f42ed643ec6b1cca2521adf02e51aea"
+    },
+    {
+      "path": "assets/expiry-B1imiLJZ.js",
+      "sha256": "ee00ae525769f3538cac37213464bcfa0b78512c3b0a956321413128d89eb805"
+    },
+    {
+      "path": "assets/FeatureSections-D04byphG.js",
+      "sha256": "b87f801e86d5bf399081b964d4e7cc5cac995c3ce6bf4a12c5c391dfae0dda45"
+    },
+    {
+      "path": "assets/federation-configured-restoration-R88iTP5C.js",
+      "sha256": "e9530a2c0e3dfca3c9b7418d0e5f6345809b85124a018e819c547f685895ac94"
+    },
+    {
+      "path": "assets/gate-seat-BSMSXcuo.js",
+      "sha256": "4e59ef0f3bf1a5937dfa7d972c48520c2b11eddda62afb79b65117123b857432"
+    },
+    {
+      "path": "assets/gate-seat-D6oRkKUH.css",
+      "sha256": "c48a322d1c0045e759dc86c4fba8a8541836e99e94c8cd7266bc3a05a7e30e79"
+    },
+    {
+      "path": "assets/gesture-motion-CFw62GHO.js",
+      "sha256": "8431a4425b19d9984ab0a4b540c7879eaf20c1bc61931b7606adfc3008c8dd61"
+    },
+    {
+      "path": "assets/gesture-motion-CJkgn7S4.css",
+      "sha256": "6e04e2124adc5888e8950aa8ab5e1f0db680e55c33c1d75eaf71fec2a037828b"
+    },
+    {
+      "path": "assets/HealthPanel-_jSK1MhP.js",
+      "sha256": "7c568b49ff2d2b66426222b1389ffa2340c9da94ca60f789da33bdf2423e3515"
+    },
+    {
+      "path": "assets/hosted-identity-rail-BSXmtzdj.js",
+      "sha256": "82144ece21b48aace6728022efa5ad503fbb7cc421d63f9592553b23b71ca14f"
+    },
+    {
+      "path": "assets/hosted-identity-rail-CUw0rn2T.css",
+      "sha256": "3990d00b67f9e6e1891b2f81af1c7a2536f29a44a1c0e681b54802228b15fdbb"
+    },
+    {
+      "path": "assets/hosted-model-authority-D5-un9tY.js",
+      "sha256": "c80af7b691d05527a2fae80372d279fb1aaa9f59e8a12670e72099e3bbe9c3d4"
+    },
+    {
+      "path": "assets/hosted-model-protocol-U-4NzjjY.js",
+      "sha256": "258689084564b357c55b19cb6a3ad9fd2408c1664eeceacf5d970377f9e42f71"
+    },
+    {
+      "path": "assets/iam-BzgDVWR1.js",
+      "sha256": "fbb15a71b852303d5d188f329b64c13c2ab7d0af6feceedc85a1123b4e4a997b"
+    },
+    {
+      "path": "assets/iam-eLeEtpt3.css",
+      "sha256": "ba3b10b5f7606ab4f4cbe420534716c6184f9a2a32e1fba8bd014d4a9caa31a0"
+    },
+    {
+      "path": "assets/identity-DVMC1zHh.css",
+      "sha256": "e283b996b4b02d97cf4cb78439158719051e8bc775becec638cb814216a0b37d"
+    },
+    {
+      "path": "assets/identity-enterprise-BT7Mo-Nr.js",
+      "sha256": "3365148712c3d77652a56202db1d371908ccd144fdc225dbd79dd5c79dc3658d"
+    },
+    {
+      "path": "assets/identity-view-paths-CTFgiONd.js",
+      "sha256": "c6dc3bca8869b35f39c5824407d834cb87ad59e375db837a4a8e0e9c4070ab57"
+    },
+    {
+      "path": "assets/IdentityConnectionSignIn-vx84tVnU.js",
+      "sha256": "d157926745de1fc3f1a2d8a08898fa831721c6e99b9ffcbada637598266aecce"
+    },
+    {
+      "path": "assets/idp-presets-Bw2geFna.js",
+      "sha256": "7e53e3de1afb72583f314ebe0da768f93b1e8f08ce043a3abcbf6c3a995c9d90"
+    },
+    {
+      "path": "assets/index-DlX-OzPh.js",
+      "sha256": "94c3207c8c5fc53f5b613c0143b992573ccbf32600b81e81117581f80b1d0765"
+    },
+    {
+      "path": "assets/index-lBBzlTdh.js",
+      "sha256": "cb9be4a01e2e0a8f5b5a113387a591c9f28cf776b203a391216aca356af76181"
+    },
+    {
+      "path": "assets/install-D6AdGHBh.js",
+      "sha256": "6ce7748bc7703353845ac3f6227134baa6c0d25ceb92581662746f3767de17ad"
+    },
+    {
+      "path": "assets/InteractionScreen-BN3dVevd.js",
+      "sha256": "178ef8f745351308f6d2d223f4586456085ca33bb3d5b8a42ee768a429d8dec0"
+    },
+    {
+      "path": "assets/InvokeScreen-CsvSkues.css",
+      "sha256": "4df2a0757e51fac292678ba050c599b48ddcc2e792fc328cebabce9e2c8b0f18"
+    },
+    {
+      "path": "assets/InvokeScreen-pzMiOCta.js",
+      "sha256": "90ae19a25750c0fe3f6062ec50b250e26d18825143f28541805ddb80933c6b84"
+    },
+    {
+      "path": "assets/item-contributions-DNWphaLu.js",
+      "sha256": "89e367609f65c5e08305c6a615ba6ab51d006ea611c2c6bea3f325ae25fbbb18"
+    },
+    {
+      "path": "assets/item-secret-update-CXUPIe9N.js",
+      "sha256": "05c16e8ed8f87d4c47cdffd780a8cb4b22945f000e1107d66527ac69d55af8c2"
+    },
+    {
+      "path": "assets/item-type-pack-account-CoqotdBn.js",
+      "sha256": "f2fd7ed49837af6c00469634678785b8718b744bf714e1dbf7e86f24e0d65a9a"
+    },
+    {
+      "path": "assets/item-type-pack-address-CuEhIEN8.js",
+      "sha256": "f758c02e9cc5f767b9ea767eae58d711d7994aafc1005a898af0fd11ed3ce923"
+    },
+    {
+      "path": "assets/item-type-pack-api-credential-2taJJvyo.js",
+      "sha256": "863b87e87c46e735bdde8602899ff019ab2b4f50e9102dcd5f25235c56c3c020"
+    },
+    {
+      "path": "assets/item-type-pack-api-key-BtsbWNqK.js",
+      "sha256": "333ec1909f875ac70691a5d4cb72524ec03c88433e4a409ad741e78caf4286b2"
+    },
+    {
+      "path": "assets/item-type-pack-authenticator-C10FbI_v.js",
+      "sha256": "f18280f893ba28b7c7419dc5384f4f4d63f4fcbf637ad2ce1e9955f7ce6b28e8"
+    },
+    {
+      "path": "assets/item-type-pack-bank-account-C7tahN_l.js",
+      "sha256": "b440504060f49c06cf297feb711c35dab6e6c5eeb1447fe0caa11025b2f16c9f"
+    },
+    {
+      "path": "assets/item-type-pack-card-DI2dXCYa.js",
+      "sha256": "fb2f00534103f56f08ddfee2f0a6e56fea1b3d9d16be8606a9c0946b763dd94b"
+    },
+    {
+      "path": "assets/item-type-pack-contact-C8PeT6f9.js",
+      "sha256": "4d54876a32ca13aee942822a168b0e59b6805e56c6ada31e34bcbc54533508e4"
+    },
+    {
+      "path": "assets/item-type-pack-crypto-wallet-Sfg8ziqc.js",
+      "sha256": "bec9523a0a6a3626520dbdfc2cec025e4a928c095369b5dc45e6781999af99c0"
+    },
+    {
+      "path": "assets/item-type-pack-database-Dy7ScLs9.js",
+      "sha256": "2f8a44c35ec996236312ad1b65985c3af8006c3353d3977fc5ed0741d78442bc"
+    },
+    {
+      "path": "assets/item-type-pack-drivers-license-vMew977g.js",
+      "sha256": "8f3b36af9cecb5281abc30677ac499373f0a472348fb50b3e06ef487e48d1bb9"
+    },
+    {
+      "path": "assets/item-type-pack-health-insurance-DUixDMZj.js",
+      "sha256": "0a018a112ec23a9912fb432f691da31d745d7b69466edc8e87263e15eb56f748"
+    },
+    {
+      "path": "assets/item-type-pack-identity-document-FU9zx609.js",
+      "sha256": "8af9b738086681173d6681769a61dd0ee79f50e8a95844250e163b7e7d3433ae"
+    },
+    {
+      "path": "assets/item-type-pack-membership-D_NYNr9q.js",
+      "sha256": "4acfb22d8a4313df82dd474cbc9941ba27544d5a21f55d830511387aba3dc75a"
+    },
+    {
+      "path": "assets/item-type-pack-note-B3DY9bUR.js",
+      "sha256": "26954bc4e3d72e2d4373a574fbd0bd55688e493dea069a1b67718fc4d9f815a8"
+    },
+    {
+      "path": "assets/item-type-pack-oauth-client-DMhUuM7e.js",
+      "sha256": "93fc535fc02ce2644ae6c4a5f1aae15c46d0148f0012c8a7447bcfa260e85d61"
+    },
+    {
+      "path": "assets/item-type-pack-passport-B8VaXkBH.js",
+      "sha256": "6397648f1f9f70c5fd6e29a12092c8baf2ed4cd3b7e15f6f6191c202f3cde035"
+    },
+    {
+      "path": "assets/item-type-pack-password-D--bKPPZ.js",
+      "sha256": "b3ce70e80ebe6778c968b0e5b645b673956dd462d9c65a403055256517912c5a"
+    },
+    {
+      "path": "assets/item-type-pack-server-BwQMhxjI.js",
+      "sha256": "f902d0ccc659ce0e84c4d05cbf624ca3037e0db07ab2434bb07353141a008ba3"
+    },
+    {
+      "path": "assets/item-type-pack-software-license-CG2Bi2-4.js",
+      "sha256": "0a91c3e8466296a13962d542b4f5477c45ee58855bfe017092e30225a53d867a"
+    },
+    {
+      "path": "assets/item-type-pack-ssh-key-Cf4KqR5v.js",
+      "sha256": "d1e30b3cf9550f6b7dbe38d7050d6a341902840f984c43f9f9ee68b56450b00a"
+    },
+    {
+      "path": "assets/item-type-pack-token-Cfp58zHW.js",
+      "sha256": "293012fa25a35855c79575b65480d701670688ca8fd0bbe5f01647e6aa0f588f"
+    },
+    {
+      "path": "assets/item-type-pack-wifi-DlJBEYLH.js",
+      "sha256": "b9e631154e6f2c1b7f77ad87a6e42ceb3d39923fb6c144eb865e076f12a20aed"
+    },
+    {
+      "path": "assets/ItemDetail-BfMDR91J.js",
+      "sha256": "1d845525a4cc46be0a21be0504d492ade1b8e281dcf29f1e42a31812673e8a16"
+    },
+    {
+      "path": "assets/ItemEditor-xO5763tR.js",
+      "sha256": "54074e5a943a6c0c44d7a85653f5a59a6f6e500360d60d9bfce6c5467fbd187d"
+    },
+    {
+      "path": "assets/KeybindingsPanels-Buh32SBq.css",
+      "sha256": "884a6252e70279fd33cbed0d1c75e78bb111f6847563f1c08b6971af29fbac7f"
+    },
+    {
+      "path": "assets/KeybindingsPanels-CNN0LX3Q.js",
+      "sha256": "135359dcf7e79affe43018918d86b65b19e205416b256eb21b6782916fd74383"
+    },
+    {
+      "path": "assets/linearRedirect-D3RKS2Ey.js",
+      "sha256": "c7b349e35632a01eebde9fc42a128553209b46627732ae9a11c28bb141292570"
+    },
+    {
+      "path": "assets/listing-page-CYwZnP7_.js",
+      "sha256": "19ef9c5c1fbbf699791df93572874fb0f4eedf2fcbdb788d9ee463340f56c140"
+    },
+    {
+      "path": "assets/live-mqtt-DMlwgGQP.js",
+      "sha256": "844edfd37a648b3175440626e2983c23b884f45002c9ecb737fa8d2572c472f5"
+    },
+    {
+      "path": "assets/live-nats-Bm_Ll3Md.js",
+      "sha256": "2e5a4f648da9e4b1d9aa02f58c4cb664c0dd0bf0f01c7b8414d48e459bb394f3"
+    },
+    {
+      "path": "assets/live-nostr-DOG7ttaT.js",
+      "sha256": "9ae81f0234b166222a32bde3a97abcb927c759a82d14d945e5024615b29d4b28"
+    },
+    {
+      "path": "assets/local-applications-BBg9NLsL.js",
+      "sha256": "cad69889be022b25fd55df1c07bf0125e0ad36958f8735b77a79a95424761d8e"
+    },
+    {
+      "path": "assets/local-directory-bootstrap-FUKkFcNt.js",
+      "sha256": "641db555e8b7ec7c4ae5d06341e86ab91b72dde2ace4e9f05a5d56d0738634b6"
+    },
+    {
+      "path": "assets/local-notifications-files-_bPVuy_c.js",
+      "sha256": "5e96f42a198a0eece21cccd8aea9cb3c0257d2dd4d82e2318ca762b1d49be3bc"
+    },
+    {
+      "path": "assets/local-share-grants-approvals-DQ9P8-uK.js",
+      "sha256": "0f73d94978db52858500de4787403ca6ae85ba08d345021669c4cfc55dcd92fa"
+    },
+    {
+      "path": "assets/local-vault-sessions-CUBYU_YP.css",
+      "sha256": "2406fbd7b69a052468cb406676d2d5c00b62571e30a9f5376aada42bc70ca8ad"
+    },
+    {
+      "path": "assets/local-vault-sessions-Cv1NnD2S.js",
+      "sha256": "513e5031bfd4d690a6e02ae96b30dcd365ab6a8d65b1e7e7baa9ce9f0adeeb47"
+    },
+    {
+      "path": "assets/main-BiehmCE_.css",
+      "sha256": "9518b1aaf25e0c129c74aa16c97d1d9d675eea03bb1e21455c2f2a3982ba5b44"
+    },
+    {
+      "path": "assets/main-Kfrv3083.js",
+      "sha256": "701a4fe047086cfe8d5652a382fbf04a492b11f05d65adfc7e0e9481bcd9461e"
+    },
+    {
+      "path": "assets/MethodPicker-CuIYr6mZ.js",
+      "sha256": "e415eb0d95b0bac9fae1cc1b1da3317f1332d635136e85aa7895495d8faff670"
+    },
+    {
+      "path": "assets/MfaStep-D_0OiVNF.js",
+      "sha256": "37005b40c0e6b86fad6abd516b0c2b71727fe7f4774a69349e9ae701e306f8a2"
+    },
+    {
+      "path": "assets/msalRedirect-BJF0pD3e.js",
+      "sha256": "788b9807a358e530d7441d03227a120fcc3b653f4159377b38e1b300c14a4701"
+    },
+    {
+      "path": "assets/native-auth-return-BYLWNvBW.js",
+      "sha256": "45fb0ea221fd4e5d01c484b02d2bf9747a565cd9c2f9e777a78041e3ea8d3ddd"
+    },
+    {
+      "path": "assets/native-google-capability-BL2kb-lb.js",
+      "sha256": "664a1667dc8776fca044c2d6c8f99a7113d11a098ac85d12c01d97d7d02fa2c8"
+    },
+    {
+      "path": "assets/native-implicit-session-BlBOgR-6.js",
+      "sha256": "1d5988dfe57df6424fefa5f98714af3173cc703c5b082f8da60d8036be2d3f4b"
+    },
+    {
+      "path": "assets/nativeConnectorRedirect-D3RKS2Ey.js",
+      "sha256": "c7b349e35632a01eebde9fc42a128553209b46627732ae9a11c28bb141292570"
+    },
+    {
+      "path": "assets/nativeGoogleConsent-Ck2-vrPU.js",
+      "sha256": "13f1d7784a8fb4affca1739bbafc7e072b4158ba75c0f768e3965287495bc864"
+    },
+    {
+      "path": "assets/nativeImplicitRedirect-CLAEeq8z.js",
+      "sha256": "082ec7329a1121a5bfcc8094ffff507f5170a148837177f4cc9c253c25ac04ed"
+    },
+    {
+      "path": "assets/notation-DM5rzvvO.js",
+      "sha256": "183458830575599749ac075cef61b0d1916f00bd45033e302e1f502c77f7f342"
+    },
+    {
+      "path": "assets/notifications-BMwd5TeG.js",
+      "sha256": "bb927ed565fd16d6d39403f530683d3c1fafe7d703fafc40d8b8b922578f09e4"
+    },
+    {
+      "path": "assets/notifications-catalog-DFl7R0Ht.js",
+      "sha256": "0cab95760ce4422a978f64bc1f2771ff12f2c71de50dde34ea9a7b58df6c4671"
+    },
+    {
+      "path": "assets/notifications-CJoypYjy.css",
+      "sha256": "ed21070a772f4c6f76c821459df4d4c2138d9ece3364bc001d2b48ee601ba190"
+    },
+    {
+      "path": "assets/OpenFileKey-CWd_0Y5T.js",
+      "sha256": "cc9e54d498c3077d4edfaf5e5c1e15edcfe1f1333844f303bcfb2e8787037a5f"
+    },
+    {
+      "path": "assets/org-signin-B3f7CkXt.js",
+      "sha256": "c69ef11471bb9b9b66c4c5681d0c27579493afcc55c597316fd38e7f6bc8ee7e"
+    },
+    {
+      "path": "assets/os-logo-Dhy2KbxY.ttf",
+      "sha256": "630aac631f066cb298b03229c225424220beeefa93f6e04c4d391c5b1861bbb2"
+    },
+    {
+      "path": "assets/PageTreeBranch-DVy659ED.js",
+      "sha256": "69b098d90a76ec20e8d0c45ddfdfb55099eb26b48a969e710ac7623651623681"
+    },
+    {
+      "path": "assets/password-workflows-BakG5PFf.js",
+      "sha256": "0163b576ffc1308c20d818064342e397aff80c8306011c466690253bbd0ef242"
+    },
+    {
+      "path": "assets/path-suggest-CB-jWvUW.js",
+      "sha256": "4dd0942673917d88b36df8d0714b6b30431fcf9f36e3e5889e2b8620b8f720a8"
+    },
+    {
+      "path": "assets/payload-Btr6Q8o_.js",
+      "sha256": "60a925fd537cf3b409b142be0eba7964f51366709ad6c6660778b12d02916617"
+    },
+    {
+      "path": "assets/pin-kdf-QgE8Qw2k.js",
+      "sha256": "a63fd032e3b65f8985c4014ef37a95d5c0cfd4b3a573dc7eb72f52591a02075f"
+    },
+    {
+      "path": "assets/plugin-activation-C3uMvVTN.css",
+      "sha256": "2c7465439229e4194e706b00d61d2522db862b55fd61a96fd70af8d12130e1b2"
+    },
+    {
+      "path": "assets/plugin-activation-CaQdyojj.js",
+      "sha256": "d037466a5a02fbfae5472a25dbb3516778d0cda3800e4daa767a76ec6fe864d9"
+    },
+    {
+      "path": "assets/react-C1G76txQ.js",
+      "sha256": "def3c4b9d010c328f30d9a0e7487d71318dd3ae87a21b7b850a93a4fbd02d3a8"
+    },
+    {
+      "path": "assets/react-dom-BFHKdIf_.js",
+      "sha256": "622441d28e564ca92e4a78c200d415b55b1e950157f083c102f6d837f213a689"
+    },
+    {
+      "path": "assets/react-router-DxfH7UJy.js",
+      "sha256": "21ef6dcb83c9a782e7f0672e903ffd05815f64c1d459376c12aac3c5c8238a47"
+    },
+    {
+      "path": "assets/registration-Bxn8PGm8.js",
+      "sha256": "167c82d25127a98ac80f37d4c74a601eaf698e665896f8889f7cdec4bda91248"
+    },
+    {
+      "path": "assets/revision-GdeXEZLD.js",
+      "sha256": "89887a95986e152cf0f13491211ac09188eab17e511cd78161d28c53a3513da1"
+    },
+    {
+      "path": "assets/runtime-BFa23LKn.css",
+      "sha256": "2c0b8337d35adccfdd2161c5be3337f80d9c66cfabaf87ba4a830966c0b1afa3"
+    },
+    {
+      "path": "assets/runtime-BFRff5Cd.js",
+      "sha256": "4e12b4923ab2c060367301ecd7074419681c92f42c00bc42ef48a2efe63ceef8"
+    },
+    {
+      "path": "assets/runtime-BzHz3H7U.css",
+      "sha256": "2e53e0753102a3b47bbbaafdde440f61f561f0424141c12947f88e90707bfb77"
+    },
+    {
+      "path": "assets/runtime-C1qulqXH.js",
+      "sha256": "99d0219ebbb243628460b68f677e183a8b831785e09b173f0871af73abff9892"
+    },
+    {
+      "path": "assets/runtime-CN8gDkc-.js",
+      "sha256": "e8f273141b7dbc83ee2dfa08f57e2cca8efc67182afa5fdcf09de7738470aaa0"
+    },
+    {
+      "path": "assets/runtime-CRh-54XK.js",
+      "sha256": "f0618c6845a69c5c4d5178560e33fe04a1c8ae2935f5c2a13e17e4ddff08a36c"
+    },
+    {
+      "path": "assets/runtime-DpcFR6PY.js",
+      "sha256": "abd3994815b3003ccfe68503ae018413358d9292fcba0a5ce08a185d42c09368"
+    },
+    {
+      "path": "assets/runtime-lQmzmI3D.js",
+      "sha256": "0bb8046f48ac81987c546dc754fc8492a55c771028df813e3f7427ba2b02ebca"
+    },
+    {
+      "path": "assets/s3-sigv4-BKQl1m8a.js",
+      "sha256": "1561fc78826242c5ab5adb2018c874f01487c123ede09f9c951511b305f60bb7"
+    },
+    {
+      "path": "assets/saved-model-agent-D6SfwmtU.js",
+      "sha256": "ee6ed1488058d993387fe72afe3961210c1b41fa1d37c2dc76e5780ae711e145"
+    },
+    {
+      "path": "assets/scroll-renderer-2gzdlaWd.js",
+      "sha256": "f7493881e9bce9b747d677b8ca92d917fa7702161c878e88485d11b011ce9574"
+    },
+    {
+      "path": "assets/scroll-renderer-CPup0pR-.css",
+      "sha256": "13626c98c6b680e0ea941256ffb693c78e3aaee7de6c7b79258b9f4903d6fdc6"
+    },
+    {
+      "path": "assets/secret-backends-D8jIvfGI.js",
+      "sha256": "12e7e926d541488dda9c26bdb7235eca63e5ab2c0afd89d9a2e1938ec1370ec9"
+    },
+    {
+      "path": "assets/session-connections-CzrX1J8v.js",
+      "sha256": "73521aee94ab5c3f7bac5d669cc963bd4db5170f557e22bdf01c130350cf7229"
+    },
+    {
+      "path": "assets/session-connections-oSO_RMA1.css",
+      "sha256": "6cc9d2f47ed7c7956602d2bbb27f78963d56bcce272b08990f689d53c1ca5700"
+    },
+    {
+      "path": "assets/settings-ZmD3SZzI.css",
+      "sha256": "151d480f305447ca7a379a41299bda04a804c50d889d636cafd90d6e1752c359"
+    },
+    {
+      "path": "assets/SettingsSection-BR62zU3g.css",
+      "sha256": "454f989a5772b382b0e312c0b97ad11fb60fcfd36f74032922558a8dd3c6845a"
+    },
+    {
+      "path": "assets/SettingsSection-DwUm4kfo.js",
+      "sha256": "4cbff415bdbf919ed3a77f4bb41e189559f0ecd131288bef6bf5f5a89851cdce"
+    },
+    {
+      "path": "assets/shared-BYPDztjj.js",
+      "sha256": "6af325c5f994ce48d6dfb527150959df51e4a9f1935b9563feb04b3c4f7e6d14"
+    },
+    {
+      "path": "assets/SiopAuthorize-C2YitoX-.js",
+      "sha256": "cddee919261789c06b255181752d331a4e27c8f17d2ab43b83e6f98f6f7fc80a"
+    },
+    {
+      "path": "assets/site-broker-D1c3LTBc.js",
+      "sha256": "d7d363192d52f6071b0b93c8c3872d4bdcab22a2560139964ac40a3ed110de10"
+    },
+    {
+      "path": "assets/status-vaa8hAcd.js",
+      "sha256": "600f72bebf837f035ae9623cde1bda6fba5a97505a0ef90c2d341fb43ba356c4"
+    },
+    {
+      "path": "assets/StatusNote-1izBtBH3.js",
+      "sha256": "9fd6c5ccb2dcd17a2e6233d35a0b25df2d81dfe70f3ea3eb4abb0e3c6949cb34"
+    },
+    {
+      "path": "assets/SupportLauncher-BtSLwx45.css",
+      "sha256": "77bb0002d48a35575c61786e2f5b565cb421d2f5dee825bf2916cf98d0b5560f"
+    },
+    {
+      "path": "assets/SupportLauncher-CjBz86EC.js",
+      "sha256": "6afe839d4a3672997756cafbe0260ef93abdc93f0e68416fcc4f6c8834fcf0e4"
+    },
+    {
+      "path": "assets/SupportPanel-DFp97NsR.js",
+      "sha256": "f467198c26ab0ccb767ae6383611ee3d3f14dfddf29efd5e7a400d125621b112"
+    },
+    {
+      "path": "assets/tailnet-devices-B4-KR7Lk.css",
+      "sha256": "40d5bf9a1b9fa7cf2ec51bc0e410063140cb3cafb7cdb665082ae3c4319c8ef9"
+    },
+    {
+      "path": "assets/tailnet-devices-bCy4KbQg.js",
+      "sha256": "4197b8a6543df4bec5c425239b3cf3287b3a4f5c863b075c7e2c7ee3daf82bd1"
+    },
+    {
+      "path": "assets/tailnet-plugin-pairing-BnB3ZoUP.js",
+      "sha256": "3546967d120abfa545ed29d514e53849cbc98b51acd43de73975dc8cee175074"
+    },
+    {
+      "path": "assets/tailscale-artifacts-P7773yrI.js",
+      "sha256": "3bebae0a381be5cd39ef8657404e169f0b27c3165175e2f40244a6b21c7e1c46"
+    },
+    {
+      "path": "assets/tailscale-node-CjVovgpR.js",
+      "sha256": "891c8f0d705986fbe53fe6f9ce6858fb5c34d247415729f16be752f02de4beb8"
+    },
+    {
+      "path": "assets/trusted-contacts-6Wb8OPyR.js",
+      "sha256": "d7953a8045b419b8928db918289659672af1594098dd153f8d4274c3690605fa"
+    },
+    {
+      "path": "assets/trusted-contacts-h-u7ngVe.css",
+      "sha256": "5e4060ff42248f8c1d5d5cbf3bc586c4b5a61ad8b20c2e68d0053a1a47cfdb6b"
+    },
+    {
+      "path": "assets/UpLink-D9DhNEGJ.js",
+      "sha256": "eef08ed6996caccc86e57ba1d1a3ce65d530a3c68310da6b1696196a8d629771"
+    },
+    {
+      "path": "assets/use-access-book-B4DbnYPA.css",
+      "sha256": "2f90a2971713d48d372f3d6feb1497a3d30bd867cc343f1421d4563e2f6498af"
+    },
+    {
+      "path": "assets/use-access-book-BPerfkp5.js",
+      "sha256": "6e0a8351ac40f0c1160bf1fe2341d70b876c2be047286f703ce52d608fa73d67"
+    },
+    {
+      "path": "assets/use-coarse-pointer-BMhhj4IC.js",
+      "sha256": "3a08442b974a455a595222308224bafc1bcd022da1cee92c11ea11657b3c0f1c"
+    },
+    {
+      "path": "assets/use-integrations-drawn-CNHVTa8R.js",
+      "sha256": "b4889c240b4f546ea3eb56e291651085528262cc9d2c9c332afca0c4d7fdaef3"
+    },
+    {
+      "path": "assets/use-settings-category-Ci1J38pa.css",
+      "sha256": "133c0e548015f5051d4e0e5011ec654223c1391c45bb6fa121b4c18ffb46e765"
+    },
+    {
+      "path": "assets/use-settings-category-DwXOEzb0.js",
+      "sha256": "3820dbdb557e4fdbfd58d77fe33c40e95be096f5d87b9c8990547581817f0f26"
+    },
+    {
+      "path": "assets/use-vault-search-Cy48_tAA.css",
+      "sha256": "a960e9683ec0bebcde8ebb9c71715c0c5e9e4b27bc7accd4337893fc3ebfad15"
+    },
+    {
+      "path": "assets/use-vault-search-GT4XBm_B.js",
+      "sha256": "05efea6e93ed34001240df5f8edbc6a963dd0e7cd78847dfaad2203c8e3f039a"
+    },
+    {
+      "path": "assets/useLocalConsent-qhHPaowS.js",
+      "sha256": "ecd758847c6d783312d0a86c122287b007f0e69b6136470eb9da2e866d365471"
+    },
+    {
+      "path": "assets/vault-list-path-B-7xyCbm.js",
+      "sha256": "189630476bed28c84af86582e5b5cd93ec310fa72c2299938bece8a1835c91a2"
+    },
+    {
+      "path": "assets/vault-menu-D916_udg.js",
+      "sha256": "26f6a740b1fac80370329624f4d8f8dda8ad94f04fee58003c0b61a5f6496bf9"
+    },
+    {
+      "path": "assets/vaults-C7B1TKjF.js",
+      "sha256": "20a819ab278a92a58fc4b924152cce3492d3aacf95ad2afd7e15c1c5478bddc3"
+    },
+    {
+      "path": "assets/VaultSection-BUcbIjl5.css",
+      "sha256": "afa7844e80e84a83ac308780a2b1c7696853dc0e6b94669d326deff451801282"
+    },
+    {
+      "path": "assets/VaultSection-CfiQqJQ2.js",
+      "sha256": "10814fb2ccf398d7ae3719f5ffbfb84d9399df060b066e523bb5b596e7e84ab3"
+    },
+    {
+      "path": "assets/vendor-1password-save-bVqbF-cI.js",
+      "sha256": "6a43300e66a176818e65716fc6de4022ec0f917114055a9931423ece9878e949"
+    },
+    {
+      "path": "assets/vendor-ag-ui-sksj9mAq.js",
+      "sha256": "f84c619543bc07e69d899c99a0b37edc068e7ee2593c6c70c19b89e11acce15c"
+    },
+    {
+      "path": "assets/vendor-ai-sdk-D5d8KDg6.js",
+      "sha256": "4dc81805aee534b59f31476c9ca363276ec6072f4f45eedb3d28d3718cb3b6cd"
+    },
+    {
+      "path": "assets/vendor-msal-CaYIoT6p.js",
+      "sha256": "a6069229b1aa3b1e13611a32d3278310e99027dc30cc0300ce40b33bc87c6357"
+    },
+    {
+      "path": "assets/WalletSection-ZIO8F9el.js",
+      "sha256": "1acb3d8871ff862d2fe324719091a4904470b9bad55e5feb290544ca1eae9f7d"
+    },
+    {
+      "path": "assets/webmcp-sdk-LC086kxL.js",
+      "sha256": "437c31277fe1901aa1365b889443ab049cdb8dda10ab5dbfdece566f01edd25e"
+    },
+    {
+      "path": "assets/website-pattern.worker-DNsLb-Oo.js",
+      "sha256": "e1a12ecbbf3c63aa9211aa19aa2be0371b7fac1c444d5942bcb8f50a410d0290"
+    },
+    {
+      "path": "auth/linear.html",
+      "sha256": "ad80db09670e31048d3c0645b9e5bfef2f724477df5fb6468b7b1d572eaf8961"
+    },
+    {
+      "path": "auth/native-client.json",
+      "sha256": "2cc6ebf942864c651e0cdc2f4de2f1652c6487766f17e0749bd467e3bcf536f4"
+    },
+    {
+      "path": "auth/native-connector.html",
+      "sha256": "ac2737dc914aa483daccdbb040b0e7f089307dbb70c20e36e87fa2675a82591d"
+    },
+    {
+      "path": "auth/native-google.html",
+      "sha256": "1e8abdd4eb6305721e9062ce3bdc70cbc665934264dcb045825235e05b992d5c"
+    },
+    {
+      "path": "auth/native-implicit.html",
+      "sha256": "da8fe68d9fd69d8b001ac5da6562fc99c8e6a205a1bff51ba51fcae2b68e3b21"
+    },
+    {
+      "path": "auth/redirect.html",
+      "sha256": "295bdcc47b6dcaa4153e845c1780e75bb3b39d1ea5e45c86e692203908225f9c"
+    },
+    {
+      "path": "auth.js",
+      "sha256": "a957a3b0257daf6a8882dacad8197aae1fb389f510d92e8353f5b1ac7fa9eb18"
+    },
+    {
+      "path": "auth.js.sha384",
+      "sha256": "73ed818157f03eb756769129095e5662e2927118ed56a6875856ff7d1473a57a"
+    },
+    {
+      "path": "capability-distribution.json",
+      "sha256": "2d24c44eeb0555f432690a1f21d8b116995e7f09cd2af4dc5bc7052b3d4a08ad"
+    },
+    {
+      "path": "capability-graph.json",
+      "sha256": "a402ae91d4176865eae9dce3d7e239d7037cd032d017ffde7422a2ee5a41fde0"
+    },
+    {
+      "path": "icon.svg",
+      "sha256": "6f37b03f21ec062fab54cf5d8765268d94658c88f89b9e5d6248d6945de299e7"
+    },
+    {
+      "path": "index.html",
+      "sha256": "b08b57c197378edcb190fe91161d06d4ba862f2200cf79c9a2fe027702bca85d"
+    },
+    {
+      "path": "manifest.webmanifest",
+      "sha256": "e4eb41927527a651e1c23b759df902c3d6c5b3f794a6a083e6fb2a6d166ad9e3"
+    },
+    {
+      "path": "os-runtime-config.json",
+      "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    {
+      "path": "security-profile.json",
+      "sha256": "da5fe95fa9eee73685f5209486c1efba0fbbe1547e8ed77de825ccd1aad5f8c0"
+    },
+    {
+      "path": "siop-metadata.json",
+      "sha256": "750b5f717b74d9be0bb1d044cbe90987947476efc16b3776d30d9aea978031bd"
+    },
+    {
+      "path": "static-auth/1.0.2/opensesame-auth.min.js",
+      "sha256": "5d596356900c90fd044df9c600a693d317482b9ebaf7fe43b1b3a32d8de39af2"
+    },
+    {
+      "path": "static-auth/1.0.2/opensesame-auth.min.js.sha384",
+      "sha256": "e8dce15e002d623d51481e232fc7f4a58f877f55853c16b2327b4a736256fe8b"
+    },
+    {
+      "path": "static-auth/1.0.3/opensesame-auth.min.js",
+      "sha256": "b527eb4efb2cbfc48ce8b5c2be1a0d5bc2ed7b8dfc24c9377c15982ab8801906"
+    },
+    {
+      "path": "static-auth/1.0.3/opensesame-auth.min.js.sha384",
+      "sha256": "4605e61376de061cb0901976c3e967f84e80a522b7b1ea6d5b1d645170d37181"
+    },
+    {
+      "path": "static-auth/1.0.4/opensesame-auth.min.js",
+      "sha256": "3360f33850c6142bd0bb16b1e77062e0b2c6a09aaa30bc6320d033bbaca17098"
+    },
+    {
+      "path": "static-auth/1.0.4/opensesame-auth.min.js.sha384",
+      "sha256": "69a8b7b34ab22b9837e40b3fcab951e6490e42c334c583fbb9a40fec6bef7e5e"
+    },
+    {
+      "path": "static-auth/manifest.json",
+      "sha256": "f0dfbd7983d135b725abd3e0646076ec2bb6e29925e1552023ba40fa49eb8617"
+    },
+    {
+      "path": "sw-push.js",
+      "sha256": "362527373172d2dde1b08265e7beb7a076b2f10806635be494e237a28d1e6294"
+    },
+    {
+      "path": "sw.js",
+      "sha256": "da6727b7cab8104a0b3ba42e466fd0d4f5a4f104eaa9e921bc9c85171443fe38"
+    },
+    {
+      "path": "tailscale/go-runtime-3990fa87.js",
+      "sha256": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+    },
+    {
+      "path": "tailscale/LICENSE.txt",
+      "sha256": "5f03196aae91a9e7ce3a866cbf8fa283fd5e529a4a59d9be0a8abf1a968184c0"
+    },
+    {
+      "path": "tailscale/main-fbf63118.wasm.gz",
+      "sha256": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52"
+    }
+  ],
+  "compiledParentCommit": "d7729f546c23699aa1553b2e02c7b77d8f3f4ba8",
+  "sourceDescription": "Clean immutable parent worktree",
+  "overlayManifestSha256": null,
+  "indexSha256": "b08b57c197378edcb190fe91161d06d4ba862f2200cf79c9a2fe027702bca85d",
+  "measurements": [
+    {
+      "width": 1280,
+      "height": 900,
+      "step": "default",
+      "overflow": {
+        "viewport": 1280,
+        "document": 1280,
+        "overflow": false,
+        "coarse": false
+      },
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "label": "GitHub vault history",
+          "type": "button",
+          "x": 455.8125,
+          "y": 103,
+          "width": 38.390625,
+          "height": 22.390625
+        },
+        {
+          "tag": "INPUT",
+          "label": "GitHub personal access token",
+          "type": "password",
+          "x": 280,
+          "y": 256.625,
+          "width": 480,
+          "height": 34
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Verify and connect GitHub",
+          "type": "submit",
+          "x": 280,
+          "y": 341.125,
+          "width": 40,
+          "height": 40
+        }
+      ],
+      "statuses": [
+        {
+          "tone": "idle",
+          "label": "Not connected"
+        },
+        {
+          "tone": "warn",
+          "label": "GitHub personal access token is required."
+        }
+      ],
+      "pickerCount": 0,
+      "createButtonCount": 0,
+      "connectHeadingCount": 1,
+      "docsHref": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+      "url": "https://tyler-r-kendrick.github.io/OpenSesame/settings/connections/github"
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "step": "default",
+      "overflow": {
+        "viewport": 390,
+        "document": 390,
+        "overflow": false,
+        "coarse": true
+      },
+      "controls": [
+        {
+          "tag": "BUTTON",
+          "label": "GitHub vault history",
+          "type": "button",
+          "x": 191.8125,
+          "y": 169.78125,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "tag": "INPUT",
+          "label": "GitHub personal access token",
+          "type": "password",
+          "x": 16,
+          "y": 359.15625,
+          "width": 358,
+          "height": 44
+        },
+        {
+          "tag": "BUTTON",
+          "label": "Verify and connect GitHub",
+          "type": "submit",
+          "x": 16,
+          "y": 528.15625,
+          "width": 44,
+          "height": 44
+        }
+      ],
+      "statuses": [
+        {
+          "tone": "idle",
+          "label": "Not connected"
+        },
+        {
+          "tone": "warn",
+          "label": "GitHub personal access token is required."
+        }
+      ],
+      "pickerCount": 0,
+      "createButtonCount": 0,
+      "connectHeadingCount": 1,
+      "docsHref": "https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens",
+      "url": "https://tyler-r-kendrick.github.io/OpenSesame/settings/connections/github"
+    }
+  ],
+  "requests": [],
+  "checks": [
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280 default: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280 default: pointer mode matches device"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280 default: exactly one Connect heading"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280: baseline has no App method selector"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280: baseline has no Create App action"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280: baseline PAT form is visible"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390 default: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390 default: pointer mode matches device"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390 default: exactly one Connect heading"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390: baseline has no App method selector"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390: baseline has no Create App action"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390: baseline PAT form is visible"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "No external/provider HTTP requests without configured credentials"
+    }
+  ],
+  "log": [
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280 default: no horizontal document overflow"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280 default: pointer mode matches device"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280 default: exactly one Connect heading"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280: baseline has no App method selector"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280: baseline has no Create App action"
+    },
+    {
+      "step": "before-1280-default",
+      "kind": "PASS",
+      "detail": "1280: baseline PAT form is visible"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390 default: no horizontal document overflow"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390 default: pointer mode matches device"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390 default: exactly one Connect heading"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390: baseline has no App method selector"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390: baseline has no Create App action"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "390: baseline PAT form is visible"
+    },
+    {
+      "step": "before-390-default",
+      "kind": "PASS",
+      "detail": "No external/provider HTTP requests without configured credentials"
+    }
+  ],
+  "failures": [],
+  "compiledSourceTree": null,
+  "overlayFiles": [],
+  "browser": "Chromium 151.0.7922.173 built on Debian GNU/Linux 13 (trixie)"
+}
