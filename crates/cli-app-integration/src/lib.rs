@@ -14,6 +14,9 @@ use human_proof::human_proof_verify;
 use rand_core::{OsRng, RngCore as _};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
+
+/// Pin-probe ensure must never appear in the human approval queue (D7-2 U7).
+pub const DAEMON_PIN_PROBE_VERB: &str = "daemon-pin-probe";
 use std::sync::{Arc, Mutex};
 
 #[cfg(test)]
@@ -225,6 +228,12 @@ impl CliAppIntegrationStore {
         Some(("approved".into(), None))
     }
 
+    fn refuse_ambiguous_pending(&mut self) {
+        if self.pending.len() > 1 {
+            self.pending.clear();
+        }
+    }
+
     pub fn ensure(
         &mut self,
         terminal_session_id: &str,
@@ -233,6 +242,7 @@ impl CliAppIntegrationStore {
         reuse_approved_session: bool,
     ) -> (String, Option<String>) {
         self.expire_pending();
+        self.refuse_ambiguous_pending();
         if self.denied.contains(terminal_session_id) {
             return ("denied".into(), None);
         }
@@ -272,6 +282,7 @@ impl CliAppIntegrationStore {
         binding: &PairedBinding,
     ) -> (String, Option<u32>) {
         self.expire_idle();
+        self.refuse_ambiguous_pending();
         let Some(row) = self.pending.get(request_id) else {
             return ("wrongSession".into(), None);
         };
@@ -327,7 +338,12 @@ impl CliAppIntegrationStore {
 
     pub fn list_pending(&mut self) -> Vec<PendingRequest> {
         self.expire_pending();
-        self.pending.values().cloned().collect()
+        self.refuse_ambiguous_pending();
+        self.pending
+            .values()
+            .filter(|row| row.verb != DAEMON_PIN_PROBE_VERB)
+            .cloned()
+            .collect()
     }
 }
 
