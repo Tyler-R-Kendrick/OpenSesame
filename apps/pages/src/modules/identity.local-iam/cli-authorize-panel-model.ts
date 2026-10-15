@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import type { CliAuthorizeRow } from "./cli-authorize-mint-proof.js";
 import { postCliRespond } from "./cli-authorize-net.js";
+import { isCliAuthorizeProbeVerb } from "./cli-authorize-verb-label.js";
 import {
   runCliAuthorizePasskeyApprove,
   runCliAuthorizePinApprove,
@@ -72,14 +73,28 @@ function authHeaders(): Record<string, string> | null {
 }
 
 type PendingLoad = {
-  row: CliAuthorizeRow | null;
+  rows: CliAuthorizeRow[];
   loadError: string | null;
 };
+
+function pendingEntryToRow(entry: {
+  requestId: string;
+  terminalSessionId: string;
+  verb: string;
+  respondNonce: string;
+}): CliAuthorizeRow {
+  return [
+    entry.requestId,
+    entry.terminalSessionId,
+    entry.verb,
+    entry.respondNonce,
+  ];
+}
 
 async function loadPending(): Promise<PendingLoad> {
   const origin = daemonOrigin();
   const headers = authHeaders();
-  if (!origin || !headers) return { row: null, loadError: LOAD_UNREADABLE };
+  if (!origin || !headers) return { rows: [], loadError: LOAD_UNREADABLE };
   try {
     const res = await localNetworkFetch(
       `${origin}/v1/cli/app-integration/pending`,
@@ -90,21 +105,16 @@ async function loadPending(): Promise<PendingLoad> {
         headers,
       },
     );
-    if (!res.ok) return { row: null, loadError: LOAD_UNREADABLE };
+    if (!res.ok) return { rows: [], loadError: LOAD_UNREADABLE };
     const body = cliAuthorizePendingBodySchema.safeParse(await res.json());
-    if (!body.success) return { row: null, loadError: null };
-    const entry = body.data.pending[0];
-    if (!entry) return { row: null, loadError: null };
-    const row: CliAuthorizeRow = [
-      entry.requestId,
-      entry.terminalSessionId,
-      entry.verb,
-      entry.respondNonce,
-    ];
-    return { row, loadError: null };
+    if (!body.success) return { rows: [], loadError: null };
+    const rows = body.data.pending
+      .filter((entry) => !isCliAuthorizeProbeVerb(entry.verb))
+      .map((entry) => pendingEntryToRow(entry));
+    return { rows, loadError: null };
   } catch (error) {
     return {
-      row: null,
+      rows: [],
       loadError: blockedCopy(
         error instanceof DOMException ? error : null,
         LOAD_UNREADABLE,
@@ -114,7 +124,7 @@ async function loadPending(): Promise<PendingLoad> {
 }
 
 export function useCliAuthorizePanel() {
-  const [row, setRow] = useState<CliAuthorizeRow | null | undefined>(undefined);
+  const [rows, setRows] = useState<CliAuthorizeRow[] | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
@@ -128,7 +138,7 @@ export function useCliAuthorizePanel() {
       const pending = await loadPending();
       if (cancelled) return;
       setLoadError(pending.loadError);
-      setRow(pending.row);
+      setRows(pending.rows);
     };
     void refresh();
     const onVisibility = () => {
@@ -144,6 +154,8 @@ export function useCliAuthorizePanel() {
       window.clearInterval(timer);
     };
   }, []);
+
+  const row = rows?.[0] ?? null;
 
   async function finish(decision: "approve" | "deny", humanProof?: string) {
     if (!row || busy) return;
@@ -163,8 +175,9 @@ export function useCliAuthorizePanel() {
         humanProof,
       );
       setBusy(false);
-      if (ok) setRow(null);
-      else setMark("That did not work.");
+      if (ok) {
+        setRows((current) => current?.filter((entry) => entry[0] !== row[0]));
+      } else setMark("That did not work.");
     } catch (error) {
       setBusy(false);
       setMark(
@@ -187,7 +200,9 @@ export function useCliAuthorizePanel() {
   };
 
   return {
+    rows,
     row,
+    pendingCount: rows?.length ?? 0,
     loadError,
     busy,
     pinOpen,
