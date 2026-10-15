@@ -173,6 +173,32 @@ describe("useCopySecret", () => {
     expect(clipboard.writeText).not.toHaveBeenCalled();
   });
 
+  it("clears on lock without a clipboard-read prompt when read is not granted", async () => {
+    const clipboard = stubClipboard();
+    Object.defineProperty(navigator, "permissions", {
+      value: {
+        query: vi.fn().mockResolvedValue({ state: "prompt" }),
+      },
+      configurable: true,
+    });
+    act(() => {
+      vaultStore.setPrefs({ clipboardClearSeconds: 0 });
+    });
+
+    const { result } = renderHook(() => useCopySecret());
+    await result.current("secret-value");
+    clipboard.readText.mockClear();
+    clipboard.writeText.mockClear();
+
+    clearCopiedSecret();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(clipboard.readText).not.toHaveBeenCalled();
+    expect(clipboard.writeText).toHaveBeenLastCalledWith("");
+  });
+
   it("a second copy replaces the pending clear of the first", async () => {
     vi.useFakeTimers();
     const clipboard = stubClipboard();
