@@ -8210,10 +8210,7 @@
         "height": 900,
         "step": "configured-primary",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -8274,10 +8271,7 @@
         "height": 900,
         "step": "connected-before-peer",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -8383,10 +8377,7 @@
         "height": 900,
         "step": "stopped",
         "url": "http://localhost:41911/OpenSesame/connections/tailscale/conn_local_6b8fd45819ff1fe044ef",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -8457,10 +8448,7 @@
         "height": 900,
         "step": "cold-restored-primary",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -8531,10 +8519,7 @@
         "height": 900,
         "step": "cold-reconnected-before-peer",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -8640,10 +8625,7 @@
         "height": 900,
         "step": "unlocked-after-lock",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -8714,10 +8696,7 @@
         "height": 900,
         "step": "networking-withdrawn",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -8793,10 +8772,7 @@
         "height": 900,
         "step": "configured-primary",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -8857,10 +8833,7 @@
         "height": 900,
         "step": "connected-before-peer",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -8966,10 +8939,7 @@
         "height": 900,
         "step": "stopped",
         "url": "http://localhost:41911/OpenSesame/connections/tailscale/conn_local_1d03e6e6dbda68ebff8e",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -9040,10 +9010,7 @@
         "height": 900,
         "step": "cold-restored-primary",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -9114,10 +9081,7 @@
         "height": 900,
         "step": "cold-reconnected-before-peer",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -9223,10 +9187,7 @@
         "height": 900,
         "step": "unlocked-after-lock",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -9297,10 +9258,7 @@
         "height": 900,
         "step": "networking-withdrawn",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -9947,17 +9905,9 @@
             "heading": "1 Connect this PWA to Tailscale"
           }
         ],
-        "headings": [
-          "1 Connect this PWA to Tailscale"
-        ],
-        "labels": [
-          "Browser node hostname",
-          "Tailscale control server",
-          ""
-        ],
-        "buttons": [
-          "Connect browser node"
-        ],
+        "headings": ["1 Connect this PWA to Tailscale"],
+        "labels": ["Browser node hostname", "Tailscale control server", ""],
+        "buttons": ["Connect browser node"],
         "help": "1 Connect this PWA to Tailscale\nBrowser node hostname\nTailscale control server\nJoin with an existing auth key\n\nThe official Tailscale client runs inside this PWA. Sign in to join this browser node, or supply a provider-issued auth key. Private node state is encrypted in this vault.\n\nConnect browser node"
       },
       {
@@ -9969,18 +9919,9 @@
             "heading": "1 Connect this PWA to Tailscale"
           }
         ],
-        "headings": [
-          "1 Connect this PWA to Tailscale"
-        ],
-        "labels": [
-          "Browser node hostname",
-          "Tailscale control server",
-          ""
-        ],
-        "buttons": [
-          "Connect browser node",
-          "Forget local browser node"
-        ],
+        "headings": ["1 Connect this PWA to Tailscale"],
+        "labels": ["Browser node hostname", "Tailscale control server", ""],
+        "buttons": ["Connect browser node", "Forget local browser node"],
         "help": "1 Connect this PWA to Tailscale\nBrowser node hostname\nTailscale control server\nJoin with an existing auth key\n\nThe official Tailscale client runs inside this PWA. Sign in to join this browser node, or supply a provider-issued auth key. Private node state is encrypted in this vault.\n\nConnect browser node"
       },
       {
@@ -9992,18 +9933,9 @@
             "heading": "1 Connect this PWA to Tailscale"
           }
         ],
-        "headings": [
-          "1 Connect this PWA to Tailscale"
-        ],
-        "labels": [
-          "Browser node hostname",
-          "Tailscale control server",
-          ""
-        ],
-        "buttons": [
-          "Connect browser node",
-          "Forget local browser node"
-        ],
+        "headings": ["1 Connect this PWA to Tailscale"],
+        "labels": ["Browser node hostname", "Tailscale control server", ""],
+        "buttons": ["Connect browser node", "Forget local browser node"],
         "help": "1 Connect this PWA to Tailscale\nBrowser node hostname\nTailscale control server\nJoin with an existing auth key\n\nThe official Tailscale client runs inside this PWA. Sign in to join this browser node, or supply a provider-issued auth key. Private node state is encrypted in this vault.\n\nConnect browser node"
       },
       {
@@ -10015,17 +9947,9 @@
             "heading": "1 Connect this PWA to Tailscale"
           }
         ],
-        "headings": [
-          "1 Connect this PWA to Tailscale"
-        ],
-        "labels": [
-          "Browser node hostname",
-          "Tailscale control server",
-          ""
-        ],
-        "buttons": [
-          "Connect browser node"
-        ],
+        "headings": ["1 Connect this PWA to Tailscale"],
+        "labels": ["Browser node hostname", "Tailscale control server", ""],
+        "buttons": ["Connect browser node"],
         "help": "1 Connect this PWA to Tailscale\nBrowser node hostname\nTailscale control server\nJoin with an existing auth key\n\nThe official Tailscale client runs inside this PWA. Sign in to join this browser node, or supply a provider-issued auth key. Private node state is encrypted in this vault.\n\nConnect browser node"
       },
       {
@@ -10037,18 +9961,9 @@
             "heading": "1 Connect this PWA to Tailscale"
           }
         ],
-        "headings": [
-          "1 Connect this PWA to Tailscale"
-        ],
-        "labels": [
-          "Browser node hostname",
-          "Tailscale control server",
-          ""
-        ],
-        "buttons": [
-          "Connect browser node",
-          "Forget local browser node"
-        ],
+        "headings": ["1 Connect this PWA to Tailscale"],
+        "labels": ["Browser node hostname", "Tailscale control server", ""],
+        "buttons": ["Connect browser node", "Forget local browser node"],
         "help": "1 Connect this PWA to Tailscale\nBrowser node hostname\nTailscale control server\nJoin with an existing auth key\n\nThe official Tailscale client runs inside this PWA. Sign in to join this browser node, or supply a provider-issued auth key. Private node state is encrypted in this vault.\n\nConnect browser node"
       },
       {
@@ -10060,18 +9975,9 @@
             "heading": "1 Connect this PWA to Tailscale"
           }
         ],
-        "headings": [
-          "1 Connect this PWA to Tailscale"
-        ],
-        "labels": [
-          "Browser node hostname",
-          "Tailscale control server",
-          ""
-        ],
-        "buttons": [
-          "Connect browser node",
-          "Forget local browser node"
-        ],
+        "headings": ["1 Connect this PWA to Tailscale"],
+        "labels": ["Browser node hostname", "Tailscale control server", ""],
+        "buttons": ["Connect browser node", "Forget local browser node"],
         "help": "1 Connect this PWA to Tailscale\nBrowser node hostname\nTailscale control server\nJoin with an existing auth key\n\nThe official Tailscale client runs inside this PWA. Sign in to join this browser node, or supply a provider-issued auth key. Private node state is encrypted in this vault.\n\nConnect browser node"
       }
     ],
