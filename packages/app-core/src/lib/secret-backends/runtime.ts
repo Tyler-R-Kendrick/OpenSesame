@@ -3,8 +3,14 @@ import type { Connection } from "../connections.js";
 import { deviceProviderRevokers } from "../device-connectors.js";
 import { createSecretBackend } from "./factory.js";
 import {
+  type HeldSecretBackend,
+  type SecretBackendHandle as OpenBackend,
+  assertSecretBackendSessionOpen,
+  disposeSecretBackendProbe,
+  holdSecretBackend,
+} from "./runtime-admission.js";
+import {
   awaitSecretBackendOwner,
-  guardedSecretBackend,
   secretBackendVaultGuard,
 } from "./runtime-guard.js";
 import { secretBackendDeviceSeams } from "./seam.js";
@@ -18,20 +24,13 @@ import {
   writeSecretBackendConnection,
 } from "./store.js";
 import {
-  type SecretBackend,
   type SecretBackendConfiguration,
   type SecretBackendDraft,
   SecretBackendError,
-  type SecretBackendSession,
 } from "./types.js";
 
-type OpenBackend = { backend: SecretBackend; session: SecretBackendSession };
-type HeldBackend = OpenBackend & {
-  close(): Promise<void>;
-  current(): boolean;
-};
 type VaultGuard = Awaited<ReturnType<typeof secretBackendVaultGuard>>;
-const active = new Map<string, HeldBackend>();
+const active = new Map<string, HeldSecretBackend>();
 const generations = new Map<string, number>();
 const SavedConnectionId = z.string();
 function isSavedConnectionId(
@@ -99,8 +98,13 @@ function lifecycle(
 }
 async function disconnectSaved(connectionId: string): Promise<void> {
   const held = active.get(connectionId);
-  active.delete(connectionId);
   if (held) await held.close();
+}
+function releaseBackend(id: string | undefined, held: HeldSecretBackend): void {
+  if (id && active.get(id) === held) {
+    active.delete(id);
+    secretBackendDeviceSeams.changed();
+  }
 }
 function transientConfiguration(
   value: SecretBackendConfiguration,
@@ -133,37 +137,13 @@ async function authenticate(
   );
   try {
     lease.check();
+    assertSecretBackendSessionOpen(session);
     return { backend, session };
   } catch (error) {
     lease.close();
     void backend.disconnect(session).catch(() => undefined);
     throw error;
   }
-}
-function holdBackend(
-  raw: OpenBackend,
-  lease: ReturnType<typeof lifecycle>,
-  id: string | undefined,
-): HeldBackend {
-  let closed = false;
-  const close = async (provided: SecretBackendSession) => {
-    if (provided !== raw.session)
-      throw new SecretBackendError(
-        "authentication",
-        "This session belongs to a different backend.",
-      );
-    if (closed) return;
-    closed = true;
-    lease.close();
-    if (id && active.get(id)?.session === raw.session) active.delete(id);
-    await raw.backend.disconnect(raw.session);
-  };
-  return {
-    backend: guardedSecretBackend(raw.backend, raw.session, lease.check, close),
-    session: raw.session,
-    current: lease.current,
-    close: () => close(raw.session),
-  };
 }
 
 /** Configuration changes revoke prior admission before their guarded sealed commit. */
@@ -245,20 +225,28 @@ export async function connectSecretBackend(
       ? config
       : transientConfiguration(value, config);
     const raw = await authenticate(input, lease);
-    const held = holdBackend(raw, lease, id);
+    const held = holdSecretBackend(raw, lease, (entry) =>
+      releaseBackend(id, entry),
+    );
     guard.onInvalidated(() => {
       void held.close().catch(() => undefined);
     });
     try {
-      lease.check();
+      held.check();
       if (id) {
         active.set(id, held);
         deviceProviderRevokers[config.providerId] = async (connectionId) => {
           await deleteSecretBackendConnection(connectionId);
         };
+        secretBackendDeviceSeams.changed();
       }
+      held.check();
       retained = true;
-      return { backend: held.backend, session: held.session };
+      return {
+        backend: held.backend,
+        session: held.session,
+        signal: held.signal,
+      };
     } catch (error) {
       void held.close().catch(() => undefined);
       throw error;
@@ -295,11 +283,7 @@ export async function probeSecretBackend(
       transientConfiguration(draft, config),
       lease,
     );
-    await awaitSecretBackendOwner(
-      raw.backend.disconnect(raw.session),
-      lease.signal,
-    );
-    lease.check();
+    await disposeSecretBackendProbe(raw, lease);
   } finally {
     close();
   }
