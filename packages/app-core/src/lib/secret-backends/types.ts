@@ -3,6 +3,7 @@ export type SecretBackendMode =
   | "local"
   | "file-import"
   | "credential-management"
+  | "onepassword-sdk"
   | "onepassword-connect"
   | "bitwarden-api"
   | "bitwarden-secrets"
