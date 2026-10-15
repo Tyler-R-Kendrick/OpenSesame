@@ -79,7 +79,6 @@ export async function mintCliAuthorizePinProof(
   pin: string,
   header: VaultHeader,
 ): Promise<string> {
-  const binding = bindingFromRow(row);
   const { onCompleteUnlockCodeSubmission } = await import(
     "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js"
   );
