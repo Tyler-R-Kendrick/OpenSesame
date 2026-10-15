@@ -95,6 +95,16 @@ and `chrome-linux64` cache layouts are supported. A missing explicit path
 fails clearly. The selected executable is launched directly; no browser
 install or download is needed.
 
+`pnpm verify` (and `.github/workflows/complete-verify.yml`) always set
+`PLAYWRIGHT_CHROMIUM=/usr/bin/google-chrome`. Rebaseline the six PNGs on the
+same renderer before expecting Complete verify to pass: either run
+`VISUAL_UPDATE=1` with that executable on an `ubuntu-latest` host, or copy
+`tests/visual-contract/output/<name>-actual.png` from a failing Complete
+verify artifact into `.impeccable/screenshots/<name>.png` after reviewing the
+diff. Captures from `/opt/pw-browsers/chromium` or another Chrome build can
+differ by ~1–2% of pixels (cipher canvas rasterization) and will trip the 1.5%
+budget on CI even when the product UI is unchanged.
+
 ## Rebaselining (`VISUAL_UPDATE=1`)
 
 ```bash
