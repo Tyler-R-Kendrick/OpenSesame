@@ -7,6 +7,7 @@ import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { CliAuthorizePairingForm } from "./cli-authorize-pairing-form.js";
 import { useCliAuthorizePanel } from "./cli-authorize-panel-model.js";
+import { cliAuthorizeVerbLabel } from "./cli-authorize-verb-label.js";
 
 function CliAuthorizeEmpty({ loadError }: { loadError: string | null }) {
   return <p>{loadError ?? "No CLI request is waiting."}</p>;
@@ -15,7 +16,9 @@ function CliAuthorizeEmpty({ loadError }: { loadError: string | null }) {
 function CliAuthorizePairedPanel() {
   const panel = useCliAuthorizePanel();
   const {
+    rows,
     row,
+    pendingCount,
     loadError,
     busy,
     pinOpen,
@@ -29,12 +32,27 @@ function CliAuthorizePairedPanel() {
 
   return (
     <>
-      {row === undefined ? <output>Reading CLI request…</output> : null}
-      {row === null ? <CliAuthorizeEmpty loadError={loadError} /> : null}
-      {row ? (
+      {rows === undefined ? <output>Reading CLI request…</output> : null}
+      {rows !== undefined && row === null ? (
+        <CliAuthorizeEmpty loadError={loadError} />
+      ) : null}
+      {pendingCount > 0 ? (
         <p>
-          <code className="identity-ref">{row[2]}</code>
+          {pendingCount === 1
+            ? "1 CLI request waiting"
+            : `${pendingCount} CLI requests waiting`}
         </p>
+      ) : null}
+      {rows && rows.length > 0 ? (
+        <ul className="identity-cli-pending">
+          {rows.map((entry) => (
+            <li key={entry[0]}>
+              <span className="identity-ref">
+                {cliAuthorizeVerbLabel(entry[2])}
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : null}
       {row && pinOpen ? (
         <form onSubmit={onPin}>
