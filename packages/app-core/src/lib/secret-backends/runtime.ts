@@ -3,6 +3,7 @@ import type { Connection } from "../connections.js";
 import { deviceProviderRevokers } from "../device-connectors.js";
 import { createSecretBackend } from "./factory.js";
 import {
+  awaitSecretBackendOwner,
   guardedSecretBackend,
   secretBackendVaultGuard,
 } from "./runtime-guard.js";
@@ -70,14 +71,18 @@ function lifecycle(
   generation: number,
 ) {
   let open = true;
+  const lifetime = new AbortController();
+  const signal = AbortSignal.any([guard.signal, lifetime.signal]);
   const current = () =>
     open &&
+    !signal.aborted &&
     guard.current() &&
     (!id ||
       (generations.get(id) === generation &&
         signature(id, guard.tomb) === before));
   return {
     current,
+    signal,
     check() {
       if (!current())
         throw new SecretBackendError(
@@ -87,6 +92,7 @@ function lifecycle(
     },
     close() {
       open = false;
+      lifetime.abort();
       guard.close();
     },
   };
@@ -108,19 +114,29 @@ function transientConfiguration(
 }
 async function authenticate(
   config: SecretBackendConfiguration,
-  check: () => void,
+  lease: ReturnType<typeof lifecycle>,
 ): Promise<OpenBackend> {
-  const backend = await secretBackendRuntimeSeams.createBackend(
-    config.mode,
-    check,
+  lease.check();
+  const backend = await awaitSecretBackendOwner(
+    secretBackendRuntimeSeams.createBackend(
+      config.mode,
+      lease.check,
+      lease.signal,
+    ),
+    lease.signal,
   );
-  check();
-  const session = await backend.authenticate(config);
+  lease.check();
+  const session = await awaitSecretBackendOwner(
+    backend.authenticate(config),
+    lease.signal,
+    (late) => backend.disconnect(late),
+  );
   try {
-    check();
+    lease.check();
     return { backend, session };
   } catch (error) {
-    await backend.disconnect(session).catch(() => undefined);
+    lease.close();
+    void backend.disconnect(session).catch(() => undefined);
     throw error;
   }
 }
@@ -194,6 +210,7 @@ export async function connectSecretBackend(
 ): Promise<OpenBackend> {
   const guard = await secretBackendVaultGuard();
   let retained = false;
+  let close = guard.close;
   try {
     await hydrateSecretBackendConnections();
     assertVaultCurrent(guard);
@@ -221,12 +238,13 @@ export async function connectSecretBackend(
       );
     const generation = id ? advance(id) : 0;
     const lease = lifecycle(guard, id, before, generation);
-    if (id) await disconnectSaved(id);
+    close = lease.close;
+    if (id) await awaitSecretBackendOwner(disconnectSaved(id), lease.signal);
     lease.check();
     const input = isSavedConnectionId(value)
       ? config
       : transientConfiguration(value, config);
-    const raw = await authenticate(input, lease.check);
+    const raw = await authenticate(input, lease);
     const held = holdBackend(raw, lease, id);
     guard.onInvalidated(() => {
       void held.close().catch(() => undefined);
@@ -242,11 +260,11 @@ export async function connectSecretBackend(
       retained = true;
       return { backend: held.backend, session: held.session };
     } catch (error) {
-      await held.close().catch(() => undefined);
+      void held.close().catch(() => undefined);
       throw error;
     }
   } finally {
-    if (!retained) guard.close();
+    if (!retained) close();
   }
 }
 
@@ -256,6 +274,7 @@ export async function probeSecretBackend(
   existingId?: string,
 ): Promise<void> {
   const guard = await secretBackendVaultGuard();
+  let close = guard.close;
   try {
     await hydrateSecretBackendConnections();
     assertVaultCurrent(guard);
@@ -265,6 +284,7 @@ export async function probeSecretBackend(
     if (existingId && !generations.has(existingId))
       generations.set(existingId, generation);
     const lease = lifecycle(guard, existingId, before, generation);
+    close = lease.close;
     lease.check();
     const config = resolveSecretBackendConfiguration(
       draft,
@@ -273,12 +293,15 @@ export async function probeSecretBackend(
     );
     const raw = await authenticate(
       transientConfiguration(draft, config),
-      lease.check,
+      lease,
     );
-    await raw.backend.disconnect(raw.session);
+    await awaitSecretBackendOwner(
+      raw.backend.disconnect(raw.session),
+      lease.signal,
+    );
     lease.check();
   } finally {
-    guard.close();
+    close();
   }
 }
 
