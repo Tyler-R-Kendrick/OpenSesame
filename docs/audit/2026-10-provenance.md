@@ -318,3 +318,24 @@ Full repository quality and public static verification passed separately;
 required CI and complete security landing gates are not inferred from these
 results. OAuth-management UI removal and remaining provider gaps continue in
 separate slices.
+
+### Peering-only Tailscale primary configuration
+
+Codex and delegated Codex agents implemented and independently reviewed signed
+commit `540dbb8eadb4e4e1501174552c3fe5123f754726` (PR #1303). Grok
+authentication remains unavailable and Kimi is absent. The primary page now
+composes browser peering without OAuth app management or external-device
+provisioning. Actual before/after production builds of the declared loopback
+profile produced 184 desktop/touch checks, real official WASM control/DERP
+exchanges, native-peer HTTP 200, cold document reload and PIN unlock, and
+reconnect without another auth key. The after build compiled the exact parent
+plus frozen five-file overlay; its tree and bytes were independently matched
+to the later signed commit. All eight gallery viewports and both complete
+lossless WebP sheets preserve decoded native pixels exactly. Full original
+metrics and build receipts are retained. Provider-side fixture CORS/TLS edges
+and a DERP SPKI-only Chromium exception are explicit; no hosted tenant,
+ordinary hosted PKI, installed-offline test or general VPN claim is made.
+The initial hostname-helper diagnostic is preserved and excluded from 184.
+Focused tests, actual browser proof and full package runs are separately
+reported. Non-2xx service-probe presentation and other audited integrations
+remain unfinished; this entry UI does not complete them or waive landing CI.
