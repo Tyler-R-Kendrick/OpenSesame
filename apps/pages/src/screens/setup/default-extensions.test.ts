@@ -11,10 +11,12 @@ import { DEFAULT_EXTENSIONS } from "./default-extensions.js";
 const SECTIONS = new Set(["identity", "access", "connections", "item-types"]);
 
 describe("default extensions", () => {
-  it("is Identity, Connections, Access and item types, without ambient sign-in", () => {
+  it("is Identity, Connections, Access and item types, without SIOP or ambient sign-in", () => {
     const fromSections = FEATURES.filter((feature) => SECTIONS.has(feature.id))
       .flatMap((feature) => [...feature.capabilities])
-      .filter((id) => id !== "identity.ambient-sso")
+      .filter(
+        (id) => id !== "identity.ambient-sso" && id !== "identity.siop",
+      )
       .sort();
     expect([...DEFAULT_EXTENSIONS].sort()).toEqual(fromSections);
     for (const id of DEFAULT_EXTENSIONS) {
@@ -25,6 +27,7 @@ describe("default extensions", () => {
     }
     for (const id of [
       "identity.ambient-sso",
+      "identity.siop",
       "support.local-ai",
       "support.remote-ai",
       "agents.webmcp",
@@ -47,6 +50,7 @@ describe("default extensions", () => {
       expect(plan.approvedModules, id).toContain(`${id}/runtime`);
     }
     expect(plan.capabilities["identity.ambient-sso"]?.approved).toBe(false);
+    expect(plan.capabilities["identity.siop"]?.approved).toBe(false);
     expect(plan.capabilities["support.local-ai"]?.approved).toBe(false);
     expect(plan.approvedItemKinds).toContain("account");
     expect(plan.approvedItemKinds).toContain("secret");
