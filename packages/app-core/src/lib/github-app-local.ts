@@ -1,6 +1,7 @@
 import {
   type JsonObject,
   type JsonValue,
+  isJsonObject,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
@@ -10,13 +11,17 @@ import {
  * `github-app-secret.ts`. Registration URLs live in `github-app-manifest.ts`.
  */
 import { maybeLocalStore, sessionStore } from "../ports.js";
-import { readBoundedObject } from "./bounded-response.js";
-import { githubAppRelayBase } from "./github-app-relay.js";
+import { readGithubApp } from "./github-app-direct.js";
 import {
   adoptLegacyPendingPem,
   forgetGithubAppSecret,
+  pemFromVault as pemFromVaultForOwner,
   sealPendingGithubAppSecret,
 } from "./github-app-secret.js";
+import {
+  captureGithubAuthority,
+  invalidateGithubAppAuthority,
+} from "./github-app-vault-transport.js";
 
 export {
   hasPendingGithubAppSecret,
@@ -43,6 +48,7 @@ function notifyLocalGithubApp(): void {
 
 /** Drop the local App record (uninstall on GitHub or Remove on this device). */
 export function forgetLocalGithubApp(): void {
+  invalidateGithubAppAuthority();
   maybeLocalStore()?.removeItem(PUBLIC_KEY);
   forgetGithubAppSecret();
   try {
@@ -100,17 +106,17 @@ type GithubAppOwnerFields = {
 };
 
 export function ownerFromPayload(payload: JsonObject): GithubAppOwnerFields {
-  // Prefer top-level fields the relay adds from JWT GET /app; fall back to
-  // GitHub's nested `owner` object from convert / public lookup.
+  // Accept the legacy flattened owner fields; native GitHub responses use
+  // the nested owner object from conversion or an authenticated App read.
   if (isString(payload.ownerLogin) && payload.ownerLogin !== "") {
     return {
       ownerLogin: payload.ownerLogin,
       ownerType: isString(payload.ownerType) ? payload.ownerType : null,
     };
   }
-  const owner = overlapCast(payload.owner);
-  const login = isString(owner.login) ? owner.login : null;
-  const type = isString(owner.type) ? owner.type : null;
+  const owner = isJsonObject(payload.owner) ? payload.owner : null;
+  const login = owner && isString(owner.login) ? owner.login : null;
+  const type = owner && isString(owner.type) ? owner.type : null;
   return { ownerLogin: login, ownerType: type } satisfies GithubAppOwnerFields;
 }
 
@@ -187,12 +193,6 @@ export async function sealPendingGithubAppPem(): Promise<void> {
   await sealPendingGithubAppSecret();
 }
 
-function slugFromHtmlUrl(htmlUrl: string | null): string | null {
-  if (!htmlUrl) return null;
-  const match = /github\.com\/apps\/([^/?#]+)/u.exec(htmlUrl);
-  return match?.[1] ?? null;
-}
-
 const emptyApp = (): LocalGithubApp => ({
   id: "",
   key: "github-oauth",
@@ -204,38 +204,36 @@ const emptyApp = (): LocalGithubApp => ({
   installations: [],
 });
 
-/** Fill owner from the public apps card when convert omitted it. */
+/** Fill a missing owner through a locally signed, direct GitHub App read. */
 export async function refreshGithubAppOwner(
   app: LocalGithubApp = readLocalGithubApp() ?? emptyApp(),
 ): Promise<LocalGithubApp | null> {
   if (app.id === "") return null;
   if (app.ownerLogin) return app;
-  const slug = slugFromHtmlUrl(app.htmlUrl);
-  if (!slug) return app;
-  const base = githubAppRelayBase();
-  if (base === "") return app;
+  const pem = pemFromVaultForOwner(app);
+  if (!pem) return app;
+  let operation: ReturnType<typeof captureGithubAuthority> | null = null;
   try {
-    const response = await fetch(`${base}/api/github-app/lookup`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ slug }),
+    operation = captureGithubAuthority({
+      binding: () =>
+        readLocalGithubApp() === app && pemFromVaultForOwner(app) === pem,
     });
-    const payload = overlapCast(
-      await readBoundedObject(response, 16384, 8000).catch(() => null),
-    );
-    if (!response.ok || !isString(payload.ownerLogin)) return app;
-    const ownerType = isString(payload.ownerType) ? payload.ownerType : null;
+    const payload = await readGithubApp(operation.transport, {
+      appId: app.id,
+      privateKey: pem,
+    });
+    operation.transport.assertCurrent();
+    if (String(payload.id) !== app.id || !payload.owner) return app;
     const next: LocalGithubApp = {
       ...app,
-      ownerLogin: payload.ownerLogin,
-      ownerType,
+      ownerLogin: payload.owner.login,
+      ownerType: payload.owner.type,
     };
     rememberLocalGithubApp(next);
     return next;
   } catch {
-    return app;
+    return readLocalGithubApp();
+  } finally {
+    operation?.close();
   }
 }
