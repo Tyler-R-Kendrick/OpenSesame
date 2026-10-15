@@ -2,11 +2,11 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { ReloadKey } from "../../components/IconKey.js";
 import { RecordWorkspace } from "../../components/RecordWorkspace.js";
-import { DevicesWorkspaceBody } from "./devices-workspace-detail.js";
-import { deviceWorkspaceRows } from "./device-workspace-rows.js";
-import { identityRecordId } from "./identity-record-selection.js";
 import { useDevices } from "./LocalDevicesPanel.js";
 import { LocalIdentityNotices } from "./LocalIdentityNotices.js";
+import { deviceWorkspaceRows } from "./device-workspace-rows.js";
+import { DevicesWorkspaceBody } from "./devices-workspace-detail.js";
+import { identityRecordId } from "./identity-record-selection.js";
 
 export function DevicesWorkspace({
   tomb,
@@ -94,7 +94,6 @@ export function DevicesWorkspace({
         draft={draft}
         selected={selected}
         selectedId={selectedId}
-        listPath={listPath}
         approval={approval}
         tailnet={tailnet}
         onEditSelected={() =>
