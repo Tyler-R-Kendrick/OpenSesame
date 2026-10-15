@@ -9,7 +9,11 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { z } from "zod";
+import { zodJitless } from "../zod-jitless.js";
 import artifacts from "./onepassword-artifacts.json" with { type: "json" };
+
+// Dedicated workers do not inherit the document boot's Zod configuration.
+zodJitless();
 
 export const ONEPASSWORD_HTTP_MAX_BYTES = 4 * 1024 * 1024;
 export const ONEPASSWORD_HTTP_MAX_PENDING = 32;
