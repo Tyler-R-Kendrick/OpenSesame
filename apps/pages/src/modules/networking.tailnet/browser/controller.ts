@@ -6,6 +6,7 @@ import type {
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import {
   type TailscaleNodeRecord,
+  type TailscaleNodeState,
   browserNodeCredentialFingerprint,
   forgetBrowserNodeState,
   openBrowserNodeState,
@@ -41,7 +42,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
   private turn = 0;
   private session: ReturnType<typeof localVaultSessionGuard> | null = null;
   private record: TailscaleNodeRecord | null = null;
-  private expected: Record<string, string> = {};
+  private expected: TailscaleNodeState = {};
   private expectedCredential = "";
   private writes: Promise<void> = Promise.resolve();
   private writing = 0;
@@ -186,19 +187,30 @@ class BrowserNodeController implements TailscaleBrowserNode {
       })
       .catch(() => this.fail(turn));
   }
-  private persist(next: Record<string, string>, turn: number) {
+  private persist(next: TailscaleNodeState, turn: number) {
     this.writes = this.writes.then(async () => {
       this.check(turn);
       if (!this.record) throw new Error("Browser node credential is missing.");
+      const record = this.record;
+      const state = { ...next };
       this.writing++;
       try {
-        await writeBrowserNodeState(this.record, this.expected, next, () =>
-          this.check(turn),
+        const receipt = await writeBrowserNodeState(
+          record,
+          this.expected,
+          state,
+          () => this.check(turn),
         );
-        this.expected = next;
-        this.expectedCredential = browserNodeCredentialFingerprint(this.record);
+        this.check(turn);
+        if (
+          this.record !== record ||
+          browserNodeCredentialFingerprint(record) !== receipt
+        )
+          throw new Error("Tailscale private state changed after persistence.");
+        this.expected = state;
+        this.expectedCredential = receipt;
       } finally {
-        this.writing--;
+        if (turn === this.turn) this.writing--;
       }
       this.check(turn);
     });
@@ -325,6 +337,7 @@ class BrowserNodeController implements TailscaleBrowserNode {
     this.record = null;
     this.expected = {};
     this.expectedCredential = "";
+    this.writing = 0;
     this.writes = Promise.resolve();
     this.running = false;
     this.authorized = false;
