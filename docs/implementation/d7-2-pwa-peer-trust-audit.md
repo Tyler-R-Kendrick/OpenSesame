@@ -27,6 +27,12 @@ root helper, or CLI. Those surfaces stay **optional add-ons** only.
 - **Approvals:** `peer-trust/approval-queue.ts` — refuse >1 pending, rate limit, coalesce.
 - **Passkey tiering:** `peer-trust/human-proof-tier.ts` — software passkeys blocked on high-risk verbs.
 
+## TS CLI store parity (stacked PR)
+
+`CliAppIntegrationStore` in `cli-app-integration/session.ts` now matches daemon
+hygiene (coalesce, rate limit, refuse >1 pending, hide pin-probe verb). This is
+for **optional** CLI/daemon use only; the PWA peer path uses `PeerApprovalQueue`.
+
 ## Residual (honest)
 
 - PWA PAKE enrollment between two browsers is not in this PR; signaling carries an already-signed trust intro.
