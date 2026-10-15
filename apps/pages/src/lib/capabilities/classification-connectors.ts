@@ -3,7 +3,7 @@
  *
  * Split out of `classification-lib.ts` for the 400-line module budget.
  */
-import { each, optional } from "./classification-rule.js";
+import { core, each, optional } from "./classification-rule.js";
 
 const L = "src/lib/";
 const CONNECTORS = "connectors.external";
@@ -21,10 +21,22 @@ const CONNECTOR_FILES = [
   "secret-backends/",
 ];
 
-export const CONNECTOR_LIB_RULES = each(L, CONNECTOR_FILES, (p) =>
-  optional(
-    p,
-    CONNECTORS,
-    "connector catalogue, Connect, GitHub App, directory",
+export const CONNECTOR_LIB_RULES = [
+  core(
+    `${L}secret-backends/seam.ts`,
+    null,
+    "public secret backend view seam carries no runtime or credentials",
   ),
-);
+  optional(
+    "src/browser/secret-backend-",
+    CONNECTORS,
+    "browser-only secret backend API boundaries",
+  ),
+  ...each(L, CONNECTOR_FILES, (p) =>
+    optional(
+      p,
+      CONNECTORS,
+      "connector catalogue, Connect, GitHub App, directory",
+    ),
+  ),
+];
