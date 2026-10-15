@@ -1,0 +1,37 @@
+[package]
+name = "opensesame-cli-trust-guard"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Root-owned CLI root-trust seal helper (D7-2)"
+
+[lib]
+name = "opensesame_cli_trust_guard"
+
+[[bin]]
+name = "opensesame-cli-trust-guard"
+path = "src/bin/opensesame-cli-trust-guard.rs"
+
+[dependencies]
+opensesame-cli-app-integration = { path = "../cli-app-integration" }
+opensesame-sealed-store = { path = "../sealed-store" }
+opensesame-uds-authn = { path = "../uds-authn" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+zeroize = { workspace = true }
+rand_core = { version = "0.6", features = ["getrandom"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, optional = true }
+anyhow = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["socket", "user"] }
+
+[features]
+default = []
+# Enables the blocking accept loop in the helper binary.
+server-bin = ["tracing-subscriber"]
+
+[dev-dependencies]
+tempfile = "3"

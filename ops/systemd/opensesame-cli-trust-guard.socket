@@ -1,0 +1,13 @@
+[Unit]
+Description=OpenSesame CLI root-trust guard socket
+Before=opensesame-cli-trust-guard.service
+
+[Socket]
+ListenStream=/run/opensesame/cli-trust-guard.sock
+RuntimeDirectory=opensesame
+RuntimeDirectoryMode=0755
+SocketMode=0666
+Accept=yes
+
+[Install]
+WantedBy=sockets.target

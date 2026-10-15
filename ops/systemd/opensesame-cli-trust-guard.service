@@ -1,0 +1,22 @@
+[Unit]
+Description=OpenSesame CLI root-trust guard (per-UID sealing keys)
+Requires=opensesame-cli-trust-guard.socket
+
+[Service]
+Type=simple
+User=root
+Group=root
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_UNIX
+StateDirectory=opensesame
+StateDirectoryMode=0700
+UMask=0077
+Environment=OPENSESAME_CLI_TRUST_GUARD_STATE=/var/lib/opensesame/cli-trust
+Environment=OPENSESAME_CLI_TRUST_GUARD_LISTEN=/run/opensesame/cli-trust-guard.sock
+ExecStart=/usr/libexec/opensesame-cli-trust-guard
+
+[Install]
+WantedBy=multi-user.target

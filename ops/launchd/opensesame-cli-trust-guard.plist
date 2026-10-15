@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.opensesame.cli-trust-guard</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/libexec/opensesame-cli-trust-guard</string>
+	</array>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>OPENSESAME_CLI_TRUST_GUARD_STATE</key>
+		<string>/var/lib/opensesame/cli-trust</string>
+		<key>OPENSESAME_CLI_TRUST_GUARD_LISTEN</key>
+		<string>/var/run/opensesame/cli-trust-guard.sock</string>
+	</dict>
+	<key>UserName</key>
+	<string>root</string>
+	<key>GroupName</key>
+	<string>wheel</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+</dict>
+</plist>

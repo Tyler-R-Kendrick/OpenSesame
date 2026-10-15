@@ -1,15 +1,19 @@
 //! Sealed trust store for the enrolled daemon root trust key.
 //!
-//! The record (SPKI fingerprint and enrollment epoch) is an `.osseal` blob
-//! under the daemon state directory. The sealing key is owner-only beside it,
-//! so a copied blob does not reveal the fingerprint. Startup loads the record
-//! and calls `mark_root_key_enrolled`. A missing store leaves the key
-//! unenrolled. An unreadable store fails closed the same way.
+//! The enrolled record is loaded through the root-owned
+//! [`opensesame_cli_trust_guard`] when its socket is present (or required).
+//! Legacy user-state seals remain for tests only when the guard is not
+//! configured. Startup calls `mark_root_key_enrolled`. A missing store leaves
+//! the key unenrolled. An unreadable store fails closed.
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use opensesame_cli_app_integration::{CliAppIntegrationHost, RootTrustRecord};
+use opensesame_cli_trust_guard::{
+    guard_required, open_via_guard, seal_via_guard, socket_path_from_env, GuardError, GuardOpen,
+    DEFAULT_SOCKET_PATH,
+};
 use opensesame_sealed_store::{open_osseal, seal_osseal, ItemDataKey};
 use rand_core::{OsRng, RngCore};
 use serde::{Deserialize, Serialize};
@@ -118,7 +122,31 @@ fn trust_dir(state_dir: &Path) -> PathBuf {
 ///
 /// Returns [`TrustStoreError`] when the seal or key cannot be opened, or the
 /// plaintext is not a version-1 record bound to the seal revision.
+fn effective_guard_socket() -> Option<PathBuf> {
+    socket_path_from_env().or_else(|| {
+        let path = PathBuf::from(DEFAULT_SOCKET_PATH);
+        path.exists().then_some(path)
+    })
+}
+
 pub(crate) fn load(state_dir: &Path) -> Result<LoadOutcome, TrustStoreError> {
+    if let Some(socket) = effective_guard_socket() {
+        return match open_via_guard(&socket) {
+            Ok(GuardOpen::Absent) => Ok(LoadOutcome::Absent),
+            Ok(GuardOpen::Enrolled(record)) => Ok(LoadOutcome::Enrolled(record)),
+            Err(GuardError::Unavailable | GuardError::Unreadable | GuardError::Conflict) => {
+                Err(TrustStoreError::Unreadable)
+            }
+            Err(GuardError::Invalid) => Err(TrustStoreError::Unreadable),
+        };
+    }
+    if guard_required() {
+        return Err(TrustStoreError::Unreadable);
+    }
+    load_legacy(state_dir)
+}
+
+fn load_legacy(state_dir: &Path) -> Result<LoadOutcome, TrustStoreError> {
     let dir = trust_dir(state_dir);
     let seal_path = dir.join(SEAL_NAME);
     if !seal_path.is_file() {
@@ -143,6 +171,26 @@ pub(crate) fn load(state_dir: &Path) -> Result<LoadOutcome, TrustStoreError> {
 /// Returns [`TrustStoreError`] when the directory or files cannot be written,
 /// or the record cannot be sealed.
 pub(crate) fn save(state_dir: &Path, record: &RootTrustRecord) -> Result<(), TrustStoreError> {
+    if let Some(socket) = effective_guard_socket() {
+        let expected = record
+            .enrollment_epoch()
+            .checked_sub(1)
+            .unwrap_or(0);
+        return match seal_via_guard(&socket, record, expected) {
+            Ok(()) => Ok(()),
+            Err(GuardError::Unavailable | GuardError::Unreadable | GuardError::Conflict) => {
+                Err(TrustStoreError::Unreadable)
+            }
+            Err(GuardError::Invalid) => Err(TrustStoreError::Unreadable),
+        };
+    }
+    if guard_required() {
+        return Err(TrustStoreError::Unreadable);
+    }
+    save_legacy(state_dir, record)
+}
+
+fn save_legacy(state_dir: &Path, record: &RootTrustRecord) -> Result<(), TrustStoreError> {
     let dir = trust_dir(state_dir);
     ensure_private_dir(&dir)?;
     let key = load_or_create_key(&dir.join(KEY_NAME))?;
