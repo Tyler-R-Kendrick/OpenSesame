@@ -4,9 +4,16 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
 
+type NativeAuthorizationOwner = {
+  providerId: string;
+  pathname: string;
+  search: string;
+  generation: number;
+};
+
 type PendingAuthorization = {
   ticket: NativeAuthorizationTicket;
-  owner: object;
+  owner: NativeAuthorizationOwner;
   lease: object;
   retire(close?: boolean): void;
 };
@@ -20,6 +27,22 @@ function nativeVaultUiScope() {
     state.awaitingSecondStep,
     state.decoy,
   ]);
+}
+
+function nativeAuthorizationLease(
+  mount: { current: object | null },
+  latest: { current: NativeAuthorizationOwner },
+  owner: NativeAuthorizationOwner,
+  ticket: NativeAuthorizationTicket,
+) {
+  return () => {
+    const lease = mount.current;
+    if (!lease || latest.current !== owner) {
+      ticket.cancel();
+      throw new Error("This provider sign-in page ended");
+    }
+    return lease;
+  };
 }
 
 export function useNativeAuthorization(
@@ -71,18 +94,15 @@ export function useNativeAuthorization(
   useLayoutEffect(() => {
     const previous = selected.current;
     selected.current = connectionId;
-    if (previous && previous !== connectionId) withdraw.current();
-  }, [connectionId]);
+    const ticket = current.current?.ticket;
+    ticket?.selectConnection?.(connectionId);
+    const replaced = previous && previous !== connectionId;
+    if (ticket?.selectConnection ? !ticket.current() : replaced)
+      withdraw.current();
+  });
   const onAuthorization = useCallback(
     (ticket: NativeAuthorizationTicket) => {
-      const check = () => {
-        const lease = mount.current;
-        if (!lease || latest.current !== owner) {
-          ticket.cancel();
-          throw new Error("This provider sign-in page ended");
-        }
-        return lease;
-      };
+      const check = nativeAuthorizationLease(mount, latest, owner, ticket);
       const lease = check();
       current.current?.retire(true);
       if (check() !== lease) {
@@ -104,6 +124,11 @@ export function useNativeAuthorization(
         },
       };
       current.current = entry;
+      ticket.selectConnection?.(selected.current);
+      if (!ticket.current()) {
+        entry.retire(true);
+        throw new Error("This provider sign-in selection ended");
+      }
       setPending(entry);
       return () => entry.retire();
     },
