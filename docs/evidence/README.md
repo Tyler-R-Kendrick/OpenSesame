@@ -60,6 +60,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-15-secret-react-session/`](2026-10-15-secret-react-session/README.md) | Secret backend session cancellation |
 | [`2026-10-15-secret-react-action/`](2026-10-15-secret-react-action/README.md) | Mounted secret-backend action ownership |
 | [`2026-10-15-secret-probe-cancellation/`](2026-10-15-secret-probe-cancellation/README.md) | Secret backend Test cancellation |
+| [`2026-10-15-panel-status-touch/`](2026-10-15-panel-status-touch/README.md) | Panel status touch target |
 | [`2026-10-15-onepassword-native-configuration/`](2026-10-15-onepassword-native-configuration/README.md) | Native 1Password configuration |
 | [`2026-10-15-infisical-lifetime/`](2026-10-15-infisical-lifetime/README.md) | Infisical lifetime observations and preserved failures |
 | [`2026-10-15-github-app-entry/`](2026-10-15-github-app-entry/README.md) | Native GitHub App configuration entry: browser evidence |
