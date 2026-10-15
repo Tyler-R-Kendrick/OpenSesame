@@ -6,7 +6,8 @@
  * This watches the vault and, for every pack type it holds items of, records
  * how many (so the screen can say why that row has no switch) and installs
  * the type for this document if it is not already — in the background, for
- * the lifetime of the open vault, without remembering it as a choice.
+ * the lifetime of the open vault, without remembering it as a choice. Verified
+ * definition bytes are cached separately so the same items open offline.
  */
 
 import { itemTypeId } from "@opensesame/vault-core";
@@ -16,7 +17,7 @@ import {
   isPackLoaded,
   packEntries,
 } from "@opensesame/vault-item-types";
-import { enablePack } from "./installer.js";
+import { enablePack, releaseHeldPack } from "./installer.js";
 import { packsNeeded } from "./requires.js";
 import { isBusy, setCounts, statusOf, subscribePackState } from "./state.js";
 
@@ -36,13 +37,17 @@ export function countPackItems(
   return counts;
 }
 
-function settle(source: ItemSource): void {
+function settle(source: ItemSource, active: () => boolean): void {
   const counts = countPackItems(source.getSnapshot().items);
   setCounts(counts);
   for (const id of counts.keys()) {
     const { phase } = statusOf(id);
     if (!isPackLoaded(id) && !isBusy(phase) && phase !== "failed") {
-      enablePack(id, { keep: false });
+      enablePack(id, {
+        keep: false,
+        isNeeded: () =>
+          active() && countPackItems(source.getSnapshot().items).has(id),
+      });
     }
   }
 }
@@ -65,11 +70,22 @@ function settleNeeds(): void {
 
 /** Start watching; returns the stop function. */
 export function watchVaultTypes(source: ItemSource): () => void {
-  settle(source);
+  let active = true;
+  const isActive = () => active;
+  let held = new Set<string>();
+  const update = () => {
+    const next = new Set(countPackItems(source.getSnapshot().items).keys());
+    for (const id of held) if (!next.has(id)) releaseHeldPack(id);
+    held = next;
+    settle(source, isActive);
+  };
+  update();
   settleNeeds();
-  const stopItems = source.subscribe(() => settle(source));
+  const stopItems = source.subscribe(update);
   const stopPacks = subscribePackState(settleNeeds);
   return () => {
+    active = false;
+    for (const id of held) releaseHeldPack(id);
     stopItems();
     stopPacks();
   };
