@@ -279,3 +279,20 @@ GitHub account registration or installation claim. The evidence gallery also
 records a rejected plaintext-storage fixture as unverified, rather than as a
 passing saved-App check. Repository selection and backup caller migration are
 separate implementation slices and are not completed by the entry UI.
+
+### Verified shared AI connection projection
+
+Codex and delegated Codex agents implemented and independently reviewed the
+shared AI proof projection correction in signed commit
+`ac5d3c43ed68ca9032e7f107ed5df6ef47a7a4b6` (PR #1297). Grok authentication
+remains unavailable and Kimi is absent; no alternate tool output is claimed.
+Actual desktop and touch Chromium journeys use two real production builds of
+the declared loopback verification profile, a real PIN-sealed vault, and a
+real HTTP/CORS fixture: 60 behavioral checks, 16 inference requests and 16
+preflights, including four deliberate wrong-key refusals. This proves the
+configured-endpoint/proof/custody flow, not a hosted vendor account or global
+integration completion. The gallery retains the misleading unsaved hosted
+status and sticky earlier failed-Test flash as unresolved UI findings.
+Lossless WebP gallery compression independently compares every decoded pixel.
+Full package runs and required security landing checks remain separately
+reported; focused tests and browser results are not an aggregate pass.
