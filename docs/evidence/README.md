@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-15-github-app-entry/`](2026-10-15-github-app-entry/README.md) | Native GitHub App configuration entry: browser evidence |
+| [`2026-10-15-ai-connection-projection/`](2026-10-15-ai-connection-projection/README.md) | Verified AI connection projection: actual browser evidence |
 | [`2026-10-14-integration-settings/`](2026-10-14-integration-settings/README.md) | Integration settings: AI and Tailscale |
 | [`2026-10-14-identity-integrations/`](2026-10-14-identity-integrations/README.md) | Configurable identity integrations |
 | [`2026-10-14-byo-first/`](2026-10-14-byo-first/README.md) | BYO configuration first |
