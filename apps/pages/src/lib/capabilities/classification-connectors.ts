@@ -19,6 +19,7 @@ const CONNECTOR_FILES = [
   "github-installation-access",
   "identity-graph",
   "secret-backends/",
+  "ai-connections/",
 ];
 
 export const CONNECTOR_LIB_RULES = [
