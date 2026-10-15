@@ -94,7 +94,12 @@ fn exchange_requires_operator_armed_registration_every_time() {
     assert!(pairings.authorizes(&issued.token, origin));
 
     let (code2, _) = pairings.issue(origin, now).unwrap();
-    let sig2 = sign_pairing_confirm(&signing_key, &pairings.pending[0].pairing_challenge, &code2, origin);
+    let sig2 = sign_pairing_confirm(
+        &signing_key,
+        &pairings.pending[0].pairing_challenge,
+        &code2,
+        origin,
+    );
     let outcome2 = pairings
         .confirm(&code2, origin, &spki, &sig2, now)
         .expect("confirm second");

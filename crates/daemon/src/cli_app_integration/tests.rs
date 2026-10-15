@@ -414,7 +414,10 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
             "nonce-attacker",
             "read",
         );
-        let binding = host.pairings.binding_for(&issued.token, origin).expect("bind");
+        let binding = host
+            .pairings
+            .binding_for(&issued.token, origin)
+            .expect("bind");
         assert!(binding.webauthn.is_none());
         let (status, _) = host.store.approve(
             "clr_attacker",
@@ -489,13 +492,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
-    let pin_proof = mint_pin_human_proof(
-        &attacker,
-        request_id,
-        terminal_session_id,
-        nonce,
-        "read",
-    );
+    let pin_proof = mint_pin_human_proof(&attacker, request_id, terminal_session_id, nonce, "read");
     let respond = Request::builder()
         .method("POST")
         .uri("/v1/cli/app-integration/respond")

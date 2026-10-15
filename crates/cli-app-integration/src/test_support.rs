@@ -100,13 +100,7 @@ pub fn mint_test_human_proof(
     respond_nonce: &str,
     verb: &str,
 ) -> String {
-    mint_test_passkey_human_proof(
-        request_id,
-        terminal_session_id,
-        respond_nonce,
-        verb,
-        1,
-    )
+    mint_test_passkey_human_proof(request_id, terminal_session_id, respond_nonce, verb, 1)
 }
 
 #[must_use]
