@@ -89,7 +89,7 @@ export function DropCard({
   /** That copy includes the account password. */
   passwordInCopy?: boolean;
 }) {
-  const copy = useCopyFeedback();
+  const copyFeedback = useCopyFeedback();
   const user = username?.trim() ?? "";
   const clipboard = shareClipboard?.trim() ?? "";
   const expiresLabel = clockExpiry(drop.expiresAt, now);
@@ -97,13 +97,13 @@ export function DropCard({
     <section className="detail__group" aria-label="Drop ready">
       <h2 className="detail__grouphead">Drop ready</h2>
       <DropCardUsername username={user} />
-      <DropCardLinkRow link={drop.link} copy={copy} />
-      <DropCardUserCodeRow userCode={drop.userCode} copy={copy} />
+      <DropCardLinkRow link={drop.link} copy={copyFeedback} />
+      <DropCardUserCodeRow userCode={drop.userCode} copy={copyFeedback} />
       <DropCardMetaRows opensFor={opensFor} expiresLabel={expiresLabel} />
       <DropCardShareTextRow
         clipboard={clipboard}
         passwordInCopy={passwordInCopy}
-        copy={copy}
+        copy={copyFeedback}
       />
       <DropCardQr link={drop.link} />
     </section>

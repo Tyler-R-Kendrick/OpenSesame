@@ -3,13 +3,13 @@ import type { ReactNode } from "react";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
 import { QrCode } from "../../components/QrCode.js";
 
-type CopyFeedback = {
+export type DropCardCopyFeedback = {
   copied: string | null;
   failed: string | null;
-  onCopy: (key: string, value: string) => Promise<void>;
+  copy: (key: string, value: string) => Promise<void>;
 };
 
-type DropCopyProps = CopyFeedback & {
+type DropCopyProps = DropCardCopyFeedback & {
   label: string;
   value: string;
   fieldKey: string;
@@ -24,7 +24,7 @@ function DropCopyFieldRow({
   copyLabel,
   copied,
   failed,
-  onCopy,
+  copy,
   children,
 }: DropCopyProps) {
   return (
@@ -37,7 +37,7 @@ function DropCopyFieldRow({
           fieldKey={fieldKey}
           copied={copied}
           failed={failed}
-          onCopy={onCopy}
+          onCopy={copy}
         />
       }
     >
@@ -60,7 +60,7 @@ export function DropCardLinkRow({
   copy,
 }: {
   link: string;
-  copy: CopyFeedback;
+  copy: DropCardCopyFeedback;
 }) {
   return (
     <DropCopyFieldRow
@@ -82,7 +82,7 @@ export function DropCardUserCodeRow({
   copy,
 }: {
   userCode: string;
-  copy: CopyFeedback;
+  copy: DropCardCopyFeedback;
 }) {
   return (
     <DropCopyFieldRow
@@ -104,7 +104,7 @@ export function DropCardShareTextRow({
 }: {
   clipboard: string;
   passwordInCopy: boolean;
-  copy: CopyFeedback;
+  copy: DropCardCopyFeedback;
 }) {
   if (clipboard === "") return null;
   return (
