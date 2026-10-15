@@ -77,6 +77,49 @@ describe("Authorize CLI pending check", () => {
       expect(screen.queryByText(EMPTY)).toBeNull();
     });
 
+    it("lists every pending row with a readable verb and hides pin probes", async () => {
+      localNetworkFetchSeams.eligible = () => true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                pending: [
+                  {
+                    requestId: "clr_1",
+                    terminalSessionId: "tcp:127.0.0.1:1",
+                    verb: "daemon-pin-probe",
+                    respondNonce: "n1",
+                  },
+                  {
+                    requestId: "clr_2",
+                    terminalSessionId: "tcp:127.0.0.1:2",
+                    verb: "run",
+                    respondNonce: "n2",
+                  },
+                  {
+                    requestId: "clr_3",
+                    terminalSessionId: "tcp:127.0.0.1:3",
+                    verb: "vault-ls",
+                    respondNonce: "n3",
+                  },
+                ],
+              }),
+              {
+                status: 200,
+                headers: { "content-type": "application/json" },
+              },
+            ),
+        ),
+      );
+      showPaired();
+      expect(await screen.findByText("2 CLI requests waiting")).toBeTruthy();
+      expect(screen.getByText("Run")).toBeTruthy();
+      expect(screen.getByText("Vault Ls")).toBeTruthy();
+      expect(screen.queryByText("daemon-pin-probe")).toBeNull();
+    });
+
     it("still says no request is waiting when the daemon answers with an empty queue", async () => {
       localNetworkFetchSeams.eligible = () => true;
       vi.stubGlobal(
