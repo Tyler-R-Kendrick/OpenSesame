@@ -12,12 +12,14 @@ use crate::device_crypto::{
     verify_p256_sha256,
 };
 use crate::pairing_code::{digest_hex, find_digest, pairing_id, registration_code, same, secret};
+use crate::root_trust::RootTrustRecord;
 
 pub use crate::pairing_code::{
     format_pairing_code, is_device_public_key_shaped, is_pairable_origin, is_secret_shaped,
 };
 
 mod binding;
+mod root_enroll;
 
 pub const PAIRING_CODE_PREFIX: &str = "opensesame-cli-app:v1:";
 pub const CODE_TTL_SECS: u64 = 300;
@@ -122,8 +124,10 @@ pub struct ConfirmOutcome {
 pub struct CliAppIntegrationPairings {
     pending: Vec<Pending>,
     paired: Vec<PairedPage>,
-    /// False until a later unit enrolls the daemon root trust key.
+    /// False until [`Self::mark_root_key_enrolled`] or the test seam enrolls the root trust key.
     root_key_enrolled: bool,
+    /// Fingerprint and epoch from the trust store. Absent for the test seam.
+    root_trust: Option<RootTrustRecord>,
 }
 
 impl CliAppIntegrationPairings {
@@ -136,7 +140,9 @@ impl CliAppIntegrationPairings {
         self.root_key_enrolled
     }
 
-    /// Test seam: mark the root trust key enrolled. Production enrollment is a later unit.
+    /// Test seam: mark the root trust key enrolled without a trust-store record.
+    ///
+    /// Production startup uses [`Self::mark_root_key_enrolled`].
     #[cfg(any(test, feature = "test-seams"))]
     pub fn enroll_root_key_for_tests(&mut self) {
         self.root_key_enrolled = true;

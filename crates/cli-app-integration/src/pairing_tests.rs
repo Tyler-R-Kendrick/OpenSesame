@@ -1,4 +1,5 @@
 use super::*;
+use crate::root_trust::{fingerprint_of_spki, RootTrustRecord};
 use crate::test_support::TEST_VAULT_SESSION_ROOT_DIGEST;
 use base64::Engine as _;
 use ecdsa::signature::Signer;
@@ -23,7 +24,8 @@ fn device_key_b64() -> (SigningKey, String) {
 fn enrolled_pairings() -> CliAppIntegrationPairings {
     let mut pairings = CliAppIntegrationPairings::default();
     assert!(!pairings.is_root_key_enrolled());
-    pairings.enroll_root_key_for_tests();
+    let record = RootTrustRecord::new(fingerprint_of_spki(&[7u8; 32]), 1).expect("record");
+    pairings.mark_root_key_enrolled(record);
     assert!(pairings.is_root_key_enrolled());
     pairings
 }
@@ -201,8 +203,29 @@ fn pairing_ops_refuse_until_root_key_enrolled() {
         Err(PairingError::RootKeyNotEnrolled)
     ));
     assert!(!pairings.is_root_key_enrolled());
+    assert!(pairings.root_trust().is_none());
     assert!(pairings
         .pending
         .iter()
         .all(|pending| !pending.registration_armed));
+}
+
+#[test]
+fn mark_root_key_enrolled_keeps_the_store_record() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    let first = RootTrustRecord::new(fingerprint_of_spki(b"one"), 1).expect("first");
+    pairings.mark_root_key_enrolled(first.clone());
+    assert_eq!(pairings.root_trust(), Some(&first));
+    let second = RootTrustRecord::new(fingerprint_of_spki(b"two"), 2).expect("second");
+    pairings.mark_root_key_enrolled(second.clone());
+    assert!(pairings.is_root_key_enrolled());
+    assert_eq!(pairings.root_trust(), Some(&second));
+}
+
+#[test]
+fn test_seam_enrolls_without_a_trust_record() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    pairings.enroll_root_key_for_tests();
+    assert!(pairings.is_root_key_enrolled());
+    assert!(pairings.root_trust().is_none());
 }

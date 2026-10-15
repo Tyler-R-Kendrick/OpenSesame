@@ -4,6 +4,7 @@ mod device_crypto;
 mod human_proof;
 mod pairing;
 mod pairing_code;
+mod root_trust;
 mod terminal_session;
 mod webauthn_assertion;
 
@@ -32,6 +33,7 @@ pub use pairing::{
     CliAppIntegrationPairings, ConfirmOutcome, Issued, PairedBinding, PairingError,
     WebAuthnCredential, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES, PAIRING_CODE_PREFIX,
 };
+pub use root_trust::{fingerprint_of_spki, RootTrustError, RootTrustRecord};
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
 
 /// Daemon-held integration state and browser pairings.
