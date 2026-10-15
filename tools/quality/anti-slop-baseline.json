@@ -11,8 +11,8 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 162,
-    "violations": 560,
+    "files": 161,
+    "violations": 559,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
@@ -24,7 +24,7 @@
       "anti-slop/no-unknown-parameters": 34,
       "anti-slop/no-unknown-returns": 2,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 104
+      "anti-slop/require-safety-comment-for-type-assertion": 103
     }
   },
   "files": {
@@ -151,9 +151,6 @@
       "anti-slop/no-known-value-widening": 1
     },
     "apps/pages/src/sections/connections/GitConnectForm.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "apps/pages/src/sections/connections/GithubAppPresence.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
     "apps/pages/src/sections/identity/org-signin/OrgSignInPanels.tsx": {
