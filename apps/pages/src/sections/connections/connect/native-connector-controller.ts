@@ -200,15 +200,19 @@ function nativeRecoveryControls(
     },
     revocationInstructions: (recoveryId: string) => {
       const view = read();
-      if (!view || !view.recovery.some((entry) => entry.id === recoveryId))
-        return null;
+      const entry = view?.recovery.find((item) => item.id === recoveryId);
+      if (!view || !entry) return null;
       if (view.configuration.method === "mcp")
         return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
       if (
         view.configuration.method === "oidc" &&
         ["vault", "openbao"].includes(view.providerId)
-      )
-        return nativeVaultRevocationInstructions(view.connectionId, recoveryId);
+      ) {
+        // Vault has no issued-token revocation instruction before exchange preparation.
+        return entry.kind === "configure"
+          ? null
+          : nativeVaultRevocationInstructions(view.connectionId, recoveryId);
+      }
       return view.configuration.method === "oauth" &&
         nativeBrowserOAuthRecoverySettings(view.configuration)
         ? nativeBrowserOAuthRevocationInstructions(
