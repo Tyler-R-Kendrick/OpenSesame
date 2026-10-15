@@ -1,8 +1,8 @@
 use axum::body::Body;
 use axum::extract::connect_info::ConnectInfo;
 use axum::http::{header, Request, StatusCode};
-use tower::ServiceExt;
 use std::net::SocketAddr;
+use tower::ServiceExt;
 
 use super::{ensure_body, pair_browser};
 use crate::cli_app_integration::now_unix;
