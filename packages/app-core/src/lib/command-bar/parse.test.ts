@@ -29,6 +29,10 @@ describe("parseCommand", () => {
       action: "navigate",
       path: "/settings",
     });
+    expect(parseCommand("pair cli")).toEqual({
+      action: "navigate",
+      path: "/identity/authorize?cli=1",
+    });
   });
 
   it("opens a setting key from the command palette registry", () => {
