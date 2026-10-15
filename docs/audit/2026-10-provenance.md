@@ -505,3 +505,29 @@ sandbox failure is retained; the existing local fixtures pass with required
 process/socket permissions. Scoped unchanged-rule scans cover all 12,315 bytes
 in two files with zero findings and working controls. This is cache-plan unit
 behavior, not installed-SW/download/native-provider activation proof.
+
+
+Codex and delegated Codex agents implemented and reviewed the critical mounted
+Probe/Connect caller slice, PR #1336,
+`9b8bb3a436c16cc2b1fb79100bf19ad7d9c8804c`, under the recorded fallback:
+Grok authentication unavailable and Kimi absent. Its 78 UI tests across seven
+affected suites (12 new), both typechecks, exact static checks and full quality
+(557 script plus 17 security tests) passed. Scoped unchanged-rule scans covered
+all 29,536 bytes in three frozen files with zero findings and working detection
+controls. This is bounded source SAST, not full security completion.
+
+The actual desktop/touch Test journey used immutable before `a19ccfa8` and after
+`9b8bb3a4` builds with the same 18 frozen harness/helper/package inputs. Before,
+both held login sockets stayed open after departure and continued to one
+authenticated GET after deliberate release. After, both sockets closed before
+release with native pre-response cancellation, no HTTP status/finish and zero
+next GETs; fresh unheld Test controls verified through actual HTTP in both
+widths. Four lossless native viewport images, exact identities, hashes and
+measurements are preserved in
+`docs/evidence/2026-10-15-secret-probe-cancellation/`. All 250 outputs per phase
+and all frozen inputs remained unchanged, with no runtime errors, page overflow,
+live owned processes or planned listeners. These are controlled Infisical
+UniversalAuth HTTP observations, not native 1Password SDK or hosted-account
+authentication. No application backend, extension, interception, raw storage
+seeding or component-state injection was introduced. Remaining callers/providers,
+required CI, full security landing gates and verified restacking remain OPEN.
