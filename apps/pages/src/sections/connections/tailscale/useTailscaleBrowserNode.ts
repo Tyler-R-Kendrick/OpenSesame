@@ -1,10 +1,18 @@
 import {
+  type TailscaleBrowserNode,
   type TailscaleNodeSnapshot,
   subscribeTailscaleBrowserNode,
   tailscaleBrowserNode,
 } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import { savedBrowserNodeConfiguration } from "@opensesame/app-core/lib/tailscale/browser-node-store.js";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 const idle: TailscaleNodeSnapshot = {
   status: "stopped",
   hostname: "",
@@ -16,6 +24,67 @@ const idle: TailscaleNodeSnapshot = {
 };
 const noSubscribe = () => () => {};
 const idleSnapshot = () => idle;
+/** A service result belongs only to its current URL, request and connected node. */
+function useTailscalePeerProbe(node: TailscaleBrowserNode | null) {
+  const [peerURL, setURL] = useState("");
+  const [probe, setProbe] = useState("");
+  const [failure, setFailure] = useState("");
+  const generation = useRef(0);
+  const clear = useCallback(() => {
+    generation.current++;
+    setProbe("");
+    setFailure("");
+  }, []);
+  useEffect(() => {
+    const releaseNode = node?.subscribe(() => {
+      if (node.snapshot().status !== "connected") clear();
+    });
+    const releasePort = subscribeTailscaleBrowserNode(() => {
+      if (tailscaleBrowserNode() !== node) clear();
+    });
+    return () => {
+      releaseNode?.();
+      releasePort();
+      generation.current++;
+    };
+  }, [node, clear]);
+  async function test() {
+    clear();
+    const turn = generation.current;
+    const current = () =>
+      node?.snapshot().status === "connected" &&
+      tailscaleBrowserNode() === node &&
+      generation.current === turn;
+    if (!node || !current()) return;
+    try {
+      const value = await node.get(peerURL);
+      if (!current()) return;
+      if (value.status >= 200 && value.status < 300)
+        setProbe(
+          `HTTP ${value.status} · ${value.text.length} characters received through Tailscale`,
+        );
+      else setFailure(`Tailnet service returned HTTP ${value.status}.`);
+    } catch {
+      if (current())
+        setFailure(
+          "The tailnet service request failed. Check the address and try again.",
+        );
+    }
+  }
+  return {
+    peerURL,
+    probe,
+    failure,
+    clear,
+    setPeerURL: (value: string) => {
+      clear();
+      setURL(value);
+    },
+    testPeer: () => {
+      void test();
+    },
+  };
+}
 export function useTailscaleBrowserNode(ready: boolean) {
   const node = useSyncExternalStore(
     subscribeTailscaleBrowserNode,
@@ -35,10 +104,10 @@ export function useTailscaleBrowserNode(ready: boolean) {
   );
   const [authKey, setAuthKey] = useState("");
   const [failure, setFailure] = useState("");
-  const [peerURL, setPeerURL] = useState("");
-  const [probe, setProbe] = useState("");
+  const peer = useTailscalePeerProbe(node);
   const [hasSaved, setHasSaved] = useState(false);
-  useEffect(() => {
+  // Restore public fields before Connect becomes interactable.
+  useLayoutEffect(() => {
     if (!ready) return;
     const saved = savedBrowserNodeConfiguration();
     setHasSaved(!!saved);
@@ -50,7 +119,6 @@ export function useTailscaleBrowserNode(ready: boolean) {
   useEffect(() => {
     if (state.status === "stopped" || state.status === "error") {
       setAuthKey("");
-      setProbe("");
     }
   }, [state.status]);
   return {
@@ -62,15 +130,15 @@ export function useTailscaleBrowserNode(ready: boolean) {
     setControlURL,
     authKey,
     setAuthKey,
-    failure,
-    peerURL,
-    setPeerURL,
-    probe,
+    failure: failure || peer.failure,
+    peerURL: peer.peerURL,
+    setPeerURL: peer.setPeerURL,
+    probe: peer.probe,
     hasSaved,
     active: state.status !== "stopped" && state.status !== "error",
     start: () => {
       setFailure("");
-      setProbe("");
+      peer.clear();
       void node
         ?.start({ hostname, controlURL, authKey })
         .then(() => setHasSaved(true))
@@ -79,6 +147,7 @@ export function useTailscaleBrowserNode(ready: boolean) {
     },
     forget: () => {
       setFailure("");
+      peer.clear();
       void node
         ?.forget()
         .then(() => {
@@ -88,15 +157,8 @@ export function useTailscaleBrowserNode(ready: boolean) {
         .catch((error: Error) => setFailure(error.message));
     },
     testPeer: () => {
-      setProbe("");
-      void node
-        ?.get(peerURL)
-        .then((value) =>
-          setProbe(
-            `HTTP ${value.status} · ${value.text.length} characters received through Tailscale`,
-          ),
-        )
-        .catch((error: Error) => setFailure(error.message));
+      setFailure("");
+      peer.testPeer();
     },
   };
 }
