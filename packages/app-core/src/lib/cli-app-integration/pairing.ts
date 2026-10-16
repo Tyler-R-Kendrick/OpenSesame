@@ -111,6 +111,7 @@ type PairingConfirmBody = Readonly<{
   code: string;
   devicePublicKeySpkiB64: string;
   pairingSignatureB64: string;
+  vaultSessionRootDigest: string;
 }>;
 
 type PairingExchangeBody = Readonly<{
