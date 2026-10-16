@@ -264,7 +264,3 @@ looks arbitrary, the ADR it cites explains it.
 | [0198](0198-key-driven-providers-share-one-driver-core.md) | Providers that connect with a person's own key share one driver core | Accepted |
 | [0199](0199-connector-bridge-extension.md) | A provider that refuses web pages is reached through an optional bridge extension, host by host | Accepted |
 | [0200](0200-anti-slop-asset-ships-a-manifest-and-a-verifier.md) | The anti-slop installer asset ships a manifest and a verifier | Accepted |
-| [0201](0201-identity-integrations-compose-byo-adapters.md) | 0201: Identity integrations compose BYO adapters | Accepted |
-| [0202](0202-pwa-secret-backends-compose-local-and-http-adapters.md) | PWA secret backends compose local and HTTP adapters | Accepted |
-| [0203](0203-byo-ai-composes-native-api-families.md) | BYO AI and native presets share executable API families | Accepted |
-| [0204](0204-pwa-tailscale-browser-node.md) | Run the official Tailscale browser node in an isolated Worker | Accepted |
