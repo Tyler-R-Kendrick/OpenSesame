@@ -11,6 +11,7 @@ export const SecretBackendDraftSchema = z.object({
     "local",
     "file-import",
     "credential-management",
+    "proton-pass",
     "onepassword-sdk",
     "onepassword-connect",
     "bitwarden-api",
