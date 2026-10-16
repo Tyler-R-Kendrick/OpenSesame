@@ -146,6 +146,22 @@ export async function saveProviderFailure({
   console.error(
     `provider-auth observed: exchanges=${observed.exchanges.length} httpFailures=${JSON.stringify(observed.httpFailures).slice(0, 1000)}`,
   );
+  console.error(
+    `provider-auth errors: ${JSON.stringify(observed.errors).slice(0, 2000)}`,
+  );
+  for (const [index, other] of page.context().pages().entries()) {
+    const nav = await other
+      .evaluate(() => ({
+        ready: document.readyState,
+        navType:
+          performance.getEntriesByType("navigation")[0]?.type ?? "unknown",
+        entries: performance.getEntriesByType("navigation").length,
+      }))
+      .catch((error) => ({ error: String(error) }));
+    console.error(
+      `provider-auth nav page ${index} ${other.url()} ${JSON.stringify(nav)}`,
+    );
+  }
   fs.writeFileSync(
     `${out}/${label}-failure.txt`,
     `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${text}`,
