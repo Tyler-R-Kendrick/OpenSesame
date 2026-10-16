@@ -242,7 +242,7 @@ export function NativeConnectorPanels({
   };
   const form = (
     <NativeConnectorForm
-      key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}`}
+      key={`${provider.id}/${connection?.connectionId ?? "new"}/${roads}`}
       descriptor={current}
       controller={controller}
       view={view}
