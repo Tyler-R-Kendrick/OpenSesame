@@ -82,6 +82,8 @@ export function useTailscaleState(connectionId: string | undefined) {
     setResult("");
   }, [setKey, setAdminToken, setAppResponse, setDeviceKey, setBusy, setResult]);
   useTailscaleCredentialLifetime(fields.saved, clear);
+  const latest = useRef({ connectionId, saved: fields.saved });
+  latest.current = { connectionId, saved: fields.saved };
   useEffect(() => {
     let mounted = true;
     const release = deps.onLock(clear);
@@ -105,8 +107,12 @@ export function useTailscaleState(connectionId: string | undefined) {
       });
     return () => {
       mounted = false;
-      turn.current++;
-      abort.current?.abort();
+      // The saved app surfacing as a connection mid-action is not a
+      // configuration change: do not abort the action that created it.
+      if (latest.current.saved?.connectionId !== latest.current.connectionId) {
+        turn.current++;
+        abort.current?.abort();
+      }
       release();
     };
   }, [connectionId, clear, setDraft, setFailure, setReady, setSaved]);

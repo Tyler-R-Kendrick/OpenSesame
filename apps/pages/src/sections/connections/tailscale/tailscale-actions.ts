@@ -193,12 +193,14 @@ export function runTailscaleAction(
     })
     .finally(() => {
       releasePopup?.();
+      if (model.abort.current === controller) {
+        model.abort.current = null;
+        model.setBusy(false);
+      }
       if (model.turn.current !== currentTurn) return;
-      model.setBusy(false);
       model.setAdminToken("");
       model.setAppResponse("");
       model.setDeviceKey("");
-      model.abort.current = null;
       if (["register", "import", "forget"].includes(action)) onChanged();
     });
 }
