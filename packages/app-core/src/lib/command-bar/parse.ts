@@ -24,10 +24,6 @@ const SECTION_ALIASES: ReadonlyArray<{
   },
   { path: "/access", words: ["access", "grants", "approvals", "sessions"] },
   { path: "/identity", words: ["identity", "account", "sign in", "signin"] },
-  {
-    path: "/identity/authorize?cli=1",
-    words: ["pair cli", "cli pair", "pair terminal cli", "authorize cli"],
-  },
   { path: "/settings", words: ["settings", "prefs", "preferences"] },
   {
     path: CLAIM_COMMAND_PATH,
