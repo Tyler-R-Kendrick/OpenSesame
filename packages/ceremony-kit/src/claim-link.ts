@@ -1,52 +1,72 @@
 /**
- * The claim link: `/claim#token=osc_clm_…`, or `/claim#token=…&key=…` for a
- * secret drop (ADR 0062).
+ * The claim link: `/claim#token=osc_clm_…`, `/claim#token=…&key=…` for a
+ * secret drop, and the portable drop's additional `&pkt=…` (ADR 0062).
  *
- * Both halves ride the fragment so neither reaches a request line, a server
- * log or a `Referer`. The only client-side signal that a link is a drop before
- * its single presentation is the key beside the bearer — the manifest kind is
- * checked after, inside the decrypt — so the dispatch is made here, once, for
- * every surface that opens a claim link.
+ * Every half rides the fragment so none reaches a request line, a server log
+ * or a `Referer`. The key beside the bearer marks an ordinary drop before its
+ * single presentation; a portable bearer or packet marks one even when the
+ * key is absent, so the opener can refuse that incomplete link without
+ * presenting it. Dispatch is made here, once, for every claim surface.
  */
 import { matchCeremonyPath } from "./ceremony-routes.js";
 
 /** `osc_clm_<publicId>.<secret>`, both base64url (os-domain `parseClaimToken`). */
 const CLAIM_TOKEN = /^osc_clm_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 
+export const PORTABLE_DROP_TOKEN_PREFIX = "osc_pdrop_";
+const PORTABLE_DROP_TOKEN = /^osc_pdrop_[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}$/;
+
 /** Whether `value` has the shape of a claim bearer. Says nothing of validity. */
 export function isClaimToken(value: string): boolean {
   return CLAIM_TOKEN.test(value);
 }
 
+/** A portable drop bearer carries a 16-byte id and a 32-byte secret. */
+export function isPortableDropToken(value: string): boolean {
+  return PORTABLE_DROP_TOKEN.test(value);
+}
+
 export type ClaimLink =
   | { kind: "claim"; token: string }
-  | { kind: "drop"; token: string; key: string };
+  | { kind: "drop"; token: string; key: string; pkt?: string };
 
 function fragmentParams(hash: string): URLSearchParams {
   return new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
 }
 
 /**
- * Read a claim link's fragment. A bearer with a key beside it is a drop; a
- * bearer alone is an ownership claim; anything else — no bearer, a key with
- * no bearer, a bearer that is not claim-shaped — is not a claim link.
+ * Read a claim link's fragment. A bearer with a key is a drop; a bearer alone
+ * is an ownership claim unless it is portable or carries a packet. A portable
+ * drop with no key stays a drop arrival with an empty key. Anything else is
+ * not a claim link.
  */
 export function readClaimLink(hash: string): ClaimLink | null {
   const params = fragmentParams(hash);
   const token = params.get("token");
-  if (!token || !isClaimToken(token)) return null;
+  if (!token || (!isClaimToken(token) && !isPortableDropToken(token))) {
+    return null;
+  }
   const key = params.get("key");
-  return key ? { kind: "drop", token, key } : { kind: "claim", token };
+  const pkt = params.get("pkt");
+  if (key || isPortableDropToken(token) || pkt !== null) {
+    return {
+      kind: "drop",
+      token,
+      key: key || "",
+      ...(pkt === null ? {} : { pkt }),
+    };
+  }
+  return { kind: "claim", token };
 }
 
 /**
  * Whether the fragment carries anything that must leave the address bar: a
- * bearer or a drop key, well formed or not. Scrubbing on this rather than on
- * `readClaimLink` means a mangled link is still taken out of history.
+ * bearer, drop key or portable packet, well formed or not. Scrubbing on this
+ * rather than on `readClaimLink` takes a mangled link out of history too.
  */
 export function fragmentCarriesBearer(hash: string): boolean {
   const params = fragmentParams(hash);
-  return params.has("token") || params.has("key");
+  return params.has("token") || params.has("key") || params.has("pkt");
 }
 
 /**

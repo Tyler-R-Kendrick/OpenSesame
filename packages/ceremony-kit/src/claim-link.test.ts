@@ -3,9 +3,12 @@ import {
   buildClaimLink,
   fragmentCarriesBearer,
   isClaimToken,
+  isPortableDropToken,
   readClaimLink,
 } from "./claim-link.js";
 import { buildCeremonyUrl } from "./interaction-url.js";
+
+const PORTABLE_TOKEN = `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`;
 
 describe("claim link", () => {
   it("reads token and key together as a drop, and only together", () => {
@@ -16,6 +19,29 @@ describe("claim link", () => {
     });
     expect(readClaimLink("#key=k1_-")).toBeNull();
     expect(readClaimLink("")).toBeNull();
+  });
+
+  it("reads a portable packet with its drop key, and keeps a missing key visible", () => {
+    expect(
+      readClaimLink(`#token=${PORTABLE_TOKEN}&key=k1_-&pkt=ospd1.packet`),
+    ).toEqual({
+      kind: "drop",
+      token: PORTABLE_TOKEN,
+      key: "k1_-",
+      pkt: "ospd1.packet",
+    });
+    expect(readClaimLink(`#token=${PORTABLE_TOKEN}&pkt=ospd1.packet`)).toEqual({
+      kind: "drop",
+      token: PORTABLE_TOKEN,
+      key: "",
+      pkt: "ospd1.packet",
+    });
+    expect(readClaimLink(`#token=${PORTABLE_TOKEN}`)).toEqual({
+      kind: "drop",
+      token: PORTABLE_TOKEN,
+      key: "",
+    });
+    expect(readClaimLink("#pkt=ospd1.packet")).toBeNull();
   });
 
   it("reads a bearer alone as an ownership claim", () => {
@@ -42,23 +68,28 @@ describe("claim link", () => {
       "#token=osc_clm_a.",
       "#token=osc_clm_a b.c",
       "#token=osc_clm_nodot&key=k",
+      "#token=osc_pdrop_short.secret&key=k",
     ]) {
       expect(readClaimLink(hash), hash).toBeNull();
     }
   });
 
-  it("scrubs any fragment that carries a bearer or a key, well formed or not", () => {
+  it("scrubs any fragment that carries a bearer, key or packet", () => {
     expect(fragmentCarriesBearer("#token=osc_clm_a.b")).toBe(true);
     expect(fragmentCarriesBearer("#token=garbage")).toBe(true);
     expect(fragmentCarriesBearer("#key=k")).toBe(true);
+    expect(fragmentCarriesBearer("#pkt=ospd1.packet")).toBe(true);
     expect(fragmentCarriesBearer("#other=1")).toBe(false);
     expect(fragmentCarriesBearer("")).toBe(false);
   });
 
-  it("recognises the server's bearer shape", () => {
+  it("recognises claim and portable drop bearers as separate shapes", () => {
     expect(isClaimToken("osc_clm_AbC-_1.s3cr3t-_")).toBe(true);
     expect(isClaimToken("osc_clm_x")).toBe(false);
     expect(isClaimToken(" osc_clm_a.b")).toBe(false);
+    expect(isClaimToken(PORTABLE_TOKEN)).toBe(false);
+    expect(isPortableDropToken(PORTABLE_TOKEN)).toBe(true);
+    expect(isPortableDropToken("osc_pdrop_short.secret")).toBe(false);
   });
 });
 
