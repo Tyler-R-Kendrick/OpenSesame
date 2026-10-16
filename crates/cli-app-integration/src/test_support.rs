@@ -10,10 +10,41 @@ use serde_json::json;
 use crate::daemon_attest::daemon_integration_id;
 use crate::device_crypto::{
     approval_challenge_digest_v3, pairing_confirm_message, webauthn_register_challenge_digest,
+    ApprovalChallengeDigestV3,
 };
 use crate::human_proof::{mint_pin_human_proof, HumanProofContext};
 use crate::pairing::{CliAppIntegrationPairings, PairedBinding, WebAuthnCredential};
+use crate::EnsureParams;
 use ecdsa::signature::Signer;
+
+/// Default [`EnsureParams`] for conformance and security tests.
+#[must_use]
+pub fn ensure_params<'a>(terminal_session_id: &'a str, verb: &'a str) -> EnsureParams<'a> {
+    ensure_params_full(terminal_session_id, verb, false, "00", 0, 0, true)
+}
+
+/// Full [`EnsureParams`] for session store conformance and security tests.
+#[must_use]
+pub fn ensure_params_full<'a>(
+    terminal_session_id: &'a str,
+    verb: &'a str,
+    reuse_approved_session: bool,
+    argv_hash: &'a str,
+    peer_pid: u32,
+    peer_start_time: u64,
+    approvable: bool,
+) -> EnsureParams<'a> {
+    EnsureParams {
+        terminal_session_id,
+        verb,
+        reference: None,
+        reuse_approved_session,
+        argv_hash,
+        peer_pid,
+        peer_start_time,
+        approvable,
+    }
+}
 
 static TEST_PAIRING: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
 static TEST_APPROVAL: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
@@ -216,16 +247,16 @@ pub fn mint_test_human_proof(
     peer_pid: u32,
     peer_start_time: u64,
 ) -> String {
-    let challenge = approval_challenge_digest_v3(
-        &daemon_integration_id(),
+    let challenge = approval_challenge_digest_v3(&ApprovalChallengeDigestV3 {
+        daemon_id: &daemon_integration_id(),
         request_id,
         terminal_session_id,
         respond_nonce,
         verb,
-        "00",
+        argv_hash: "00",
         peer_pid,
         peer_start_time,
-    );
+    });
     let wire = passkey_wire_for_challenge(&approval_fixture().0, "test-cli-app-cred", challenge, 2);
     format!("oschip3:passkey:{wire}")
 }
@@ -238,16 +269,16 @@ pub fn mint_test_passkey_human_proof(
     verb: &str,
     sign_count: u32,
 ) -> String {
-    let challenge = approval_challenge_digest_v3(
-        &daemon_integration_id(),
+    let challenge = approval_challenge_digest_v3(&ApprovalChallengeDigestV3 {
+        daemon_id: &daemon_integration_id(),
         request_id,
         terminal_session_id,
         respond_nonce,
         verb,
-        "00",
-        0,
-        0,
-    );
+        argv_hash: "00",
+        peer_pid: 0,
+        peer_start_time: 0,
+    });
     let wire = passkey_wire_for_challenge(
         &approval_fixture().0,
         "test-cli-app-cred",
