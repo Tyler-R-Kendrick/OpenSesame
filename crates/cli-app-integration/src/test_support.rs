@@ -108,6 +108,7 @@ pub fn pair_browser_for_tests(
     origin: &str,
     now: u64,
 ) -> String {
+    pairings.enroll_root_key_for_tests();
     let (code, _) = pairings.issue(origin, now).expect("issue");
     let challenge = pairings
         .pairing_challenge_for_code(&code, now)

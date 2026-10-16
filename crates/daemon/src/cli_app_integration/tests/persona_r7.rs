@@ -123,7 +123,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     use ecdsa::signature::Signer;
     use opensesame_cli_app_integration::{
         mint_pin_human_proof, mint_test_signing_key, pairing_confirm_message,
-        verifying_key_spki_b64, PairingError,
+        test_support::TEST_VAULT_SESSION_ROOT_DIGEST, verifying_key_spki_b64, PairingError,
     };
     let (app, state) = test_router("http://127.0.0.1:8787");
     let origin = "https://tyler-r-kendrick.github.io";
@@ -165,6 +165,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
                 "code": code,
                 "devicePublicKeySpkiB64": attacker_spki,
                 "pairingSignatureB64": sig_b64,
+                "vaultSessionRootDigest": TEST_VAULT_SESSION_ROOT_DIGEST,
             })
             .to_string(),
         ))
