@@ -10,6 +10,7 @@ mod configs;
 mod connect;
 mod daemon_cmd;
 mod daemon_toolbar;
+mod enroll_entry;
 mod dev_run;
 mod dev_surrogate;
 mod entry;
