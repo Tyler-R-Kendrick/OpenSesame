@@ -17,6 +17,19 @@ export interface MountValue {
   name: string;
   value: string;
 }
+/**
+ * One brokered assignment of a `run --agent-proxy` plan: the surrogate
+ * for `name` stands in for the `os://` connections item `reference`
+ * names, at exactly `methods` × `pathPrefixes` on the provider's hosts.
+ */
+export interface BrokeredAssignment {
+  name: string;
+  reference: string;
+  providerId: string;
+  connectionRef: string;
+  methods: readonly string[];
+  pathPrefixes: readonly string[];
+}
 export interface PasswordAgentPort {
   runEnvFile?(
     content: string,
@@ -47,6 +60,16 @@ export interface PasswordAgentPort {
     values: Readonly<Record<string, string>>,
     mounts: readonly MountValue[],
     secrets: readonly string[],
+  ): Promise<number>;
+  /**
+   * Run a child in broker mode (`run --agent-proxy`): the host gives it a
+   * scoped surrogate per entry and the run's proxy environment, and the
+   * credential itself never enters the child. Absent on hosts with no
+   * broker — a brokered run there fails closed, never injects instead.
+   */
+  runBrokered?(
+    entries: readonly BrokeredAssignment[],
+    command: readonly string[],
   ): Promise<number>;
 }
 export interface Scope {

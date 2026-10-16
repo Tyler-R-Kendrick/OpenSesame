@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest";
+import { brokerPlan, brokerTarget, runBrokered } from "./broker.js";
 import {
   parseAssignment,
   parseOsReference,
@@ -160,4 +161,117 @@ it("routes mixed references in resolveEnv to their resolvers", async () => {
   expect(result.content).toContain('REMOTE="provider-value"');
   expect(result.content).toContain('LOCAL="local-value"');
   expect(result.count).toBe(2);
+});
+
+const brokerRef = "os://vault/connections%2Facme%2Fvercel/password";
+
+it("brokers only os:// items under connections/", () => {
+  expect(brokerTarget(brokerRef)).toEqual({
+    providerId: "vercel",
+    connectionRef: "conn://acme/vercel",
+    storePath: "connections/acme/vercel",
+  });
+  expect(
+    brokerTarget("os://vault/connections%2Facme%2Fapp%2Fgithub/credential"),
+  ).toEqual({
+    providerId: "github",
+    connectionRef: "conn://acme/app/github",
+    storePath: "connections/acme/app/github",
+  });
+  for (const reference of [
+    opRef,
+    osRef,
+    "os://vault/connections%2Fvercel/password",
+    "os://vault/connections%2Fa%2Fb%2Fc%2Fd/password",
+    "os://vault/connections%2F..%2Fvercel/password",
+  ])
+    expect(() => brokerTarget(reference)).toThrow(/broker/);
+});
+
+it("requires a bounded --paths and --methods scope for every brokered name", () => {
+  const assignments = [{ name: "TOKEN", reference: brokerRef }];
+  expect(
+    brokerPlan(
+      assignments,
+      ["TOKEN=/v2/user,/v9/projects"],
+      ["TOKEN=GET,post"],
+    ),
+  ).toEqual([
+    {
+      name: "TOKEN",
+      reference: brokerRef,
+      providerId: "vercel",
+      connectionRef: "conn://acme/vercel",
+      methods: ["GET", "POST"],
+      pathPrefixes: ["/v2/user", "/v9/projects"],
+    },
+  ]);
+  for (const [paths, methods] of [
+    [[], ["TOKEN=GET"]],
+    [["TOKEN=/v2/user"], []],
+    [["TOKEN=/"], ["TOKEN=GET"]],
+    [["TOKEN=relative"], ["TOKEN=GET"]],
+    [["TOKEN=/v2/user"], ["TOKEN=FETCH"]],
+    [["OTHER=/v2/user"], ["TOKEN=GET"]],
+  ] as const)
+    expect(() => brokerPlan(assignments, paths, methods)).toThrow(/broker/);
+  expect(() =>
+    brokerPlan(
+      [{ name: "TOKEN", reference: opRef }],
+      ["TOKEN=/v2/user"],
+      ["TOKEN=GET"],
+    ),
+  ).toThrow(/broker/);
+});
+
+it("fails a brokered run closed when the host has no broker capability", async () => {
+  const runWithValues = vi.fn(async () => 0);
+  const providerRun = vi.fn(async () => 0);
+  const readLocal = vi.fn(async () => "local-value");
+  const port = {
+    invoke: vi.fn(async () => ""),
+    run: providerRun,
+    runWithValues,
+    readLocal,
+  };
+  await expect(
+    runBrokered(
+      port,
+      [{ name: "TOKEN", reference: brokerRef }],
+      ["node"],
+      ["TOKEN=/v2/user"],
+      ["TOKEN=GET"],
+    ),
+  ).rejects.toThrow(/agent-proxy.*unavailable|unavailable.*agent-proxy/);
+  // Nothing was injected instead: no lane ran and no value was resolved.
+  expect(providerRun).not.toHaveBeenCalled();
+  expect(runWithValues).not.toHaveBeenCalled();
+  expect(readLocal).not.toHaveBeenCalled();
+});
+
+it("hands a brokered run to the host capability with the validated plan", async () => {
+  const brokerHost = vi.fn(async () => 5);
+  const port = { invoke: vi.fn(async () => ""), runBrokered: brokerHost };
+  await expect(
+    runBrokered(
+      port,
+      [{ name: "TOKEN", reference: brokerRef }],
+      ["node", "app.js"],
+      ["TOKEN=/v2/user"],
+      ["TOKEN=GET"],
+    ),
+  ).resolves.toBe(5);
+  expect(brokerHost).toHaveBeenCalledWith(
+    [
+      {
+        name: "TOKEN",
+        reference: brokerRef,
+        providerId: "vercel",
+        connectionRef: "conn://acme/vercel",
+        methods: ["GET"],
+        pathPrefixes: ["/v2/user"],
+      },
+    ],
+    ["node", "app.js"],
+  );
 });

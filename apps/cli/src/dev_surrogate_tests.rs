@@ -45,7 +45,7 @@ pub(crate) fn no_env(_: &str) -> Option<String> {
 
 /// A stand-in plugin: records the spec it was sent, answers with a
 /// surrogate, and marks when its stdin closed.
-const FAKE_PLUGIN: &str = r#"#!/bin/sh
+pub(crate) const FAKE_PLUGIN: &str = r#"#!/bin/sh
 here="$(dirname "$0")"
 IFS= read -r line
 printf '%s\n' "$line" > "$here/spec.json"
