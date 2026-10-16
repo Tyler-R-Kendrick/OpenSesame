@@ -146,11 +146,6 @@ export const VAULT_LIB_RULES = [
     "live sessions: pairing codes, WebRTC peers, host and guest (ADR 0150)",
   ),
   optional(
-    "src/lib/peer-trust/",
-    "sharing.live",
-    "browser-only peer trust for live sessions: ARK store, signaling, SAS alarms (D7-2)",
-  ),
-  optional(
     "src/lib/quorum/",
     "sharing.trusted-contacts",
     "trusted contacts: guardian policy, quorum approvals, SLIP-0039 shares, HPKE release (ADR 0187)",

@@ -20,7 +20,6 @@ const CONNECTOR_FILES = [
   "identity-graph",
   "secret-backends/",
   "ai-connections/",
-  "tailscale/",
 ];
 
 export const CONNECTOR_LIB_RULES = [
