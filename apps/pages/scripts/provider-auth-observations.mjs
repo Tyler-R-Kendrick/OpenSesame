@@ -125,6 +125,16 @@ export async function saveProviderFailure({
   console.error(
     `provider-auth failure at ${step}: ${error.message}\n${text.slice(0, 3000)}`,
   );
+  for (const [index, other] of page.context().pages().entries()) {
+    if (other === page) continue;
+    const otherText = await other
+      .locator("body")
+      .innerText()
+      .catch(() => "<unavailable>");
+    console.error(
+      `provider-auth failure page ${index} ${other.url()}\n${otherText.slice(0, 3000)}`,
+    );
+  }
   fs.writeFileSync(
     `${out}/${label}-failure.txt`,
     `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${text}`,
