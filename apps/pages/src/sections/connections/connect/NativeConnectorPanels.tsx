@@ -28,6 +28,7 @@ import {
 } from "./native-key-descriptor.js";
 import { nativeProviderDescriptor } from "./native-provider-descriptor.js";
 import { nativeS3Descriptor } from "./native-s3-descriptor.js";
+import { useNativeAuthorization } from "./useNativeAuthorization.js";
 
 function nativeKeyActionsFor(providerId: string) {
   const keyed = nativeKeyDriverFor(providerId);
@@ -211,6 +212,7 @@ export function NativeConnectorPanels({
   // The connector bridge changes what a refused provider offers (ADR 0199).
   useNativeBridge(provider.id);
   const descriptor = nativeSettingsDescriptor(provider);
+  const pending = useNativeAuthorization(provider.id, connection?.connectionId);
   const controller = useMemo(
     () =>
       nativeConnectorController(
@@ -219,8 +221,9 @@ export function NativeConnectorPanels({
           refused: connectPlan(provider.id)?.refused ?? false,
         },
         connection?.connectionId,
+        pending.onAuthorization,
       ),
-    [provider.id, connection?.connectionId],
+    [provider.id, connection?.connectionId, pending.onAuthorization],
   );
   const [, refresh] = useState(0);
   const view = controller.load();
@@ -242,10 +245,11 @@ export function NativeConnectorPanels({
   };
   const form = (
     <NativeConnectorForm
-      key={`${provider.id}/${connection?.connectionId ?? "new"}/${roads}`}
+      key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}/${pending.generation}`}
       descriptor={current}
       controller={controller}
       view={view}
+      authorization={pending.authorization}
       onFlash={onFlash}
       onChanged={changed}
     />
@@ -275,6 +279,7 @@ export function NativeConnectorPanels({
             onFlash={onFlash}
             onChanged={changed}
             onRemoved={() => changed(null)}
+            authorization={pending.authorization}
           />
           {view.configuration.method === "mcp" ? (
             <NativeMcpTools
@@ -282,6 +287,7 @@ export function NativeConnectorPanels({
               controller={controller}
               onFlash={onFlash}
               onChanged={changed}
+              disabled={!!pending.authorization}
             />
           ) : null}
         </>

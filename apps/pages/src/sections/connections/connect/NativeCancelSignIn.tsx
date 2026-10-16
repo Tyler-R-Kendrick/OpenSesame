@@ -4,6 +4,11 @@ import { IconKey } from "../../../components/IconKey.js";
 import { IconExternal, IconRefresh, IconX } from "../../../components/Icons.js";
 import { nativeSignInRequired } from "./NativeConnectorFormOptions.js";
 import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
+import {
+  nativeInitialMethod,
+  nativeInitialValues,
+} from "./native-connector-edit-values.js";
+import { nativeScopeDefaults } from "./native-connector-ui-values.js";
 import type {
   NativeConnectorController,
   NativeConnectorDescriptor,
@@ -70,6 +75,68 @@ export function useNativeSignInUiLifetime({
     };
   };
   return { owner, begin };
+}
+
+type NativeFormSeed = {
+  setMethodId: (id: NativeMethodDescriptor["id"] | undefined) => void;
+  setValues: (values: ReturnType<typeof nativeInitialValues>) => void;
+  setScopes: (scopes: ReturnType<typeof nativeScopeDefaults>) => void;
+  setName: (name: string) => void;
+  setIcon: (icon: string) => void;
+};
+
+/**
+ * A saved revision that changes under the form (another tab, a verified
+ * action) re-seeds the fields, as remounting on revision once did. While an
+ * authorization is pending the form must not reset, or its Cancel sign-in
+ * would vanish; the reseed lands once busy clears.
+ */
+export function useNativeRevisionSync(
+  descriptor: NativeConnectorDescriptor,
+  view: NativeConnectorView | null | undefined,
+  frozen: boolean,
+  seed: NativeFormSeed,
+) {
+  const revisionKey = view
+    ? `${view.connectionId}/${view.revision}/${view.configuration.fingerprint}`
+    : null;
+  const syncedRevision = useRef(revisionKey);
+  useEffect(() => {
+    if (
+      !view ||
+      !revisionKey ||
+      syncedRevision.current === revisionKey ||
+      frozen
+    )
+      return;
+    syncedRevision.current = revisionKey;
+    const next = nativeInitialMethod(descriptor, view);
+    seed.setMethodId(next?.id);
+    seed.setValues(next ? nativeInitialValues(next, view) : {});
+    seed.setScopes(
+      next ? nativeScopeDefaults(next, view.configuration.requestedScopes) : {},
+    );
+    seed.setName(view.configuration.displayName);
+    seed.setIcon(view.configuration.icon ?? "");
+  }, [descriptor, view, revisionKey, frozen, seed]);
+}
+
+export function useNativeFormFeedback(
+  props: NativeUiScope & { authorization?: NativeAuthorizationTicket | null },
+) {
+  const { authorization } = props;
+  const lifetime = useNativeSignInUiLifetime(props);
+  const [busyOwner, setBusyOwner] = useState<object | null>(null);
+  const busy = busyOwner === lifetime.owner || !!authorization?.current();
+  const [failureState, setFailureState] = useState<{
+    owner: object;
+    text: string;
+  } | null>(null);
+  const failure =
+    failureState?.owner === lifetime.owner ? failureState.text : "";
+  const setFailure = (text: string) =>
+    setFailureState({ owner: lifetime.owner, text });
+  return { lifetime, busy, setBusyOwner, failure, setFailure };
 }
 
 /** COOP isolates the provider window; this key closes only the originating sign-in. */

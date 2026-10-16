@@ -18,7 +18,11 @@ installConnectorIntegration();
 
 function ActualMcpPanel({
   actual,
-}: { actual: Awaited<ReturnType<typeof nativeMcpToolsFixture>> }) {
+  disabled = false,
+}: {
+  actual: Awaited<ReturnType<typeof nativeMcpToolsFixture>>;
+  disabled?: boolean;
+}) {
   const [view, setView] = useState(actual.view);
   const [flash, setFlash] = useState<Flash | null>(null);
   useFlashNotice(flash, view.connectionId, "Adobe");
@@ -30,6 +34,7 @@ function ActualMcpPanel({
         if (next) setView(next);
       }}
       onFlash={setFlash}
+      disabled={disabled}
     />
   );
 }
@@ -99,4 +104,56 @@ it("shows actual required and nested argument rules before sending a provider to
     if (call.success) calls.push(call.data);
   }
   expect(calls[0]?.params.arguments).toEqual(argumentsValue);
+});
+
+it("blocks new MCP starts while disabled and keeps selected tool arguments for re-enable", async () => {
+  const actual = await nativeMcpToolsFixture();
+  const mounted = render(<ActualMcpPanel actual={actual} />);
+  const discover = () =>
+    screen.getByRole("button", { name: "Discover MCP tools" });
+  await userEvent.click(discover());
+  const action = "provider.search: Search published provider records";
+  await userEvent.click(
+    await screen.findByText(action, { selector: "summary" }),
+  );
+  const argumentsValue = JSON.stringify({
+    query: "design",
+    filter: { published: true },
+  });
+  fireEvent.change(screen.getByLabelText("Tool arguments (JSON object)"), {
+    target: { value: argumentsValue },
+  });
+  const requests = actual.fixture.requests.length;
+  const methods = [...actual.methods];
+  mounted.rerender(<ActualMcpPanel actual={actual} disabled />);
+  expect(discover()).toHaveProperty("disabled", true);
+  expect(screen.getByRole("button", { name: action })).toHaveProperty(
+    "disabled",
+    true,
+  );
+  expect(
+    screen.getByLabelText("Tool arguments (JSON object)").closest("fieldset"),
+  ).toHaveProperty("disabled", true);
+  expect(screen.getByLabelText("Tool arguments (JSON object)")).toHaveProperty(
+    "value",
+    argumentsValue,
+  );
+  expect(screen.getByText("query, filter")).toBeTruthy();
+  await userEvent.click(discover());
+  await userEvent.click(screen.getByRole("button", { name: action }));
+  const form = screen.getByRole("button", { name: action }).closest("form");
+  if (!form) throw new Error("Missing actual MCP tool form");
+  fireEvent.submit(form);
+  expect(actual.fixture.requests).toHaveLength(requests);
+  expect(actual.methods).toEqual(methods);
+  mounted.rerender(<ActualMcpPanel actual={actual} />);
+  expect(screen.getByLabelText("Tool arguments (JSON object)")).toHaveProperty(
+    "value",
+    argumentsValue,
+  );
+  await userEvent.click(screen.getByRole("button", { name: action }));
+  await screen.findByText("Actual provider tool result");
+  expect(
+    actual.methods.filter((method) => method === "tools/call"),
+  ).toHaveLength(1);
 });
