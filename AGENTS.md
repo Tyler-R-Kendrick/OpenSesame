@@ -64,18 +64,16 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   `.cursor/rules/kimi-first.mdc`). The orchestrating agent plans, reviews, tests,
   and opens PRs; **implementation edits delegate down the chain** while quota
   allows. Run `scripts/dev/agent-coding-preflight.sh` to see which tier is live.
-  1. **Grok Build CLI** (`grok`) until the subscription weekly limit or quota
-     reported by `grok` itself. API-key 403/credits is misconfiguration, not
-     tier-1 exhaustion. Model baseline `grok-4.7`;
-     `scripts/dev/grok-resolve-model.sh` upgrades to a newer id from `grok models`
-     when listed. Invoke:
-     `scripts/dev/grok-headless.sh -p "…" -m "$(scripts/dev/grok-resolve-model.sh)" --always-approve --output-format json`
-     (keys unset). Auth: install Tyler's Grok Build subscription login from
-     `/cursor/stores/bot/grok/auth.json` via
-     `scripts/dev/grok-install-subscription-auth.sh` on agent start. Never use
-     `XAI_API_KEY` for Grok Build. If a runtime API key is set, or the API
-     returns 403 credits, unset the key and use the subscription file. Check
-     with `scripts/dev/grok-preflight.sh`.
+  1. **Grok Build CLI** (`grok`) until weekly limit / quota / 402 / 403 / 429.
+     Model baseline `grok-4.7`; `scripts/dev/grok-resolve-model.sh` upgrades to a
+     newer id from `grok models` when listed. Invoke:
+     `scripts/dev/grok-headless.sh -p "…" -m "$(scripts/dev/grok-resolve-model.sh)" --always-approve --output-format json`.
+     Auth: Cursor Runtime Secret `XAI_API_KEY` (or `GROK_DEPLOYMENT_KEY` where
+     applicable). A depleted runtime key shadows device OIDC — use
+     `scripts/dev/grok-headless.sh` (`env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY`)
+     and `scripts/dev/grok-preflight.sh`. Surface `grok login --device-code`
+     immediately when login is required. Do not set `auth.preferred_method = "api_key"`
+     in `.grok/config.toml` when using device login alongside the runtime key.
   2. **Kimi Code CLI** (`kimi`, **K3** `kimi-code/k3`) when Grok is exhausted.
      `scripts/dev/kimi-headless.sh -p "…"`; `scripts/dev/kimi-preflight.sh`.
      Auth: `kimi login` OAuth first, else `KIMI_MODEL_API_KEY` (+ optional
