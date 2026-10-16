@@ -19,9 +19,9 @@ pub(crate) enum HumanProofOutcome {
 
 impl HumanProofOutcome {
     #[must_use]
-    pub(crate) fn into_sign_count(self) -> Option<u32> {
+    pub(crate) fn into_sign_count(self) -> u32 {
         match self {
-            Self::Passkey(count) => Some(count),
+            Self::Passkey(count) => count,
         }
     }
 }
