@@ -16,6 +16,8 @@ export type SecretBackendDraft = {
   mode: SecretBackendMode;
   baseUrl: string;
   identityUrl: string;
+  /** Public provider application/version header; absent on legacy connections. */
+  appVersion?: string;
   token: string;
   vaultId: string;
   projectId: string;
