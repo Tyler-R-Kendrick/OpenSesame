@@ -65,6 +65,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | Guide | When you need it |
 |---|---|
 | [Vault key protection](vault-key-protection.md) | Unlock methods, recovery keys, age recipients and cloud KMS for a vault. |
+| [Pages secret backends](secret-backends.md) | Configure local and remote secret stores, import manager exports, and save or restore a verified encrypted vault snapshot. |
 | [Customer key segmentation](customer-key-segmentation.md) | Separate customer vaults, envelope encryption across secret stores, and deployment-root custody. |
 | [Duress profiles](duress-profiles.md) | Presets, consent, delays and rehearsal for coerced unlocks. |
 | [Duress inventory and recovery](duress-inventory-recovery.md) | Inventorying unlock paths, migrating, recovering and retiring duress setups. |

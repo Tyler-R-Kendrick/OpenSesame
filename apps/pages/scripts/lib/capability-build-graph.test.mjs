@@ -86,12 +86,65 @@ describe("classification", () => {
   });
 });
 
+test("records individually switched type packs as on-demand cache resources", async () => {
+  const { main } = await compose(tree, { mode: "selective" });
+  const { ctx, bundle } = fakeBundle(tree.appRoot, "");
+  const output = bundle();
+  output["assets/item-type-pack-note.js"] = {
+    ...output["assets/pre-1.js"],
+    name: "item-type-pack-note",
+    isDynamicEntry: true,
+    modules: {
+      "/repo/packages/vault-item-types/src/packs/note.generated.ts": {
+        renderedLength: 200,
+      },
+    },
+  };
+  const graph = buildGraph(ctx, output, main.__state(), "/OpenSesame/");
+  assert.equal(
+    graph.chunks.find((chunk) => chunk.name === "item-type-pack-note").onDemand,
+    true,
+  );
+  assert.equal(
+    graph.chunks.find((chunk) => chunk.name === "main").onDemand,
+    false,
+  );
+});
+
+test("HTML graph includes local shell resource links without provider-directory or remote assets", () => {
+  const entry = parseHtmlEntry(
+    `
+    <link rel="icon" href="/OpenSesame/icon.svg">
+    <link rel="apple-touch-icon" href="/OpenSesame/icon.svg">
+    <link rel="stylesheet" href="./assets/shell.css">
+    <link rel="preload" as="font" href="assets/font.woff2">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="https://remote.test/remote.svg">
+    <link rel="icon" href="//remote.test/protocol-relative.svg">
+    <link rel="dns-prefetch" href="providers/not-an-asset.svg">
+    <a href="providers/not-linked.svg">Provider</a>
+  `,
+    { base: "/OpenSesame/", htmlFile: "index.html" },
+  );
+  assert.deepEqual(entry.assets, [
+    "assets/font.woff2",
+    "assets/shell.css",
+    "icon.svg",
+    "manifest.webmanifest",
+  ]);
+});
+
 describe("graph emission", () => {
   const html = `<!doctype html><html><head><link rel="modulepreload" crossorigin href="/OpenSesame/assets/pre-1.js"><script type="module" crossorigin src="/OpenSesame/assets/main-1.js"></script></head></html>`;
+
   test("parseHtmlEntry resolves base-prefixed, absolute and relative references", () => {
     assert.deepEqual(
       parseHtmlEntry(html, { base: "/OpenSesame/", htmlFile: "index.html" }),
-      { scripts: ["assets/main-1.js"], preloads: ["assets/pre-1.js"] },
+      {
+        scripts: ["assets/main-1.js"],
+        preloads: ["assets/pre-1.js"],
+        assets: [],
+      },
     );
     assert.deepEqual(
       parseHtmlEntry(`<script type="module" src="../assets/r.js"></script>`, {
@@ -129,6 +182,7 @@ describe("graph emission", () => {
         capability: null,
         scripts: ["assets/main-1.js"],
         preloads: ["assets/pre-1.js"],
+        assets: [],
       },
     ]);
     assert.deepEqual(

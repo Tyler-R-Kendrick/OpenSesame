@@ -10,6 +10,7 @@ import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.
 import { identityConnectionPreset } from "@opensesame/app-core/lib/identity-connections-presets.js";
 import type { NativeMethod } from "@opensesame/app-core/lib/native-connector-schema.js";
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
+import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import type {
   NativeConnectorDescriptor,
   NativeMethodDescriptor,
@@ -23,6 +24,7 @@ function existingSpecializedRoad(providerId: string): boolean {
   return (
     isGitBackupProvider(providerId) ||
     identityConnectionPreset(providerId) !== null ||
+    isSecretBackendProvider(providerId) ||
     nativeKeyDriverFor(providerId) !== null ||
     ["github", "aws-kms", "gcp-kms", "s3"].includes(providerId)
   );

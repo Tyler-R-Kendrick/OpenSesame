@@ -105,6 +105,12 @@ describe("the vault on a phone", () => {
     expect(back.getAttribute("href")).toBe("/vault");
   });
 
+  it("a trailing slash on the vault root still opens the section tree", () => {
+    renderVault("/vault/");
+    expect(pane()).toBe("tree");
+    expect(trees()).toHaveLength(1);
+  });
+
   it("an item is the buffer, and Back returns to the list it came from", () => {
     renderVault("/vault/itm_1?f=login");
     expect(pane()).toBe("detail");

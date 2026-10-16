@@ -71,6 +71,7 @@ import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { bindProviderRuntime } from "./native-runtime.js";
+import { bindSecretBackendRuntime } from "./secret-backend-runtime.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 
 export const CAPABILITY = "connectors.external";
@@ -141,6 +142,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.onDispose(() => applyConnectCallbackBase(undefined));
 
     bindProviderRuntime(ctx, activation);
+    bindSecretBackendRuntime(ctx, activation);
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();

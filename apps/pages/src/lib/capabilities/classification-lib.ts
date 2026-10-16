@@ -24,6 +24,7 @@ const CORE_INFRA = [
   "web-push-ledger", // ids the core worker controller retires when push goes
   "at-rest/", // every stored value's seal and the device key (ADR 0149)
   "vfs",
+  "vault-credential-custody",
   "projects",
   "vaults",
   // Glyphs for vaults, people and organizations belong to the shell prompt (ADR 0165).
