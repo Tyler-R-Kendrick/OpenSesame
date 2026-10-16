@@ -144,6 +144,11 @@ const LAZY_LEAVES = [
     "cli-app-integration-crypto",
   ],
   [
+    "/src/modules/identity.local-iam/cli-authorize-paired-panel",
+    "identity.local-iam",
+    "cli-app-integration-crypto",
+  ],
+  [
     "/src/modules/identity.local-iam/cli-authorize-mint-proof",
     "identity.local-iam",
     "cli-app-integration-crypto",
@@ -159,6 +164,16 @@ const LAZY_LEAVES = [
     "/packages/app-core/src/lib/cli-app-integration/",
     "identity.local-iam",
     "cli-app-integration-crypto",
+  ],
+  // The model-key broker binding is a small pure leaf reached only by the
+  // connectors runtime and its panels. At the merge floor Rollup folds it
+  // into `main` when the surrounding chunks reshuffle (peer-trust landing),
+  // and the gate reads the fold as a static import of `connectors.external`
+  // from the bootstrap. Pin it to the capability's chunk (ADR 0192).
+  [
+    "/packages/app-core/src/lib/model-keys/active",
+    "connectors.external",
+    "cap-connectors.external",
   ],
 ];
 

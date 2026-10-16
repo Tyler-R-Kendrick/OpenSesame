@@ -251,7 +251,17 @@ export function switchFeature(
     );
     return { roots: kept, alternatives };
   }
-  const added = featureState(feature, plan).available;
+  let added = featureState(feature, plan).available;
+  // The Identity section switch (`switchFeature` on the full feature). A
+  // single-capability toggle (`switchCapability`) passes a one-id feature and
+  // must still be able to add Self-issued OpenID on its own.
+  if (feature.id === "identity" && on && feature.capabilities.length > 1) {
+    const skip = new Set<CapabilityId>([
+      "identity.siop",
+      "identity.ambient-sso",
+    ]);
+    added = added.filter((id) => !skip.has(id));
+  }
   const alternatives = { ...current.alternatives };
   const runnable = (id: CapabilityId) => {
     const state = plan?.capabilities[id];

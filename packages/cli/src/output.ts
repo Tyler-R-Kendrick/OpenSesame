@@ -27,11 +27,28 @@ function writeStdout(text: string): void {
   process.stdout.write(text);
 }
 
+function writeStderr(text: string): void {
+  process.stderr.write(text);
+}
+
 /** One scrubbed line on stderr (ADR 0157). */
 export function emitStderrLine(line: string): void {
   const scrubbed = scrubText(line);
   const text = scrubbed.endsWith("\n") ? scrubbed : `${scrubbed}\n`;
-  process.stderr.write(text);
+  writeStderr(text);
+}
+
+/**
+ * Child-process output the run lane has already masked, forwarded
+ * byte-for-byte: functional output like an explicit human read, never a
+ * log line, so it does not re-enter the scrubbing logger.
+ */
+export function emitChildStdout(chunk: string): void {
+  writeStdout(chunk);
+}
+
+export function emitChildStderr(chunk: string): void {
+  writeStderr(chunk);
 }
 
 /** What went wrong, as one scrubbed line for stderr (ADR 0157). */

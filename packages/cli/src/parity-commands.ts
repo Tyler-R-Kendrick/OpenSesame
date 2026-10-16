@@ -70,7 +70,10 @@ export async function dispatchParity(
       print(await agent.audit(scope));
       return 0;
     case "read": {
-      const ref = required(args.shift(), "read requires op://reference.");
+      const ref = required(
+        args.shift(),
+        "read requires an op:// or os:// reference.",
+      );
       exhausted(args);
       await assertHumanReveal({
         verb: "read",
@@ -148,6 +151,7 @@ export async function runPassword(ctx: ParityContext): Promise<number> {
 export async function runChild(ctx: ParityContext): Promise<number> {
   const { args, agent, child } = ctx;
 
+  const agentProxy = toggle(args, "--agent-proxy");
   const assignments = [];
   while (args.includes("--env"))
     assignments.push(
@@ -158,9 +162,41 @@ export async function runChild(ctx: ParityContext): Promise<number> {
         ),
       ),
     );
+  const mounts = [];
+  while (args.includes("--mount"))
+    mounts.push(
+      parseAssignment(
+        required(
+          option(args, "--mount"),
+          "--mount requires a reference assignment.",
+        ),
+      ),
+    );
+  const paths = [];
+  while (args.includes("--paths"))
+    paths.push(
+      required(
+        option(args, "--paths"),
+        "--paths requires NAME=/prefix[,/prefix...].",
+      ),
+    );
+  const methods = [];
+  while (args.includes("--methods"))
+    methods.push(
+      required(
+        option(args, "--methods"),
+        "--methods requires NAME=GET[,POST...].",
+      ),
+    );
   exhausted(args);
-  if (!assignments.length)
-    throw new Error("run requires --env NAME=op://reference.");
+  if (agentProxy && mounts.length)
+    throw new Error("--agent-proxy cannot be used with --mount.");
+  if (!agentProxy && (paths.length || methods.length))
+    throw new Error("--paths and --methods require --agent-proxy.");
+  if (!assignments.length && !mounts.length)
+    throw new Error(
+      "run requires --env or --mount NAME=op://reference or NAME=os://reference.",
+    );
   await assertHumanReveal({
     verb: "run",
     reveal: true,
@@ -168,7 +204,8 @@ export async function runChild(ctx: ParityContext): Promise<number> {
     appIntegration: ctx.appIntegration,
   });
   await emitRevealReceipt({ verb: "run" });
-  return agent.run(assignments, child);
+  if (agentProxy) return agent.runBrokered(assignments, child, paths, methods);
+  return agent.run(assignments, child, mounts);
 }
 
 export async function runEnv(ctx: ParityContext): Promise<number> {

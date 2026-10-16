@@ -7,20 +7,57 @@ use p256::pkcs8::DecodePublicKey;
 use sha2::{Digest, Sha256};
 
 pub const PAIRING_CONFIRM_LABEL: &[u8] = b"opensesame-cli-app-pairing-confirm.v1";
-pub const APPROVAL_CHALLENGE_LABEL: &[u8] = b"opensesame-cli-app-approval.v1";
+pub const APPROVAL_CHALLENGE_V3_LABEL: &[u8] = b"opensesame-cli-app-approval.v3";
+pub const WEBAUTHN_REGISTER_LABEL: &[u8] = b"opensesame-cli-app-webauthn-register.v1";
 pub const DAEMON_ATTEST_LABEL: &[u8] = b"opensesame-cli-app-daemon-attest.v1";
+
+/// Inputs for the v3 approval challenge digest (D7-2 human proof binding).
+#[derive(Clone, Copy)]
+pub struct ApprovalChallengeDigestV3<'a> {
+    pub daemon_id: &'a str,
+    pub request_id: &'a str,
+    pub terminal_session_id: &'a str,
+    pub respond_nonce: &'a str,
+    pub verb: &'a str,
+    pub argv_hash: &'a str,
+    pub peer_pid: u32,
+    pub peer_start_time: u64,
+}
 
 /// SHA-256 over the frozen approval binding (`WebAuthn` challenge + ECDSA message).
 #[must_use]
-pub fn approval_challenge_digest(
-    request_id: &str,
-    terminal_session_id: &str,
-    respond_nonce: &str,
-    verb: &str,
+pub fn webauthn_register_challenge_digest(
+    token: &str,
+    origin: &str,
+    vault_session_root_digest: &str,
 ) -> [u8; 32] {
-    let mut msg = Vec::from(APPROVAL_CHALLENGE_LABEL);
+    let mut msg = Vec::from(WEBAUTHN_REGISTER_LABEL);
     msg.push(0);
-    for part in [request_id, terminal_session_id, respond_nonce, verb] {
+    for part in [token, origin, vault_session_root_digest] {
+        msg.extend_from_slice(part.as_bytes());
+        msg.push(0);
+    }
+    let digest = Sha256::digest(&msg);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&digest);
+    out
+}
+
+/// D7-2 human proof binding: daemon id, request, peer start, and argv hash.
+#[must_use]
+pub fn approval_challenge_digest_v3(input: &ApprovalChallengeDigestV3<'_>) -> [u8; 32] {
+    let mut msg = Vec::from(APPROVAL_CHALLENGE_V3_LABEL);
+    msg.push(0);
+    for part in [
+        input.daemon_id,
+        input.request_id,
+        input.terminal_session_id,
+        input.respond_nonce,
+        input.verb,
+        input.argv_hash,
+        &input.peer_pid.to_string(),
+        &input.peer_start_time.to_string(),
+    ] {
         msg.extend_from_slice(part.as_bytes());
         msg.push(0);
     }
@@ -44,6 +81,9 @@ pub fn pairing_confirm_message(challenge: &[u8], code: &str, origin: &str) -> Ve
 
 #[cfg(any(test, feature = "test-seams"))]
 #[allow(dead_code)] // `test-seams` is enabled for the daemon crate; unit tests are the callers.
+/// # Panics
+///
+/// Panics if the verifying key cannot be encoded as SPKI DER (should not happen for valid P-256 keys).
 #[must_use]
 pub fn verifying_key_spki_b64(verifying_key: &VerifyingKey) -> String {
     use p256::elliptic_curve::pkcs8::EncodePublicKey;

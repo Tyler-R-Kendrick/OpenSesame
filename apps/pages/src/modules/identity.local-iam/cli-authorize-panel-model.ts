@@ -32,9 +32,17 @@ function pageOrigin(): string | null {
   }
 }
 
-const LOAD_BLOCKED =
-  "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
-const LOAD_UNREADABLE = "Couldn't check for CLI requests.";
+import {
+  CLI_AUTHORIZE_LOAD_BLOCKED,
+  CLI_AUTHORIZE_LOAD_UNREADABLE,
+} from "./cli-authorize-messages.js";
+
+export { CLI_AUTHORIZE_LOAD_BLOCKED, CLI_AUTHORIZE_LOAD_UNREADABLE };
+
+const LOAD_BLOCKED = CLI_AUTHORIZE_LOAD_BLOCKED;
+const LOAD_UNREADABLE = CLI_AUTHORIZE_LOAD_UNREADABLE;
+
+const PENDING_POLL_MS = 5000;
 
 /** The deployment fence in `localNetworkFetch` refuses with a SecurityError. */
 function isDeploymentBlocked(error: DOMException | null): boolean {
@@ -46,12 +54,17 @@ function blockedCopy(error: DOMException | null, fallback: string): string {
 }
 
 const cliAuthorizePendingBodySchema = z.object({
+  daemonIntegrationId: z.string().optional(),
   pending: z.array(
     z.object({
       requestId: z.string(),
       terminalSessionId: z.string(),
       verb: z.string(),
       respondNonce: z.string(),
+      argvHash: z.string().optional(),
+      peerPid: z.number().optional(),
+      peerStartTime: z.number().optional(),
+      approvable: z.boolean().optional(),
     }),
   ),
 });
@@ -95,6 +108,10 @@ async function loadPending(): Promise<PendingLoad> {
       entry.terminalSessionId,
       entry.verb,
       entry.respondNonce,
+      body.data.daemonIntegrationId ?? "ephemeral-no-attest",
+      entry.argvHash ?? "00",
+      entry.peerPid ?? 0,
+      entry.peerStartTime ?? 0,
     ];
     return { row, loadError: null };
   } catch (error) {
@@ -118,11 +135,26 @@ export function useCliAuthorizePanel() {
   const [header, setHeader] = useState<VaultHeader | null>(null);
 
   useEffect(() => {
-    void (async () => {
+    let cancelled = false;
+    const refresh = async () => {
       const pending = await loadPending();
+      if (cancelled) return;
       setLoadError(pending.loadError);
       setRow(pending.row);
-    })();
+    };
+    void refresh();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, PENDING_POLL_MS);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(timer);
+    };
   }, []);
 
   async function finish(decision: "approve" | "deny", humanProof?: string) {
