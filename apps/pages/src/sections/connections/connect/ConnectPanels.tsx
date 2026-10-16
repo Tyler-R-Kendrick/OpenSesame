@@ -1,6 +1,9 @@
 import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { connectSubjectId } from "@opensesame/app-core/lib/connect-draft.js";
-import { connectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import {
+  type ConnectPlan,
+  connectPlan,
+} from "@opensesame/app-core/lib/connect-plan.js";
 import type {
   Connection,
   Provider,
@@ -17,11 +20,12 @@ import {
 import { TailscalePanels } from "../tailscale/TailscalePanels.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
+import { LinearConnectorForm } from "./LinearConnectorForm.js";
 import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
 import { SavedConnectorSummary } from "./SavedConnectorSummary.js";
-import { SelfHostedConnectorForm } from "./SelfHostedConnectorForm.js";
 import { UserTokenPanel } from "./UserTokenPanel.js";
 import { useConnectTransport } from "./useConnectTransport.js";
+import { useNativeAuthorization } from "./useNativeAuthorization.js";
 import "./connect.css";
 
 /** A connection that lives on Vercel Connect, not the Host or the device. */
@@ -114,6 +118,16 @@ function LocalConnectPanels(props: Props) {
     );
   if (!plan || plan.refused) return null;
   if (provider.id !== "linear") return <NativeConnectorPanels {...props} />;
+  return <LinearLocalPanels {...props} plan={plan} />;
+}
+
+function LinearLocalPanels({
+  connection,
+  plan,
+  onFlash,
+  onChanged,
+}: Props & { plan: ConnectPlan }) {
+  const pending = useNativeAuthorization(plan.id, connection?.connectionId);
   const local = isSelfHostedConnector(connection) ? connection : null;
   const connectorId = local?.connectionId;
   return (
@@ -124,20 +138,30 @@ function LocalConnectPanels(props: Props) {
             <span className="cx-step">2</span> Configure
           </h2>
         </div>
-        <SelfHostedConnectorForm
+        <LinearConnectorForm
           key={`${plan.id}/${connectorId ?? "new"}`}
           plan={plan}
           connectorId={connectorId}
           onFlash={onFlash}
           onSaved={onChanged}
+          onAuthorization={pending.onAuthorization}
+          authorization={pending.authorization}
+          captureUiCurrent={pending.captureUiCurrent}
         />
       </section>
-      <SavedConnectorSummary
-        key={connectorId ?? "new"}
-        connection={local}
-        onFlash={onFlash}
-        onChanged={onChanged}
-      />
+      {local ? (
+        <fieldset className="cx-block" disabled={!!pending.authorization}>
+          <legend className="visually-hidden">
+            Linear saved connection actions
+          </legend>
+          <SavedConnectorSummary
+            key={connectorId ?? "new"}
+            connection={local}
+            onFlash={onFlash}
+            onChanged={onChanged}
+          />
+        </fieldset>
+      ) : null}
     </div>
   );
 }
