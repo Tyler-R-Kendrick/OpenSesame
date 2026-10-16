@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Subscription auth only (~/.grok/auth.json). Never use XAI_API_KEY.
-# Unset API keys so a runtime secret cannot shadow the subscription login.
+# Run grok with the Cursor Runtime Secret API keys unset so device OIDC
+# (~/.grok/auth.json) is not shadowed. A set XAI_API_KEY wins over device
+# login; a depleted key then shows 403 or "Not signed in".
 set -euo pipefail
-exec env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY -u GROK_DEPLOYMENT_KEY grok "$@"
+exec env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY grok "$@"
