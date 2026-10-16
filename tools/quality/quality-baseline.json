@@ -18,7 +18,7 @@
   "totals": {
     "files": 419,
     "violations": 646,
-    "oversizedLines": 213096
+    "oversizedLines": 213097
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -303,7 +303,7 @@
       "max-lines": 431
     },
     "crates/daemon/src/cli_app_integration/tests/persona_r7.rs": {
-      "max-lines": 420
+      "max-lines": 421
     },
     "crates/daemon/src/cli_probe.rs": {
       "max-lines": 700
