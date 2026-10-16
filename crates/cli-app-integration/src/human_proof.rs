@@ -1,10 +1,23 @@
 //! Human proof tokens minted in Pages after PIN or passkey unlock (`oschip3:`).
 
-use crate::device_crypto::approval_challenge_digest_v3;
+use crate::device_crypto::{approval_challenge_digest_v3, ApprovalChallengeDigestV3};
 use crate::pairing::PairedBinding;
 use crate::webauthn_assertion::verify_passkey_assertion;
 
 const PROOF_PREFIX: &str = "oschip3:";
+
+fn approval_challenge_input(ctx: &HumanProofContext) -> ApprovalChallengeDigestV3<'_> {
+    ApprovalChallengeDigestV3 {
+        daemon_id: &ctx.daemon_id,
+        request_id: &ctx.request_id,
+        terminal_session_id: &ctx.terminal_session_id,
+        respond_nonce: &ctx.respond_nonce,
+        verb: &ctx.verb,
+        argv_hash: &ctx.argv_hash,
+        peer_pid: ctx.peer_pid,
+        peer_start_time: ctx.peer_start_time,
+    }
+}
 
 #[derive(Clone)]
 pub struct HumanProofContext {
@@ -51,16 +64,7 @@ pub(crate) fn human_proof_verify(
         return None;
     }
     let rest = t.strip_prefix(PROOF_PREFIX)?;
-    let challenge = approval_challenge_digest_v3(
-        &ctx.daemon_id,
-        &ctx.request_id,
-        &ctx.terminal_session_id,
-        &ctx.respond_nonce,
-        &ctx.verb,
-        &ctx.argv_hash,
-        ctx.peer_pid,
-        ctx.peer_start_time,
-    );
+    let challenge = approval_challenge_digest_v3(&approval_challenge_input(ctx));
     if let Some((kind, tail)) = rest.split_once(':') {
         if kind == "pin" {
             // Pairing device keys are client-chosen; PIN proofs must not verify
@@ -93,16 +97,7 @@ pub fn mint_pin_human_proof(
 ) -> String {
     use base64::Engine as _;
     use ecdsa::signature::Signer;
-    let challenge = approval_challenge_digest_v3(
-        &ctx.daemon_id,
-        &ctx.request_id,
-        &ctx.terminal_session_id,
-        &ctx.respond_nonce,
-        &ctx.verb,
-        &ctx.argv_hash,
-        ctx.peer_pid,
-        ctx.peer_start_time,
-    );
+    let challenge = approval_challenge_digest_v3(&approval_challenge_input(ctx));
     let sig: p256::ecdsa::Signature = signing_key.sign(&challenge);
     let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
     format!("{PROOF_PREFIX}pin:{sig_b64}")

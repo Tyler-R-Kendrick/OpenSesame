@@ -1,20 +1,29 @@
 //! D7-2 adversarial regression tests (same-user attacker personas).
 
 use super::*;
-use crate::device_crypto::{argv_hash_hex, pairing_confirm_message};
+use crate::device_crypto::pairing_confirm_message;
 use crate::human_proof::{mint_pin_human_proof, mint_test_signing_key, HumanProofContext};
-use crate::test_support::{mint_test_human_proof, pair_browser_for_tests, test_paired_binding};
+use crate::test_support::{
+    ensure_params, ensure_params_full, mint_test_human_proof, pair_browser_for_tests,
+    test_paired_binding,
+};
 use base64::Engine as _;
 use ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
 use p256::elliptic_curve::pkcs8::EncodePublicKey;
 use p256::PublicKey;
 use rand_core::OsRng;
+use sha2::{Digest, Sha256};
 
 fn sign_confirm(key: &SigningKey, challenge: &[u8], code: &str, origin: &str) -> String {
     let message = pairing_confirm_message(challenge, code, origin);
     let sig: p256::ecdsa::Signature = key.sign(&message);
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes())
+}
+
+fn argv_hash_hex(argv: &[String]) -> String {
+    let joined = argv.join("\0");
+    hex::encode(Sha256::digest(joined.as_bytes()))
 }
 
 fn device_spki(key: &SigningKey) -> String {
@@ -112,9 +121,13 @@ fn more_than_one_pending_is_refused_as_ambiguous() {
     // the queue ambiguous and it is cleared rather than capped.
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
-    let (_, a) = store.ensure("term-a", "read", None, false, "00", 10, 1, true);
+    let (_, a) = store.ensure(ensure_params_full(
+        "term-a", "read", false, "00", 10, 1, true,
+    ));
     assert!(a.is_some());
-    let (_, b) = store.ensure("term-b", "read", None, false, "00", 11, 1, true);
+    let (_, b) = store.ensure(ensure_params_full(
+        "term-b", "read", false, "00", 11, 1, true,
+    ));
     assert!(b.is_some());
     assert!(store.list_pending().is_empty());
 }
@@ -123,7 +136,15 @@ fn more_than_one_pending_is_refused_as_ambiguous() {
 fn tcp_pending_cannot_be_approved() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
-    let (_, req) = store.ensure("term-tcp-1", "read", None, false, "00", 0, 0, false);
+    let (_, req) = store.ensure(ensure_params_full(
+        "term-tcp-1",
+        "read",
+        false,
+        "00",
+        0,
+        0,
+        false,
+    ));
     let request_id = req.expect("pending");
     let row = store
         .list_pending()
@@ -165,7 +186,9 @@ fn passkey_registered_rejects_ark_only_pin_proof() {
         .expect("test seam");
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
-    let (_, req) = store.ensure("term-a", "read", None, false, "00", 1, 1, true);
+    let (_, req) = store.ensure(ensure_params_full(
+        "term-a", "read", false, "00", 1, 1, true,
+    ));
     let request_id = req.unwrap();
     let row = store
         .list_pending()
@@ -218,7 +241,7 @@ fn upgrade_wipes_legacy_pairings() {
 fn oschip2_proofs_rejected() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
-    let (_, req) = store.ensure("term-a", "read", None, false, "00", 1, 1, true);
+    let (_, req) = store.ensure(ensure_params("term-a", "read"));
     let request_id = req.unwrap();
     let row = store
         .list_pending()
@@ -246,7 +269,9 @@ fn proof_with_wrong_argv_hash_is_rejected() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
     let argv_a = argv_hash_hex(&["opensesame".into(), "read".into()]);
-    let (_, req) = store.ensure("term-a", "read", None, false, &argv_a, 1, 1, true);
+    let (_, req) = store.ensure(ensure_params_full(
+        "term-a", "read", false, &argv_a, 1, 1, true,
+    ));
     let request_id = req.unwrap();
     let row = store
         .list_pending()

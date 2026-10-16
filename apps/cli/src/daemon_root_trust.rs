@@ -38,15 +38,15 @@ pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
         let body = begin.text().await.unwrap_or_default();
         anyhow::bail!("root trust enroll begin refused ({status}): {body}");
     }
-    let begun: BeginBody = begin.json().await?;
-    let secret = decode_b64(&begun.enrollment_secret_b64)?;
-    let daemon_message = decode_b64(&begun.message_b64)?;
+    let begin_body: BeginBody = begin.json().await?;
+    let secret = decode_b64(&begin_body.enrollment_secret_b64)?;
+    let daemon_message = decode_b64(&begin_body.message_b64)?;
     let signing = generate_root_signing_key();
     let spki = root_spki_der(&signing);
     let enroll_client = RootEnrollClient::start(&secret)?;
     let confirm = enroll_client.confirm(&daemon_message, &spki)?;
     let finish_body = json!({
-        "sessionId": begun.session_id,
+        "sessionId": begin_body.session_id,
         "messageB64": b64(enroll_client.message()),
         "confirmB64": b64(confirm.client_confirm()),
         "rootPublicKeySpkiB64": b64(&spki),
