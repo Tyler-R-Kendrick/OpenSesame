@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 
 pub const PAIRING_CONFIRM_LABEL: &[u8] = b"opensesame-cli-app-pairing-confirm.v1";
 pub const APPROVAL_CHALLENGE_LABEL: &[u8] = b"opensesame-cli-app-approval.v1";
+pub const APPROVAL_CHALLENGE_V3_LABEL: &[u8] = b"opensesame-cli-app-approval.v3";
 pub const WEBAUTHN_REGISTER_LABEL: &[u8] = b"opensesame-cli-app-webauthn-register.v1";
 pub const DAEMON_ATTEST_LABEL: &[u8] = b"opensesame-cli-app-daemon-attest.v1";
 
@@ -47,6 +48,45 @@ pub fn approval_challenge_digest(
     let mut out = [0u8; 32];
     out.copy_from_slice(&digest);
     out
+}
+
+/// D7-2 human proof binding: daemon id, request, peer start, and argv hash.
+#[must_use]
+pub fn approval_challenge_digest_v3(
+    daemon_id: &str,
+    request_id: &str,
+    terminal_session_id: &str,
+    respond_nonce: &str,
+    verb: &str,
+    argv_hash: &str,
+    peer_pid: u32,
+    peer_start_time: u64,
+) -> [u8; 32] {
+    let mut msg = Vec::from(APPROVAL_CHALLENGE_V3_LABEL);
+    msg.push(0);
+    for part in [
+        daemon_id,
+        request_id,
+        terminal_session_id,
+        respond_nonce,
+        verb,
+        argv_hash,
+        &peer_pid.to_string(),
+        &peer_start_time.to_string(),
+    ] {
+        msg.extend_from_slice(part.as_bytes());
+        msg.push(0);
+    }
+    let digest = Sha256::digest(&msg);
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&digest);
+    out
+}
+
+#[must_use]
+pub fn argv_hash_hex(argv: &[String]) -> String {
+    let joined = argv.join("\0");
+    hex::encode(Sha256::digest(joined.as_bytes()))
 }
 
 #[must_use]

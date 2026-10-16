@@ -23,8 +23,14 @@ async function sha256(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
 }
 
-export const PAIRING_CONFIRM_LABEL = "opensesame-cli-app-pairing-confirm.v1";
-export const APPROVAL_CHALLENGE_LABEL = "opensesame-cli-app-approval.v1";
+export {
+  APPROVAL_CHALLENGE_LABEL,
+  APPROVAL_CHALLENGE_V3_LABEL,
+  approvalChallengeDigest,
+  approvalChallengeDigestV3,
+  PAIRING_CONFIRM_LABEL,
+  pairingConfirmMessage,
+} from "./approval-challenge.js";
 
 export async function webauthnRegisterChallengeDigest(
   token: string,
@@ -59,68 +65,6 @@ export async function readVaultSessionRootDigestForCliApp(): Promise<
 > {
   const root = await readCliAppPairingVaultSessionRoot();
   return root;
-}
-
-export async function approvalChallengeDigest(
-  requestId: string,
-  terminalSessionId: string,
-  respondNonce: string,
-  verb: string,
-): Promise<Uint8Array> {
-  const parts = [
-    enc.encode(APPROVAL_CHALLENGE_LABEL),
-    new Uint8Array([0]),
-    enc.encode(requestId),
-    new Uint8Array([0]),
-    enc.encode(terminalSessionId),
-    new Uint8Array([0]),
-    enc.encode(respondNonce),
-    new Uint8Array([0]),
-    enc.encode(verb),
-    new Uint8Array([0]),
-  ];
-  const total = parts.reduce((n, p) => n + p.byteLength, 0);
-  const msg = new Uint8Array(total);
-  let off = 0;
-  for (const part of parts) {
-    msg.set(part, off);
-    off += part.byteLength;
-  }
-  return await sha256(msg);
-}
-
-export function pairingConfirmMessage(
-  challenge: Uint8Array,
-  code: string,
-  origin: string,
-): Uint8Array {
-  const labelBytes = enc.encode(PAIRING_CONFIRM_LABEL);
-  const codeBytes = enc.encode(code);
-  const originBytes = enc.encode(origin);
-  const msg = new Uint8Array(
-    labelBytes.byteLength +
-      1 +
-      challenge.byteLength +
-      1 +
-      codeBytes.byteLength +
-      1 +
-      originBytes.byteLength,
-  );
-  let off = 0;
-  msg.set(labelBytes, off);
-  off += labelBytes.byteLength;
-  msg[off] = 0;
-  off += 1;
-  msg.set(challenge, off);
-  off += challenge.byteLength;
-  msg[off] = 0;
-  off += 1;
-  msg.set(codeBytes, off);
-  off += codeBytes.byteLength;
-  msg[off] = 0;
-  off += 1;
-  msg.set(originBytes, off);
-  return msg;
 }
 
 export function b64urlEncode(bytes: Uint8Array): string {
@@ -168,8 +112,8 @@ export async function signP256Sha256B64(
   return b64urlEncode(sig);
 }
 
-/** CLI humanProof wire format (`oschip2:`) — loaded with device crypto only. */
-export const CLI_APP_HUMAN_PROOF_PREFIX = "oschip2:";
+/** CLI humanProof wire format (`oschip3:`) — loaded with device crypto only. */
+export const CLI_APP_HUMAN_PROOF_PREFIX = "oschip3:";
 
 export function formatCliAppHumanProofPin(signatureB64: string): string {
   return `${CLI_APP_HUMAN_PROOF_PREFIX}pin:${signatureB64}`;
@@ -219,7 +163,9 @@ export async function mintCliAppRegisterHumanProof(
     clientDataJsonB64: b64urlEncode(clientDataBytes),
     signatureB64,
   });
-  return formatCliAppHumanProofPasskey(wire);
+  // Register route still verifies the `oschip2:passkey:` wire (binding.rs);
+  // approve proofs moved to `oschip3:` above.
+  return `oschip2:passkey:${wire}`;
 }
 
 type StoredDeviceKey = Readonly<{
