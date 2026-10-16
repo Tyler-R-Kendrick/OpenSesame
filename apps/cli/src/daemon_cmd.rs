@@ -5,10 +5,10 @@ use crate::daemon_toolbar::ToolbarCmd;
 mod daemon_drive;
 #[path = "daemon_fill.rs"]
 mod daemon_fill;
-#[path = "daemon_tailnet.rs"]
-mod daemon_tailnet;
 #[path = "daemon_root_trust.rs"]
 mod daemon_root_trust;
+#[path = "daemon_tailnet.rs"]
+mod daemon_tailnet;
 use clap::Subcommand;
 use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;

@@ -15,13 +15,9 @@ use crate::enroll_entry::{confirm_enrollment, EnrollEntryMethod};
 pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
     let base = base.trim_end_matches('/');
     daemon_toolbar::assert_daemon_url_allowed(base).map_err(anyhow::Error::msg)?;
-    let token = operator
-        .filter(|t| !t.is_empty())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "OPENSESAME_OPERATOR_TOKEN is required to enroll CLI root trust"
-            )
-        })?;
+    let token = operator.filter(|t| !t.is_empty()).ok_or_else(|| {
+        anyhow::anyhow!("OPENSESAME_OPERATOR_TOKEN is required to enroll CLI root trust")
+    })?;
     let entry = confirm_enrollment()?;
     let client = reqwest::Client::new();
     let health = client.get(format!("{base}/health")).send().await?;
@@ -72,8 +68,7 @@ pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
     confirm.verify_daemon(&daemon_confirm)?;
     println!(
         "CLI root trust enrolled (epoch {}, fingerprint {}).",
-        finished.enrollment_epoch,
-        finished.spki_fingerprint
+        finished.enrollment_epoch, finished.spki_fingerprint
     );
     Ok(())
 }
