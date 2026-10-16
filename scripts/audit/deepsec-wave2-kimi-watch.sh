@@ -31,6 +31,8 @@ ensure_workers() {
 
 reinvestigate_running() {
   pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null \
+    || pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null \
+    || pgrep -f 'deepsec/dist/cli.mjs process.*--agent cursor' >/dev/null \
     || pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null
 }
 
@@ -57,6 +59,8 @@ stall_count=0
 kimi_was_limited=1
 last_batch_count=-1
 last_batch_epoch=0
+last_files_complete=-1
+last_progress_epoch=0
 
 while true; do
   ensure_workers
@@ -81,35 +85,51 @@ while true; do
     last_batch_epoch="$now_epoch"
   fi
 
-  if "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
+  if read -r wave_agent _ < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh" 2>/dev/null); then
     if [[ "$kimi_was_limited" -eq 1 ]]; then
-      echo "=== kimi quota clear $(date -u +%Y-%m-%dT%H:%M:%SZ) — starting wave2 on K3 ==="
+      echo "=== wave2 agent available ($wave_agent) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
       kimi_was_limited=0
       stall_count=0
       last_complete=-1
       last_batch_epoch="$now_epoch"
     fi
 
+    complete_now="$(node -e "try{console.log(JSON.parse(process.argv[1]).filesComplete)}catch{console.log(-1)}" "$progress")"
+    if [[ "$complete_now" =~ ^[0-9]+$ ]] && [[ "$complete_now" -ge 0 ]]; then
+      if [[ "$last_files_complete" -lt 0 ]] || [[ "$complete_now" -gt "$last_files_complete" ]]; then
+        last_files_complete="$complete_now"
+        last_progress_epoch="$now_epoch"
+      elif [[ "$last_progress_epoch" -eq 0 ]] && [[ "$complete_now" -gt 0 ]]; then
+        last_progress_epoch="$now_epoch"
+      fi
+    fi
+
     if reinvestigate_running; then
+      idle_batch=0
+      idle_progress=0
       if [[ "$last_batch_epoch" -gt 0 ]]; then
-        idle=$((now_epoch - last_batch_epoch))
-        if [[ "$idle" -ge "$HANG_SEC" ]]; then
-          echo "=== HANG detected idle=${idle}s (>=${HANG_SEC}s) — restart reinvestigate $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-          "${ROOT}/scripts/audit/deepsec-wave2-restart-kimi.sh" || true
-          last_batch_epoch="$now_epoch"
-          stall_count=0
-        fi
+        idle_batch=$((now_epoch - last_batch_epoch))
+      fi
+      if [[ "$last_progress_epoch" -gt 0 ]]; then
+        idle_progress=$((now_epoch - last_progress_epoch))
+      fi
+      if [[ "$idle_batch" -ge "$HANG_SEC" ]] || [[ "$idle_progress" -ge "$HANG_SEC" ]]; then
+        echo "=== HANG detected idle_batch=${idle_batch}s idle_progress=${idle_progress}s complete=${complete_now} — restart reinvestigate $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+        "${ROOT}/scripts/audit/deepsec-wave2-restart.sh" || true
+        last_batch_epoch="$now_epoch"
+        last_progress_epoch="$now_epoch"
+        stall_count=0
       fi
     elif ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
-      nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
-      echo "started reinvestigate-wave (kimi)"
+      "${ROOT}/scripts/audit/deepsec-wave2-restart.sh" || true
+      echo "started reinvestigate-wave ($wave_agent)"
       last_batch_epoch="$now_epoch"
     fi
   else
     kimi_was_limited=1
-    if pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null; then
-      pkill -f 'deepsec/dist/cli.mjs process.*--agent kimi' || true
-      echo "stopped kimi deepsec (quota)"
+    if pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null; then
+      pkill -f 'deepsec/dist/cli.mjs process' || true
+      echo "stopped deepsec process (no agent)"
     fi
   fi
 

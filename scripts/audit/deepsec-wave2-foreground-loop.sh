@@ -54,18 +54,29 @@ last_batch_epoch_since_run() {
   fi
 }
 
-kimi_running() {
+wave2_running() {
   pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null \
+    || pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null \
+    || pgrep -f 'deepsec/dist/cli.mjs process.*--agent cursor' >/dev/null \
     || pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null
+}
+
+grok_investigate_active() {
+  pgrep -f 'grok -p' >/dev/null || pgrep -f 'timeout.*grok -p' >/dev/null
 }
 
 # shellcheck disable=SC1090
 [[ -f "$STATE" ]] && source "$STATE" || true
 last_batch_count="${last_batch_count:-0}"
 last_batch_epoch="${last_batch_epoch:-0}"
+last_files_complete="${last_files_complete:-0}"
+last_progress_epoch="${last_progress_epoch:-0}"
 
 while true; do
   ensure_watchers
+  if pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null; then
+    node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" 2>/dev/null || true
+  fi
   progress="$(node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 2>/dev/null || true)"
   remaining="$(node "${ROOT}/scripts/audit/deepsec-wave2-remaining.mjs" "$ROOT" 2 2>/dev/null || true)"
   complete="$(node -e "try{console.log(JSON.parse(process.argv[1]).filesComplete)}catch{console.log(0)}" "$progress")"
@@ -87,7 +98,7 @@ while true; do
     exit 3
   fi
 
-  if "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
+  if read -r wave_agent _ < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh" 2>/dev/null); then
     if [[ "$batch_count" != "$last_batch_count" ]]; then
       last_batch_count="$batch_count"
       last_batch_epoch="$now_epoch"
@@ -96,25 +107,44 @@ while true; do
       [[ "$last_batch_epoch" -eq 0 ]] && last_batch_epoch="$now_epoch"
     fi
 
-    if kimi_running; then
+    if [[ "$complete" =~ ^[0-9]+$ ]]; then
+      if [[ "$complete" -gt "$last_files_complete" ]]; then
+        last_files_complete="$complete"
+        last_progress_epoch="$now_epoch"
+      elif [[ "$last_progress_epoch" -eq 0 ]] && [[ "$complete" -gt 0 ]]; then
+        last_progress_epoch="$now_epoch"
+      fi
+    fi
+
+    if wave2_running; then
+      idle_batch=0
+      idle_progress=0
       if [[ "$last_batch_epoch" -gt 0 ]]; then
-        idle=$((now_epoch - last_batch_epoch))
-        if [[ "$idle" -ge "$HANG_SEC" ]]; then
-          echo "=== HANG idle=${idle}s — restart $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-          "${ROOT}/scripts/audit/deepsec-wave2-restart-kimi.sh" || true
-          last_batch_count=0
-          last_batch_epoch="$now_epoch"
-        fi
+        idle_batch=$((now_epoch - last_batch_epoch))
+      fi
+      if [[ "$last_progress_epoch" -gt 0 ]]; then
+        idle_progress=$((now_epoch - last_progress_epoch))
+      fi
+      # Gate count can sit for hours while Grok finishes tier-1 deep passes; only batch
+      # stall should restart an active wave2 process (avoids grok exit 143 mid-investigate).
+      if grok_investigate_active; then
+        echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) grok investigate active — skip hang restart (idle_batch=${idle_batch}s)"
+      elif [[ "$idle_batch" -ge "$HANG_SEC" ]]; then
+        echo "=== HANG idle_batch=${idle_batch}s idle_progress=${idle_progress}s complete=${complete}/${tracked} — restart $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+        "${ROOT}/scripts/audit/deepsec-wave2-restart.sh" || true
+        last_batch_count=0
+        last_batch_epoch="$now_epoch"
+        last_progress_epoch="$now_epoch"
       fi
     else
-      echo "=== no kimi process — start reinvestigate $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-      "${ROOT}/scripts/audit/deepsec-wave2-restart-kimi.sh" || true
+      echo "=== no wave2 process — start reinvestigate ($wave_agent) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+      "${ROOT}/scripts/audit/deepsec-wave2-restart.sh" || true
       last_batch_count=0
       last_batch_epoch="$now_epoch"
     fi
   else
-    echo "=== quota limited — stop kimi $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-    pkill -9 -f 'deepsec/dist/cli.mjs process.*--agent kimi' 2>/dev/null || true
+    echo "=== no agent available (quota-sleep) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+    pkill -9 -f 'deepsec/dist/cli.mjs process' 2>/dev/null || true
     pkill -9 -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
     last_batch_epoch=0
   fi
@@ -122,6 +152,8 @@ while true; do
   {
     echo "last_batch_count=$last_batch_count"
     echo "last_batch_epoch=$last_batch_epoch"
+    echo "last_files_complete=$last_files_complete"
+    echo "last_progress_epoch=$last_progress_epoch"
   } >"$STATE"
 
   sleep "$TICK_SEC"

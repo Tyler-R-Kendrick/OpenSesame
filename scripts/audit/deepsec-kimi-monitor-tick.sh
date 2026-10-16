@@ -11,20 +11,13 @@ if ! pgrep -f deepsec-kimi-quota-watch.sh >/dev/null; then
   echo "restarted quota-watch" >>"$LOG"
 fi
 (cd "$WS" && "$DEEPSEC" status --project-id opensesame) >>"$LOG" 2>&1 || true
-if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" >>"$LOG" 2>&1; then
-  echo "kimi: quota limited" >>"$LOG"
-  if pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null; then
-    pkill -f 'deepsec/dist/cli.mjs process.*--agent kimi' || true
-    echo "stopped kimi deepsec process (quota)" >>"$LOG"
+if ! read -r tick_agent _ < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh" 2>>"$LOG"); then
+  echo "wave2: no agent (grok/kimi/cursor unavailable)" >>"$LOG"
+  if pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null; then
+    pkill -f 'deepsec/dist/cli.mjs process' || true
+    echo "stopped deepsec process (no agent)" >>"$LOG"
   fi
-  if "${ROOT}/scripts/audit/deepsec-cursor-auth-probe.sh" >>"$LOG" 2>&1; then
-    echo "cursor: composer available — starting wave2" >>"$LOG"
-    if ! pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null \
-      && ! pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null; then
-      nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
-    fi
-  fi
-else
+elif [[ "$tick_agent" == "kimi" ]]; then
   echo "kimi: ok" >>"$LOG"
   errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
     | grep -E '^[[:space:]]+error:' | head -1 \
@@ -34,6 +27,8 @@ else
     nohup "${ROOT}/scripts/audit/deepsec-kimi-error-loop.sh" >>/tmp/deepsec-kimi-error-loop.nohup 2>&1 &
     echo "started error-loop errors=$errs" >>"$LOG"
   fi
+else
+  echo "${tick_agent}: ok (wave2 primary)" >>"$LOG"
 fi
 errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
   | grep -E '^[[:space:]]+error:' | head -1 \
@@ -51,8 +46,7 @@ fi
 if ! pgrep -f deepsec-grok-reinvestigate-wave.sh >/dev/null \
   && ! pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null \
   && ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
-  if "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" \
-    || "${ROOT}/scripts/audit/deepsec-cursor-auth-probe.sh"; then
+  if read -r _ _ < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh" 2>/dev/null); then
     echo "wave2 incomplete — starting reinvestigate $(date -u +%H:%M:%SZ)" >>"$LOG"
     nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
   else
