@@ -104,6 +104,7 @@ describe("clearDatabases", () => {
       "opensesame-history-backups",
       "opensesame-at-rest",
       "opensesame-password-history",
+      "opensesame-peer-trust",
     ]);
     expect([...databases.live]).toEqual(["x"]);
   });

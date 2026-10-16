@@ -41,6 +41,7 @@ import {
   type PeerRouting,
   type TransportFactory,
 } from "./p2p.js";
+import { gateLivePeerTrustSignal } from "./peer-trust-peering.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import { type RelaySource, buildLiveHost } from "./session-build-host.js";
@@ -310,6 +311,10 @@ export type JoinInput = Readonly<{
    */
   useRoutes: boolean;
   carriers?: CarrierFactory;
+  /** Optional OOB peer-trust signal (`peer-trust-peering.ts`); no daemon/CLI. */
+  peerTrustSignal?: string | null;
+  rememberedPeerFingerprint?: string;
+  minimumPeerTrustEpoch?: number;
 }>;
 
 /**
@@ -347,6 +352,17 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
   watchPlan();
   // The plan may already have withdrawn Live sessions: left before it began.
   if (guest !== next) return next;
+  if (input.peerTrustSignal) {
+    const trust = await gateLivePeerTrustSignal(
+      input.peerTrustSignal,
+      input.rememberedPeerFingerprint,
+      input.minimumPeerTrustEpoch,
+    );
+    if (!trust.ok) {
+      leaveLive();
+      throw new Error(`peer_trust_refused:${trust.reason}`);
+    }
+  }
   changed();
   await next.start();
   return next;
