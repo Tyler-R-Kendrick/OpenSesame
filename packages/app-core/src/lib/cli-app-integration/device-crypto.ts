@@ -291,9 +291,11 @@ async function unwrapDeviceKeyMaterial(
   }
 }
 
-async function readStoredDeviceKey(): Promise<StoredDeviceKey | null> {
+async function readStoredDeviceKey(
+  storageKey: string,
+): Promise<StoredDeviceKey | null> {
   const { localStore } = await import("../../ports.js");
-  const raw = localStore().getItem(DEVICE_SIGNING_STORAGE_KEY);
+  const raw = localStore().getItem(storageKey);
   if (!raw) return null;
   try {
     const parsed = storedDeviceKeySchema.safeParse(JSON.parse(raw));
@@ -303,9 +305,12 @@ async function readStoredDeviceKey(): Promise<StoredDeviceKey | null> {
   }
 }
 
-async function writeStoredDeviceKey(record: StoredDeviceKey): Promise<void> {
+async function writeStoredDeviceKey(
+  storageKey: string,
+  record: StoredDeviceKey,
+): Promise<void> {
   const { localStore } = await import("../../ports.js");
-  localStore().setItem(DEVICE_SIGNING_STORAGE_KEY, JSON.stringify(record));
+  localStore().setItem(storageKey, JSON.stringify(record));
 }
 
 export type CliAppDeviceSigningKey = Readonly<{
@@ -320,17 +325,7 @@ async function ensureCliAppSigningKeyForStorage(
   const vaultSessionRoot = await readCliAppPairingVaultSessionRoot();
   if (!vaultSessionRoot) return null;
 
-  const { localStore } = await import("../../ports.js");
-  const raw = localStore().getItem(storageKey);
-  const stored = (() => {
-    if (!raw) return null;
-    try {
-      const parsed = storedDeviceKeySchema.safeParse(JSON.parse(raw));
-      return parsed.success ? parsed.data : null;
-    } catch {
-      return null;
-    }
-  })();
+  const stored = await readStoredDeviceKey(storageKey);
   if (stored) {
     const pkcs8 = await unwrapDeviceKeyMaterial(
       vaultSessionRoot,
@@ -364,10 +359,10 @@ async function ensureCliAppSigningKeyForStorage(
   );
   const publicKeySpkiB64 = await exportSpkiB64(keyPair.publicKey);
   const wrappedPkcs8B64 = await wrapDeviceKeyMaterial(vaultSessionRoot, pkcs8);
-  localStore().setItem(
-    storageKey,
-    JSON.stringify({ publicKeySpkiB64, wrappedPkcs8B64 }),
-  );
+  await writeStoredDeviceKey(storageKey, {
+    publicKeySpkiB64,
+    wrappedPkcs8B64,
+  });
   return {
     publicKeySpkiB64,
     sign: (message) => signP256Sha256B64(keyPair.privateKey, message),
