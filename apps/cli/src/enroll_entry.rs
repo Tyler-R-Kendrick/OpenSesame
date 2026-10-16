@@ -125,7 +125,7 @@ fn zenity_question() -> bool {
 
 #[cfg(target_os = "windows")]
 fn windows_secure_prompt() -> bool {
-    let script = r#"
+    let script = r"
 Add-Type -AssemblyName System.Windows.Forms
 $result = [System.Windows.Forms.MessageBox]::Show(
   'Enroll the OpenSesame daemon CLI root trust key on this machine?',
@@ -134,7 +134,7 @@ $result = [System.Windows.Forms.MessageBox]::Show(
   [System.Windows.Forms.MessageBoxIcon]::Warning
 )
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) { exit 0 } else { exit 1 }
-"#;
+";
     let output = Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .stdin(Stdio::null())
