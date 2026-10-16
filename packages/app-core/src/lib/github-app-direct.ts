@@ -159,14 +159,13 @@ export async function githubApiJson(
     const init: RequestInit = {
       method: request.method,
       headers,
-      body:
-        request.body === undefined ? undefined : JSON.stringify(request.body),
       credentials: "omit",
       redirect: "error",
       cache: "no-store",
       referrerPolicy: "no-referrer",
       signal,
     };
+    if (request.body !== undefined) init.body = JSON.stringify(request.body);
     assertGithubCurrent(current);
     const response = await transport.fetch(
       `https://api.github.com${path}`,
