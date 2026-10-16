@@ -192,6 +192,9 @@ test.describe("Pages visual contract", () => {
     await expect(
       page.getByRole("button", { name: "Seal with PIN", exact: true }),
     ).toBeVisible();
+    await expect(
+      page.locator(".unlock__hero-wordmark.cipher-wordmark--settled"),
+    ).toBeVisible();
     await capture(
       page,
       page.getByLabel("Device PIN", { exact: true }),
