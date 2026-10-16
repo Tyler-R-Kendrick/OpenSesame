@@ -194,11 +194,13 @@ fn pairing_ops_refuse_until_root_key_enrolled() {
         pairings.register_webauthn(
             "token",
             origin,
-            TEST_VAULT_SESSION_ROOT_DIGEST,
-            "oschip2:passkey:{}",
-            "cred",
-            &spki,
-            1,
+            &crate::WebAuthnRegistration {
+                vault_session_root_digest: TEST_VAULT_SESSION_ROOT_DIGEST.to_string(),
+                human_proof_passkey: "oschip2:passkey:{}".to_string(),
+                credential_id_b64: "cred".to_string(),
+                public_key_spki_b64: spki.clone(),
+                sign_count: 1,
+            },
         ),
         Err(PairingError::RootKeyNotEnrolled)
     ));
