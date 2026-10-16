@@ -7,7 +7,7 @@ import {
   exportRefusal,
   offlineBackupFile,
 } from "@opensesame/app-core/lib/vault/offline-backup-file.js";
-import { openVaultLabel } from "@opensesame/app-core/lib/vaults.js";
+import { vaultLabel } from "@opensesame/app-core/lib/vaults.js";
 import { listedItems } from "@opensesame/vault-core";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -67,7 +67,7 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
     (item) => item.deletedAt === null,
   ).length;
   const facts: CeremonyFact[] = [
-    { key: "Vault", value: openVaultLabel() },
+    { key: "Vault", value: vaultLabel({ id: vault.tomb, name: vault.tomb }) },
     { key: "Items", value: String(live) },
     {
       key: "Opens with",
