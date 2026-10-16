@@ -1,4 +1,3 @@
-import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { connectFormDraws } from "@opensesame/app-core/lib/connect-roads.js";
 import type {
   Connection,
@@ -287,9 +286,7 @@ export function ConnectorSettingsPage({
 
       {nativeExperience ||
       identityExperience ||
-      secretBackendExperience ||
-      ((isAiConnectionProvider(provider.id) || provider.id === "tailscale") &&
-        !isConnectConnection(connection)) ? null : automatic ? (
+      secretBackendExperience ? null : automatic ? (
         <section className="panel" id="authorization" ref={authorizeRef}>
           <div className="panel__head">
             <div>

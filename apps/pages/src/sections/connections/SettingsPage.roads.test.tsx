@@ -132,40 +132,26 @@ describe("a key or a configuration seals on this device", () => {
     },
   );
 
-  it("configures Anthropic through the shared inference form when Vercel also lists it", () => {
+  it("asks for Anthropic's API key when Vercel also lists it", () => {
     connectorIntegration();
     draw("anthropic");
-    expect(screen.getByLabelText("API key", { exact: true })).toBeTruthy();
+    expect(screen.getByLabelText("Anthropic API key")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Save AI connection" }),
+      screen.getByRole("button", { name: "Verify and connect Anthropic" }),
     ).toBeTruthy();
   });
 
-  it("composes real Tailscale node and OAuth configuration without the legacy daemon refusal or duplicate generic form", () => {
+  it("explains Tailscale's native daemon requirement without collecting an auth key", () => {
     draw("tailscale");
-    expect(screen.getByLabelText("Browser node hostname")).toBeTruthy();
-    expect(screen.getByLabelText("Tailscale control server")).toBeTruthy();
+    expect(screen.queryByLabelText(/Tailnet|Auth key/)).toBeNull();
     expect(
-      screen.getByLabelText("Optional node auth key").getAttribute("type"),
-    ).toBe("password");
-    expect(screen.getByLabelText("Tailscale API base URL")).toBeTruthy();
-    expect(screen.getByLabelText("Provisioned node attributes")).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Connect browser node" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Download registration request" }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByText(/device enrollment requires tailscaled/),
+      screen.queryByRole("button", {
+        name: /Save configuration|Verify and connect/,
+      }),
     ).toBeNull();
-    expect(screen.queryByLabelText("Auth key (required)")).toBeNull();
-    expect(screen.getAllByLabelText("Tailnet", { exact: true })).toHaveLength(
-      1,
-    );
     expect(
-      screen.queryByRole("button", { name: "Save configuration" }),
-    ).toBeNull();
+      screen.getByText(/device enrollment requires tailscaled/),
+    ).toBeTruthy();
   });
 });
 

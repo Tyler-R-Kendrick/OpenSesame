@@ -1,4 +1,3 @@
-import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { isAiModelProvider } from "@opensesame/app-core/lib/ai-model-provider.js";
 import type {
   Connection,
@@ -7,13 +6,11 @@ import type {
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { AiConnectionPanels } from "./ai/AiConnectionPanels.js";
 import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
 import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
 import { NativeConnectorPanels } from "./connect/NativeConnectorPanels.js";
 import { IdentityConnectionPanels } from "./identity/IdentityConnectionPanels.js";
 import { SecretBackendPanels } from "./secret-backends/SecretBackendPanels.js";
-import { TailscalePanels } from "./tailscale/TailscalePanels.js";
 
 type Props = {
   provider: Provider;
@@ -46,11 +43,14 @@ function NativeSettingsPanels(props: Props) {
   );
 }
 export function SettingsPageConnectPanels(props: Props) {
-  const { provider, connection, nativeExperience, identityExperience } = props;
-  if (provider.id === "tailscale" && !isConnectConnection(connection))
-    return <TailscalePanels {...props} />;
-  if (isAiConnectionProvider(provider.id) && !isConnectConnection(connection))
-    return <AiSettingsPanels {...props} />;
+  const {
+    provider,
+    connection,
+    nativeExperience,
+    identityExperience,
+    onConnect,
+    deviceSeal,
+  } = props;
   if (isSecretBackendProvider(provider.id) && !isConnectConnection(connection))
     return (
       <SecretBackendPanels
@@ -66,23 +66,6 @@ export function SettingsPageConnectPanels(props: Props) {
       />
     );
   if (nativeExperience) return <NativeSettingsPanels {...props} />;
-  return <HostedSettingsPanels {...props} />;
-}
-
-function AiSettingsPanels({ provider, connection, onFlash, onChanged }: Props) {
-  return (
-    <AiConnectionPanels
-      key={`${provider.id}/${connection?.connectionId ?? "new"}`}
-      providerId={provider.id}
-      connectionId={connection?.connectionId}
-      onFlash={onFlash}
-      onChanged={onChanged}
-    />
-  );
-}
-
-function HostedSettingsPanels(props: Props) {
-  const { onConnect, deviceSeal, connection } = props;
   if (
     onConnect &&
     (!deviceSeal ||
