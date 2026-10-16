@@ -109,7 +109,8 @@ async fn ensure_over_uds_ignores_body_terminal_session_id() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
-    let human_proof = test_support::mint_test_human_proof(request_id, &derived, nonce, "read");
+    let human_proof =
+        test_support::mint_test_human_proof(request_id, &derived, nonce, "read", cred.pid, 0);
     let respond_body = serde_json::json!({"requestId": request_id,"terminalSessionId": derived,"decision": "approve","respondNonce": nonce,"humanProof": human_proof}).to_string();
     let respond = respond_request(&respond_body, origin, &token, Some(cred));
     let res = app.clone().oneshot(respond).await.unwrap();

@@ -32,9 +32,12 @@ function pageOrigin(): string | null {
   }
 }
 
-export const CLI_AUTHORIZE_LOAD_BLOCKED =
-  "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
-export const CLI_AUTHORIZE_LOAD_UNREADABLE = "Couldn't check for CLI requests.";
+import {
+  CLI_AUTHORIZE_LOAD_BLOCKED,
+  CLI_AUTHORIZE_LOAD_UNREADABLE,
+} from "./cli-authorize-messages.js";
+
+export { CLI_AUTHORIZE_LOAD_BLOCKED, CLI_AUTHORIZE_LOAD_UNREADABLE };
 
 const LOAD_BLOCKED = CLI_AUTHORIZE_LOAD_BLOCKED;
 const LOAD_UNREADABLE = CLI_AUTHORIZE_LOAD_UNREADABLE;
@@ -51,12 +54,17 @@ function blockedCopy(error: DOMException | null, fallback: string): string {
 }
 
 const cliAuthorizePendingBodySchema = z.object({
+  daemonIntegrationId: z.string().optional(),
   pending: z.array(
     z.object({
       requestId: z.string(),
       terminalSessionId: z.string(),
       verb: z.string(),
       respondNonce: z.string(),
+      argvHash: z.string().optional(),
+      peerPid: z.number().optional(),
+      peerStartTime: z.number().optional(),
+      approvable: z.boolean().optional(),
     }),
   ),
 });
@@ -100,6 +108,10 @@ async function loadPending(): Promise<PendingLoad> {
       entry.terminalSessionId,
       entry.verb,
       entry.respondNonce,
+      body.data.daemonIntegrationId ?? "ephemeral-no-attest",
+      entry.argvHash ?? "00",
+      entry.peerPid ?? 0,
+      entry.peerStartTime ?? 0,
     ];
     return { row, loadError: null };
   } catch (error) {
