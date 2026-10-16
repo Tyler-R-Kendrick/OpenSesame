@@ -12,16 +12,12 @@ import {
   IDENTITY_LABELS,
   IDENTITY_VIEWS,
 } from "@opensesame/app-core/lib/section-view-names.js";
-import type { DeviceWorkspaceExtras } from "./device-workspace-rows.js";
-import { deviceWorkspaceRows } from "./device-workspace-rows.js";
 import type { HostedIdentityRows } from "./hosted-identity-rail.js";
 export type IdentityRailSnapshot = {
   hosted?: HostedIdentityRows;
   directory?: readonly LocalIdentity[];
   providers?: readonly { id: string; label: string }[];
   devices?: readonly { id: string; name: string }[];
-  /** Matches `DevicesWorkspace` tailnet and directory approval rows (B7-6). */
-  deviceWorkspaceExtras?: DeviceWorkspaceExtras;
 };
 
 const VIEW_KIND = {
@@ -56,15 +52,9 @@ function itemsFor(
     );
   }
   if (view === "devices") {
-    const extras = snapshot.deviceWorkspaceExtras ?? {
-      tailnet: false,
-      approval: false,
-    };
-    return deviceWorkspaceRows(snapshot.devices ?? [], extras).map((row) => ({
-      id: row.id,
-      label: row.label,
-      href: row.href,
-    }));
+    return (snapshot.devices ?? []).map((device) =>
+      leaf(view, device.id, device.name),
+    );
   }
   // SAFETY: test/fixture or boundary-checked value matches keyof typeof VIEW_KIND].
   const kind = VIEW_KIND[view as keyof typeof VIEW_KIND];

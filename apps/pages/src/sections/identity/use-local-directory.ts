@@ -12,17 +12,13 @@ import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-eve
 import { useEffect, useState } from "react";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import { useDirectoryPanels } from "./directory-panel-slot.js";
 import { useHostedIdentityRows } from "./hosted-identity-rail.js";
 import type { IdentityRailSnapshot } from "./page-tree.js";
-import { useTailnetDevices } from "./tailnet-devices-slot.js";
 
 /** Live directory, devices, and IdP registry for every Identity rail subtree. */
 export function useIdentityRailSnapshot(): IdentityRailSnapshot {
   const { tomb } = useVault();
   const configured = useIdentityConfigured();
-  const directoryPanels = useDirectoryPanels();
-  const Tailnet = useTailnetDevices();
   const hosted = useHostedIdentityRows();
   const [directory, setDirectory] = useState<LocalIdentity[]>([]);
   const [devices, setDevices] = useState<LocalDevice[]>([]);
@@ -63,9 +59,5 @@ export function useIdentityRailSnapshot(): IdentityRailSnapshot {
     providers,
     devices,
     hosted: configured && !isGuestSession() ? hosted : undefined,
-    deviceWorkspaceExtras: {
-      tailnet: Tailnet !== null,
-      approval: configured && directoryPanels !== null,
-    },
   };
 }
