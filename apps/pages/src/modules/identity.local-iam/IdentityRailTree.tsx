@@ -19,11 +19,7 @@ export function IdentityRailTree(_props: TreeProps) {
   const view =
     views.find((id) => id === params.get("view")) ?? views[0] ?? "people";
   const current =
-    pathname === "/identity/authorize"
-      ? "/identity/authorize?cli=1"
-      : pathname === "/identity"
-        ? `/identity?view=${view}${hash}`
-        : "";
+    pathname === "/identity" ? `/identity?view=${view}${hash}` : "";
   const branches = identityPageTree(useIdentityRailSnapshot(), views);
   return (
     <div className="railtree__kids" id="identity-tree">

@@ -11,10 +11,6 @@ export type CliAuthorizeRow = readonly [
   terminalSessionId: string,
   verb: string,
   respondNonce: string,
-  daemonIntegrationId: string,
-  argvHash: string,
-  peerPid: number,
-  peerStartTime: number,
 ];
 
 function bindingFromRow(row: CliAuthorizeRow) {
@@ -23,10 +19,6 @@ function bindingFromRow(row: CliAuthorizeRow) {
     terminalSessionId: row[1],
     respondNonce: row[3],
     verb: row[2],
-    daemonIntegrationId: row[4],
-    argvHash: row[5],
-    peerPid: row[6],
-    peerStartTime: row[7],
   };
 }
 
@@ -47,20 +39,16 @@ export async function mintCliAuthorizePasskeyProof(
     "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
   );
   const {
-    approvalChallengeDigestV3,
+    approvalChallengeDigest,
     formatCliAppHumanProofPasskey,
     b64urlEncode,
   } = crypto;
-  const challenge = await approvalChallengeDigestV3({
-    daemonIntegrationId: binding.daemonIntegrationId,
-    requestId: binding.requestId,
-    terminalSessionId: binding.terminalSessionId,
-    respondNonce: binding.respondNonce,
-    verb: binding.verb,
-    argvHash: binding.argvHash,
-    peerPid: binding.peerPid,
-    peerStartTime: binding.peerStartTime,
-  });
+  const challenge = await approvalChallengeDigest(
+    binding.requestId,
+    binding.terminalSessionId,
+    binding.respondNonce,
+    binding.verb,
+  );
   const assertion = await navigator.credentials.get({
     publicKey: {
       challenge,
@@ -91,6 +79,7 @@ export async function mintCliAuthorizePinProof(
   pin: string,
   header: VaultHeader,
 ): Promise<string> {
+  const binding = bindingFromRow(row);
   const { onCompleteUnlockCodeSubmission } = await import(
     "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js"
   );
@@ -117,7 +106,21 @@ export async function mintCliAuthorizePinProof(
   );
   raw.fill(0);
   requirePairingSecret();
-  // PIN only unlocks the vault; the daemon never verifies PIN proofs against
-  // the client-chosen pairing device key (#1366), so mint the v3 passkey proof.
-  return mintCliAuthorizePasskeyProof(row);
+  const {
+    approvalChallengeDigest,
+    formatCliAppHumanProofPin,
+    ensureCliAppDeviceSigningKey,
+  } = await import(
+    "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
+  );
+  const device = await ensureCliAppDeviceSigningKey();
+  if (!device) throw new WrongPasswordError("That PIN did not work.");
+  const challenge = await approvalChallengeDigest(
+    binding.requestId,
+    binding.terminalSessionId,
+    binding.respondNonce,
+    binding.verb,
+  );
+  const sig = await device.sign(challenge);
+  return formatCliAppHumanProofPin(sig);
 }
