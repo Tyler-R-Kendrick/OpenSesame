@@ -29,17 +29,12 @@ describe("a link to a retired Settings address", () => {
       "backups",
       "password-managers",
       "cloud-secret-storage",
+      "local-storage",
     ]) {
       expect(at("/settings/capabilities", "", `#feature-${id}`)).toBe(
         `/settings/integrations#integration-${id}`,
       );
     }
-  });
-
-  it("keeps the removed local-storage section on the general Features fallback", () => {
-    expect(at("/settings/capabilities", "", "#feature-local-storage")).toBe(
-      "/settings/features#feature-local-storage",
-    );
   });
 
   it("sends a bare connector family to its tile list on Integrations", () => {

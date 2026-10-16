@@ -17,6 +17,7 @@ import {
   type HostedModelTransport,
   hostedModelAuthority,
 } from "./hosted-model-authority.js";
+import { isHostedModelProvider } from "./hosted-model-protocol.js";
 import {
   type ModelProviderRecord,
   loadModelProvider,
@@ -31,16 +32,18 @@ export function runSavedModel(
 }
 function selectedConnection(record: ModelProviderRecord): string | null {
   const choice = record.inference;
-  if (choice.kind !== "hosted" || !choice.model) return null;
+  if (
+    choice.kind !== "hosted" ||
+    !isHostedModelProvider(choice.provider) ||
+    !choice.model
+  )
+    return null;
   const connected =
     hostedModelAuthority()
       ?.connections()
       .filter(
         (row) =>
           row.providerId === choice.provider &&
-          (!choice.connectionId || row.connectionId === choice.connectionId) &&
-          (!row.model || row.model === choice.model) &&
-          (!row.endpoint || row.endpoint === choice.endpoint) &&
           row.status === "connected" &&
           row.method === "api-key",
       ) ?? [];

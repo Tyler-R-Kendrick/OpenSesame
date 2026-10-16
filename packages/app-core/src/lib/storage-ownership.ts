@@ -39,9 +39,6 @@ export const AT_REST_DATABASE = "opensesame-at-rest";
 /** Sealed retired-password digests when no backup is configured. */
 export const PASSWORD_HISTORY_DATABASE = "opensesame-password-history";
 
-/** PWA peer-trust ARK and signed enrollment record (`peer-trust/`). */
-export const PEER_TRUST_DATABASE = "opensesame-peer-trust";
-
 /** Directory of encrypted file parts in origin private storage. */
 export const FILE_PARTS_DIRECTORY = "opensesame-pages-file-parts";
 
@@ -58,7 +55,6 @@ export const APP_DATABASES: readonly string[] = [
   HISTORY_BACKUP_DATABASE,
   AT_REST_DATABASE,
   PASSWORD_HISTORY_DATABASE,
-  PEER_TRUST_DATABASE,
 ];
 
 export type WebStorageArea = "local" | "session";
