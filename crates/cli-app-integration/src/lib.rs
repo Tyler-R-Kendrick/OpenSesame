@@ -1,18 +1,23 @@
 //! `CLI` ↔ `OpenSesame` app integration (1Password-style terminal sessions).
 mod daemon_attest;
 mod device_crypto;
+mod headless_policy;
 mod human_proof;
 mod pairing;
 mod pairing_code;
+mod policy;
 mod root_enroll;
 mod root_trust;
 mod terminal_session;
+mod trust;
 mod webauthn_assertion;
 
 use human_proof::human_proof_verify;
+#[cfg(test)]
+use policy::SOURCE;
+use policy::{policy, respond_nonce};
 
 use rand_core::{OsRng, RngCore as _};
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 /// Pin-probe ensure must never appear in the human approval queue (D7-2 U7).
@@ -26,12 +31,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 static TEST_TCP_EPHEMERAL: AtomicU64 = AtomicU64::new(0);
 
 pub use daemon_attest::{
-    daemon_attest_public_key_spki_b64, sign_daemon_attest, verify_daemon_attest,
+    daemon_attest_public_key_spki_b64, daemon_integration_id, sign_daemon_attest,
+    verify_daemon_attest,
 };
 #[cfg(any(test, feature = "test-seams"))]
 pub use device_crypto::{pairing_confirm_message, verifying_key_spki_b64};
+pub use headless_policy::{
+    refuse_tty_enrollment_without_opt_in, tty_enrollment_explicitly_allowed,
+};
 #[cfg(any(test, feature = "test-seams"))]
-pub use human_proof::{mint_pin_human_proof, mint_test_signing_key};
+pub use human_proof::{mint_pin_human_proof, mint_test_signing_key, HumanProofContext};
 pub use pairing::{
     format_pairing_code, is_device_public_key_shaped, is_pairable_origin,
     CliAppIntegrationPairings, ConfirmOutcome, Issued, PairedBinding, PairingError,
@@ -45,11 +54,13 @@ pub use root_enroll::{
 };
 pub use root_trust::{fingerprint_of_spki, RootTrustError, RootTrustRecord};
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
+pub use trust::{TrustAnchor, TrustStore, TRUST_STORE_VERSION};
 
 /// Daemon-held integration state and browser pairings.
 pub struct CliAppIntegrationHost {
     pub store: CliAppIntegrationStore,
     pub pairings: CliAppIntegrationPairings,
+    pub trust: TrustStore,
     /// One pending PAKE enrollment. A new begin replaces it.
     root_enroll: root_enroll::Sessions,
     /// TCP peers (or test harness keys) bound to a daemon-issued terminal session id.
@@ -68,9 +79,15 @@ impl CliAppIntegrationHost {
         Self {
             store: CliAppIntegrationStore::new(),
             pairings: CliAppIntegrationPairings::default(),
+            trust: TrustStore::new(),
             root_enroll: root_enroll::Sessions::default(),
             tcp_terminal_sessions: HashMap::new(),
         }
+    }
+
+    /// Wipe in-memory legacy pairings after a trust-store format upgrade.
+    pub fn wipe_legacy_pairings_on_trust_upgrade(&mut self) {
+        self.pairings = CliAppIntegrationPairings::default();
     }
 
     /// Issue or return the terminal session id for a non-UDS ensure (never trusts the client body).
@@ -100,37 +117,6 @@ pub fn fresh_host() -> SharedCliAppIntegration {
     Arc::new(Mutex::new(CliAppIntegrationHost::new()))
 }
 
-fn respond_nonce() -> String {
-    let mut raw = [0u8; 16];
-    OsRng.fill_bytes(&mut raw);
-    hex::encode(raw)
-}
-
-const SOURCE: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Policy {
-    idle_timeout_seconds: u64,
-    hard_limit_seconds: u64,
-    request_timeout_seconds: u64,
-    messages: Messages,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Messages {
-    app_unavailable: String,
-    denied: String,
-    expired: String,
-    request_timeout: String,
-}
-
-fn policy() -> &'static Policy {
-    static POLICY: std::sync::OnceLock<Policy> = std::sync::OnceLock::new();
-    POLICY.get_or_init(|| serde_json::from_str(SOURCE).expect("cli-app-integration.json"))
-}
-
 #[derive(Clone, Debug)]
 struct ApprovedSession {
     approved_at_ms: u64,
@@ -145,6 +131,11 @@ pub struct PendingRequest {
     pub reference: Option<String>,
     pub created_at_ms: u64,
     pub respond_nonce: String,
+    pub argv_hash: String,
+    pub peer_pid: u32,
+    pub peer_start_time: u64,
+    /// Browser approval is only allowed for kernel-attested unix-socket peers.
+    pub approvable: bool,
 }
 
 /// In-memory integration state held by the daemon.
@@ -241,6 +232,10 @@ impl CliAppIntegrationStore {
         verb: &str,
         reference: Option<&str>,
         reuse_approved_session: bool,
+        argv_hash: &str,
+        peer_pid: u32,
+        peer_start_time: u64,
+        approvable: bool,
     ) -> (String, Option<String>) {
         self.expire_pending();
         self.refuse_ambiguous_pending();
@@ -269,6 +264,10 @@ impl CliAppIntegrationStore {
                 reference: reference.map(str::to_string),
                 created_at_ms: self.now_ms,
                 respond_nonce: respond_nonce(),
+                argv_hash: argv_hash.to_string(),
+                peer_pid,
+                peer_start_time,
+                approvable,
             },
         );
         ("pending".into(), Some(request_id))
@@ -293,14 +292,20 @@ impl CliAppIntegrationStore {
         if row.respond_nonce != respond_nonce {
             return ("wrongSession".into(), None);
         }
-        let Some(outcome) = human_proof_verify(
-            human_proof,
-            binding,
-            request_id,
-            terminal_session_id,
-            respond_nonce,
-            &row.verb,
-        ) else {
+        if !row.approvable {
+            return ("wrongSession".into(), None);
+        }
+        let ctx = human_proof::HumanProofContext {
+            daemon_id: daemon_integration_id(),
+            request_id: request_id.to_string(),
+            terminal_session_id: terminal_session_id.to_string(),
+            respond_nonce: respond_nonce.to_string(),
+            verb: row.verb.clone(),
+            argv_hash: row.argv_hash.clone(),
+            peer_pid: row.peer_pid,
+            peer_start_time: row.peer_start_time,
+        };
+        let Some(outcome) = human_proof_verify(human_proof, binding, &ctx) else {
             return ("wrongSession".into(), None);
         };
         let passkey_sign_count = Some(outcome.into_sign_count());
@@ -376,6 +381,9 @@ pub use seams_test_only::seam_decision;
 
 #[cfg(test)]
 mod store_conformance_tests;
+
+#[cfg(test)]
+mod security_tests;
 
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;

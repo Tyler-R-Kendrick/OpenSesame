@@ -11,6 +11,10 @@ export type CliAuthorizeRow = readonly [
   terminalSessionId: string,
   verb: string,
   respondNonce: string,
+  daemonIntegrationId: string,
+  argvHash: string,
+  peerPid: number,
+  peerStartTime: number,
 ];
 
 function bindingFromRow(row: CliAuthorizeRow) {
@@ -19,6 +23,10 @@ function bindingFromRow(row: CliAuthorizeRow) {
     terminalSessionId: row[1],
     respondNonce: row[3],
     verb: row[2],
+    daemonIntegrationId: row[4],
+    argvHash: row[5],
+    peerPid: row[6],
+    peerStartTime: row[7],
   };
 }
 
@@ -39,16 +47,20 @@ export async function mintCliAuthorizePasskeyProof(
     "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
   );
   const {
-    approvalChallengeDigest,
+    approvalChallengeDigestV3,
     formatCliAppHumanProofPasskey,
     b64urlEncode,
   } = crypto;
-  const challenge = await approvalChallengeDigest(
-    binding.requestId,
-    binding.terminalSessionId,
-    binding.respondNonce,
-    binding.verb,
-  );
+  const challenge = await approvalChallengeDigestV3({
+    daemonIntegrationId: binding.daemonIntegrationId,
+    requestId: binding.requestId,
+    terminalSessionId: binding.terminalSessionId,
+    respondNonce: binding.respondNonce,
+    verb: binding.verb,
+    argvHash: binding.argvHash,
+    peerPid: binding.peerPid,
+    peerStartTime: binding.peerStartTime,
+  });
   const assertion = await navigator.credentials.get({
     publicKey: {
       challenge,
@@ -105,5 +117,7 @@ export async function mintCliAuthorizePinProof(
   );
   raw.fill(0);
   requirePairingSecret();
+  // PIN only unlocks the vault; the daemon never verifies PIN proofs against
+  // the client-chosen pairing device key (#1366), so mint the v3 passkey proof.
   return mintCliAuthorizePasskeyProof(row);
 }

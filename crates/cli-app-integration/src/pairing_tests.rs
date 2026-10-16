@@ -71,6 +71,32 @@ fn confirm_then_arm_then_exchange_mints_bearer() {
 
 /// Persona: operator-minted code + forged Origin + well-formed random root cannot confirm.
 #[test]
+fn confirm_without_arm_cannot_exchange_on_first_pairing() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    let origin = "http://localhost:5180";
+    let now = 2_000;
+    pairings.enroll_root_key_for_tests();
+    let (code, _) = pairings.issue(origin, now).unwrap();
+    let (signing_key, spki) = device_key_b64();
+    let challenge = pairings.pending[0].pairing_challenge;
+    let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
+    pairings
+        .confirm(
+            &code,
+            origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
+        .expect("confirm");
+    assert!(matches!(
+        pairings.exchange(&code, origin, now),
+        Err(PairingError::RegistrationRequired)
+    ));
+}
+
+#[test]
 fn persona_random_root_shaped_secret_cannot_confirm() {
     let mut pairings = enrolled_pairings();
     let origin = "http://localhost:5180";
