@@ -102,7 +102,10 @@ function nativeRecoveryControls(
           view.configuration.method === "oidc" &&
           ["vault", "openbao"].includes(view.providerId)
         )
-          return nativeVaultRevocationInstructions(view.connectionId, recoveryId);
+          return nativeVaultRevocationInstructions(
+            view.connectionId,
+            recoveryId,
+          );
         return view.configuration.method === "oauth" &&
           nativeBrowserOAuthRecoverySettings(view.configuration)
           ? nativeBrowserOAuthRevocationInstructions(
