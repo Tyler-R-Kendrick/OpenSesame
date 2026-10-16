@@ -131,10 +131,20 @@ export async function saveProviderFailure({
       .locator("body")
       .innerText()
       .catch(() => "<unavailable>");
+    const state = await other
+      .evaluate(() => ({
+        title: document.title,
+        children: document.body?.childElementCount ?? -1,
+        isolated: crossOriginIsolated,
+      }))
+      .catch((error) => ({ error: String(error) }));
     console.error(
-      `provider-auth failure page ${index} ${other.url()}\n${otherText.slice(0, 3000)}`,
+      `provider-auth failure page ${index} ${other.url()} ${JSON.stringify(state)}\n${otherText.slice(0, 3000)}`,
     );
   }
+  console.error(
+    `provider-auth observed: exchanges=${observed.exchanges.length} httpFailures=${JSON.stringify(observed.httpFailures).slice(0, 1000)}`,
+  );
   fs.writeFileSync(
     `${out}/${label}-failure.txt`,
     `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${text}`,
