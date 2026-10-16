@@ -11,6 +11,16 @@ type SignalFact = {
   dispose?: () => void;
 };
 type Link = { http: SignalFact; fetch: SignalFact; used: boolean };
+type BodySeal = {
+  response: number;
+  owner: number;
+  exchange: string | null;
+  at: number;
+  bytes: number;
+  format: "json" | "sse";
+};
+type OperationSeal = { owner: number; at: number };
+type SignalLinkSeal = { httpSignal: number; fetchSignal: number; at: number };
 type OwnerFact = {
   id: number;
   operationAt: number | null;
@@ -40,6 +50,9 @@ const signals = new WeakMap<AbortSignal, SignalFact>();
 const links = new WeakMap<AbortSignal, Link>();
 const requests: RequestFact[] = [];
 const signalFacts: SignalFact[] = [];
+const bodySeals: BodySeal[] = [];
+const operationSeals: OperationSeal[] = [];
+const signalLinks: SignalLinkSeal[] = [];
 const faults = new Set<string>();
 let sequence = 0;
 let ownerCount = 0;
@@ -93,11 +106,14 @@ function observeSignal(
     fault("signal-link-limit");
     return;
   }
-  links.set(event.httpSignal, {
-    http: retainSignal(event.httpSignal),
-    fetch: retainSignal(event.fetchSignal),
-    used: false,
+  const http = retainSignal(event.httpSignal);
+  const fetch = retainSignal(event.fetchSignal);
+  signalLinks.push({
+    httpSignal: http.id,
+    fetchSignal: fetch.id,
+    at: ++sequence,
   });
+  links.set(event.httpSignal, { http, fetch, used: false });
 }
 
 function ownerFact(owner: Owner): OwnerFact {
@@ -108,6 +124,11 @@ function ownerFact(owner: Owner): OwnerFact {
     owners.set(owner, fact);
   }
   return fact;
+}
+
+function responseExchange(response: Response): string | null {
+  const header = response.headers.get("x-opensesame-ai-exchange");
+  return header && /^[A-Za-z0-9:_-]{1,128}$/.test(header) ? header : null;
 }
 
 function observeRequest(
@@ -122,13 +143,10 @@ function observeRequest(
   const link = links.get(event.httpSignal) ?? null;
   if (link?.used) fault("reused-signal-link");
   if (link) link.used = true;
-  const header = event.response.headers.get("x-opensesame-ai-exchange");
-  const exchange =
-    header && /^[A-Za-z0-9:_-]{1,128}$/.test(header) ? header : null;
   const fact: RequestFact = {
     id: requests.length + 1,
     owner: owner.id,
-    exchange,
+    exchange: responseExchange(event.response),
     requestAt: ++sequence,
     bodyAt: null,
     operationAt: null,
@@ -158,23 +176,34 @@ function observeBody(
     owner.operationAt !== null ||
     !Number.isSafeInteger(event.bytes) ||
     event.bytes < 0 ||
-    event.bytes > 4 * 1024 * 1024
+    event.bytes > 4 * 1024 * 1024 ||
+    bodySeals.length >= limit
   ) {
     fault("invalid-body-fact");
     return;
   }
-  fact.bodyAt = ++sequence;
+  const at = ++sequence;
+  bodySeals.push({
+    response: fact.id,
+    owner: owner.id,
+    exchange: responseExchange(event.response),
+    at,
+    bytes: event.bytes,
+    format: event.format,
+  });
+  fact.bodyAt = at;
   fact.bytes = event.bytes;
   fact.format = event.format;
 }
 
 function observeOperation(owner: Owner): void {
   const fact = ownerFact(owner);
-  if (fact.operationAt !== null) {
-    fault("duplicate-operation");
+  if (fact.operationAt !== null || operationSeals.length >= limit) {
+    fault("duplicate-operation-or-operation-limit");
     return;
   }
   fact.operationAt = ++sequence;
+  operationSeals.push({ owner: fact.id, at: fact.operationAt });
   for (const request of fact.requests) {
     request.operationAt = fact.operationAt;
     const link = request.link;
@@ -213,15 +242,18 @@ function observe(event: AiCompletionObservation): void {
   }
 }
 
-function snapshot() {
+export function aiCompletionSnapshot() {
   return {
-    version: 1,
+    version: 2,
     epoch,
     sequence,
     faults: [...faults],
     links: linkCount,
     requests: requests.map(({ link: _link, ...fact }) => ({ ...fact })),
     signals: signalFacts.map(({ id, abortedAt }) => ({ id, abortedAt })),
+    bodies: bodySeals.map((fact) => ({ ...fact })),
+    operations: operationSeals.map((fact) => ({ ...fact })),
+    signalLinks: signalLinks.map((fact) => ({ ...fact })),
   };
 }
 
@@ -229,7 +261,7 @@ if (aiCompletionSeams.observe) fault("observer-already-installed");
 aiCompletionSeams.observe = observe;
 try {
   Object.defineProperty(globalThis, "__opensesameAiCompletion", {
-    value: Object.freeze({ snapshot }),
+    value: Object.freeze({ snapshot: aiCompletionSnapshot }),
     configurable: false,
     writable: false,
   });
