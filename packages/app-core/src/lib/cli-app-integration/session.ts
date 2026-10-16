@@ -38,15 +38,11 @@ function pendingExpired(createdAtMs: number, clock: () => number): boolean {
   return nowMs(clock) - createdAtMs > ttlMs;
 }
 
-const ENSURE_RATE_WINDOW_MS = 60_000;
-const ENSURE_RATE_MAX = 8;
-
 /** In-memory CLI app-integration state (daemon and unit tests). */
 export class CliAppIntegrationStore {
   private approved = new Map<string, ApprovedSession>();
   private pending = new Map<string, PendingRequest>();
   private denied = new Set<string>();
-  private ensureRate = new Map<string, number[]>();
   private nextRequest = 0;
 
   constructor(private readonly clock: () => number = Date.now) {}
@@ -67,10 +63,6 @@ export class CliAppIntegrationStore {
     reference?: string | undefined,
   ): EnsureResult {
     this.expirePending();
-    this.refuseAmbiguousPending();
-    if (this.ensureRateLimited(terminalSessionId)) {
-      return { status: "denied" };
-    }
     if (this.denied.has(terminalSessionId)) {
       return { status: "denied" };
     }
@@ -89,14 +81,11 @@ export class CliAppIntegrationStore {
       }
     }
     this.expireIdle();
-    for (const row of this.pending.values()) {
-      if (
-        row.terminalSessionId === terminalSessionId &&
-        row.verb === verb &&
-        row.reference === reference
-      ) {
-        return { status: "pending", requestId: row.requestId };
-      }
+    const existing = [...this.pending.values()].find(
+      (row) => row.terminalSessionId === terminalSessionId,
+    );
+    if (existing) {
+      return { status: "pending", requestId: existing.requestId };
     }
     const requestId = `clr_${++this.nextRequest}`;
     this.pending.set(requestId, {
@@ -112,14 +101,11 @@ export class CliAppIntegrationStore {
   listPending(): readonly PendingRequest[] {
     this.expireIdle();
     this.expirePending();
-    this.refuseAmbiguousPending();
-    const probe = cliAppIntegrationPolicy.daemonPinProbeVerb;
-    return [...this.pending.values()].filter((row) => row.verb !== probe);
+    return [...this.pending.values()];
   }
 
   approve(requestId: string, terminalSessionId: string): EnsureResult {
     this.expireIdle();
-    this.refuseAmbiguousPending();
     const row = this.pending.get(requestId);
     if (!row || row.terminalSessionId !== terminalSessionId) {
       return { status: "wrongSession" };
@@ -187,25 +173,5 @@ export class CliAppIntegrationStore {
         this.pending.delete(id);
       }
     }
-  }
-
-  private refuseAmbiguousPending(): void {
-    if (this.pending.size > 1) {
-      this.pending.clear();
-    }
-  }
-
-  private ensureRateLimited(terminalSessionId: string): boolean {
-    const now = nowMs(this.clock);
-    const windowStart = now - ENSURE_RATE_WINDOW_MS;
-    const bucket = this.ensureRate.get(terminalSessionId) ?? [];
-    const fresh = bucket.filter((t) => t >= windowStart);
-    if (fresh.length >= ENSURE_RATE_MAX) {
-      this.ensureRate.set(terminalSessionId, fresh);
-      return true;
-    }
-    fresh.push(now);
-    this.ensureRate.set(terminalSessionId, fresh);
-    return false;
   }
 }
