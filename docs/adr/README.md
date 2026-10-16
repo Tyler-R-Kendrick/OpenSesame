@@ -269,3 +269,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0203](0203-byo-ai-composes-native-api-families.md) | BYO AI and native presets share executable API families | Accepted |
 | [0204](0204-pwa-tailscale-browser-node.md) | Run the official Tailscale browser node in an isolated Worker | Accepted |
 | [0205](0205-secret-delivery-lanes-on-run.md) | Secret delivery lanes on `run` | Accepted |
+| [0206](0206-device-key-trust-d7-2.md) | Device key trust for CLI app integration (D7-2) | Accepted |

@@ -4,6 +4,8 @@ use axum::http::{header, Request, StatusCode};
 use std::net::SocketAddr;
 use tower::ServiceExt;
 
+use opensesame_cli_app_integration::test_support::mint_test_pin_proof;
+
 use super::{ensure_body, pair_browser};
 #[cfg(unix)]
 use super::{ensure_request, respond_request, test_peer_cred};
@@ -123,7 +125,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     use base64::Engine as _;
     use ecdsa::signature::Signer;
     use opensesame_cli_app_integration::{
-        mint_pin_human_proof, mint_test_signing_key, pairing_confirm_message,
+        mint_test_signing_key, pairing_confirm_message,
         test_support::TEST_VAULT_SESSION_ROOT_DIGEST, verifying_key_spki_b64, PairingError,
     };
     let (app, state) = test_router("http://127.0.0.1:8787");
@@ -200,13 +202,8 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
             .pairings
             .exchange(&code, origin, now)
             .expect("attacker bearer");
-        let pin_proof = mint_pin_human_proof(
-            &attacker,
-            "clr_attacker",
-            "term-attacker",
-            "nonce-attacker",
-            "read",
-        );
+        let pin_proof =
+            mint_test_pin_proof(&attacker, "clr_attacker", "term-attacker", "nonce-attacker");
         let binding = host
             .pairings
             .binding_for(&issued.token, origin)
@@ -279,7 +276,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     let nonce = parsed["pending"][0]["respondNonce"]
         .as_str()
         .expect("nonce");
-    let pin_proof = mint_pin_human_proof(&attacker, request_id, terminal_session_id, nonce, "read");
+    let pin_proof = mint_test_pin_proof(&attacker, request_id, terminal_session_id, nonce);
     #[cfg(unix)]
     let respond_body = serde_json::json!({"requestId": request_id,"terminalSessionId": terminal_session_id,"decision": "approve","respondNonce": nonce,"humanProof": pin_proof}).to_string();
     #[cfg(unix)]

@@ -10,7 +10,7 @@ use axum::{
 };
 #[cfg(unix)]
 use opensesame_cli_app_integration::session_id_from_pid;
-use opensesame_cli_app_integration::sign_daemon_attest;
+use opensesame_cli_app_integration::{daemon_integration_id, sign_daemon_attest};
 use serde::Deserialize;
 use serde_json::json;
 use sha2::Digest;
@@ -45,11 +45,11 @@ pub struct RespondReq {
 fn terminal_session_for_ensure(
     host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
     uds: &UdsPeer,
-) -> Option<(String, bool)> {
+) -> Option<(String, bool, u32)> {
     #[cfg(unix)]
     if let Some(Extension(ConnectInfo(UdsConnectInfo(Some(cred))))) = uds.as_ref() {
         if let Some(derived) = session_id_from_pid(cred.pid) {
-            return Some((derived, true));
+            return Some((derived, true, cred.pid));
         }
     }
     #[cfg(not(unix))]
@@ -84,7 +84,8 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         Err(poisoned) => poisoned.into_inner(),
     };
     host.store.set_now_ms(now_millis());
-    let Some((terminal_session_id, reuse)) = terminal_session_for_ensure(&mut host, &uds) else {
+    let Some((terminal_session_id, reuse, peer_pid)) = terminal_session_for_ensure(&mut host, &uds)
+    else {
         return uds_peer_required_response();
     };
     let (status, request_id) = host.store.ensure(
@@ -92,8 +93,17 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         &req.verb,
         req.reference.as_deref(),
         reuse,
+        "00",
+        peer_pid,
+        0,
+        true,
     );
-    Json(json!({ "status": status, "requestId": request_id })).into_response()
+    Json(json!({
+        "status": status,
+        "requestId": request_id,
+        "daemonIntegrationId": daemon_integration_id(),
+    }))
+    .into_response()
 }
 
 pub(crate) async fn pending(State(st): State<App>, headers: HeaderMap) -> Response {
@@ -116,10 +126,18 @@ pub(crate) async fn pending(State(st): State<App>, headers: HeaderMap) -> Respon
                 "verb": row.verb,
                 "reference": row.reference,
                 "respondNonce": row.respond_nonce,
+                "argvHash": row.argv_hash,
+                "peerPid": row.peer_pid,
+                "peerStartTime": row.peer_start_time,
+                "approvable": row.approvable,
             })
         })
         .collect::<Vec<_>>();
-    Json(json!({ "pending": rows })).into_response()
+    Json(json!({
+        "pending": rows,
+        "daemonIntegrationId": daemon_integration_id(),
+    }))
+    .into_response()
 }
 
 pub(crate) async fn respond(
