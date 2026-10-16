@@ -310,6 +310,7 @@ async function forget(context, api, selected) {
       .getByRole("combobox", { name: "Inference model", exact: true })
       .locator(`option[value="${selected}"]`),
   ).toHaveCount(0);
+  await api.beforeReload();
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
   await api.visit(page, base, "settings/features");

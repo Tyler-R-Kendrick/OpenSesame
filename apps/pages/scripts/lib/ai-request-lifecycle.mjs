@@ -231,6 +231,30 @@ function finalize(state, context) {
       state.failures.add(`unproven-held-cancellation:${hold.id}`);
   }
 }
+async function quiesce(state, context) {
+  let signature = null;
+  let changedAt = performance.now();
+  await expect
+    .poll(
+      () => {
+        const requests = rowsFor(state, context);
+        const next = JSON.stringify(
+          requests.map(({ id, terminal }) => [id, terminal]),
+        );
+        const now = performance.now();
+        if (next !== signature) {
+          signature = next;
+          changedAt = now;
+        }
+        return (
+          requests.every((request) => request.terminal !== null) &&
+          now - changedAt >= 500
+        );
+      },
+      { timeout: 5000 },
+    )
+    .toBe(true);
+}
 async function checkpoint(state, context) {
   try {
     await expect
@@ -302,6 +326,7 @@ export function createAiRequestLifecycle({ fixtureOrigin }) {
     arm: (hold, reason) => arm(state, hold, reason),
     closed: (hold, premature) => closed(state, hold, premature),
     release: (hold) => release(state, hold),
+    quiesce: (context) => quiesce(state, context),
     checkpoint: (context) => checkpoint(state, context),
     finalize: (context) => finalize(state, context),
     snapshot: () => snapshot(state),
