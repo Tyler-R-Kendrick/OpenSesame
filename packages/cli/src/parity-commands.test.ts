@@ -16,8 +16,7 @@ function agentWithBroker(
   run: PasswordAgent["run"] = async () => 0,
 ): PasswordAgent {
   return (
-    // SAFETY: runChild invokes agent.runBrokered or agent.run; the stub
-    // implements both so a test can prove which lane ran.
+    // SAFETY: runChild invokes agent.runBrokered or agent.run; the stub implements both lanes.
     { runBrokered, run } as PasswordAgent
   );
 }
