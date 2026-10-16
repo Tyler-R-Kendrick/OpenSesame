@@ -93,20 +93,26 @@ function nativeRecoveryControls(
       const view = read();
       if (!view || !view.recovery.some((entry) => entry.id === recoveryId))
         return null;
-      if (view.configuration.method === "mcp")
-        return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
-      if (
-        view.configuration.method === "oidc" &&
-        ["vault", "openbao"].includes(view.providerId)
-      )
-        return nativeVaultRevocationInstructions(view.connectionId, recoveryId);
-      return view.configuration.method === "oauth" &&
-        nativeBrowserOAuthRecoverySettings(view.configuration)
-        ? nativeBrowserOAuthRevocationInstructions(
-            view.connectionId,
-            recoveryId,
-          )
-        : null;
+      // A recovery entry that no longer matches the saved configuration is
+      // stale cleanup metadata, not a render failure: offer no instructions.
+      try {
+        if (view.configuration.method === "mcp")
+          return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
+        if (
+          view.configuration.method === "oidc" &&
+          ["vault", "openbao"].includes(view.providerId)
+        )
+          return nativeVaultRevocationInstructions(view.connectionId, recoveryId);
+        return view.configuration.method === "oauth" &&
+          nativeBrowserOAuthRecoverySettings(view.configuration)
+          ? nativeBrowserOAuthRevocationInstructions(
+              view.connectionId,
+              recoveryId,
+            )
+          : null;
+      } catch {
+        return null;
+      }
     },
     confirmRevocation: async (recoveryId: string) => {
       const view = required();
