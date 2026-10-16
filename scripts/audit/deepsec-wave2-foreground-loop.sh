@@ -144,7 +144,7 @@ while true; do
     fi
   else
     echo "=== no agent available (quota-sleep) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-    pkill -9 -f 'deepsec/dist/cli.mjs process' 2>/dev/null || true
+    pkill -9 -f 'deepsec/dist/cli.mjs process.*(--reinvestigate|--agent (kimi|grok|cursor))' 2>/dev/null || true
     pkill -9 -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
     last_batch_epoch=0
   fi

@@ -13,8 +13,8 @@ fi
 (cd "$WS" && "$DEEPSEC" status --project-id opensesame) >>"$LOG" 2>&1 || true
 if ! read -r tick_agent _ < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh" 2>>"$LOG"); then
   echo "wave2: no agent (grok/kimi/cursor unavailable)" >>"$LOG"
-  if pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null; then
-    pkill -f 'deepsec/dist/cli.mjs process' || true
+  if pgrep -f 'deepsec/dist/cli.mjs process.*(--reinvestigate|--agent (kimi|grok|cursor))' >/dev/null; then
+    pkill -f 'deepsec/dist/cli.mjs process.*(--reinvestigate|--agent (kimi|grok|cursor))' || true
     echo "stopped deepsec process (no agent)" >>"$LOG"
   fi
 elif [[ "$tick_agent" == "kimi" ]]; then

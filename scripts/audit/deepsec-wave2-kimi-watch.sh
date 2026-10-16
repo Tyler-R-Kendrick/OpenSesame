@@ -127,8 +127,8 @@ while true; do
     fi
   else
     kimi_was_limited=1
-    if pgrep -f 'deepsec/dist/cli.mjs process' >/dev/null; then
-      pkill -f 'deepsec/dist/cli.mjs process' || true
+    if pgrep -f 'deepsec/dist/cli.mjs process.*(--reinvestigate|--agent (kimi|grok|cursor))' >/dev/null; then
+      pkill -f 'deepsec/dist/cli.mjs process.*(--reinvestigate|--agent (kimi|grok|cursor))' || true
       echo "stopped deepsec process (no agent)"
     fi
   fi

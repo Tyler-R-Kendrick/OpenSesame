@@ -24,6 +24,7 @@ const {
   grokDeepTimeoutSec,
   grokFileWallSec,
   grokInvestigateTimeoutSec,
+  grokKillGraceMs,
   grokShallowTimeoutSec,
 } = await import("./grok-agent-prompt.ts");
 
@@ -51,6 +52,18 @@ test("cap detection flags turn-limit text and turn counts", () => {
     false,
   );
   assert.equal(detectGrokCapHit("", "plain answer", 60), false);
+});
+
+test("kill grace falls back instead of yielding NaN or a negative delay", () => {
+  delete process.env.DEEPSEC_GROK_KILL_GRACE_MS;
+  assert.equal(grokKillGraceMs(), 10000);
+  process.env.DEEPSEC_GROK_KILL_GRACE_MS = "2500";
+  assert.equal(grokKillGraceMs(), 2500);
+  process.env.DEEPSEC_GROK_KILL_GRACE_MS = "nope";
+  assert.equal(grokKillGraceMs(), 10000);
+  process.env.DEEPSEC_GROK_KILL_GRACE_MS = "-5";
+  assert.equal(grokKillGraceMs(), 10000);
+  delete process.env.DEEPSEC_GROK_KILL_GRACE_MS;
 });
 
 test("env overrides are honored and invalid values fall back", () => {

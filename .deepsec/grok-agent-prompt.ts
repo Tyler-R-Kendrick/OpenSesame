@@ -58,6 +58,16 @@ export function grokFileWallSec(): number {
   return Number.isFinite(n) && n > 0 ? n : 2700;
 }
 
+/**
+ * Grace between SIGTERM and the watchdog SIGKILL. Guarded like the other
+ * budgets: an invalid value must never yield NaN, which would make
+ * `timeout -k NaN` invalid and fire the watchdog setTimeout immediately.
+ */
+export function grokKillGraceMs(): number {
+  const n = Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000");
+  return Number.isFinite(n) && n >= 0 ? n : 10000;
+}
+
 function combineAbortSignals(
   primary: AbortSignal | undefined,
   secondary: AbortSignal,
@@ -262,7 +272,7 @@ export function runGrokPromptWithMeta(
   const timeoutSec = params.timeoutSec ?? grokInvestigateTimeoutSec();
   const timeoutMs = timeoutSec * 1000;
   const maxTurns = params.maxTurns;
-  const killGraceMs = Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000");
+  const killGraceMs = grokKillGraceMs();
 
   return new Promise((resolve, reject) => {
     if (params.signal?.aborted) {
