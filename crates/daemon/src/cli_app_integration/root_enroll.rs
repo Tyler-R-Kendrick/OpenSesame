@@ -102,7 +102,6 @@ fn enroll_entry_from_headers(headers: &HeaderMap) -> Option<&'static str> {
         .and_then(|v| v.to_str().ok())?;
     match value {
         "secure-prompt" => Some("secure-prompt"),
-        "tty-opt-in" => Some("tty-opt-in"),
         _ => None,
     }
 }

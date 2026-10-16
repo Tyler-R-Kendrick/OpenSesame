@@ -1,46 +1,34 @@
-//! How the operator confirms root-trust enrollment on this host (D7-2 U4).
+//! OS secure prompt for root-trust enrollment (D7-2 U4, revised).
 //!
-//! Prefer an OS-provided secure prompt. Headless hosts without one refuse unless
-//! `--allow-tty-enroll` is set, which reads confirmation from `/dev/tty` after a
-//! printed risk notice.
+//! Headless hosts without a platform secure prompt refuse enrollment outright.
+//! There is no `/dev/tty` or `--allow-tty-enroll` path — a pty is still a tty.
 
-use std::io::{BufRead, Write};
 use std::process::{Command, Stdio};
 
 /// Recorded on the daemon after a successful finish.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EnrollEntryMethod {
     SecurePrompt,
-    TtyOptIn,
 }
 
 impl EnrollEntryMethod {
     #[must_use]
     pub fn header_value(self) -> &'static str {
-        match self {
-            Self::SecurePrompt => "secure-prompt",
-            Self::TtyOptIn => "tty-opt-in",
-        }
+        "secure-prompt"
     }
 }
-
-const TTY_PHRASE: &str = "ENROLL";
 
 /// Ask the operator to approve enrolling the daemon root trust key on this machine.
 ///
 /// # Errors
 ///
-/// Refuses when no secure prompt exists and `allow_tty_enroll` is false.
-pub fn confirm_enrollment(allow_tty_enroll: bool) -> anyhow::Result<EnrollEntryMethod> {
+/// Refuses when no OS secure prompt is available (headless / unsupported host).
+pub fn confirm_enrollment() -> anyhow::Result<EnrollEntryMethod> {
     if try_secure_prompt()? {
         return Ok(EnrollEntryMethod::SecurePrompt);
     }
-    if allow_tty_enroll {
-        confirm_on_tty()?;
-        return Ok(EnrollEntryMethod::TtyOptIn);
-    }
     anyhow::bail!(
-        "no OS secure prompt is available on this host; pass --allow-tty-enroll to confirm on /dev/tty (weaker: another session on this machine could observe input)"
+        "no OS secure prompt is available on this host; enroll from a machine with a desktop secure prompt, or join as a remote CLI endorsed from such a machine"
     );
 }
 
@@ -171,40 +159,4 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) { exit 0 } else { exit 
 #[cfg(not(target_os = "windows"))]
 fn windows_secure_prompt() -> anyhow::Result<bool> {
     Ok(false)
-}
-
-fn confirm_on_tty() -> anyhow::Result<()> {
-    eprintln!(
-        "Warning: /dev/tty enrollment is weaker than an OS secure prompt — another session on this host may observe what you type."
-    );
-    let mut tty = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open("/dev/tty")
-        .map_err(|_| anyhow::anyhow!("/dev/tty is not available"))?;
-    let prompt = format!("Type {TTY_PHRASE} to enroll the daemon CLI root trust key: ");
-    tty.write_all(prompt.as_bytes())?;
-    tty.flush()?;
-    let mut line = String::new();
-    let mut reader = std::io::BufReader::new(&mut tty);
-    reader.read_line(&mut line)?;
-    let trimmed = line.trim();
-    if trimmed != TTY_PHRASE {
-        anyhow::bail!("enrollment cancelled");
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn header_values_are_stable() {
-        assert_eq!(
-            EnrollEntryMethod::SecurePrompt.header_value(),
-            "secure-prompt"
-        );
-        assert_eq!(EnrollEntryMethod::TtyOptIn.header_value(), "tty-opt-in");
-    }
 }

@@ -14,7 +14,6 @@ use opensesame_cli_app_integration::sign_daemon_attest;
 use serde::Deserialize;
 use serde_json::json;
 use sha2::Digest;
-use std::net::SocketAddr;
 
 #[cfg(unix)]
 use crate::peer_auth::UdsConnectInfo;
@@ -46,25 +45,25 @@ pub struct RespondReq {
 fn terminal_session_for_ensure(
     host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
     uds: &UdsPeer,
-    tcp_peer: Option<ConnectInfo<SocketAddr>>,
-) -> (String, bool) {
+) -> Option<(String, bool)> {
     #[cfg(unix)]
     if let Some(Extension(ConnectInfo(UdsConnectInfo(Some(cred))))) = uds.as_ref() {
         if let Some(derived) = session_id_from_pid(cred.pid) {
-            return (derived, true);
+            return Some((derived, true));
         }
     }
     #[cfg(not(unix))]
     let _ = uds;
-    let peer_key = match tcp_peer {
-        Some(ConnectInfo(addr)) => format!("tcp:{addr}"),
-        None => format!(
-            "tcp:anon-{}",
-            chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0)
-        ),
-    };
-    let (id, _) = host.terminal_session_for_tcp(&peer_key);
-    (id, false)
+    let _ = host;
+    None
+}
+
+fn uds_peer_required_response() -> Response {
+    (
+        StatusCode::FORBIDDEN,
+        Json(json!({ "error": "uds_peer_required" })),
+    )
+        .into_response()
 }
 
 pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Response {
@@ -76,10 +75,6 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         .map(Extension);
     #[cfg(not(unix))]
     let uds: UdsPeer = None;
-    let tcp_peer = request
-        .extensions()
-        .get::<ConnectInfo<SocketAddr>>()
-        .copied();
     let Json(req) = match Json::<EnsureReq>::from_request(request, &()).await {
         Ok(json) => json,
         Err(rejection) => return rejection.into_response(),
@@ -89,7 +84,9 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         Err(poisoned) => poisoned.into_inner(),
     };
     host.store.set_now_ms(now_millis());
-    let (terminal_session_id, reuse) = terminal_session_for_ensure(&mut host, &uds, tcp_peer);
+    let Some((terminal_session_id, reuse)) = terminal_session_for_ensure(&mut host, &uds) else {
+        return uds_peer_required_response();
+    };
     let (status, request_id) = host.store.ensure(
         &terminal_session_id,
         &req.verb,
@@ -128,11 +125,33 @@ pub(crate) async fn pending(State(st): State<App>, headers: HeaderMap) -> Respon
 pub(crate) async fn respond(
     State(st): State<App>,
     headers: HeaderMap,
-    Json(req): Json<RespondReq>,
+    request: Request<Body>,
 ) -> Response {
     if let Err(resp) = require_paired_caller(&st, &headers) {
         return resp;
     }
+    #[cfg(unix)]
+    {
+        let uds: UdsPeer = request
+            .extensions()
+            .get::<ConnectInfo<UdsConnectInfo>>()
+            .copied()
+            .map(Extension);
+        let uds_ok = {
+            let mut host = match st.cli_app_integration.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            terminal_session_for_ensure(&mut host, &uds).is_some()
+        };
+        if !uds_ok {
+            return uds_peer_required_response();
+        }
+    }
+    let Json(req) = match Json::<RespondReq>::from_request(request, &()).await {
+        Ok(json) => json,
+        Err(rejection) => return rejection.into_response(),
+    };
     let mut host = match st.cli_app_integration.lock() {
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
