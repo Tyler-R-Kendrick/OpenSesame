@@ -6,7 +6,7 @@
 pub fn tty_enrollment_explicitly_allowed() -> bool {
     matches!(
         std::env::var("OPENSESAME_CLI_APP_ALLOW_TTY_ENROLL").as_deref(),
-        Ok("1") | Ok("true") | Ok("yes")
+        Ok(v) if v == "1" || v == "true" || v == "yes"
     )
 }
 

@@ -92,6 +92,11 @@ impl CliAppIntegrationPairings {
     }
 
     /// Test seam: attach a passkey without the vault-bound registration proof.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PairingError::Unknown`] when the token is not secret-shaped or no
+    /// paired page matches the origin and token digest.
     #[cfg(any(test, feature = "test-seams"))]
     pub fn register_webauthn_for_tests(
         &mut self,

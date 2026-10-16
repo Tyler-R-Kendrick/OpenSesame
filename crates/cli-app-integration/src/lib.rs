@@ -19,10 +19,13 @@ use policy::{policy, respond_nonce};
 
 use rand_core::{OsRng, RngCore as _};
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 /// Pin-probe ensure must never appear in the human approval queue (D7-2 U7).
-pub const DAEMON_PIN_PROBE_VERB: &str = "daemon-pin-probe";
-use std::sync::{Arc, Mutex};
+#[must_use]
+pub fn daemon_pin_probe_verb() -> &'static str {
+    policy::daemon_pin_probe_verb()
+}
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -138,6 +141,19 @@ pub struct PendingRequest {
     pub approvable: bool,
 }
 
+/// Parameters for [`CliAppIntegrationStore::ensure`].
+#[derive(Clone, Copy)]
+pub struct EnsureParams<'a> {
+    pub terminal_session_id: &'a str,
+    pub verb: &'a str,
+    pub reference: Option<&'a str>,
+    pub reuse_approved_session: bool,
+    pub argv_hash: &'a str,
+    pub peer_pid: u32,
+    pub peer_start_time: u64,
+    pub approvable: bool,
+}
+
 /// In-memory integration state held by the daemon.
 pub struct CliAppIntegrationStore {
     approved: HashMap<String, ApprovedSession>,
@@ -226,30 +242,21 @@ impl CliAppIntegrationStore {
         }
     }
 
-    pub fn ensure(
-        &mut self,
-        terminal_session_id: &str,
-        verb: &str,
-        reference: Option<&str>,
-        reuse_approved_session: bool,
-        argv_hash: &str,
-        peer_pid: u32,
-        peer_start_time: u64,
-        approvable: bool,
-    ) -> (String, Option<String>) {
+    pub fn ensure(&mut self, params: EnsureParams<'_>) -> (String, Option<String>) {
         self.expire_pending();
         self.refuse_ambiguous_pending();
-        if self.denied.contains(terminal_session_id) {
+        if self.denied.contains(params.terminal_session_id) {
             return ("denied".into(), None);
         }
-        if let Some(outcome) =
-            self.resume_approved_session(terminal_session_id, reuse_approved_session)
-        {
+        if let Some(outcome) = self.resume_approved_session(
+            params.terminal_session_id,
+            params.reuse_approved_session,
+        ) {
             return outcome;
         }
         self.expire_idle();
         for row in self.pending.values() {
-            if row.terminal_session_id == terminal_session_id {
+            if row.terminal_session_id == params.terminal_session_id {
                 return ("pending".into(), Some(row.request_id.clone()));
             }
         }
@@ -259,15 +266,15 @@ impl CliAppIntegrationStore {
             request_id.clone(),
             PendingRequest {
                 request_id: request_id.clone(),
-                terminal_session_id: terminal_session_id.to_string(),
-                verb: verb.to_string(),
-                reference: reference.map(str::to_string),
+                terminal_session_id: params.terminal_session_id.to_string(),
+                verb: params.verb.to_string(),
+                reference: params.reference.map(str::to_string),
                 created_at_ms: self.now_ms,
                 respond_nonce: respond_nonce(),
-                argv_hash: argv_hash.to_string(),
-                peer_pid,
-                peer_start_time,
-                approvable,
+                argv_hash: params.argv_hash.to_string(),
+                peer_pid: params.peer_pid,
+                peer_start_time: params.peer_start_time,
+                approvable: params.approvable,
             },
         );
         ("pending".into(), Some(request_id))
@@ -347,7 +354,7 @@ impl CliAppIntegrationStore {
         self.refuse_ambiguous_pending();
         self.pending
             .values()
-            .filter(|row| row.verb != DAEMON_PIN_PROBE_VERB)
+            .filter(|row| row.verb != policy::daemon_pin_probe_verb())
             .cloned()
             .collect()
     }
