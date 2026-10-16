@@ -1,4 +1,5 @@
 /** Native browser providers share the owning capability's lease and declared egress purpose. */
+import { aiConnectionProjection } from "@opensesame/app-core/lib/ai-connections/projection.js";
 import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
 import type { ApprovedCapabilityContext } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
@@ -67,6 +68,19 @@ function grantExpiry(view: NativeConnectorView): string | null {
   );
   return expiries.length ? new Date(Math.min(...expiries)).toISOString() : null;
 }
+function connectionPolicy(id: string, view: NativeConnectorView) {
+  const ai = aiConnectionProjection(id);
+  if (ai === "ordinary")
+    return nativeBrowserMethodPolicy(
+      view.providerId,
+      view.configuration.method,
+      view.configuration.parameters,
+    );
+  return {
+    available: ai === "verified",
+    reason: "Verify this AI connection in its owning vault.",
+  };
+}
 
 /** How a device-connector view reads a native connection, for as long as this lease and activation hold. */
 function authorizationProjector(
@@ -77,11 +91,7 @@ function authorizationProjector(
     if (signal.aborted || activation.disposed()) return null;
     const view = readNativeConnector(id);
     if (!view) return null;
-    const policy = nativeBrowserMethodPolicy(
-      view.providerId,
-      view.configuration.method,
-      view.configuration.parameters,
-    );
+    const policy = connectionPolicy(id, view);
     const connected = view.status === "connected" && policy.available;
     const authorization: AuthorizationView = {
       status: connected ? "active" : "pending",

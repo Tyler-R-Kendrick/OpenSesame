@@ -11,10 +11,8 @@ import { useGithubAppRegistration } from "./useGithubAppRegistration.js";
 import { useGithubAppReturn } from "./useGithubAppReturn.js";
 
 /**
- * GitHub's one road on a connector page: register an App from this browser
- * (the Manifest flow, returned through the Connect callback relay). GitHub is
- * the only provider this panel draws for; every other authorize-only provider
- * goes through Connect, and a key or configuration is its own form.
+ * Register an App from this browser using GitHub's Manifest flow and this
+ * static app's verified return handler. Native token setup composes this panel.
  */
 export function GithubAppRegistrationPanel({
   provider,
@@ -34,24 +32,15 @@ export function GithubAppRegistrationPanel({
   );
   useGithubAppReturn(provider.id, onFlash);
 
-  // Already registered: App presence lives in GithubAppPresence. Do not
-  // re-draw Create App or any other setup chrome.
-  if (
-    provider.id !== "github" ||
-    provider.configured ||
-    localGithubApp !== null
-  ) {
+  // Saved App facts are composed by the owner; keep its callback mounted.
+  if (provider.id !== "github" || localGithubApp !== null) {
     return null;
   }
 
   return (
     <div className="conn-client-setup">
       <FormCommit
-        label={
-          busy === "app"
-            ? "Opening GitHub"
-            : "Create GitHub App for this organization"
-        }
+        label={busy === "app" ? "Opening GitHub" : "Create GitHub App"}
         disabled={!online || busy !== null}
         icon={<IconExternal size={18} />}
         onClick={() => void deployGithubApp()}

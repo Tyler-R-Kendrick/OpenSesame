@@ -80,6 +80,7 @@ async function mint(tomb: string) {
   return mintModelKey(tomb, choice(), await confirmMint(tomb, choice()));
 }
 
+const fixturePrompt = "Explain the vault's model-key audit boundary, please.";
 const call = {
   operation: "invoke" as const,
   method: "POST",
@@ -87,7 +88,7 @@ const call = {
   resource: "https://api.openai.com/v1",
   body: {
     model: "gpt-4o",
-    messages: [{ role: "user", content: "hi" }],
+    messages: [{ role: "user", content: fixturePrompt }],
     max_tokens: 100,
   },
 };
@@ -239,7 +240,13 @@ it("keeps what the broker did in memory, with no key and no credential in it", a
     clientId: "agent-1",
   });
   const text = JSON.stringify(events);
-  for (const secret of [key.token, "osk_", MODEL_TEST_SECRET, "hi", "Bearer"])
+  for (const secret of [
+    key.token,
+    "osk_",
+    MODEL_TEST_SECRET,
+    fixturePrompt,
+    "Bearer",
+  ])
     expect(text).not.toContain(secret);
 });
 

@@ -2,11 +2,12 @@
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import { settingsSeams } from "@opensesame/app-core/lib/settings.js";
 import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import { cleanup, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {
   afterAll,
   afterEach,
@@ -124,20 +125,26 @@ describe("ConnectionsSection deeper branches", () => {
   });
 
   it("does not interpret a legacy App error redirect as native token authorization", async () => {
-    connectorIntegration();
+    const fixture = connectorIntegration();
     window.history.replaceState(
       {},
       "",
       "/connections/github?github_app=error&reason=denied",
     );
     renderAt("/connections/github");
+    await expectInTray("GitHub App registration failed.");
+    expect(
+      screen.getByRole("img", { name: "GitHub App registration failed." }),
+    ).toBeTruthy();
+    expect(window.location.search).toBe("");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Connection method"),
+      "token",
+    );
     expect(
       await screen.findByLabelText("GitHub personal access token"),
     ).toBeTruthy();
-    expect(
-      screen.queryByRole("img", { name: /GitHub App registration failed/ }),
-    ).toBeNull();
-    expect(listNotices()).toEqual([]);
+    expect(fixture.requests).toHaveLength(0);
     expect(readDeviceRows()).toEqual([]);
   });
 
@@ -149,6 +156,12 @@ describe("ConnectionsSection deeper branches", () => {
       "/connections/github?github_app=registered",
     );
     renderAt("/connections/github");
+    await expectInTray("GitHub App registration could not be verified.");
+    expect(window.location.search).toBe("");
+    await userEvent.selectOptions(
+      screen.getByLabelText("Connection method"),
+      "token",
+    );
     expect(
       await screen.findByLabelText("GitHub personal access token"),
     ).toBeTruthy();
@@ -177,6 +190,10 @@ describe("ConnectionsSection deeper branches", () => {
     );
     try {
       renderAt("/connections/github");
+      await userEvent.selectOptions(
+        await screen.findByLabelText("Connection method"),
+        "token",
+      );
       expect(
         await screen.findByLabelText("GitHub personal access token"),
       ).toBeTruthy();

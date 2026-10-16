@@ -279,6 +279,8 @@ describe("ConnectionsSection connector page", () => {
     const fixture = connectorIntegration();
     fixture.replies.push({ body: { id: 123, login: "octocat", type: "User" } });
     renderAt("/connections/github");
+    const method = await screen.findByLabelText("Connection method");
+    await userEvent.selectOptions(method, "token");
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",
@@ -302,6 +304,8 @@ describe("ConnectionsSection connector page", () => {
     const fixture = connectorIntegration();
     fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     renderAt("/connections/github");
+    const method = await screen.findByLabelText("Connection method");
+    await userEvent.selectOptions(method, "token");
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",
