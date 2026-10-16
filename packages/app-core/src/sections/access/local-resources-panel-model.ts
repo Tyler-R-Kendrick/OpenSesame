@@ -44,11 +44,10 @@ export function pushVaultRows(
   next: ResourceRow[],
   shares: LocalShare[],
   guest: boolean,
-  currentTomb: string,
 ): void {
   const vaults = guest
     ? listDeviceVaults().filter((vault) => vault.kind === "guest")
-    : listDeviceVaults().filter((vault) => vault.id === currentTomb);
+    : listDeviceVaults();
   for (const vault of vaults) {
     next.push({
       id: `vault:${vault.id}`,
@@ -145,7 +144,7 @@ export async function loadResourceRows(
   if (!names.has(SUPPORT_AGENT_ID)) names.set(SUPPORT_AGENT_ID, "open-sesame");
   const guest = isGuestSession();
   const rows: ResourceRow[] = [];
-  pushVaultRows(rows, shares, guest, tomb);
+  pushVaultRows(rows, shares, guest);
   if (!guest) pushMemberRows(rows, devices);
   pushConnectionRows(rows, shares, guest);
   return { rows, names };
