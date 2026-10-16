@@ -3,10 +3,12 @@ mod consume;
 mod credential;
 mod io;
 mod lease_store;
+mod os_broker;
 mod os_child;
 mod os_run;
 mod process_io;
 mod request;
+mod run_args;
 mod service;
 mod setup;
 use clap::{Args, Subcommand};
@@ -76,12 +78,8 @@ pub(crate) enum Command {
         reference: String,
     },
     Run {
-        #[arg(long = "env", required_unless_present = "mount")]
-        env: Vec<String>,
-        /// Mount a referenced secret as a private temp file for the child;
-        /// NAME receives the file path and the file is removed afterwards.
-        #[arg(long = "mount", required_unless_present = "env")]
-        mount: Vec<String>,
+        #[command(flatten)]
+        args: run_args::RunArgs,
         #[arg(last = true, required = true)]
         command: Vec<String>,
     },
@@ -257,18 +255,16 @@ pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Re
                 consume::read(&reference, desktop, reveal)?;
             }
         }
-        Command::Run {
-            env,
-            mount,
-            command,
-        } => {
-            if !mount.is_empty()
-                || core::env::has_os_reference(&env)
-                || core::env::has_os_reference(&mount)
+        Command::Run { args, command } => {
+            if args.agent_proxy {
+                os_broker::run_brokered(&args.env, &args.paths, &args.methods, &command)?;
+            } else if !args.mount.is_empty()
+                || core::env::has_os_reference(&args.env)
+                || core::env::has_os_reference(&args.mount)
             {
-                os_run::run_assignments(&env, &mount, &command)?;
+                os_run::run_assignments(&args.env, &args.mount, &command)?;
             } else {
-                consume::run_assignments(&env, &command, desktop)?;
+                consume::run_assignments(&args.env, &command, desktop)?;
             }
         }
         Command::Env { cmd } => {
