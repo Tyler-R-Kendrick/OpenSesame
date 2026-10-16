@@ -11,13 +11,12 @@ import {
   makeSecret,
   store,
 } from "./DropCeremony.test-support.js";
-import { DEVICE_ONLY_DROP_WARNING } from "./ShareForm.js";
 import { makeAccount } from "./account.test-support.js";
 
 installDropCeremonyHarness();
 
 describe("share ceremony on an item", () => {
-  it("seals a secret with a TTL and shows the drop card, saving no item", async () => {
+  it("seals a secret with a TTL and shows the portable drop card, saving no item", async () => {
     const user = userEvent.setup();
     render(<Ceremony item={makeSecret()} />);
 
@@ -25,14 +24,14 @@ describe("share ceremony on an item", () => {
     expect(ttl.querySelectorAll("button")).toHaveLength(3);
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
-    expect(screen.getByText("This browser")).toBeTruthy();
-    expect(screen.getByText(DEVICE_ONLY_DROP_WARNING)).toBeTruthy();
+    expect(screen.getByText("Any browser with the link")).toBeTruthy();
+    expect(screen.queryByText(/Only this browser can open/)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
 
     expect(
-      screen.getByText(/#token=osc_clm_clm_test\.secret&key=/),
+      screen.getByText(/#token=osc_pdrop_.*&key=.*&pkt=ospd1\.packet/),
     ).toBeTruthy();
     expect(screen.getAllByText("ABCD-EFGH")).toHaveLength(1);
     expect(document.querySelector(".qr__shortcode")).toBeNull();
@@ -40,7 +39,7 @@ describe("share ceremony on an item", () => {
     expect(screen.queryByText("Contains the password.")).toBeNull();
     const ready = screen.getByRole("region", { name: "Drop ready" });
     expect(ready.textContent).toMatch(/Opens for\s*1 hour/);
-    expect(ready.textContent).toMatch(/Opens on\s*This browser/);
+    expect(ready.textContent).toMatch(/Opens on\s*Any browser with the link/);
     expect(expiryRow()).not.toMatch(/left/);
     expect(ready.querySelector("p.hint")).toBeNull();
     expect(screen.queryByRole("link", { name: /drop record/i })).toBeNull();

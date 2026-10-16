@@ -7,8 +7,10 @@ import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js
 
 import {
   Ceremony,
+  createClaim,
   installDropCeremonyHarness,
   makeSecret,
+  sessionFor,
 } from "./DropCeremony.test-support.js";
 
 installDropCeremonyHarness();
@@ -17,6 +19,7 @@ describe("share ceremony device scope (PF-02)", () => {
   it("hides the device-scope line when a cross-device claim host is configured", async () => {
     const local = deviceIdentitySeams.remoteIdentityApi;
     deviceIdentitySeams.remoteIdentityApi = () => "https://id.example.com";
+    createClaim.mockImplementation(async () => sessionFor());
     try {
       const user = userEvent.setup();
       render(<Ceremony item={makeSecret()} />);

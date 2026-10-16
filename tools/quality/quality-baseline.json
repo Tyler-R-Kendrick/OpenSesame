@@ -18,7 +18,7 @@
   "totals": {
     "files": 419,
     "violations": 646,
-    "oversizedLines": 213094
+    "oversizedLines": 213062
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -626,7 +626,7 @@
       "max-lines": 518
     },
     "packages/app-core/src/lib/vault/drop.test.ts": {
-      "max-lines": 526
+      "max-lines": 494
     },
     "packages/app-core/src/lib/vault/export/cxf.ts": {
       "complexity": 1,

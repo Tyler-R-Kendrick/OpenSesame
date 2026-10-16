@@ -61,6 +61,14 @@ export function sessionFor(claimId = "clm_test") {
   };
 }
 
+export function portableSessionFor(claimId = "pdrop_test") {
+  return {
+    ...sessionFor(claimId),
+    bearerToken: `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
+    pkt: "ospd1.packet",
+  };
+}
+
 export function makeSecret(overrides: Partial<SecretItem> = {}): SecretItem {
   return {
     id: "itm_secret",
@@ -122,7 +130,7 @@ export function installDropCeremonyHarness() {
     store.saveItem.mockResolvedValue(undefined);
     store.purgeItem.mockResolvedValue(undefined);
     createClaim.mockReset();
-    createClaim.mockImplementation(async () => sessionFor());
+    createClaim.mockImplementation(async () => portableSessionFor());
     pollClaim.mockReset();
     pollClaim.mockResolvedValue("pending");
     vault.current = {

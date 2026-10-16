@@ -36,6 +36,8 @@ export type DropOpenerProps = Readonly<{
   token: string;
   /** The drop key from the link's `#key=`; never stored, never sent. */
   fragmentKey: string;
+  /** A portable drop's sealed packet from the link's `#pkt=`, when present. */
+  pkt?: string | undefined;
   /** The drop was opened, or refused for good: forget the arrival. */
   onSettled: () => void;
 }>;
@@ -43,6 +45,9 @@ export type DropOpenerProps = Readonly<{
 const TITLE = "Drop";
 const OPENED = "Drop opened";
 const FALLBACK = "The drop could not be opened.";
+/** A portable bearer with no `#key=` beside it can never open. */
+const MISSING_SECRET =
+  "This link is missing its secret part. Ask the sender for the full link.";
 
 /** Refusals the same link and code could still get past. */
 const RETRYABLE: ReadonlySet<string> = new Set(["invalid_code", "unreachable"]);
@@ -104,6 +109,7 @@ function PayloadView({ payload }: { payload: DropPayload }) {
 export function DropClaimScreen({
   token,
   fragmentKey,
+  pkt,
   onSettled,
 }: DropOpenerProps) {
   const [userCode, setUserCode] = useState("");
@@ -120,14 +126,24 @@ export function DropClaimScreen({
     codeRef.current?.focus();
   }, []);
 
+  // A link whose key never arrived is refused before anything is presented.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs once, on arrival
+  useEffect(() => {
+    if (fragmentKey !== "") return;
+    reportClaim(MISSING_SECRET, TITLE);
+    setFailureMarkLabel(DROP_FAILURE_MARK_WITH_TRAY);
+    setFailed(true);
+    onSettled();
+  }, []);
+
   async function open(event: FormEvent) {
     event.preventDefault();
-    if (busy || !userCode.trim()) return;
+    if (busy || !userCode.trim() || fragmentKey === "") return;
     setBusy(true);
     setFailed(false);
     setFailureMarkLabel(DROP_FAILURE_MARK_WITH_TRAY);
     try {
-      const { targetManifest } = await presentDrop(token, userCode.trim());
+      const { targetManifest } = await presentDrop(token, userCode.trim(), pkt);
       setPayload(await openDrop(targetManifest, fragmentKey));
       onSettled();
     } catch (caught) {
@@ -180,7 +196,7 @@ export function DropClaimScreen({
       </div>
       <FormCommit
         label={busy ? "Opening…" : "Open drop"}
-        disabled={busy || !userCode.trim()}
+        disabled={busy || !userCode.trim() || fragmentKey === ""}
         busy={busy}
       />
     </form>
