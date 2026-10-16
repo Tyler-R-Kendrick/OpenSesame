@@ -56,6 +56,7 @@ pub struct RootEnrollBegin {
 }
 
 /// Finish body the daemon checks against the pending session.
+#[derive(Clone, Copy)]
 pub struct RootEnrollRequest<'a> {
     /// Id from begin.
     pub session_id: &'a str,
@@ -284,6 +285,11 @@ pub fn generate_root_signing_key() -> p256::ecdsa::SigningKey {
 }
 
 /// `SubjectPublicKeyInfo` `DER` for `key`.
+///
+/// # Panics
+///
+/// Panics when the P-256 verifying key cannot be encoded as `SPKI`, which
+/// cannot happen for a valid P-256 key.
 #[must_use]
 pub fn root_spki_der(key: &p256::ecdsa::SigningKey) -> Vec<u8> {
     let public_key = PublicKey::from(*key.verifying_key());

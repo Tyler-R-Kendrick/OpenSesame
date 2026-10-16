@@ -143,7 +143,7 @@ pub struct CliAppIntegrationPairings {
 impl CliAppIntegrationPairings {
     /// Whether the daemon root trust key is enrolled.
     ///
-    /// Confirm, registration arm, WebAuthn register, and exchange stay refused
+    /// Confirm, registration arm, `WebAuthn` register, and exchange stay refused
     /// until this is true. Operator issue is not gated.
     #[must_use]
     pub fn is_root_key_enrolled(&self) -> bool {

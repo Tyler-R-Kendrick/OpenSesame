@@ -1,22 +1,21 @@
-# D7-2 device-key stack — agent working notes (from Tyler brief)
+# D7-2 device-key units (agent stack)
 
-Units U1–U11 on top of #1352 + D7-1b folded in.
+**Authority:** `d7-2-rubber-duck.md` and `d7-2-cross-model.md` override any older research notes.
 
-## U1
-- Remove any self-arm of registration.
-- Reject `confirm`, `arm_registration`, `register_webauthn`, `exchange` until a **root trust key** is enrolled on the daemon.
+## Secure revision branch (`cursor/persona-d7-2-secure-revision-b5a1`)
 
-## U2
-- Persistent **trust store** for enrolled root / device trust material.
+Stacked on U1–U4 (#1364–#1372). This branch revises units in place:
 
-## U3
-- **PAKE enrollment** protocol to enroll the root key (before pairing flows work).
+| Unit | Change in secure revision |
+|------|---------------------------|
+| U4 | Removed `--allow-tty-enroll` and `tty-opt-in`; OS secure prompt only; headless bail |
+| U7 | `DAEMON_PIN_PROBE_VERB` hidden from pending; ambiguous pending cleared |
+| U8 | Ensure and respond require UDS peer (kernel session); no loopback TCP approvals |
+| U10 | `oschip1` rejected; `software-passkey` proofs blocked for `run`, `env-resolve`, `pass-reveal` |
+| U11 | `pending.len() > 1` clears queue on ensure, approve, and list |
 
-## U4 — host-side enrollment entry
-- `opensesame daemon root-trust enroll` with OS secure prompt when available.
-- Headless hosts without one refuse unless `--allow-tty-enroll` (prints risk, reads `/dev/tty`).
-- Finish sends `x-opensesame-enroll-entry: secure-prompt|tty-opt-in`; daemon logs `cli_root_trust_enrolled` with `enroll_entry`.
+**Still open on this branch (follow-up PRs):** U2 v2 ARK-signed trust store + PWA verify, U3 bootstrap without operator token on enroll, U5 enrollment arming TTL, U6 alarm UI, U9 legacy pairing wipe + ARK-only block after passkey, remote CLI endorsement docs.
 
-## U7 / U8 (also close Infisical N7-2/N7-3 style findings)
-- U7: daemon pin default-on + verify transport actually used (UDS vs TCP).
-- U8: pin-probe must not enter human pending queue; stable per-process TCP correlation + prune stale tcp terminal sessions.
+## Residual risks
+
+See `d7-2-rubber-duck.md` § Residual risks.

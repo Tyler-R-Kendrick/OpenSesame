@@ -23,6 +23,28 @@ struct Fixture {
 }
 
 #[test]
+fn pin_probe_verb_is_omitted_from_pending_list() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    let (_, req) = store.ensure("term-a", DAEMON_PIN_PROBE_VERB, None, false);
+    assert!(req.is_some());
+    assert!(store.list_pending().is_empty());
+}
+
+#[test]
+fn more_than_one_pending_clears_the_queue() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    store.ensure("term-a", "read", None, false);
+    store.ensure("term-b", "read", None, false);
+    assert!(store.list_pending().is_empty());
+    let (status, second) = store.ensure("term-a", "read", None, false);
+    assert_eq!(status, "pending");
+    assert!(second.is_some());
+    assert_eq!(store.list_pending().len(), 1);
+}
+
+#[test]
 fn tcp_transport_consumes_approval_once() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);

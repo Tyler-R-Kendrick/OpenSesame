@@ -13,7 +13,6 @@ pub const DAEMON_ATTEST_LABEL: &[u8] = b"opensesame-cli-app-daemon-attest.v1";
 
 /// SHA-256 over the frozen approval binding (`WebAuthn` challenge + ECDSA message).
 #[must_use]
-#[must_use]
 pub fn webauthn_register_challenge_digest(
     token: &str,
     origin: &str,

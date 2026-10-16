@@ -6,6 +6,26 @@ use crate::webauthn_assertion::verify_passkey_assertion;
 
 const PROOF_PREFIX: &str = "oschip2:";
 
+/// Verbs that require a hardware-backed passkey proof (D7-2 decision 6).
+fn verb_requires_hardware_passkey(verb: &str) -> bool {
+    matches!(verb, "run" | "env-resolve" | "pass-reveal")
+}
+
+/// Verified human proof: PIN unlock or passkey with monotonic sign count.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HumanProofOutcome {
+    Passkey(u32),
+}
+
+impl HumanProofOutcome {
+    #[must_use]
+    pub(crate) fn into_sign_count(self) -> u32 {
+        match self {
+            Self::Passkey(count) => count,
+        }
+    }
+}
+
 pub(crate) fn human_proof_verify(
     proof: &str,
     binding: &PairedBinding,
@@ -13,11 +33,14 @@ pub(crate) fn human_proof_verify(
     terminal_session_id: &str,
     respond_nonce: &str,
     verb: &str,
-) -> Option<u32> {
+) -> Option<HumanProofOutcome> {
     if binding.pin_proof_failures >= crate::pairing::MAX_PIN_PROOF_FAILURES {
         return None;
     }
     let t = proof.trim();
+    if t.starts_with("oschip1:") {
+        return None;
+    }
     let rest = t.strip_prefix(PROOF_PREFIX)?;
     let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
     if let Some((kind, tail)) = rest.split_once(':') {
@@ -25,9 +48,18 @@ pub(crate) fn human_proof_verify(
             // Pairing device keys are client-chosen; PIN proofs must not verify against them.
             return None;
         }
+        if kind == "software-passkey" {
+            if verb_requires_hardware_passkey(verb) {
+                return None;
+            }
+            let webauthn = binding.webauthn.as_ref()?;
+            return verify_passkey_assertion(tail, &challenge, webauthn)
+                .map(HumanProofOutcome::Passkey);
+        }
         if kind == "passkey" {
             let webauthn = binding.webauthn.as_ref()?;
-            return verify_passkey_assertion(tail, &challenge, webauthn);
+            return verify_passkey_assertion(tail, &challenge, webauthn)
+                .map(HumanProofOutcome::Passkey);
         }
     }
     None
@@ -93,6 +125,36 @@ mod tests {
             pin_proof_failures: 0,
         };
         assert!(human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", "read").is_none());
+    }
+
+    #[test]
+    fn software_passkey_cannot_authorize_high_risk_verbs() {
+        let signing_key = SigningKey::random(&mut OsRng);
+        let spki = crate::device_crypto::verifying_key_spki_b64(signing_key.verifying_key());
+        let binding = PairedBinding {
+            device_public_key_spki_b64: spki.clone(),
+            webauthn: Some(crate::pairing::WebAuthnCredential {
+                credential_id_b64: "cred".into(),
+                public_key_spki_b64: spki,
+                sign_count: 0,
+            }),
+            pin_proof_failures: 0,
+        };
+        let proof = format!(
+            "{PROOF_PREFIX}software-passkey:{}",
+            serde_json::json!({
+                "credentialIdB64": "cred",
+                "authenticatorDataB64": "AA",
+                "clientDataJsonB64": "AA",
+                "signatureB64": "AA",
+            })
+        );
+        for verb in ["run", "env-resolve", "pass-reveal"] {
+            assert!(
+                human_proof_verify(&proof, &binding, "clr_1", "term-a", "nonce", verb).is_none(),
+                "verb {verb}"
+            );
+        }
     }
 
     #[test]
