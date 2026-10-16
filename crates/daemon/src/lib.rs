@@ -103,9 +103,6 @@ struct App {
     /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
     plugins: plugin_routes::PluginHost,
     cli_app_integration: cli_app_integration::SharedCliAppIntegration,
-    /// Sealed root-trust directory. Absent when no state dir resolves, and in tests
-    /// until a case sets one. Enrollment refuses to start without it.
-    cli_root_trust_dir: Option<std::path::PathBuf>,
     /// Tailnet device management (ADR 0169).
     tailnet: tailnet_admin_routes::TailnetAdminHost,
 }

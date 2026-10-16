@@ -2,7 +2,6 @@
 use axum::Router;
 use std::net::SocketAddr;
 
-#[cfg(unix)]
 use crate::peer_auth::UdsConnectInfo;
 #[cfg(all(unix, feature = "tailscale"))]
 use crate::App;
