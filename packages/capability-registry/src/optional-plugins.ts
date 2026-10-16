@@ -200,24 +200,6 @@ export const optionalPluginCapabilities: readonly Capability[] = [
       pwa: NO_PROCESSES_IN_PAGES,
     },
   },
-  {
-    id: "agents.surrogate.agent_proxy_run",
-    title:
-      "Run a child with scoped surrogates in place of os:// connection credentials through the surrogate-proxy plugin (run --agent-proxy)",
-    plane: "client_local",
-    kind: "act",
-    surfaces: {
-      cli: "opensesame password-agent run --agent-proxy",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
-    excluded: {
-      ...AGENTS_EXCLUDED(SURROGATE_RUN_HUMAN),
-      pwa: NO_PROCESSES_IN_PAGES,
-    },
-  },
   // One switch per plugin, as Settings draws it: each plugin's section in
   // Settings › Features carries its own switch and the CLI's
   // `plugins enable|disable <id>` is the same PUT (ADR 0150 §7).

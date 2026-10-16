@@ -111,15 +111,15 @@ describe("what a section tour needs before it is offered", () => {
       group.tutorials.map((entry) => entry.goal.id),
     );
 
-  it("keeps model choices with the AI feature tour independently of its integration section", () => {
+  it("hides the model tour when Integrations has no AI section, and the AI switch tour when Features has none", () => {
     const noIntegration = ids({
       sectionDrawn: (id) => id !== "integration.ai",
     });
-    expect(noIntegration).toContain("settings.model-provider");
+    expect(noIntegration).not.toContain("settings.model-provider");
     expect(noIntegration).toContain("feature.ai");
     const noFeature = ids({ sectionDrawn: (id) => id !== "feature.ai" });
     expect(noFeature).not.toContain("feature.ai");
-    expect(noFeature).not.toContain("settings.model-provider");
+    expect(noFeature).toContain("settings.model-provider");
   });
 
   it("asks for the section of the page a tour is on, not of the other page", () => {
