@@ -94,7 +94,7 @@ fn mint_passkey_proof_for_challenge(
         "clientDataJsonB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_data_bytes),
         "signatureB64": sig_b64,
     });
-    format!("oschip2:passkey:{}", wire)
+    format!("oschip2:passkey:{wire}")
 }
 
 /// Mint a bearer for daemon HTTP integration tests.
@@ -144,11 +144,13 @@ pub fn pair_browser_for_tests(
         .register_webauthn(
             &token,
             origin,
-            TEST_VAULT_SESSION_ROOT_DIGEST,
-            &human_proof,
-            "test-cli-app-cred",
-            test_approval_public_key_spki_b64(),
-            1,
+            &crate::WebAuthnRegistration {
+                vault_session_root_digest: TEST_VAULT_SESSION_ROOT_DIGEST.to_string(),
+                human_proof_passkey: human_proof,
+                credential_id_b64: "test-cli-app-cred".to_string(),
+                public_key_spki_b64: test_approval_public_key_spki_b64().to_string(),
+                sign_count: 1,
+            },
         )
         .expect("register webauthn");
     token

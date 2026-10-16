@@ -30,7 +30,8 @@ pub use human_proof::{mint_pin_human_proof, mint_test_signing_key};
 pub use pairing::{
     format_pairing_code, is_device_public_key_shaped, is_pairable_origin,
     CliAppIntegrationPairings, ConfirmOutcome, Issued, PairedBinding, PairingError,
-    WebAuthnCredential, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES, PAIRING_CODE_PREFIX,
+    WebAuthnCredential, WebAuthnRegistration, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES,
+    PAIRING_CODE_PREFIX,
 };
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
 

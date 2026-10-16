@@ -11,7 +11,6 @@ use crate::cli_app_integration::now_unix;
 #[tokio::test]
 async fn persona_attack_chain_is_refused() {
     use crate::test_fixtures::test_router;
-    use opensesame_cli_app_integration::test_support::TEST_VAULT_SESSION_ROOT_DIGEST;
     use opensesame_cli_app_integration::PairingError;
 
     let (app, state) = test_router("http://127.0.0.1:8787");

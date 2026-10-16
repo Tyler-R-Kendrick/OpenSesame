@@ -81,6 +81,16 @@ pub struct WebAuthnCredential {
     pub sign_count: u32,
 }
 
+/// Vault-bound `WebAuthn` registration from the paired page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WebAuthnRegistration {
+    pub vault_session_root_digest: String,
+    pub human_proof_passkey: String,
+    pub credential_id_b64: String,
+    pub public_key_spki_b64: String,
+    pub sign_count: u32,
+}
+
 #[derive(Clone, Debug)]
 struct PairedPage {
     #[allow(dead_code)]

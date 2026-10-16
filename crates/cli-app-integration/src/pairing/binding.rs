@@ -3,7 +3,7 @@
 use super::{
     is_device_public_key_shaped, is_secret_shaped, is_vault_session_root_digest_shaped,
     CliAppIntegrationPairings, PairedBinding, PairingError, WebAuthnCredential,
-    MAX_PIN_PROOF_FAILURES,
+    WebAuthnRegistration, MAX_PIN_PROOF_FAILURES,
 };
 use crate::device_crypto::webauthn_register_challenge_digest;
 use crate::pairing_code::{digest_hex, same};
@@ -35,12 +35,12 @@ impl CliAppIntegrationPairings {
         &mut self,
         token: &str,
         origin: &str,
-        vault_session_root_digest: &str,
-        human_proof_passkey: &str,
-        credential_id_b64: &str,
-        public_key_spki_b64: &str,
-        sign_count: u32,
+        registration: &WebAuthnRegistration,
     ) -> Result<(), PairingError> {
+        let vault_session_root_digest = registration.vault_session_root_digest.as_str();
+        let human_proof_passkey = registration.human_proof_passkey.as_str();
+        let credential_id_b64 = registration.credential_id_b64.as_str();
+        let public_key_spki_b64 = registration.public_key_spki_b64.as_str();
         if !is_secret_shaped(token)
             || !is_device_public_key_shaped(public_key_spki_b64)
             || !is_vault_session_root_digest_shaped(vault_session_root_digest)
@@ -84,7 +84,7 @@ impl CliAppIntegrationPairings {
         page.webauthn = Some(WebAuthnCredential {
             credential_id_b64: credential_id_b64.to_string(),
             public_key_spki_b64: public_key_spki_b64.to_string(),
-            sign_count,
+            sign_count: registration.sign_count,
         });
         Ok(())
     }
