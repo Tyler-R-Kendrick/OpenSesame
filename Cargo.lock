@@ -3784,6 +3784,8 @@ dependencies = [
  "base64 0.22.1",
  "ecdsa",
  "hex",
+ "hkdf",
+ "hmac 0.12.1",
  "p256",
  "rand_core 0.6.4",
  "serde",
@@ -3791,6 +3793,7 @@ dependencies = [
  "sha2 0.10.9",
  "thiserror 2.0.19",
  "url",
+ "zeroize",
 ]
 
 [[package]]
