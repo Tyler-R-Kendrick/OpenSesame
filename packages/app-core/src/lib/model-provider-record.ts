@@ -24,7 +24,6 @@ export type ModelPlaneKind = "local" | "hosted" | "browser" | "none";
 
 /** One catalog pick — voice STT or inference LLM. */
 export type AiModelChoice = {
-  readonly connectionId?: string;
   readonly provider: string;
   readonly kind: ModelPlaneKind;
   readonly endpoint: string;
@@ -103,16 +102,12 @@ function readText(value: BoundaryValue | undefined): string {
 function normalizeChoice(choice: AiModelChoice): AiModelChoice {
   const kind = isPlaneKind(choice.kind) ? choice.kind : "none";
   if (kind === "none") return NO_INFERENCE_CHOICE;
-  const normalized: AiModelChoice = {
+  return {
     kind,
     provider: choice.provider.trim(),
     endpoint: kind === "browser" ? "" : choice.endpoint.trim(),
     model: choice.model.trim(),
   };
-  return choice.connectionId &&
-    /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/.test(choice.connectionId)
-    ? { ...normalized, connectionId: choice.connectionId }
-    : normalized;
 }
 
 function choiceFromTop(
@@ -129,16 +124,12 @@ function readChoice(
   fallback: AiModelChoice,
 ): AiModelChoice {
   if (!isJsonObject(value)) return fallback;
-  const choice = normalizeChoice({
+  return normalizeChoice({
     kind: readKind(value.kind),
     provider: readText(value.provider),
     endpoint: readText(value.endpoint),
     model: readText(value.model),
   });
-  return isString(value.connectionId) &&
-    /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/.test(value.connectionId)
-    ? { ...choice, connectionId: value.connectionId }
-    : choice;
 }
 
 function recordFromInference(

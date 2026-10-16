@@ -100,10 +100,6 @@ export function authenticatedPort(
         env: { ...auth, ...options.env },
       });
     };
-  // Local vault lanes carry no provider credential: pass them through bare
-  // so a service-account token never enters a directly spawned child.
-  if (port.readLocal) result.readLocal = port.readLocal;
-  if (port.runWithValues) result.runWithValues = port.runWithValues;
   return result;
 }
 export async function requireEmpty(store: CredentialStore): Promise<void> {

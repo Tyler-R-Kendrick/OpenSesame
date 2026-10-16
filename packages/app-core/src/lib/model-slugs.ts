@@ -52,7 +52,6 @@ export function encodeModelSlug(provider: string, model: string): ModelSlug {
 }
 
 export function choiceToSlug(choice: AiModelChoice): ModelSlug {
-  if (choice.connectionId) return `connection:${choice.connectionId}`;
   if (!choice.provider) return "";
   return encodeModelSlug(choice.provider, choice.model);
 }
@@ -150,7 +149,6 @@ export function inferenceSlugOptions(args: {
       ),
     );
   }
-  options.push(...savedConnectionOptions());
   return options;
 }
 
@@ -171,23 +169,4 @@ export async function connectedHarnessProviderIds(): Promise<string[]> {
     /* Native device connections remain available offline. */
   }
   return [...ids];
-}
-
-function savedConnectionOptions(): ModelSlugOption[] {
-  const options: ModelSlugOption[] = [];
-  for (const row of hostedModelAuthority()?.connections() ?? []) {
-    if (row.status !== "connected" || !row.model || !row.endpoint) continue;
-    options.push({
-      value: `connection:${row.connectionId}`,
-      label: `${row.name ?? row.providerId} · ${row.model}`,
-      choice: {
-        provider: row.providerId,
-        kind: "hosted",
-        endpoint: row.endpoint,
-        model: row.model,
-        connectionId: row.connectionId,
-      },
-    });
-  }
-  return options;
 }
