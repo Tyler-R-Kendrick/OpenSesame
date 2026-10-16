@@ -18,16 +18,15 @@ async function ready(page) {
         );
         return {
           disabled: button?.disabled ?? null,
-          busy: [...document.querySelectorAll("[aria-busy]")].map(
-            (node) => node.getAttribute("aria-label"),
+          busy: [...document.querySelectorAll("[aria-busy]")].map((node) =>
+            node.getAttribute("aria-label"),
           ),
           text: document.body.innerText.slice(0, 2000),
         };
       });
-      throw new Error(
-        `Authorize never enabled: ${JSON.stringify(state)}`,
-        { cause: error },
-      );
+      throw new Error(`Authorize never enabled: ${JSON.stringify(state)}`, {
+        cause: error,
+      });
     });
 }
 async function consent(page, fixture, mode, cancel = false) {
