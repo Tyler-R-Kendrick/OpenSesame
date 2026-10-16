@@ -326,10 +326,9 @@ Commands:
   inventory | audit           Metadata and organization checks, never values
   create api-credential --title <title> --vault <vault> --stdin|--clipboard
   password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference|os://reference> [--reveal] [--desktop]
+  read <op://reference> [--reveal] [--desktop]
                                Human-only plaintext stdout (TTY, no agent context)
-  run [--env NAME=<ref>...] [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] -- <command...>
-                               <ref>: op:// or os:// vault/item/field; --mount sets NAME to a private temp file holding the secret; --agent-proxy brokers os:// connections items (native CLI + plugin; this CLI fails closed)
+  run --env NAME=op://reference -- <command...>
   env write <file> <NAME=op://reference...>
   env resolve <file> --output <file>|--in-place
   env run <file> -- <command...>
