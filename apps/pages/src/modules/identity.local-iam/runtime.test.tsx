@@ -58,7 +58,7 @@ describe("identity.local-iam runtime", () => {
       // 1 section + 2 routes + 1 section command + 2 tab commands + 1 jump
       // + 1 unlock effect + tutorial descriptors
       count:
-        1 + 2 + 1 + 3 + 1 + 1 + targets.length + goals.length + routes.length,
+        1 + 2 + 1 + 2 + 1 + 1 + targets.length + goals.length + routes.length,
     });
   });
 
@@ -76,7 +76,6 @@ describe("identity.local-iam runtime", () => {
     // belong to the capabilities that draw them.
     expect(t.entries("command-path")).toEqual([
       { path: "/identity", label: "Identity" },
-      { path: "/identity/authorize?cli=1", label: "Pair CLI" },
       { path: "/identity?view=devices", label: "Identity · Devices" },
       {
         path: "/identity?view=service-accounts",

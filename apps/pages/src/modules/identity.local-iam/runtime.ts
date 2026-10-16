@@ -124,10 +124,6 @@ export const capabilityRuntime: CapabilityRuntime = {
       path: "/identity",
       label: "Identity",
     });
-    activation.register("command-path", {
-      path: "/identity/authorize?cli=1",
-      label: "Pair CLI",
-    });
     // One tab destination per Identity tab this capability puts on the page
     // (`IDENTITY_VIEWS_OWNED`). The Identity section is hosted here, but its
     // tabs belong to three capabilities, so each owner contributes its own
