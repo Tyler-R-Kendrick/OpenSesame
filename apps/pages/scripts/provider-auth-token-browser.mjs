@@ -46,6 +46,9 @@ async function removeToken(page, service, token) {
   await expect(
     page.getByRole("button", { name: "Confirm remove connector", exact: true }),
   ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Remove connector", exact: true }),
+  ).toHaveCount(0);
   const lookup = await requestJson(
     `${service.endpoint}/v1/auth/token/lookup-self`,
     { ca: service.ca, token },
