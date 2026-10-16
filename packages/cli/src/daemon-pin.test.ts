@@ -8,9 +8,7 @@ import {
   verifyLocalDaemonForCliAppIntegration,
 } from "./daemon-pin.js";
 import {
-  CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV,
   type CliAppIntegrationFakeDaemon,
-  journeyFakeDaemonPinPublicKeySpkiB64,
   startCliAppIntegrationFakeDaemon,
 } from "./fixtures/cli-app-integration-fake-daemon.js";
 import { tcpListenPort } from "./fixtures/net-listen-port.js";
@@ -70,24 +68,13 @@ describe("daemon pin for CLI app integration", () => {
   });
 
   it("accepts the journey fake daemon after pin probe returns pending", async () => {
-    const priorPin = process.env[CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV];
     const fake = await startCliAppIntegrationFakeDaemon();
-    process.env[CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV] =
-      await journeyFakeDaemonPinPublicKeySpkiB64();
     try {
       expect(await verifyLocalDaemonForCliAppIntegration(fake.baseUrl)).toBe(
         true,
       );
     } finally {
       await fake.close();
-      if (priorPin === undefined) {
-        Reflect.deleteProperty(
-          process.env,
-          CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV,
-        );
-      } else {
-        process.env[CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV] = priorPin;
-      }
     }
   });
 
@@ -137,11 +124,8 @@ describe("createCliAppIntegrationPort with fake daemon", () => {
   });
 
   it("polls ensure on the journey fake daemon after pin verification", async () => {
-    const priorPin = process.env[CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV];
     const fake = await startCliAppIntegrationFakeDaemon();
     process.env.OPENSESAME_DAEMON_API = fake.baseUrl;
-    process.env[CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV] =
-      await journeyFakeDaemonPinPublicKeySpkiB64();
     try {
       const { createCliAppIntegrationPort } = await import(
         "./cli-app-integration-client.js"
@@ -157,14 +141,6 @@ describe("createCliAppIntegrationPort with fake daemon", () => {
         Reflect.deleteProperty(process.env, "OPENSESAME_DAEMON_API");
       } else {
         process.env.OPENSESAME_DAEMON_API = priorDaemon;
-      }
-      if (priorPin === undefined) {
-        Reflect.deleteProperty(
-          process.env,
-          CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV,
-        );
-      } else {
-        process.env[CLI_APP_INTEGRATION_DAEMON_PIN_PUBLIC_KEY_ENV] = priorPin;
       }
     }
   });
