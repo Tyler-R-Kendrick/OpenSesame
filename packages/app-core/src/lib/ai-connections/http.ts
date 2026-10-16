@@ -1,4 +1,5 @@
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { aiCompletionSeams } from "../ai-completion-observation.js";
 import { aiConnectionBase } from "./configuration.js";
 import { aiConnectionHeaders, type aiInferenceRequest } from "./protocol.js";
 import {
@@ -7,32 +8,10 @@ import {
   type AiConnectionTransport,
 } from "./types.js";
 
-type CompletionOwner = () => void;
-
-export type AiCompletionObservation =
-  | {
-      phase: "request";
-      response: Response;
-      owner: CompletionOwner;
-      httpSignal: AbortSignal;
-      transportSignal: AbortSignal;
-    }
-  | {
-      phase: "body";
-      response: Response;
-      owner: CompletionOwner;
-      bytes: number;
-      format: "json" | "sse";
-    }
-  | { phase: "operation"; owner: CompletionOwner }
-  | { phase: "signal"; httpSignal: AbortSignal; fetchSignal: AbortSignal };
-
-type AiCompletionObserver = {
-  observe?: (event: AiCompletionObservation) => void;
-};
-
-/** Internal verification seam; observers must not retain or expose secret data. */
-export const aiCompletionSeams: AiCompletionObserver = {};
+export {
+  type AiCompletionObservation,
+  aiCompletionSeams,
+} from "../ai-completion-observation.js";
 
 export function checkAiResponse(response: Response): void {
   if (response.status === 401 || response.status === 403)

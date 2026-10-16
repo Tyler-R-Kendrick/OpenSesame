@@ -281,7 +281,7 @@ export default defineConfig({
               "AI verifier requires exactly one original main entry",
             );
           const verifier =
-            '<script type="module" src="/src/modules/connectors.external/ai-completion-verifier.ts"></script>';
+            '<script type="module" src="/src/verification/ai-completion-verifier.ts"></script>';
           return html.replace(main, `${verifier}\n${main}`);
         },
       },
