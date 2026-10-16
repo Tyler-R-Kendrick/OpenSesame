@@ -13,7 +13,9 @@
     "pairingChallenge": "/v1/cli/app-integration/pairing/challenge",
     "pairingConfirm": "/v1/cli/app-integration/pairing/confirm",
     "pairingExchange": "/v1/cli/app-integration/pairing",
-    "pairingIssue": "/v1/operator/cli-app-integration/pair"
+    "pairingIssue": "/v1/operator/cli-app-integration/pair",
+    "rootEnrollBegin": "/v1/operator/cli-app-integration/root-trust/enroll/begin",
+    "rootEnrollFinish": "/v1/cli/app-integration/root-trust/enroll"
   },
   "messages": {
     "appUnavailable": "OpenSesame is not running. Unlock OpenSesame and allow CLI integration to reveal secrets from this terminal.",

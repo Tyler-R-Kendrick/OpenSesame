@@ -1,4 +1,5 @@
 use super::*;
+use crate::root_trust::{fingerprint_of_spki, RootTrustRecord};
 use crate::test_support::TEST_VAULT_SESSION_ROOT_DIGEST;
 use base64::Engine as _;
 use ecdsa::signature::Signer;
@@ -20,9 +21,18 @@ fn device_key_b64() -> (SigningKey, String) {
     (key, b64)
 }
 
+fn enrolled_pairings() -> CliAppIntegrationPairings {
+    let mut pairings = CliAppIntegrationPairings::default();
+    assert!(!pairings.is_root_key_enrolled());
+    let record = RootTrustRecord::new(fingerprint_of_spki(&[7u8; 32]), 1).expect("record");
+    pairings.mark_root_key_enrolled(record);
+    assert!(pairings.is_root_key_enrolled());
+    pairings
+}
+
 #[test]
 fn exchange_without_confirm_is_refused() {
-    let mut pairings = CliAppIntegrationPairings::default();
+    let mut pairings = enrolled_pairings();
     let origin = "http://localhost:5180";
     let now = 1_000;
     let (code, _) = pairings.issue(origin, now).unwrap();
@@ -34,7 +44,7 @@ fn exchange_without_confirm_is_refused() {
 
 #[test]
 fn confirm_then_arm_then_exchange_mints_bearer() {
-    let mut pairings = CliAppIntegrationPairings::default();
+    let mut pairings = enrolled_pairings();
     let origin = "http://localhost:5180";
     let now = 1_000;
     let (code, _) = pairings.issue(origin, now).unwrap();
@@ -62,7 +72,7 @@ fn confirm_then_arm_then_exchange_mints_bearer() {
 /// Persona: operator-minted code + forged Origin + well-formed random root cannot confirm.
 #[test]
 fn persona_random_root_shaped_secret_cannot_confirm() {
-    let mut pairings = CliAppIntegrationPairings::default();
+    let mut pairings = enrolled_pairings();
     let origin = "http://localhost:5180";
     let now = 1_000;
     let (code, _) = pairings.issue(origin, now).unwrap();
@@ -87,7 +97,7 @@ fn persona_random_root_shaped_secret_cannot_confirm() {
 
 #[test]
 fn exchange_requires_operator_armed_registration_every_time() {
-    let mut pairings = CliAppIntegrationPairings::default();
+    let mut pairings = enrolled_pairings();
     let origin = "http://localhost:5180";
     let now = 1_000;
     let (code, _) = pairings.issue(origin, now).unwrap();
@@ -141,4 +151,83 @@ fn exchange_requires_operator_armed_registration_every_time() {
         .arm_registration(origin, &outcome2.registration_code, now)
         .expect("arm second");
     assert!(pairings.exchange(&code2, origin, now).is_ok());
+}
+
+/// Confirm never arms registration, and the four pairing operations stay closed until
+/// the daemon root trust key is enrolled. Operator issue still mints a code.
+#[test]
+fn pairing_ops_refuse_until_root_key_enrolled() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    assert!(!pairings.is_root_key_enrolled());
+    let origin = "http://localhost:5180";
+    let now = 1_000;
+    let (code, _) = pairings
+        .issue(origin, now)
+        .expect("issue before enrollment");
+    let (signing_key, spki) = device_key_b64();
+    let challenge = pairings.pending[0].pairing_challenge;
+    let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
+    assert!(matches!(
+        pairings.confirm(
+            &code,
+            origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        ),
+        Err(PairingError::RootKeyNotEnrolled)
+    ));
+    assert!(pairings
+        .pending
+        .iter()
+        .all(|pending| !pending.registration_armed));
+    assert!(matches!(
+        pairings.arm_registration(origin, "registration-code", now),
+        Err(PairingError::RootKeyNotEnrolled)
+    ));
+    assert!(matches!(
+        pairings.exchange(&code, origin, now),
+        Err(PairingError::RootKeyNotEnrolled)
+    ));
+    assert!(matches!(
+        pairings.register_webauthn(
+            "token",
+            origin,
+            &crate::WebAuthnRegistration {
+                vault_session_root_digest: TEST_VAULT_SESSION_ROOT_DIGEST.to_string(),
+                human_proof_passkey: "oschip2:passkey:{}".to_string(),
+                credential_id_b64: "cred".to_string(),
+                public_key_spki_b64: spki.clone(),
+                sign_count: 1,
+            },
+        ),
+        Err(PairingError::RootKeyNotEnrolled)
+    ));
+    assert!(!pairings.is_root_key_enrolled());
+    assert!(pairings.root_trust().is_none());
+    assert!(pairings
+        .pending
+        .iter()
+        .all(|pending| !pending.registration_armed));
+}
+
+#[test]
+fn mark_root_key_enrolled_keeps_the_store_record() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    let first = RootTrustRecord::new(fingerprint_of_spki(b"one"), 1).expect("first");
+    pairings.mark_root_key_enrolled(first.clone());
+    assert_eq!(pairings.root_trust(), Some(&first));
+    let second = RootTrustRecord::new(fingerprint_of_spki(b"two"), 2).expect("second");
+    pairings.mark_root_key_enrolled(second.clone());
+    assert!(pairings.is_root_key_enrolled());
+    assert_eq!(pairings.root_trust(), Some(&second));
+}
+
+#[test]
+fn test_seam_enrolls_without_a_trust_record() {
+    let mut pairings = CliAppIntegrationPairings::default();
+    pairings.enroll_root_key_for_tests();
+    assert!(pairings.is_root_key_enrolled());
+    assert!(pairings.root_trust().is_none());
 }

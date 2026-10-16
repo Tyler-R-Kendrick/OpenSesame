@@ -4,6 +4,8 @@ mod device_crypto;
 mod human_proof;
 mod pairing;
 mod pairing_code;
+mod root_enroll;
+mod root_trust;
 mod terminal_session;
 mod webauthn_assertion;
 
@@ -33,12 +35,20 @@ pub use pairing::{
     WebAuthnCredential, WebAuthnRegistration, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES,
     PAIRING_CODE_PREFIX,
 };
+pub use root_enroll::{
+    generate_root_signing_key, root_spki_der, EnrollmentConfirm, RootEnrollBegin, RootEnrollClient,
+    RootEnrollError, RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_BEGIN_PATH,
+    ROOT_ENROLL_FINISH_PATH, ROOT_ENROLL_TTL_SECS,
+};
+pub use root_trust::{fingerprint_of_spki, RootTrustError, RootTrustRecord};
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
 
 /// Daemon-held integration state and browser pairings.
 pub struct CliAppIntegrationHost {
     pub store: CliAppIntegrationStore,
     pub pairings: CliAppIntegrationPairings,
+    /// One pending PAKE enrollment. A new begin replaces it.
+    root_enroll: root_enroll::Sessions,
     /// TCP peers (or test harness keys) bound to a daemon-issued terminal session id.
     tcp_terminal_sessions: HashMap<String, String>,
 }
@@ -55,6 +65,7 @@ impl CliAppIntegrationHost {
         Self {
             store: CliAppIntegrationStore::new(),
             pairings: CliAppIntegrationPairings::default(),
+            root_enroll: root_enroll::Sessions::default(),
             tcp_terminal_sessions: HashMap::new(),
         }
     }

@@ -30,13 +30,15 @@ impl CliAppIntegrationPairings {
     ///
     /// # Errors
     ///
-    /// Returns [`PairingError::Unknown`] when the bearer or public key is invalid.
+    /// Returns [`PairingError::RootKeyNotEnrolled`] before the root trust key is enrolled,
+    /// and [`PairingError::Unknown`] when the bearer or public key is invalid.
     pub fn register_webauthn(
         &mut self,
         token: &str,
         origin: &str,
         registration: &WebAuthnRegistration,
     ) -> Result<(), PairingError> {
+        self.require_root_key_enrolled()?;
         let vault_session_root_digest = registration.vault_session_root_digest.as_str();
         let human_proof_passkey = registration.human_proof_passkey.as_str();
         let credential_id_b64 = registration.credential_id_b64.as_str();
