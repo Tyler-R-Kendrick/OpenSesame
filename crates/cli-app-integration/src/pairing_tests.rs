@@ -42,7 +42,14 @@ fn confirm_then_arm_then_exchange_mints_bearer() {
     let challenge = pairings.pending[0].pairing_challenge;
     let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
     let outcome = pairings
-        .confirm(&code, origin, &spki, &sig, Some(TEST_VAULT_SESSION_ROOT_DIGEST), now)
+        .confirm(
+            &code,
+            origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
         .expect("confirm");
     pairings
         .arm_registration(origin, &outcome.registration_code, now)
@@ -88,7 +95,14 @@ fn exchange_requires_operator_armed_registration_every_time() {
     let challenge = pairings.pending[0].pairing_challenge;
     let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
     let outcome = pairings
-        .confirm(&code, origin, &spki, &sig, Some(TEST_VAULT_SESSION_ROOT_DIGEST), now)
+        .confirm(
+            &code,
+            origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
         .expect("confirm");
     assert!(!pairings.pending[0].registration_armed);
     assert!(matches!(
@@ -109,7 +123,14 @@ fn exchange_requires_operator_armed_registration_every_time() {
         origin,
     );
     let outcome2 = pairings
-        .confirm(&code2, origin, &spki, &sig2, Some(TEST_VAULT_SESSION_ROOT_DIGEST), now)
+        .confirm(
+            &code2,
+            origin,
+            &spki,
+            &sig2,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
         .expect("confirm second");
     assert!(!pairings.pending.iter().any(|p| p.registration_armed));
     assert!(matches!(

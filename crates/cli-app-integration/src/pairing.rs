@@ -198,8 +198,7 @@ impl CliAppIntegrationPairings {
         let registration_code = registration_code();
         pending.device_public_key_spki_b64 = Some(device_public_key_spki_b64.to_string());
         pending.registration_code_sha256 = Some(digest_hex(&registration_code));
-        pending.vault_session_root_digest =
-            vault_session_root_digest.map(str::to_string);
+        pending.vault_session_root_digest = vault_session_root_digest.map(str::to_string);
         Ok(ConfirmOutcome { registration_code })
     }
 

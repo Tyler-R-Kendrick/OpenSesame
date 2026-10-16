@@ -56,14 +56,14 @@ impl CliAppIntegrationPairings {
         if page.vault_session_root_digest.as_deref() != Some(vault_session_root_digest) {
             return Err(PairingError::InvalidProof);
         }
-        if same(page.device_public_key_spki_b64.as_str(), public_key_spki_b64) {
+        if same(
+            page.device_public_key_spki_b64.as_str(),
+            public_key_spki_b64,
+        ) {
             return Err(PairingError::InvalidProof);
         }
-        let challenge = webauthn_register_challenge_digest(
-            token,
-            origin,
-            vault_session_root_digest,
-        );
+        let challenge =
+            webauthn_register_challenge_digest(token, origin, vault_session_root_digest);
         let stored = WebAuthnCredential {
             credential_id_b64: credential_id_b64.to_string(),
             public_key_spki_b64: public_key_spki_b64.to_string(),
