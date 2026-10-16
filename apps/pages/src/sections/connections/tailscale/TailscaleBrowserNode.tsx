@@ -51,7 +51,7 @@ function NodeStatus({ model }: { model: BrowserNodeEditor }) {
       <FailureNotice
         id="tailscale-browser-node"
         title="Tailscale"
-        message={model.failure || state.failure}
+        message={model.failure || state.failure || model.probeFailure}
       />
       {state.status === "login" && !state.authURL ? (
         <FormCommit
@@ -97,6 +97,9 @@ function PeerProbe({ model }: { model: BrowserNodeEditor }) {
         disabled={!model.peerURL}
         onClick={model.testPeer}
       />
+      {model.probeFailure ? (
+        <StatusMark tone="err" label={model.probeFailure} />
+      ) : null}
       {model.probe ? <StatusMark tone="ok" label={model.probe} /> : null}
     </>
   );

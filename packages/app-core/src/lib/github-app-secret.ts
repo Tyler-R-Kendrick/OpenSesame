@@ -10,13 +10,14 @@ import { createItem } from "@opensesame/vault-core";
  *
  * The sealed item is bound by id to the App it belongs to. Nothing here ever
  * falls back to "some private key in the vault": an unrelated SSH key must
- * never be mistaken for the App key and posted to the relay.
+ * never be mistaken for the App key used to sign a local assertion.
  */
 import {
   type WebStorage,
   maybeLocalStore,
   maybeSessionStore,
 } from "../ports.js";
+import { localVaultSessionGuard } from "./secret-backends/local-vault-port.js";
 import { GUEST_TOMB, vaultStore } from "./vault/store.js";
 
 /** Where earlier builds parked the PEM in the clear. Only ever removed. */
@@ -26,7 +27,12 @@ const BINDING_KEY = "opensesame.github-app.secret-item";
 
 export type GithubAppRef = { id: string; displayName: string };
 
-type PendingSecret = { appId: string; name: string; secret: string };
+type PendingSecret = {
+  appId: string;
+  name: string;
+  secret: string;
+  tomb: string | null;
+};
 type SecretBinding = { appId: string; itemId: string };
 
 let pending: PendingSecret | null = null;
@@ -108,8 +114,13 @@ function writeBinding(binding: SecretBinding): void {
 }
 
 function durableVaultOpen(): boolean {
-  const { status, tomb, guest } = vaultStore.getSnapshot();
-  return status === "unlocked" && !guest && tomb !== GUEST_TOMB;
+  const { status, tomb, guest, awaitingSecondStep } = vaultStore.getSnapshot();
+  return (
+    status === "unlocked" &&
+    !awaitingSecondStep &&
+    !guest &&
+    tomb !== GUEST_TOMB
+  );
 }
 
 function watchVaultUntilSealed(): void {
@@ -123,9 +134,12 @@ function watchVaultUntilSealed(): void {
 export function stashPendingGithubAppSecret(
   app: GithubAppRef,
   secret: string,
+  targetTomb: string | null = vaultStore.getSnapshot().guest
+    ? null
+    : vaultStore.getSnapshot().tomb,
 ): void {
   if (secret.trim() === "" || app.id === "") return;
-  pending = { appId: app.id, name: app.displayName, secret };
+  pending = { appId: app.id, name: app.displayName, secret, tomb: targetTomb };
   watchVaultUntilSealed();
 }
 
@@ -151,14 +165,24 @@ function dropPending(sealed: PendingSecret): void {
 }
 
 async function sealNow(next: PendingSecret): Promise<void> {
+  const guard = localVaultSessionGuard(vaultStore);
+  const check = () => {
+    guard.current();
+    if (pending !== next || next.tomb !== guard.current().tomb)
+      throw new Error("This GitHub key save is no longer current.");
+  };
   try {
+    check();
     const item = createItem("secret", next.name);
     item.value = next.secret;
-    await vaultStore.addItems([item]);
+    await vaultStore.saveItems([item], undefined, check);
+    check();
     writeBinding({ appId: next.appId, itemId: item.id });
     dropPending(next);
   } catch {
     // Stays in memory until the next unlock.
+  } finally {
+    guard.close();
   }
 }
 
@@ -170,6 +194,10 @@ export function sealPendingGithubAppSecret(): Promise<void> {
   if (sealing) return sealing;
   const next = pending;
   if (!next || !durableVaultOpen()) return Promise.resolve();
+  const tomb = vaultStore.getSnapshot().tomb;
+  // A guest claim acquires its first durable owner once, never again after a switch.
+  next.tomb ??= tomb;
+  if (next.tomb !== tomb) return Promise.resolve();
   const run = sealNow(next).finally(() => {
     if (sealing === run) sealing = null;
   });
@@ -186,7 +214,9 @@ export function sealPendingGithubAppSecret(): Promise<void> {
 export function pemFromVault(app: GithubAppRef): string | null {
   if (app.id === "" || !durableVaultOpen()) return null;
   if (pending && pending.appId === app.id) {
-    return extractGithubAppPem(pending.secret);
+    pending.tomb ??= vaultStore.getSnapshot().tomb;
+    if (pending.tomb === vaultStore.getSnapshot().tomb)
+      return extractGithubAppPem(pending.secret);
   }
   const live = vaultStore
     .getSnapshot()

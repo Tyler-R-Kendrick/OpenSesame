@@ -141,28 +141,44 @@ describe("a key or a configuration seals on this device", () => {
     ).toBeTruthy();
   });
 
-  it("composes real Tailscale node and OAuth configuration without the legacy daemon refusal or duplicate generic form", () => {
+  it("composes browser peering with OAuth management, without the legacy daemon refusal or a duplicate generic form", () => {
     draw("tailscale");
-    expect(screen.getByLabelText("Browser node hostname")).toBeTruthy();
-    expect(screen.getByLabelText("Tailscale control server")).toBeTruthy();
+    expect(
+      screen.getAllByRole("region", { name: "Tailscale browser node" }),
+    ).toHaveLength(1);
+    expect(screen.getAllByLabelText("Browser node hostname")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Tailscale control server")).toHaveLength(
+      1,
+    );
+    expect(screen.getAllByLabelText("Optional node auth key")).toHaveLength(1);
     expect(
       screen.getByLabelText("Optional node auth key").getAttribute("type"),
     ).toBe("password");
-    expect(screen.getByLabelText("Tailscale API base URL")).toBeTruthy();
-    expect(screen.getByLabelText("Provisioned node attributes")).toBeTruthy();
+    for (const field of [
+      "Tailscale API base URL",
+      "App name",
+      "Provisioned node attributes",
+      "Redirect URI to register",
+      "Returned OAuth app JSON",
+      "Issued device auth key",
+      "Tailnet",
+    ])
+      expect(screen.getByLabelText(field, { exact: true })).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Connect browser node" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Download registration request" }),
     ).toBeTruthy();
     expect(
       screen.queryByText(/device enrollment requires tailscaled/),
     ).toBeNull();
     expect(screen.queryByLabelText("Auth key (required)")).toBeNull();
-    expect(screen.getAllByLabelText("Tailnet", { exact: true })).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getByRole("region", {
+        name: "Tailscale OAuth app configuration",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("region", { name: "Tailscale device provisioning" }),
+    ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Save configuration" }),
     ).toBeNull();

@@ -1,0 +1,30 @@
+[
+  {
+    "source": "1280-ai-projection.png",
+    "target": "1280-ai-projection.webp",
+    "width": 2638,
+    "height": 3100,
+    "sourceBytes": 400602,
+    "targetBytes": 148764,
+    "sourceSha256": "01dd1aa2f4cd0d1f8f20caf8575071f2c12a3736c4d4d9f53a78a273b29b39c2",
+    "targetSha256": "531f60558b7a7392827c5ce5534d5aba6ab344b0cdfe55f7879fb6539f18a152",
+    "decodedRgbaSha256": "5f2ffd20a3449ce81d241fd7d1728c9497d4130a7cace1d70fc058ac687406f6",
+    "decodedPixelEquality": true,
+    "resized": false,
+    "cropped": false
+  },
+  {
+    "source": "390-ai-projection.png",
+    "target": "390-ai-projection.webp",
+    "width": 858,
+    "height": 3142,
+    "sourceBytes": 264198,
+    "targetBytes": 100870,
+    "sourceSha256": "bdb3c9600d4cedac40681aef697f8624a00ec2f9195ac291a7e0970995195ead",
+    "targetSha256": "dcd45ccf91cec7cc0de9abc32e79baa91751aba0a2f91aa0f27bd2e097298e78",
+    "decodedRgbaSha256": "d00b68d0e056abceb26d8c23b7a0baf8c36516c904deae32af2f5eb59de3ea0e",
+    "decodedPixelEquality": true,
+    "resized": false,
+    "cropped": false
+  }
+]

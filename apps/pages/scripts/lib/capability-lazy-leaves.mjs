@@ -11,6 +11,18 @@ const toPosix = (path) => path.replace(/\\/g, "/");
  * when classification matches that capability.
  */
 const LAZY_LEAVES = [
+  // Certificate issuance stays with its owner when shared RSA container
+  // encoding reshapes the surrounding pure chunks.
+  [
+    "/packages/app-core/src/lib/x509/",
+    "vault.certificate-records",
+    "cap-vault.certificate-records",
+  ],
+  [
+    "/packages/app-core/src/lib/certs-issue.ts",
+    "vault.certificate-records",
+    "cap-vault.certificate-records",
+  ],
   [
     "/packages/app-core/src/lib/secret-backends/",
     "connectors.external",

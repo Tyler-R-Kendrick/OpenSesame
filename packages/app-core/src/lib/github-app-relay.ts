@@ -2,9 +2,9 @@ import { maybePage } from "../ports.js";
 import { connectCallbackBase } from "./connect-callback.js";
 
 /**
- * Relay for App convert / install listing.
- * On loopback Vite, prefer the same origin (github-app-relay plugin) so listing
- * does not depend on a stale Connect process. Elsewhere use Connect base.
+ * Legacy relay destination for repository management and forge backups.
+ * App conversion, ownership and installation discovery use GitHub directly.
+ * Remaining relay callers migrate in separate slices.
  */
 export function githubAppRelayBase(
   origin = maybePage()?.location.origin ?? "",
@@ -18,11 +18,32 @@ export function githubAppRelayBase(
   return local;
 }
 
-/** GitHub-facing callback that bounces to `returnTo` with code + state. */
+/** Static, same-origin callback. Its marker keeps GitHub's code out of OIDC boot. */
 export function githubAppRedirectUrl(
   returnTo: string,
   origin = maybePage()?.location.origin ?? "",
 ): string {
-  const base = githubAppRelayBase(origin);
-  return `${base}/api/github-app/callback?return_to=${encodeURIComponent(returnTo)}`;
+  const base = new URL(origin);
+  const callback = new URL(returnTo, base);
+  if (
+    !/^https?:$/.test(base.protocol) ||
+    callback.origin !== base.origin ||
+    callback.username ||
+    callback.password ||
+    callback.hash
+  )
+    throw new Error(
+      "GitHub registration must return to this app without a URL fragment.",
+    );
+  for (const key of [
+    "code",
+    "state",
+    "error",
+    "error_description",
+    "github_app_code",
+    "github_app_state",
+  ])
+    callback.searchParams.delete(key);
+  callback.searchParams.set("github_app", "claim");
+  return callback.toString();
 }

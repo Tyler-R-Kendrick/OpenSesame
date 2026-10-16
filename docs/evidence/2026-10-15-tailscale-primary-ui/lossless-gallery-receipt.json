@@ -1,0 +1,130 @@
+[
+  {
+    "source": "1280-tailscale-primary-ui.png",
+    "target": "1280-tailscale-primary-ui.webp",
+    "width": 2638,
+    "height": 2220,
+    "sourceBytes": 221541,
+    "targetBytes": 75184,
+    "sourceSha256": "93e475e7b070c5667e2b1667f5048d78cde9a0912455ad25de34c5df5c9894a8",
+    "targetSha256": "9301f7bbb51bb18027ad950e389c4ee129e6998ba2ed2d2ea1c3a1603356e0a9",
+    "decodedRgbaSha256": "d0efd8ea63251a133c1773b468151319cdf6189eb9939ed2cc6a9b9749276757",
+    "decodedPixelEquality": true,
+    "resized": false,
+    "cropped": false,
+    "nativeViewportEmbeddings": [
+      {
+        "source": "raw/before/1280-configured-primary.png",
+        "x": 28,
+        "y": 256,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "9418043a77c60b112786c75f26364ed47c2ecfa022289813104707d4ae7642a7",
+        "sourcePngSha256": "ea78578092b6c63b464941684cffbfd6605d969d4544fce107029a0c7ff2aa37"
+      },
+      {
+        "source": "raw/after/1280-configured-primary.png",
+        "x": 1330,
+        "y": 256,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "7b98e5560d78b7ca805373259ab8283176b5fd097491c165ba84435a29caf67f",
+        "sourcePngSha256": "003377ddb75b54527123e2c9c90fdc02c128da9812310d7919ed8922d14f7a4b"
+      },
+      {
+        "source": "raw/before/1280-cold-restored-primary.png",
+        "x": 28,
+        "y": 1292,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "c556fcd82eea2c0a1cd89f60bbe943806ae23d2f965980db1b6580232de5f236",
+        "sourcePngSha256": "f9caa7e2c80bda9c159297a07f1cf1e54fad59d7a11854344545559690f2ae93"
+      },
+      {
+        "source": "raw/after/1280-cold-restored-primary.png",
+        "x": 1330,
+        "y": 1292,
+        "width": 1280,
+        "height": 900,
+        "naturalWidth": 1280,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "8534c77e37fbac8c0acf25dc3865ac410cf8a67fccdce63f1482b7e6118ce6e9",
+        "sourcePngSha256": "5bbc635826e447271bc12c4b2a8fc2ed853bc4a01b5e02c2dfa4a9e0f7189820"
+      }
+    ]
+  },
+  {
+    "source": "390-tailscale-primary-ui.png",
+    "target": "390-tailscale-primary-ui.webp",
+    "width": 858,
+    "height": 2220,
+    "sourceBytes": 157796,
+    "targetBytes": 37330,
+    "sourceSha256": "1dd00522163d4a27a6861a48831e223d87efd5a56d16f04ce5122bbdc7dd728e",
+    "targetSha256": "0691072be5a83e20650701470394a711cf28a60c3adef1335f8f06ecb3628eb2",
+    "decodedRgbaSha256": "c2423b2a386a3cedbda55f6830f2e0892985a6550aa74fac30ec332e323b8820",
+    "decodedPixelEquality": true,
+    "resized": false,
+    "cropped": false,
+    "nativeViewportEmbeddings": [
+      {
+        "source": "raw/before/390-configured-primary.png",
+        "x": 28,
+        "y": 256,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "b1b39209dce8e15af80b3820bd57901682839d2d2b7b318078b0ffeaf26fd6e4",
+        "sourcePngSha256": "e5f0fd772b5c3ea7a4f4f5ba8077273a87dde26af3e79c232d017fa8d6b6f8a2"
+      },
+      {
+        "source": "raw/after/390-configured-primary.png",
+        "x": 440,
+        "y": 256,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "7a81b44828fc0b1dfb94ccd59b04f1093dc8e3a44c924879f4538ef8802cfea0",
+        "sourcePngSha256": "214362a7cf993f0fcd918238651c32d0d03dea2f0c3b5e4c7d7e00b427313095"
+      },
+      {
+        "source": "raw/before/390-cold-restored-primary.png",
+        "x": 28,
+        "y": 1292,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "b34d20682e11e9140061e887127a255653f24684c469c353a0da5faf684e8433",
+        "sourcePngSha256": "f85b8a36dc6ec0e8dec8f84be53d07bcb8fd681e4f893955206ea3271c9c592a"
+      },
+      {
+        "source": "raw/after/390-cold-restored-primary.png",
+        "x": 440,
+        "y": 1292,
+        "width": 390,
+        "height": 900,
+        "naturalWidth": 390,
+        "naturalHeight": 900,
+        "decodedPixelEquality": true,
+        "decodedRgbaSha256": "785c216372a8fd5d955220f1b66d11d0cb52cfccdd116416eca74a8d18eb3ebf",
+        "sourcePngSha256": "96425790d387271b1f65540b1668c1892b48d7302ec19ec0a70ba0f1362aa6f0"
+      }
+    ]
+  }
+]

@@ -2,14 +2,15 @@ import type { JsonObject } from "@opensesame/os-domain";
 /**
  * GitHub App Manifest flow for every Pages origin.
  *
- * Conversion and installation listing go through the Connect relay
- * (`apps/pages/server`) — one shape for localhost, GitHub Pages, and Vercel.
+ * Conversion and installation discovery use GitHub directly from this device.
+ * The callback is this static app, including deployments beneath a base path.
  */
-import { maybePage, sessionStore } from "../ports.js";
+import { maybePage } from "../ports.js";
 import {
   githubAppRedirectUrl,
   githubAppRelayBase,
 } from "./github-app-relay.js";
+import { startGithubRegistration } from "./github-app-vault-transport.js";
 
 export {
   forgetLocalGithubApp,
@@ -24,12 +25,12 @@ export {
 export {
   claimGithubAppCode,
   refreshGithubAppInstallations,
+  verifyGithubAppInstallations,
 } from "./github-app-claim.js";
 
 export { githubAppRedirectUrl, githubAppRelayBase };
 
 const REGISTER_URL = "https://github.com/settings/apps/new";
-const STATE_KEY = "opensesame.github-app.state";
 
 export type GithubAppRegistration = {
   action: string;
@@ -38,7 +39,7 @@ export type GithubAppRegistration = {
   redirectUrl: string;
 };
 
-/** Permissions this App asks GitHub for at registration (read-only after install). */
+/** Registration permissions; each operation further scopes its installation token. */
 export const GITHUB_APP_REQUESTED_PERMISSIONS = [
   { name: "metadata", access: "read" },
   { name: "contents", access: "write" },
@@ -56,22 +57,18 @@ function permissions(): JsonObject {
 }
 
 function setupUrl(returnTo: string): string {
-  return returnTo.includes("?")
-    ? `${returnTo}&github_app=installed`
-    : `${returnTo}?github_app=installed`;
+  const url = new URL(returnTo);
+  url.searchParams.set("github_app", "installed");
+  return url.toString();
 }
 
-function manifestFor(
-  name: string,
-  returnTo: string,
-  redirectUrl: string,
-): JsonObject {
+function manifestFor(name: string, redirectUrl: string): JsonObject {
   return {
     name,
     url: "https://github.com",
     redirect_url: redirectUrl,
-    callback_urls: [returnTo],
-    setup_url: setupUrl(returnTo),
+    callback_urls: [redirectUrl],
+    setup_url: setupUrl(redirectUrl),
     public: false,
     request_oauth_on_install: false,
     default_permissions: permissions(),
@@ -85,18 +82,14 @@ export function buildGithubAppRegistration(body: {
   origin?: string;
 }): GithubAppRegistration {
   const name = (body.displayName?.trim() || "OpenSesame").slice(0, 32);
-  const state = crypto.randomUUID().replaceAll("-", "");
-  try {
-    sessionStore().setItem(STATE_KEY, state);
-  } catch {
-    /* node / private mode — claim still carries state in the form body */
-  }
   const origin = body.origin ?? maybePage()?.location.origin ?? "";
   const redirectUrl = githubAppRedirectUrl(body.returnTo, origin);
+  const state = crypto.randomUUID().replaceAll("-", "");
+  startGithubRegistration(state, redirectUrl);
   return {
     action: REGISTER_URL,
     state,
-    manifest: manifestFor(name, body.returnTo, redirectUrl),
+    manifest: manifestFor(name, redirectUrl),
     redirectUrl,
   };
 }

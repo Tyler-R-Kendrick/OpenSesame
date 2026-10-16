@@ -25,6 +25,7 @@ const Metadata = z
   })
   .strict();
 const State = z.record(z.string(), z.string().max(1_000_000));
+export type TailscaleNodeState = z.infer<typeof State>;
 export type TailscaleNodeRecord = z.infer<typeof Metadata>;
 function binding(
   config: Pick<TailscaleNodeConfiguration, "hostname" | "controlURL">,
@@ -57,7 +58,16 @@ export async function openBrowserNodeState(
       throw new Error(
         "This vault has a different saved browser node. Use its hostname and control server.",
       );
-    return { record, state: readBrowserNodeState(record) };
+    const capture = captureState(record);
+    const state = decodeState(capture.fields.get("nodeState"));
+    assertVaultCredentials(capture, tomb, check);
+    return {
+      record,
+      state,
+      connectionId: row.connectionId,
+      credentialReceipt: JSON.stringify(capture.items),
+      publicReceipt: browserNodePublicFingerprint(record, row.connectionId),
+    };
   }
   const capture = await stageVaultCredentials(
     {
@@ -82,7 +92,7 @@ export async function openBrowserNodeState(
   };
   let published = false;
   try {
-    await saveDeviceConnectorConfigurationDurable(
+    const connection = await saveDeviceConnectorConfigurationDurable(
       () => ({
         providerId: "tailscale",
         displayName: config.hostname,
@@ -98,7 +108,17 @@ export async function openBrowserNodeState(
     );
     published = true;
     check();
-    return { record, state: {} };
+    assertVaultCredentials(capture, tomb, check);
+    return {
+      record,
+      state: {},
+      connectionId: connection.connectionId,
+      credentialReceipt: JSON.stringify(capture.items),
+      publicReceipt: browserNodePublicFingerprint(
+        record,
+        connection.connectionId,
+      ),
+    };
   } catch (error) {
     if (!published)
       await discardVaultCredentials(capture, tomb, check).catch(
@@ -119,6 +139,22 @@ export function savedBrowserNodeConfiguration(): {
   } catch {
     return null;
   }
+}
+/** The exact public row is independent of a legitimate pending private-state write. */
+export function browserNodePublicFingerprint(
+  record: TailscaleNodeRecord,
+  connectionId: string,
+): string {
+  const row = readDeviceRows().find(
+    (entry) => entry.connectionId === connectionId,
+  );
+  if (
+    !row ||
+    row.providerId !== "tailscale" ||
+    row.fields[FIELD] !== JSON.stringify(record)
+  )
+    throw new Error("The saved Tailscale browser node changed.");
+  return JSON.stringify(row);
 }
 function captureState(record: TailscaleNodeRecord) {
   const row = savedNodeRow(record.tomb);
@@ -143,7 +179,9 @@ export function browserNodeCredentialFingerprint(
 export function readBrowserNodeState(
   record: TailscaleNodeRecord,
 ): Record<string, string> {
-  const raw = captureState(record).fields.get("nodeState");
+  return decodeState(captureState(record).fields.get("nodeState"));
+}
+function decodeState(raw: string | undefined): TailscaleNodeState {
   if (!raw || raw.length > 4_000_000)
     throw new Error("Tailscale node state is missing or oversized.");
   return State.parse(JSON.parse(raw));
@@ -153,14 +191,13 @@ export async function writeBrowserNodeState(
   expected: Record<string, string>,
   next: Record<string, string>,
   check: () => void,
-): Promise<void> {
+): Promise<string> {
   const capture = captureState(record);
   if (canonicalize(readBrowserNodeState(record)) !== canonicalize(expected))
     throw new Error(
       "Tailscale private state changed. Reconnect the browser node.",
     );
-  State.parse(next);
-  const serialized = JSON.stringify(next);
+  const serialized = JSON.stringify(State.parse(next));
   if (serialized.length > 4_000_000)
     throw new Error("Tailscale node state exceeds its limit.");
   const items = capture.items.map((item) => {
@@ -181,9 +218,14 @@ export async function writeBrowserNodeState(
     )
       throw new Error("Browser node configuration changed during persistence.");
   });
-  if (canonicalize(readBrowserNodeState(record)) !== canonicalize(next))
+  const committed = captureState(record);
+  if (committed.fields.get("nodeState") !== serialized)
     throw new Error("The saved browser node private state differs.");
-  check();
+  const receipt = JSON.stringify(committed.items);
+  assertVaultCredentials(committed, record.tomb, check);
+  if (browserNodeCredentialFingerprint(record) !== receipt)
+    throw new Error("Tailscale private state changed after persistence.");
+  return receipt;
 }
 
 export async function forgetBrowserNodeState(

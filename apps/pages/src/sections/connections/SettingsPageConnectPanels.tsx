@@ -7,6 +7,7 @@ import type {
 import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { isSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+import { GithubNativeAppPanels } from "./GithubNativeAppPanels.js";
 import { AiConnectionPanels } from "./ai/AiConnectionPanels.js";
 import { ModelKeysPanel } from "./ai/keys/ModelKeysPanel.js";
 import { ConnectPanels, isConnectConnection } from "./connect/ConnectPanels.js";
@@ -29,6 +30,7 @@ type Props = {
 };
 function NativeSettingsPanels(props: Props) {
   const { provider, connection } = props;
+  if (provider.id === "github") return <GithubNativeAppPanels {...props} />;
   return (
     <>
       <NativeConnectorPanels

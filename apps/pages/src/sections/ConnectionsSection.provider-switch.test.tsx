@@ -121,6 +121,10 @@ describe("moving between connector pages", () => {
     const fixture = connectorIntegration();
     fixture.replies.push({ status: 401, body: { message: "Bad credentials" } });
     renderWithNavigation("/connections/github", ["/connections/better-auth"]);
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Connection method"),
+      "token",
+    );
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",
@@ -156,6 +160,10 @@ describe("moving between connector pages", () => {
       "/connections/better-auth",
       "/connections/github",
     ]);
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Connection method"),
+      "token",
+    );
     await userEvent.type(
       await screen.findByLabelText("GitHub personal access token"),
       "private-browser-token",

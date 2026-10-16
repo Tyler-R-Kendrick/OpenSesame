@@ -1,3 +1,4 @@
+import { byoProvidersFirst } from "@opensesame/app-core/lib/catalog-provider.js";
 import type {
   Connection,
   Provider,
@@ -40,7 +41,7 @@ function matchesCatalog(provider: Provider, query: string): boolean {
     .includes(query);
 }
 
-/** Catalog groups in page order: category headings, then source order inside. */
+/** Catalog groups in page order, with BYO first inside each category. */
 export function catalogPageSections(
   providers: readonly Provider[],
   query = "",
@@ -97,16 +98,18 @@ export function catalogPageSections(
 }
 
 /**
- * Source order, except the model providers: eighty-odd tiles are found by
- * name, so they are listed by it (ADR 0192).
+ * BYO first, then source order. Model partners are listed by name because
+ * the catalog has eighty-odd choices (ADR 0192).
  */
 function inCatalogOrder(
   category: Provider["category"],
   providers: readonly Provider[],
 ): readonly Provider[] {
-  if (category !== "ai_model_provider") return providers;
-  return [...providers].sort((a, b) =>
-    a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
+  if (category !== "ai_model_provider") return byoProvidersFirst(providers);
+  return byoProvidersFirst(
+    [...providers].sort((a, b) =>
+      a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
+    ),
   );
 }
 
@@ -131,7 +134,7 @@ export function featureBindingSections(
       id: category,
       label: CATEGORY_LABELS[category],
       href: `/settings/integrations#${category}`,
-      items: items.map((provider) =>
+      items: byoProvidersFirst(items).map((provider) =>
         leaf(
           provider.id,
           provider.displayName,

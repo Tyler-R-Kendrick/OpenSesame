@@ -1,16 +1,18 @@
+import { webcrypto } from "node:crypto";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
-import { localStore, sessionStore } from "../ports.js";
+import { localStore, maybePage, sessionStore } from "../ports.js";
 import { createTestHost } from "../test-host.js";
 import { memoryStorage as memoryStorageFixture } from "./browser-reset.fixture.js";
 import { applyConnectCallbackBase } from "./connect-callback.js";
+import { hasAuthResponse } from "./federation.js";
+import { allowGithub } from "./github-app-authority.test-support.js";
 import {
   buildGithubAppRegistration,
   claimGithubAppCode,
   forgetLocalGithubApp,
   githubAppRedirectUrl,
-  githubAppRelayBase,
   readLocalGithubApp,
   refreshGithubAppInstallations,
 } from "./github-app-manifest.js";
@@ -18,121 +20,66 @@ import {
   hasPendingGithubAppSecret,
   stashPendingGithubAppSecret,
 } from "./github-app-secret.js";
+import { startGithubRegistration } from "./github-app-vault-transport.js";
 import { type VaultState, vaultStore } from "./vault/store.js";
 
-describe("github app redirect url", () => {
-  it("uses the Vite origin on loopback so listing does not need Connect", () => {
-    applyConnectCallbackBase("https://relay.example");
-    try {
-      expect(githubAppRelayBase("http://localhost:5180")).toBe(
-        "http://localhost:5180",
-      );
-      expect(
-        githubAppRedirectUrl(
-          "http://localhost:5180/OpenSesame/connections/github",
-          "http://localhost:5180",
-        ),
-      ).toBe(
-        "http://localhost:5180/api/github-app/callback?return_to=http%3A%2F%2Flocalhost%3A5180%2FOpenSesame%2Fconnections%2Fgithub",
-      );
-    } finally {
-      applyConnectCallbackBase("");
-    }
-  });
-
-  it("uses the Connect relay base on deployed origins", () => {
-    applyConnectCallbackBase("https://relay.example");
-    try {
-      expect(githubAppRelayBase("https://tyler-r-kendrick.github.io")).toBe(
-        "https://relay.example",
-      );
-    } finally {
-      applyConnectCallbackBase("");
-    }
-  });
-
-  it("builds one redirect shape for the active relay base", () => {
+describe("GitHub static callback", () => {
+  afterEach(() => {
     applyConnectCallbackBase("");
-    const origin = "http://localhost:5180";
-    const returnTo = `${origin}/OpenSesame/connections/github`;
-    const registration = buildGithubAppRegistration({
-      returnTo,
-      displayName: "OpenSesame GitHub",
-      origin,
-    });
-    const base = githubAppRelayBase(origin);
-    expect(registration.redirectUrl).toBe(
-      `${base}/api/github-app/callback?return_to=${encodeURIComponent(returnTo)}`,
-    );
-    expect(registration.manifest.redirect_url).toBe(registration.redirectUrl);
-    expect(registration.manifest.callback_urls).toEqual([returnTo]);
+    forgetLocalGithubApp();
+    vi.restoreAllMocks();
+  });
+  it.each([
+    "http://localhost:5180",
+    "https://tyler-r-kendrick.github.io",
+    "https://opensesame.vercel.app",
+  ])("returns to the same static app beneath its base path (%s)", (origin) => {
+    applyConnectCallbackBase("https://foreign-relay.example");
+    const returnTo = `${origin}/OpenSesame/settings/connections/github?keep=yes`;
+    const registration = buildGithubAppRegistration({ returnTo, origin });
+    expect(registration.redirectUrl).toBe(`${returnTo}&github_app=claim`);
+    expect(registration.manifest.callback_urls).toEqual([
+      registration.redirectUrl,
+    ]);
     expect(registration.manifest.setup_url).toBe(
-      `${returnTo}?github_app=installed`,
+      `${returnTo}&github_app=installed`,
     );
-    expect(sessionStore().getItem("opensesame.github-app.state")).toBe(
-      registration.state,
+    expect(
+      hasAuthResponse(
+        `?github_app=claim&code=manifest-code&state=${registration.state}`,
+      ),
+    ).toBe(false);
+    expect(
+      JSON.parse(
+        sessionStore().getItem("opensesame.github-app.registration") ?? "null",
+      ),
+    ).toMatchObject({
+      state: registration.state,
+      returnUrl: registration.redirectUrl,
+    });
+  });
+  it("rejects foreign, non-HTTP, credentialed and fragment callbacks before starting a transaction", () => {
+    for (const returnTo of [
+      "https://foreign.example/settings/connections/github",
+      "javascript:alert(1)",
+      "https://person:password@app.example/settings/connections/github",
+      "https://app.example/settings/connections/github#code",
+    ])
+      expect(() =>
+        githubAppRedirectUrl(returnTo, "https://app.example"),
+      ).toThrow();
+  });
+  it("removes stale OAuth parameters and preserves an ordinary return query", () => {
+    expect(
+      githubAppRedirectUrl(
+        "https://app.example/OpenSesame/settings/connections/github?keep=yes&code=old&state=old&error=bad",
+        "https://app.example",
+      ),
+    ).toBe(
+      "https://app.example/OpenSesame/settings/connections/github?keep=yes&github_app=claim",
     );
-  });
-
-  it("works for GitHub Pages and Vercel origins without branching", () => {
-    for (const origin of [
-      "https://tyler-r-kendrick.github.io",
-      "https://opensesame.vercel.app",
-    ]) {
-      const returnTo = `${origin}/OpenSesame/connections/github`;
-      applyConnectCallbackBase("https://relay.example");
-      try {
-        expect(githubAppRedirectUrl(returnTo, origin)).toBe(
-          `https://relay.example/api/github-app/callback?return_to=${encodeURIComponent(returnTo)}`,
-        );
-      } finally {
-        applyConnectCallbackBase("");
-      }
-    }
-  });
-
-  it("does not invent a Host-specific callback", () => {
-    const spy = vi
-      .spyOn(crypto, "randomUUID")
-      .mockReturnValue("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-    try {
-      const registration = buildGithubAppRegistration({
-        returnTo: "https://app.example/connections/github",
-        origin: "https://app.example",
-      });
-      expect(String(registration.manifest.redirect_url)).not.toContain(
-        "/api/v1/oauth/",
-      );
-      expect(registration.state).toBe("aaaaaaaabbbbccccddddeeeeeeeeeeee");
-    } finally {
-      spy.mockRestore();
-    }
   });
 });
-
-function memoryStorage(): Storage {
-  const map = new Map<string, string>();
-  return {
-    get length() {
-      return map.size;
-    },
-    clear() {
-      map.clear();
-    },
-    getItem(key: string) {
-      return map.get(key) ?? null;
-    },
-    key(index: number) {
-      return [...map.keys()][index] ?? null;
-    },
-    removeItem(key: string) {
-      map.delete(key);
-    },
-    setItem(key: string, value: string) {
-      map.set(key, value);
-    },
-  };
-}
 
 const PEM =
   "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----";
@@ -157,19 +104,24 @@ function vaultAs(overrides: Partial<VaultState>): void {
   });
 }
 
-function relay() {
+function nativeApi() {
+  startGithubRegistration(
+    "claim-state",
+    maybePage()?.location.href ??
+      "https://app.example/settings/connections/github?github_app=claim",
+  );
   const fetchMock = vi.fn(async (input: RequestInfo, _init?: RequestInit) => {
     const url = String(input);
-    if (url.includes("/api/github-app/convert")) {
+    if (url.includes("/app-manifests/")) {
       return Response.json({
         id: 4997182,
+        slug: "opensesame-local",
         client_id: "Iv1.example",
         name: "OpenSesame Local",
         html_url: "https://github.com/apps/opensesame-local",
         client_secret: "client-secret",
         pem: PEM,
-        ownerLogin: "Tyler-R-Kendrick",
-        ownerType: "User",
+        owner: { login: "Tyler-R-Kendrick", type: "User" },
       });
     }
     return Response.json({
@@ -200,7 +152,8 @@ describe("github app secret never rests in web storage", () => {
     local = memoryStorageFixture();
     session = memoryStorageFixture();
     configureHost(createTestHost({ storage: { local, session } }));
-    sessionStore().setItem("opensesame.github-app.state", "claim-state");
+    allowGithub();
+    vi.stubGlobal("crypto", webcrypto);
   });
 
   afterEach(() => {
@@ -212,7 +165,7 @@ describe("github app secret never rests in web storage", () => {
 
   it("keeps a guest's claimed key out of every storage key", async () => {
     vaultAs({ status: "unlocked", tomb: "guest", guest: true });
-    relay();
+    nativeApi();
     await expect(claimGithubAppCode("gh-code", "claim-state")).resolves.toBe(
       "registered",
     );
@@ -224,7 +177,7 @@ describe("github app secret never rests in web storage", () => {
 
   it("keeps a locked device's claimed key out of every storage key", async () => {
     vaultAs({ status: "locked", tomb: "personal", guest: false });
-    const fetchMock = relay();
+    const fetchMock = nativeApi();
     await expect(claimGithubAppCode("gh-code", "claim-state")).resolves.toBe(
       "registered",
     );
@@ -240,9 +193,9 @@ describe("github app secret never rests in web storage", () => {
   it("seals into an open vault and drops the memory copy at once", async () => {
     vaultAs({ status: "unlocked", tomb: "personal", guest: false });
     const addItems = vi
-      .spyOn(vaultStore, "addItems")
+      .spyOn(vaultStore, "saveItems")
       .mockResolvedValue(undefined);
-    relay();
+    nativeApi();
     await claimGithubAppCode("gh-code", "claim-state");
     expect(addItems).toHaveBeenCalledTimes(1);
     const [sealed] = addItems.mock.calls[0]?.[0] ?? [];
@@ -273,7 +226,7 @@ describe("github app secret never rests in web storage", () => {
     expect(hasPendingGithubAppSecret("4997182")).toBe(true);
   });
 
-  it("keeps the local App when the relay rejects a just-claimed key", async () => {
+  it("keeps the local App when GitHub rejects a just-claimed key", async () => {
     localStore().setItem("opensesame.github-app.public", PUBLIC_RECORD);
     vaultAs({ status: "unlocked", tomb: "personal", guest: false });
     stashPendingGithubAppSecret(

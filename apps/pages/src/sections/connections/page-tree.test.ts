@@ -41,6 +41,32 @@ describe("connections page tree", () => {
     ]);
   });
 
+  it.each([
+    ["identity", "byo-identity"],
+    ["password_managers", "byo-secret-backend"],
+    ["ai_model_provider", "byo-ai"],
+  ] as const)(
+    "leads %s provider selection with BYO without moving partners",
+    (category, byoId) => {
+      const source = getBundledProviders().filter(
+        (row) => row.category === category,
+      );
+      // Accept catalog sources where the generic option follows every partner.
+      const input = [
+        ...source.filter((row) => row.id !== byoId),
+        ...source.filter((row) => row.id === byoId),
+      ];
+      const group = featureBindingSections(input).find(
+        (row) => row.id === category,
+      );
+      expect(group?.items?.[0]?.id).toBe(byoId);
+      expect(group?.items?.slice(1).map((row) => row.id)).toEqual(
+        input.filter((row) => row.id !== byoId).map((row) => row.id),
+      );
+      expect(input.at(-1)?.id).toBe(byoId);
+    },
+  );
+
   it("ships wallet issuers in the bundled catalog", () => {
     const ids = getBundledProviders()
       .filter((provider) => provider.category === "wallet")
@@ -138,13 +164,19 @@ describe("connections page tree", () => {
     ).not.toContain("github");
   });
 
-  it("lists the model providers by name, and every other section in source order", () => {
+  it("leads the model catalog with BYO, then lists partners by name", () => {
     const groups = catalogPageSections(getBundledProviders());
     const ai = groups.find((group) => group.id === "ai_model_provider");
     const names = (ai?.items ?? []).map((item) => item.label);
     expect(names.length).toBeGreaterThan(50);
-    expect(names).toEqual(
-      [...names].sort((a, b) =>
+    expect(ai?.items?.[0]).toMatchObject({
+      id: "byo-ai",
+      label: "BYO AI",
+      href: "/connections/byo-ai",
+    });
+    const partners = names.slice(1);
+    expect(partners).toEqual(
+      [...partners].sort((a, b) =>
         a.localeCompare(b, "en", { sensitivity: "base" }),
       ),
     );

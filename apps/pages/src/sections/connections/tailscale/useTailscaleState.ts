@@ -6,7 +6,9 @@ import {
 } from "@opensesame/app-core/lib/tailscale/oauth-app.js";
 import type { SavedTailscaleApp } from "@opensesame/app-core/lib/tailscale/store.js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useVault } from "../../../lib/vault/hooks.js";
 import { tailscaleAppDependencies as deps } from "./tailscale-dependencies.js";
+import { hydrateTailscaleDeviceRows } from "./tailscale-hydration.js";
 import { useTailscaleCredentialLifetime } from "./useTailscaleCredentialLifetime.js";
 function useTailscaleFields() {
   const [saved, setSaved] = useState<SavedTailscaleApp | null>(null);
@@ -82,11 +84,14 @@ export function useTailscaleState(connectionId: string | undefined) {
     setResult("");
   }, [setKey, setAdminToken, setAppResponse, setDeviceKey, setBusy, setResult]);
   useTailscaleCredentialLifetime(fields.saved, clear);
+  const latest = useRef({ connectionId, saved: fields.saved });
+  latest.current = { connectionId, saved: fields.saved };
+  const { tomb } = useVault();
   useEffect(() => {
     let mounted = true;
+    setReady(false);
     const release = deps.onLock(clear);
-    void deps
-      .hydrateTailscaleApps()
+    void hydrateTailscaleDeviceRows(tomb)
       .then(() => {
         if (!mounted) return;
         const loaded = deps.readTailscaleApp(connectionId);
@@ -105,11 +110,15 @@ export function useTailscaleState(connectionId: string | undefined) {
       });
     return () => {
       mounted = false;
-      turn.current++;
-      abort.current?.abort();
+      // The saved app surfacing as a connection mid-action is not a
+      // configuration change: do not abort the action that created it.
+      if (latest.current.saved?.connectionId !== latest.current.connectionId) {
+        turn.current++;
+        abort.current?.abort();
+      }
       release();
     };
-  }, [connectionId, clear, setDraft, setFailure, setReady, setSaved]);
+  }, [connectionId, tomb, clear, setDraft, setFailure, setReady, setSaved]);
   useEffect(() => {
     if (!key?.expiresAt) return;
     const timer = setTimeout(

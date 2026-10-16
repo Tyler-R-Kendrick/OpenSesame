@@ -4,12 +4,64 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
+import { nativeDeviceViewSeams } from "@opensesame/app-core/lib/device-connector-view.js";
 import { nativeBrowserMethodPolicy } from "@opensesame/app-core/lib/native-browser-policy.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
+import { tailscaleNodeAuthorization } from "@opensesame/app-core/lib/tailscale/browser-node-port.js";
 import type { ConnectorTitleStatus } from "./SettingsPageStatus.js";
 
 export type NativeHeaderStatus = ConnectorTitleStatus & { sentence: string };
+function tailscaleHeader(
+  connection: Connection | null,
+): NativeHeaderStatus | null {
+  if (connection && connection.providerId !== "tailscale") return null;
+  const node = tailscaleNodeAuthorization();
+  const id = connection?.connectionId ?? node?.connectionId;
+  const row = readDeviceRows().find((entry) => entry.connectionId === id);
+  if (
+    connection &&
+    connection.connectionRef !== `local/connector/${connection.connectionId}`
+  )
+    return null;
+  if (
+    row?.fields.native_configuration !== undefined &&
+    row.fields.tailscale_browser_node === undefined
+  )
+    return null;
+  const connected =
+    !!node?.connected &&
+    node.connectionId === id &&
+    row?.fields.tailscale_browser_node !== undefined;
+  return nodeHeader(connected);
+}
+function nodeHeader(connected: boolean): NativeHeaderStatus {
+  return {
+    tone: connected ? "ok" : "idle",
+    label: connected ? "Browser node connected" : "Browser node not connected",
+    sentence: connected
+      ? "This browser node is authenticated to its tailnet."
+      : "Connect this browser node to Tailscale.",
+  };
+}
+function aiHeader(
+  view: NativeConnectorView,
+  provider: Provider,
+  connectionId: string,
+): NativeHeaderStatus {
+  const current = nativeDeviceViewSeams.authorization(connectionId);
+  return current?.status === "active" &&
+    view.status === "connected" &&
+    view.verifiedAt !== null
+    ? verifiedHeader(view, provider)
+    : {
+        tone: "warn",
+        label: "Verification pending",
+        sentence:
+          current?.statusDetail ??
+          "Verify this AI connection in its owning vault.",
+      };
+}
 function verifiedHeader(
   view: NativeConnectorView,
   provider: Provider,
@@ -44,6 +96,7 @@ export function nativeConnectorHeaderStatus(
   connection: Connection | null,
   provider: Provider,
 ): NativeHeaderStatus | null {
+  if (provider.id === "tailscale") return tailscaleHeader(connection);
   if (
     !connection ||
     !readDeviceRows().some(
@@ -54,6 +107,8 @@ export function nativeConnectorHeaderStatus(
   )
     return null;
   const view = readNativeConnector(connection.connectionId);
+  if (view?.configuration.parameters.ai_contract !== undefined)
+    return aiHeader(view, provider, connection.connectionId);
   if (view && view.status !== "cleanup") {
     const policy = nativeBrowserMethodPolicy(
       view.providerId,
