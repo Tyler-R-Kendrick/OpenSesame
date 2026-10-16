@@ -14,6 +14,7 @@ export type TailscaleNodeSnapshot = Readonly<{
   failure: string;
 }>;
 export type TailscaleBrowserNode = {
+  authorization?(): { connectionId: string; connected: boolean } | null;
   snapshot(): TailscaleNodeSnapshot;
   subscribe(listener: () => void): () => void;
   start(config: TailscaleNodeConfiguration): Promise<void>;
@@ -43,4 +44,15 @@ export function bindTailscaleBrowserNode(
 }
 export function tailscaleBrowserNode(): TailscaleBrowserNode | null {
   return current;
+}
+
+/** Optional drivers without a current guarded proof never provide live access. */
+export function tailscaleNodeAuthorization() {
+  const node = current;
+  try {
+    const result = node?.authorization?.() ?? null;
+    return current === node ? result : null;
+  } catch {
+    return null;
+  }
 }

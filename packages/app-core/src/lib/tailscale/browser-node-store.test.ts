@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   readDeviceRows,
   readDeviceSecrets,
@@ -9,6 +9,7 @@ import {
 } from "../secret-backends/runtime.test-support.js";
 import { vaultStore } from "../vault/store.js";
 import {
+  browserNodeCredentialFingerprint,
   openBrowserNodeState,
   readBrowserNodeState,
   savedBrowserNodeConfiguration,
@@ -148,4 +149,49 @@ it("does not publish a pending node-state write after lock or reopen it in anoth
   await expect(pending).rejects.toThrow();
   await vaultStore.unlock(runtimePassword);
   expect(readBrowserNodeState(initial.record)).toEqual({});
+});
+
+it("returns the exact committed normalized item versions rather than a later credential", async () => {
+  const initial = await openBrowserNodeState(
+    config,
+    vaultStore.getSnapshot().tomb,
+    check,
+  );
+  const receipt = await writeBrowserNodeState(
+    initial.record,
+    {},
+    { key: "committed" },
+    check,
+  );
+  expect(receipt).toBe(browserNodeCredentialFingerprint(initial.record));
+  const item = vaultStore.getSnapshot().items[0];
+  if (!item || item.kind !== "credential" || item.method.type !== "token")
+    throw new Error("Expected node Token");
+  await vaultStore.saveItem({
+    ...item,
+    method: { ...item.method, token: '{"key":"later-user-edit"}' },
+  });
+  expect(browserNodeCredentialFingerprint(initial.record)).not.toBe(receipt);
+  expect(readBrowserNodeState(initial.record)).toEqual({
+    key: "later-user-edit",
+  });
+});
+
+it("seals the validated next-state snapshot even if the caller mutates its object during persistence", async () => {
+  const initial = await openBrowserNodeState(
+    config,
+    vaultStore.getSnapshot().tomb,
+    check,
+  );
+  const next = { key: "captured-next-state" };
+  const save = vaultStore.saveItems.bind(vaultStore);
+  vi.spyOn(vaultStore, "saveItems").mockImplementation(async (...args) => {
+    next.key = "caller-mutated-after-capture";
+    return save(...args);
+  });
+  const receipt = await writeBrowserNodeState(initial.record, {}, next, check);
+  expect(readBrowserNodeState(initial.record)).toEqual({
+    key: "captured-next-state",
+  });
+  expect(receipt).toBe(browserNodeCredentialFingerprint(initial.record));
 });

@@ -15,3 +15,10 @@ export function isConnectionCatalogProvider(
   if (provider.id === "fido2") return false;
   return !provider.autoConfigurable;
 }
+
+/** BYO configuration leads each provider list; existing partner order stays intact. */
+export function byoProvidersFirst(providers: readonly Provider[]): Provider[] {
+  return [...providers].sort(
+    (a, b) => Number(b.id.startsWith("byo-")) - Number(a.id.startsWith("byo-")),
+  );
+}
