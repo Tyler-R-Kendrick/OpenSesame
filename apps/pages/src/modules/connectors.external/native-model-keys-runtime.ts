@@ -1,4 +1,3 @@
-import { aiDelegationAvailable } from "@opensesame/app-core/lib/ai-connections/delegation.js";
 import {
   bindModelKeyBroker,
   notifyModelKeys,
@@ -36,12 +35,6 @@ export const PAGE_POLICY: BrokerPolicy = {
 export function connectionFacts(connectionId: string): ConnectionFacts | null {
   const view = readNativeConnector(connectionId);
   if (!view) return null;
-  // These records hold actual-vault references and may select custom hosts or
-  // Responses. The closed delegation broker only admits its compiled contracts.
-  if (view.configuration.parameters.ai_contract === "ai-connection-v1")
-    return aiDelegationAvailable(connectionId)
-      ? { connectionId, providerId: view.providerId, verified: true }
-      : null;
   return {
     connectionId,
     providerId: view.providerId,
