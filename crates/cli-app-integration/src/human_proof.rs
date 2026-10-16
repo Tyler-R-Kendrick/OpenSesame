@@ -14,7 +14,6 @@ fn verb_requires_hardware_passkey(verb: &str) -> bool {
 /// Verified human proof: PIN unlock or passkey with monotonic sign count.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HumanProofOutcome {
-    Pin,
     Passkey(u32),
 }
 
@@ -22,7 +21,6 @@ impl HumanProofOutcome {
     #[must_use]
     pub(crate) fn into_sign_count(self) -> Option<u32> {
         match self {
-            Self::Pin => None,
             Self::Passkey(count) => Some(count),
         }
     }

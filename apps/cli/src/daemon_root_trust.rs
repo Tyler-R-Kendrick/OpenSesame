@@ -9,7 +9,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::daemon_toolbar;
-use crate::enroll_entry::{confirm_enrollment, EnrollEntryMethod};
+use crate::enroll_entry::confirm_enrollment;
 
 /// Enroll the daemon CLI root trust key (operator + PAKE + OS secure prompt).
 pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
