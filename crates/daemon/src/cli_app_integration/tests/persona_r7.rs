@@ -241,7 +241,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     {
         let mut host = state.cli_app_integration.lock().unwrap();
         host.pairings
-            .confirm(&code2, origin, &attacker_spki, &sig2_b64, None, now)
+            .confirm(&code2, origin, &attacker_spki, &sig2_b64, Some(TEST_VAULT_SESSION_ROOT_DIGEST), now)
             .expect("confirm2");
         assert!(matches!(
             host.pairings.exchange(&code2, origin, now),
