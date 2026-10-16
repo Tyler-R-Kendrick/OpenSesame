@@ -7,6 +7,7 @@ import {
   MODEL_PROVIDER_PRESETS,
   type ModelProviderPreset,
 } from "@opensesame/app-core/lib/model-catalog.js";
+import { subscribeModelKeys } from "@opensesame/app-core/lib/model-keys/active.js";
 import {
   type ModelProviderRecord,
   NO_MODEL_PROVIDER,
@@ -24,6 +25,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { GuideTarget } from "../../tutorial/registry/react.jsx";
 import { ModelRoleSelects } from "./AiModelRoles.js";
 
 export type { ModelProviderPreset };
@@ -72,7 +74,7 @@ function SaveFlash({ flash }: { flash: Flash | null }) {
  * this panel only chooses which slug each role uses.
  *
  * `embedded`: drawn inside a section that already has its subheader (AI on
- * Settings › Integrations) — no second "Models" label that would read as a
+ * Settings › Features) — no second "Models" label that would read as a
  * section of its own; the plane's mark moves into the tile.
  */
 export function ModelProviderPanel({
@@ -117,6 +119,8 @@ export function ModelProviderPanel({
       live = false;
     };
   }, []);
+
+  useSavedModelChoiceRefresh(verdict, setInferenceOptions);
 
   const commit = useCallback(async (next: ModelProviderRecord) => {
     setBusy(true);
@@ -170,7 +174,38 @@ export function ModelProviderPanel({
   );
 }
 
-/** The picker as the AI section of Settings › Integrations draws it. */
+/** The picker contributed to the AI section of Settings › Features. */
 export function EmbeddedModelProviderPanel() {
-  return <ModelProviderPanel embedded />;
+  return (
+    <GuideTarget id="settings.model-provider">
+      <ModelProviderPanel embedded />
+    </GuideTarget>
+  );
+}
+
+function useSavedModelChoiceRefresh(
+  verdict: BrowserInferenceVerdict | null,
+  setInferenceOptions: (options: ModelSlugOption[]) => void,
+) {
+  useEffect(() => {
+    let live = true;
+    const refresh = () => {
+      void connectedHarnessProviderIds().then((connected) => {
+        if (live)
+          setInferenceOptions(
+            inferenceSlugOptions({
+              browserReady: verdict?.plane === "builtin",
+              connectedProviderIds: connected,
+            }),
+          );
+      });
+    };
+    const unsubscribe = subscribeModelKeys(refresh);
+    window.addEventListener("opensesame:ai-connections-changed", refresh);
+    return () => {
+      live = false;
+      unsubscribe();
+      window.removeEventListener("opensesame:ai-connections-changed", refresh);
+    };
+  }, [verdict?.plane, setInferenceOptions]);
 }

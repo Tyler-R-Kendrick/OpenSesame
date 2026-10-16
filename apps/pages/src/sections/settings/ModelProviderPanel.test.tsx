@@ -3,14 +3,19 @@ import {
   resetSpeechSeams,
   speechSeams,
 } from "@opensesame/app-core/lib/command-bar/speech.js";
+import {
+  type HostedModelConnection,
+  bindHostedModelAuthority,
+} from "@opensesame/app-core/lib/hosted-model-authority.js";
 import { kvSetDurable } from "@opensesame/app-core/lib/kv.js";
+import { notifyModelKeys } from "@opensesame/app-core/lib/model-keys/active.js";
 import {
   MODEL_PROVIDER_KEY,
   loadModelProvider,
   modelProviderSeams,
 } from "@opensesame/app-core/lib/model-provider.js";
 import { modelSlugSeams } from "@opensesame/app-core/lib/model-slugs.js";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -181,6 +186,64 @@ describe("ModelProviderPanel", () => {
       }),
     ).toBeTruthy();
     expect(screen.queryByText(/Running at the provider/)).toBeNull();
+  });
+
+  it("restores the saved native selection when its credential authority becomes ready", async () => {
+    barrenBrowser();
+    const connection: HostedModelConnection = {
+      connectionId: "native-ai-saved",
+      providerId: "byo-ai",
+      status: "connected",
+      method: "api-key",
+      model: "custom-chat",
+      endpoint: "https://models.example/custom/v1",
+      name: "Private chat",
+    };
+    let available: HostedModelConnection[] = [];
+    const release = bindHostedModelAuthority({
+      assertCurrent: () => {},
+      fetch,
+      read: (id) => available.find((row) => row.connectionId === id) ?? null,
+      connections: () => available,
+      execute: async () => null,
+    });
+    const inference = {
+      kind: "hosted",
+      provider: connection.providerId,
+      endpoint: connection.endpoint,
+      model: connection.model,
+      connectionId: connection.connectionId,
+    };
+    try {
+      await kvSetDurable(
+        MODEL_PROVIDER_KEY,
+        JSON.stringify({ ...inference, inference }),
+      );
+      render(<ModelProviderPanel />);
+      // Wait for the initial option discovery to finish before authority becomes ready.
+      await screen.findByRole("img", {
+        name: "Hosted model selected. Answers require a verified connector and active Remote AI support and External connectors capabilities.",
+      });
+      await waitFor(() => {
+        expect(screen.getByLabelText("Inference model")).toHaveProperty(
+          "value",
+          "",
+        );
+      });
+      act(() => {
+        available = [connection];
+        notifyModelKeys();
+      });
+      await waitFor(() => {
+        expect(screen.getByLabelText("Inference model")).toHaveProperty(
+          "value",
+          "connection:native-ai-saved",
+        );
+      });
+      expect(loadModelProvider().inference).toEqual(inference);
+    } finally {
+      release();
+    }
   });
   it("sends a failed save to the tray", async () => {
     barrenBrowser();
