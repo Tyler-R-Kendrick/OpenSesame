@@ -65,30 +65,6 @@
       "probes": []
     },
     {
-      "provider_id": "tailscale",
-      "kind": "companion",
-      "summary": "Tailscale device enrollment requires tailscaled and the OpenSesame native daemon, which a browser cannot run; a saved auth key alone would not enroll a device. Tailscale's management API also sends no CORS headers to this site.",
-      "sources": [
-        {
-          "label": "Tailscale auth keys",
-          "url": "https://tailscale.com/kb/1085/auth-keys"
-        }
-      ],
-      "probes": [
-        {
-          "stage": "preflight",
-          "url": "https://api.tailscale.com/api/v2/tailnet/-/devices",
-          "method": "GET",
-          "request_header_names": ["authorization"],
-          "status": 200,
-          "allow_origin": null,
-          "allow_methods": null,
-          "allow_headers": null,
-          "checked_at": "2026-10-12T13:24:46+00:00"
-        }
-      ]
-    },
-    {
       "provider_id": "webcrypto",
       "kind": "built-in",
       "summary": "This vault already seals every item with WebCrypto keys that never leave this device, so there is nothing to connect.",

@@ -1,0 +1,266 @@
+/** Approved cache plan → physically stopped app socket → real cold SDK reconnect. */
+import fs from "node:fs";
+import path from "node:path";
+import { expect } from "@playwright/test";
+import { allowLoopbackDevelopment } from "./local-network-permission.mjs";
+import {
+  addCapabilities,
+  sealWithPin,
+  unlockWithPin,
+} from "./pages-journey.mjs";
+import {
+  trackControlledBirth,
+  untilBornControlled,
+} from "./push-worker-harness.mjs";
+import {
+  enableBackendConnections,
+  newBackendPage,
+  visitBackendRoute,
+} from "./secret-backend-browser.mjs";
+
+const artifacts = JSON.parse(
+  fs.readFileSync(
+    new URL(
+      "../../src/lib/capabilities/tailscale-artifacts.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+export function emittedTailnetWorker(dist) {
+  const graph = JSON.parse(
+    fs.readFileSync(path.join(dist, "capability-graph.json"), "utf8"),
+  );
+  const owner = graph.chunks.find((chunk) =>
+    chunk.modules.some((module) =>
+      module.id.endsWith("networking.tailnet/browser/controller.ts"),
+    ),
+  );
+  if (!owner) throw new Error("Built graph has no Tailscale controller owner");
+  const text = fs.readFileSync(path.join(dist, owner.file), "utf8");
+  const files = graph.assets.filter(
+    (asset) => asset.file.endsWith(".js") && text.includes(asset.file),
+  );
+  if (files.length !== 1)
+    throw new Error(
+      "Built controller must reference exactly one emitted dedicated worker",
+    );
+  return files[0].file;
+}
+async function observeCachePlans(page) {
+  await page.addInitScript(() => {
+    window.__tailnetCacheMessages = [];
+    window.__tailnetPostedPlans = [];
+    const send = ServiceWorker.prototype.postMessage;
+    ServiceWorker.prototype.postMessage = function (message, ...transfer) {
+      if (message?.type === "PLAN_ASSETS")
+        window.__tailnetPostedPlans.push(structuredClone(message));
+      return send.call(this, message, ...transfer);
+    };
+    navigator.serviceWorker.addEventListener("message", (event) =>
+      window.__tailnetCacheMessages.push(event.data),
+    );
+  });
+}
+async function approvedCache(page, networking) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate((enabled) => {
+          const plan = window.__tailnetPostedPlans.findLast(
+            (entry) =>
+              entry.moduleIds.includes("connectors.external/runtime") &&
+              entry.moduleIds.includes("networking.tailnet/runtime") ===
+                enabled,
+          );
+          return (
+            !!plan &&
+            window.__tailnetCacheMessages.some(
+              (message) =>
+                message.type === "OFFLINE_READY" &&
+                message.releaseId === plan.releaseId &&
+                message.planDigest === plan.planDigest,
+            )
+          );
+        }, networking),
+      { timeout: 90_000 },
+    )
+    .toBe(true);
+  return page.evaluate(async (enabled) => {
+    const names = (await caches.keys()).filter(
+      (name) =>
+        name.startsWith("opensesame-pages:") && name.endsWith(":core-only"),
+    );
+    const urls = (
+      await Promise.all(
+        names.map(async (name) =>
+          (
+            await (await caches.open(name)).keys()
+          ).map((request) => request.url),
+        ),
+      )
+    ).flat();
+    const plan = window.__tailnetPostedPlans.findLast(
+      (entry) =>
+        entry.moduleIds.includes("connectors.external/runtime") &&
+        entry.moduleIds.includes("networking.tailnet/runtime") === enabled,
+    );
+    return { urls, releaseId: plan.releaseId, planDigest: plan.planDigest };
+  }, networking);
+}
+async function openNode(page, base) {
+  await visitBackendRoute(page, base, "settings/connections/tailscale");
+  const panel = page.getByRole("region", {
+    name: "Tailscale browser node",
+    exact: true,
+  });
+  await panel.waitFor();
+  return panel;
+}
+async function connectAndProbe(panel, fixture) {
+  await panel
+    .getByRole("button", { name: "Connect browser node", exact: true })
+    .click();
+  await panel
+    .getByRole("img", { name: /^Connected: / })
+    .waitFor({ timeout: 90_000 });
+  await panel
+    .getByLabel("Tailnet service URL", { exact: true })
+    .fill(fixture.peerUrl);
+  await panel
+    .getByRole("button", { name: "Test tailnet service", exact: true })
+    .click();
+  await panel
+    .getByRole("img", { name: /^HTTP 200 · / })
+    .waitFor({ timeout: 45_000 });
+}
+async function appSocketStopped(origin, base) {
+  try {
+    await fetch(`${origin}${base}`, { signal: AbortSignal.timeout(2000) });
+  } catch {
+    return true;
+  }
+  return false;
+}
+
+async function verifyCacheConsent(
+  page,
+  { origin, base, width, workerAsset, record, check },
+) {
+  await enableBackendConnections(page, base);
+  const baseline = await approvedCache(page, false);
+  record("tailnet-unapproved-cache", JSON.stringify(baseline));
+  const required = { ...artifacts.assets, worker: workerAsset };
+  for (const [kind, asset] of Object.entries(required))
+    check(
+      !baseline.urls.includes(`${origin}${base}${asset}`),
+      `${width}: installed cache excludes unapproved Tailscale ${kind}`,
+    );
+  await addCapabilities(page, ["Tailnet networking"]);
+  const cached = await approvedCache(page, true);
+  record("tailnet-installed-cache", JSON.stringify(cached));
+  for (const [kind, asset] of Object.entries(required))
+    check(
+      cached.urls.includes(`${origin}${base}${asset}`),
+      `${width}: same-release/digest approved PWA cache includes official Tailscale ${kind} before first SDK connection`,
+    );
+  return cached;
+}
+
+export async function verifyInstalledTailscalePwa(
+  browser,
+  { origin, base, width, fixture, appServer, workerAsset, record, check },
+) {
+  const { context, page } = await newBackendPage(browser, {
+    width,
+    origin,
+    providers: [
+      fixture.controlUrl,
+      "https://derp.fixture.test",
+      "https://derp.fixture.test:41917",
+    ],
+    record,
+    serviceWorkers: "allow",
+  });
+  const workers = [];
+  page.on("worker", async (worker) => {
+    try {
+      if ((await worker.evaluate(() => self.name)) === "opensesame-tailscale")
+        workers.push(worker.url());
+    } catch {
+      /* The worker may close during explicit disconnect. */
+    }
+  });
+  try {
+    await trackControlledBirth(context);
+    await observeCachePlans(page);
+    await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+    await untilBornControlled(page, 60_000);
+    await sealWithPin(page);
+    const cached = await verifyCacheConsent(page, {
+      origin,
+      base,
+      width,
+      workerAsset,
+      record,
+      check,
+    });
+    let panel = await openNode(page, base);
+    await panel
+      .getByLabel("Browser node hostname", { exact: true })
+      .fill(`openss-installed-${width}`);
+    await panel
+      .getByLabel("Tailscale control server", { exact: true })
+      .fill(fixture.controlUrl);
+    await panel
+      .getByText("Join with an existing auth key", { exact: true })
+      .click();
+    await panel
+      .getByLabel("Optional node auth key", { exact: true })
+      .fill(fixture.authKey);
+    await connectAndProbe(panel, fixture);
+    check(
+      workers.length > 0 && workers.every((url) => cached.urls.includes(url)),
+      `${width}: emitted SDK worker was already in the approved installed cache before first use`,
+    );
+    await panel
+      .getByRole("button", { name: "Disconnect browser node", exact: true })
+      .click();
+    await appServer.pause();
+    check(
+      await appSocketStopped(origin, base),
+      `${width}: actual app HTTP socket is closed while real control/DERP/native peer remain live`,
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await allowLoopbackDevelopment(page, origin);
+    await unlockWithPin(page);
+    panel = await openNode(page, base);
+    await expect(
+      panel.getByLabel("Browser node hostname", { exact: true }),
+    ).toHaveValue(`openss-installed-${width}`);
+    const before = fixture.peer.length;
+    await connectAndProbe(panel, fixture);
+    check(
+      fixture.peer.length > before &&
+        (await page.evaluate(() => !!navigator.serviceWorker.controller)),
+      `${width}: installed PWA cold-reloads with its app socket stopped, reconnects from vault-held state without another auth key and reaches the real native peer`,
+    );
+    await panel
+      .getByRole("button", { name: "Disconnect browser node", exact: true })
+      .click();
+  } catch (error) {
+    record(
+      "tailnet-cache-diagnostics",
+      JSON.stringify(
+        await page.evaluate(() => ({
+          messages: window.__tailnetCacheMessages,
+          plans: window.__tailnetPostedPlans,
+        })),
+      ),
+    );
+    throw error;
+  } finally {
+    await context.close();
+    await appServer.resume();
+  }
+}

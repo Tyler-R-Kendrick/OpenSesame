@@ -266,3 +266,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0200](0200-anti-slop-asset-ships-a-manifest-and-a-verifier.md) | The anti-slop installer asset ships a manifest and a verifier | Accepted |
 | [0201](0201-identity-integrations-compose-byo-adapters.md) | 0201: Identity integrations compose BYO adapters | Accepted |
 | [0202](0202-pwa-secret-backends-compose-local-and-http-adapters.md) | PWA secret backends compose local and HTTP adapters | Accepted |
+| [0203](0203-byo-ai-composes-native-api-families.md) | BYO AI and native presets share executable API families | Accepted |
+| [0204](0204-pwa-tailscale-browser-node.md) | Run the official Tailscale browser node in an isolated Worker | Accepted |

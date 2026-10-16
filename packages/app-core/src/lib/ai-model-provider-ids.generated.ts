@@ -86,4 +86,5 @@ export const AI_MODEL_PROVIDER_IDS = [
   "snowflake-cortex",
   "watsonx",
   "litellm",
+  "byo-ai",
 ] as const;

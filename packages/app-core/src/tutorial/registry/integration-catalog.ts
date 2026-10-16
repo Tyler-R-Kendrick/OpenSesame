@@ -66,14 +66,6 @@ export const INTEGRATION_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
-    id: "integration.local-storage",
-    description:
-      "The Local storage section of Settings › Integrations: the stores that live on this device or next to it, each by reference.",
-    role: "surface",
-    routes: ["/settings/integrations"],
-    capabilityId: null,
-  },
-  {
     id: "integration.payments",
     description:
       "The Payments section of Settings › Integrations: the card issuers and wallet-pass providers the Wallet can connect to, each by reference.",
@@ -84,7 +76,7 @@ export const INTEGRATION_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "integration.ai",
     description:
-      "The AI section of Settings › Integrations: the agent harnesses a model can run through, with the voice and inference model picks above them while the AI feature is on.",
+      "The AI section of Settings › Integrations: connect agent harnesses and AI model providers. Voice and inference model choices are in Settings › Features › AI.",
     role: "surface",
     routes: ["/settings/integrations"],
     capabilityId: null,

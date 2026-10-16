@@ -46,7 +46,7 @@ export type SettingsRailSnapshot = {
   emptyFeatures?: readonly string[];
   /**
    * Integrations sections that draw nothing on this device (no connector
-   * with anything to do, no model pick): unlisted, as the page leaves them out.
+   * with anything to do): unlisted, as the page leaves them out.
    */
   emptyIntegrations?: readonly string[];
 };
