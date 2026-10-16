@@ -121,9 +121,13 @@ export async function saveProviderFailure({
   error,
   observed,
 }) {
+  const text = await page.locator("body").innerText();
+  console.error(
+    `provider-auth failure at ${step}: ${error.message}\n${text.slice(0, 3000)}`,
+  );
   fs.writeFileSync(
     `${out}/${label}-failure.txt`,
-    `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${await page.locator("body").innerText()}`,
+    `${step}\n${error.message}\n${JSON.stringify(observed.httpFailures)}\n${text}`,
     { mode: 0o600 },
   );
   await page.bringToFront();
