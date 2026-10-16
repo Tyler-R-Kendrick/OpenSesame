@@ -61,14 +61,27 @@ function validateRequest(
 
 type PopupSession = {
   popup: Window;
+  isolated: boolean;
   started: boolean;
   cancelled: boolean;
   cancelWait: (() => void) | null;
 };
+function closeSessionPopup(session: PopupSession): void {
+  if (session.isolated) {
+    // Nulling the opener removes our right to close a foreign consent window.
+    // Reading its location succeeds again once the callback returns to us.
+    try {
+      void session.popup.location.href;
+    } catch {
+      return;
+    }
+  }
+  session.popup.close();
+}
 function cancelSession(session: PopupSession): void {
   session.cancelled = true;
   session.cancelWait?.();
-  session.popup.close();
+  closeSessionPopup(session);
 }
 function startSession(
   session: PopupSession,
@@ -97,7 +110,7 @@ function waitForCode(
       stopListening();
       request.signal?.removeEventListener("abort", abort);
       session.cancelWait = null;
-      session.popup.close();
+      closeSessionPopup(session);
       if (response) resolve(response);
       else reject(new Error("Provider authorization was cancelled or expired"));
     };
@@ -157,11 +170,12 @@ async function waitForCallback(
     }
     // Static callbacks need no provider access to the initiating window.
     session.popup.opener = null;
+    session.isolated = true;
     return await waitForCode(session, request, (accept) =>
       listenForCallback(channel, request, redirectUri, accept),
     );
   } catch (error) {
-    session.popup.close();
+    closeSessionPopup(session);
     throw error;
   }
 }
@@ -187,7 +201,7 @@ async function waitForWebMessage(
       return () => window.removeEventListener("message", receive);
     });
   } catch (error) {
-    session.popup.close();
+    closeSessionPopup(session);
     throw error;
   }
 }
@@ -203,7 +217,7 @@ function showRedirectConsent(
     const lifetime = new AbortController();
     const close = () => {
       clearTimeout(deadline);
-      session.popup.close();
+      closeSessionPopup(session);
     };
     const abort = () => {
       lifetime.abort();
@@ -212,6 +226,7 @@ function showRedirectConsent(
     const deadline = setTimeout(abort, request.expiresAt - Date.now());
     session.cancelWait = abort;
     session.popup.opener = null;
+    session.isolated = true;
     session.popup.location.replace(uri.href);
     return { signal: lifetime.signal, close };
   } catch (error) {
@@ -252,6 +267,7 @@ export function reserveNativeAuthPopup(): NativeAuthPopup {
     throw new Error("Allow the provider sign-in window and try again");
   const session: PopupSession = {
     popup,
+    isolated: false,
     started: false,
     cancelled: false,
     cancelWait: null,

@@ -30,6 +30,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Ambient SSO](ambient-sso.md) | Opt-in automatic sign-in and the safe default account session. |
 | [Live provider verification](live-provider-verification.md) | Proving Google, Entra ID, GitHub and Apple sign-in against real providers. |
 | [Connectors on Vercel Connect](connect-connectors.md) | Creating a connector from its plan, authorizing as yourself, proving the user token, and granting access (ADR 0147). |
+| [AI connections](ai-connections.md) | Configure BYO and partner AI endpoints, verify real inference, select the active model, and understand vault custody and delegated-key limits. |
 | [Native SIOPv2 on Pages](siop-deployment.md) | Using the Pages vault as a Self-Issued OpenID Provider. |
 | [Use OpenSesame Pages as your login](use-pages-as-your-login.md) | For a relying-party developer on another origin: register the application, read `siop-metadata.json`, verify the token with the kit (Express and single-page examples), and what Pages is not (ADR 0161). |
 | [Host-to-Identity mapping](mapping-resolve.md) | How the Host resolves an upstream issuer and subject to a principal. |
@@ -48,6 +49,7 @@ introduces its own (mTLS, plugins) names them where they are used.
 | [Browser identity verification](host-browser-verification.md) | The host-authorization ceremony that follows pairing, and the one-use browser-control approval. |
 | [Encrypted sync pages](sync-pages.md) | The sync page format and the legacy-ownership migration. |
 | [Tailnet vault sync](tailnet-sync.md) | Run a drive on the daemon, open slots, pair devices over Tailscale (ADR 0144). |
+| [Tailscale in the PWA](tailscale-oauth-app.md) | Join a browser node with the official WASM client, reach tailnet services and configure OAuth app provisioning without an application backend or extension (ADR 0204). |
 | [Tailnet device management](tailnet-devices.md) | Connect the daemon to a tailnet, pair the web app, approve, rename, tag, route, expire, remove and add machines (ADR 0169). |
 
 ## Transport and alerting

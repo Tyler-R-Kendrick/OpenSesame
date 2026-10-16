@@ -244,7 +244,7 @@ describe("what a tutorial needs before it is offered", () => {
 
   it("points the model and tailnet tours at their sections, so an undrawn one hides them", () => {
     const sectionDrawn = (id: string) =>
-      id !== "integration.ai" && id !== "feature.networking";
+      id !== "feature.ai" && id !== "feature.networking";
     const withheld = ids({ sectionDrawn });
     expect(withheld).not.toContain("settings.model-provider");
     expect(withheld).not.toContain("settings.tailnet-sync");

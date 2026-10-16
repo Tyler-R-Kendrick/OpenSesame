@@ -244,18 +244,6 @@ Operator detail: [kimi-code-cloud.md](../operators/kimi-code-cloud.md).
 
 Producer label `live_kimi_code`: Kimi Code CLI session produced the patch via `scripts/dev/kimi-headless.sh` with model **K3** (`-m kimi-code/k3`) after `kimi login` OAuth or `KIMI_MODEL_API_KEY`; logs under `/tmp/kimi-*.log` or the agent store.
 
-### Grok Build subscription auth (2026-10-14)
-
-- Cloud Agents install Tyler's Grok Build **subscription** login from
-  `/cursor/stores/bot/grok/auth.json` → `~/.grok/auth.json` on bootstrap
-  (`scripts/dev/grok-install-subscription-auth.sh`, `.cursor/install.sh`) and
-  before preflight. Never use `XAI_API_KEY` for Grok Build; always invoke via
-  `scripts/dev/grok-headless.sh` (keys unset). API-key 403/credits is
-  **misconfiguration**, not tier-1 quota exhaustion.
-- Verify: `env -u XAI_API_KEY grok models` (expect `grok.com` login,
-  default `grok-4.7`); smoke `grok -p 'reply OK' -m grok-4.7` with keys unset.
-- Producer label `live_grok_build`: patch produced by Grok Build CLI tier 1
-  via `scripts/dev/grok-headless.sh` after subscription auth install.
 
 ### Identity and PWA backup stack — #1246, #1247, #1249, #1250, #1251
 
@@ -267,3 +255,13 @@ no alternate CLI authentication or billing was configured. Implementation was
 already committed when the documentation-only tier-chain update reached main
 at `aaa832e9e`. Codex continued verification, review and verified restacking.
 
+### BYO AI and browser-native Tailscale follow-up
+
+Codex and delegated Codex agents produced this follow-up. The recorded task
+preflight found no authenticated Grok CLI and no Kimi executable, so no
+Grok/Kimi output or model identity is claimed. Commits use GitHub
+`createCommitOnBranch` without author overrides. Tailscale implementation
+research applies the official `tailscale/tailscale-skill` instructions and
+current documentation, the official `@tailscale/connect` browser SDK source,
+and tailcat's browser WASM example. Verification results distinguish real
+vendor protocol/client execution from deterministic local service fixtures.

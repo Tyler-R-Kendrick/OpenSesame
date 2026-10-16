@@ -67,6 +67,21 @@ describe("saved model support", () => {
     expect(createSavedModelSupportAgent(transport, record)).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
+  it("refuses unsupported selections and mismatched saved connection identities before HTTP", async () => {
+    await saveModelFixture("openai");
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const transport = { fetch, assertCurrent() {} };
+    const choices = [
+      { ...record.inference, provider: "unsupported-provider" },
+      { ...record.inference, connectionId: "different-connection" },
+      { ...record.inference, model: "" },
+    ];
+    for (const inference of choices)
+      expect(
+        createSavedModelSupportAgent(transport, { ...record, inference }),
+      ).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it("aborts in-flight requests on destroy and rejects later runs", async () => {
     await saveModelFixture("openai");
     const fetch = vi.fn<typeof globalThis.fetch>(
