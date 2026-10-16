@@ -5551,6 +5551,25 @@
       "operations": ["identity.configure"]
     },
     {
+      "id": "byo-ai",
+      "display_name": "BYO AI",
+      "category": "ai_model_provider",
+      "docs_url": "https://github.com/Tyler-R-Kendrick/OpenSesame/blob/main/docs/operators/ai-connections.md",
+      "provenance_url": "https://platform.openai.com/docs/api-reference/introduction",
+      "auth": { "kind": "configuration" },
+      "connection_configuration_fields": [
+        { "name": "family", "secret": false, "required": true },
+        { "name": "base_url", "secret": false, "required": true },
+        { "name": "model", "secret": false, "required": true },
+        { "name": "authentication", "secret": false, "required": true },
+        { "name": "api_key", "secret": true, "required": false }
+      ],
+      "scopes": [],
+      "egress": { "scheme": "none", "authorities": [], "path_prefixes": [] },
+      "operations": ["ai.configure"],
+      "model_api": { "protocol": "rest_json" }
+    },
+    {
       "id": "byo-secret-backend",
       "display_name": "BYO Secret Backend",
       "category": "password_managers",
@@ -5671,6 +5690,6 @@
       "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-10-14.2",
+  "revision": "2026-10-14.3",
   "schema_version": 1
 }

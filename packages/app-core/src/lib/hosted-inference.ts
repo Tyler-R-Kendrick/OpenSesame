@@ -75,6 +75,12 @@ export async function performHostedInference(
     connection.method !== "api-key"
   )
     throw new Error("Verify the selected model provider connection first");
+  if (connection.model && connection.endpoint) {
+    const { performSavedAiInference } = await import(
+      "./ai-connections/runtime.js"
+    );
+    return performSavedAiInference(connectionId, input, runtime);
+  }
   const providerId = connection.providerId;
   if (!isHostedModelProvider(providerId))
     throw new Error("This provider has no supported browser model protocol");

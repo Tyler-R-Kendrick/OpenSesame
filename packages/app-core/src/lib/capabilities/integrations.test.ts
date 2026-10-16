@@ -5,10 +5,15 @@ import { FEATURES, featureById } from "./features.js";
 import { BUILT_IN_INTEGRATIONS, INTEGRATIONS } from "./integrations.js";
 
 describe("INTEGRATIONS", () => {
-  it("gives every connector family exactly one section", () => {
+  it("gives every offered connector family one section while removing legacy local storage", () => {
     const homes = INTEGRATIONS.flatMap((entry) => entry.providerCategories);
     expect(new Set(homes).size).toBe(homes.length);
-    expect([...homes].sort()).toEqual([...FEATURE_BINDING_CATEGORIES].sort());
+    expect([...homes].sort()).toEqual(
+      FEATURE_BINDING_CATEGORIES.filter(
+        (category) => category !== "local_storage",
+      ).sort(),
+    );
+    expect(homes).not.toContain("local_storage");
   });
 
   it("names every section once", () => {
@@ -42,7 +47,6 @@ describe("INTEGRATIONS", () => {
       "backups",
       "cloud-secret-storage",
       "encryption",
-      "local-storage",
       "password-managers",
     ]);
     for (const id of BUILT_IN_INTEGRATIONS) {
@@ -53,13 +57,15 @@ describe("INTEGRATIONS", () => {
     }
   });
 
-  it("puts the git providers under Backups and the models under AI", () => {
+  it("puts git providers under Backups and AI provider connections under AI", () => {
     expect(
       INTEGRATIONS.find((entry) => entry.id === "backups")?.providerCategories,
     ).toEqual(["backup_recovery"]);
     expect(
-      INTEGRATIONS.filter((entry) => entry.models).map((e) => e.id),
-    ).toEqual(["ai"]);
+      INTEGRATIONS.find((entry) => entry.id === "ai")?.providerCategories,
+    ).toEqual(["agent_harnesses", "ai_model_provider"]);
+    for (const entry of INTEGRATIONS)
+      expect(entry).not.toHaveProperty("models");
   });
 
   it("names only always-on capabilities as what a section is backed by (ADR 0142)", () => {

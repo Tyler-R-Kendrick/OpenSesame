@@ -11,10 +11,10 @@
  * receipt, and nothing about it depends on whether a feature is on. (A tile
  * may carry its own enable switch, as a Backups history road does.)
  *
- * These are exactly the Connections catalogue's feature-binding families
- * (`FEATURE_BINDING_CATEGORIES`): the families bound in Settings, not the
- * connectors shared through Access. A test pins the two lists to each other,
- * so a family is configured in one section and no family goes unlisted.
+ * These are the Connections catalogue's feature-binding families except
+ * legacy local storage, whose group is no longer offered in Integrations.
+ * The category remains internal so its old rows do not move to the general
+ * catalog when this group is removed.
  *
  * Where an integration shares its id with a feature (`identity`, `ai`, …) it
  * extends that feature's switches; where it does not (`backups`,
@@ -33,7 +33,6 @@ export type IntegrationId =
   | "backups"
   | "password-managers"
   | "cloud-secret-storage"
-  | "local-storage"
   | "payments"
   | "ai"
   | "networking";
@@ -45,8 +44,6 @@ export type Integration = Readonly<{
   providerCategories: readonly ProviderCategory[];
   /** The feature whose switches this extends; absent for a built-in function. */
   extendsFeature?: FeatureId;
-  /** The model picks (voice and inference) sit in this section. */
-  models?: true;
   /**
    * The always-on capabilities this section's providers work through. An
    * operator may withdraw one (ADR 0142); the section then says so.
@@ -58,7 +55,7 @@ const integration = (
   id: IntegrationId,
   title: string,
   providerCategories: readonly ProviderCategory[],
-  rest: Pick<Integration, "extendsFeature" | "models" | "backedBy"> = {},
+  rest: Pick<Integration, "extendsFeature" | "backedBy"> = {},
 ): Integration => ({ id, title, providerCategories, ...rest });
 
 /**
@@ -82,13 +79,11 @@ export const INTEGRATIONS: readonly Integration[] = [
   integration("cloud-secret-storage", "Cloud secret storage", [
     "cloud_secret_storage",
   ]),
-  integration("local-storage", "Local storage", ["local_storage"]),
   integration("payments", "Payments", ["wallet"], {
     extendsFeature: "payments",
   }),
   integration("ai", "AI", ["agent_harnesses", "ai_model_provider"], {
     extendsFeature: "ai",
-    models: true,
   }),
   integration("networking", "Networking", ["networking"], {
     extendsFeature: "networking",

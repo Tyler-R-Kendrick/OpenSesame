@@ -186,13 +186,7 @@ describe("the row a browser reads is the row the evidence backs", () => {
     const native = rows.find((row) => row.provider_id === "keepass");
     expect(native?.kind).toBe("companion");
     expect(native?.alternative?.to).toBe("/vault?f=all");
-    const tailscale = rows.find((row) => row.provider_id === "tailscale");
-    expect(tailscale?.probes).toContainEqual(
-      expect.objectContaining({
-        url: "https://api.tailscale.com/api/v2/tailnet/-/devices",
-        status: 200,
-        allow_origin: null,
-      }),
-    );
+    // The OAuth app ceremony now owns Tailscale; its HTTP path uses the approved bridge.
+    expect(rows.find((row) => row.provider_id === "tailscale")).toBeUndefined();
   });
 });
