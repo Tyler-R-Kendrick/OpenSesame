@@ -79,7 +79,6 @@ export async function mintCliAuthorizePinProof(
   pin: string,
   header: VaultHeader,
 ): Promise<string> {
-  const binding = bindingFromRow(row);
   const { onCompleteUnlockCodeSubmission } = await import(
     "@opensesame/app-core/sections/settings/security/duress-unlock-bridge.js"
   );
@@ -106,21 +105,5 @@ export async function mintCliAuthorizePinProof(
   );
   raw.fill(0);
   requirePairingSecret();
-  const {
-    approvalChallengeDigest,
-    formatCliAppHumanProofPin,
-    ensureCliAppDeviceSigningKey,
-  } = await import(
-    "@opensesame/app-core/lib/cli-app-integration/device-crypto.js"
-  );
-  const device = await ensureCliAppDeviceSigningKey();
-  if (!device) throw new WrongPasswordError("That PIN did not work.");
-  const challenge = await approvalChallengeDigest(
-    binding.requestId,
-    binding.terminalSessionId,
-    binding.respondNonce,
-    binding.verb,
-  );
-  const sig = await device.sign(challenge);
-  return formatCliAppHumanProofPin(sig);
+  return mintCliAuthorizePasskeyProof(row);
 }

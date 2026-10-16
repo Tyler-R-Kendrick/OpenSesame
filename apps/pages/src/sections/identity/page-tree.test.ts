@@ -62,7 +62,25 @@ describe("identity page tree", () => {
     expect(leaves("service-accounts")).toEqual(["Wiki"]);
     expect(leaves("organization")).toEqual(["Acme"]);
     expect(leaves("providers")).toEqual(["Google"]);
-    expect(leaves("devices")).toEqual(["Desk laptop"]);
+    expect(leaves("devices")).toEqual(["Desk laptop", "Terminal CLI"]);
+  });
+
+  it("counts Devices rail rows the same way as the Devices workspace list (B7-6)", () => {
+    const tree = identityPageTree(
+      {
+        devices: [{ id: "dev_1", name: "Desk laptop" }],
+        deviceWorkspaceExtras: { tailnet: true, approval: true },
+      },
+      ["devices"],
+    );
+    const devices = tree.find((node) => node.id === "devices");
+    expect(devices && pageTreeItemCount(devices)).toBe(4);
+    expect(devices?.children.map((node) => node.label)).toEqual([
+      "Desk laptop",
+      "Tailnet devices",
+      "Approve a device",
+      "Terminal CLI",
+    ]);
   });
   it("uses hosted record hashes when a hosted directory is active", () => {
     const tree = identityPageTree({

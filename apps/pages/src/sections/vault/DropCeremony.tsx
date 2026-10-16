@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
  * it lapses, and the QR. A seal that fails is a tray notice, never a box.
  */
 
-import { isDeviceIdentityMode } from "@opensesame/app-core/lib/device-identity.js";
 import {
   type SharedOnce,
   shareOnce,
@@ -27,6 +26,8 @@ import {
   type DropItem,
   type VaultItem,
   b64ToBytes,
+  handoff,
+  produceAccountPassword,
 } from "@opensesame/vault-core";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import {
@@ -38,10 +39,17 @@ import {
 } from "../../components/FieldRow.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconDownload } from "../../components/Icons.js";
-import { QrCode } from "../../components/QrCode.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { DROP_TTL_OPTIONS, dropTtlLabel } from "./DropTtl.js";
 import { ShareForm } from "./ShareForm.js";
+import {
+  DropCardLinkRow,
+  DropCardMetaRows,
+  DropCardQr,
+  DropCardShareTextRow,
+  DropCardUserCodeRow,
+  DropCardUsername,
+} from "./drop-card-fields.js";
 import { formatExpiry } from "./expiry.js";
 
 function useNow(): number {
@@ -68,6 +76,7 @@ export function DropCard({
   now,
   username,
   shareClipboard,
+  passwordInCopy = false,
 }: {
   drop: SharedOnce;
   /** The TTL the person sealed, from the choices the form offers. */
@@ -77,87 +86,38 @@ export function DropCard({
   username?: string;
   /** Full share text (username line + secret) for one-shot copy. */
   shareClipboard?: string | null;
+  /** That copy includes the account password. */
+  passwordInCopy?: boolean;
 }) {
-  const { copied, failed, copy } = useCopyFeedback();
+  const copyFeedback = useCopyFeedback();
   const user = username?.trim() ?? "";
   const clipboard = shareClipboard?.trim() ?? "";
+  const expiresLabel = clockExpiry(drop.expiresAt, now);
   return (
     <section className="detail__group" aria-label="Drop ready">
       <h2 className="detail__grouphead">Drop ready</h2>
-      {user !== "" ? (
-        <FieldRow label="Username">
-          <span className="frow__value">{user}</span>
-        </FieldRow>
-      ) : null}
-      <FieldRow
-        label="Link"
-        actions={
-          <CopyButton
-            value={drop.link}
-            label="drop link"
-            fieldKey="drop-link"
-            copied={copied}
-            failed={failed}
-            onCopy={copy}
-          />
-        }
-      >
-        <span className="frow__value frow__value--mono drop-card__link">
-          {drop.link}
-        </span>
-      </FieldRow>
-      <FieldRow
-        label="User code"
-        actions={
-          <CopyButton
-            value={drop.userCode}
-            label="user code"
-            fieldKey="drop-code"
-            copied={copied}
-            failed={failed}
-            onCopy={copy}
-          />
-        }
-      >
-        <span className="frow__value frow__value--mono">{drop.userCode}</span>
-      </FieldRow>
-      {opensFor !== "" ? (
-        <FieldRow label="Opens for">
-          <span className="frow__value">{opensFor}</span>
-        </FieldRow>
-      ) : null}
-      {isDeviceIdentityMode() ? (
-        <FieldRow label="Opens on">
-          <span className="frow__value">This browser</span>
-        </FieldRow>
-      ) : null}
-      <FieldRow label="Expires">
-        <span className="frow__value">{clockExpiry(drop.expiresAt, now)}</span>
-      </FieldRow>
-      {clipboard !== "" ? (
-        <FieldRow
-          label="Share text"
-          actions={
-            <CopyButton
-              value={clipboard}
-              label="share text"
-              fieldKey="drop-share-text"
-              copied={copied}
-              failed={failed}
-              onCopy={copy}
-            />
-          }
-        >
-          <span className="frow__value frow__value--mono">
-            Sealed in this drop
-          </span>
-        </FieldRow>
-      ) : null}
-      <div className="drop-card__qr">
-        <QrCode value={drop.link} label="Scan to open this drop" size={144} />
-      </div>
+      <DropCardUsername username={user} />
+      <DropCardLinkRow link={drop.link} copy={copyFeedback} />
+      <DropCardUserCodeRow userCode={drop.userCode} copy={copyFeedback} />
+      <DropCardMetaRows opensFor={opensFor} expiresLabel={expiresLabel} />
+      <DropCardShareTextRow
+        clipboard={clipboard}
+        passwordInCopy={passwordInCopy}
+        copy={copyFeedback}
+      />
+      <DropCardQr link={drop.link} />
     </section>
   );
+}
+
+/**
+ * The share-text copy holds an account password the row does not paint.
+ * A pepper slot in the middle leaves no single password to share.
+ */
+function shareCopyContainsPassword(item: VaultItem): boolean {
+  if (item.kind !== "account") return false;
+  const out = handoff(produceAccountPassword(item));
+  return out !== null && out.later === "" && out.now !== "";
 }
 
 /**
@@ -215,6 +175,7 @@ export function ShareSecretDrop({
         now={now}
         username={accountUsernameLine(item)}
         shareClipboard={text}
+        passwordInCopy={shareCopyContainsPassword(item)}
       />
     );
   }

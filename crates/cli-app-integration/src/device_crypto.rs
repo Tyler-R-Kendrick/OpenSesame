@@ -44,6 +44,9 @@ pub fn pairing_confirm_message(challenge: &[u8], code: &str, origin: &str) -> Ve
 
 #[cfg(any(test, feature = "test-seams"))]
 #[allow(dead_code)] // `test-seams` is enabled for the daemon crate; unit tests are the callers.
+/// # Panics
+///
+/// Panics if the verifying key cannot be encoded as SPKI DER (should not happen for valid P-256 keys).
 #[must_use]
 pub fn verifying_key_spki_b64(verifying_key: &VerifyingKey) -> String {
     use p256::elliptic_curve::pkcs8::EncodePublicKey;
