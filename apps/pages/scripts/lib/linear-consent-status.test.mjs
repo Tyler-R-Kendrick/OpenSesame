@@ -56,3 +56,24 @@ describe("bounded Linear status diagnostics", () => {
     ).toEqual(["durable-storage-unavailable", "popup-already-used"]);
   });
 });
+
+it("distinguishes fixed authorization bounds without exporting request or decorated values", () => {
+  expect(
+    knownLinearStatusCodes([
+      mark("Invalid provider authorization URL"),
+      mark("Provider authorization request expired"),
+      mark("Provider authorization request exceeds allowed lifetime"),
+      mark(
+        "Invalid provider authorization URL https://private.example/?state=secret",
+      ),
+      mark("Provider authorization request expired 1792000000000"),
+      mark(
+        "Provider authorization request exceeds allowed lifetime token=private",
+      ),
+    ]),
+  ).toEqual([
+    "authorization-lifetime-excessive",
+    "authorization-request-expired",
+    "authorization-url-invalid",
+  ]);
+});
