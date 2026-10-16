@@ -2,6 +2,7 @@
 # Restart wave-2 reinvestigate (Grok / Kimi / Composer per deepsec-wave2-pick-agent.sh).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+bash "${ROOT}/scripts/audit/deepsec-wave2-ensure-executable.sh" 2>/dev/null || true
 export PATH="${HOME}/.local/bin:${PATH}"
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 

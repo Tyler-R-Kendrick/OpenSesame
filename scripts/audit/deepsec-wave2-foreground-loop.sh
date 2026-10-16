@@ -13,13 +13,38 @@ unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 exec >>"$LOG" 2>&1
 echo "=== foreground loop start $(date -u +%Y-%m-%dT%H:%M:%SZ) tick=${TICK_SEC}s hang=${HANG_SEC}s ==="
 
+ensure_audit_executable() {
+  bash "${ROOT}/scripts/audit/deepsec-wave2-ensure-executable.sh" 2>/dev/null || true
+}
+
 ensure_watchers() {
+  ensure_audit_executable
   for script in deepsec-wave2-kimi-watch.sh deepsec-kimi-quota-watch.sh deepsec-kimi-supervisor.sh deepsec-wave2-watch.sh; do
     if ! pgrep -f "$script" >/dev/null; then
-      nohup "${ROOT}/scripts/audit/$script" >>"/tmp/${script%.sh}.nohup" 2>&1 &
+      nohup bash "${ROOT}/scripts/audit/$script" >>"/tmp/${script%.sh}.nohup" 2>&1 &
       echo "started $script"
     fi
   done
+}
+
+ensure_kimi_parallel() {
+  if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" 2>/dev/null; then
+    return 0
+  fi
+  if ! pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null \
+    && ! pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null; then
+    return 0
+  fi
+  if pgrep -f 'deepsec-wave2-kimi-parallel.sh' >/dev/null \
+    || pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null; then
+    return 0
+  fi
+  if node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
+    return 0
+  fi
+  nohup bash "${ROOT}/scripts/audit/deepsec-wave2-kimi-parallel.sh" \
+    >>/tmp/deepsec-wave2-kimi-parallel.nohup 2>&1 &
+  echo "started deepsec-wave2-kimi-parallel.sh"
 }
 
 run_start_line() {
@@ -74,6 +99,7 @@ last_progress_epoch="${last_progress_epoch:-0}"
 
 while true; do
   ensure_watchers
+  ensure_kimi_parallel
   if pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null; then
     node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" 2>/dev/null || true
   fi
@@ -144,8 +170,16 @@ while true; do
     fi
   else
     echo "=== no agent available (quota-sleep) $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-    pkill -9 -f 'deepsec/dist/cli.mjs process' 2>/dev/null || true
-    pkill -9 -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
+    # Do not kill in-flight investigate when pick-agent fails (e.g. missing +x on probes).
+    if ! "${ROOT}/scripts/audit/deepsec-grok-quota-probe.sh" 2>/dev/null \
+      && ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" 2>/dev/null; then
+      pkill -9 -f 'deepsec/dist/cli.mjs process' 2>/dev/null || true
+      pkill -9 -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
+      pkill -9 -f 'deepsec-wave2-kimi-parallel.sh' 2>/dev/null || true
+    else
+      echo "=== probes ok but pick-agent failed — ensure executable, skip kill $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+      ensure_audit_executable
+    fi
     last_batch_epoch=0
   fi
 
