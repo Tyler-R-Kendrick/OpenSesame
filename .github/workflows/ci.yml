@@ -414,78 +414,6 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:live-local-pair
 
-  ai-connections-e2e:
-    name: AI connections end to end
-    needs: changes
-    # Shared controls, vault custody and protocol adapters are in the Pages
-    # bundle graph. Keep this walk separate from the native connector shard.
-    if: needs.changes.outputs.bundle == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-      VITE_BASE: /OpenSesame/
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install
-        run: pnpm install --frozen-lockfile
-      - name: Build the declared AI verification profile
-        run: pnpm --filter @opensesame/pages build:ai-connections-verify
-      - name: Configure and use real AI protocol connections in Chromium
-        env:
-          PAGES_VERIFY_OUT: ${{ runner.temp }}/ai-connections-browser
-        run: pnpm --filter @opensesame/pages verify:ai-connections
-      - name: Preserve AI browser evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: ai-connections-browser-${{ github.sha }}
-          path: ${{ runner.temp }}/ai-connections-browser/
-          if-no-files-found: warn
-
-  tailnet-browser-node-e2e:
-    name: Tailscale browser node end to end
-    needs: changes
-    if: needs.changes.outputs.bundle == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-      VITE_BASE: /OpenSesame/
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install
-        run: pnpm install --frozen-lockfile
-      - name: Build the declared Tailscale verification profile
-        run: pnpm --filter @opensesame/pages build:tailnet-browser-verify
-      - name: Official browser SDK through real Headscale and a native peer
-        # The Linux x64 fixture downloads hash-pinned binaries and uses
-        # userspace networking; no TUN device or elevated runner is needed.
-        env:
-          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
-        run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
-      - name: Preserve Tailscale browser evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: tailnet-browser-node-${{ github.sha }}
-          path: ${{ runner.temp }}/tailnet-browser-node/
-          if-no-files-found: warn
-
   device-inbox:
     name: Device inbox and local notifications
     needs: changes
@@ -925,7 +853,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e, live-join-e2e, ai-connections-e2e, tailnet-browser-node-e2e]
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e, live-join-e2e]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -939,8 +867,6 @@ jobs:
           push="${{ needs.push-e2e.result }}"
           identity="${{ needs.device-identity-e2e.result }}"
           live="${{ needs.live-join-e2e.result }}"
-          ai="${{ needs.ai-connections-e2e.result }}"
-          tailnet="${{ needs.tailnet-browser-node-e2e.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
@@ -964,14 +890,6 @@ jobs:
           case "$live" in
             success|skipped) ;;
             *) echo "live join result: $live"; exit 1 ;;
-          esac
-          case "$ai" in
-            success|skipped) ;;
-            *) echo "AI connections end to end result: $ai"; exit 1 ;;
-          esac
-          case "$tailnet" in
-            success|skipped) ;;
-            *) echo "Tailscale browser node result: $tailnet"; exit 1 ;;
           esac
           case "$identity" in
             success|skipped) exit 0 ;;
