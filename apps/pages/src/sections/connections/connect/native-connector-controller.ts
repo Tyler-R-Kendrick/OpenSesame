@@ -26,6 +26,115 @@ import type {
   NativeConnectorController,
 } from "./native-connector-ui.js";
 
+/** This capability closes one reserved popup; it conveys no connector authority. */
+export type NativeAuthorizationTicket = Readonly<{
+  method: NativeConfigureInput["method"];
+  cancel(): void;
+  current(): boolean;
+}>;
+export type NativeAuthorizationSink = (
+  ticket: NativeAuthorizationTicket,
+) => () => void;
+
+type AuthorizationAttempt = {
+  check(): void;
+  finish(): void;
+  cancel(): void;
+  current(): boolean;
+};
+
+function authorizationAttempt(
+  release: (() => void) | undefined,
+  cancelLegacy: (() => void) | undefined,
+  guard: () => void,
+  retired: () => void,
+): AuthorizationAttempt {
+  let open = true;
+  const check = () => {
+    if (!open) throw new Error("Provider sign-in was cancelled");
+    guard();
+  };
+  const close = (cancel: boolean) => {
+    if (!open) return;
+    open = false;
+    try {
+      if (release) {
+        release();
+        return;
+      }
+      if (cancel) {
+        try {
+          guard();
+        } catch {
+          return;
+        }
+        cancelLegacy?.();
+      }
+    } finally {
+      retired();
+    }
+  };
+  return {
+    check,
+    finish: () => close(false),
+    cancel: () => close(true),
+    current: () => {
+      try {
+        check();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
+function authorizationLifetime(sink?: NativeAuthorizationSink) {
+  let current: AuthorizationAttempt | undefined;
+  const reserve = (method: NativeConfigureInput["method"]) => {
+    if (!["oauth", "oidc", "mcp"].includes(method)) return;
+    const browser = nativeOAuthBrowserPort();
+    const release = browser.prepareAuthorization?.();
+    let stop: (() => void) | undefined;
+    const retire = () => {
+      if (current === attempt) current = undefined;
+      const cleanup = stop;
+      stop = undefined;
+      cleanup?.();
+    };
+    // The local flag also protects ports that do not expose a browser guard.
+    let capturedGuard: (() => void) | undefined;
+    const attempt = authorizationAttempt(
+      release,
+      browser.cancelAuthorization,
+      () => capturedGuard?.(),
+      retire,
+    );
+    try {
+      capturedGuard = browser.captureAuthorizationGuard?.();
+      current = attempt;
+      if (release)
+        stop = sink?.(
+          Object.freeze({
+            method,
+            cancel: attempt.cancel,
+            current: attempt.current,
+          }),
+        );
+      if (!attempt.current()) retire();
+      attempt.check();
+      return attempt;
+    } catch (error) {
+      attempt.finish();
+      throw error;
+    }
+  };
+  return {
+    reserve,
+    cancel: () => current?.cancel(),
+  };
+}
+
 function nativeControllerState(
   plan: Pick<ConnectPlan, "id" | "refused">,
   initialConnectionId?: string,
@@ -139,10 +248,13 @@ function nativeRecoveryControls(
 export function nativeConnectorController(
   plan: Pick<ConnectPlan, "id" | "refused">,
   initialConnectionId?: string,
+  onAuthorization?: NativeAuthorizationSink,
 ): NativeConnectorController {
   const state = nativeControllerState(plan, initialConnectionId);
   const { load, read, required, retain } = state;
-  const configure = async (input: NativeConfigureInput) => {
+  const lifetime = authorizationLifetime(onAuthorization);
+  const configure = async (input: NativeConfigureInput, check?: () => void) => {
+    check?.();
     if (plan.refused)
       throw new Error("This provider connection is unavailable");
     const held = read() ? required() : null;
@@ -150,19 +262,18 @@ export function nativeConnectorController(
       throw new Error(
         "Remove this connection before choosing another authorization method",
       );
-    return retain(
-      await nativeConnectorDriver(input.method, plan.id).configure({
-        ...input,
-        providerId: plan.id,
-        connectionId: held?.connectionId,
-        revision: held?.revision,
-      }),
-    );
+    const configured = await nativeConnectorDriver(
+      input.method,
+      plan.id,
+    ).configure({
+      ...input,
+      providerId: plan.id,
+      connectionId: held?.connectionId,
+      revision: held?.revision,
+    });
+    check?.();
+    return retain(configured);
   };
-  const reserve = (method: NativeConfigureInput["method"]) =>
-    ["oauth", "oidc", "mcp"].includes(method)
-      ? nativeOAuthBrowserPort().prepareAuthorization?.()
-      : undefined;
   const test = async (input: NativeConfigureInput) => {
     if (plan.refused)
       throw new Error("This provider connection is unavailable");
@@ -175,27 +286,29 @@ export function nativeConnectorController(
     load,
     configure,
     test,
-    cancelAuthorization: () => nativeOAuthBrowserPort().cancelAuthorization?.(),
+    cancelAuthorization: lifetime.cancel,
     connect: async (input) => {
-      const release = reserve(input.method);
+      const attempt = lifetime.reserve(input.method);
       try {
-        const view = await configure(input);
+        const view = await configure(input, attempt?.check);
+        attempt?.check();
         if (view.status === "connected") return view;
         const driver = nativeConnectorDriver(input.method, plan.id);
         if (!driver.authorize)
           throw new Error("This provider requires verified credentials");
         await driver.authorize(view.connectionId);
+        attempt?.check();
         const connected = load();
         if (!connected || connected.status !== "connected")
           throw new Error("Provider authorization did not complete");
         return connected;
       } finally {
-        release?.();
+        attempt?.finish();
       }
     },
     authorize: async (actor) => {
       const view = required();
-      const release = reserve(view.configuration.method);
+      const attempt = lifetime.reserve(view.configuration.method);
       try {
         const driver = nativeConnectorDriver(
           view.configuration.method,
@@ -204,9 +317,10 @@ export function nativeConnectorController(
         if (!driver.authorize)
           throw new Error("This method does not use provider consent");
         await driver.authorize(view.connectionId, actor);
+        attempt?.check();
         load();
       } finally {
-        release?.();
+        attempt?.finish();
       }
     },
     verify: async () => {

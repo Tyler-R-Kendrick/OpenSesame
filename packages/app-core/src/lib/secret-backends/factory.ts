@@ -41,6 +41,16 @@ async function httpBackend(
   transport: SecretBackendTransport,
 ): Promise<SecretBackend> {
   switch (mode) {
+    case "onepassword-sdk": {
+      const [module, loader] = await Promise.all([
+        import("./onepassword-sdk.js"),
+        import("./onepassword-sdk-loader.js"),
+      ]);
+      transport.assertCurrent();
+      const assets = loader.onePasswordBrowserAssets();
+      transport.assertCurrent();
+      return module.createOnePasswordSdkBackend(assets, transport);
+    }
     case "onepassword-connect": {
       const module = await import("./onepassword.js");
       transport.assertCurrent();
@@ -98,6 +108,7 @@ export async function createSecretBackend(
         assertCurrent: check,
       });
     }
+    case "onepassword-sdk":
     case "onepassword-connect":
     case "bitwarden-api":
     case "bitwarden-secrets":

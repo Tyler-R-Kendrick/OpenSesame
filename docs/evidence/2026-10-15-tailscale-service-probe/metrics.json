@@ -43,10 +43,7 @@
         "height": 900,
         "step": "connected-before-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -152,10 +149,7 @@
         "height": 900,
         "step": "missing-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -266,10 +260,7 @@
         "height": 900,
         "step": "successful-retry",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -380,10 +371,7 @@
         "height": 900,
         "step": "stopped",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -454,10 +442,7 @@
         "height": 900,
         "step": "connected-before-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -563,10 +548,7 @@
         "height": 900,
         "step": "missing-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -677,10 +659,7 @@
         "height": 900,
         "step": "successful-retry",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -791,10 +770,7 @@
         "height": 900,
         "step": "stopped",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -3130,10 +3106,7 @@
         "height": 900,
         "step": "connected-before-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -3239,10 +3212,7 @@
         "height": 900,
         "step": "missing-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -3353,10 +3323,7 @@
         "height": 900,
         "step": "successful-retry",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -3467,10 +3434,7 @@
         "height": 900,
         "step": "stopped",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",
@@ -3541,10 +3505,7 @@
         "height": 900,
         "step": "connected-before-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -3650,10 +3611,7 @@
         "height": 900,
         "step": "missing-service",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -3764,10 +3722,7 @@
         "height": 900,
         "step": "successful-retry",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node connected",
@@ -3878,10 +3833,7 @@
         "height": 900,
         "step": "stopped",
         "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
-        "headings": [
-          "Tailscale",
-          "1 Connect this PWA to Tailscale"
-        ],
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
         "statuses": [
           {
             "label": "Browser node not connected",

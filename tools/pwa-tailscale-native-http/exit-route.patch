@@ -1,0 +1,4 @@
+--- a/cmd/tsconnect/wasmbuild/wasmbuild.go
++++ b/cmd/tsconnect/wasmbuild/wasmbuild.go
+@@ -69,0 +70 @@
++	"useexitnode", // private compilation probe: existing exit-node routing

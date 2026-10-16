@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "vitest";
-import { lazyLeafChunk } from "./capability-lazy-leaves.mjs";
+import {
+  lazyLeafChunk,
+  secretBackendSdkChunk,
+} from "./capability-lazy-leaves.mjs";
 
 test("pins the optional Tailnet pairing leaf without changing ownership of other modules", () => {
   const file =
@@ -173,6 +176,95 @@ test("keeps backup SDKs and authority UI in separate lazy capability chunks", ()
         capability: "sharing.live",
       }),
       undefined,
+    );
+  }
+});
+
+const nativeOwner = {
+  classification: "optional",
+  capability: "connectors.external",
+};
+const backendPath = "/workspace/packages/app-core/src/lib/secret-backends/";
+
+test.each([
+  "onepassword-sdk.ts",
+  "onepassword-sdk-loader.ts",
+  "onepassword-sdk-codec.ts",
+  "onepassword-sdk-write.ts",
+  "onepassword-sdk.worker.ts",
+  "onepassword-worker-http.ts",
+  "onepassword-worker-protocol.js",
+])("isolates native SDK source %s before the common backend leaf", (name) => {
+  const file = `${backendPath}${name}`;
+  for (const id of [
+    file,
+    file.replaceAll("/", "\\"),
+    `${file}?worker_file&type=module`,
+    `${file}#source`,
+  ]) {
+    assert.equal(
+      secretBackendSdkChunk(id, nativeOwner),
+      "secret-backend-onepassword-sdk",
+    );
+    assert.equal(
+      lazyLeafChunk(id, nativeOwner),
+      "secret-backend-onepassword-sdk",
+    );
+  }
+});
+
+test("native SDK isolation requires its optional connector owner", () => {
+  const file = `${backendPath}onepassword-sdk.ts`;
+  for (const entry of [
+    { classification: "core", capability: "connectors.external" },
+    { classification: "shared", capability: "connectors.external" },
+    { classification: "optional", capability: "sharing.live" },
+    { classification: "shared", capability: null },
+  ]) {
+    assert.equal(secretBackendSdkChunk(file, entry), undefined);
+    assert.notEqual(
+      lazyLeafChunk(file, entry),
+      "secret-backend-onepassword-sdk",
+    );
+  }
+});
+
+test("Connect, common configuration and other SDKs keep the ordinary backend leaf", () => {
+  for (const name of [
+    "onepassword.ts",
+    "factory.ts",
+    "schema.ts",
+    "types.ts",
+    "presets.ts",
+    "http.ts",
+    "onepassword-artifacts.json",
+    "bitwarden-sdk.ts",
+    "bitwarden.worker.ts",
+    "onepassword-sdking.ts",
+  ]) {
+    const file = `${backendPath}${name}`;
+    assert.equal(secretBackendSdkChunk(file, nativeOwner), undefined);
+    assert.equal(lazyLeafChunk(file, nativeOwner), "secret-backends");
+  }
+  const save = "/workspace/node_modules/@1password/save-button/dist/index.js";
+  assert.equal(secretBackendSdkChunk(save, nativeOwner), undefined);
+  assert.equal(lazyLeafChunk(save, nativeOwner), "vendor-1password-save");
+});
+
+test("virtual IDs, unrelated packages and query lookalikes cannot claim the native leaf", () => {
+  for (const id of [
+    `\0${backendPath}onepassword-sdk.ts`,
+    `virtual:${backendPath}onepassword-sdk.ts`,
+    "/workspace/packages/other/src/lib/secret-backends/onepassword-sdk.ts",
+    `${backendPath}onepassword-sdk.test.ts`,
+    `${backendPath}onepassword-sdk-loader.tsx`,
+    `${backendPath}onepassword-sdk.ts/nested.js`,
+    `${backendPath}onepassword.ts?${backendPath}onepassword-sdk.ts`,
+  ]) {
+    assert.equal(secretBackendSdkChunk(id, nativeOwner), undefined);
+    assert.notEqual(
+      lazyLeafChunk(id, nativeOwner),
+      "secret-backend-onepassword-sdk",
     );
   }
 });
