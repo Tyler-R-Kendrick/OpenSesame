@@ -11,6 +11,17 @@ function agentWithRun(run: PasswordAgent["run"]): PasswordAgent {
   );
 }
 
+function agentWithBroker(
+  runBrokered: PasswordAgent["runBrokered"],
+  run: PasswordAgent["run"] = async () => 0,
+): PasswordAgent {
+  return (
+    // SAFETY: runChild invokes agent.runBrokered or agent.run; the stub
+    // implements both so a test can prove which lane ran.
+    { runBrokered, run } as PasswordAgent
+  );
+}
+
 function agentWithRunFile(runFile: PasswordAgent["runFile"]): PasswordAgent {
   return (
     // SAFETY: runEnv only invokes agent.runFile after approval; the stub implements that method.
@@ -93,5 +104,75 @@ describe("parity run approval", () => {
       }),
     ).rejects.toThrow(/denied/i);
     expect(runFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("parity run --agent-proxy", () => {
+  const approvePort: CliAppIntegrationPort = {
+    ensureReveal: async () => "approve",
+  };
+  const brokerArgs = [
+    "--agent-proxy",
+    "--env",
+    "TOKEN=os://vault/connections%2Facme%2Fvercel/password",
+    "--paths",
+    "TOKEN=/v2/user",
+    "--methods",
+    "TOKEN=GET",
+  ];
+
+  it("routes --agent-proxy to the broker lane with its scope flags", async () => {
+    const runBrokered = vi.fn(async () => 0);
+    const run = vi.fn(async () => 0);
+    const agent = agentWithBroker(runBrokered, run);
+    await expect(
+      runChild(
+        baseCtx({ agent, appIntegration: approvePort, args: [...brokerArgs] }),
+      ),
+    ).resolves.toBe(0);
+    expect(runBrokered).toHaveBeenCalledWith(
+      [
+        {
+          name: "TOKEN",
+          reference: "os://vault/connections%2Facme%2Fvercel/password",
+        },
+      ],
+      ["node", "-e", "0"],
+      ["TOKEN=/v2/user"],
+      ["TOKEN=GET"],
+    );
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("refuses --agent-proxy with --mount before any lane runs", async () => {
+    const runBrokered = vi.fn(async () => 0);
+    const run = vi.fn(async () => 0);
+    const agent = agentWithBroker(runBrokered, run);
+    await expect(
+      runChild(
+        baseCtx({
+          agent,
+          appIntegration: approvePort,
+          args: [...brokerArgs, "--mount", "CERT=os://vault/item/cert"],
+        }),
+      ),
+    ).rejects.toThrow(/--agent-proxy.*--mount|--mount.*--agent-proxy/);
+    expect(runBrokered).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("refuses --paths without --agent-proxy", async () => {
+    const runBrokered = vi.fn(async () => 0);
+    const agent = agentWithBroker(runBrokered);
+    await expect(
+      runChild(
+        baseCtx({
+          agent,
+          appIntegration: approvePort,
+          args: ["--env", "TOKEN=op://vault/item/field", "--paths", "TOKEN=/x"],
+        }),
+      ),
+    ).rejects.toThrow(/--agent-proxy/);
+    expect(runBrokered).not.toHaveBeenCalled();
   });
 });
