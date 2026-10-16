@@ -12,6 +12,7 @@ mod daemon_cmd;
 mod daemon_toolbar;
 mod dev_run;
 mod dev_surrogate;
+mod enroll_entry;
 mod entry;
 mod entry_dispatch;
 mod github;

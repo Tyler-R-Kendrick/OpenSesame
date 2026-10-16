@@ -5,6 +5,8 @@ use crate::daemon_toolbar::ToolbarCmd;
 mod daemon_drive;
 #[path = "daemon_fill.rs"]
 mod daemon_fill;
+#[path = "daemon_root_trust.rs"]
+mod daemon_root_trust;
 #[path = "daemon_tailnet.rs"]
 mod daemon_tailnet;
 use clap::Subcommand;
@@ -77,6 +79,17 @@ enum DaemonCmd {
     Tailnet(daemon_tailnet::TailnetCmd),
     #[command(flatten)]
     Toolbar(ToolbarCmd),
+    /// Enroll the daemon CLI root trust key (PAKE; operator only).
+    RootTrust {
+        #[command(subcommand)]
+        cmd: RootTrustCmd,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum RootTrustCmd {
+    /// Run SPAKE2 enrollment after an OS secure prompt (headless hosts refuse).
+    Enroll,
 }
 
 /// Entry point called from `main.rs`'s `Commands::Daemon` arm.
@@ -104,6 +117,11 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
         DaemonCmd::Toolbar(verb) => {
             crate::daemon_toolbar::run(base, operator_token.as_deref(), verb).await?;
         }
+        DaemonCmd::RootTrust { cmd } => match cmd {
+            RootTrustCmd::Enroll => {
+                daemon_root_trust::run(base, operator_token.as_deref()).await?;
+            }
+        },
         DaemonCmd::Install => {
             println!(
                 "{}",

@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
-# Kill stuck Kimi wave-2 process and start a fresh reinvestigate run (subscription only).
+# Legacy name: restart wave-2 (Grok-first per deepsec-wave2-restart.sh).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-export PATH="${HOME}/.local/bin:${PATH}"
-unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
-
-pkill -9 -f 'deepsec/dist/cli.mjs process.*--agent kimi' 2>/dev/null || true
-pkill -9 -f 'deepsec-grok-reinvestigate-wave.sh' 2>/dev/null || true
-sleep 3
-# Orphan shells sometimes survive pkill -f on the parent only.
-pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' | xargs -r kill -9 2>/dev/null || true
-
-if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
-  echo "deepsec-wave2-restart-kimi: quota limited — not starting" >&2
-  exit 1
-fi
-
-nohup "${ROOT}/scripts/audit/deepsec-grok-reinvestigate-wave.sh" >>/tmp/deepsec-reinvestigate-wave.nohup 2>&1 &
-echo "deepsec-wave2-restart-kimi: started reinvestigate (pid $!)"
+exec "${ROOT}/scripts/audit/deepsec-wave2-restart.sh"

@@ -115,44 +115,73 @@ describe("a Host opens no road", () => {
 
 describe("a key or a configuration seals on this device", () => {
   it.each([false, true])(
-    "refuses unsupported Better Auth configuration with a named Host=%s",
+    "configures Better Auth through shared identity fields with a named Host=%s",
     (namedHost) => {
       if (namedHost) nameAHostWithALiveGrant();
       draw("better-auth");
-      expect(screen.queryByLabelText(/Base URL/)).toBeNull();
+      expect(screen.getByLabelText("Auth API base URL")).toBeTruthy();
+      expect(screen.getByLabelText("Protocol")).toBeTruthy();
       expect(
-        screen.queryByRole("button", {
-          name: /Save configuration|Verify and connect/,
-        }),
-      ).toBeNull();
-      expect(
-        screen.getByText(
-          /OpenSesame has no browser connection for Better Auth\. Its catalog entry names no HTTPS API a browser could call/,
-        ),
+        screen.getByRole("button", { name: "Save identity connection" }),
       ).toBeTruthy();
+      expect(
+        screen.queryByText(
+          /OpenSesame has no browser connection for Better Auth/,
+        ),
+      ).toBeNull();
     },
   );
 
-  it("asks for Anthropic's API key when Vercel also lists it", () => {
+  it("configures Anthropic through the shared inference form when Vercel also lists it", () => {
     connectorIntegration();
     draw("anthropic");
-    expect(screen.getByLabelText("Anthropic API key")).toBeTruthy();
+    expect(screen.getByLabelText("API key", { exact: true })).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Verify and connect Anthropic" }),
+      screen.getByRole("button", { name: "Save AI connection" }),
     ).toBeTruthy();
   });
 
-  it("explains Tailscale's native daemon requirement without collecting an auth key", () => {
+  it("composes browser peering with OAuth management, without the legacy daemon refusal or a duplicate generic form", () => {
     draw("tailscale");
-    expect(screen.queryByLabelText(/Tailnet|Auth key/)).toBeNull();
     expect(
-      screen.queryByRole("button", {
-        name: /Save configuration|Verify and connect/,
-      }),
-    ).toBeNull();
+      screen.getAllByRole("region", { name: "Tailscale browser node" }),
+    ).toHaveLength(1);
+    expect(screen.getAllByLabelText("Browser node hostname")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Tailscale control server")).toHaveLength(
+      1,
+    );
+    expect(screen.getAllByLabelText("Optional node auth key")).toHaveLength(1);
     expect(
-      screen.getByText(/device enrollment requires tailscaled/),
+      screen.getByLabelText("Optional node auth key").getAttribute("type"),
+    ).toBe("password");
+    for (const field of [
+      "Tailscale API base URL",
+      "App name",
+      "Provisioned node attributes",
+      "Redirect URI to register",
+      "Returned OAuth app JSON",
+      "Issued device auth key",
+      "Tailnet",
+    ])
+      expect(screen.getByLabelText(field, { exact: true })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Connect browser node" }),
     ).toBeTruthy();
+    expect(
+      screen.queryByText(/device enrollment requires tailscaled/),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Auth key (required)")).toBeNull();
+    expect(
+      screen.getByRole("region", {
+        name: "Tailscale OAuth app configuration",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("region", { name: "Tailscale device provisioning" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Save configuration" }),
+    ).toBeNull();
   });
 });
 

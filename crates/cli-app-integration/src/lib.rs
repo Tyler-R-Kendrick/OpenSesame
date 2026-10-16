@@ -1,18 +1,31 @@
 //! `CLI` ↔ `OpenSesame` app integration (1Password-style terminal sessions).
 mod daemon_attest;
 mod device_crypto;
+mod headless_policy;
 mod human_proof;
 mod pairing;
 mod pairing_code;
+mod policy;
+mod root_enroll;
+mod root_trust;
 mod terminal_session;
+mod trust;
 mod webauthn_assertion;
 
 use human_proof::human_proof_verify;
+#[cfg(test)]
+use policy::SOURCE;
+use policy::{policy, respond_nonce};
 
 use rand_core::{OsRng, RngCore as _};
-use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
+
+/// Pin-probe ensure must never appear in the human approval queue (D7-2 U7).
+#[must_use]
+pub fn daemon_pin_probe_verb() -> &'static str {
+    policy::daemon_pin_probe_verb()
+}
 
 #[cfg(test)]
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -21,21 +34,38 @@ use std::sync::atomic::{AtomicU64, Ordering};
 static TEST_TCP_EPHEMERAL: AtomicU64 = AtomicU64::new(0);
 
 pub use daemon_attest::{
-    daemon_attest_public_key_spki_b64, sign_daemon_attest, verify_daemon_attest,
+    daemon_attest_public_key_spki_b64, daemon_integration_id, sign_daemon_attest,
+    verify_daemon_attest,
 };
 #[cfg(any(test, feature = "test-seams"))]
-pub use human_proof::{mint_pin_human_proof, mint_test_signing_key};
+pub use device_crypto::{pairing_confirm_message, verifying_key_spki_b64};
+pub use headless_policy::{
+    refuse_tty_enrollment_without_opt_in, tty_enrollment_explicitly_allowed,
+};
+#[cfg(any(test, feature = "test-seams"))]
+pub use human_proof::{mint_pin_human_proof, mint_test_signing_key, HumanProofContext};
 pub use pairing::{
     format_pairing_code, is_device_public_key_shaped, is_pairable_origin,
     CliAppIntegrationPairings, ConfirmOutcome, Issued, PairedBinding, PairingError,
-    WebAuthnCredential, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES, PAIRING_CODE_PREFIX,
+    WebAuthnCredential, WebAuthnRegistration, CODE_TTL_SECS, MAX_PIN_PROOF_FAILURES,
+    PAIRING_CODE_PREFIX,
 };
+pub use root_enroll::{
+    generate_root_signing_key, root_spki_der, EnrollmentConfirm, RootEnrollBegin, RootEnrollClient,
+    RootEnrollError, RootEnrollFinish, RootEnrollRequest, ROOT_ENROLL_BEGIN_PATH,
+    ROOT_ENROLL_FINISH_PATH, ROOT_ENROLL_TTL_SECS,
+};
+pub use root_trust::{fingerprint_of_spki, RootTrustError, RootTrustRecord};
 pub use terminal_session::{parse_linux_proc_stat, session_id_from_pid, stable_session_id};
+pub use trust::{TrustAnchor, TrustStore, TRUST_STORE_VERSION};
 
 /// Daemon-held integration state and browser pairings.
 pub struct CliAppIntegrationHost {
     pub store: CliAppIntegrationStore,
     pub pairings: CliAppIntegrationPairings,
+    pub trust: TrustStore,
+    /// One pending PAKE enrollment. A new begin replaces it.
+    root_enroll: root_enroll::Sessions,
     /// TCP peers (or test harness keys) bound to a daemon-issued terminal session id.
     tcp_terminal_sessions: HashMap<String, String>,
 }
@@ -52,8 +82,15 @@ impl CliAppIntegrationHost {
         Self {
             store: CliAppIntegrationStore::new(),
             pairings: CliAppIntegrationPairings::default(),
+            trust: TrustStore::new(),
+            root_enroll: root_enroll::Sessions::default(),
             tcp_terminal_sessions: HashMap::new(),
         }
+    }
+
+    /// Wipe in-memory legacy pairings after a trust-store format upgrade.
+    pub fn wipe_legacy_pairings_on_trust_upgrade(&mut self) {
+        self.pairings = CliAppIntegrationPairings::default();
     }
 
     /// Issue or return the terminal session id for a non-UDS ensure (never trusts the client body).
@@ -83,37 +120,6 @@ pub fn fresh_host() -> SharedCliAppIntegration {
     Arc::new(Mutex::new(CliAppIntegrationHost::new()))
 }
 
-fn respond_nonce() -> String {
-    let mut raw = [0u8; 16];
-    OsRng.fill_bytes(&mut raw);
-    hex::encode(raw)
-}
-
-const SOURCE: &str = include_str!("../../../spec/conformance/cli-app-integration.json");
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Policy {
-    idle_timeout_seconds: u64,
-    hard_limit_seconds: u64,
-    request_timeout_seconds: u64,
-    messages: Messages,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Messages {
-    app_unavailable: String,
-    denied: String,
-    expired: String,
-    request_timeout: String,
-}
-
-fn policy() -> &'static Policy {
-    static POLICY: std::sync::OnceLock<Policy> = std::sync::OnceLock::new();
-    POLICY.get_or_init(|| serde_json::from_str(SOURCE).expect("cli-app-integration.json"))
-}
-
 #[derive(Clone, Debug)]
 struct ApprovedSession {
     approved_at_ms: u64,
@@ -128,6 +134,24 @@ pub struct PendingRequest {
     pub reference: Option<String>,
     pub created_at_ms: u64,
     pub respond_nonce: String,
+    pub argv_hash: String,
+    pub peer_pid: u32,
+    pub peer_start_time: u64,
+    /// Browser approval is only allowed for kernel-attested unix-socket peers.
+    pub approvable: bool,
+}
+
+/// Parameters for [`CliAppIntegrationStore::ensure`].
+#[derive(Clone, Copy)]
+pub struct EnsureParams<'a> {
+    pub terminal_session_id: &'a str,
+    pub verb: &'a str,
+    pub reference: Option<&'a str>,
+    pub reuse_approved_session: bool,
+    pub argv_hash: &'a str,
+    pub peer_pid: u32,
+    pub peer_start_time: u64,
+    pub approvable: bool,
 }
 
 /// In-memory integration state held by the daemon.
@@ -212,25 +236,26 @@ impl CliAppIntegrationStore {
         Some(("approved".into(), None))
     }
 
-    pub fn ensure(
-        &mut self,
-        terminal_session_id: &str,
-        verb: &str,
-        reference: Option<&str>,
-        reuse_approved_session: bool,
-    ) -> (String, Option<String>) {
+    fn refuse_ambiguous_pending(&mut self) {
+        if self.pending.len() > 1 {
+            self.pending.clear();
+        }
+    }
+
+    pub fn ensure(&mut self, params: EnsureParams<'_>) -> (String, Option<String>) {
         self.expire_pending();
-        if self.denied.contains(terminal_session_id) {
+        self.refuse_ambiguous_pending();
+        if self.denied.contains(params.terminal_session_id) {
             return ("denied".into(), None);
         }
         if let Some(outcome) =
-            self.resume_approved_session(terminal_session_id, reuse_approved_session)
+            self.resume_approved_session(params.terminal_session_id, params.reuse_approved_session)
         {
             return outcome;
         }
         self.expire_idle();
         for row in self.pending.values() {
-            if row.terminal_session_id == terminal_session_id {
+            if row.terminal_session_id == params.terminal_session_id {
                 return ("pending".into(), Some(row.request_id.clone()));
             }
         }
@@ -240,11 +265,15 @@ impl CliAppIntegrationStore {
             request_id.clone(),
             PendingRequest {
                 request_id: request_id.clone(),
-                terminal_session_id: terminal_session_id.to_string(),
-                verb: verb.to_string(),
-                reference: reference.map(str::to_string),
+                terminal_session_id: params.terminal_session_id.to_string(),
+                verb: params.verb.to_string(),
+                reference: params.reference.map(str::to_string),
                 created_at_ms: self.now_ms,
                 respond_nonce: respond_nonce(),
+                argv_hash: params.argv_hash.to_string(),
+                peer_pid: params.peer_pid,
+                peer_start_time: params.peer_start_time,
+                approvable: params.approvable,
             },
         );
         ("pending".into(), Some(request_id))
@@ -259,6 +288,7 @@ impl CliAppIntegrationStore {
         binding: &PairedBinding,
     ) -> (String, Option<u32>) {
         self.expire_idle();
+        self.refuse_ambiguous_pending();
         let Some(row) = self.pending.get(request_id) else {
             return ("wrongSession".into(), None);
         };
@@ -268,17 +298,23 @@ impl CliAppIntegrationStore {
         if row.respond_nonce != respond_nonce {
             return ("wrongSession".into(), None);
         }
-        let Some(outcome) = human_proof_verify(
-            human_proof,
-            binding,
-            request_id,
-            terminal_session_id,
-            respond_nonce,
-            &row.verb,
-        ) else {
+        if !row.approvable {
+            return ("wrongSession".into(), None);
+        }
+        let ctx = human_proof::HumanProofContext {
+            daemon_id: daemon_integration_id(),
+            request_id: request_id.to_string(),
+            terminal_session_id: terminal_session_id.to_string(),
+            respond_nonce: respond_nonce.to_string(),
+            verb: row.verb.clone(),
+            argv_hash: row.argv_hash.clone(),
+            peer_pid: row.peer_pid,
+            peer_start_time: row.peer_start_time,
+        };
+        let Some(outcome) = human_proof_verify(human_proof, binding, &ctx) else {
             return ("wrongSession".into(), None);
         };
-        let passkey_sign_count = outcome.into_sign_count();
+        let passkey_sign_count = Some(outcome.into_sign_count());
         self.pending.remove(request_id);
         self.denied.remove(terminal_session_id);
         self.approved.insert(
@@ -314,7 +350,12 @@ impl CliAppIntegrationStore {
 
     pub fn list_pending(&mut self) -> Vec<PendingRequest> {
         self.expire_pending();
-        self.pending.values().cloned().collect()
+        self.refuse_ambiguous_pending();
+        self.pending
+            .values()
+            .filter(|row| row.verb != policy::daemon_pin_probe_verb())
+            .cloned()
+            .collect()
     }
 }
 
@@ -346,6 +387,9 @@ pub use seams_test_only::seam_decision;
 
 #[cfg(test)]
 mod store_conformance_tests;
+
+#[cfg(test)]
+mod security_tests;
 
 #[cfg(any(test, feature = "test-seams"))]
 pub mod test_support;

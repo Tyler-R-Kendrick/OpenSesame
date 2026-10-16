@@ -1,3 +1,4 @@
+import * as broker from "./broker.js";
 import { type Destination, createApiCredential } from "./create.js";
 import * as discovery from "./discover.js";
 import * as environment from "./env.js";
@@ -6,6 +7,7 @@ import type { PasswordAgentPort, Scope } from "./transport.js";
 export * from "./transport.js";
 export * from "./discover.js";
 export * from "./env.js";
+export * from "./broker.js";
 export * from "./create.js";
 export * from "./password.js";
 export class PasswordAgent {
@@ -30,27 +32,27 @@ export class PasswordAgent {
   }
   resolveEnv(content: string) {
     return environment.resolveEnv(content, async (refs) => {
-      if (refs.some((reference) => !reference.startsWith("op://")))
-        throw new Error("1Password resolution requires op:// references");
-      if (!this.port.readMany)
-        throw new Error("Batched secret resolution is unavailable");
-      try {
-        return await this.port.readMany(refs);
-      } catch {
-        throw new Error(
-          "Batched secret resolution failed (details suppressed)",
-        );
-      }
+      const resolved = await environment.resolveReferences(this.port, refs);
+      return refs.map((reference) => resolved.get(reference) ?? "");
     });
   }
   run(
     assignments: readonly environment.Assignment[],
     command: readonly string[],
+    mounts: readonly environment.Assignment[] = [],
   ) {
-    return environment.run(this.port, assignments, command);
+    return environment.run(this.port, assignments, command, mounts);
   }
   runFile(file: string, command: readonly string[], content: string) {
     return environment.runFile(this.port, file, command, content);
+  }
+  runBrokered(
+    assignments: readonly environment.Assignment[],
+    command: readonly string[],
+    paths: readonly string[],
+    methods: readonly string[],
+  ) {
+    return broker.runBrokered(this.port, assignments, command, paths, methods);
   }
 }
 

@@ -1,0 +1,6169 @@
+{
+  "before": {
+    "phase": "before",
+    "dist": "/workspace/work/pwa-tailscale-primary-ui-after-dist",
+    "build": {
+      "parent": "4437d0981635f8fa3bcb096e457ff08edfff7c8c",
+      "tree": "831bfc65f3b563ee89cb798f3c79a6b258956acf",
+      "sourceOverlay": "exact5 files /workspace/work/pwa-tailscale-primary-ui/manifest.json",
+      "cleanSource": false,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-primary-ui-after-dist",
+      "indexSha256": "fb905fd8b04a9771741a2066cc1ce47ee0c0d1cfcb107825b49a9e555285965a",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0
+    },
+    "browserVersion": "151.0.7922.173",
+    "assetReceipt": {
+      "sdk": {
+        "version": "1.102.3-3-tb31d8a75a-g5e651e16f",
+        "jsHash": "318a91bdbc32d4aa57a7ffa554368d390e96bf7128419b4561f98001e86e3795",
+        "gzipHash": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52",
+        "wasmHash": "a36372a325e1bd88a6fb60c8b08abcc4e38d7d1aad7b1467022d76435d97c895",
+        "runtimeHash": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+      },
+      "wasm": {
+        "file": "tailscale/main-fbf63118.wasm.gz",
+        "bytes": 6600192,
+        "sha256": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52"
+      },
+      "runtime": {
+        "file": "tailscale/go-runtime-3990fa87.js",
+        "sha256": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+      },
+      "worker": {
+        "file": "assets/tailscale-node-CjVovgpR.js",
+        "sha256": "891c8f0d705986fbe53fe6f9ce6858fb5c34d247415729f16be752f02de4beb8"
+      }
+    },
+    "measurements": [
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "connected-before-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 536.8125,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 596.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": true,
+            "x": 280,
+            "y": 647.71875,
+            "width": 40,
+            "height": 40
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "missing-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 404 \u00b7 104 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 536.8125,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 596.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 280,
+            "y": 647.71875,
+            "width": 40,
+            "height": 40
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "successful-retry",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 536.8125,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 596.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 280,
+            "y": 647.71875,
+            "width": 40,
+            "height": 40
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "stopped",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node not connected",
+            "tone": "idle",
+            "inHeader": true
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": false,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": false,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": false,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "connected-before-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 16,
+            "y": 348.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 16,
+            "y": 432.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 16,
+            "y": 561.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 16,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 288.8125,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 779.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": true,
+            "x": 16,
+            "y": 840.359375,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "missing-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 404 \u00b7 104 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 16,
+            "y": 240.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 16,
+            "y": 324.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 16,
+            "y": 453.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 16,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 288.8125,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 671.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 16,
+            "y": 732.359375,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "successful-retry",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 16,
+            "y": 240.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 16,
+            "y": 324.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 16,
+            "y": 453.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 16,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 288.8125,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 671.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 16,
+            "y": 732.359375,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "stopped",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node not connected",
+            "tone": "idle",
+            "inHeader": true
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": false,
+            "x": 16,
+            "y": 348.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 432.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": false,
+            "x": 16,
+            "y": 561.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": false,
+            "x": 16,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      }
+    ],
+    "probes": [
+      {
+        "width": 1280,
+        "stage": "missing-service",
+        "pathname": "/missing",
+        "status": 404,
+        "label": "HTTP 404 \u00b7 104 characters received through Tailscale",
+        "geometry": {
+          "markerRect": {
+            "x": 280,
+            "y": 703.71875,
+            "width": 20,
+            "height": 20
+          },
+          "scrollers": []
+        },
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 404 \u00b7 104 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "stage": "successful-retry",
+        "pathname": "/proof",
+        "status": 200,
+        "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+        "geometry": {
+          "markerRect": {
+            "x": 280,
+            "y": 703.71875,
+            "width": 20,
+            "height": 20
+          },
+          "scrollers": []
+        },
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "missing-service",
+        "pathname": "/missing",
+        "status": 404,
+        "label": "HTTP 404 \u00b7 104 characters received through Tailscale",
+        "geometry": {
+          "markerRect": {
+            "x": 4,
+            "y": 780.359375,
+            "width": 44,
+            "height": 44
+          },
+          "scrollers": [
+            {
+              "tag": "MAIN",
+              "className": "section",
+              "top": 108,
+              "clientHeight": 738,
+              "scrollHeight": 846
+            }
+          ]
+        },
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 404 \u00b7 104 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "successful-retry",
+        "pathname": "/proof",
+        "status": 200,
+        "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+        "geometry": {
+          "markerRect": {
+            "x": 4,
+            "y": 780.359375,
+            "width": 44,
+            "height": 44
+          },
+          "scrollers": [
+            {
+              "tag": "MAIN",
+              "className": "section",
+              "top": 108,
+              "clientHeight": 738,
+              "scrollHeight": 846
+            }
+          ]
+        },
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ]
+      }
+    ],
+    "notices": [
+      {
+        "width": 1280,
+        "stage": "missing-service",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "stage": "successful-retry",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "missing-service",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "successful-retry",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          }
+        ]
+      }
+    ],
+    "workers": [
+      {
+        "width": 1280,
+        "url": "http://localhost:41911/OpenSesame/assets/tailscale-node-CjVovgpR.js",
+        "startedDuring": "before-1280-pin-vault",
+        "closed": true,
+        "closedDuring": "before-1280-stopped"
+      },
+      {
+        "width": 390,
+        "url": "http://localhost:41911/OpenSesame/assets/tailscale-node-CjVovgpR.js",
+        "startedDuring": "before-390-pin-vault",
+        "closed": true,
+        "closedDuring": "before-390-stopped"
+      }
+    ],
+    "network": [
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-hg0fHUVv.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-dom-BFHKdIf_.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ConnectorMark-vobDd8Ld.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/auth-outcome-weFuoELe.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/registration-Bxn8PGm8.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/pin-kdf-QgE8Qw2k.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notifications-catalog-DFl7R0Ht.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-router-DxfH7UJy.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-BiehmCE_.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/os-runtime-config.json"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-authority-CiCNUL3d.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/revision-BhhHpnJF.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-zPkUDBnJ.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-view-paths-CLfR1ZBz.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/listing-page-5e90Hv1R.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-CSGJVa1j.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/org-signin-DCQTV8HZ.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-coarse-pointer-WR0MywbW.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/expiry-B0oNxw5_.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notation-CotW9Lnc.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/payload-BTe8lPTl.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/StatusNote-DCO7zo52.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/site-broker-DIuMrV-A.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-menu-Ct-O4eMI.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-CeE3hJ0h.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-CsvSkues.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/MethodPicker-Bo8inxT5.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connectivity-monitor-0PXgKN0k.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/IdentityConnectionSignIn-D_jr0PVs.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/federation-configured-restoration-Ba6xW0fE.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AmbientAuthPanel-CB-jHTqK.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-B1nyUXmM.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-list-path-CKzGvNqC.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/consent-xAjMS0dr.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-D6oRkKUH.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-BCWrk6ox.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-CPup0pR-.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vaults-CQ7D74Gu.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/CapabilitySwitch-DIv5tYqM.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/status-czZWvhUt.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-enterprise-Apsi-W_q.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-Dn56ZkPg.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-CUBYU_YP.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-BzgDVWR1.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-eLeEtpt3.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/idp-presets-B2HBFKLC.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-CJkgn7S4.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/os-logo-Dhy2KbxY.ttf"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-0dmYlvxR.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BzHz3H7U.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-DVMC1zHh.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/settings-ZmD3SZzI.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-C1gJN7uf.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-qsPIWuw6.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BU2kjC8G.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-1nrcvG_W.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-C5iYY3Up.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-BtSLwx45.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BXJ7p1lS.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BFa23LKn.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-access.authority-CM84DMYE.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-HcrXzdcs.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/shared-DvE6pTyv.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-error-DGk1wxjM.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-C_wVfK5C.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-Cn-nedP2.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-share-grants-approvals-BjoTzZAe.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-BYnnhWh6.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connect-plan-Cw8tGAKK.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-directory-bootstrap-u7XCYqkE.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-applications-F8fnX662.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/device-inbox-DK3WNEZo.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ApproveScreen-1G-rk9BX.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-DybD4l0l.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/UpLink-D9DhNEGJ.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/Crumbs-C0GarhWZ.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/PageTreeBranch-DeOHsyEv.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-CRgpKjH1.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-integrations-drawn-B9RamO2u.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-Ci1J38pa.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-C7NGUgNM.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-Cy48_tAA.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-CUw0rn2T.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-B4DbnYPA.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-identity.local-iam-B_g7oNnt.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/useLocalConsent-DcyGoWTU.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connector-marks-BA_Uk7CW.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-mmOUM8iY.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-BBeW7zoR.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-DWq0MZk5.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/EmptyTip-CM4fr51n.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-BUcbIjl5.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-DSaiinyy.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/FeatureSections-CKHK920G.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/OpenFileKey-BLHmCPs1.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-BR62zU3g.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-connectors.external-88fm76ll.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-ZfZpAb_f.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-google-capability-BL2kb-lb.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/secret-backends-CJTSKAWf.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-artifacts-DrzpShie.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/s3-sigv4-BFyqywOs.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-protocol-U-4NzjjY.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-auth-return-BYLWNvBW.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-oSO_RMA1.css"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-implicit-session-BlBOgR-6.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-networking.tailnet-BwC_ufwy.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/item-type-pack-token-Cfp58zHW.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-node-CjVovgpR.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41916",
+        "path": "/key"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-hg0fHUVv.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-dom-BFHKdIf_.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ConnectorMark-vobDd8Ld.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/auth-outcome-weFuoELe.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/registration-Bxn8PGm8.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/pin-kdf-QgE8Qw2k.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notifications-catalog-DFl7R0Ht.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-router-DxfH7UJy.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-BiehmCE_.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/os-runtime-config.json"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-authority-CiCNUL3d.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/revision-BhhHpnJF.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-zPkUDBnJ.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-view-paths-CLfR1ZBz.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/listing-page-5e90Hv1R.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-CSGJVa1j.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/org-signin-DCQTV8HZ.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-coarse-pointer-WR0MywbW.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/expiry-B0oNxw5_.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notation-CotW9Lnc.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/payload-BTe8lPTl.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/StatusNote-DCO7zo52.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/site-broker-DIuMrV-A.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-menu-Ct-O4eMI.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-CeE3hJ0h.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-CsvSkues.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/MethodPicker-Bo8inxT5.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connectivity-monitor-0PXgKN0k.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/IdentityConnectionSignIn-D_jr0PVs.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/federation-configured-restoration-Ba6xW0fE.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AmbientAuthPanel-CB-jHTqK.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-B1nyUXmM.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-list-path-CKzGvNqC.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/consent-xAjMS0dr.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-D6oRkKUH.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-BCWrk6ox.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-CPup0pR-.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vaults-CQ7D74Gu.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/CapabilitySwitch-DIv5tYqM.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/status-czZWvhUt.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-enterprise-Apsi-W_q.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-Dn56ZkPg.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-CUBYU_YP.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-BzgDVWR1.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-eLeEtpt3.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/idp-presets-B2HBFKLC.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-CJkgn7S4.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/os-logo-Dhy2KbxY.ttf"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-0dmYlvxR.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BzHz3H7U.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-DVMC1zHh.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/settings-ZmD3SZzI.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-C1gJN7uf.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-qsPIWuw6.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BU2kjC8G.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-1nrcvG_W.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-C5iYY3Up.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-BtSLwx45.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BXJ7p1lS.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BFa23LKn.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-access.authority-CM84DMYE.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-HcrXzdcs.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/shared-DvE6pTyv.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-error-DGk1wxjM.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-C_wVfK5C.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-Cn-nedP2.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-share-grants-approvals-BjoTzZAe.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-BYnnhWh6.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connect-plan-Cw8tGAKK.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-directory-bootstrap-u7XCYqkE.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-applications-F8fnX662.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/device-inbox-DK3WNEZo.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ApproveScreen-1G-rk9BX.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-DybD4l0l.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/UpLink-D9DhNEGJ.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/Crumbs-C0GarhWZ.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/PageTreeBranch-DeOHsyEv.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-CRgpKjH1.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-integrations-drawn-B9RamO2u.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-Ci1J38pa.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-C7NGUgNM.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-Cy48_tAA.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-CUw0rn2T.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-B4DbnYPA.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-identity.local-iam-B_g7oNnt.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/useLocalConsent-DcyGoWTU.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connector-marks-BA_Uk7CW.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-mmOUM8iY.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-BBeW7zoR.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-DWq0MZk5.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/EmptyTip-CM4fr51n.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-BUcbIjl5.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-DSaiinyy.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/FeatureSections-CKHK920G.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/OpenFileKey-BLHmCPs1.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-BR62zU3g.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-connectors.external-88fm76ll.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-ZfZpAb_f.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-google-capability-BL2kb-lb.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/secret-backends-CJTSKAWf.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-artifacts-DrzpShie.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/s3-sigv4-BFyqywOs.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-protocol-U-4NzjjY.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-auth-return-BYLWNvBW.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-oSO_RMA1.css"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-implicit-session-BlBOgR-6.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-networking.tailnet-BwC_ufwy.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/item-type-pack-token-Cfp58zHW.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-node-CjVovgpR.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41916",
+        "path": "/key"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      }
+    ],
+    "sockets": [
+      {
+        "width": 1280,
+        "origin": "ws://localhost:41916",
+        "path": "/ts2021",
+        "sentFrames": 10,
+        "receivedFrames": 11,
+        "sentBytes": 3122,
+        "receivedBytes": 4159,
+        "closed": true
+      },
+      {
+        "width": 1280,
+        "origin": "wss://derp.fixture.test:41917",
+        "path": "/derp",
+        "sentFrames": 11,
+        "receivedFrames": 10,
+        "sentBytes": 1556,
+        "receivedBytes": 1707,
+        "closed": true
+      },
+      {
+        "width": 390,
+        "origin": "ws://localhost:41916",
+        "path": "/ts2021",
+        "sentFrames": 12,
+        "receivedFrames": 13,
+        "sentBytes": 3181,
+        "receivedBytes": 5694,
+        "closed": true
+      },
+      {
+        "width": 390,
+        "origin": "wss://derp.fixture.test:41917",
+        "path": "/derp",
+        "sentFrames": 11,
+        "receivedFrames": 10,
+        "sentBytes": 1556,
+        "receivedBytes": 1707,
+        "closed": true
+      }
+    ],
+    "protocol": {
+      "controlUpgrades": 2,
+      "derpUpgrades": 2,
+      "nativePeerGets": 2,
+      "nativePeerMissingGets": 2,
+      "nativePeerTotalGets": 4
+    },
+    "managementRequests": [],
+    "fixture": {
+      "control": [
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/key"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/ts2021",
+          "subprotocol": ""
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/key"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/ts2021",
+          "subprotocol": "tailscale-control-protocol"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/ts2021",
+          "sent": 3200,
+          "received": 4411
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/key"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/ts2021",
+          "subprotocol": "tailscale-control-protocol"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/ts2021",
+          "sent": 3271,
+          "received": 5954
+        },
+        {
+          "kind": "socket-close",
+          "path": "/ts2021",
+          "sent": 5116,
+          "received": 15291
+        }
+      ],
+      "derp": [
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/derp/latency-check"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/derp",
+          "subprotocol": ""
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/derp/latency-check"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/derp",
+          "subprotocol": "derp"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/derp/latency-check"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/derp",
+          "sent": 1648,
+          "received": 1937
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/derp",
+          "subprotocol": "derp"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/derp",
+          "sent": 1648,
+          "received": 1937
+        },
+        {
+          "kind": "socket-close",
+          "path": "/derp",
+          "sent": 5419,
+          "received": 3317
+        }
+      ],
+      "peer": [
+        {
+          "method": "GET",
+          "path": "/missing"
+        },
+        {
+          "method": "GET",
+          "path": "/proof"
+        },
+        {
+          "method": "GET",
+          "path": "/missing"
+        },
+        {
+          "method": "GET",
+          "path": "/proof"
+        }
+      ]
+    },
+    "log": [
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280: transient enrollment key concealed"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280: authenticated node membership exists before a service GET"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: zero horizontal overflow"
+      },
+      {
+        "step": "before-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: native peer independently received actual /missing request"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: literal HTTP404 result has observed ok tone"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: zero horizontal overflow"
+      },
+      {
+        "step": "before-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: native peer independently received actual /proof request"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: literal HTTP200 result has observed ok tone"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: zero horizontal overflow"
+      },
+      {
+        "step": "before-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-1280-stopped",
+        "kind": "PASS",
+        "detail": "1280 stopped: general header cannot remain connected"
+      },
+      {
+        "step": "before-1280-stopped",
+        "kind": "PASS",
+        "detail": "1280 stopped: zero horizontal overflow"
+      },
+      {
+        "step": "before-1280-stopped",
+        "kind": "PASS",
+        "detail": "1280 stopped: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390: transient enrollment key concealed"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390: authenticated node membership exists before a service GET"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: zero horizontal overflow"
+      },
+      {
+        "step": "before-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: native peer independently received actual /missing request"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: literal HTTP404 result has observed ok tone"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: zero horizontal overflow"
+      },
+      {
+        "step": "before-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: native peer independently received actual /proof request"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: literal HTTP200 result has observed ok tone"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: zero horizontal overflow"
+      },
+      {
+        "step": "before-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "390 stopped: general header cannot remain connected"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "390 stopped: zero horizontal overflow"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "390 stopped: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "No observed OAuth app registration/token/provisioning management HTTP traffic"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual provider observed Noise control WebSocket upgrades"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual provider observed real DERP WebSocket upgrades"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual native peer received encrypted tailnet GETs"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual official owned WASM asset loaded"
+      },
+      {
+        "step": "before-390-stopped",
+        "kind": "PASS",
+        "detail": "Both actual emitted SDK workers closed after disconnect and context cleanup"
+      }
+    ],
+    "failures": [],
+    "limits": [
+      "Real pinned Headscale/DERP/native test peer, not a hosted tenant or account.",
+      "Native CLI exists only in test infrastructure; PWA uses unchanged official SDK WASM.",
+      "Transparent fixture CORS/TLS protocol edges and exact fixture certificate SPKI exception; no global TLS ignore or ordinary hosted PKI claim.",
+      "Actual404 and200 inside encrypted tailnet service stream; no response interception, DOM staging, app backend or extension.",
+      "No response body rendering, private SDK state reveal or enrollment key serialization.",
+      "No late-request race, hosted OAuth, arbitrary VPN, installed offline-cache or hosted CORS claim."
+    ]
+  },
+  "after": {
+    "phase": "after",
+    "dist": "/workspace/work/pwa-tailscale-service-probe-final-after-dist",
+    "build": {
+      "parent": "433d4332d8947dabccf06e1ff4d3f377981d4c5a",
+      "tree": "f9de8fabc24c6a057a8fc096efdcf9d20cb7a36e",
+      "sourceOverlay": "exact3 files /workspace/work/pwa-tailscale-service-probe/manifest.json",
+      "cleanSource": false,
+      "profile": "loopback_development",
+      "canonicalOrigin": "http://localhost:41911",
+      "dist": "/workspace/work/pwa-tailscale-service-probe-final-after-dist",
+      "indexSha256": "278f2a1c4db394115be1844775deade516628d9261bc5b32f221b9e7ef51f7fa",
+      "command": "PATH=/workspace/work/bin:$PATH VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:tailnet-browser-verify",
+      "exit": 0,
+      "qualification": "Actual signed433d parent plus final frozen THREE-file overlay; supersedes two-file intermediate. No source adoption during builds. Future signed equivalence pending."
+    },
+    "browserVersion": "151.0.7922.173",
+    "assetReceipt": {
+      "sdk": {
+        "version": "1.102.3-3-tb31d8a75a-g5e651e16f",
+        "jsHash": "318a91bdbc32d4aa57a7ffa554368d390e96bf7128419b4561f98001e86e3795",
+        "gzipHash": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52",
+        "wasmHash": "a36372a325e1bd88a6fb60c8b08abcc4e38d7d1aad7b1467022d76435d97c895",
+        "runtimeHash": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+      },
+      "wasm": {
+        "file": "tailscale/main-fbf63118.wasm.gz",
+        "bytes": 6600192,
+        "sha256": "fbf631187d2314c2406186a5acc22a53555f129ae6d0e2b95d443a3d7097af52"
+      },
+      "runtime": {
+        "file": "tailscale/go-runtime-3990fa87.js",
+        "sha256": "3990fa874312fa09f1a06e75aea5b0b44183108236b293512e9a8ee2928813a1"
+      },
+      "worker": {
+        "file": "assets/tailscale-node-CjVovgpR.js",
+        "sha256": "891c8f0d705986fbe53fe6f9ce6858fb5c34d247415729f16be752f02de4beb8"
+      }
+    },
+    "measurements": [
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "connected-before-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 536.8125,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 596.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": true,
+            "x": 280,
+            "y": 647.71875,
+            "width": 40,
+            "height": 40
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "missing-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "Tailnet service returned HTTP 404.",
+            "tone": "err",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 536.8125,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 596.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 280,
+            "y": 647.71875,
+            "width": 40,
+            "height": 40
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "successful-retry",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 536.8125,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 596.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 280,
+            "y": 647.71875,
+            "width": 40,
+            "height": 40
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "height": 900,
+        "step": "stopped",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node not connected",
+            "tone": "idle",
+            "inHeader": true
+          }
+        ],
+        "overflow": {
+          "viewport": 1280,
+          "document": 1280
+        },
+        "coarse": false,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": false,
+            "x": 280,
+            "y": 256.625,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 280,
+            "y": 331.421875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": false,
+            "x": 280,
+            "y": 427.21875,
+            "width": 480,
+            "height": 34
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": false,
+            "x": 280,
+            "y": 480.921875,
+            "width": 40,
+            "height": 40
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 495.21875,
+            "y": 484.921875,
+            "width": 32,
+            "height": 32
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "connected-before-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 16,
+            "y": 348.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 16,
+            "y": 432.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 16,
+            "y": 561.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 16,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 288.8125,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 779.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": true,
+            "x": 16,
+            "y": 840.359375,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "missing-service",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "Tailnet service returned HTTP 404.",
+            "tone": "err",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 16,
+            "y": 240.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 16,
+            "y": 324.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 16,
+            "y": 453.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 16,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 288.8125,
+            "y": 552.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 671.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 16,
+            "y": 732.359375,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "successful-retry",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": true,
+            "x": 16,
+            "y": 260.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": true,
+            "x": 16,
+            "y": 344.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": true,
+            "x": 16,
+            "y": 473.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": true,
+            "x": 16,
+            "y": 572.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 572.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Disconnect browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 288.8125,
+            "y": 572.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Tailnet service URL",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 691.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Test tailnet service",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 16,
+            "y": 752.359375,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "height": 900,
+        "step": "stopped",
+        "url": "http://localhost:41911/OpenSesame/settings/connections/tailscale",
+        "headings": ["Tailscale", "1 Connect this PWA to Tailscale"],
+        "statuses": [
+          {
+            "label": "Browser node not connected",
+            "tone": "idle",
+            "inHeader": true
+          }
+        ],
+        "overflow": {
+          "viewport": 390,
+          "document": 390
+        },
+        "coarse": true,
+        "controls": [
+          {
+            "label": "Browser node hostname",
+            "tag": "INPUT",
+            "type": "text",
+            "disabled": false,
+            "x": 16,
+            "y": 348.765625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Tailscale control server",
+            "tag": "INPUT",
+            "type": "url",
+            "disabled": false,
+            "x": 16,
+            "y": 432.5625,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Optional node auth key",
+            "tag": "INPUT",
+            "type": "password",
+            "disabled": false,
+            "x": 16,
+            "y": 561.359375,
+            "width": 358,
+            "height": 44
+          },
+          {
+            "label": "Connect browser node",
+            "tag": "BUTTON",
+            "type": "submit",
+            "disabled": false,
+            "x": 16,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          },
+          {
+            "label": "Forget local browser node",
+            "tag": "BUTTON",
+            "type": "button",
+            "disabled": false,
+            "x": 235.21875,
+            "y": 660.5625,
+            "width": 44,
+            "height": 44
+          }
+        ]
+      }
+    ],
+    "probes": [
+      {
+        "width": 1280,
+        "stage": "missing-service",
+        "pathname": "/missing",
+        "status": 404,
+        "label": "Tailnet service returned HTTP 404.",
+        "geometry": {
+          "markerRect": {
+            "x": 280,
+            "y": 703.71875,
+            "width": 20,
+            "height": 20
+          },
+          "scrollers": []
+        },
+        "domOrder": {
+          "serviceBeforeResult": true,
+          "testBeforeResult": true
+        },
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "Tailnet service returned HTTP 404.",
+            "tone": "err",
+            "inHeader": false
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "stage": "successful-retry",
+        "pathname": "/proof",
+        "status": 200,
+        "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+        "geometry": {
+          "markerRect": {
+            "x": 280,
+            "y": 703.71875,
+            "width": 20,
+            "height": 20
+          },
+          "scrollers": []
+        },
+        "domOrder": null,
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.2, fd7a:115c:a1e0::2 \u00b7 1 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "missing-service",
+        "pathname": "/missing",
+        "status": 404,
+        "label": "Tailnet service returned HTTP 404.",
+        "geometry": {
+          "markerRect": {
+            "x": 4,
+            "y": 780.359375,
+            "width": 44,
+            "height": 44
+          },
+          "scrollers": [
+            {
+              "tag": "MAIN",
+              "className": "section",
+              "top": 108,
+              "clientHeight": 738,
+              "scrollHeight": 846
+            }
+          ]
+        },
+        "domOrder": {
+          "serviceBeforeResult": true,
+          "testBeforeResult": true
+        },
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "Tailnet service returned HTTP 404.",
+            "tone": "err",
+            "inHeader": false
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "successful-retry",
+        "pathname": "/proof",
+        "status": 200,
+        "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+        "geometry": {
+          "markerRect": {
+            "x": 4,
+            "y": 800.359375,
+            "width": 44,
+            "height": 44
+          },
+          "scrollers": [
+            {
+              "tag": "MAIN",
+              "className": "section",
+              "top": 88,
+              "clientHeight": 738,
+              "scrollHeight": 846
+            }
+          ]
+        },
+        "domOrder": null,
+        "measuredStatuses": [
+          {
+            "label": "Browser node connected",
+            "tone": "ok",
+            "inHeader": true
+          },
+          {
+            "label": "Connected: 100.64.0.3, fd7a:115c:a1e0::3 \u00b7 2 peers",
+            "tone": "ok",
+            "inHeader": false
+          },
+          {
+            "label": "HTTP 200 \u00b7 102 characters received through Tailscale",
+            "tone": "ok",
+            "inHeader": false
+          }
+        ]
+      }
+    ],
+    "notices": [
+      {
+        "width": 1280,
+        "stage": "missing-service",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          },
+          {
+            "title": "Tailscale",
+            "body": "Tailnet service returned HTTP 404.",
+            "role": "alert",
+            "className": "notice-card notice-card--err"
+          }
+        ]
+      },
+      {
+        "width": 1280,
+        "stage": "successful-retry",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "missing-service",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          },
+          {
+            "title": "Tailscale",
+            "body": "Tailnet service returned HTTP 404.",
+            "role": "alert",
+            "className": "notice-card notice-card--err"
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "stage": "successful-retry",
+        "cards": [
+          {
+            "title": "Item type installed",
+            "body": "Ready to use in the new-item picker.",
+            "role": null,
+            "className": "notice-card notice-card--info"
+          }
+        ]
+      }
+    ],
+    "workers": [
+      {
+        "width": 1280,
+        "url": "http://localhost:41911/OpenSesame/assets/tailscale-node-CjVovgpR.js",
+        "startedDuring": "after-1280-pin-vault",
+        "closed": true,
+        "closedDuring": "after-1280-stopped"
+      },
+      {
+        "width": 390,
+        "url": "http://localhost:41911/OpenSesame/assets/tailscale-node-CjVovgpR.js",
+        "startedDuring": "after-390-pin-vault",
+        "closed": true,
+        "closedDuring": "after-390-stopped"
+      }
+    ],
+    "network": [
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-BrdX_YrG.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-dom-BFHKdIf_.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ConnectorMark-vobDd8Ld.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/auth-outcome-weFuoELe.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/registration-Bxn8PGm8.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/pin-kdf-QgE8Qw2k.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notifications-catalog-DFl7R0Ht.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-router-DxfH7UJy.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-BiehmCE_.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/os-runtime-config.json"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-authority-FgDfee4e.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/revision-Ca6vWKHi.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-Brpis77h.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-view-paths-Dy_5O4df.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/listing-page-G3yVFNkT.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-DZrmCsBm.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/org-signin-BNTAA1RF.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-coarse-pointer-Owu6kaH4.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/expiry-CPJgPTUI.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notation-CkVPx16G.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/payload-B1zINpCH.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/StatusNote-REX9Qq5k.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/site-broker-DafhTRVs.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-menu-7xyLWYQY.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-DMiyCen3.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-CsvSkues.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/MethodPicker-BMZZoTBN.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connectivity-monitor-CDjUsuwW.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/IdentityConnectionSignIn-CYz2iUbC.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/federation-configured-restoration-CMtNjbxB.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AmbientAuthPanel-Bide-w2R.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-Dl52Ozgi.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-list-path-Cj07lRz7.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/consent-2MrHcBRh.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-D6oRkKUH.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-Du2aH-U6.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-CPup0pR-.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vaults-C7DlpRft.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/CapabilitySwitch-cgDPyuCm.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/status-t6AgLel_.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-enterprise-Cum1uAaF.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-2lM6OkI1.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-CUBYU_YP.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-BzgDVWR1.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-eLeEtpt3.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/idp-presets-B86Kmgyw.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-CJkgn7S4.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/os-logo-Dhy2KbxY.ttf"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BHloywx7.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BzHz3H7U.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-DVMC1zHh.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/settings-ZmD3SZzI.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-CwHywPV7.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-L6AF8hy0.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-fYJ8nllW.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BSajXoEZ.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-Cvxj8m_g.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-BtSLwx45.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-tXVZQtNa.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BFa23LKn.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-access.authority-BakXm5jp.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-CMwD_4xY.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/shared-9CAk8DfY.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-error-Bj5QJWgR.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-0zFDwnPT.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-Cn-nedP2.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-share-grants-approvals-4-5EucaA.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-DX7_0C9c.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connect-plan-Cw8tGAKK.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-directory-bootstrap-BUvu8zqb.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-applications-Cqxu-CeF.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/device-inbox-CG1ZsLQg.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ApproveScreen-DODCeB92.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-_5fOQq5w.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/UpLink-D9DhNEGJ.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/Crumbs-PYHfqX2Z.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/PageTreeBranch-DSGJIhfe.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-cpYK9eJZ.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-integrations-drawn-EDyWoI-v.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-Ci1J38pa.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-C6b2rUIm.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-Cy48_tAA.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-CUw0rn2T.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-B4DbnYPA.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-identity.local-iam-BQup3Lbv.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/useLocalConsent-CNecgJI9.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connector-marks-BA_Uk7CW.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-DETKvdza.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-BBeW7zoR.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-C1HsB-3b.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/EmptyTip-C9JN3sQp.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-BUcbIjl5.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-CCH07-l2.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/FeatureSections-CsqfYUKU.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/OpenFileKey-DWYir7KY.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-BR62zU3g.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-connectors.external-DpAugUGo.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-DKxWg1R9.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-google-capability-BL2kb-lb.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/secret-backends-CgQZ7-XC.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-artifacts-DdBvw8KL.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/s3-sigv4-LgsXffK4.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-protocol-U-4NzjjY.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-auth-return-BYLWNvBW.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-oSO_RMA1.css"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-implicit-session-BlBOgR-6.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-networking.tailnet-FegEBwGk.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/item-type-pack-token-Cfp58zHW.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-node-CjVovgpR.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41916",
+        "path": "/key"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-BrdX_YrG.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-dom-BFHKdIf_.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ConnectorMark-vobDd8Ld.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/auth-outcome-weFuoELe.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/registration-Bxn8PGm8.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/pin-kdf-QgE8Qw2k.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notifications-catalog-DFl7R0Ht.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-router-DxfH7UJy.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/main-BiehmCE_.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/os-runtime-config.json"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-authority-FgDfee4e.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/revision-Ca6vWKHi.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-Brpis77h.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-view-paths-Dy_5O4df.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/listing-page-G3yVFNkT.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/react-DZrmCsBm.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/org-signin-BNTAA1RF.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-coarse-pointer-Owu6kaH4.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/expiry-CPJgPTUI.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/notation-CkVPx16G.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/payload-B1zINpCH.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/StatusNote-REX9Qq5k.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/site-broker-DafhTRVs.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-menu-7xyLWYQY.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-DMiyCen3.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/InvokeScreen-CsvSkues.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/MethodPicker-BMZZoTBN.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connectivity-monitor-CDjUsuwW.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/IdentityConnectionSignIn-CYz2iUbC.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/federation-configured-restoration-CMtNjbxB.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AmbientAuthPanel-Bide-w2R.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-Dl52Ozgi.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vault-list-path-Cj07lRz7.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/consent-2MrHcBRh.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gate-seat-D6oRkKUH.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-Du2aH-U6.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/scroll-renderer-CPup0pR-.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/vaults-C7DlpRft.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/CapabilitySwitch-cgDPyuCm.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/status-t6AgLel_.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-enterprise-Cum1uAaF.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-2lM6OkI1.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-vault-sessions-CUBYU_YP.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-BzgDVWR1.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/iam-eLeEtpt3.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/idp-presets-B86Kmgyw.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/gesture-motion-CJkgn7S4.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/os-logo-Dhy2KbxY.ttf"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BHloywx7.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BzHz3H7U.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/identity-DVMC1zHh.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/settings-ZmD3SZzI.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-CwHywPV7.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-L6AF8hy0.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-fYJ8nllW.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BSajXoEZ.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-Cvxj8m_g.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SupportLauncher-BtSLwx45.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-tXVZQtNa.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/runtime-BFa23LKn.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-access.authority-BakXm5jp.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-CMwD_4xY.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/shared-9CAk8DfY.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-error-Bj5QJWgR.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-0zFDwnPT.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/BackupEnableSwitch-Cn-nedP2.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-share-grants-approvals-4-5EucaA.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connections-DX7_0C9c.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connect-plan-Cw8tGAKK.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-directory-bootstrap-BUvu8zqb.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/local-applications-Cqxu-CeF.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/device-inbox-CG1ZsLQg.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/ApproveScreen-DODCeB92.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-_5fOQq5w.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/UpLink-D9DhNEGJ.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/Crumbs-PYHfqX2Z.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/PageTreeBranch-DSGJIhfe.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-cpYK9eJZ.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-integrations-drawn-EDyWoI-v.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-settings-category-Ci1J38pa.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-C6b2rUIm.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-vault-search-Cy48_tAA.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-identity-rail-CUw0rn2T.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/use-access-book-B4DbnYPA.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-identity.local-iam-BQup3Lbv.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/useLocalConsent-CNecgJI9.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/connector-marks-BA_Uk7CW.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-DETKvdza.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/AppShell-BBeW7zoR.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-C1HsB-3b.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/EmptyTip-C9JN3sQp.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/VaultSection-BUcbIjl5.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-CCH07-l2.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/FeatureSections-CsqfYUKU.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/OpenFileKey-DWYir7KY.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/SettingsSection-BR62zU3g.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-connectors.external-DpAugUGo.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-DKxWg1R9.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-google-capability-BL2kb-lb.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/secret-backends-CgQZ7-XC.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-artifacts-DdBvw8KL.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/s3-sigv4-LgsXffK4.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/hosted-model-protocol-U-4NzjjY.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-auth-return-BYLWNvBW.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/session-connections-oSO_RMA1.css"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/native-implicit-session-BlBOgR-6.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/icon.svg"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/cap-networking.tailnet-FegEBwGk.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/item-type-pack-token-Cfp58zHW.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/assets/tailscale-node-CjVovgpR.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41911",
+        "path": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "GET",
+        "origin": "http://localhost:41916",
+        "path": "/key"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "method": "HEAD",
+        "origin": "https://derp.fixture.test",
+        "path": "/derp/probe"
+      }
+    ],
+    "sockets": [
+      {
+        "width": 1280,
+        "origin": "ws://localhost:41916",
+        "path": "/ts2021",
+        "sentFrames": 10,
+        "receivedFrames": 11,
+        "sentBytes": 3123,
+        "receivedBytes": 4353,
+        "closed": true
+      },
+      {
+        "width": 1280,
+        "origin": "wss://derp.fixture.test:41917",
+        "path": "/derp",
+        "sentFrames": 11,
+        "receivedFrames": 10,
+        "sentBytes": 1556,
+        "receivedBytes": 1707,
+        "closed": true
+      },
+      {
+        "width": 390,
+        "origin": "ws://localhost:41916",
+        "path": "/ts2021",
+        "sentFrames": 11,
+        "receivedFrames": 13,
+        "sentBytes": 3164,
+        "receivedBytes": 5530,
+        "closed": true
+      },
+      {
+        "width": 390,
+        "origin": "wss://derp.fixture.test:41917",
+        "path": "/derp",
+        "sentFrames": 11,
+        "receivedFrames": 10,
+        "sentBytes": 1556,
+        "receivedBytes": 1707,
+        "closed": true
+      }
+    ],
+    "protocol": {
+      "controlUpgrades": 2,
+      "derpUpgrades": 2,
+      "nativePeerGets": 2,
+      "nativePeerMissingGets": 2,
+      "nativePeerTotalGets": 4
+    },
+    "managementRequests": [],
+    "fixture": {
+      "control": [
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/key"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/ts2021",
+          "subprotocol": ""
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/key"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/ts2021",
+          "subprotocol": "tailscale-control-protocol"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/ts2021",
+          "sent": 3201,
+          "received": 4605
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/key"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/ts2021",
+          "subprotocol": "tailscale-control-protocol"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/ts2021",
+          "sent": 3248,
+          "received": 5790
+        },
+        {
+          "kind": "socket-close",
+          "path": "/ts2021",
+          "sent": 5116,
+          "received": 15340
+        }
+      ],
+      "derp": [
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/derp/latency-check"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/derp",
+          "subprotocol": ""
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/derp/latency-check"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/derp",
+          "subprotocol": "derp"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/derp",
+          "sent": 1648,
+          "received": 1941
+        },
+        {
+          "kind": "http",
+          "method": "GET",
+          "path": "/derp/latency-check"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "upgrade",
+          "path": "/derp",
+          "subprotocol": "derp"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "http",
+          "method": "HEAD",
+          "path": "/derp/probe"
+        },
+        {
+          "kind": "socket-close",
+          "path": "/derp",
+          "sent": 1648,
+          "received": 1941
+        },
+        {
+          "kind": "socket-close",
+          "path": "/derp",
+          "sent": 5286,
+          "received": 3317
+        }
+      ],
+      "peer": [
+        {
+          "method": "GET",
+          "path": "/missing"
+        },
+        {
+          "method": "GET",
+          "path": "/proof"
+        },
+        {
+          "method": "GET",
+          "path": "/missing"
+        },
+        {
+          "method": "GET",
+          "path": "/proof"
+        }
+      ]
+    },
+    "log": [
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280: transient enrollment key concealed"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280: authenticated node membership exists before a service GET"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: zero horizontal overflow"
+      },
+      {
+        "step": "after-1280-pin-vault",
+        "kind": "PASS",
+        "detail": "1280 connected-before-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: native peer independently received actual /missing request"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: literal HTTP404 result has observed error tone"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280: actual service404 error follows the service URL in DOM order"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280: actual service404 error follows Test in DOM order"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: zero horizontal overflow"
+      },
+      {
+        "step": "after-1280-missing-service",
+        "kind": "PASS",
+        "detail": "1280 missing-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: native peer independently received actual /proof request"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: literal HTTP200 result has observed ok tone"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: zero horizontal overflow"
+      },
+      {
+        "step": "after-1280-successful-retry",
+        "kind": "PASS",
+        "detail": "1280 successful-retry: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-1280-stopped",
+        "kind": "PASS",
+        "detail": "1280 stopped: general header cannot remain connected"
+      },
+      {
+        "step": "after-1280-stopped",
+        "kind": "PASS",
+        "detail": "1280 stopped: zero horizontal overflow"
+      },
+      {
+        "step": "after-1280-stopped",
+        "kind": "PASS",
+        "detail": "1280 stopped: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390: transient enrollment key concealed"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/main-fbf63118.wasm.gz"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "official-sdk-resource",
+        "detail": "/OpenSesame/tailscale/go-runtime-3990fa87.js"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "EXPECTED-derp-probe-cancellation",
+        "detail": "net::ERR_ABORTED: https://derp.fixture.test/derp/probe"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390: authenticated node membership exists before a service GET"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: zero horizontal overflow"
+      },
+      {
+        "step": "after-390-pin-vault",
+        "kind": "PASS",
+        "detail": "390 connected-before-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: native peer independently received actual /missing request"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: literal HTTP404 result has observed error tone"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390: actual service404 error follows the service URL in DOM order"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390: actual service404 error follows Test in DOM order"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: zero horizontal overflow"
+      },
+      {
+        "step": "after-390-missing-service",
+        "kind": "PASS",
+        "detail": "390 missing-service: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: native peer independently received actual /proof request"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: literal HTTP200 result has observed ok tone"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: current authenticated node and single emitted worker remain live"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: provider response body and nonce are not rendered"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: actual shared Tailscale notice matches service outcome"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: zero horizontal overflow"
+      },
+      {
+        "step": "after-390-successful-retry",
+        "kind": "PASS",
+        "detail": "390 successful-retry: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "390 stopped: general header cannot remain connected"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "390 stopped: zero horizontal overflow"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "390 stopped: actual desktop/touch pointer mode"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "No observed OAuth app registration/token/provisioning management HTTP traffic"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual provider observed Noise control WebSocket upgrades"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual provider observed real DERP WebSocket upgrades"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual native peer received encrypted tailnet GETs"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "Actual official owned WASM asset loaded"
+      },
+      {
+        "step": "after-390-stopped",
+        "kind": "PASS",
+        "detail": "Both actual emitted SDK workers closed after disconnect and context cleanup"
+      }
+    ],
+    "failures": [],
+    "limits": [
+      "Real pinned Headscale/DERP/native test peer, not a hosted tenant or account.",
+      "Native CLI exists only in test infrastructure; PWA uses unchanged official SDK WASM.",
+      "Transparent fixture CORS/TLS protocol edges and exact fixture certificate SPKI exception; no global TLS ignore or ordinary hosted PKI claim.",
+      "Actual404 and200 inside encrypted tailnet service stream; no response interception, DOM staging, app backend or extension.",
+      "No response body rendering, private SDK state reveal or enrollment key serialization.",
+      "No late-request race, hosted OAuth, arbitrary VPN, installed offline-cache or hosted CORS claim."
+    ]
+  }
+}

@@ -285,3 +285,10 @@ export async function runEnvFileSnapshot(
     await rm(directory, { recursive: true, force: true });
   }
 }
+
+export {
+  SECRET_MASK,
+  createSecretMasker,
+  runChildWithValues,
+  withMountFiles,
+} from "./parity-local-run.js";

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Run Grok wave-2 in manifest order (one file per deepsec process).
+# deepsec re-sorts by candidate count and pre-locks the whole manifest; slicing avoids both.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+WS="${ROOT}/.deepsec"
+DEEPSEC="${WS}/node_modules/.bin/deepsec"
+WAVE="${DEEPSEC_REINVESTIGATE_WAVE:-2}"
+GROK_TIER="${DEEPSEC_GROK_TIER:-all}"
+export PATH="${HOME}/.local/bin:${PATH}"
+unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY
+
+read -r AGENT MODEL < <("${ROOT}/scripts/audit/deepsec-wave2-pick-agent.sh") || exit 2
+[[ "$AGENT" == "grok" ]] || { echo "ordered grok process: agent=$AGENT" >&2; exit 1; }
+
+node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-stale-runs.mjs" "$ROOT" || true
+node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" || true
+
+ORDERED="$(mktemp /tmp/deepsec-wave2-grok-ordered.XXXXXX.json)"
+node "${ROOT}/scripts/audit/deepsec-wave2-grok-manifest.mjs" "$ROOT" "$WAVE" "$GROK_TIER" >"$ORDERED"
+TOTAL="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).length)" "$ORDERED")"
+echo "deepsec-wave2-grok-process-ordered: tier=${GROK_TIER} files=${TOTAL} manifest=${ORDERED}"
+
+SLICE="$(mktemp /tmp/deepsec-wave2-grok-slice.XXXXXX.json)"
+idx=0
+while [[ "$idx" -lt "$TOTAL" ]]; do
+  node -e "
+    const paths = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));
+    const i = Number(process.argv[2]);
+    require('fs').writeFileSync(process.argv[3], JSON.stringify([paths[i]]));
+  " "$ORDERED" "$idx" "$SLICE"
+  path="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))[0])" "$SLICE")"
+  echo "deepsec-wave2-grok-process-ordered: file $((idx + 1))/${TOTAL} ${path}"
+  node "${ROOT}/scripts/audit/deepsec-wave2-reconcile-file-locks.mjs" "$ROOT" || true
+  cd "$WS"
+  "$DEEPSEC" process --project-id opensesame \
+    --agent "$AGENT" --model "$MODEL" \
+    --thinking-level "${DEEPSEC_THINKING:-medium}" \
+    --concurrency 1 \
+    --reinvestigate "$WAVE" \
+    --batch-size 1 \
+    --max-turns "${DEEPSEC_GROK_SHALLOW_MAX_TURNS:-60}" \
+    --manifest "$SLICE"
+  idx=$((idx + 1))
+done
+rm -f "$SLICE" "$ORDERED"
