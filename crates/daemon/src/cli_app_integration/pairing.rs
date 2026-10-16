@@ -27,6 +27,7 @@ pub(crate) struct PairingConfirm {
     code: String,
     device_public_key_spki_b64: String,
     pairing_signature_b64: String,
+    vault_session_root_digest: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,6 +40,8 @@ pub(crate) struct PairingRegistrationArm {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PairingWebAuthnRegister {
+    vault_session_root_digest: String,
+    human_proof: String,
     credential_id_b64: String,
     public_key_spki_b64: String,
     sign_count: u32,
@@ -103,6 +106,7 @@ pub(crate) async fn pairing_confirm(
         origin,
         &body.device_public_key_spki_b64,
         &body.pairing_signature_b64,
+        Some(body.vault_session_root_digest.as_str()),
         now,
     ) {
         Ok(outcome) => (
@@ -110,6 +114,9 @@ pub(crate) async fn pairing_confirm(
             Json(json!({ "registrationCode": outcome.registration_code })),
         )
             .into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(
             PairingError::WrongOrigin
             | PairingError::InvalidProof
@@ -147,6 +154,9 @@ pub(crate) async fn pairing_exchange(
             })),
         )
             .into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(PairingError::NotConfirmed) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_confirm_required")
         }
@@ -177,14 +187,21 @@ pub(crate) async fn pairing_register_webauthn(
         Ok(guard) => guard,
         Err(poisoned) => poisoned.into_inner(),
     };
-    match host.pairings.register_webauthn(
-        token,
-        origin,
-        &body.credential_id_b64,
-        &body.public_key_spki_b64,
-        body.sign_count,
-    ) {
+    let registration = opensesame_cli_app_integration::WebAuthnRegistration {
+        vault_session_root_digest: body.vault_session_root_digest.clone(),
+        human_proof_passkey: body.human_proof.clone(),
+        credential_id_b64: body.credential_id_b64.clone(),
+        public_key_spki_b64: body.public_key_spki_b64.clone(),
+        sign_count: body.sign_count,
+    };
+    match host
+        .pairings
+        .register_webauthn(token, origin, &registration)
+    {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(PairingError::Unknown) => {
             pairing_error(StatusCode::UNAUTHORIZED, "cli_app_pairing_required")
         }
@@ -214,6 +231,9 @@ pub(crate) async fn pairing_arm_registration(
         .arm_registration(&body.origin, &body.registration_code, now)
     {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
+        }
         Err(PairingError::RegistrationMismatch) => {
             pairing_error(StatusCode::FORBIDDEN, "pairing_refused")
         }
@@ -273,6 +293,9 @@ pub(crate) async fn pairing_issue_operator(
         Err(PairingError::Full) => pairing_error(StatusCode::CONFLICT, "too_many_pairings"),
         Err(PairingError::InvalidOrigin) => {
             pairing_error(StatusCode::BAD_REQUEST, "invalid_origin")
+        }
+        Err(PairingError::RootKeyNotEnrolled) => {
+            pairing_error(StatusCode::FORBIDDEN, "root_key_not_enrolled")
         }
         Err(
             PairingError::Unknown

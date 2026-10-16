@@ -17,6 +17,7 @@ async function readCliAppPairingVaultSessionRoot(): Promise<string | null> {
   return vaultStore.readSessionRootDigest();
 }
 const DEVICE_SIGNING_STORAGE_KEY = "opensesame-cli-app-device-signing.v1";
+const APPROVAL_SIGNING_STORAGE_KEY = "opensesame-cli-app-approval-signing.v1";
 
 async function sha256(data: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", data));
@@ -24,6 +25,41 @@ async function sha256(data: Uint8Array): Promise<Uint8Array> {
 
 export const PAIRING_CONFIRM_LABEL = "opensesame-cli-app-pairing-confirm.v1";
 export const APPROVAL_CHALLENGE_LABEL = "opensesame-cli-app-approval.v1";
+
+export async function webauthnRegisterChallengeDigest(
+  token: string,
+  origin: string,
+  vaultSessionRootDigest: string,
+): Promise<Uint8Array> {
+  const label = new TextEncoder().encode(
+    "opensesame-cli-app-webauthn-register.v1",
+  );
+  const parts = [
+    label,
+    new Uint8Array([0]),
+    new TextEncoder().encode(token),
+    new Uint8Array([0]),
+    new TextEncoder().encode(origin),
+    new Uint8Array([0]),
+    new TextEncoder().encode(vaultSessionRootDigest),
+    new Uint8Array([0]),
+  ];
+  const total = parts.reduce((n, p) => n + p.byteLength, 0);
+  const msg = new Uint8Array(total);
+  let off = 0;
+  for (const part of parts) {
+    msg.set(part, off);
+    off += part.byteLength;
+  }
+  return await sha256(msg);
+}
+
+export async function readVaultSessionRootDigestForCliApp(): Promise<
+  string | null
+> {
+  const root = await readCliAppPairingVaultSessionRoot();
+  return root;
+}
 
 export async function approvalChallengeDigest(
   requestId: string,
@@ -143,6 +179,49 @@ export function formatCliAppHumanProofPasskey(assertionJson: string): string {
   return `${CLI_APP_HUMAN_PROOF_PREFIX}passkey:${assertionJson}`;
 }
 
+/** Build a passkey-shaped registration proof for the daemon register route. */
+export async function mintCliAppRegisterHumanProof(
+  approval: CliAppDeviceSigningKey,
+  token: string,
+  origin: string,
+  vaultSessionRootDigest: string,
+): Promise<string> {
+  const challenge = await webauthnRegisterChallengeDigest(
+    token,
+    origin,
+    vaultSessionRootDigest,
+  );
+  const challengeB64 = b64urlEncode(challenge);
+  const clientDataJson = JSON.stringify({
+    type: "webauthn.get",
+    challenge: challengeB64,
+  });
+  const clientDataBytes = new TextEncoder().encode(clientDataJson);
+  const clientHash = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", clientDataBytes),
+  );
+  const authData = new Uint8Array(37);
+  authData[32] = 0x05;
+  authData[33] = 0;
+  authData[34] = 0;
+  authData[35] = 0;
+  authData[36] = 1;
+  const signed = new Uint8Array(authData.byteLength + clientHash.byteLength);
+  signed.set(authData, 0);
+  signed.set(clientHash, authData.byteLength);
+  const signatureB64 = await approval.sign(signed);
+  const credentialIdB64 = b64urlEncode(
+    new TextEncoder().encode(approval.publicKeySpkiB64),
+  );
+  const wire = JSON.stringify({
+    credentialIdB64,
+    authenticatorDataB64: b64urlEncode(authData),
+    clientDataJsonB64: b64urlEncode(clientDataBytes),
+    signatureB64,
+  });
+  return formatCliAppHumanProofPasskey(wire);
+}
+
 type StoredDeviceKey = Readonly<{
   publicKeySpkiB64: string;
   wrappedPkcs8B64: string;
@@ -212,9 +291,11 @@ async function unwrapDeviceKeyMaterial(
   }
 }
 
-async function readStoredDeviceKey(): Promise<StoredDeviceKey | null> {
+async function readStoredDeviceKey(
+  storageKey: string,
+): Promise<StoredDeviceKey | null> {
   const { localStore } = await import("../../ports.js");
-  const raw = localStore().getItem(DEVICE_SIGNING_STORAGE_KEY);
+  const raw = localStore().getItem(storageKey);
   if (!raw) return null;
   try {
     const parsed = storedDeviceKeySchema.safeParse(JSON.parse(raw));
@@ -224,9 +305,12 @@ async function readStoredDeviceKey(): Promise<StoredDeviceKey | null> {
   }
 }
 
-async function writeStoredDeviceKey(record: StoredDeviceKey): Promise<void> {
+async function writeStoredDeviceKey(
+  storageKey: string,
+  record: StoredDeviceKey,
+): Promise<void> {
   const { localStore } = await import("../../ports.js");
-  localStore().setItem(DEVICE_SIGNING_STORAGE_KEY, JSON.stringify(record));
+  localStore().setItem(storageKey, JSON.stringify(record));
 }
 
 export type CliAppDeviceSigningKey = Readonly<{
@@ -235,11 +319,13 @@ export type CliAppDeviceSigningKey = Readonly<{
 }>;
 
 /** Load or create the device signing key while the vault is unlocked. */
-export async function ensureCliAppDeviceSigningKey(): Promise<CliAppDeviceSigningKey | null> {
+async function ensureCliAppSigningKeyForStorage(
+  storageKey: string,
+): Promise<CliAppDeviceSigningKey | null> {
   const vaultSessionRoot = await readCliAppPairingVaultSessionRoot();
   if (!vaultSessionRoot) return null;
 
-  const stored = await readStoredDeviceKey();
+  const stored = await readStoredDeviceKey(storageKey);
   if (stored) {
     const pkcs8 = await unwrapDeviceKeyMaterial(
       vaultSessionRoot,
@@ -273,9 +359,22 @@ export async function ensureCliAppDeviceSigningKey(): Promise<CliAppDeviceSignin
   );
   const publicKeySpkiB64 = await exportSpkiB64(keyPair.publicKey);
   const wrappedPkcs8B64 = await wrapDeviceKeyMaterial(vaultSessionRoot, pkcs8);
-  await writeStoredDeviceKey({ publicKeySpkiB64, wrappedPkcs8B64 });
+  await writeStoredDeviceKey(storageKey, {
+    publicKeySpkiB64,
+    wrappedPkcs8B64,
+  });
   return {
     publicKeySpkiB64,
     sign: (message) => signP256Sha256B64(keyPair.privateKey, message),
   };
+}
+
+/** Load or create the device signing key while the vault is unlocked. */
+export async function ensureCliAppDeviceSigningKey(): Promise<CliAppDeviceSigningKey | null> {
+  return ensureCliAppSigningKeyForStorage(DEVICE_SIGNING_STORAGE_KEY);
+}
+
+/** Vault-wrapped approval key (distinct from the pairing device key). */
+export async function ensureCliAppApprovalSigningKey(): Promise<CliAppDeviceSigningKey | null> {
+  return ensureCliAppSigningKeyForStorage(APPROVAL_SIGNING_STORAGE_KEY);
 }

@@ -7,14 +7,28 @@ use p256::PublicKey;
 use rand_core::OsRng;
 use serde_json::json;
 
-use crate::device_crypto::pairing_confirm_message;
+use crate::device_crypto::{pairing_confirm_message, webauthn_register_challenge_digest};
 use crate::pairing::{CliAppIntegrationPairings, PairedBinding, WebAuthnCredential};
 use ecdsa::signature::Signer;
 
-static TEST_SIGNING: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
+static TEST_PAIRING: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
+static TEST_APPROVAL: std::sync::OnceLock<(SigningKey, String)> = std::sync::OnceLock::new();
 
-fn fixture() -> &'static (SigningKey, String) {
-    TEST_SIGNING.get_or_init(|| {
+pub const TEST_VAULT_SESSION_ROOT_DIGEST: &str =
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+fn pairing_fixture() -> &'static (SigningKey, String) {
+    TEST_PAIRING.get_or_init(|| {
+        let key = SigningKey::random(&mut OsRng);
+        let public_key = PublicKey::from(key.verifying_key());
+        let spki = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(public_key.to_public_key_der().expect("spki").as_ref());
+        (key, spki)
+    })
+}
+
+fn approval_fixture() -> &'static (SigningKey, String) {
+    TEST_APPROVAL.get_or_init(|| {
         let key = SigningKey::random(&mut OsRng);
         let public_key = PublicKey::from(key.verifying_key());
         let spki = base64::engine::general_purpose::URL_SAFE_NO_PAD
@@ -25,14 +39,19 @@ fn fixture() -> &'static (SigningKey, String) {
 
 #[must_use]
 pub fn test_device_public_key_spki_b64() -> &'static str {
-    &fixture().1
+    &pairing_fixture().1
+}
+
+#[must_use]
+pub fn test_approval_public_key_spki_b64() -> &'static str {
+    &approval_fixture().1
 }
 
 #[must_use]
 pub fn test_webauthn_credential() -> WebAuthnCredential {
     WebAuthnCredential {
         credential_id_b64: "test-cli-app-cred".into(),
-        public_key_spki_b64: test_device_public_key_spki_b64().to_string(),
+        public_key_spki_b64: test_approval_public_key_spki_b64().to_string(),
         sign_count: 0,
     }
 }
@@ -46,75 +65,14 @@ pub fn test_paired_binding() -> PairedBinding {
     }
 }
 
-/// Mint a bearer for daemon HTTP integration tests.
-///
-/// # Panics
-///
-/// Panics when pairing issue, confirm, arm, or exchange fails in the test harness.
-#[must_use]
-pub fn pair_browser_for_tests(
-    pairings: &mut CliAppIntegrationPairings,
-    origin: &str,
-    now: u64,
-) -> String {
-    let (code, _) = pairings.issue(origin, now).expect("issue");
-    let challenge = pairings
-        .pairing_challenge_for_code(&code, now)
-        .expect("pending challenge");
-    let message = pairing_confirm_message(&challenge, &code, origin);
-    let sig: p256::ecdsa::Signature = fixture().0.sign(&message);
-    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
-    let outcome = pairings
-        .confirm(
-            &code,
-            origin,
-            test_device_public_key_spki_b64(),
-            &sig_b64,
-            now,
-        )
-        .expect("confirm");
-    pairings
-        .arm_registration(origin, &outcome.registration_code, now)
-        .expect("arm");
-    let token = pairings
-        .exchange(&code, origin, now)
-        .expect("exchange")
-        .token;
-    pairings
-        .register_webauthn(
-            &token,
-            origin,
-            "test-cli-app-cred",
-            test_device_public_key_spki_b64(),
-            0,
-        )
-        .expect("register webauthn");
-    token
-}
-
-/// Mint a passkey-shaped human proof for integration tests (registered `WebAuthn` cred).
-#[must_use]
-pub fn mint_test_human_proof(
-    request_id: &str,
-    terminal_session_id: &str,
-    respond_nonce: &str,
-    verb: &str,
-) -> String {
-    mint_test_passkey_human_proof(request_id, terminal_session_id, respond_nonce, verb, 1)
-}
-
-#[must_use]
-pub fn mint_test_passkey_human_proof(
-    request_id: &str,
-    terminal_session_id: &str,
-    respond_nonce: &str,
-    verb: &str,
+fn mint_passkey_proof_for_challenge(
+    signing_key: &SigningKey,
+    credential_id: &str,
+    challenge: [u8; 32],
     sign_count: u32,
 ) -> String {
-    use crate::device_crypto::approval_challenge_digest;
     use sha2::{Digest, Sha256};
 
-    let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
     let challenge_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(challenge);
     let client_data_json = json!({
         "type": "webauthn.get",
@@ -128,13 +86,103 @@ pub fn mint_test_passkey_human_proof(
     auth_data[33..37].copy_from_slice(&sign_count.to_be_bytes());
     let mut signed = auth_data.clone();
     signed.extend_from_slice(&client_hash);
-    let sig: p256::ecdsa::Signature = fixture().0.sign(&signed);
+    let sig: p256::ecdsa::Signature = signing_key.sign(&signed);
     let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
     let wire = json!({
-        "credentialIdB64": "test-cli-app-cred",
+        "credentialIdB64": credential_id,
         "authenticatorDataB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&auth_data),
         "clientDataJsonB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_data_bytes),
         "signatureB64": sig_b64,
     });
     format!("oschip2:passkey:{wire}")
+}
+
+/// Mint a bearer for daemon HTTP integration tests.
+///
+/// # Panics
+///
+/// Panics when pairing issue, confirm, arm, or exchange fails in the test harness.
+#[must_use]
+pub fn pair_browser_for_tests(
+    pairings: &mut CliAppIntegrationPairings,
+    origin: &str,
+    now: u64,
+) -> String {
+    pairings.enroll_root_key_for_tests();
+    let (code, _) = pairings.issue(origin, now).expect("issue");
+    let challenge = pairings
+        .pairing_challenge_for_code(&code, now)
+        .expect("pending challenge");
+    let message = pairing_confirm_message(&challenge, &code, origin);
+    let sig: p256::ecdsa::Signature = pairing_fixture().0.sign(&message);
+    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
+    let outcome = pairings
+        .confirm(
+            &code,
+            origin,
+            test_device_public_key_spki_b64(),
+            &sig_b64,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
+        .expect("confirm");
+    pairings
+        .arm_registration(origin, &outcome.registration_code, now)
+        .expect("arm");
+    let token = pairings
+        .exchange(&code, origin, now)
+        .expect("exchange")
+        .token;
+    let register_challenge =
+        webauthn_register_challenge_digest(&token, origin, TEST_VAULT_SESSION_ROOT_DIGEST);
+    let human_proof = mint_passkey_proof_for_challenge(
+        &approval_fixture().0,
+        "test-cli-app-cred",
+        register_challenge,
+        1,
+    );
+    pairings
+        .register_webauthn(
+            &token,
+            origin,
+            &crate::WebAuthnRegistration {
+                vault_session_root_digest: TEST_VAULT_SESSION_ROOT_DIGEST.to_string(),
+                human_proof_passkey: human_proof,
+                credential_id_b64: "test-cli-app-cred".to_string(),
+                public_key_spki_b64: test_approval_public_key_spki_b64().to_string(),
+                sign_count: 1,
+            },
+        )
+        .expect("register webauthn");
+    token
+}
+
+/// Mint a passkey-shaped human proof for integration tests (registered `WebAuthn` cred).
+#[must_use]
+pub fn mint_test_human_proof(
+    request_id: &str,
+    terminal_session_id: &str,
+    respond_nonce: &str,
+    verb: &str,
+) -> String {
+    mint_test_passkey_human_proof(request_id, terminal_session_id, respond_nonce, verb, 2)
+}
+
+#[must_use]
+pub fn mint_test_passkey_human_proof(
+    request_id: &str,
+    terminal_session_id: &str,
+    respond_nonce: &str,
+    verb: &str,
+    sign_count: u32,
+) -> String {
+    use crate::device_crypto::approval_challenge_digest;
+
+    let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
+    mint_passkey_proof_for_challenge(
+        &approval_fixture().0,
+        "test-cli-app-cred",
+        challenge,
+        sign_count,
+    )
 }
