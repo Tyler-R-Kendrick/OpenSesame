@@ -264,6 +264,28 @@ export default defineConfig({
     },
   },
   plugins: [
+    process.env.OPENSESAME_AI_COMPLETION_VERIFY === "1" && {
+      name: "ai-completion-verifier-entry",
+      apply: "build",
+      transformIndexHtml: {
+        order: "pre",
+        handler(html, ctx) {
+          if (
+            ctx.filename !==
+            fileURLToPath(new URL("./index.html", import.meta.url))
+          )
+            return html;
+          const main = '<script type="module" src="/src/main.tsx"></script>';
+          if (html.split(main).length !== 2)
+            throw new Error(
+              "AI verifier requires exactly one original main entry",
+            );
+          const verifier =
+            '<script type="module" src="/src/modules/connectors.external/ai-completion-verifier.ts"></script>';
+          return html.replace(main, `${verifier}\n${main}`);
+        },
+      },
+    },
     nativeClientMetadataPlugin(base),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
