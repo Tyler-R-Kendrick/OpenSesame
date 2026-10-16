@@ -186,8 +186,8 @@ fn copy_fixture(source: &Path, destination: &Path) {
         } else {
             assert!(
                 kind.is_file(),
-                "unexpected fixture file type: {:?}",
-                entry.path()
+                "unexpected fixture file type: {}",
+                entry.path().display()
             );
             std::fs::copy(entry.path(), target).unwrap();
         }

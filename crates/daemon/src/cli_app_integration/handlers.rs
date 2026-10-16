@@ -1,19 +1,26 @@
 use axum::extract::connect_info::ConnectInfo;
+#[cfg(unix)]
+use axum::Extension;
 use axum::{
     body::Body,
     extract::{FromRequest, State},
     http::{HeaderMap, Request, StatusCode},
     response::{IntoResponse, Response},
-    Extension, Json,
+    Json,
 };
-use opensesame_cli_app_integration::{session_id_from_pid, sign_daemon_attest};
+#[cfg(unix)]
+use opensesame_cli_app_integration::session_id_from_pid;
+use opensesame_cli_app_integration::sign_daemon_attest;
 use serde::Deserialize;
 use serde_json::json;
 use sha2::Digest;
 use std::net::SocketAddr;
 
+#[cfg(unix)]
 use crate::peer_auth::UdsConnectInfo;
-use crate::{App, UdsPeer};
+use crate::App;
+#[cfg(unix)]
+use crate::UdsPeer;
 
 use super::auth::{bearer, origin_of, require_paired_caller};
 use super::now_millis;
@@ -40,7 +47,7 @@ pub struct RespondReq {
 
 fn terminal_session_for_ensure(
     host: &mut opensesame_cli_app_integration::CliAppIntegrationHost,
-    uds: &UdsPeer,
+    #[cfg(unix)] uds: &UdsPeer,
     tcp_peer: Option<ConnectInfo<SocketAddr>>,
 ) -> (String, bool) {
     #[cfg(unix)]
@@ -61,6 +68,7 @@ fn terminal_session_for_ensure(
 }
 
 pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Response {
+    #[cfg(unix)]
     let uds: UdsPeer = request
         .extensions()
         .get::<ConnectInfo<UdsConnectInfo>>()
@@ -79,7 +87,12 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
         Err(poisoned) => poisoned.into_inner(),
     };
     host.store.set_now_ms(now_millis());
-    let (terminal_session_id, reuse) = terminal_session_for_ensure(&mut host, &uds, tcp_peer);
+    let (terminal_session_id, reuse) = terminal_session_for_ensure(
+        &mut host,
+        #[cfg(unix)]
+        &uds,
+        tcp_peer,
+    );
     let (status, request_id) = host.store.ensure(
         &terminal_session_id,
         &req.verb,
