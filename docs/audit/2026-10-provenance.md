@@ -256,3 +256,14 @@ Producer label `live_kimi_code`: Kimi Code CLI session produced the patch via `s
   default `grok-4.7`); smoke `grok -p 'reply OK' -m grok-4.7` with keys unset.
 - Producer label `live_grok_build`: patch produced by Grok Build CLI tier 1
   via `scripts/dev/grok-headless.sh` after subscription auth install.
+
+### Identity and PWA backup stack — #1246, #1247, #1249, #1250, #1251
+
+Codex produced and reviewed this stack with delegated Codex agents. Commits were
+created through GitHub `createCommitOnBranch`, without author overrides, for
+verified GitHub signatures. They are not Grok or Kimi output. The environment
+used for this task has neither `grok` nor `kimi` on PATH (checked 2026-10-14);
+no alternate CLI authentication or billing was configured. Implementation was
+already committed when the documentation-only tier-chain update reached main
+at `aaa832e9e`. Codex continued verification, review and verified restacking.
+

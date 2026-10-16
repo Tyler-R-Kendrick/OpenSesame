@@ -265,3 +265,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0199](0199-connector-bridge-extension.md) | A provider that refuses web pages is reached through an optional bridge extension, host by host | Accepted |
 | [0200](0200-anti-slop-asset-ships-a-manifest-and-a-verifier.md) | The anti-slop installer asset ships a manifest and a verifier | Accepted |
 | [0201](0201-identity-integrations-compose-byo-adapters.md) | 0201: Identity integrations compose BYO adapters | Accepted |
+| [0202](0202-pwa-secret-backends-compose-local-and-http-adapters.md) | PWA secret backends compose local and HTTP adapters | Accepted |

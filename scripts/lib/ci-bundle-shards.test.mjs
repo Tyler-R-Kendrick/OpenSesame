@@ -38,6 +38,8 @@ const GATES = [
   "verify:provider-auth",
   "build:identity-verify",
   "verify:identity-connections",
+  "build:secret-backends-verify",
+  "verify:secret-backends",
   "verify:keyboard",
   "verify:push-worker",
   "verify:mobile",

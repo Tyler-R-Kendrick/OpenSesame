@@ -291,12 +291,13 @@
         "2026-10-13: javascript 6770->6780 and javascriptGzip 2050->2058 on the tree merged with main at 9766f7fd (tomb-scoped drop receipts, persona R1-R4), which raised main's own ceiling 6685->6692. This branch measured 6761/2044 KiB JavaScript raw/gzip in CI on 3739fd59 before that merge; main's change adds about 7/2 on its own base, so the combined build is expected at about 6768/2046 and the ceilings keep roughly 12 KiB of headroom. The ADR 0198 and ADR 0199 notes above record what this branch's share bought.",
         "2026-10-13: javascript 6712->6800 and javascriptGzip 2035->2058 on the tree merged with main at bb612ff9 (deepsec #831 and retired-credential/canary #826 landings, which raised main's own ceilings 6692->6712/2025->2035; main measures about 6707/2033). This branch's key-driver and bridge code adds about 76/21 over a comparable base (6768/2046 expected on the previous merge), so the merged tree is expected at about 6783/2054 and the ceilings keep roughly 12/4 KiB of headroom for chunking variance, to tighten once CI confirms. The ADR 0198 and ADR 0199 notes above record what this branch's share bought; nothing reaches the boot path, and the hardened profile budgets are unchanged.",
         "2026-10-13: REVERTED — javascript 6800->6818 and javascriptGzip 2058->2067 for D6 (#1225) was a gate violation; ceilings restored to 6800/2058 and pairing crypto lazy-split instead (follow-up PR).",
-        "2026-10-13: REVERTED — javascript 6818->6823 and javascriptGzip 2067->2070 for #1228/#1229; ceilings stay 6800/2058 after the lazy-split fix."
+        "2026-10-13: REVERTED — javascript 6818->6823 and javascriptGzip 2067->2070 for #1228/#1229; ceilings stay 6800/2058 after the lazy-split fix.",
+        "2026-10-14: javascript 6800->7000 and javascriptGzip 2058->2120 for ADR 0202 configured PWA secret backends. Final clean production 6ad7b281d measures 6979/2109 KiB versus the identity baseline 6786/2056 (+193 raw/+53 gzip): shared forms/item/verified-backup controls, real vault credential custody, held-item offline definitions, native HTTP/capability transports, official 1Password save button and Bitwarden browser SDK worker/glue. Shipped assets count toward offline installation; the 1967 KiB SDK WASM fits unchanged total/largest ceilings (total 10001 KiB), CSS stays 180. Headroom is 21/11 KiB. Both hardened profiles retain 3326736 raw JS bytes, at most 1030779 gzip bytes and 113 files on disk, with clean independent graphs and unchanged budgets. No profile, CSS, total, largest-asset or structural limit is raised."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 6800,
-        "javascriptGzip": 2058,
+        "javascript": 7000,
+        "javascriptGzip": 2120,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",

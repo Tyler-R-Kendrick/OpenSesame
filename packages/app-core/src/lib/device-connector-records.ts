@@ -295,6 +295,7 @@ export function updateDeviceConfigurationDurable(
 export function removeDeviceConfigurationDurable(
   id: string,
   beforeRemove?: (record: DeviceConfiguration) => void,
+  beforeCommit?: () => void,
 ): Promise<boolean> {
   return withConfigurationLock(async () => {
     const row = readDeviceRows().find((entry) => entry.connectionId === id);
@@ -306,7 +307,7 @@ export function removeDeviceConfigurationDurable(
       if (!record) throw new Error("Saved connector not found on this device");
       beforeRemove(record);
     }
-    await commitAtomic({ ...records, [id]: null });
+    await commitAtomic({ ...records, [id]: null }, beforeCommit);
     return true;
   });
 }

@@ -10,7 +10,6 @@ import {
   emptyBody,
   importVaultKey,
   mintVaultKey,
-  resolveAccounts,
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import {
@@ -44,7 +43,6 @@ import {
 } from "../vfs.js";
 import {
   appendItems,
-  applyManifestPlan,
   bodyBeforeWrite,
   deleteFolder,
   renameFolder,
@@ -63,7 +61,14 @@ import {
   restoreIntoBody,
   withdrawFromBody,
 } from "./item-departure.js";
-import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
+import {
+  type ItemImportPlan,
+  type ItemWriteHost,
+  type ManifestWritePlan,
+  originalItemWriteHost,
+  writeManifestItems,
+  writeSavedItems,
+} from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
 import {
   adoptedMasterWrap,
@@ -144,7 +149,7 @@ import {
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
-import { type ImportOptions, importSealedInto } from "./store-import.js";
+import { bindSealedImport } from "./store-import.js";
 import {
   installDefinition,
   newVaultFolder,
@@ -1384,16 +1389,20 @@ export class VaultStore {
     return writeSavedItems(this.#writes(), [item], folder);
   }
 
-  saveItems(items: readonly VaultItem[], folder?: Folder): Promise<void> {
-    return writeSavedItems(this.#writes(), items, folder);
+  saveItems(
+    items: readonly VaultItem[],
+    folder?: Folder,
+    check?: () => void,
+  ): Promise<void> {
+    return writeSavedItems(this.#writes(check), items, folder);
   }
 
-  #writes(): ItemWriteHost {
-    return {
-      tomb: this.#scope.tomb,
-      items: resolveAccounts(this.#body.items),
-      mutate: (change) => this.#mutate(change),
-    };
+  #writes(check?: () => void): ItemWriteHost {
+    return originalItemWriteHost(
+      this.#protectionOperation(check),
+      this.#body.items,
+      (change, current) => this.#mutate(change, current),
+    );
   }
 
   async trashItem(id: string): Promise<void> {
@@ -1449,29 +1458,16 @@ export class VaultStore {
     await this.#mutate((body) => appendItems(body, items, []));
   }
 
-  /**
-   * Apply a manifest merge plan (see `planManifestMerge`): adds, in-place
-   * updates, and their folders land in one mutation so a failed write cannot
-   * apply half a manifest.
-   */
-  async applyManifestMerge(plan: {
-    adds: VaultItem[];
-    updates: VaultItem[];
-    newFolders: Folder[];
-  }): Promise<void> {
-    const { adds, updates, newFolders } = plan;
-    if (adds.length + updates.length + newFolders.length === 0) return;
-    await this.#mutate((body) => applyManifestPlan(body, plan));
+  /** Merge items and folders atomically, leaving no partial manifest on failure. */
+  applyManifestMerge(plan: ManifestWritePlan): Promise<void> {
+    return writeManifestItems(this.#writes(), plan);
   }
 
   /**
    * Apply an import plan. Items and their new folders land in one mutation, so
    * a failed write cannot leave folders behind with nothing in them.
    */
-  async applyImport(plan: {
-    items: VaultItem[];
-    newFolders: Folder[];
-  }): Promise<number> {
+  async applyImport(plan: ItemImportPlan): Promise<number> {
     if (plan.items.length === 0 && plan.newFolders.length === 0) return 0;
     await this.#mutate((body) =>
       appendItems(body, plan.items, plan.newFolders),
@@ -1505,13 +1501,10 @@ export class VaultStore {
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
-  importSealed(
-    fileText: string,
-    secret: string | Uint8Array,
-    options: ImportOptions = {},
-  ): Promise<number> {
-    return importSealedInto(this.#bodyPort(), fileText, secret, options);
-  }
+  importSealed = bindSealedImport(
+    () => this.#bodyPort(),
+    () => this.#protectionOperation().active,
+  );
 
   #bodyPort(): VaultBodyPort {
     return makeBodyPort({
