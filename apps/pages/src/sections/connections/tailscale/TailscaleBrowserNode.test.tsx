@@ -178,12 +178,14 @@ it.each([200, 204, 299, 300, 401, 404, 500])(
   "reports HTTP %s as service health without exposing the body or changing node membership",
   async (status) => {
     const fixture = controlledNode("connected");
-    fixture.get.mockResolvedValueOnce({
-      status,
-      text: "private-service-response",
-    });
+    const response = deferred<{ status: number; text: string }>();
+    fixture.get.mockReturnValueOnce(response.promise);
     drawProbe();
     testService();
+    noProbe();
+    await act(async () => {
+      response.resolve({ status, text: "private-service-response" });
+    });
     if (status < 300)
       await screen.findByRole("img", { name: new RegExp(`^HTTP ${status} `) });
     else {
