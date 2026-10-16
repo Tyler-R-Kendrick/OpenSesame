@@ -10,9 +10,6 @@ export type HostedModelConnection = {
   providerId: string;
   status: string;
   method: string;
-  model?: string;
-  endpoint?: string;
-  name?: string;
 };
 export type HostedModelOperation = {
   providerId: string;
