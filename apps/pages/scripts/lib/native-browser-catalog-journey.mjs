@@ -1,9 +1,12 @@
 /** Every rendered catalog row gets a real browser walk, including explicit refusals. */
 import { TOUCH_FLOOR } from "./mobile-contract.mjs";
+import { nativeAiFormContract } from "./native-browser-ai-form-contract.mjs";
 import {
   NATIVE_CANONICAL_CATALOG_IDS,
   NATIVE_CANONICAL_PROVIDERS,
+  NATIVE_SHARED_AI_PRESETS,
 } from "./native-browser-catalog-projection.mjs";
+import { addCapabilities } from "./pages-journey.mjs";
 
 export async function nativeVisit(page, base, route) {
   await page.evaluate((href) => {
@@ -13,11 +16,7 @@ export async function nativeVisit(page, base, route) {
 }
 
 export async function nativeEnableConnections(page, base) {
-  await nativeVisit(page, base, "settings/features");
-  const toggle = page.getByRole("switch", { name: "Connections", exact: true });
-  await toggle.waitFor();
-  if ((await toggle.getAttribute("aria-checked")) !== "true")
-    await toggle.click();
+  await addCapabilities(page, ["External connectors"]);
   await nativeVisit(page, base, "connections#catalog");
   await page
     .getByRole("heading", { name: "Add a connection", exact: true })
@@ -81,7 +80,7 @@ async function nativeSheetLayout(page) {
         sheetRight: Math.round(sheetBox?.right ?? 0),
         keys: [
           ...document.querySelectorAll(
-            '[role="dialog"] .icon-btn, [role="dialog"] input',
+            '[role="dialog"] .icon-btn, [role="dialog"] input, [role="dialog"] select',
           ),
         ].map((node) => ({
           name: `${node.tagName.toLowerCase()}${node.id ? `#${node.id}` : ""}`,
@@ -271,7 +270,17 @@ export async function nativeCatalogJourney(
     );
     const sheet = await nativeArrival(page, row);
     await nativePageContract(page, row, { check: harness.check, phone });
-    if (sheet)
+    const preset = NATIVE_SHARED_AI_PRESETS.get(row.id);
+    if (preset)
+      await nativeAiFormContract(page, row, preset, {
+        check: harness.check,
+        record: harness.record,
+        phone,
+        base,
+        sheet: Boolean(sheet),
+        routePath: url.pathname,
+      });
+    if (sheet && !preset)
       await nativeSheetContract(page, row, sheet, {
         check: harness.check,
         phone,
@@ -290,6 +299,16 @@ export async function nativeCatalogJourney(
     );
     await page.getByRole("heading", { name: row.name, exact: true }).waitFor();
     await nativePageContract(page, row, { check: harness.check, phone });
+    const preset = NATIVE_SHARED_AI_PRESETS.get(row.id);
+    if (preset)
+      await nativeAiFormContract(page, row, preset, {
+        check: harness.check,
+        record: harness.record,
+        phone,
+        base,
+        sheet: false,
+        routePath: `${base}settings/connections/${encodeURIComponent(row.id)}`,
+      });
   }
   harness.check(
     true,

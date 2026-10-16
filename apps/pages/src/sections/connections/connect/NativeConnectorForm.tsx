@@ -9,7 +9,10 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
-import { NativeCancelSignIn } from "./NativeCancelSignIn.js";
+import {
+  NativeCancelSignIn,
+  useNativeSignInUiLifetime,
+} from "./NativeCancelSignIn.js";
 import { NativeConnectorFields } from "./NativeConnectorFields.js";
 import {
   NativeConnectorFormOptions,
@@ -18,6 +21,7 @@ import {
   nativeSignInRequired,
 } from "./NativeConnectorFormOptions.js";
 import { OutLink } from "./fields.js";
+import type { NativeAuthorizationTicket } from "./native-connector-controller.js";
 import {
   nativeEditTargetIds,
   nativeInitialMethod,
@@ -45,6 +49,7 @@ type Props = NativeConnectorCallbacks & {
   descriptor: NativeConnectorDescriptor;
   controller: NativeConnectorController;
   view?: NativeConnectorView | null;
+  authorization?: NativeAuthorizationTicket | null;
 };
 
 function useNativePreferences(
@@ -103,10 +108,43 @@ function useNativeRevisionSync(
   }, [descriptor, view, revisionKey, frozen, seed]);
 }
 
-function useNativeFormState(
-  descriptor: Props["descriptor"],
-  view: Props["view"],
+function useNativeFormFeedback(props: Props) {
+  const { authorization } = props;
+  const lifetime = useNativeSignInUiLifetime(props);
+  const [busyOwner, setBusyOwner] = useState<object | null>(null);
+  const busy = busyOwner === lifetime.owner || !!authorization?.current();
+  const [failureState, setFailureState] = useState<{
+    owner: object;
+    text: string;
+  } | null>(null);
+  const failure =
+    failureState?.owner === lifetime.owner ? failureState.text : "";
+  const setFailure = (text: string) =>
+    setFailureState({ owner: lifetime.owner, text });
+  return { lifetime, busy, setBusyOwner, failure, setFailure };
+}
+
+function nativeFormReady(
+  method: NativeMethodDescriptor | undefined,
+  values: Record<string, string>,
+  busy: boolean,
+  iconBusy: boolean,
+  name: string,
 ) {
+  return (
+    !busy &&
+    !iconBusy &&
+    method?.available &&
+    !nativeMissingField(method.fields, values) &&
+    !!name.trim()
+  );
+}
+
+function useNativeForm(props: Props) {
+  const { descriptor, controller, view, onChanged, onFlash } = props;
+  const { lifetime, busy, setBusyOwner, failure, setFailure } =
+    useNativeFormFeedback(props);
+  const available = descriptor.methods.filter((item) => item.available);
   const initial = nativeInitialMethod(descriptor, view);
   const [methodId, setMethodId] = useState(initial?.id);
   const [values, setValues] = useState(() =>
@@ -117,9 +155,7 @@ function useNativeFormState(
       ? nativeScopeDefaults(initial, view?.configuration.requestedScopes)
       : {},
   );
-  const [busy, setBusy] = useState(false);
   const image = useNativePreferences(descriptor.name, view);
-  const [failure, setFailure] = useState("");
   useNativeRevisionSync(descriptor, view, busy || image.iconBusy, {
     setMethodId,
     setValues,
@@ -127,32 +163,6 @@ function useNativeFormState(
     setName: image.setName,
     setIcon: image.setIcon,
   });
-  return {
-    methodId,
-    setMethodId,
-    values,
-    setValues,
-    scopes,
-    setScopes,
-    busy,
-    setBusy,
-    image,
-    failure,
-    setFailure,
-  };
-}
-
-function useNativeForm({
-  descriptor,
-  controller,
-  view,
-  onChanged,
-  onFlash,
-}: Props) {
-  const available = descriptor.methods.filter((item) => item.available);
-  const state = useNativeFormState(descriptor, view);
-  const { methodId, setMethodId, values, setValues, scopes, setScopes } = state;
-  const { busy, setBusy, image, failure, setFailure } = state;
   const { name } = image;
   const selectedMethod = available.find((item) => item.id === methodId);
   const method = selectedMethod
@@ -167,18 +177,13 @@ function useNativeForm({
     setFailure("");
   }
 
+  const ready = nativeFormReady(method, values, busy, image.iconBusy, name);
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (
-      busy ||
-      image.iconBusy ||
-      !method ||
-      !method.available ||
-      nativeMissingField(method.fields, values) ||
-      !name.trim()
-    )
-      return;
-    setBusy(true);
+    if (!method || !ready) return;
+    const attempt = lifetime.begin();
+    if (!attempt.current()) return;
+    setBusyOwner(lifetime.owner);
     setFailure("");
     const credentials = nativeFieldValues(method.fields, values, true);
     try {
@@ -192,6 +197,7 @@ function useNativeForm({
         requestedScopes: scopes,
         targetIds: nativeEditTargetIds(method, view),
       });
+      if (!attempt.current()) return;
       if (next.providerId !== descriptor.providerId)
         throw new Error("Provider returned a different connection.");
       if (nativeVerified(next)) {
@@ -207,12 +213,21 @@ function useNativeForm({
         });
       }
     } catch (error) {
-      const text = nativeError(errorText(error), credentials);
-      setFailure(text);
-      onFlash({ tone: "err", text });
+      if (attempt.current()) {
+        const text = nativeError(errorText(error), credentials);
+        setFailure(text);
+        onFlash({ tone: "err", text });
+      }
     } finally {
-      setBusy(false);
-      onChanged(controller.load());
+      try {
+        if (attempt.current()) {
+          setBusyOwner(null);
+          const next = controller.load();
+          if (attempt.current()) onChanged(next);
+        }
+      } finally {
+        attempt.finish();
+      }
     }
   }
   return {
@@ -301,6 +316,54 @@ function NoMethodStatus({
   );
 }
 
+function NativeFormCommit({
+  props,
+  model,
+  missing,
+}: {
+  props: Props;
+  model: ReturnType<typeof useNativeForm>;
+  missing: NativeField | undefined;
+}) {
+  const { descriptor } = props;
+  return model.method || props.authorization?.current() ? (
+    <FormCommit
+      label={
+        model.method
+          ? nativeFormLabel(model.method, props.view, descriptor.name)
+          : `Sign in to ${descriptor.name}`
+      }
+      busy={model.busy}
+      disabled={
+        model.busy ||
+        model.iconBusy ||
+        !model.method?.available ||
+        !!missing ||
+        !model.name.trim()
+      }
+    >
+      {model.method ? (
+        <NativeFormStatus
+          method={model.method}
+          missing={missing}
+          failure={model.failure}
+        />
+      ) : (
+        <NoMethodStatus descriptor={descriptor} />
+      )}
+      <NativeCancelSignIn
+        busy={model.busy}
+        method={model.method}
+        view={props.view}
+        onCancel={props.controller.cancelAuthorization}
+        authorization={props.authorization}
+      />
+    </FormCommit>
+  ) : (
+    <NoMethodStatus descriptor={descriptor} />
+  );
+}
+
 export function NativeConnectorForm(props: Props) {
   const model = useNativeForm(props);
   const { descriptor } = props;
@@ -361,33 +424,7 @@ export function NativeConnectorForm(props: Props) {
           </>
         ) : null}
       </fieldset>
-      {model.method ? (
-        <FormCommit
-          label={nativeFormLabel(model.method, props.view, descriptor.name)}
-          busy={model.busy}
-          disabled={
-            model.busy ||
-            model.iconBusy ||
-            !model.method.available ||
-            !!missing ||
-            !model.name.trim()
-          }
-        >
-          <NativeFormStatus
-            method={model.method}
-            missing={missing}
-            failure={model.failure}
-          />
-        </FormCommit>
-      ) : (
-        <NoMethodStatus descriptor={descriptor} />
-      )}
-      <NativeCancelSignIn
-        busy={model.busy}
-        method={model.method}
-        view={props.view}
-        onCancel={props.controller.cancelAuthorization}
-      />
+      <NativeFormCommit props={props} model={model} missing={missing} />
       <NativeConfigurationLinks descriptor={descriptor} />
     </form>
   );

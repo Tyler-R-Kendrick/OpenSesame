@@ -14,36 +14,72 @@ type HttpBackendMode = Exclude<
   SecretBackendMode,
   "local" | "file-import" | "credential-management"
 >;
+type LocalBackendMode = Exclude<SecretBackendMode, HttpBackendMode>;
+
+async function localBackend(mode: LocalBackendMode, check: () => void) {
+  switch (mode) {
+    case "local": {
+      const module = await import("./local.js");
+      check();
+      return module.createLocalVaultBackend();
+    }
+    case "file-import": {
+      const module = await import("./file-import.js");
+      check();
+      return module.createFileImportBackend();
+    }
+    case "credential-management": {
+      const module = await import("./credential-management.js");
+      check();
+      return module.createCredentialManagementBackend();
+    }
+  }
+}
 
 async function httpBackend(
   mode: HttpBackendMode,
   transport: SecretBackendTransport,
 ): Promise<SecretBackend> {
   switch (mode) {
-    case "onepassword-connect":
-      return (await import("./onepassword.js")).createOnePasswordConnectBackend(
-        transport.fetch,
-      );
-    case "bitwarden-api":
-      return (await import("./bitwarden.js")).createBitwardenApiBackend(
-        transport.fetch,
-      );
-    case "bitwarden-secrets":
-      return (
-        await import("./bitwarden-secrets.js")
-      ).createBitwardenSecretsBackend(
+    case "onepassword-sdk": {
+      const [module, loader] = await Promise.all([
+        import("./onepassword-sdk.js"),
+        import("./onepassword-sdk-loader.js"),
+      ]);
+      transport.assertCurrent();
+      const assets = loader.onePasswordBrowserAssets();
+      transport.assertCurrent();
+      return module.createOnePasswordSdkBackend(assets, transport);
+    }
+    case "onepassword-connect": {
+      const module = await import("./onepassword.js");
+      transport.assertCurrent();
+      return module.createOnePasswordConnectBackend(transport.fetch);
+    }
+    case "bitwarden-api": {
+      const module = await import("./bitwarden.js");
+      transport.assertCurrent();
+      return module.createBitwardenApiBackend(transport.fetch);
+    }
+    case "bitwarden-secrets": {
+      const module = await import("./bitwarden-secrets.js");
+      transport.assertCurrent();
+      return module.createBitwardenSecretsBackend(
         transport.fetch,
         undefined,
         transport.signal,
       );
-    case "infisical":
-      return (await import("./infisical.js")).createInfisicalBackend(
-        transport.fetch,
-      );
-    case "passwordstate":
-      return (await import("./passwordstate.js")).createPasswordstateBackend(
-        transport.fetch,
-      );
+    }
+    case "infisical": {
+      const module = await import("./infisical.js");
+      transport.assertCurrent();
+      return module.createInfisicalBackend(transport.fetch);
+    }
+    case "passwordstate": {
+      const module = await import("./passwordstate.js");
+      transport.assertCurrent();
+      return module.createPasswordstateBackend(transport.fetch);
+    }
   }
 }
 
@@ -51,16 +87,28 @@ async function httpBackend(
 export async function createSecretBackend(
   mode: SecretBackendMode,
   assertCurrent?: () => void,
+  ownerSignal?: AbortSignal,
 ): Promise<SecretBackend> {
+  const check = () => {
+    if (ownerSignal?.aborted)
+      throw new SecretBackendError("stale", "The backend operation ended.");
+    assertCurrent?.();
+    if (ownerSignal?.aborted)
+      throw new SecretBackendError("stale", "The backend operation ended.");
+  };
+  check();
   switch (mode) {
     case "local":
-      return (await import("./local.js")).createLocalVaultBackend();
     case "file-import":
-      return (await import("./file-import.js")).createFileImportBackend();
-    case "credential-management":
-      return (
-        await import("./credential-management.js")
-      ).createCredentialManagementBackend();
+    case "credential-management": {
+      const backend = await localBackend(mode, check);
+      check();
+      return fenceSecretBackend(backend, {
+        signal: ownerSignal ?? new AbortController().signal,
+        assertCurrent: check,
+      });
+    }
+    case "onepassword-sdk":
     case "onepassword-connect":
     case "bitwarden-api":
     case "bitwarden-secrets":
@@ -69,6 +117,7 @@ export async function createSecretBackend(
       const transport = guardSecretBackendTransport(
         secretBackendTransport(),
         assertCurrent,
+        ownerSignal,
       );
       const backend = await httpBackend(mode, transport);
       transport.assertCurrent();

@@ -6,6 +6,15 @@ type SessionState<T> = {
   nativeLifetime?: AbortSignal;
   detach(): void;
 };
+type SessionClosure = "removed" | "provider-ended";
+const closures = new WeakMap<SecretBackendSession, SessionClosure>();
+
+/** Safe metadata for the exact original handle, never another source of authority. */
+export function secretBackendSessionClosure(
+  session: SecretBackendSession,
+): SessionClosure | null {
+  return closures.get(session) ?? null;
+}
 
 function disconnected(): SecretBackendError {
   return new SecretBackendError(
@@ -19,14 +28,23 @@ export function createSecretBackendSessions<T extends object>(
   backendId: string,
 ) {
   const states = new WeakMap<SecretBackendSession, SessionState<T>>();
-  const remove = (session: SecretBackendSession): void => {
+  const retire = (
+    session: SecretBackendSession,
+    reason: SessionClosure,
+  ): void => {
     const held = states.get(session);
     if (!held) return;
     // Reentrant observers must lose both authority and the external subscription first.
     states.delete(session);
     held.detach();
+    closures.set(
+      session,
+      held.nativeLifetime?.aborted ? "provider-ended" : reason,
+    );
     held.lifetime.abort();
   };
+  const remove = (session: SecretBackendSession): void =>
+    retire(session, "removed");
   return {
     create(state: T, nativeLifetime?: AbortSignal): SecretBackendSession {
       if (nativeLifetime?.aborted) throw disconnected();
@@ -43,7 +61,7 @@ export function createSecretBackendSessions<T extends object>(
         configurable: false,
       });
       Object.freeze(session);
-      const terminate = () => remove(session);
+      const terminate = () => retire(session, "provider-ended");
       const held = {
         state,
         lifetime,
@@ -60,7 +78,7 @@ export function createSecretBackendSessions<T extends object>(
         )
           throw disconnected();
       } catch {
-        remove(session);
+        retire(session, "provider-ended");
         throw disconnected();
       }
       return session;
@@ -68,7 +86,7 @@ export function createSecretBackendSessions<T extends object>(
     read(session: SecretBackendSession): T {
       const held = states.get(session);
       if (held?.nativeLifetime?.aborted) {
-        remove(session);
+        retire(session, "provider-ended");
         throw disconnected();
       }
       if (!held || session.backendId !== backendId) throw disconnected();

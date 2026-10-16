@@ -9,10 +9,15 @@ export async function secretBackendVaultGuard() {
   const { vaultStore } = await import("../vault/store.js");
   const guard = localVaultSessionGuard(vaultStore);
   const snapshot = guard.current();
+  const lifetime = new AbortController();
   let invalidated: (() => void) | undefined;
-  const unsubscribe = vaultStore.onLock(() => invalidated?.());
+  const unsubscribe = vaultStore.onLock(() => {
+    lifetime.abort();
+    invalidated?.();
+  });
   const current = () => {
     try {
+      if (lifetime.signal.aborted) return false;
       guard.current();
       return true;
     } catch {
@@ -21,17 +26,52 @@ export async function secretBackendVaultGuard() {
   };
   return {
     current,
+    signal: lifetime.signal,
     tomb: snapshot.tomb,
     guest: snapshot.guest,
     close() {
-      guard.close();
+      lifetime.abort();
       unsubscribe();
+      guard.close();
     },
     onInvalidated(callback: () => void) {
       invalidated = callback;
       if (!current()) callback();
     },
   };
+}
+
+/** Cancellation withdraws the result owner without waiting for cleanup to settle. */
+export function awaitSecretBackendOwner<T>(
+  operation: Promise<T>,
+  signal: AbortSignal,
+  discard?: (result: T) => Promise<void>,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => {
+      signal.removeEventListener("abort", abort);
+      reject(new SecretBackendError("stale", "The backend operation ended."));
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    operation.then(
+      (result) => {
+        signal.removeEventListener("abort", abort);
+        if (signal.aborted) {
+          if (discard)
+            void Promise.resolve()
+              .then(() => discard(result))
+              .catch(() => undefined);
+          abort();
+        } else resolve(result);
+      },
+      (error) => {
+        signal.removeEventListener("abort", abort);
+        if (signal.aborted) abort();
+        else reject(error);
+      },
+    );
+  });
 }
 
 export function guardedSecretBackend(
