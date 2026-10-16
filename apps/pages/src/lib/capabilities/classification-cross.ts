@@ -143,6 +143,7 @@ export const CROSS_RULES = [
   ...[
     "hosted-inference",
     "saved-model-agent",
+    "azure-saved-model-agent",
     "hosted-model-protocol",
     "hosted-model.test-support",
   ].map((name) =>
