@@ -26,7 +26,7 @@ impl EnrollEntryMethod {
 ///
 /// Refuses when no OS secure prompt is available (headless / unsupported host).
 pub fn confirm_enrollment() -> anyhow::Result<EnrollEntryMethod> {
-    if try_secure_prompt()? {
+    if try_secure_prompt() {
         return Ok(EnrollEntryMethod::SecurePrompt);
     }
     anyhow::bail!(
@@ -34,7 +34,7 @@ pub fn confirm_enrollment() -> anyhow::Result<EnrollEntryMethod> {
     );
 }
 
-fn try_secure_prompt() -> anyhow::Result<bool> {
+fn try_secure_prompt() -> bool {
     if cfg!(target_os = "macos") {
         return macos_secure_prompt();
     }
@@ -44,11 +44,11 @@ fn try_secure_prompt() -> anyhow::Result<bool> {
     if cfg!(target_os = "windows") {
         return windows_secure_prompt();
     }
-    Ok(false)
+    false
 }
 
 #[cfg(target_os = "macos")]
-fn macos_secure_prompt() -> anyhow::Result<bool> {
+fn macos_secure_prompt() -> bool {
     let script = r#"display dialog "Enroll the OpenSesame daemon CLI root trust key on this Mac?" buttons {"Cancel", "Enroll"} default button "Enroll" with title "OpenSesame" with icon caution"#;
     let output = Command::new("osascript")
         .args(["-e", script])
@@ -56,36 +56,35 @@ fn macos_secure_prompt() -> anyhow::Result<bool> {
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .output();
-    match output {
-        Ok(out) if out.status.success() => Ok(true),
-        Ok(_) => Ok(false),
-        Err(_) => Ok(false),
-    }
+    matches!(
+        output,
+        Ok(out) if out.status.success()
+    )
 }
 
 #[cfg(not(target_os = "macos"))]
-fn macos_secure_prompt() -> anyhow::Result<bool> {
-    Ok(false)
+fn macos_secure_prompt() -> bool {
+    false
 }
 
 #[cfg(target_os = "linux")]
-fn linux_secure_prompt() -> anyhow::Result<bool> {
-    if systemd_ask_password()? {
-        return Ok(true);
+fn linux_secure_prompt() -> bool {
+    if systemd_ask_password() {
+        return true;
     }
-    if zenity_question()? {
-        return Ok(true);
+    if zenity_question() {
+        return true;
     }
-    Ok(false)
+    false
 }
 
 #[cfg(not(target_os = "linux"))]
-fn linux_secure_prompt() -> anyhow::Result<bool> {
-    Ok(false)
+fn linux_secure_prompt() -> bool {
+    false
 }
 
 #[cfg(target_os = "linux")]
-fn systemd_ask_password() -> anyhow::Result<bool> {
+fn systemd_ask_password() -> bool {
     let output = Command::new("systemd-ask-password")
         .args([
             "--icon=dialog-password",
@@ -95,21 +94,21 @@ fn systemd_ask_password() -> anyhow::Result<bool> {
         .stdout(Stdio::null())
         .stderr(Stdio::inherit())
         .status();
-    match output {
-        Ok(status) if status.success() => Ok(true),
-        _ => Ok(false),
-    }
+    matches!(
+        output,
+        Ok(status) if status.success()
+    )
 }
 
 #[cfg(not(target_os = "linux"))]
-fn systemd_ask_password() -> anyhow::Result<bool> {
-    Ok(false)
+fn systemd_ask_password() -> bool {
+    false
 }
 
 #[cfg(target_os = "linux")]
-fn zenity_question() -> anyhow::Result<bool> {
+fn zenity_question() -> bool {
     if std::env::var_os("DISPLAY").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_none() {
-        return Ok(false);
+        return false;
     }
     let output = Command::new("zenity")
         .args([
@@ -123,19 +122,19 @@ fn zenity_question() -> anyhow::Result<bool> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
-    match output {
-        Ok(status) if status.success() => Ok(true),
-        _ => Ok(false),
-    }
+    matches!(
+        output,
+        Ok(status) if status.success()
+    )
 }
 
 #[cfg(not(target_os = "linux"))]
-fn zenity_question() -> anyhow::Result<bool> {
-    Ok(false)
+fn zenity_question() -> bool {
+    false
 }
 
 #[cfg(target_os = "windows")]
-fn windows_secure_prompt() -> anyhow::Result<bool> {
+fn windows_secure_prompt() -> bool {
     let script = r#"
 Add-Type -AssemblyName System.Windows.Forms
 $result = [System.Windows.Forms.MessageBox]::Show(
@@ -152,13 +151,13 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) { exit 0 } else { exit 
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
-    match output {
-        Ok(status) if status.success() => Ok(true),
-        _ => Ok(false),
-    }
+    matches!(
+        output,
+        Ok(status) if status.success()
+    )
 }
 
 #[cfg(not(target_os = "windows"))]
-fn windows_secure_prompt() -> anyhow::Result<bool> {
-    Ok(false)
+fn windows_secure_prompt() -> bool {
+    false
 }
