@@ -68,6 +68,14 @@ function fields(fixture, entry) {
     baseUrl: entry.mount ? `${fixture.origin}${entry.mount}` : fixture.baseUrl,
   };
 }
+async function datedTokenParameter(page, select = false) {
+  const summary = page.getByText("Connection setup", { exact: true });
+  if ((await summary.locator("..").getAttribute("open")) === null)
+    await summary.click();
+  const field = page.getByLabel("Output token parameter", { exact: true });
+  if (select) await field.selectOption("max_tokens");
+  await expect(field).toHaveValue("max_tokens");
+}
 async function configure(page, fixture, entry, name, check, width) {
   const form = fields(fixture, entry);
   await page.getByLabel("Connection name", { exact: true }).fill(name);
@@ -81,6 +89,7 @@ async function configure(page, fixture, entry, name, check, width) {
       .getByLabel("Authentication", { exact: true })
       .selectOption("api-key");
   await page.getByLabel(form.keyLabel, { exact: true }).fill(form.key);
+  if (entry.dated) await datedTokenParameter(page, true);
   const before = fixture.requests.length;
   await page
     .getByRole("button", { name: "Test AI connection", exact: true })
@@ -160,6 +169,7 @@ async function chooseAndColdReload(
     form.model,
   );
   await expect(page.getByLabel(form.keyLabel, { exact: true })).toHaveValue("");
+  if (entry.dated) await datedTokenParameter(page);
   return selected;
 }
 
