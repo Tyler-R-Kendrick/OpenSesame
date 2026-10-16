@@ -53,6 +53,15 @@ pub(crate) struct CredentialWire {
     secret: Zeroizing<String>,
 }
 
+impl CredentialWire {
+    pub(crate) fn new(connection_ref: String, secret: Zeroizing<String>) -> Self {
+        Self {
+            connection_ref,
+            secret,
+        }
+    }
+}
+
 impl std::fmt::Debug for CredentialWire {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CredentialWire")
@@ -94,6 +103,21 @@ enum Credential {
     /// The plugin has no egress rule for the provider. Nothing can serve it, so
     /// nothing is read and nothing is stored for it.
     Unserved,
+}
+
+/// Whether this process must read the connection's token from the sealed
+/// store for the plugin to redeem (as opposed to the plugin drawing one
+/// from a local tool, or brokering the provider not at all).
+pub(crate) fn needs_stored_credential(provider_id: &str) -> bool {
+    credential_of(provider_id) == Credential::Stored
+}
+
+/// Whether the plugin has any credential to place for `provider_id` — a
+/// local tool's, or the connection's own from the store. The plugin still
+/// refuses a provider it has no egress rule for; this only says the run is
+/// worth starting.
+pub(crate) fn has_credential_source(provider_id: &str) -> bool {
+    credential_of(provider_id) != Credential::Unserved
 }
 
 fn credential_of(provider_id: &str) -> Credential {

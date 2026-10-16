@@ -1,11 +1,16 @@
 //! Portable environment template parsing and safe projection.
+
+pub use super::broker::{
+    broker_bounded_prefix, broker_http_method, broker_plan, broker_target, BrokerEntry,
+    BrokerTarget,
+};
 use serde_json::Value;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Line {
     Literal(String),
     Reference { name: String, reference: String },
 }
-fn valid_name(name: &str) -> bool {
+pub(super) fn valid_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars
         .next()

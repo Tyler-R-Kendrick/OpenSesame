@@ -56,7 +56,7 @@ pub(super) fn entry_field(secret: &str, trailer: &str, field: &str) -> Option<St
     meta["values"][field].as_str().map(str::to_string)
 }
 
-struct LocalVault {
+pub(super) struct LocalVault {
     tombs: HashMap<
         String,
         (
@@ -67,7 +67,13 @@ struct LocalVault {
 }
 
 impl LocalVault {
-    fn resolve(&mut self, reference: &str) -> anyhow::Result<Zeroizing<String>> {
+    pub(super) fn new() -> Self {
+        Self {
+            tombs: HashMap::new(),
+        }
+    }
+
+    pub(super) fn resolve(&mut self, reference: &str) -> anyhow::Result<Zeroizing<String>> {
         let (vault, item, field) = core::parse_os_reference(reference)?;
         if !self.tombs.contains_key(&vault) {
             let opened = crate::store::open_unlocked(None, Some(&vault))
