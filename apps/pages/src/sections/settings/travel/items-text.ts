@@ -15,12 +15,7 @@ import type {
   ItemsReturnReceipt,
 } from "@opensesame/app-core/lib/travel/index.js";
 import { cannotBeHidden } from "@opensesame/app-core/lib/travel/index.js";
-import {
-  type VaultItem,
-  itemTypeId,
-  listedItems,
-  typeLabel,
-} from "@opensesame/vault-core";
+import { type VaultItem, itemTypeId, typeLabel } from "@opensesame/vault-core";
 import { type TravelNotice, plural, travelRefusalText } from "./TravelViews.js";
 
 const COPY_TEXT = {
@@ -65,7 +60,7 @@ export function itemsReturnRefusalText(code: string): string {
 
 /** What can be chosen: live items that can leave whole. */
 export function hideableItems(items: readonly VaultItem[]): VaultItem[] {
-  return listedItems(items).filter(
+  return items.filter(
     (item) => item.deletedAt === null && !cannotBeHidden(item),
   );
 }
