@@ -7,7 +7,7 @@
  * it navigates to the page, points at the section heading, and says in a
  * closing step what a connection holds. None of them depends on the feature
  * it extends being on. The sections that already have a task-shaped tour —
- * Backups — are not repeated here; `INTEGRATION_TUTORIALS` below says
+ * Backups and AI — are not repeated here; `INTEGRATION_TUTORIALS` below says
  * which tutorial an integration opens. The switches are Settings › Features,
  * and `feature-goals.ts` tours those.
  *
@@ -110,6 +110,24 @@ export const INTEGRATION_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "integration.local-storage",
+    title: "Connect a local store",
+    routes: ["/settings"],
+    libraryOnly: true,
+    guide: [
+      "guide/1",
+      'goal "integration.local-storage"',
+      'say "Local storage lists the stores that live on this device or next to it — KeePass, the system keychain, a password-store directory and the sealed local store."',
+      'navigate "/settings/integrations"',
+      'wait route "/settings/integrations" timeout=15000',
+      'scroll "integration.local-storage"',
+      'focus "integration.local-storage" "The Local storage section. Each tile opens that store\'s page." side=bottom',
+      'say "A local store is read on this device. Nothing about it is sent to a provider."',
+      'success "That is Local storage."',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "integration.payments",
     title: "Connect a payment provider",
     routes: ["/settings"],
@@ -124,23 +142,6 @@ export const INTEGRATION_GOALS: readonly GuideGoalDescriptor[] = [
       'focus "integration.payments" "The Payments section. Each tile opens a provider\'s page, where it is connected by reference." side=bottom',
       'say "Nothing is sent to a provider until you connect it, and its credential is sealed in the vault."',
       'success "That is Payment providers."',
-      "end",
-    ].join("\n"),
-  },
-  {
-    id: "integration.ai",
-    title: "Connect an AI provider",
-    routes: ["/settings"],
-    libraryOnly: true,
-    guide: [
-      "guide/1",
-      'goal "integration.ai"',
-      'navigate "/settings/integrations"',
-      'wait route "/settings/integrations" timeout=15000',
-      'scroll "integration.ai"',
-      'focus "integration.ai" "Connect an agent harness or AI model provider here. Voice and inference model choices are in Settings › Features › AI." side=bottom',
-      'say "A provider connection holds its configuration and a credential sealed in this vault. Nothing is sent until you connect it."',
-      'success "That is AI providers."',
       "end",
     ].join("\n"),
   },
@@ -175,7 +176,8 @@ export const INTEGRATION_TUTORIALS = {
   backups: "settings.backup",
   "password-managers": "integration.password-managers",
   "cloud-secret-storage": "integration.cloud-secret-storage",
+  "local-storage": "integration.local-storage",
   payments: "integration.payments",
-  ai: "integration.ai",
+  ai: "settings.model-provider",
   networking: "integration.networking",
 } as const satisfies Readonly<Record<IntegrationId, string>>;

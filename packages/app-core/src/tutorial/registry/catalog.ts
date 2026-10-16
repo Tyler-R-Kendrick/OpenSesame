@@ -87,7 +87,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.model-provider",
     description:
-      "Under AI on Settings › Features, while the on-device model feature is on: two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
+      "Under AI on Settings › Integrations, while the AI feature is on: two provider/model slug picks — voice and general inference — from Agent Harnesses connections and built-in local/browser options.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "model_plane.choose",
