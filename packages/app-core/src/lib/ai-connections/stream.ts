@@ -1,5 +1,6 @@
 import { isJsonObject, isString } from "@opensesame/os-domain";
 import type { BoundaryValue } from "@opensesame/os-domain";
+import { aiCompletionSeams } from "./http.js";
 import { AiConnectionError, type AiInferenceFamily } from "./types.js";
 
 function malformed(): AiConnectionError {
@@ -164,10 +165,17 @@ export async function readAiTextStream(
     if (pending.trim()) consume(pending);
     if (!completed || !answer.trim()) throw malformed();
     check();
-    return answer;
   } finally {
     signal.removeEventListener("abort", abort);
     await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
+  aiCompletionSeams.observe?.({
+    phase: "body",
+    response,
+    owner: check,
+    bytes,
+    format: "sse",
+  });
+  return answer;
 }
