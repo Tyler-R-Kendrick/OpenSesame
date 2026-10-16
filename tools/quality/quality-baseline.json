@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 416,
-    "violations": 643,
-    "oversizedLines": 211778
+    "files": 419,
+    "violations": 646,
+    "oversizedLines": 213096
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1451
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1585
+      "max-lines": 1586
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -227,6 +227,9 @@
     "crates/ceremony/src/capture.rs": {
       "max-lines": 506
     },
+    "crates/cli-app-integration/src/root_enroll/protocol_tests.rs": {
+      "max-lines": 463
+    },
     "crates/connection-broker/src/catalog.rs": {
       "max-lines": 763
     },
@@ -296,6 +299,12 @@
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
     },
+    "crates/daemon/src/cli_app_integration/root_enroll_tests.rs": {
+      "max-lines": 431
+    },
+    "crates/daemon/src/cli_app_integration/tests/persona_r7.rs": {
+      "max-lines": 420
+    },
     "crates/daemon/src/cli_probe.rs": {
       "max-lines": 700
     },
@@ -303,7 +312,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1332
+      "max-lines": 1335
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
