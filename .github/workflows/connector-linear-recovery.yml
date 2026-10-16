@@ -25,7 +25,6 @@ jobs:
       PAGES_DEPLOYMENT_PROFILE: shared_origin_demo
       PAGES_CANONICAL_ORIGIN: https://tyler-r-kendrick.github.io
       PAGES_HEADER_SECURITY: '0'
-      PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors-arm
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -40,6 +39,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export PAGES_VERIFY_OUT="$RUNNER_TEMP/self-hosted-connectors-arm"
+          printf 'PAGES_VERIFY_OUT=%s\n' "$PAGES_VERIFY_OUT" >> "$GITHUB_ENV"
           mkdir -p "$PAGES_VERIFY_OUT"
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_HEAD"
           git rev-parse HEAD > "$PAGES_VERIFY_OUT/source-head.txt"
