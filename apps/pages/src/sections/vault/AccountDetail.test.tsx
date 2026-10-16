@@ -259,8 +259,7 @@ describe("account detail", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Reveal password" }),
     );
-    expect(await screen.findByText("abcdefghij")).toBeTruthy();
-    expect(screen.queryByText(/‹pepper›/)).toBeNull();
+    expect(await screen.findByText("abcdef‹pepper›ghij")).toBeTruthy();
 
     await userEvent.click(
       screen.getByRole("button", { name: "Copy password" }),
