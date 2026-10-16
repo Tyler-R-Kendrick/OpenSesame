@@ -12,6 +12,8 @@ without running a backend.
 [Decisions](docs/adr/README.md) ·
 [Security](docs/security/README.md)
 
+**Status:** Pre-release / early stage. APIs and behavior may change.
+
 ---
 
 ## The idea in one paragraph
@@ -140,11 +142,17 @@ pnpm verify           # the full local gate: all of the above, Clippy, anti-slop
 
 What each gate enforces and why: [contributing](docs/contributing/README.md).
 
+## AI usage disclosure
+
+Coding agents are used under human review. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md), then [`AGENTS.md`](AGENTS.md) — it is
 the canonical rulebook for humans and coding agents alike, and its design rules
 gate merges. Consequential decisions get an [ADR](docs/adr/README.md).
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), [GOVERNANCE.md](GOVERNANCE.md),
+and [SECURITY.md](SECURITY.md).
 
 ## Security
 
