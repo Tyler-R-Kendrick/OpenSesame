@@ -26,7 +26,6 @@ import type {
   ModuleId,
   WorkerVariant,
 } from "@opensesame/capability-composition";
-import tailscaleArtifacts from "./tailscale-artifacts.json";
 
 export type ModuleOwnership = Readonly<{
   /** Repo path under apps/pages of the module's entry source. */
@@ -106,9 +105,6 @@ export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
 export const PUBLIC_FILE_OWNERSHIP: Readonly<
   Record<string, CapabilityId | null>
 > = Object.freeze({
-  [tailscaleArtifacts.assets.wasm]: "networking.tailnet",
-  [tailscaleArtifacts.assets.runtime]: "networking.tailnet",
-  [tailscaleArtifacts.assets.license]: "networking.tailnet",
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
@@ -135,9 +131,6 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
  */
 export const GENERATED_PUBLIC_FILES: Readonly<Record<string, string>> =
   Object.freeze({
-    [tailscaleArtifacts.assets.wasm]: "scripts/tailscale-wasm-assets.mjs",
-    [tailscaleArtifacts.assets.runtime]: "scripts/tailscale-wasm-assets.mjs",
-    [tailscaleArtifacts.assets.license]: "scripts/tailscale-wasm-assets.mjs",
     "auth/native-client.json": "scripts/native-client-metadata-plugin.mjs",
     ".well-known/**": "scripts/write-authenticator-associations.mjs",
     // Emitted during the Vite build, for every deployment that can say which

@@ -27,8 +27,6 @@ import {
   PASSWORD_RESET_MAIL_PURPOSE,
   REMOTE_MODEL_EGRESS_PURPOSE,
   TAILNET_DEVICES_PURPOSE,
-  TAILSCALE_BROWSER_NODE_PURPOSE,
-  TAILSCALE_BROWSER_PEER_PURPOSE,
   WEB_PUSH_ENROLMENT_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import {
@@ -67,8 +65,6 @@ const catalogConstants: ReadonlyMap<string, string> = new Map(
     PWNED_PURPOSE,
     REMOTE_MODEL_EGRESS_PURPOSE,
     TAILNET_DEVICES_PURPOSE,
-    TAILSCALE_BROWSER_NODE_PURPOSE,
-    TAILSCALE_BROWSER_PEER_PURPOSE,
     TWO_FACTOR_PURPOSE,
     WEB_PUSH_ENROLMENT_PURPOSE,
   }),
@@ -331,22 +327,6 @@ describe("shapes that must fail", () => {
 });
 
 describe("shapes that must pass", () => {
-  it.each(["TAILSCALE_BROWSER_NODE_PURPOSE", "TAILSCALE_BROWSER_PEER_PURPOSE"])(
-    "%s belongs to Networking and is refused under another capability",
-    (purpose) => {
-      const source = `import { ${purpose} } from "${CATALOG}";`;
-      expect(
-        verdicts(
-          `${source} egress.decide(u, { capability: "networking.tailnet", purpose: ${purpose} });`,
-        ),
-      ).toEqual([]);
-      expect(
-        verdicts(
-          `${source} egress.decide(u, { capability: "connectors.external", purpose: ${purpose} });`,
-        ),
-      ).toEqual([`connectors.external does not declare ${purpose}`]);
-    },
-  );
   it("admits native provider operations only under their owning capability", () => {
     const source = `import { NATIVE_PROVIDER_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";`;
     expect(
