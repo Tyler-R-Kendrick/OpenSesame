@@ -6,12 +6,12 @@
 //! an agent cannot, and that the ciphertext actually reaches git — the three
 //! things the feature exists to do.
 
-use std::io::Read;
-use std::os::unix::io::FromRawFd;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 
 mod cli_app_integration_mock;
+#[cfg(unix)]
+mod terminal_person;
 
 const PASSPHRASE: &str = "correct horse battery staple";
 
@@ -42,53 +42,6 @@ fn run(store: &Path, args: &[&str]) -> Output {
     command(store, args)
         .output()
         .expect("failed to run the opensesame binary")
-}
-
-/// A person at a terminal: stdin and stdout are both the slave side of a pty.
-/// Piped `Command::output` is the agent shape, and the reveal gate refuses it.
-fn run_as_person(store: &Path, args: &[&str]) -> Output {
-    let mut master_fd: libc::c_int = -1;
-    let mut slave_fd: libc::c_int = -1;
-    let opened = unsafe {
-        libc::openpty(
-            &raw mut master_fd,
-            &raw mut slave_fd,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-        )
-    };
-    assert_eq!(opened, 0, "openpty");
-    let master = unsafe { std::fs::File::from_raw_fd(master_fd) };
-    let slave = unsafe { std::fs::File::from_raw_fd(slave_fd) };
-    let slave_in = slave.try_clone().expect("dup slave for stdin");
-    let slave_out = slave.try_clone().expect("dup slave for stdout");
-    drop(slave);
-
-    let mut child = command(store, args)
-        .stdin(Stdio::from(slave_in))
-        .stdout(Stdio::from(slave_out))
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("failed to run the opensesame binary");
-    let stdout_thread = std::thread::spawn(move || {
-        let mut master = master;
-        let mut buf = Vec::new();
-        let _ = master.read_to_end(&mut buf);
-        buf
-    });
-    let mut stderr_pipe = child.stderr.take().expect("stderr");
-    let stderr_thread = std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = stderr_pipe.read_to_end(&mut buf);
-        buf
-    });
-    let status = child.wait().expect("wait for opensesame");
-    Output {
-        status,
-        stdout: stdout_thread.join().expect("stdout thread"),
-        stderr: stderr_thread.join().expect("stderr thread"),
-    }
 }
 
 fn stdout(out: &Output) -> String {
@@ -128,45 +81,30 @@ fn given_a_store_with_a_document() -> Fixture {
     }
 }
 
-#[test]
-fn a_person_can_seal_a_document_and_get_the_same_bytes_back() {
-    let f = given_a_store_with_a_document();
-
-    // When they attach it...
+fn add_document(f: &Fixture, name: &str) -> Output {
     let added = run(
         &f.store,
-        &[
-            "pass",
-            "attach",
-            "add",
-            "Taxes/w2",
-            f.source.to_str().unwrap(),
-        ],
+        &["pass", "attach", "add", name, f.source.to_str().unwrap()],
     );
     assert!(added.status.success(), "attach add failed: {added:?}");
-    assert!(stdout(&added).contains("3 chunk(s)"), "{}", stdout(&added));
+    added
+}
 
-    // ...it shows up as metadata, with no bytes leaked into the listing.
-    let listed = run(&f.store, &["pass", "attach", "ls"]);
-    let listing = stdout(&listed);
-    assert!(listing.contains("Taxes/w2"), "{listing}");
-    assert!(listing.contains("w2.pdf"), "{listing}");
-    assert!(listing.contains("application/pdf"), "{listing}");
-
-    // ...and it comes back byte-for-byte, with a person at the terminal.
+#[cfg(unix)]
+fn assert_revealed_document(f: &Fixture, name: &str) {
     let out = f.store.parent().unwrap().join("recovered.pdf");
-    let got = run_as_person(
+    let got = terminal_person::run(command(
         &f.store,
         &[
             "pass",
             "attach",
             "get",
-            "Taxes/w2",
+            name,
             "--reveal",
             "--out",
             out.to_str().unwrap(),
         ],
-    );
+    ));
     assert!(got.status.success(), "attach get failed: {got:?}");
     assert_eq!(
         std::fs::read(&out).unwrap(),
@@ -176,18 +114,33 @@ fn a_person_can_seal_a_document_and_get_the_same_bytes_back() {
 }
 
 #[test]
+fn a_document_is_sealed_and_listed_as_metadata() {
+    let f = given_a_store_with_a_document();
+
+    // When they attach it...
+    let added = add_document(&f, "Taxes/w2");
+    assert!(stdout(&added).contains("3 chunk(s)"), "{}", stdout(&added));
+
+    // ...it shows up as metadata, with no bytes leaked into the listing.
+    let listed = run(&f.store, &["pass", "attach", "ls"]);
+    let listing = stdout(&listed);
+    assert!(listing.contains("Taxes/w2"), "{listing}");
+    assert!(listing.contains("w2.pdf"), "{listing}");
+    assert!(listing.contains("application/pdf"), "{listing}");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_person_can_reveal_the_same_document_bytes() {
+    let f = given_a_store_with_a_document();
+    add_document(&f, "Taxes/w2");
+    assert_revealed_document(&f, "Taxes/w2");
+}
+
+#[test]
 fn an_agent_cannot_read_a_document_out_of_the_store() {
     let f = given_a_store_with_a_document();
-    run(
-        &f.store,
-        &[
-            "pass",
-            "attach",
-            "add",
-            "Taxes/w2",
-            f.source.to_str().unwrap(),
-        ],
-    );
+    add_document(&f, "Taxes/w2");
 
     // No TTY and no --reveal is exactly the shape of an agent invocation.
     // Off a terminal the gate names that fact before it mentions --reveal.
@@ -215,16 +168,7 @@ fn an_agent_cannot_read_a_document_out_of_the_store() {
 #[test]
 fn sealed_bytes_reach_git_and_local_state_does_not() {
     let f = given_a_store_with_a_document();
-    run(
-        &f.store,
-        &[
-            "pass",
-            "attach",
-            "add",
-            "Taxes/w2",
-            f.source.to_str().unwrap(),
-        ],
-    );
+    add_document(&f, "Taxes/w2");
 
     let tracked = Command::new("git")
         .args(["ls-files"])
@@ -251,16 +195,7 @@ fn sealed_bytes_reach_git_and_local_state_does_not() {
 #[test]
 fn nothing_in_the_store_reveals_the_document() {
     let f = given_a_store_with_a_document();
-    run(
-        &f.store,
-        &[
-            "pass",
-            "attach",
-            "add",
-            "Taxes/w2",
-            f.source.to_str().unwrap(),
-        ],
-    );
+    add_document(&f, "Taxes/w2");
 
     // The plaintext has a long, highly distinctive run; if any of it survived
     // into the store unencrypted, this finds it.
@@ -278,21 +213,9 @@ fn nothing_in_the_store_reveals_the_document() {
     assert!(checked > 3, "expected to have scanned real files");
 }
 
-#[test]
-fn a_dot_named_document_survives_gc_and_reaches_a_replica() {
+fn given_a_gced_dot_document() -> Fixture {
     let f = given_a_store_with_a_document();
-    let added = run(
-        &f.store,
-        &[
-            "pass",
-            "attach",
-            "add",
-            "Dev/.w2",
-            f.source.to_str().unwrap(),
-        ],
-    );
-    assert!(added.status.success(), "attach add failed: {added:?}");
-
+    add_document(&f, "Dev/.w2");
     // Age every chunk past the grace window, so GC would reclaim any chunk it
     // failed to account for.
     let aged = std::time::SystemTime::now() - std::time::Duration::from_secs(2 * 3600);
@@ -322,22 +245,19 @@ fn a_dot_named_document_survives_gc_and_reaches_a_replica() {
         "no referenced chunk may go"
     );
 
-    let out = f.store.parent().unwrap().join("recovered.pdf");
-    let got = run_as_person(
-        &f.store,
-        &[
-            "pass",
-            "attach",
-            "get",
-            "Dev/.w2",
-            "--reveal",
-            "--out",
-            out.to_str().unwrap(),
-        ],
-    );
-    assert!(got.status.success(), "attach get failed: {got:?}");
-    assert_eq!(std::fs::read(&out).unwrap(), payload());
+    f
+}
 
+#[cfg(unix)]
+#[test]
+fn a_person_can_reveal_a_dot_named_document_after_gc() {
+    let f = given_a_gced_dot_document();
+    assert_revealed_document(&f, "Dev/.w2");
+}
+
+#[test]
+fn a_dot_named_document_survives_gc_and_reaches_a_replica() {
+    let f = given_a_gced_dot_document();
     let replica = f.store.parent().unwrap().join("replica");
     let synced = run(
         &f.store,
