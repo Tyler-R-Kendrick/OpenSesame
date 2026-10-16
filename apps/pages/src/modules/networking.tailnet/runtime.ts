@@ -37,7 +37,6 @@ import {
 } from "@opensesame/app-core/lib/tailnet-sync/saved-connector.js";
 import { createActivation } from "../activation.js";
 import { TailnetSyncPanel } from "./TailnetSyncPanel.js";
-import { bindTailscaleBrowserRuntime } from "./browser/runtime.js";
 
 export const CAPABILITY = "networking.tailnet";
 
@@ -115,7 +114,6 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    bindTailscaleBrowserRuntime(ctx, activation);
     activation.onDispose(registerTailnetReader(readSavedTailnet));
 
     activation.register("background-job", {
