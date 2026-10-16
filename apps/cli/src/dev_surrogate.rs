@@ -19,10 +19,6 @@
 //! - **Switched on, but the binary no longer matches its pin, or is gone:**
 //!   the run fails. Falling back silently would mean the person who asked for
 //!   surrogates is running with placeholders and does not know it.
-//!
-//! `password-agent run --agent-proxy` drives the same plugin through
-//! [`brokered`], where broker mode was asked for by name: every outcome
-//! above that keeps placeholders fails that run closed instead.
 
 use std::collections::BTreeMap;
 use std::io::{BufRead, BufReader, Write};
@@ -243,16 +239,40 @@ pub(crate) fn start(
     if !settings.state(PLUGIN_ID, env).is_ok_and(|s| s.active) {
         return Ok(None);
     }
-    let binary = verified_plugin(&settings, env)?;
+    let binary = settings
+        .verified_binary(PLUGIN_ID, env)
+        .map_err(|error| match error {
+            SettingsError::PinMismatch { .. } => anyhow::anyhow!(
+                "the surrogate-proxy plugin no longer matches its install pin; \
+                 reinstall it or run 'opensesame plugins disable surrogate-proxy'"
+            ),
+            other => anyhow::anyhow!("the surrogate-proxy plugin cannot be run: {other}"),
+        })?;
     // Only now, with a plugin that will take them, are passwords and tokens
     // read.
     let credentials = credentials::resolve(&requested, logins)?;
     let logins = login::resolve(&web_logins, logins)?;
     let run_id = format!("dev-{}", uuid::Uuid::new_v4().hyphenated());
     let notices = notices_path(settings_path, PLUGIN_ID)?;
-    let session = spawn_run(&binary, run_id, &requested, &logins, &credentials, &notices)?;
+    let mut line = Zeroizing::new(Vec::new());
+    serde_json::to_writer(
+        &mut *line,
+        &RunSpecWire {
+            run_id: &run_id,
+            ttl_secs: RUN_TTL_SECS,
+            entries: &requested,
+            logins: &logins,
+            credentials: &credentials,
+            passthrough_hosts: [],
+            watched: true,
+            notices_path: &notices,
+        },
+    )?;
     drop(logins);
     drop(credentials);
+    line.push(b'\n');
+    let session = spawn(&binary, &line, run_id)?;
+    drop(line);
     // Nothing this build can broker: the proxy would only refuse the child's
     // traffic, so the run keeps its placeholders (dropping ends the run).
     let served = !web_logins.is_empty()
@@ -266,13 +286,6 @@ pub(crate) fn start(
     }
     Ok(Some(session))
 }
-
-#[path = "dev_surrogate_run.rs"]
-mod run;
-pub(crate) use run::brokered;
-#[cfg(test)]
-use run::start_brokered;
-use run::{spawn_run, verified_plugin};
 
 fn spawn(binary: &Path, line: &[u8], run_id: String) -> anyhow::Result<SurrogateSession> {
     let mut command = Command::new(binary);
@@ -373,7 +386,3 @@ fn await_reply(first: &Receiver<std::io::Result<String>>) -> anyhow::Result<Valu
 #[cfg(test)]
 #[path = "dev_surrogate_tests.rs"]
 pub(crate) mod tests;
-
-#[cfg(test)]
-#[path = "dev_surrogate_broker_tests.rs"]
-mod broker_tests;

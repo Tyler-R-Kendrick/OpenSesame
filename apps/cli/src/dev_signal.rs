@@ -185,7 +185,6 @@ mod other {
         pub(crate) fn release(self, _stopped: bool) {}
     }
 
-    #[allow(clippy::unnecessary_wraps)]
     pub(crate) fn install() -> std::io::Result<Handlers> {
         Ok(Handlers)
     }
