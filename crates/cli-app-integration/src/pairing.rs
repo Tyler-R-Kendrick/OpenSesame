@@ -27,6 +27,15 @@ pub const MAX_LABEL_CHARS: usize = 80;
 pub const PAIRING_CHALLENGE_LEN: usize = 32;
 pub const MAX_PIN_PROOF_FAILURES: u32 = 8;
 
+/// 64 lowercase hex chars — digest of the unlocked vault session root from Pages.
+#[must_use]
+pub fn is_vault_session_root_digest_shaped(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(&b) || (b'a'..=b'f').contains(&b))
+}
+
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum PairingError {
     #[error(
@@ -61,10 +70,22 @@ struct Pending {
     device_public_key_spki_b64: Option<String>,
     registration_code_sha256: Option<String>,
     registration_armed: bool,
+    /// Digest of the unlocked vault session root (Pages only); binds human-proof registration.
+    vault_session_root_digest: Option<String>,
 }
 
 #[derive(Clone, Debug)]
 pub struct WebAuthnCredential {
+    pub credential_id_b64: String,
+    pub public_key_spki_b64: String,
+    pub sign_count: u32,
+}
+
+/// Vault-bound `WebAuthn` registration from the paired page.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WebAuthnRegistration {
+    pub vault_session_root_digest: String,
+    pub human_proof_passkey: String,
     pub credential_id_b64: String,
     pub public_key_spki_b64: String,
     pub sign_count: u32,
@@ -79,6 +100,7 @@ struct PairedPage {
     #[allow(dead_code)]
     paired_at: u64,
     device_public_key_spki_b64: String,
+    vault_session_root_digest: Option<String>,
     webauthn: Option<WebAuthnCredential>,
     pin_proof_failures: u32,
 }
@@ -136,6 +158,7 @@ impl CliAppIntegrationPairings {
             device_public_key_spki_b64: None,
             registration_code_sha256: None,
             registration_armed: false,
+            vault_session_root_digest: None,
         });
         Ok((code, expires_at))
     }
@@ -151,9 +174,17 @@ impl CliAppIntegrationPairings {
         origin: &str,
         device_public_key_spki_b64: &str,
         pairing_signature_b64: &str,
+        vault_session_root_digest: Option<&str>,
         now: u64,
     ) -> Result<ConfirmOutcome, PairingError> {
         if !is_device_public_key_shaped(device_public_key_spki_b64) {
+            return Err(PairingError::InvalidProof);
+        }
+        if let Some(digest) = vault_session_root_digest {
+            if !is_vault_session_root_digest_shaped(digest) {
+                return Err(PairingError::InvalidProof);
+            }
+        } else {
             return Err(PairingError::InvalidProof);
         }
         let verifying_key = parse_verifying_key_spki_b64(device_public_key_spki_b64)
@@ -177,6 +208,7 @@ impl CliAppIntegrationPairings {
         let registration_code = registration_code();
         pending.device_public_key_spki_b64 = Some(device_public_key_spki_b64.to_string());
         pending.registration_code_sha256 = Some(digest_hex(&registration_code));
+        pending.vault_session_root_digest = vault_session_root_digest.map(str::to_string);
         Ok(ConfirmOutcome { registration_code })
     }
 
@@ -254,6 +286,7 @@ impl CliAppIntegrationPairings {
             origin: issued.origin.clone(),
             paired_at: now,
             device_public_key_spki_b64: device_public_key,
+            vault_session_root_digest: pending.vault_session_root_digest.clone(),
             webauthn: None,
             pin_proof_failures: 0,
         });

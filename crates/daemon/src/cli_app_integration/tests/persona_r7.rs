@@ -33,6 +33,7 @@ async fn persona_attack_chain_is_refused() {
                 forged_origin,
                 forged_device_key,
                 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                None,
                 now,
             ),
             Err(PairingError::Unknown | PairingError::InvalidProof | PairingError::WrongOrigin)
@@ -121,7 +122,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     use ecdsa::signature::Signer;
     use opensesame_cli_app_integration::{
         mint_pin_human_proof, mint_test_signing_key, pairing_confirm_message,
-        verifying_key_spki_b64, PairingError,
+        test_support::TEST_VAULT_SESSION_ROOT_DIGEST, verifying_key_spki_b64, PairingError,
     };
     let (app, state) = test_router("http://127.0.0.1:8787");
     let origin = "https://tyler-r-kendrick.github.io";
@@ -157,6 +158,7 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
                 "code": code,
                 "devicePublicKeySpkiB64": attacker_spki,
                 "pairingSignatureB64": sig_b64,
+                "vaultSessionRootDigest": TEST_VAULT_SESSION_ROOT_DIGEST,
             })
             .to_string(),
         ))
@@ -232,7 +234,14 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
     {
         let mut host = state.cli_app_integration.lock().unwrap();
         host.pairings
-            .confirm(&code2, origin, &attacker_spki, &sig2_b64, now)
+            .confirm(
+                &code2,
+                origin,
+                &attacker_spki,
+                &sig2_b64,
+                Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+                now,
+            )
             .expect("confirm2");
         assert!(matches!(
             host.pairings.exchange(&code2, origin, now),

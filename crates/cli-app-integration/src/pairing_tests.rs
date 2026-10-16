@@ -1,4 +1,5 @@
 use super::*;
+use crate::test_support::TEST_VAULT_SESSION_ROOT_DIGEST;
 use base64::Engine as _;
 use ecdsa::signature::Signer;
 use p256::ecdsa::SigningKey;
@@ -41,7 +42,14 @@ fn confirm_then_arm_then_exchange_mints_bearer() {
     let challenge = pairings.pending[0].pairing_challenge;
     let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
     let outcome = pairings
-        .confirm(&code, origin, &spki, &sig, now)
+        .confirm(
+            &code,
+            origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
         .expect("confirm");
     pairings
         .arm_registration(origin, &outcome.registration_code, now)
@@ -65,7 +73,14 @@ fn persona_random_root_shaped_secret_cannot_confirm() {
         .expect("challenge");
     let sig = sign_pairing_confirm(&signing_key, &challenge, &code, forged_origin);
     assert!(matches!(
-        pairings.confirm(&code, forged_origin, &spki, &sig, now),
+        pairings.confirm(
+            &code,
+            forged_origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        ),
         Err(PairingError::WrongOrigin | PairingError::Unknown)
     ));
 }
@@ -80,7 +95,14 @@ fn exchange_requires_operator_armed_registration_every_time() {
     let challenge = pairings.pending[0].pairing_challenge;
     let sig = sign_pairing_confirm(&signing_key, &challenge, &code, origin);
     let outcome = pairings
-        .confirm(&code, origin, &spki, &sig, now)
+        .confirm(
+            &code,
+            origin,
+            &spki,
+            &sig,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
         .expect("confirm");
     assert!(!pairings.pending[0].registration_armed);
     assert!(matches!(
@@ -101,7 +123,14 @@ fn exchange_requires_operator_armed_registration_every_time() {
         origin,
     );
     let outcome2 = pairings
-        .confirm(&code2, origin, &spki, &sig2, now)
+        .confirm(
+            &code2,
+            origin,
+            &spki,
+            &sig2,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
         .expect("confirm second");
     assert!(!pairings.pending.iter().any(|p| p.registration_armed));
     assert!(matches!(

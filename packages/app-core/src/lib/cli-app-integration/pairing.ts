@@ -111,6 +111,7 @@ type PairingConfirmBody = Readonly<{
   code: string;
   devicePublicKeySpkiB64: string;
   pairingSignatureB64: string;
+  vaultSessionRootDigest: string;
 }>;
 
 type PairingExchangeBody = Readonly<{
@@ -160,11 +161,14 @@ export async function confirmCliAppPairingCode(
 ): Promise<CliAppPairingConfirmOutcome | null> {
   const base = daemonBase(parsed.url);
   if (!base) return null;
-  const { pairingConfirmMessage, ensureCliAppDeviceSigningKey } = await import(
-    "./device-crypto.js"
-  );
+  const {
+    pairingConfirmMessage,
+    ensureCliAppDeviceSigningKey,
+    readVaultSessionRootDigestForCliApp,
+  } = await import("./device-crypto.js");
   const device = await ensureCliAppDeviceSigningKey();
-  if (!device) return null;
+  const vaultSessionRootDigest = await readVaultSessionRootDigestForCliApp();
+  if (!device || !vaultSessionRootDigest) return null;
   const challenge = await fetchCliAppPairingChallenge(parsed);
   if (!challenge) return null;
   const message = pairingConfirmMessage(challenge, parsed.code, parsed.origin);
@@ -177,6 +181,7 @@ export async function confirmCliAppPairingCode(
       code: parsed.code,
       devicePublicKeySpkiB64: device.publicKeySpkiB64,
       pairingSignatureB64,
+      vaultSessionRootDigest,
     },
   );
   if (!res.ok) return null;
@@ -190,13 +195,23 @@ async function registerCliAppHumanProofCredential(
   origin: string,
   token: string,
 ): Promise<boolean> {
-  const { ensureCliAppDeviceSigningKey, b64urlEncode } = await import(
-    "./device-crypto.js"
+  const {
+    ensureCliAppApprovalSigningKey,
+    readVaultSessionRootDigestForCliApp,
+    mintCliAppRegisterHumanProof,
+    b64urlEncode,
+  } = await import("./device-crypto.js");
+  const approval = await ensureCliAppApprovalSigningKey();
+  const vaultSessionRootDigest = await readVaultSessionRootDigestForCliApp();
+  if (!approval || !vaultSessionRootDigest) return false;
+  const humanProof = await mintCliAppRegisterHumanProof(
+    approval,
+    token,
+    origin,
+    vaultSessionRootDigest,
   );
-  const device = await ensureCliAppDeviceSigningKey();
-  if (!device) return false;
   const credentialIdB64 = b64urlEncode(
-    new TextEncoder().encode(device.publicKeySpkiB64),
+    new TextEncoder().encode(approval.publicKeySpkiB64),
   );
   const res = await fetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
     method: "POST",
@@ -207,9 +222,11 @@ async function registerCliAppHumanProofCredential(
       Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
+      vaultSessionRootDigest,
+      humanProof,
       credentialIdB64,
-      publicKeySpkiB64: device.publicKeySpkiB64,
-      signCount: 0,
+      publicKeySpkiB64: approval.publicKeySpkiB64,
+      signCount: 1,
     }),
   });
   return res.status === 204;
