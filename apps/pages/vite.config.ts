@@ -149,7 +149,12 @@ function handlePagesDevRequest(
 export default defineConfig({
   test: {
     // The relay's suites under `server/` are `node --test` (`test:relay`).
-    exclude: [...configDefaults.exclude, "server/**"],
+    // The sheet-contract helper is `node --test` as well (Playwright wait).
+    exclude: [
+      ...configDefaults.exclude,
+      "server/**",
+      "scripts/lib/native-browser-catalog-sheet-contract.test.mjs",
+    ],
     testTimeout: 20_000,
     hookTimeout: 20_000,
     setupFiles: ["./src/host/test-setup.ts", "./src/host/test-queries.ts"],
