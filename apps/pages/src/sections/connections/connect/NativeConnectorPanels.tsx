@@ -17,6 +17,7 @@ import { useNativeBridge } from "../../../lib/use-native-bridge.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
 import { NativeConnectorSummary } from "./NativeConnectorSummary.js";
 import { NativeMcpTools } from "./NativeMcpTools.js";
+import { NativeS3BackupControls } from "./NativeS3BackupControls.js";
 import { nativeConnectorController } from "./native-connector-controller.js";
 import { nativeVerified } from "./native-connector-ui-values.js";
 import type { NativeConnectorDescriptor } from "./native-connector-ui.js";
@@ -196,6 +197,19 @@ function actions(
   };
 }
 
+function backupControls(
+  view: NativeConnectorView,
+  onFlash: (flash: Flash) => void,
+) {
+  return view.providerId === "s3" && nativeVerified(view) ? (
+    <NativeS3BackupControls
+      key={`${view.connectionId}/${view.revision}/${view.fingerprint}`}
+      view={view}
+      onFlash={onFlash}
+    />
+  ) : null;
+}
+
 export function NativeConnectorPanels({
   provider,
   connection,
@@ -281,6 +295,7 @@ export function NativeConnectorPanels({
             onRemoved={() => changed(null)}
             authorization={pending.authorization}
           />
+          {backupControls(view, onFlash)}
           {view.configuration.method === "mcp" ? (
             <NativeMcpTools
               view={view}
