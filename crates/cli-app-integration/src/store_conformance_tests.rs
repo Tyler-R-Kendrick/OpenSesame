@@ -80,7 +80,11 @@ fn tcp_transport_consumes_approval_once() {
     assert_eq!(status, "pending");
 }
 
-fn conformance_approve_case(store: &mut CliAppIntegrationStore, scenario: &SessionCase, request_id: &str) {
+fn conformance_approve_case(
+    store: &mut CliAppIntegrationStore,
+    scenario: &SessionCase,
+    request_id: &str,
+) {
     let (respond_nonce, verb, peer_pid, peer_start) = {
         let pending_row = store
             .list_pending()
@@ -143,12 +147,23 @@ fn conformance_pending_expire_case(store: &mut CliAppIntegrationStore, scenario:
         store.set_now_ms(1_000_000 + seconds * 1000);
     }
     assert!(store.list_pending().is_empty(), "case {}", scenario.id);
-    let (status, _) =
-        store.ensure(ensure_params_full(&scenario.terminal_session_id, "read", true, "00", 1, 1, true));
+    let (status, _) = store.ensure(ensure_params_full(
+        &scenario.terminal_session_id,
+        "read",
+        true,
+        "00",
+        1,
+        1,
+        true,
+    ));
     assert_eq!(status, "pending", "case {}", scenario.id);
 }
 
-fn conformance_deny_case(store: &mut CliAppIntegrationStore, scenario: &SessionCase, request_id: &str) {
+fn conformance_deny_case(
+    store: &mut CliAppIntegrationStore,
+    scenario: &SessionCase,
+    request_id: &str,
+) {
     let nonce = store
         .list_pending()
         .into_iter()
@@ -159,8 +174,15 @@ fn conformance_deny_case(store: &mut CliAppIntegrationStore, scenario: &SessionC
         store.deny(request_id, &scenario.terminal_session_id, &nonce),
         "denied"
     );
-    let (status, _) =
-        store.ensure(ensure_params_full(&scenario.terminal_session_id, "read", true, "00", 1, 1, true));
+    let (status, _) = store.ensure(ensure_params_full(
+        &scenario.terminal_session_id,
+        "read",
+        true,
+        "00",
+        1,
+        1,
+        true,
+    ));
     assert_eq!(status, "denied", "case {}", scenario.id);
 }
 

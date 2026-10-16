@@ -248,10 +248,9 @@ impl CliAppIntegrationStore {
         if self.denied.contains(params.terminal_session_id) {
             return ("denied".into(), None);
         }
-        if let Some(outcome) = self.resume_approved_session(
-            params.terminal_session_id,
-            params.reuse_approved_session,
-        ) {
+        if let Some(outcome) =
+            self.resume_approved_session(params.terminal_session_id, params.reuse_approved_session)
+        {
             return outcome;
         }
         self.expire_idle();

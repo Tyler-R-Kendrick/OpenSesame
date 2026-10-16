@@ -12,9 +12,9 @@ use crate::device_crypto::{
     approval_challenge_digest_v3, pairing_confirm_message, webauthn_register_challenge_digest,
     ApprovalChallengeDigestV3,
 };
-use crate::EnsureParams;
 use crate::human_proof::{mint_pin_human_proof, HumanProofContext};
 use crate::pairing::{CliAppIntegrationPairings, PairedBinding, WebAuthnCredential};
+use crate::EnsureParams;
 use ecdsa::signature::Signer;
 
 /// Default [`EnsureParams`] for conformance and security tests.
