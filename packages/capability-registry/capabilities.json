@@ -1197,6 +1197,37 @@
     }
   },
   {
+    "id": "agents.surrogate.agent_proxy_run",
+    "title": "Run a child with scoped surrogates in place of os:// connection credentials through the surrogate-proxy plugin (run --agent-proxy)",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame password-agent run --agent-proxy",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "mcp_client": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "webmcp": {
+        "reason": "a surrogate run brokers a credential: never model-triggered",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      },
+      "pwa": {
+        "reason": "a page spawns no processes",
+        "adr": "0150-surrogate-credentials-at-the-last-hop.md"
+      }
+    }
+  },
+  {
     "id": "plugins.surrogate_proxy.switch",
     "title": "Switch the surrogate proxy plugin on or off on the paired daemon",
     "plane": "host",

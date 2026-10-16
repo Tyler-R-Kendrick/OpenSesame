@@ -151,6 +151,7 @@ export async function runPassword(ctx: ParityContext): Promise<number> {
 export async function runChild(ctx: ParityContext): Promise<number> {
   const { args, agent, child } = ctx;
 
+  const agentProxy = toggle(args, "--agent-proxy");
   const assignments = [];
   while (args.includes("--env"))
     assignments.push(
@@ -171,7 +172,27 @@ export async function runChild(ctx: ParityContext): Promise<number> {
         ),
       ),
     );
+  const paths = [];
+  while (args.includes("--paths"))
+    paths.push(
+      required(
+        option(args, "--paths"),
+        "--paths requires NAME=/prefix[,/prefix...].",
+      ),
+    );
+  const methods = [];
+  while (args.includes("--methods"))
+    methods.push(
+      required(
+        option(args, "--methods"),
+        "--methods requires NAME=GET[,POST...].",
+      ),
+    );
   exhausted(args);
+  if (agentProxy && mounts.length)
+    throw new Error("--agent-proxy cannot be used with --mount.");
+  if (!agentProxy && (paths.length || methods.length))
+    throw new Error("--paths and --methods require --agent-proxy.");
   if (!assignments.length && !mounts.length)
     throw new Error(
       "run requires --env or --mount NAME=op://reference or NAME=os://reference.",
@@ -183,6 +204,7 @@ export async function runChild(ctx: ParityContext): Promise<number> {
     appIntegration: ctx.appIntegration,
   });
   await emitRevealReceipt({ verb: "run" });
+  if (agentProxy) return agent.runBrokered(assignments, child, paths, methods);
   return agent.run(assignments, child, mounts);
 }
 

@@ -1,5 +1,6 @@
 //! Human-operated 1Password parity planning. No guest materialization path.
 pub mod app_integration;
+pub mod broker;
 pub mod discover;
 pub mod env;
 pub mod lease;

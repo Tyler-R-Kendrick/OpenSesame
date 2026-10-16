@@ -93,9 +93,13 @@ scripts — the same `run` wrapper pattern as `op run`, `infisical run`, and
 device's OpenSesame vault (unlocked on the terminal); `--mount NAME=<ref>`
 instead writes the secret to a private temp file for the child's lifetime,
 sets `NAME` to its path, and removes it when the child exits. Injected
-values are masked wherever the child prints them. `env resolve` is deprecated in favor of `env run`. A future
-broker lane (network stand-in swap) extends `run`, not a separate top-level
-command. The selected child receives
+values are masked wherever the child prints them. `env resolve` is deprecated in favor of `env run`. The broker lane
+(network stand-in swap) is a mode of `run`, not a separate top-level command:
+`run --agent-proxy --env NAME=os://… --paths NAME=/prefix --methods NAME=GET`
+gives the child a scoped surrogate for an `os://` item under
+`connections/<org>[/<project>]/<provider>` and never the credential. That lane
+runs in the native `opensesame` CLI with the `surrogate-proxy` plugin
+switched on; this CLI accepts the flags and fails closed. The selected child receives
 injected secrets and
 its exit status is preserved; the provider service token is removed before
 that child starts.

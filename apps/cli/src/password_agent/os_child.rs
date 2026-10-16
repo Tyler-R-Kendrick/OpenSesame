@@ -58,7 +58,7 @@ pub(super) fn materialize_mounts(mounts: &[(String, String)]) -> anyhow::Result<
     })
 }
 
-fn pump_masked<R: Read, W: Write + ?Sized>(
+pub(super) fn pump_masked<R: Read, W: Write + ?Sized>(
     mut reader: R,
     writer: &mut W,
     masker: &mut core::SecretMasker,
