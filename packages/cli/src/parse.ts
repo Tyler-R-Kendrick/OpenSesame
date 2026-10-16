@@ -328,8 +328,8 @@ Commands:
   password <item> --vault <vault> --stdin|--clipboard [--apply]
   read <op://reference|os://reference> [--reveal] [--desktop]
                                Human-only plaintext stdout (TTY, no agent context)
-  run [--env NAME=<ref>...] [--mount NAME=<ref>...] -- <command...>
-                               <ref>: op:// or os:// vault/item/field; --mount sets NAME to a private temp file holding the secret
+  run [--env NAME=<ref>...] [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] -- <command...>
+                               <ref>: op:// or os:// vault/item/field; --mount sets NAME to a private temp file holding the secret; --agent-proxy brokers os:// connections items (native CLI + plugin; this CLI fails closed)
   env write <file> <NAME=op://reference...>
   env resolve <file> --output <file>|--in-place
   env run <file> -- <command...>
