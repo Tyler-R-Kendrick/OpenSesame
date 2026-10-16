@@ -251,7 +251,15 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors
         run: pnpm --filter @opensesame/pages verify:self-hosted-connectors
+      - name: Preserve self-hosted provider evidence
+        if: always() && matrix.shard == 'budgets'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: self-hosted-connectors-${{ github.sha }}
+          path: ${{ runner.temp }}/self-hosted-connectors/
+          if-no-files-found: warn
       - name: Keyboard-only first-load and navigation contract
         if: matrix.shard == 'keyboard'
         env:
