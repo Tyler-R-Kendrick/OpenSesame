@@ -127,6 +127,15 @@ export function isWaveProcessComplete(h, marker, agentType) {
   return true;
 }
 
+/** File has marker-N strict gate satisfied on Kimi or Grok (wave-2 investigate agents). */
+export function fileHasInvestigateWaveStrict(rec, marker = DEFAULT_MARKER) {
+  if (typeof rec !== "object" || rec === null) return false;
+  const hist = rec.analysisHistory ?? [];
+  return WAVE2_INVESTIGATE_AGENTS.some((at) =>
+    hist.some((h) => isWaveProcessComplete(h, marker, at)),
+  );
+}
+
 export function countWaveCompletion(
   repoRoot,
   marker = DEFAULT_MARKER,

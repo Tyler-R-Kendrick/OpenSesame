@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
  * JSON array of file paths for Grok wave-2 (pending grok marker-N, optional tier).
+ * Pending paths without wave-2 strict (Kimi|Grok) are ordered before paths that
+ * already satisfy the strict gate on Kimi (DEEPSEC_GROK_MANIFEST_STRICT_LAST=0 disables).
  * Usage: node deepsec-wave2-grok-manifest.mjs [repoRoot] [marker] [tier]
  *   tier: 1 | 2 | 3 | all (default all)
  */
@@ -8,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   DEFAULT_MARKER,
+  fileHasInvestigateWaveStrict,
   filesRootForRepo,
   isWaveProcessComplete,
   walkJsonFiles,
@@ -27,7 +30,9 @@ function tierFilter(filePath) {
   return grokTierForPath(filePath) === want;
 }
 
-const paths = [];
+const strictLast =
+  process.env.DEEPSEC_GROK_MANIFEST_STRICT_LAST !== "0";
+const entries = [];
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
   if (typeof rec.filePath !== "string") continue;
@@ -35,7 +40,10 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const grokDone = hist.some((h) => isWaveProcessComplete(h, marker, "grok"));
   if (grokDone) continue;
   if (!tierFilter(rec.filePath)) continue;
-  paths.push(rec.filePath);
+  entries.push({
+    filePath: rec.filePath,
+    strict: strictLast && fileHasInvestigateWaveStrict(rec, marker),
+  });
 }
 
 function sourceByteSize(repoRoot, filePath) {
@@ -48,13 +56,19 @@ function sourceByteSize(repoRoot, filePath) {
 }
 
 const sortMode = process.env.DEEPSEC_GROK_MANIFEST_SORT ?? "size";
-if (sortMode === "path") {
-  paths.sort();
-} else {
-  paths.sort(
-    (a, b) =>
-      sourceByteSize(repoRoot, a) - sourceByteSize(repoRoot, b) ||
-      a.localeCompare(b),
+entries.sort((a, b) => {
+  if (strictLast) {
+    const strictDelta = (a.strict ? 1 : 0) - (b.strict ? 1 : 0);
+    if (strictDelta !== 0) return strictDelta;
+  }
+  if (sortMode === "path") {
+    return a.filePath.localeCompare(b.filePath);
+  }
+  return (
+    sourceByteSize(repoRoot, a.filePath) -
+      sourceByteSize(repoRoot, b.filePath) ||
+    a.filePath.localeCompare(b.filePath)
   );
-}
+});
+const paths = entries.map((e) => e.filePath);
 process.stdout.write(`${JSON.stringify(paths)}\n`);

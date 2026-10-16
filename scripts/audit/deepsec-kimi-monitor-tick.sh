@@ -29,6 +29,19 @@ elif [[ "$tick_agent" == "kimi" ]]; then
   fi
 else
   echo "${tick_agent}: ok (wave2 primary)" >>"$LOG"
+  if "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh" 2>>"$LOG"; then
+    if pgrep -f 'deepsec-grok-reinvestigate-wave.sh' >/dev/null \
+      || pgrep -f 'deepsec/dist/cli.mjs process.*--agent grok' >/dev/null; then
+      if ! pgrep -f 'deepsec-wave2-kimi-parallel.sh' >/dev/null \
+        && ! pgrep -f 'deepsec/dist/cli.mjs process.*--agent kimi' >/dev/null; then
+        if ! node "${ROOT}/scripts/audit/deepsec-wave2-progress.mjs" "$ROOT" 2 >/dev/null; then
+          nohup "${ROOT}/scripts/audit/deepsec-wave2-kimi-parallel.sh" \
+            >>/tmp/deepsec-wave2-kimi-parallel.nohup 2>&1 &
+          echo "started kimi-parallel alongside grok $(date -u +%H:%M:%SZ)" >>"$LOG"
+        fi
+      fi
+    fi
+  fi
 fi
 errs=$(cd "$WS" && "$DEEPSEC" status --project-id opensesame 2>/dev/null \
   | grep -E '^[[:space:]]+error:' | head -1 \
