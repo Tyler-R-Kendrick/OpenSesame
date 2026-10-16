@@ -11,6 +11,7 @@ import {
 } from "../vault-credential-custody.js";
 import { aiConnectionBinding, validateAiConnection } from "./configuration.js";
 import { capturedAiCredentials, resolvedAiConnection } from "./credentials.js";
+import { aiCompletionSeams } from "./http.js";
 import { inferAiConnection, probeAiConnection } from "./inference.js";
 import { isAiConnectionProvider } from "./presets.js";
 import {
@@ -105,6 +106,7 @@ export async function testAiConnection(
 ): Promise<string> {
   const guard = await aiVaultSeams.capture();
   let completed = false;
+  let owner: (() => void) | undefined;
   try {
     const port = aiConnectionTransport();
     const transport = {
@@ -120,12 +122,15 @@ export async function testAiConnection(
         )
       : () => guard.check();
     const check = () => assertCurrentOperation(guard, transport, unchanged);
+    owner = check;
     await probeAiConnection(draft, transport, check);
     check();
     completed = true;
     return "Model inference verified";
   } finally {
     guard.close(completed);
+    if (completed && owner)
+      aiCompletionSeams.observe?.({ phase: "operation", owner });
   }
 }
 
@@ -136,6 +141,7 @@ export async function saveAiConnection(
 ) {
   const guard = await aiVaultSeams.capture();
   let completed = false;
+  let owner: (() => void) | undefined;
   try {
     const port = aiConnectionTransport();
     const transport = {
@@ -155,6 +161,7 @@ export async function saveAiConnection(
         )
       : () => guard.check();
     const check = () => assertCurrentOperation(guard, transport, unchanged);
+    owner = check;
     await probeAiConnection(draft, transport, check);
     const capture = await stageVaultCredentials(
       {
@@ -195,6 +202,8 @@ export async function saveAiConnection(
     return view;
   } finally {
     guard.close(completed);
+    if (completed && owner)
+      aiCompletionSeams.observe?.({ phase: "operation", owner });
   }
 }
 
@@ -207,6 +216,7 @@ export async function performSavedAiInference(
 ) {
   const guard = await aiVaultSeams.capture();
   let completed = false;
+  let owner: (() => void) | undefined;
   try {
     const port = aiConnectionTransport();
     const signals = [port.signal, guard.signal];
@@ -234,6 +244,7 @@ export async function performSavedAiInference(
     );
     const check = () =>
       assertCurrentOperation(guard, transport, unchanged, runtime);
+    owner = check;
     const draft = await resolvedAiConnection(record, guard.tomb);
     check();
     const result = await inferAiConnection(
@@ -248,6 +259,8 @@ export async function performSavedAiInference(
     return result;
   } finally {
     guard.close(completed);
+    if (completed && owner)
+      aiCompletionSeams.observe?.({ phase: "operation", owner });
   }
 }
 

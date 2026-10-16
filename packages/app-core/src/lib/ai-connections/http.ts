@@ -7,6 +7,33 @@ import {
   type AiConnectionTransport,
 } from "./types.js";
 
+type CompletionOwner = () => void;
+
+export type AiCompletionObservation =
+  | {
+      phase: "request";
+      response: Response;
+      owner: CompletionOwner;
+      httpSignal: AbortSignal;
+      transportSignal: AbortSignal;
+    }
+  | {
+      phase: "body";
+      response: Response;
+      owner: CompletionOwner;
+      bytes: number;
+      format: "json" | "sse";
+    }
+  | { phase: "operation"; owner: CompletionOwner }
+  | { phase: "signal"; httpSignal: AbortSignal; fetchSignal: AbortSignal };
+
+type AiCompletionObserver = {
+  observe?: (event: AiCompletionObservation) => void;
+};
+
+/** Internal verification seam; observers must not retain or expose secret data. */
+export const aiCompletionSeams: AiCompletionObserver = {};
+
 export function checkAiResponse(response: Response): void {
   if (response.status === 401 || response.status === 403)
     throw new AiConnectionError(
@@ -37,10 +64,14 @@ export async function aiConnectionFetch(
   check();
   transport.assertCurrent();
   transport.signal.throwIfAborted();
+  const signal = AbortSignal.any([
+    transport.signal,
+    AbortSignal.timeout(60_000),
+  ]);
   const init: RequestInit = {
     method: body === undefined ? "GET" : "POST",
     headers: aiConnectionHeaders(draft),
-    signal: AbortSignal.any([transport.signal, AbortSignal.timeout(60_000)]),
+    signal,
     credentials: "omit",
     redirect: "error",
     cache: "no-store",
@@ -63,6 +94,13 @@ export async function aiConnectionFetch(
   transport.assertCurrent();
   transport.signal.throwIfAborted();
   checkAiResponse(response);
+  aiCompletionSeams.observe?.({
+    phase: "request",
+    response,
+    owner: check,
+    httpSignal: signal,
+    transportSignal: transport.signal,
+  });
   return response;
 }
 
@@ -78,6 +116,7 @@ export async function readAiJson(
     );
   const chunks: Uint8Array[] = [];
   let length = 0;
+  let value: BoundaryValue = null;
   try {
     for (;;) {
       check();
@@ -99,8 +138,7 @@ export async function readAiJson(
       offset += chunk.byteLength;
     }
     try {
-      const value: BoundaryValue = JSON.parse(new TextDecoder().decode(bytes));
-      return value;
+      value = JSON.parse(new TextDecoder().decode(bytes));
     } catch {
       throw new AiConnectionError(
         "response",
@@ -111,4 +149,12 @@ export async function readAiJson(
     await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
+  aiCompletionSeams.observe?.({
+    phase: "body",
+    response,
+    owner: check,
+    bytes: length,
+    format: "json",
+  });
+  return value;
 }
