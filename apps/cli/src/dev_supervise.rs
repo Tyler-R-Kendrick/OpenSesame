@@ -133,7 +133,10 @@ pub(crate) fn run(
     command: &mut Command,
     session: Option<&SurrogateSession>,
 ) -> std::io::Result<RunEnd> {
+    #[cfg(unix)]
     let handlers = signal::install()?;
+    #[cfg(not(unix))]
+    let handlers = signal::install();
     let end = run_until(command, session, &signal::pending, STOP_GRACE);
     // The child is gone and nothing reads the flag any more, yet the caller
     // drops the session next and that waits for the plugin to leave, up to
@@ -179,7 +182,7 @@ pub(crate) fn run_until(
 /// # Errors
 ///
 /// When the child cannot be waited on.
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(crate) fn supervise(
     child: &mut Child,
     session: Option<&SurrogateSession>,
