@@ -30,6 +30,7 @@ import {
 } from "@opensesame/vault-item-types";
 import { dismissNotice } from "../notices.js";
 import { announcePacks, announceSeams } from "./announce.js";
+import { heldPackText, rememberHeldPack } from "./held-cache.js";
 import { updateStoredPacks } from "./persist.js";
 import { neededBy, packsNeeded } from "./requires.js";
 import {
@@ -73,6 +74,7 @@ const queue: string[] = [];
 const cancelled = new Set<string>();
 /** Packs fetched because the vault needs them, not because a person chose them. */
 const transient = new Set<string>();
+const needed = new Map<string, () => boolean>();
 let draining = false;
 
 /** How many downloads may be in the air at once. Installs never overlap. */
@@ -92,7 +94,10 @@ function startFetch(id: string): Promise<Fetched> {
   const started = fetching.get(id);
   if (started !== undefined) return started;
   setStatus(id, { phase: "downloading" });
-  const download = packSeams.fetchText(id).then(
+  const cached = transient.has(id) ? heldPackText(id) : undefined;
+  const text =
+    cached === undefined ? packSeams.fetchText(id) : Promise.resolve(cached);
+  const download = text.then(
     (text): Fetched => ({ ok: true, text }),
     (error): Fetched => ({
       ok: false,
@@ -116,7 +121,7 @@ async function installOne(id: string): Promise<void> {
   await packSeams.yieldToMain();
   const got = await download;
   fetching.delete(id);
-  if (cancelled.has(id)) return;
+  if (!installCurrent(id)) return;
   if (!got.ok) {
     setStatus(id, { phase: "failed", reason: got.reason });
     return;
@@ -125,8 +130,11 @@ async function installOne(id: string): Promise<void> {
     setStatus(id, { phase: "installing" });
     await packSeams.yieldToMain();
     const definition = await verifyPackText(id, got.text);
-    if (cancelled.has(id)) return;
-    if (!transient.has(id)) {
+    if (!installCurrent(id)) return;
+    if (transient.has(id)) {
+      await rememberHeldPack(id, got.text);
+      if (!installCurrent(id)) return;
+    } else {
       await updateStoredPacks((stored) => {
         stored.set(id, { sha256: entry.sha256, text: got.text });
       });
@@ -137,15 +145,25 @@ async function installOne(id: string): Promise<void> {
         return;
       }
     }
+    if (!installCurrent(id)) return;
     registerPack(definition, got.text);
     setStatus(id, { phase: "on" });
   } catch (error) {
-    if (cancelled.has(id)) return;
+    if (!installCurrent(id)) return;
     setStatus(id, {
       phase: "failed",
       reason: error instanceof Error ? error.message : "It did not install.",
     });
   }
+}
+
+function installCurrent(id: string): boolean {
+  if (cancelled.has(id)) return false;
+  if (needed.get(id)?.() === false) {
+    setStatus(id, { phase: "off" });
+    return false;
+  }
+  return true;
 }
 
 async function drain(): Promise<void> {
@@ -166,6 +184,7 @@ async function drain(): Promise<void> {
     draining = false;
     cancelled.clear();
     fetching.clear();
+    needed.clear();
     announcePacks();
     if (getPackSnapshot().pending === 0) resetSettled();
   }
@@ -175,10 +194,11 @@ async function drain(): Promise<void> {
  * Switch a pack on: queue it, and the drain downloads and installs it.
  *
  * `keep: false` is for a type the open vault already holds items of: it is
- * installed for this document so those items open, and not remembered as a
- * choice, so locking the vault never leaves a switch the person did not press.
+ * installed while the vault needs it. Verified definition bytes are cached
+ * for offline reads separately from user choices. Boot does not activate that
+ * cache until an actual held item requires it; `isNeeded` fences late installs.
  */
-export type EnableOptions = { keep?: boolean };
+export type EnableOptions = { keep?: boolean; isNeeded?: () => boolean };
 
 export function enablePack(id: string, options: EnableOptions = {}): void {
   if (packEntry(id) === undefined) return;
@@ -189,6 +209,8 @@ export function enablePack(id: string, options: EnableOptions = {}): void {
   cancelled.delete(id);
   if (options.keep === false) transient.add(id);
   else transient.delete(id);
+  if (options.isNeeded) needed.set(id, options.isNeeded);
+  else needed.delete(id);
   dismissNotice(`type-pack:${id}`);
   setStatus(id, { phase: "queued" });
   queue.push(id);
@@ -203,6 +225,14 @@ export function enablePacks(
   options: EnableOptions = {},
 ): void {
   for (const id of ids) enablePack(id, options);
+}
+
+/** An automatic held-item install ends with its vault, not as a new choice. */
+export function releaseHeldPack(id: string): void {
+  if (!transient.has(id)) return;
+  if (isBusy(statusOf(id).phase)) return;
+  dropPack(id);
+  setStatus(id, { phase: "off" });
 }
 
 export type DisableOutcome = Readonly<

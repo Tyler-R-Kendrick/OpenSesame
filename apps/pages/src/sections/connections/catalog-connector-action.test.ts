@@ -1,7 +1,9 @@
 import { localGitToConnection } from "@opensesame/app-core/lib/connections-local-git.js";
 /** @vitest-environment jsdom */
 import { catalogProvider } from "@opensesame/app-core/lib/connector-catalog.js";
+import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { hasNativeConnectorDriver } from "@opensesame/app-core/lib/native-connector-drivers.js";
+import { isSecretBackendProvider } from "@opensesame/app-core/lib/secret-backends/presets.js";
 import { expect, it, vi } from "vitest";
 import { catalogConnectorAction } from "./catalog-connector-action.js";
 import { nativeSettingsDescriptor } from "./connect/NativeConnectorPanels.js";
@@ -76,5 +78,39 @@ it("keeps Google cleanup compiled while refusing a new popup on an isolated brow
     });
   } finally {
     vi.unstubAllGlobals();
+  }
+});
+
+it("opens the common secret-backend experience for every bundled partner without claiming verification", () => {
+  const backends = getBundledProviders().filter((row) =>
+    isSecretBackendProvider(row.id),
+  );
+  expect(backends.some((row) => row.id === "bitwarden-secrets-manager")).toBe(
+    true,
+  );
+  for (const backend of backends) {
+    expect(catalogConnectorAction(backend, null)).toEqual({
+      kind: "connect",
+      glyph: "plus",
+      method: "specialized",
+    });
+    const saved = {
+      ...localGitToConnection({
+        id: `test-${backend.id}`,
+        displayName: "Saved configuration",
+        remoteUrl: "https://example.com/backup.git",
+        authMode: "https_token",
+        username: "person",
+        secretItemId: null,
+        createdAt: "2026-10-14T00:00:00Z",
+        updatedAt: "2026-10-14T00:00:00Z",
+      }),
+      providerId: backend.id,
+    };
+    expect(catalogConnectorAction(backend, saved)).toEqual({
+      kind: "resume",
+      glyph: "arrow",
+      connectionId: saved.connectionId,
+    });
   }
 });

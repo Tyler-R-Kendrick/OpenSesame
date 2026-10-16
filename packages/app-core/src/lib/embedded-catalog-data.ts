@@ -51,6 +51,13 @@ export const IDENTITY_PROVIDER_IDS = [
   "okta",
 ] as const;
 
+/** Browser secret stores share the configured partner protocols and local ports. */
+export const SECRET_BACKEND_PROVIDER_IDS = [
+  "byo-secret-backend",
+  "local-vault",
+  "browser-credentials",
+] as const;
+
 export const NETWORKING_PROVIDER_IDS = ["tailscale"] as const;
 
 export const WALLET_PROVIDER_IDS = [

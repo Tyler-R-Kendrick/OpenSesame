@@ -21,9 +21,9 @@ export const PACKS_KEY = "item-type-packs.v1";
 export type StoredPack = Readonly<{ sha256: string; text: string }>;
 
 /** What `readStoredPacks` answers: a copy, so a caller cannot edit the store. */
-export function readStoredPacks(): Map<string, StoredPack> {
+export function readStoredPacks(key = PACKS_KEY): Map<string, StoredPack> {
   const out = new Map<string, StoredPack>();
-  const raw = kvGet(PACKS_KEY);
+  const raw = kvGet(key);
   if (raw === null) return out;
   try {
     const parsed: JsonValue = JSON.parse(raw);
@@ -47,12 +47,13 @@ let writes: Promise<void> = Promise.resolve();
 
 export function updateStoredPacks(
   change: (current: Map<string, StoredPack>) => void,
+  key = PACKS_KEY,
 ): Promise<void> {
   const run = async () => {
-    const next = readStoredPacks();
+    const next = readStoredPacks(key);
     change(next);
     await kvSetDurable(
-      PACKS_KEY,
+      key,
       JSON.stringify({ v: 1, packs: Object.fromEntries(next) }),
     );
   };

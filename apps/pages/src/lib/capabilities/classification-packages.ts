@@ -9,6 +9,16 @@ import { core, optional, shared } from "./classification-rule.js";
 const NM = "node_modules/";
 
 export const PACKAGE_RULES = [
+  optional(
+    `${NM}@bitwarden/sdk-wasm`,
+    "connectors.external",
+    "Bitwarden Secrets Manager cryptography loads only in its chosen adapter worker",
+  ),
+  optional(
+    `${NM}@1password/save-button`,
+    "connectors.external",
+    "official save control loads only after an explicit item selection",
+  ),
   // --- exclusive to one optional capability ----------------------------------
   optional(
     `${NM}@azure/msal-browser`,

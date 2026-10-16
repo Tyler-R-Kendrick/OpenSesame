@@ -2379,7 +2379,7 @@
       "id": "bitwarden-sm",
       "display_name": "Bitwarden Secrets Manager",
       "category": "cloud_secret_storage",
-      "docs_url": "https://bitwarden.com/help/secrets-manager-overview/",
+      "docs_url": "https://bitwarden.com/help/secrets-manager-sdk/",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2418,7 +2418,7 @@
       "id": "infisical",
       "display_name": "Infisical",
       "category": "password_managers",
-      "docs_url": "https://infisical.com/docs/documentation/getting-started/introduction",
+      "docs_url": "https://infisical.com/docs/api-reference/overview/introduction",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2583,7 +2583,7 @@
       "id": "passwordstate",
       "display_name": "Passwordstate",
       "category": "password_managers",
-      "docs_url": "https://www.clickstudios.com.au/",
+      "docs_url": "https://www.clickstudios.com.au/passwordstate/application-programming-interface",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -2641,7 +2641,7 @@
       "id": "proton-pass",
       "display_name": "Proton Pass",
       "category": "password_managers",
-      "docs_url": "https://proton.me/support/pass",
+      "docs_url": "https://proton.me/support/pass-export",
       "provenance_url": "https://fnox.jdx.dev/cli/provider/add",
       "auth": {
         "kind": "configuration"
@@ -5549,8 +5549,128 @@
         "path_prefixes": []
       },
       "operations": ["identity.configure"]
+    },
+    {
+      "id": "byo-secret-backend",
+      "display_name": "BYO Secret Backend",
+      "category": "password_managers",
+      "docs_url": "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
+      "provenance_url": "https://developer.mozilla.org/en-US/docs/Web/API/File_API",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "mode",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "base_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "identity_url",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "token",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "vault_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "project_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "organization_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "environment",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "secret_path",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "client_secret",
+          "secret": true,
+          "required": false
+        },
+        {
+          "name": "password_list_id",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "file_format",
+          "secret": false,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "local-vault",
+      "display_name": "Local vault",
+      "category": "password_managers",
+      "docs_url": "https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system",
+      "provenance_url": "https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["secret.configure"]
+    },
+    {
+      "id": "browser-credentials",
+      "display_name": "Browser credentials",
+      "category": "password_managers",
+      "docs_url": "https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API",
+      "provenance_url": "https://developer.mozilla.org/en-US/docs/Web/API/Credential_Management_API",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["secret.configure"]
     }
   ],
-  "revision": "2026-10-14.1",
+  "revision": "2026-10-14.2",
   "schema_version": 1
 }
