@@ -12,6 +12,24 @@ export interface InvokeOptions {
   account?: string | undefined;
   desktop?: boolean | undefined;
 }
+/** A resolved secret the host materializes as a file for one child run. */
+export interface MountValue {
+  name: string;
+  value: string;
+}
+/**
+ * One brokered assignment of a `run --agent-proxy` plan: the surrogate
+ * for `name` stands in for the `os://` connections item `reference`
+ * names, at exactly `methods` × `pathPrefixes` on the provider's hosts.
+ */
+export interface BrokeredAssignment {
+  name: string;
+  reference: string;
+  providerId: string;
+  connectionRef: string;
+  methods: readonly string[];
+  pathPrefixes: readonly string[];
+}
 export interface PasswordAgentPort {
   runEnvFile?(
     content: string,
@@ -23,11 +41,35 @@ export interface PasswordAgentPort {
     references: readonly string[],
     options?: InvokeOptions,
   ): Promise<readonly string[]>;
+  /** Resolve one `os://vault/item/field` reference from the local vault. */
+  readLocal?(reference: string): Promise<string>;
   run?(
     args: readonly string[],
     command: readonly string[],
     env?: Readonly<Record<string, string>>,
     options?: InvokeOptions,
+  ): Promise<number>;
+  /**
+   * Run a child with already-resolved values. The host masks each entry
+   * of `secrets` in the child's output and removes mount files when the
+   * child exits; each mount name reaches the child as a file path.
+   * Literal env values ride in `values` but never in `secrets`.
+   */
+  runWithValues?(
+    command: readonly string[],
+    values: Readonly<Record<string, string>>,
+    mounts: readonly MountValue[],
+    secrets: readonly string[],
+  ): Promise<number>;
+  /**
+   * Run a child in broker mode (`run --agent-proxy`): the host gives it a
+   * scoped surrogate per entry and the run's proxy environment, and the
+   * credential itself never enters the child. Absent on hosts with no
+   * broker — a brokered run there fails closed, never injects instead.
+   */
+  runBrokered?(
+    entries: readonly BrokeredAssignment[],
+    command: readonly string[],
   ): Promise<number>;
 }
 export interface Scope {

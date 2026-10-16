@@ -33,7 +33,10 @@ function NativeSettingsPanels(props: Props) {
   if (provider.id === "github") return <GithubNativeAppPanels {...props} />;
   return (
     <>
-      <NativeConnectorPanels key={provider.id} {...props} />
+      <NativeConnectorPanels
+        key={`${provider.id}/${connection?.connectionId ?? "new"}`}
+        {...props}
+      />
       {connection?.status === "active" && isAiModelProvider(provider) ? (
         <ModelKeysPanel
           providerId={provider.id}

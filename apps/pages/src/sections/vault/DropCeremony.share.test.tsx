@@ -37,6 +37,7 @@ describe("share ceremony on an item", () => {
     expect(screen.getAllByText("ABCD-EFGH")).toHaveLength(1);
     expect(document.querySelector(".qr__shortcode")).toBeNull();
     expect(screen.queryByText("s3cr3t-value")).toBeNull();
+    expect(screen.queryByText("Contains the password.")).toBeNull();
     const ready = screen.getByRole("region", { name: "Drop ready" });
     expect(ready.textContent).toMatch(/Opens for\s*1 hour/);
     expect(ready.textContent).toMatch(/Opens on\s*This browser/);
@@ -121,5 +122,32 @@ describe("share ceremony on an item", () => {
     expect(store.saveItem).not.toHaveBeenCalled();
     const [manifest] = createClaim.mock.calls[0] ?? [];
     expect(JSON.stringify(manifest)).not.toContain("hunter2-login");
+  });
+
+  it("warns that the share-text copy contains the password", async () => {
+    const user = userEvent.setup();
+    render(
+      <Ceremony
+        item={makeAccount({
+          id: "itm_login",
+          name: "GitHub",
+          username: "octocat",
+          password: "hunter2-login",
+        })}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: /Seal and share/i }));
+    await screen.findByText("Drop ready");
+
+    const row = screen.getByText("Share text").closest(".frow");
+    expect(row?.textContent).toContain("Contains the password.");
+    expect(row?.querySelector("span.hint")?.textContent).toBe(
+      "Contains the password.",
+    );
+    expect(screen.queryByText("hunter2-login")).toBeNull();
+    expect(screen.getByText("octocat")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Copy share text" }),
+    ).toBeTruthy();
   });
 });

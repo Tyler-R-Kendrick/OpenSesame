@@ -23,17 +23,57 @@ struct Fixture {
 }
 
 #[test]
+fn pin_probe_verb_is_omitted_from_pending_list() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    let (_, req) = store.ensure(
+        "term-a",
+        DAEMON_PIN_PROBE_VERB,
+        None,
+        false,
+        "00",
+        0,
+        0,
+        true,
+    );
+    assert!(req.is_some());
+    assert!(store.list_pending().is_empty());
+}
+
+#[test]
+fn more_than_one_pending_clears_the_queue() {
+    let mut store = CliAppIntegrationStore::new();
+    store.set_now_ms(1_000);
+    store.ensure("term-a", "read", None, false, "00", 0, 0, true);
+    store.ensure("term-b", "read", None, false, "00", 0, 0, true);
+    assert!(store.list_pending().is_empty());
+    let (status, second) = store.ensure("term-a", "read", None, false, "00", 0, 0, true);
+    assert_eq!(status, "pending");
+    assert!(second.is_some());
+    assert_eq!(store.list_pending().len(), 1);
+}
+
+#[test]
 fn tcp_transport_consumes_approval_once() {
     let mut store = CliAppIntegrationStore::new();
     store.set_now_ms(1_000);
     let id = "tcp-attempt-1";
-    let (_, req) = store.ensure(id, "read", None, false);
+    let (_, req) = store.ensure(id, "read", None, false, "00", 1, 1, true);
     let request_id = req.expect("pending");
-    let (respond_nonce, verb) = {
-        let row = store.pending.get(&request_id).expect("pending row");
-        (row.respond_nonce.clone(), row.verb.clone())
+    let (respond_nonce, verb, peer_pid, peer_start) = {
+        let row = store
+            .list_pending()
+            .into_iter()
+            .find(|r| r.request_id == request_id)
+            .expect("pending row");
+        (
+            row.respond_nonce.clone(),
+            row.verb.clone(),
+            row.peer_pid,
+            row.peer_start_time,
+        )
     };
-    let proof = mint_test_human_proof(&request_id, id, &respond_nonce, &verb);
+    let proof = mint_test_human_proof(&request_id, id, &respond_nonce, &verb, peer_pid, peer_start);
     let binding = test_paired_binding();
     assert_eq!(
         store
@@ -41,9 +81,9 @@ fn tcp_transport_consumes_approval_once() {
             .0,
         "approved"
     );
-    let (status, _) = store.ensure(id, "read", None, false);
+    let (status, _) = store.ensure(id, "read", None, false, "00", 1, 1, true);
     assert_eq!(status, "approved");
-    let (status, _) = store.ensure(id, "read", None, false);
+    let (status, _) = store.ensure(id, "read", None, false, "00", 1, 1, true);
     assert_eq!(status, "pending");
 }
 
@@ -53,19 +93,39 @@ fn conformance_session_cases() {
     for scenario in raw.session_cases {
         let mut store = CliAppIntegrationStore::new();
         store.set_now_ms(1_000_000);
-        let pending = store.ensure(&scenario.terminal_session_id, "read", None, true);
+        let pending = store.ensure(
+            &scenario.terminal_session_id,
+            "read",
+            None,
+            true,
+            "00",
+            1,
+            1,
+            true,
+        );
         assert_eq!(pending.0, "pending", "case {}", scenario.id);
         let request_id = pending.1.expect("request id");
         if scenario.action == "approve" {
-            let (respond_nonce, verb) = {
-                let pending_row = store.pending.get(&request_id).expect("nonce");
-                (pending_row.respond_nonce.clone(), pending_row.verb.clone())
+            let (respond_nonce, verb, peer_pid, peer_start) = {
+                let pending_row = store
+                    .list_pending()
+                    .into_iter()
+                    .find(|r| r.request_id == request_id)
+                    .expect("nonce");
+                (
+                    pending_row.respond_nonce.clone(),
+                    pending_row.verb.clone(),
+                    pending_row.peer_pid,
+                    pending_row.peer_start_time,
+                )
             };
             let proof = mint_test_human_proof(
                 &request_id,
                 &scenario.terminal_session_id,
                 &respond_nonce,
                 &verb,
+                peer_pid,
+                peer_start,
             );
             let binding = test_paired_binding();
             assert_eq!(
@@ -94,7 +154,7 @@ fn conformance_session_cases() {
             } else {
                 scenario.terminal_session_id.as_str()
             };
-            let (status, _) = store.ensure(query_id, "read", None, true);
+            let (status, _) = store.ensure(query_id, "read", None, true, "00", 1, 1, true);
             assert_eq!(
                 status,
                 scenario.expect_ensure.as_deref().expect("expectEnsure"),
@@ -106,19 +166,38 @@ fn conformance_session_cases() {
                 store.set_now_ms(1_000_000 + seconds * 1000);
             }
             assert!(store.list_pending().is_empty(), "case {}", scenario.id);
-            let (status, _) = store.ensure(&scenario.terminal_session_id, "read", None, true);
+            let (status, _) = store.ensure(
+                &scenario.terminal_session_id,
+                "read",
+                None,
+                true,
+                "00",
+                1,
+                1,
+                true,
+            );
             assert_eq!(status, "pending", "case {}", scenario.id);
         } else if scenario.action == "deny" {
             let nonce = store
-                .pending
-                .get(&request_id)
+                .list_pending()
+                .into_iter()
+                .find(|r| r.request_id == request_id)
                 .map(|r| r.respond_nonce.clone())
                 .unwrap_or_default();
             assert_eq!(
                 store.deny(&request_id, &scenario.terminal_session_id, &nonce),
                 "denied"
             );
-            let (status, _) = store.ensure(&scenario.terminal_session_id, "read", None, true);
+            let (status, _) = store.ensure(
+                &scenario.terminal_session_id,
+                "read",
+                None,
+                true,
+                "00",
+                1,
+                1,
+                true,
+            );
             assert_eq!(status, "denied", "case {}", scenario.id);
         }
     }

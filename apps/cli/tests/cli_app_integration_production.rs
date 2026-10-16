@@ -1,4 +1,5 @@
 //! Production binary must not honor the legacy app-integration seam env var.
+#![cfg(unix)]
 
 use std::io::Write;
 use std::path::{Path, PathBuf};

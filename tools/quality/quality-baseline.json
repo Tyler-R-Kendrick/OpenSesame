@@ -227,6 +227,9 @@
     "crates/ceremony/src/capture.rs": {
       "max-lines": 506
     },
+    "crates/cli-app-integration/src/root_enroll/protocol_tests.rs": {
+      "max-lines": 463
+    },
     "crates/connection-broker/src/catalog.rs": {
       "max-lines": 763
     },
@@ -295,6 +298,12 @@
     },
     "crates/connector-host/src/wasm.rs": {
       "max-lines": 699
+    },
+    "crates/daemon/src/cli_app_integration/root_enroll_tests.rs": {
+      "max-lines": 431
+    },
+    "crates/daemon/src/cli_app_integration/tests/persona_r7.rs": {
+      "max-lines": 418
     },
     "crates/daemon/src/cli_probe.rs": {
       "max-lines": 700

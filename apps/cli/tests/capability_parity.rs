@@ -44,6 +44,7 @@ const CLI_SOURCES: &[&str] = &[
     include_str!("../src/plugins.rs"),
     include_str!("../src/session.rs"),
     include_str!("../src/password_agent/mod.rs"),
+    include_str!("../src/password_agent/run_args.rs"),
     include_str!("../src/password_agent/consume.rs"),
     include_str!("../src/password_agent/service.rs"),
     include_str!("../src/password_agent/setup.rs"),

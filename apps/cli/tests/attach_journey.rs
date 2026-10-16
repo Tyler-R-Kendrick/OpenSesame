@@ -1,5 +1,6 @@
 //! End-to-end behaviour of `opensesame pass attach`, driven through the real
 //! binary rather than the library.
+#![cfg(unix)]
 //!
 //! The unit and property suites cover the crypto. What they cannot show is
 //! that a person can put a document in and get the same bytes back out, that
@@ -30,11 +31,8 @@ fn command(store: &Path, args: &[&str]) -> Command {
         .env("GIT_AUTHOR_NAME", "Test")
         .env("GIT_AUTHOR_EMAIL", "test@example.com")
         .env("GIT_COMMITTER_NAME", "Test")
-        .env("GIT_COMMITTER_EMAIL", "test@example.com")
-        .env(
-            "OPENSESAME_DAEMON_API",
-            cli_app_integration_mock::shared_daemon_base().as_str(),
-        );
+        .env("GIT_COMMITTER_EMAIL", "test@example.com");
+    cli_app_integration_mock::apply_journey_daemon_env(&mut command);
     command
 }
 

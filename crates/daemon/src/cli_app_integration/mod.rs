@@ -3,6 +3,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use crate::App;
@@ -11,6 +12,10 @@ mod auth;
 mod cors;
 mod handlers;
 mod pairing;
+mod root_enroll;
+mod root_trust;
+
+pub(crate) use root_trust::daemon_state_dir;
 
 pub(crate) fn now_unix() -> u64 {
     std::time::SystemTime::now()
@@ -27,8 +32,13 @@ pub(crate) fn now_millis() -> u64 {
 pub(crate) type SharedCliAppIntegration =
     Arc<Mutex<opensesame_cli_app_integration::CliAppIntegrationHost>>;
 
-pub(crate) fn fresh_store() -> SharedCliAppIntegration {
-    opensesame_cli_app_integration::fresh_host()
+/// In-memory host, with the root trust key marked enrolled when the state dir has a record.
+pub(crate) fn open_store(state_dir: Option<&Path>) -> SharedCliAppIntegration {
+    let mut host = opensesame_cli_app_integration::CliAppIntegrationHost::new();
+    if let Some(dir) = state_dir {
+        root_trust::apply_at_startup(&mut host, dir);
+    }
+    Arc::new(Mutex::new(host))
 }
 
 pub(crate) fn routes(app: &App) -> Router<App> {
@@ -69,8 +79,11 @@ pub(crate) fn routes(app: &App) -> Router<App> {
             "/v1/operator/cli-app-integration/pair",
             post(pairing::pairing_issue_operator),
         )
+        .merge(root_enroll::routes())
         .merge(browser)
 }
 
+#[cfg(test)]
+mod root_enroll_tests;
 #[cfg(test)]
 mod tests;
