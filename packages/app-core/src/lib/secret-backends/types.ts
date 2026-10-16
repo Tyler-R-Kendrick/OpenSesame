@@ -53,6 +53,8 @@ export type SecretBackendSession = Readonly<{
   id: string;
   backendId: string;
   authenticatedAt: string;
+  /** Ends when this exact provider session is removed or terminates. */
+  signal?: AbortSignal;
 }>;
 
 export type SecretBackendItemSummary = {
