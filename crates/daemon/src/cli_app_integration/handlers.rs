@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use axum::extract::connect_info::ConnectInfo;
 #[cfg(unix)]
 use axum::Extension;

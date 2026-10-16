@@ -100,11 +100,6 @@ fn systemd_ask_password() -> bool {
     )
 }
 
-#[cfg(not(target_os = "linux"))]
-fn systemd_ask_password() -> bool {
-    false
-}
-
 #[cfg(target_os = "linux")]
 fn zenity_question() -> bool {
     if std::env::var_os("DISPLAY").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_none() {
@@ -126,11 +121,6 @@ fn zenity_question() -> bool {
         output,
         Ok(status) if status.success()
     )
-}
-
-#[cfg(not(target_os = "linux"))]
-fn zenity_question() -> bool {
-    false
 }
 
 #[cfg(target_os = "windows")]
