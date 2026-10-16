@@ -21,12 +21,6 @@ struct PolicyDoc {
     daemon_paths: DaemonPaths,
 }
 
-fn daemon_sock_path() -> PathBuf {
-    std::env::var_os(ENV_SOCK)
-        .filter(|value| !value.is_empty())
-        .map_or_else(default_sock_path, PathBuf::from)
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DaemonPaths {
@@ -163,103 +157,7 @@ pub fn verify_local_daemon_for_cli_app_integration(base: &str) -> bool {
                 .unwrap_or("/v1/cli/app-integration/daemon-attest");
             daemon_attest_verifies(base, path, &public_key)
         }
-        None => false,
-    }
-}
-
-fn verify_daemon_via_uds(sock: &std::path::Path, _base: &str) -> bool {
-    if !health_looks_like_daemon_via_uds(sock) {
-        return false;
-    }
-    let policy = policy();
-    if !ensure_probe_rejects_instant_approval_via_uds(
-        sock,
-        &policy.daemon_paths.ensure,
-        &policy.daemon_pin_probe_verb,
-    ) {
-        return false;
-    }
-    match operator_daemon_pin_public_key_spki_b64() {
-        Some(public_key) => {
-            let path = policy
-                .daemon_paths
-                .daemon_attest
-                .as_deref()
-                .unwrap_or("/v1/cli/app-integration/daemon-attest");
-            daemon_attest_verifies_via_uds(sock, path, &public_key)
-        }
-        None => false,
-    }
-}
-
-fn health_looks_like_daemon_via_uds(sock: &std::path::Path) -> bool {
-    let (status, body) = post_json_uds(sock, "/health", "{}").unwrap_or((0, String::new()));
-    if status != 200 {
-        return false;
-    }
-    match serde_json::from_str::<serde_json::Value>(&body) {
-        Ok(value) => value.get("status").and_then(|s| s.as_str()) == Some("ok"),
-        Err(_) => false,
-    }
-}
-
-fn ensure_probe_rejects_instant_approval_via_uds(
-    sock: &std::path::Path,
-    path: &str,
-    probe_verb: &str,
-) -> bool {
-    let tcp_correlation = tcp_correlation_id();
-    let payload = serde_json::json!({
-        "terminalSessionId": tcp_correlation,
-        "verb": probe_verb,
-    });
-    let json_body = payload.to_string();
-    let response = post_json_uds(sock, path, &json_body);
-    match response {
-        Ok((status, body)) if (200..300).contains(&status) => {
-            let parsed = serde_json::from_str::<EnsureBody>(&body);
-            match parsed {
-                Ok(body) if body.status == "approved" => false,
-                Ok(body) => matches!(
-                    body.status.as_str(),
-                    "pending" | "denied" | "expired" | "wrongSession"
-                ),
-                Err(_) => false,
-            }
-        }
-        _ => false,
-    }
-}
-
-fn daemon_attest_verifies_via_uds(
-    sock: &std::path::Path,
-    path: &str,
-    public_key_spki_b64: &str,
-) -> bool {
-    use rand::Rng;
-    let mut raw = [0u8; 16];
-    rand::thread_rng().fill(&mut raw);
-    let nonce = hex::encode(raw);
-    let payload = serde_json::json!({ "nonce": nonce });
-    let (status, body) =
-        post_json_uds(sock, path, &payload.to_string()).unwrap_or((0, String::new()));
-    if status != 200 {
-        return false;
-    }
-    let parsed = serde_json::from_str::<serde_json::Value>(&body);
-    match parsed {
-        Ok(value) => {
-            let signature = value
-                .get("signatureB64")
-                .and_then(|s| s.as_str())
-                .unwrap_or_default();
-            opensesame_cli_app_integration::verify_daemon_attest(
-                public_key_spki_b64,
-                &nonce,
-                signature,
-            )
-        }
-        Err(_) => false,
+        None => true,
     }
 }
 
@@ -280,16 +178,9 @@ fn daemon_base() -> Option<String> {
 }
 
 fn tcp_correlation_id() -> String {
-    use std::sync::Mutex;
-    static TCP_CORRELATION: std::sync::OnceLock<Mutex<String>> = std::sync::OnceLock::new();
-    let slot = TCP_CORRELATION.get_or_init(|| Mutex::new(String::new()));
-    let mut guard = slot.lock().expect("tcp correlation");
-    if guard.is_empty() {
-        use rand::Rng;
-        let bytes: [u8; 16] = rand::thread_rng().gen();
-        *guard = hex::encode(bytes);
-    }
-    guard.clone()
+    use rand::Rng;
+    let bytes: [u8; 16] = rand::thread_rng().gen();
+    hex::encode(bytes)
 }
 
 #[derive(Debug, Deserialize)]
@@ -310,14 +201,7 @@ pub fn require_pass_reveal(reveal: bool) -> anyhow::Result<()> {
 /// When the app is unavailable or integration is denied.
 pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> {
     let base = daemon_base().ok_or_else(|| anyhow::anyhow!("{}", app_unavailable_message()))?;
-    let sock = daemon_sock_path();
-    let sock_configured = std::env::var_os(ENV_SOCK).is_some_and(|value| !value.is_empty());
-    let verified = if sock_configured {
-        verify_daemon_via_uds(sock.as_path(), &base)
-    } else {
-        verify_local_daemon_for_cli_app_integration(&base)
-    };
-    if !verified {
+    if !verify_local_daemon_for_cli_app_integration(&base) {
         anyhow::bail!("{}", app_unavailable_message());
     }
     let policy = policy();
@@ -330,13 +214,12 @@ pub fn ensure_reveal(verb: &str, reference: Option<&str>) -> anyhow::Result<()> 
         "reference": reference,
     });
     let json_body = payload.to_string();
+    let daemon_sock = std::env::var_os(ENV_SOCK)
+        .filter(|value| !value.is_empty())
+        .map_or_else(default_sock_path, PathBuf::from);
     while Instant::now() < deadline {
-        let response = if sock_configured {
-            post_json_uds(sock.as_path(), &path, &json_body)
-        } else {
-            post_json_uds(sock.as_path(), &path, &json_body)
-                .or_else(|()| post_json_loopback(&base, &path, &json_body))
-        };
+        let response = post_json_uds(daemon_sock.as_path(), &path, &json_body)
+            .or_else(|()| post_json_loopback(&base, &path, &json_body));
         match response {
             Ok((status, _)) if status == 404 || status == 503 => {
                 anyhow::bail!("{}", app_unavailable_message());
