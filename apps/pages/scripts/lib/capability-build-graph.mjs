@@ -13,8 +13,6 @@ import {
   isUnclassified,
   parseHtmlEntry,
 } from "./capability-graph.mjs";
-import { secretBackendSdkChunk } from "./capability-lazy-leaves.mjs";
-import { itemTypePackChunk } from "./item-type-pack-chunks.mjs";
 
 /**
  * Whether an owned public file will be in the output: emitted into the bundle
@@ -41,13 +39,6 @@ function chunkRecord(file, output, classify) {
     name: output.name,
     isEntry: output.isEntry,
     isDynamicEntry: output.isDynamicEntry,
-    // Type packs install individually (ADR 0165); native SDKs initialize on demand.
-    // Approving a capability must not eagerly cache these optional resources.
-    onDemand: Object.keys(output.modules).some(
-      (id) =>
-        itemTypePackChunk(id) !== undefined ||
-        secretBackendSdkChunk(id, classify(id)) !== undefined,
-    ),
     imports: [...new Set(output.imports)].sort(),
     dynamicImports: [...new Set(output.dynamicImports)].sort(),
     importedCss: [...(output.viteMetadata?.importedCss ?? [])].sort(),

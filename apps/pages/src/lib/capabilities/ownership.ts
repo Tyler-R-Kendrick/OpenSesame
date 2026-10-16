@@ -18,9 +18,6 @@ import {
   runtimeModule,
   workerModule,
 } from "@opensesame/app-core/lib/capabilities/descriptor.js";
-import onepasswordArtifacts from "@opensesame/app-core/lib/secret-backends/onepassword-artifacts.json" with {
-  type: "json",
-};
 import type {
   CapabilityId,
   DistributionContract,
@@ -29,7 +26,6 @@ import type {
   ModuleId,
   WorkerVariant,
 } from "@opensesame/capability-composition";
-import tailscaleArtifacts from "./tailscale-artifacts.json";
 
 export type ModuleOwnership = Readonly<{
   /** Repo path under apps/pages of the module's entry source. */
@@ -109,12 +105,6 @@ export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
 export const PUBLIC_FILE_OWNERSHIP: Readonly<
   Record<string, CapabilityId | null>
 > = Object.freeze({
-  [onepasswordArtifacts.assets.wasm]: "connectors.external",
-  [onepasswordArtifacts.assets.runtime]: "connectors.external",
-  [onepasswordArtifacts.assets.license]: "connectors.external",
-  [tailscaleArtifacts.assets.wasm]: "networking.tailnet",
-  [tailscaleArtifacts.assets.runtime]: "networking.tailnet",
-  [tailscaleArtifacts.assets.license]: "networking.tailnet",
   "icon.svg": null,
   "os-runtime-config.json": null,
   "security-profile.json": null,
@@ -141,14 +131,6 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
  */
 export const GENERATED_PUBLIC_FILES: Readonly<Record<string, string>> =
   Object.freeze({
-    [onepasswordArtifacts.assets.wasm]: "scripts/onepassword-wasm-assets.mjs",
-    [onepasswordArtifacts.assets.runtime]:
-      "scripts/onepassword-wasm-assets.mjs",
-    [onepasswordArtifacts.assets.license]:
-      "scripts/onepassword-wasm-assets.mjs",
-    [tailscaleArtifacts.assets.wasm]: "scripts/tailscale-wasm-assets.mjs",
-    [tailscaleArtifacts.assets.runtime]: "scripts/tailscale-wasm-assets.mjs",
-    [tailscaleArtifacts.assets.license]: "scripts/tailscale-wasm-assets.mjs",
     "auth/native-client.json": "scripts/native-client-metadata-plugin.mjs",
     ".well-known/**": "scripts/write-authenticator-associations.mjs",
     // Emitted during the Vite build, for every deployment that can say which

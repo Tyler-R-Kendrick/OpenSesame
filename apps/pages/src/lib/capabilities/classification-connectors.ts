@@ -3,7 +3,7 @@
  *
  * Split out of `classification-lib.ts` for the 400-line module budget.
  */
-import { core, each, optional, shared } from "./classification-rule.js";
+import { each, optional } from "./classification-rule.js";
 
 const L = "src/lib/";
 const CONNECTORS = "connectors.external";
@@ -18,31 +18,12 @@ const CONNECTOR_FILES = [
   "self-hosted-connectors",
   "github-installation-access",
   "identity-graph",
-  "secret-backends/",
-  "ai-connections/",
-  "tailscale/",
 ];
 
-export const CONNECTOR_LIB_RULES = [
-  shared(
-    `${L}secret-backends/onepassword-artifacts.json`,
-    "pinned public SDK asset metadata shared by ownership and the native worker",
-  ),
-  core(
-    `${L}secret-backends/seam.ts`,
-    null,
-    "public secret backend view seam carries no runtime or credentials",
-  ),
+export const CONNECTOR_LIB_RULES = each(L, CONNECTOR_FILES, (p) =>
   optional(
-    "src/browser/secret-backend-",
+    p,
     CONNECTORS,
-    "browser-only secret backend API boundaries",
+    "connector catalogue, Connect, GitHub App, directory",
   ),
-  ...each(L, CONNECTOR_FILES, (p) =>
-    optional(
-      p,
-      CONNECTORS,
-      "connector catalogue, Connect, GitHub App, directory",
-    ),
-  ),
-];
+);

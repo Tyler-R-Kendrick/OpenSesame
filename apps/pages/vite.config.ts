@@ -10,13 +10,8 @@ import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
 import { nativeClientMetadataPlugin } from "./scripts/native-client-metadata-plugin.mjs";
-import { onePasswordWasmAssets } from "./scripts/onepassword-wasm-assets.mjs";
 import { securityProfile } from "./scripts/security-profile.mjs";
 import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
-import {
-  tailscaleWasmAssets,
-  tailscaleWorkerFileName,
-} from "./scripts/tailscale-wasm-assets.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -193,9 +188,8 @@ export default defineConfig({
     // Compress the shipped offline PWA without changing its capability graph.
     minify: "terser",
     terserOptions: {
-      // Keep minification aligned with the modern build target below.
-      compress: { passes: 4, pure_getters: true, ecma: 2022 },
-      format: { comments: false, ecma: 2022 },
+      compress: { passes: 4, pure_getters: true },
+      format: { comments: false },
       mangle: { toplevel: true },
     },
     // esbuild 0.28 cannot downlevel some destructuring forms used by react-router
@@ -215,15 +209,16 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Merge a chunk under 32 KB into one that every path loading it
-        // already loads. The precache gzips each file alone; a 32 KB floor
-        // reduces that repeated compression overhead. A pure chunk still
-        // folds into a neighbour at this floor. Pin a chunk that must keep its
+        // Merge a chunk under 12 KB into one that every path loading it
+        // already loads. The precache gzips each file alone, and the persona
+        // stack's extra leaves put that sum over the 1739 KiB ceiling at
+        // 5 KB. 12 KB brings it back with room. A pure chunk still folds
+        // into a neighbour at this floor. Pin a chunk that must keep its
         // name (`device-identity-host` below; web-push enrolment in
         // `capability-lazy-leaves.mjs`) so the bootstrap does not
         // static-import an optional module (ADR 0130 §4) and the device
         // walks can still import the host by file name.
-        experimentalMinChunkSize: 32_000,
+        experimentalMinChunkSize: 12_000,
         manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
@@ -257,19 +252,12 @@ export default defineConfig({
   // as a bare `error` event with no message. Emitting real ES modules is
   // what makes a module worker start at all. Every target engine here
   // (Chrome 100, Firefox 100, Safari 15) supports module workers.
-  worker: {
-    format: "es",
-    rollupOptions: {
-      output: { entryFileNames: tailscaleWorkerFileName },
-    },
-  },
+  worker: { format: "es" },
   plugins: [
     nativeClientMetadataPlugin(base),
     githubAppRelayPlugin(),
     // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
     siopMetadata(),
-    tailscaleWasmAssets(),
-    onePasswordWasmAssets(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
       // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which
@@ -329,7 +317,7 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,wasm,gz,css,html,svg,ico,webp,woff2,json}"],
+        globPatterns: ["**/*.{js,wasm,css,html,svg,ico,webp,woff2,json}"],
         maximumFileSizeToCacheInBytes: 15 * 1024 * 1024,
       },
       devOptions: { enabled: true, navigateFallback: "index.html" },
