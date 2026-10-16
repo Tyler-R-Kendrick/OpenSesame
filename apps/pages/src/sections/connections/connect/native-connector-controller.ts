@@ -1,5 +1,6 @@
 /** The form delegates to one compiled provider driver and never receives saved credentials. */
 import type { ConnectPlan } from "@opensesame/app-core/lib/connect-plan.js";
+import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import {
   attestNativeBrowserOAuthRevocation,
   nativeBrowserOAuthRecoverySettings,
@@ -21,6 +22,10 @@ import {
   attestNativeVaultRevocation,
   nativeVaultRevocationInstructions,
 } from "@opensesame/app-core/lib/native-vault-attestation.js";
+import {
+  authorizationAttempt,
+  authorizationCorrelation,
+} from "./native-authorization-ticket.js";
 import type {
   NativeConfigureInput,
   NativeConnectorController,
@@ -31,68 +36,36 @@ export type NativeAuthorizationTicket = Readonly<{
   method: NativeConfigureInput["method"];
   cancel(): void;
   current(): boolean;
+  selectConnection?(connectionId?: string): void;
 }>;
 export type NativeAuthorizationSink = (
   ticket: NativeAuthorizationTicket,
 ) => () => void;
 
-type AuthorizationAttempt = {
-  check(): void;
-  finish(): void;
-  cancel(): void;
-  current(): boolean;
-};
+type AuthorizationAttempt = ReturnType<typeof authorizationAttempt>;
 
-function authorizationAttempt(
-  release: (() => void) | undefined,
-  cancelLegacy: (() => void) | undefined,
-  guard: () => void,
-  retired: () => void,
-): AuthorizationAttempt {
-  let open = true;
-  const check = () => {
-    if (!open) throw new Error("Provider sign-in was cancelled");
-    guard();
-  };
-  const close = (cancel: boolean) => {
-    if (!open) return;
-    open = false;
-    try {
-      if (release) {
-        release();
-        return;
-      }
-      if (cancel) {
-        try {
-          guard();
-        } catch {
-          return;
-        }
-        cancelLegacy?.();
-      }
-    } finally {
-      retired();
-    }
-  };
-  return {
-    check,
-    finish: () => close(false),
-    cancel: () => close(true),
-    current: () => {
-      try {
-        check();
-        return true;
-      } catch {
-        return false;
-      }
-    },
-  };
-}
-
-function authorizationLifetime(sink?: NativeAuthorizationSink) {
+function authorizationLifetime(
+  providerId: string,
+  read: () => NativeConnectorView | null,
+  staleId: string | undefined,
+  sink?: NativeAuthorizationSink,
+) {
   let current: AuthorizationAttempt | undefined;
   const reserve = (method: NativeConfigureInput["method"]) => {
     if (!["oauth", "oidc", "mcp"].includes(method)) return;
+    const correlation = authorizationCorrelation({
+      initial: read()?.connectionId,
+      stale: staleId,
+      existing: new Set(readDeviceRows().map((row) => row.connectionId)),
+      read: (id) => {
+        const view = readNativeConnector(id);
+        return !view
+          ? "absent"
+          : view.providerId === providerId
+            ? "same-provider"
+            : "other-provider";
+      },
+    });
     const browser = nativeOAuthBrowserPort();
     const release = browser.prepareAuthorization?.();
     let stop: (() => void) | undefined;
@@ -109,6 +82,7 @@ function authorizationLifetime(sink?: NativeAuthorizationSink) {
       browser.cancelAuthorization,
       () => capturedGuard?.(),
       retire,
+      correlation,
     );
     try {
       capturedGuard = browser.captureAuthorizationGuard?.();
@@ -119,6 +93,7 @@ function authorizationLifetime(sink?: NativeAuthorizationSink) {
             method,
             cancel: attempt.cancel,
             current: attempt.current,
+            selectConnection: attempt.selectConnection,
           }),
         );
       if (!attempt.current()) retire();
@@ -200,31 +175,26 @@ function nativeRecoveryControls(
     },
     revocationInstructions: (recoveryId: string) => {
       const view = read();
-      if (!view || !view.recovery.some((entry) => entry.id === recoveryId))
-        return null;
-      // A recovery entry that no longer matches the saved configuration is
-      // stale cleanup metadata, not a render failure: offer no instructions.
-      try {
-        if (view.configuration.method === "mcp")
-          return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
-        if (
-          view.configuration.method === "oidc" &&
-          ["vault", "openbao"].includes(view.providerId)
-        )
-          return nativeVaultRevocationInstructions(
+      const entry = view?.recovery.find((item) => item.id === recoveryId);
+      if (!view || !entry) return null;
+      if (view.configuration.method === "mcp")
+        return nativeMcpRevocationInstructions(view.connectionId, recoveryId);
+      if (
+        view.configuration.method === "oidc" &&
+        ["vault", "openbao"].includes(view.providerId)
+      ) {
+        // Vault has no issued-token revocation instruction before exchange preparation.
+        return entry.kind === "configure"
+          ? null
+          : nativeVaultRevocationInstructions(view.connectionId, recoveryId);
+      }
+      return view.configuration.method === "oauth" &&
+        nativeBrowserOAuthRecoverySettings(view.configuration)
+        ? nativeBrowserOAuthRevocationInstructions(
             view.connectionId,
             recoveryId,
-          );
-        return view.configuration.method === "oauth" &&
-          nativeBrowserOAuthRecoverySettings(view.configuration)
-          ? nativeBrowserOAuthRevocationInstructions(
-              view.connectionId,
-              recoveryId,
-            )
-          : null;
-      } catch {
-        return null;
-      }
+          )
+        : null;
     },
     confirmRevocation: async (recoveryId: string) => {
       const view = required();
@@ -254,15 +224,16 @@ function nativeRecoveryControls(
   };
 }
 
-export function nativeConnectorController(
+function nativeConfigure(
   plan: Pick<ConnectPlan, "id" | "refused">,
-  initialConnectionId?: string,
-  onAuthorization?: NativeAuthorizationSink,
-): NativeConnectorController {
-  const state = nativeControllerState(plan, initialConnectionId);
-  const { load, read, required, retain } = state;
-  const lifetime = authorizationLifetime(onAuthorization);
-  const configure = async (input: NativeConfigureInput, check?: () => void) => {
+  state: ReturnType<typeof nativeControllerState>,
+) {
+  const { read, required, retain } = state;
+  const configure = async (
+    input: NativeConfigureInput,
+    check?: () => void,
+    bind?: (id: string) => void,
+  ) => {
     check?.();
     if (plan.refused)
       throw new Error("This provider connection is unavailable");
@@ -280,9 +251,27 @@ export function nativeConnectorController(
       connectionId: held?.connectionId,
       revision: held?.revision,
     });
+    bind?.(configured.connectionId);
     check?.();
     return retain(configured);
   };
+  return configure;
+}
+
+export function nativeConnectorController(
+  plan: Pick<ConnectPlan, "id" | "refused">,
+  initialConnectionId?: string,
+  onAuthorization?: NativeAuthorizationSink,
+): NativeConnectorController {
+  const state = nativeControllerState(plan, initialConnectionId);
+  const { load, read, required, retain } = state;
+  const lifetime = authorizationLifetime(
+    plan.id,
+    read,
+    initialConnectionId,
+    onAuthorization,
+  );
+  const configure = nativeConfigure(plan, state);
   const test = async (input: NativeConfigureInput) => {
     if (plan.refused)
       throw new Error("This provider connection is unavailable");
@@ -299,7 +288,7 @@ export function nativeConnectorController(
     connect: async (input) => {
       const attempt = lifetime.reserve(input.method);
       try {
-        const view = await configure(input, attempt?.check);
+        const view = await configure(input, attempt?.check, attempt?.bind);
         attempt?.check();
         if (view.status === "connected") return view;
         const driver = nativeConnectorDriver(input.method, plan.id);

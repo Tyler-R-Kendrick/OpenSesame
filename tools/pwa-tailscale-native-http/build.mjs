@@ -28,6 +28,7 @@ const artifacts = join(output, "artifacts");
 const integrity = [];
 const owned = new Set();
 let interrupted = "";
+let nativeHttpStaged = false;
 
 async function digest(path) {
   return createHash("sha256")
@@ -49,6 +50,14 @@ async function sourcePins(stage) {
 async function criticalPins(stage) {
   await sourcePins(stage);
   await verifyFiles(compiler, pins.compiler.criticalFiles, stage);
+  if (nativeHttpStaged) {
+    await verifyFiles(here, pins.nativeHttp.files, `${stage}:overlay-source`);
+    await verifyFiles(
+      join(source, "cmd/tsconnect/nativehttp"),
+      pins.nativeHttp.files,
+      `${stage}:overlay-staged`,
+    );
+  }
 }
 async function archivePins(stage) {
   await requireHash(resolve(sourceInput), pins.source.archiveSha256);
@@ -284,9 +293,41 @@ async function extractInputs() {
   await criticalPins("inputs-extracted");
   await writeFile(join(output, "upstream-command.go"), helper);
 }
+async function stageNativeHttp() {
+  const files = pins.nativeHttp.files;
+  const names = [
+    "nativehttp.go",
+    "nativehttp_test.go",
+    "nativehttp_security_test.go",
+  ];
+  if (
+    !Array.isArray(files) ||
+    files.length !== names.length ||
+    files.some((file, index) => file?.path !== names[index])
+  )
+    throw new Error("Only the three fixed native HTTP overlays may be staged.");
+  for (const file of files)
+    await requireHash(join(here, file.path), file.sha256);
+  const directory = join(source, "cmd/tsconnect/nativehttp");
+  await mkdir(directory);
+  for (const file of files)
+    await writeFile(
+      join(directory, file.path),
+      await readFile(join(here, file.path)),
+      { flag: "wx", mode: 0o600 },
+    );
+  nativeHttpStaged = true;
+  await criticalPins("native-http-staged");
+  await execute(
+    join(compiler, "bin/go"),
+    ["test", "-count=1", "-timeout=60s", "./cmd/tsconnect/nativehttp"],
+    "native-http-host-test",
+  );
+}
 async function run() {
   await freshOutput();
   await extractInputs();
+  await stageNativeHttp();
   const baseline = await build("baseline");
   const repeated = await build("baseline-repeat");
   if (baseline.sha256 !== repeated.sha256)
@@ -315,7 +356,7 @@ attachSignals();
 try {
   await run();
   console.log(
-    "Raw compilation complete; no peering, TLS or provider operation was run.",
+    "Raw compilation and owned host TLS tests complete; browser transport, peering and provider operations remain unrun.",
   );
 } catch {
   process.exitCode = interrupted === "SIGINT" ? 130 : 1;

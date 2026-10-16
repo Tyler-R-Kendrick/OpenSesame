@@ -48,6 +48,37 @@ async function openNode(page) {
     .getByRole("region", { name: "Tailscale browser node", exact: true })
     .waitFor();
 }
+async function verifyPeeringCeremony(page, width) {
+  const panel = page.getByRole("region", {
+    name: "Tailscale browser node",
+    exact: true,
+  });
+  for (const name of ["Browser node hostname", "Tailscale control server"])
+    await expect(panel.getByLabel(name, { exact: true })).toBeVisible();
+  await expect(
+    panel.getByText("Join with an existing auth key", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    panel.getByRole("button", { name: "Connect browser node", exact: true }),
+  ).toBeVisible();
+  for (const name of [
+    "Tailscale API base URL",
+    "Admin API access token",
+    "Registered client ID",
+  ])
+    await expect(page.getByLabel(name, { exact: true })).toHaveCount(0);
+  for (const name of [
+    "Register app with Tailscale",
+    "Authorize a device with Tailscale",
+  ])
+    await expect(
+      page.getByRole("button", { name, exact: true, includeHidden: true }),
+    ).toHaveCount(0);
+  h.check(
+    true,
+    `${width}: peering-only ceremony exposes native node controls without app management`,
+  );
+}
 async function verifyPrivateState(page, hostname, width) {
   await visitBackendRoute(page, base, "vault?f=all");
   const title = `Tailscale browser node private state · ${hostname}`;
@@ -162,6 +193,7 @@ async function runViewport(width) {
     await enableBackendConnections(page, base);
     await addCapabilities(page, ["Tailnet networking"]);
     await openNode(page);
+    await verifyPeeringCeremony(page, width);
     const before = fixture.peer.length;
     await exerciseTailscaleBrowserNode({
       page,
