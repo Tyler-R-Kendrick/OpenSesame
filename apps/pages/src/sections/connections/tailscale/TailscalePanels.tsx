@@ -1,43 +1,18 @@
-import type {
-  Connection,
-  Provider,
-} from "@opensesame/app-core/lib/connections.js";
-import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
+/** Browser peering uses the node's own login and encrypted state, without an OAuth app. */
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { TailscaleBrowserNode } from "./TailscaleBrowserNode.js";
-import {
-  TailscaleAppImport,
-  TailscaleConfiguration,
-} from "./TailscaleConfiguration.js";
-import { TailscaleDevicePanel } from "./TailscaleDevicePanel.js";
-import { tailscaleAppDependencies as deps } from "./tailscale-dependencies.js";
-import { useTailscaleApp } from "./useTailscaleApp.js";
+import { useTailscaleBrowserNodeReady } from "./useTailscaleBrowserNodeReady.js";
 import "../connect/connect.css";
-type Props = {
-  provider: Provider;
-  connection: Connection | null;
-  online: boolean;
-  onFlash: (flash: Flash) => void;
-  onChanged: () => void;
-};
-export function TailscalePanels({
-  connection,
-  online,
-  onFlash,
-  onChanged,
-}: Props) {
-  const model = useTailscaleApp(connection?.connectionId, onChanged, onFlash);
-  const callback =
-    model.saved?.redirectUri ?? deps.optionalBrowser()?.redirectUri ?? "";
+export function TailscalePanels({ online }: { online: boolean }) {
+  const { ready, failure } = useTailscaleBrowserNodeReady();
   return (
     <div className="cx-setup">
-      <TailscaleBrowserNode ready={model.ready} online={online} />
-      <TailscaleConfiguration
-        model={model}
-        callback={callback}
-        online={online}
+      <FailureNotice
+        id="tailscale-browser-storage"
+        title="Tailscale"
+        message={failure}
       />
-      <TailscaleAppImport model={model} online={online} />
-      <TailscaleDevicePanel model={model} />
+      <TailscaleBrowserNode ready={ready} online={online} />
     </div>
   );
 }

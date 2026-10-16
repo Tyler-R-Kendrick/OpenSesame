@@ -11,7 +11,7 @@ import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connec
 import { nativeKeyDriverFor } from "@opensesame/app-core/lib/native-key-drivers.js";
 import { nativeMcpUnavailableReason } from "@opensesame/app-core/lib/native-mcp-connectors.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import { useNativeBridge } from "../../../lib/use-native-bridge.js";
 import { NativeConnectorForm } from "./NativeConnectorForm.js";
@@ -200,11 +200,13 @@ export function NativeConnectorPanels({
   connection,
   onFlash,
   onChanged,
+  renderConfiguration,
 }: {
   provider: Provider;
   connection: Connection | null;
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
+  renderConfiguration?: (form: ReactNode) => ReactNode;
 }) {
   // The connector bridge changes what a refused provider offers (ADR 0199).
   useNativeBridge(provider.id);
@@ -238,6 +240,16 @@ export function NativeConnectorPanels({
     refresh((version) => version + 1);
     onChanged();
   };
+  const form = (
+    <NativeConnectorForm
+      key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}`}
+      descriptor={current}
+      controller={controller}
+      view={view}
+      onFlash={onFlash}
+      onChanged={changed}
+    />
+  );
   return (
     <div className="cx-setup">
       <section
@@ -252,14 +264,7 @@ export function NativeConnectorPanels({
             {view && nativeVerified(view) ? "Configure" : "Connect"}
           </h2>
         </div>
-        <NativeConnectorForm
-          key={`${provider.id}/${view?.connectionId ?? "new"}/${view?.revision ?? 0}/${roads}`}
-          descriptor={current}
-          controller={controller}
-          view={view}
-          onFlash={onFlash}
-          onChanged={changed}
-        />
+        {renderConfiguration ? renderConfiguration(form) : form}
       </section>
       {view ? (
         <>

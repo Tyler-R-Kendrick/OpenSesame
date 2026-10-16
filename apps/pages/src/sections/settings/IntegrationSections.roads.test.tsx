@@ -8,7 +8,7 @@ import {
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { usesConnect } from "@opensesame/app-core/lib/vercel-connect.js";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { settingsPageSources } from "./page-tree.js";
 import {
@@ -101,6 +101,49 @@ describe("connector tiles while Connections is off", () => {
 });
 
 describe("connector tiles once Connections routes its pages", () => {
+  it.each([
+    ["AI providers", "BYO AI", "/settings/connections/byo-ai"],
+    [
+      "Identity providers",
+      "BYO Identity",
+      "/settings/connections/byo-identity",
+    ],
+    [
+      "Password managers providers",
+      "BYO Secret Backend",
+      "/settings/connections/byo-secret-backend",
+    ],
+  ])(
+    "puts %s own-service configuration before partner cards",
+    (list, name, href) => {
+      installConnections();
+      renderIntegrationsPanel();
+      const first = within(
+        screen.getByRole("list", { name: list }),
+      ).getAllByRole("listitem")[0];
+      if (!first) throw new Error(`Missing first ${list} card`);
+      expect(within(first).getByRole("link", { name })).toHaveProperty(
+        "pathname",
+        href,
+      );
+    },
+  );
+
+  it("keeps the existing partner order after the BYO card", () => {
+    installConnections();
+    renderIntegrationsPanel();
+    expect(tileNames("Identity providers")).toEqual([
+      "BYO Identity",
+      "Better Auth",
+      "Supabase",
+      "Neon Auth",
+      "Clerk",
+      "WorkOS",
+      "Auth0",
+      "Okta",
+    ]);
+  });
+
   it("draws a key or a configuration with no Connect credential", () => {
     installConnections();
     renderIntegrationsPanel();
