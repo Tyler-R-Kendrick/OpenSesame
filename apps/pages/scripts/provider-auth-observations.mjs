@@ -136,6 +136,7 @@ export async function saveProviderFailure({
         title: document.title,
         children: document.body?.childElementCount ?? -1,
         isolated: crossOriginIsolated,
+        html: document.body?.innerHTML.slice(0, 1500) ?? "",
       }))
       .catch((error) => ({ error: String(error) }));
     console.error(
