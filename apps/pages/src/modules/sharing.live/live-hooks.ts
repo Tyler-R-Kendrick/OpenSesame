@@ -73,8 +73,6 @@ export type JoinDraft = {
   failed: string;
   /** Whether to use the servers the link names (shown before any contact). */
   useRoutes: boolean;
-  /** Optional OOB peer-trust signal from the owner (browser-only; no daemon). */
-  peerTrust: string;
 };
 
 export const joinDraft: JoinDraft = {
@@ -85,7 +83,6 @@ export const joinDraft: JoinDraft = {
   note: "",
   failed: "",
   useRoutes: true,
-  peerTrust: "",
 };
 
 export function clearJoinDraft(): void {
@@ -97,13 +94,12 @@ export function clearJoinDraft(): void {
     note: "",
     failed: "",
     useRoutes: true,
-    peerTrust: "",
   });
 }
 
 /** One field of the draft, as React state that writes through. */
 export function useDraftField(
-  key: "pasted" | "code" | "name" | "note" | "failed" | "peerTrust",
+  key: "pasted" | "code" | "name" | "note" | "failed",
 ): [string, (next: string) => void] {
   const [value, setValue] = useState(() => joinDraft[key]);
   return [

@@ -29,7 +29,6 @@ import { browserInference } from "@opensesame/app-core/lib/browser-inference.js"
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { interpretCommand } from "@opensesame/app-core/lib/command-bar/interpret.js";
 import {
-  MODEL_PROVIDER_KEY,
   autonomousResetAvailable,
   loadModelProvider,
   resolveModelPlane,
@@ -40,6 +39,7 @@ import { SETTINGS_READ_TOOL } from "@opensesame/app-core/webmcp/settings-tools.j
 import { CommandBarVoice } from "../../components/command-bar-voice.js";
 import { AiStep } from "../../screens/setup/steps/AiStep.js";
 import { EmbeddedModelProviderPanel } from "../../sections/settings/ModelProviderPanel.js";
+import { MODEL_PROVIDER_PANEL } from "../../sections/settings/use-integrations-drawn.js";
 import { DraftSuggestions } from "../../sections/vault/DraftSuggestions.js";
 import { installSupportAgentLoaders } from "../../tutorial/agent-seams.js";
 import { createActivation } from "../activation.js";
@@ -51,10 +51,6 @@ export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
-    if (activation.disposed()) return activation.handle();
-
-    // Optional preferences must be loaded before any contributed consumer reads them.
-    await ctx.hydrate([MODEL_PROVIDER_KEY]);
     if (activation.disposed()) return activation.handle();
 
     activation.onDispose(
@@ -85,11 +81,12 @@ export const capabilityRuntime: CapabilityRuntime = {
       Suggestions: DraftSuggestions,
       suggest: (context, signal) => suggestDraftLabels({ ...context }, signal),
     });
-    // The standard feature contribution path keeps model choices with AI's controls.
+    // Drawn by the AI section of Settings › Integrations, found by id; the
+    // category is one no settings route renders on its own.
     activation.register("settings-panel", {
-      id: "model-provider",
+      id: MODEL_PROVIDER_PANEL,
       label: "Model provider",
-      category: "features.feature-ai",
+      category: "integrations.ai-models",
       Panel: EmbeddedModelProviderPanel,
       order: 10,
     });

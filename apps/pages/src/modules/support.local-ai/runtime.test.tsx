@@ -1,9 +1,4 @@
 /** @vitest-environment jsdom */
-import { kvDelete, kvSetDurable } from "@opensesame/app-core/lib/kv.js";
-import {
-  MODEL_PROVIDER_KEY,
-  loadModelProvider,
-} from "@opensesame/app-core/lib/model-provider.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   resetSupportAgentLoadersForTest,
@@ -22,7 +17,6 @@ let runtime: typeof Runtime;
 
 describe("support.local-ai runtime", () => {
   afterEach(() => {
-    kvDelete(MODEL_PROVIDER_KEY);
     vi.restoreAllMocks();
     resetSupportAgentLoadersForTest();
   });
@@ -57,8 +51,8 @@ describe("support.local-ai runtime", () => {
     expect(t.entries("item-draft-assist").map((a) => a.id)).toEqual([
       "on-device",
     ]);
-    expect(t.entries("settings-panel").map((p) => [p.id, p.category])).toEqual([
-      ["model-provider", "features.feature-ai"],
+    expect(t.entries("settings-panel").map((p) => p.id)).toEqual([
+      "model-provider",
     ]);
     await handle.dispose();
   });
@@ -72,64 +66,6 @@ describe("support.local-ai runtime", () => {
     expect(t.entries("webmcp-tool").map((tool) => tool.name)).toEqual([
       "opensesame_settings_read",
     ]);
-    await handle.dispose();
-  });
-
-  it("hydrates saved native model and voice choices before exposing their consumers", async () => {
-    const t = createTestContext();
-    let finish = () => {};
-    const pending = new Promise<void>((resolve) => {
-      finish = resolve;
-    });
-    const inference = {
-      kind: "hosted",
-      provider: "byo-ai",
-      endpoint: "https://models.example/custom/v1",
-      model: "custom-chat",
-      connectionId: "native-ai-saved",
-    };
-    const voice = {
-      kind: "browser",
-      provider: "browser-speech",
-      endpoint: "",
-      model: "ja-JP",
-    };
-    const hydrate = vi.fn(async (keys: readonly string[]) => {
-      expect(keys).toEqual([MODEL_PROVIDER_KEY]);
-      await pending;
-      await kvSetDurable(
-        MODEL_PROVIDER_KEY,
-        JSON.stringify({ ...inference, inference, voice }),
-      );
-    });
-    const activating = runtime.capabilityRuntime.activate({
-      ...t.ctx,
-      hydrate,
-    });
-    expect(t.live()).toHaveLength(0);
-    expect(hydrate).toHaveBeenCalledOnce();
-    finish();
-    const handle = await activating;
-    expect(t.entries("settings-panel")).toHaveLength(1);
-    expect(loadModelProvider().inference).toEqual(inference);
-    expect(loadModelProvider().voice).toEqual(voice);
-    await handle.dispose();
-  });
-
-  it("installs nothing if the lease ends while preferences hydrate", async () => {
-    const t = createTestContext();
-    let finish = () => {};
-    const pending = new Promise<void>((resolve) => {
-      finish = resolve;
-    });
-    const activating = runtime.capabilityRuntime.activate({
-      ...t.ctx,
-      hydrate: () => pending,
-    });
-    t.abort("vault locked");
-    finish();
-    const handle = await activating;
-    expect(t.registered).toHaveLength(0);
     await handle.dispose();
   });
 

@@ -30,12 +30,12 @@ import { FormCommit } from "../../components/FormCommit.js";
 import {
   IconArrowRight,
   IconSecret,
+  IconShare,
   IconUser,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { firstControl } from "../../lib/focus.js";
 import { LiveCatalog } from "./LiveCatalog.js";
-import { LiveLinkField, PeerTrustField } from "./LiveJoinFields.js";
 import { RequestStep } from "./LiveJoinPairing.js";
 import { CarrierMarks, RoutesChoice } from "./LiveJoinRoutes.js";
 import { useLandWhenSettled } from "./live-focus.js";
@@ -106,7 +106,6 @@ function useAsk(held: LiveLink | null) {
   const [code, setCode] = useDraftField("code");
   const [name, setName] = useDraftField("name");
   const [note, setNote] = useDraftField("note");
-  const [peerTrust, setPeerTrust] = useDraftField("peerTrust");
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useDraftField("failed");
   const [useRoutes, setRoutesState] = useState(joinDraft.useRoutes);
@@ -130,7 +129,6 @@ function useAsk(held: LiveLink | null) {
     setBusy(true);
     setFailed("");
     try {
-      const trustSignal = cleanText(peerTrust);
       await joinLive({
         link,
         code: normalized,
@@ -139,16 +137,10 @@ function useAsk(held: LiveLink | null) {
         transport: liveUiSeams.transport,
         useRoutes,
         carriers: liveUiSeams.carriers,
-        peerTrustSignal: trustSignal.length > 0 ? trustSignal : null,
       });
-    } catch (error) {
+    } catch {
       leaveLive();
-      const refused =
-        error instanceof Error &&
-        error.message.startsWith("peer_trust_refused:");
-      const words = refused
-        ? "Peer trust could not be verified"
-        : "This browser could not make a request code";
+      const words = "This browser could not make a request code";
       reportLiveOutcome("Live session", words);
       setFailed(words);
     } finally {
@@ -157,8 +149,8 @@ function useAsk(held: LiveLink | null) {
   }
 
   return {
-    fields: { pasted, code, name, note, peerTrust, useRoutes },
-    set: { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes },
+    fields: { pasted, code, name, note, useRoutes },
+    set: { setPasted, setCode, setName, setNote, setUseRoutes },
     link,
     routes,
     needsCode,
@@ -172,9 +164,8 @@ function useAsk(held: LiveLink | null) {
 export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
   const { fields, set, link, routes, needsCode, ready, busy, failed, ask } =
     useAsk(held);
-  const { pasted, code, name, note, peerTrust, useRoutes } = fields;
-  const { setPasted, setCode, setName, setNote, setPeerTrust, setUseRoutes } =
-    set;
+  const { pasted, code, name, note, useRoutes } = fields;
+  const { setPasted, setCode, setName, setNote, setUseRoutes } = set;
   const form = useRef<HTMLFormElement>(null);
   useLandWhenSettled(busy, () => form.current?.querySelector(".go"));
 
@@ -192,11 +183,21 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
         <StatusMark tone="err" label="Not a live-session link" />
       ) : null}
       {held ? null : (
-        <LiveLinkField
-          pasted={pasted}
-          link={link}
-          busy={busy}
-          setPasted={setPasted}
+        <FieldShell
+          id="live-link"
+          label="Link"
+          type="password"
+          mono
+          autoComplete="off"
+          lead={<IconShare size={17} />}
+          value={pasted}
+          disabled={busy}
+          status={
+            pasted && !link ? (
+              <StatusMark tone="err" label="Not a live-session link" />
+            ) : null
+          }
+          onValueChange={setPasted}
         />
       )}
       {needsCode ? (
@@ -228,11 +229,6 @@ export function LiveJoinAskForm({ held }: { held: LiveLink | null }) {
         value={note}
         disabled={busy}
         onValueChange={(next) => setNote(next.slice(0, NOTE_MAX))}
-      />
-      <PeerTrustField
-        peerTrust={peerTrust}
-        busy={busy}
-        setPeerTrust={setPeerTrust}
       />
       {routes ? (
         <RoutesChoice
