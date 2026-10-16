@@ -46,23 +46,8 @@ async function nativeArrival(page, row) {
     name: `Connect ${row.name}`,
     exact: true,
   });
-  // AI-connection providers open the shared AI form in the same sheet.
-  const aiSheet = page.getByRole("form", {
-    name: "AI connection configuration",
-    exact: true,
-  });
-  await heading.or(sheet).or(aiSheet).first().waitFor();
-  if (await sheet.count()) return sheet;
-  // The shared AI form also stands on the provider page itself; only the
-  // sheet form (inside the Connect dialog) is walked as a sheet.
-  if (
-    (await aiSheet.count()) &&
-    (await page
-      .getByRole("dialog", { name: "Connect a model provider", exact: true })
-      .count())
-  )
-    return aiSheet;
-  return null;
+  await heading.or(sheet).first().waitFor();
+  return (await sheet.count()) ? sheet : null;
 }
 
 /**
@@ -137,12 +122,8 @@ async function nativeSheetContract(page, row, sheet, { check, phone }) {
     ),
     `${row.id}: the Add sheet has no arbitrary endpoint or client-secret control`,
   );
-  // textContent, not innerText: the shared form keeps its custody note in
-  // a collapsed setup section, which innerText would omit.
-  const dialogText = (await dialog.textContent()) ?? "";
   check(
-    dialogText.includes("sealed on this device") ||
-      dialogText.includes("saved as a Token credential in the current vault"),
+    (await dialog.innerText()).includes("sealed on this device"),
     `${row.id}: the Add sheet says where the key is kept`,
   );
   const layout = await nativeSheetLayout(page);

@@ -136,15 +136,6 @@ export async function nativeApiJourney(
   { base, out, label },
 ) {
   harness.setStep(`${label}-api-${fixture.providerId}`);
-  // AI model providers are configured through the shared AI connection
-  // form, which the AI connections journey walks; the native API-key
-  // journey no longer applies to them.
-  if (NATIVE_AI_MODEL_PROVIDER_IDS.has(fixture.providerId))
-    return {
-      providerId: fixture.providerId,
-      connected: false,
-      reason: "shared AI connection journey",
-    };
   // A model provider's first connection from the Add catalog is a sheet
   // (walked in the catalog journey and in `nativeAiSheetJourney`); its page,
   // with the method step and Verify and connect, is the one Settings opens.
