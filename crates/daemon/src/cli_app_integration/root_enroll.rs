@@ -81,13 +81,13 @@ pub(crate) async fn finish(State(st): State<App>, headers: HeaderMap, body: Byte
     };
     let decoded = match decode_finish(&parsed) {
         Ok(decoded) => decoded,
-        Err(fail) => return decode_response(fail),
+        Err(fail) => return decode_response(&fail),
     };
     let now = now_unix();
     let mut host = lock_host(&st);
     let outcome = match host.finish_root_enroll(decoded.request(), now) {
         Ok(outcome) => outcome,
-        Err(err) => return map_finish_error(err),
+        Err(err) => return map_finish_error(&err),
     };
     if let Err(err) = super::root_trust::save(&dir, &outcome.record) {
         tracing::warn!(%err, "cli root trust store write failed");
@@ -160,7 +160,7 @@ fn decode_finish(body: &FinishBody) -> Result<DecodedFinish, DecodeFail> {
     })
 }
 
-fn decode_response(fail: DecodeFail) -> Response {
+fn decode_response(fail: &DecodeFail) -> Response {
     match fail {
         DecodeFail::Unknown => pairing_error(StatusCode::NOT_FOUND, "root_enroll_unknown"),
         DecodeFail::Refused => pairing_error(StatusCode::FORBIDDEN, "root_enroll_refused"),
@@ -168,7 +168,7 @@ fn decode_response(fail: DecodeFail) -> Response {
     }
 }
 
-fn map_finish_error(err: RootEnrollError) -> Response {
+fn map_finish_error(err: &RootEnrollError) -> Response {
     let (status, code) = match err {
         RootEnrollError::UnknownSession => (StatusCode::NOT_FOUND, "root_enroll_unknown"),
         RootEnrollError::Expired => (StatusCode::FORBIDDEN, "root_enroll_expired"),

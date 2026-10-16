@@ -14,7 +14,9 @@ pub enum EnrollEntryMethod {
 impl EnrollEntryMethod {
     #[must_use]
     pub fn header_value(self) -> &'static str {
-        "secure-prompt"
+        match self {
+            Self::SecurePrompt => "secure-prompt",
+        }
     }
 }
 
