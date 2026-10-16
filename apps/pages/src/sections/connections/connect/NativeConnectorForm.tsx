@@ -5,7 +5,7 @@ import {
 import { docLink } from "@opensesame/app-core/lib/doc-link.js";
 import type { NativeConnectorView } from "@opensesame/app-core/lib/native-connector-view.js";
 import { errorText } from "@opensesame/app-core/sections/connections/shared.js";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { FormCommit } from "../../../components/FormCommit.js";
 import { StatusMark } from "../../../components/StatusMark.js";
@@ -79,8 +79,35 @@ function useNativeForm({
   );
   const [busy, setBusy] = useState(false);
   const image = useNativePreferences(descriptor.name, view);
-  const { name } = image;
+  const { name, setName, setIcon, iconBusy } = image;
   const [failure, setFailure] = useState("");
+  // A saved revision that changes under the form (another tab, a verified
+  // action) re-seeds the fields, as remounting on revision once did. While an
+  // authorization is pending the form must not reset, or its Cancel sign-in
+  // would vanish; the reseed lands once busy clears.
+  const revisionKey = view
+    ? `${view.connectionId}/${view.revision}/${view.configuration.fingerprint}`
+    : null;
+  const syncedRevision = useRef(revisionKey);
+  useEffect(() => {
+    if (
+      !view ||
+      !revisionKey ||
+      syncedRevision.current === revisionKey ||
+      busy ||
+      iconBusy
+    )
+      return;
+    syncedRevision.current = revisionKey;
+    const next = nativeInitialMethod(descriptor, view);
+    setMethodId(next?.id);
+    setValues(next ? nativeInitialValues(next, view) : {});
+    setScopes(
+      next ? nativeScopeDefaults(next, view.configuration.requestedScopes) : {},
+    );
+    setName(view.configuration.displayName);
+    setIcon(view.configuration.icon ?? "");
+  }, [view, revisionKey, descriptor, busy, iconBusy, setName, setIcon]);
   const selectedMethod = available.find((item) => item.id === methodId);
   const method = selectedMethod
     ? nativeDraftMethod(descriptor.providerId, selectedMethod, view, values)

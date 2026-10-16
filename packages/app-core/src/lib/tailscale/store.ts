@@ -50,8 +50,10 @@ function binding(config: TailscaleAppConfiguration, id: string): string {
   });
 }
 export async function hydrateTailscaleApps(): Promise<void> {
-  await initializeVaultCredentialCustody();
-  await kvHydrate([...DEVICE_CONNECTOR_KEYS]);
+  await Promise.all([
+    initializeVaultCredentialCustody(),
+    kvHydrate([...DEVICE_CONNECTOR_KEYS]),
+  ]);
 }
 export function readTailscaleApp(
   connectionId?: string,

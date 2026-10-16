@@ -78,6 +78,10 @@ it("keeps Cancel sign-in when the saved view re-renders during pending authoriza
   );
   try {
     const view = render(page);
+    await userEvent.type(
+      screen.getByLabelText("Codeberg public client ID"),
+      "codeberg-public-client",
+    );
     await userEvent.click(
       screen.getByRole("button", { name: "Sign in to Codeberg" }),
     );
