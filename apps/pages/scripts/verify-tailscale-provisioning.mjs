@@ -121,6 +121,16 @@ try {
   await app?.close();
 }
 for (const entry of h.log) {
+  // Consent popups are opener-severed by design; Chromium logs its refusal
+  // to let the initiating frame navigate the severed window as a console
+  // error even though consent, callback and exchange proceed correctly.
+  if (
+    entry.kind === "console-error" &&
+    entry.detail.startsWith(
+      "Unsafe attempt to initiate navigation for frame with origin 'https://login.tailscale.com'",
+    )
+  )
+    continue;
   if (
     [
       "PAGE-ERROR",
