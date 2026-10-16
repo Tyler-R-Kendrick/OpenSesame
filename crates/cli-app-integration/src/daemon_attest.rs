@@ -7,6 +7,8 @@ use p256::elliptic_curve::pkcs8::{DecodePrivateKey, EncodePublicKey};
 use p256::PublicKey;
 use std::sync::OnceLock;
 
+use sha2::{Digest, Sha256};
+
 use crate::device_crypto::{daemon_attest_message, verify_p256_sha256};
 
 static DAEMON_ATTEST_KEY: OnceLock<Option<SigningKey>> = OnceLock::new();
@@ -44,6 +46,15 @@ pub fn sign_daemon_attest(nonce: &str) -> Option<String> {
     let message = daemon_attest_message(nonce);
     let sig: p256::ecdsa::Signature = key.sign(&message);
     Some(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes()))
+}
+
+/// Stable id for human-proof binding (hash of daemon attest SPKI when configured).
+#[must_use]
+pub fn daemon_integration_id() -> String {
+    match daemon_attest_public_key_spki_b64() {
+        Some(spki) => hex::encode(Sha256::digest(spki.as_bytes())),
+        None => "ephemeral-no-attest".to_string(),
+    }
 }
 
 #[must_use]

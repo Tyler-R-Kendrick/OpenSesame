@@ -7,7 +7,11 @@ use p256::PublicKey;
 use rand_core::OsRng;
 use serde_json::json;
 
-use crate::device_crypto::{pairing_confirm_message, webauthn_register_challenge_digest};
+use crate::daemon_attest::daemon_integration_id;
+use crate::device_crypto::{
+    approval_challenge_digest_v3, pairing_confirm_message, webauthn_register_challenge_digest,
+};
+use crate::human_proof::{mint_pin_human_proof, HumanProofContext};
 use crate::pairing::{CliAppIntegrationPairings, PairedBinding, WebAuthnCredential};
 use ecdsa::signature::Signer;
 
@@ -65,7 +69,7 @@ pub fn test_paired_binding() -> PairedBinding {
     }
 }
 
-fn mint_passkey_proof_for_challenge(
+fn passkey_wire_for_challenge(
     signing_key: &SigningKey,
     credential_id: &str,
     challenge: [u8; 32],
@@ -94,7 +98,19 @@ fn mint_passkey_proof_for_challenge(
         "clientDataJsonB64": base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(client_data_bytes),
         "signatureB64": sig_b64,
     });
-    format!("oschip2:passkey:{wire}")
+    wire.to_string()
+}
+
+fn mint_passkey_proof_for_challenge(
+    signing_key: &SigningKey,
+    credential_id: &str,
+    challenge: [u8; 32],
+    sign_count: u32,
+) -> String {
+    format!(
+        "oschip2:passkey:{}",
+        passkey_wire_for_challenge(signing_key, credential_id, challenge, sign_count)
+    )
 }
 
 /// Mint a bearer for daemon HTTP integration tests.
@@ -157,6 +173,39 @@ pub fn pair_browser_for_tests(
     token
 }
 
+/// PIN human proof for daemon persona tests (verb `read`, argv `"00"`, no peer).
+#[must_use]
+pub fn mint_test_pin_proof(
+    signing_key: &SigningKey,
+    request_id: &str,
+    terminal_session_id: &str,
+    respond_nonce: &str,
+) -> String {
+    mint_pin_human_proof(
+        signing_key,
+        &test_human_proof_ctx(request_id, terminal_session_id, respond_nonce),
+    )
+}
+
+/// Human-proof context for daemon persona tests (verb `read`, argv `"00"`, no peer).
+#[must_use]
+pub fn test_human_proof_ctx(
+    request_id: &str,
+    terminal_session_id: &str,
+    respond_nonce: &str,
+) -> HumanProofContext {
+    HumanProofContext {
+        daemon_id: daemon_integration_id(),
+        request_id: request_id.to_string(),
+        terminal_session_id: terminal_session_id.to_string(),
+        respond_nonce: respond_nonce.to_string(),
+        verb: "read".to_string(),
+        argv_hash: "00".to_string(),
+        peer_pid: 0,
+        peer_start_time: 0,
+    }
+}
+
 /// Mint a passkey-shaped human proof for integration tests (registered `WebAuthn` cred).
 #[must_use]
 pub fn mint_test_human_proof(
@@ -164,8 +213,21 @@ pub fn mint_test_human_proof(
     terminal_session_id: &str,
     respond_nonce: &str,
     verb: &str,
+    peer_pid: u32,
+    peer_start_time: u64,
 ) -> String {
-    mint_test_passkey_human_proof(request_id, terminal_session_id, respond_nonce, verb, 2)
+    let challenge = approval_challenge_digest_v3(
+        &daemon_integration_id(),
+        request_id,
+        terminal_session_id,
+        respond_nonce,
+        verb,
+        "00",
+        peer_pid,
+        peer_start_time,
+    );
+    let wire = passkey_wire_for_challenge(&approval_fixture().0, "test-cli-app-cred", challenge, 2);
+    format!("oschip3:passkey:{wire}")
 }
 
 #[must_use]
@@ -176,13 +238,21 @@ pub fn mint_test_passkey_human_proof(
     verb: &str,
     sign_count: u32,
 ) -> String {
-    use crate::device_crypto::approval_challenge_digest;
-
-    let challenge = approval_challenge_digest(request_id, terminal_session_id, respond_nonce, verb);
-    mint_passkey_proof_for_challenge(
+    let challenge = approval_challenge_digest_v3(
+        &daemon_integration_id(),
+        request_id,
+        terminal_session_id,
+        respond_nonce,
+        verb,
+        "00",
+        0,
+        0,
+    );
+    let wire = passkey_wire_for_challenge(
         &approval_fixture().0,
         "test-cli-app-cred",
         challenge,
         sign_count,
-    )
+    );
+    format!("oschip3:passkey:{wire}")
 }

@@ -20,6 +20,7 @@ Human, device, workload, service, agent, agent instance, malicious connector, co
 4. WASM capability boundary
 5. Public callback edge (narrow)
 6. Transport admission — a native TLS peer or a bound ingress (authentication, never authorization; ADR 0132)
+7. CLI app integration (optional daemon) — browser pairing + `humanProof` over loopback; see [ADR 0206](../adr/0206-device-key-trust-d7-2.md). Same-user attackers can mint keys and edit daemon state; trust anchors must live in the unlocked PWA (ARK/PAKE follow-up). Approvals require UDS-attested peers, `oschip3` proofs, and a global pending cap; TCP ensure rows are not approvable.
 
 ## Browser-to-Host authority lifecycle
 

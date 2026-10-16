@@ -5,10 +5,10 @@ use crate::daemon_toolbar::ToolbarCmd;
 mod daemon_drive;
 #[path = "daemon_fill.rs"]
 mod daemon_fill;
-#[path = "daemon_tailnet.rs"]
-mod daemon_tailnet;
 #[path = "daemon_root_trust.rs"]
 mod daemon_root_trust;
+#[path = "daemon_tailnet.rs"]
+mod daemon_tailnet;
 use clap::Subcommand;
 use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;
@@ -88,8 +88,8 @@ enum DaemonCmd {
 
 #[derive(Subcommand, Debug)]
 enum RootTrustCmd {
-    /// Run SPAKE2 enrollment after an OS secure prompt (or `--allow-tty-enroll`).
-    Enroll(daemon_root_trust::RootTrustEnrollArgs),
+    /// Run SPAKE2 enrollment after an OS secure prompt (headless hosts refuse).
+    Enroll,
 }
 
 /// Entry point called from `main.rs`'s `Commands::Daemon` arm.
@@ -118,8 +118,8 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
             crate::daemon_toolbar::run(base, operator_token.as_deref(), verb).await?;
         }
         DaemonCmd::RootTrust { cmd } => match cmd {
-            RootTrustCmd::Enroll(args) => {
-                daemon_root_trust::run(base, operator_token.as_deref(), args).await?;
+            RootTrustCmd::Enroll => {
+                daemon_root_trust::run(base, operator_token.as_deref()).await?;
             }
         },
         DaemonCmd::Install => {

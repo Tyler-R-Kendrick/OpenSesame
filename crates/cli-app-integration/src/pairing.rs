@@ -60,6 +60,10 @@ pub enum PairingError {
     RegistrationMismatch,
     #[error("device pairing proof was invalid")]
     InvalidProof,
+    #[error("approver root key enrollment is required for this action")]
+    ArkEnrollmentRequired,
+    #[error("client-supplied passkey material is not trusted")]
+    ClientSuppliedSpkiRejected,
     #[error("the daemon root trust key is not enrolled")]
     RootKeyNotEnrolled,
 }
@@ -143,7 +147,7 @@ pub struct CliAppIntegrationPairings {
 impl CliAppIntegrationPairings {
     /// Whether the daemon root trust key is enrolled.
     ///
-    /// Confirm, registration arm, WebAuthn register, and exchange stay refused
+    /// Confirm, registration arm, `WebAuthn` register, and exchange stay refused
     /// until this is true. Operator issue is not gated.
     #[must_use]
     pub fn is_root_key_enrolled(&self) -> bool {
@@ -248,6 +252,7 @@ impl CliAppIntegrationPairings {
         let registration_code = registration_code();
         pending.device_public_key_spki_b64 = Some(device_public_key_spki_b64.to_string());
         pending.registration_code_sha256 = Some(digest_hex(&registration_code));
+        pending.registration_armed = false;
         pending.vault_session_root_digest = vault_session_root_digest.map(str::to_string);
         Ok(ConfirmOutcome { registration_code })
     }

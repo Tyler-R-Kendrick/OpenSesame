@@ -250,7 +250,7 @@ async fn finish_without_enroll_entry_header_is_refused() {
     let spki = root_spki_der(&generate_root_signing_key());
     let (message, confirm) = honest(&started, &spki);
     let body = proof(&started, &spki, confirm.client_confirm(), &message);
-    let mut builder = Request::builder()
+    let builder = Request::builder()
         .method("POST")
         .uri(ROOT_ENROLL_FINISH_PATH)
         .header("content-type", "application/json");
