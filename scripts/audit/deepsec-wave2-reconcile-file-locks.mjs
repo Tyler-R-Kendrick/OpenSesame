@@ -11,7 +11,7 @@ import {
 
 const repoRoot = process.argv[2] ?? process.cwd();
 const dryRun = process.argv.includes("--dry-run");
-const fileWallSec = Number(process.env.DEEPSEC_GROK_FILE_WALL_SEC ?? "1500");
+const fileWallSec = Number(process.env.DEEPSEC_GROK_FILE_WALL_SEC ?? "2700");
 const graceSec = Number(process.env.DEEPSEC_WAVE2_LOCK_GRACE_SEC ?? "120");
 const maxLockAgeMs = (fileWallSec + graceSec) * 1000;
 
