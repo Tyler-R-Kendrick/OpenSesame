@@ -64,7 +64,8 @@ export function grokFileWallSec(): number {
  * `timeout -k NaN` invalid and fire the watchdog setTimeout immediately.
  */
 export function grokKillGraceMs(): number {
-  const n = Number(process.env.DEEPSEC_GROK_KILL_GRACE_MS ?? "10000");
+  const raw = process.env.DEEPSEC_GROK_KILL_GRACE_MS;
+  const n = raw === undefined || raw === "" ? 10000 : Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : 10000;
 }
 

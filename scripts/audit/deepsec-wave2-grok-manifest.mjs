@@ -30,8 +30,7 @@ function tierFilter(filePath) {
   return grokTierForPath(filePath) === want;
 }
 
-const strictLast =
-  process.env.DEEPSEC_GROK_MANIFEST_STRICT_LAST !== "0";
+const strictLast = process.env.DEEPSEC_GROK_MANIFEST_STRICT_LAST !== "0";
 const entries = [];
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
