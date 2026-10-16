@@ -62,6 +62,8 @@ export type ImportOptions = Readonly<{
    * vault that has done nothing yet, and only when the person chose it.
    */
   adoptIdentity?: boolean;
+  /** The operation owner, captured once by the bound vault importer. */
+  assertCurrent?: () => void;
 }>;
 
 /** Async decrypt and key vetting must never redirect a restore into a later vault session. */
@@ -106,7 +108,13 @@ export function bindSealedImport(
     secret: string | Uint8Array,
     options: ImportOptions = {},
   ) => {
-    const check = capture();
+    const owner = capture();
+    const operation = options.assertCurrent;
+    const check = () => {
+      owner();
+      operation?.();
+    };
+    check();
     return importSealedInto(
       guardedImportPort(getPort(), check),
       fileText,
