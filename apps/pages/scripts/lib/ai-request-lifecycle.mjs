@@ -1,5 +1,6 @@
 /** Native Request identity is the terminal authority; URL/error classes grant no exception. */
 import { expect } from "@playwright/test";
+import { z } from "zod";
 
 export const AI_EXCHANGE_HEADER = "x-opensesame-ai-exchange";
 const REASONS = new Set(["support-cancel", "route-unmount", "vault-lock"]);
@@ -32,12 +33,40 @@ function requestLocation(request) {
     return { scheme: null, origin: null, pathname: null };
   }
 }
+async function readDocument(frame) {
+  const epoch = await frame.evaluate(
+    () =>
+      Object.getOwnPropertyDescriptor(
+        globalThis,
+        "__opensesameAiCompletion",
+      )?.value.snapshot().epoch ?? null,
+  );
+  return `document-${z.string().uuid().parse(epoch)}`;
+}
+function bindDocument(state, request, row) {
+  const binding = Promise.resolve()
+    .then(() => {
+      const frame = request.frame();
+      if (frame !== frame.page().mainFrame())
+        throw new Error("Foreign operation frame");
+      return readDocument(frame);
+    })
+    .then((document) => {
+      row.document = document;
+    })
+    .catch(() => {
+      state.failures.add("native-document-binding-failed");
+    });
+  state.bindings.add(binding);
+  void binding.then(() => state.bindings.delete(binding));
+}
 function observeRequest(state, context, label, request) {
   if (state.requests.has(request)) reject(state, "duplicate-native-request");
-  state.requests.set(request, {
+  const row = {
     id: `native-${state.requests.size + 1}`,
     context,
     label,
+    document: null,
     method: request.method(),
     resourceType: request.resourceType(),
     ...requestLocation(request),
@@ -49,7 +78,10 @@ function observeRequest(state, context, label, request) {
     terminal: null,
     terminalSeq: null,
     hold: null,
-  });
+  };
+  state.requests.set(request, row);
+  if (row.origin === state.fixtureOrigin && row.method === "POST")
+    bindDocument(state, request, row);
 }
 function connect(state, hold, request) {
   const row = nativeRow(state, request);
@@ -247,6 +279,7 @@ async function quiesce(state, context) {
           changedAt = now;
         }
         return (
+          state.bindings.size === 0 &&
           requests.every((request) => request.terminal !== null) &&
           now - changedAt >= 500
         );
@@ -258,7 +291,11 @@ async function quiesce(state, context) {
 async function checkpoint(state, context) {
   try {
     await expect
-      .poll(() => rowsFor(state, context).filter((row) => !row.terminal).length)
+      .poll(
+        () =>
+          rowsFor(state, context).filter((row) => !row.terminal).length +
+          state.bindings.size,
+      )
       .toBe(0);
   } catch {
     state.failures.add("native-terminal-checkpoint-timeout");
@@ -269,6 +306,7 @@ function snapshot(state) {
   const requests = [...state.requests.values()].map((row) => ({
     id: row.id,
     context: row.label,
+    document: row.document,
     method: row.method,
     resourceType: row.resourceType,
     scheme: row.scheme,
@@ -318,9 +356,11 @@ export function createAiRequestLifecycle({ fixtureOrigin }) {
     correlations: new Map(),
     failures: new Set(),
     sequence: 0,
+    bindings: new Set(),
   };
   return {
     attach: (context, label) => attach(state, context, label),
+    document: (page) => readDocument(page),
     reserve: (hold) => reserve(state, hold),
     bindHold: (hold, correlation) => bindHold(state, hold, correlation),
     arm: (hold, reason) => arm(state, hold, reason),
