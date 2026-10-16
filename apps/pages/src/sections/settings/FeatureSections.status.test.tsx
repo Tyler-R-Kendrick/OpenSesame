@@ -67,27 +67,15 @@ describe("what a switch cannot say is said beside it", () => {
     ).toBe("true");
   });
 
-  it("draws AI's model picks on Features only while AI is on", async () => {
+  it("draws AI's model picks, on Integrations, only while AI is on", async () => {
     // The fixture runs WebMCP tools, so AI is on — and the picker is the
     // on-device model's own panel, so it arrives with that capability.
     const revoke = await activateForTest(localAi, ["settings-panel"]);
-    const on = renderPanel();
+    const on = renderIntegrationsPanel();
     expect(on.container.querySelector("#model-provider")).not.toBeNull();
-    expect(
-      on.getByLabelText("Voice model").closest("#feature-ai"),
-    ).not.toBeNull();
-    expect(
-      on.getByLabelText("Inference model").closest("#feature-ai"),
-    ).not.toBeNull();
     cleanup();
-    const integrations = renderIntegrationsPanel();
-    expect(integrations.queryByLabelText("Voice model")).toBeNull();
-    expect(integrations.queryByLabelText("Inference model")).toBeNull();
-    cleanup();
-    // Disabling the capability disposes the settings contribution in the real runtime.
-    revoke();
     selecting(["vault.passkey-records"]);
-    const off = renderPanel();
+    const off = renderIntegrationsPanel();
     expect(off.container.querySelector("#model-provider")).toBeNull();
     // Connectors stay configurable by reference once Connect's roads are installed.
     connectRoadSeams.usesConnect = usesConnect;
@@ -98,6 +86,7 @@ describe("what a switch cannot say is said beside it", () => {
     expect(
       referenced.getByRole("list", { name: "AI providers" }).textContent,
     ).toContain("Anthropic");
+    revoke();
   });
 
   it("says when an operator withdrew an always-on capability", () => {
