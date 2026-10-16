@@ -1,0 +1,95 @@
+name: Focused Linear consent diagnostic (ARM)
+
+# Auxiliary evidence on an immutable instrumented source. Required CI stays unchanged.
+on:
+  push:
+    branches: ["work/verified-contents-1253-1792017664643"]
+    paths: [".github/workflows/connector-linear-recovery.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: focused-linear-consent-arm-42248aa
+  cancel-in-progress: false
+
+jobs:
+  linear-consent:
+    name: Instrumented original Linear browser journey (ARM)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      EXPECTED_SOURCE_HEAD: 42248aa60b8d97dae6d1df829e5fbeb6ab7b07ba
+      VITE_BASE: /OpenSesame/
+      PAGES_DEPLOYMENT_PROFILE: shared_origin_demo
+      PAGES_CANONICAL_ORIGIN: https://tyler-r-kendrick.github.io
+      PAGES_HEADER_SECURITY: '0'
+      PAGES_VERIFY_OUT: ${{ runner.temp }}/self-hosted-connectors-arm
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: 42248aa60b8d97dae6d1df829e5fbeb6ab7b07ba
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Pin input source and tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$PAGES_VERIFY_OUT"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_HEAD"
+          git rev-parse HEAD > "$PAGES_VERIFY_OUT/source-head.txt"
+          git rev-parse HEAD^{tree} > "$PAGES_VERIFY_OUT/source-tree.txt"
+          git status --porcelain=v1 > "$PAGES_VERIFY_OUT/source-status-before.txt"
+          test ! -s "$PAGES_VERIFY_OUT/source-status-before.txt"
+          node --version > "$PAGES_VERIFY_OUT/node-version.txt"
+          pnpm --version > "$PAGES_VERIFY_OUT/pnpm-version.txt"
+          sha256sum pnpm-lock.yaml apps/pages/scripts/verify-self-hosted-connectors.mjs apps/pages/scripts/lib/linear-browser-consent.mjs apps/pages/scripts/lib/linear-consent-status.mjs > "$PAGES_VERIFY_OUT/input-pins.sha256"
+      - name: Install the exact lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile 2>&1 | tee "$PAGES_VERIFY_OUT/install.log"
+      - name: Install the repository-pinned Chromium on ARM
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm exec playwright --version > "$PAGES_VERIFY_OUT/playwright-version.txt"
+          pnpm exec playwright install --with-deps chromium 2>&1 | tee "$PAGES_VERIFY_OUT/chromium-install.log"
+          node --input-type=module -e 'import { chromium } from "@playwright/test"; console.log(`PLAYWRIGHT_CHROMIUM=${chromium.executablePath()}`);' >> "$GITHUB_ENV"
+      - name: Build the unchanged normal shared-origin PWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/lib/ci-pages-build.mjs 2>&1 | tee "$PAGES_VERIFY_OUT/build.log"
+          cp apps/pages/dist/security-profile.json "$PAGES_VERIFY_OUT/security-profile.json"
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const p=JSON.parse(fs.readFileSync("apps/pages/dist/security-profile.json")); assert.equal(p.profile,"shared_origin_demo"); assert.equal(p.canonicalOrigin,"https://tyler-r-kendrick.github.io"); assert.equal(p.headerSecurity,false);'
+      - name: Run the original instrumented self-hosted connector journey
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$PLAYWRIGHT_CHROMIUM" --version > "$PAGES_VERIFY_OUT/chromium-version.txt"
+          pnpm --filter @opensesame/pages verify:self-hosted-connectors 2>&1 | tee "$PAGES_VERIFY_OUT/browser.log"
+      - name: Preserve source identity after the original journey
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$PAGES_VERIFY_OUT"
+          git rev-parse HEAD > "$PAGES_VERIFY_OUT/source-head-after.txt"
+          git status --porcelain=v1 > "$PAGES_VERIFY_OUT/source-status-after.txt"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_HEAD"
+          test ! -s "$PAGES_VERIFY_OUT/source-status-after.txt"
+          sha256sum --check "$PAGES_VERIFY_OUT/input-pins.sha256"
+      - name: Preserve complete raw diagnostics on success or failure
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: linear-consent-arm-42248aa-${{ github.run_id }}
+          path: ${{ runner.temp }}/self-hosted-connectors-arm/
+          if-no-files-found: error
+          retention-days: 7
