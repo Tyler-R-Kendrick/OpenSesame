@@ -126,7 +126,9 @@ pub(crate) async fn pairing_confirm(
             | PairingError::Full
             | PairingError::NotConfirmed
             | PairingError::RegistrationRequired
-            | PairingError::RegistrationMismatch,
+            | PairingError::RegistrationMismatch
+            | PairingError::ArkEnrollmentRequired
+            | PairingError::ClientSuppliedSpkiRejected,
         ) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
     }
 }
@@ -170,7 +172,9 @@ pub(crate) async fn pairing_exchange(
             | PairingError::Expired
             | PairingError::InvalidOrigin
             | PairingError::RegistrationMismatch
-            | PairingError::InvalidProof,
+            | PairingError::InvalidProof
+            | PairingError::ArkEnrollmentRequired
+            | PairingError::ClientSuppliedSpkiRejected,
         ) => pairing_error(StatusCode::FORBIDDEN, "pairing_refused"),
     }
 }
@@ -304,7 +308,9 @@ pub(crate) async fn pairing_issue_operator(
             | PairingError::NotConfirmed
             | PairingError::RegistrationRequired
             | PairingError::RegistrationMismatch
-            | PairingError::InvalidProof,
+            | PairingError::InvalidProof
+            | PairingError::ArkEnrollmentRequired
+            | PairingError::ClientSuppliedSpkiRejected,
         ) => pairing_error(StatusCode::INTERNAL_SERVER_ERROR, "pairing_refused"),
     }
 }

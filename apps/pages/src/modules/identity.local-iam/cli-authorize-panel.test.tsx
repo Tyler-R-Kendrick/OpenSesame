@@ -37,9 +37,11 @@ afterEach(() => {
 });
 
 describe("Authorize CLI pending check", () => {
-  it("keeps the pair control visible but disabled until a code is entered", () => {
+  it("keeps the pair control visible but disabled until a code is entered", async () => {
     render(<CliAuthorizePanel />);
-    const pair = screen.getByRole("button", { name: "Pair with the daemon" });
+    const pair = await screen.findByRole("button", {
+      name: "Pair with the daemon",
+    });
     expect(pair.hasAttribute("disabled")).toBe(true);
   });
 

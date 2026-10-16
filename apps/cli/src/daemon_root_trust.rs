@@ -1,7 +1,6 @@
 //! `opensesame daemon root-trust enroll` — host entry for D7-2 U3 PAKE enrollment.
 
 use base64::Engine as _;
-use clap::Args;
 use opensesame_cli_app_integration::{
     generate_root_signing_key, root_spki_der, RootEnrollClient, ROOT_ENROLL_BEGIN_PATH,
     ROOT_ENROLL_FINISH_PATH,
@@ -10,32 +9,16 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::daemon_toolbar;
-use crate::enroll_entry::{confirm_enrollment, EnrollEntryMethod};
+use crate::enroll_entry::confirm_enrollment;
 
-#[derive(Args, Debug)]
-pub struct RootTrustEnrollArgs {
-    /// Allow confirming enrollment on `/dev/tty` when no OS secure prompt exists.
-    /// Weaker: another session on this host may observe input. The choice is audited.
-    #[arg(long = "allow-tty-enroll")]
-    allow_tty_enroll: bool,
-}
-
-/// Enroll the daemon CLI root trust key (operator + PAKE).
-pub async fn run(
-    base: &str,
-    operator: Option<&str>,
-    args: RootTrustEnrollArgs,
-) -> anyhow::Result<()> {
+/// Enroll the daemon CLI root trust key (operator + PAKE + OS secure prompt).
+pub async fn run(base: &str, operator: Option<&str>) -> anyhow::Result<()> {
     let base = base.trim_end_matches('/');
     daemon_toolbar::assert_daemon_url_allowed(base).map_err(anyhow::Error::msg)?;
-    let token = operator
-        .filter(|t| !t.is_empty())
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "OPENSESAME_OPERATOR_TOKEN is required to enroll CLI root trust"
-            )
-        })?;
-    let entry = confirm_enrollment(args.allow_tty_enroll)?;
+    let token = operator.filter(|t| !t.is_empty()).ok_or_else(|| {
+        anyhow::anyhow!("OPENSESAME_OPERATOR_TOKEN is required to enroll CLI root trust")
+    })?;
+    let entry = confirm_enrollment()?;
     let client = reqwest::Client::new();
     let health = client.get(format!("{base}/health")).send().await?;
     if !health.status().is_success() {
@@ -85,12 +68,8 @@ pub async fn run(
     confirm.verify_daemon(&daemon_confirm)?;
     println!(
         "CLI root trust enrolled (epoch {}, fingerprint {}).",
-        finished.enrollment_epoch,
-        finished.spki_fingerprint
+        finished.enrollment_epoch, finished.spki_fingerprint
     );
-    if entry == EnrollEntryMethod::TtyOptIn {
-        eprintln!("Enrollment used /dev/tty (--allow-tty-enroll); see daemon audit log.");
-    }
     Ok(())
 }
 

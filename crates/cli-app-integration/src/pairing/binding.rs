@@ -91,6 +91,33 @@ impl CliAppIntegrationPairings {
         Ok(())
     }
 
+    /// Test seam: attach a passkey without the vault-bound registration proof.
+    #[cfg(any(test, feature = "test-seams"))]
+    pub fn register_webauthn_for_tests(
+        &mut self,
+        token: &str,
+        origin: &str,
+        credential_id_b64: &str,
+        public_key_spki_b64: &str,
+        sign_count: u32,
+    ) -> Result<(), PairingError> {
+        if !is_secret_shaped(token) {
+            return Err(PairingError::Unknown);
+        }
+        let digest = digest_hex(token);
+        let Some(page) = self.paired.iter_mut().find(|page| {
+            page.origin == origin && same(page.token_sha256.as_str(), digest.as_str())
+        }) else {
+            return Err(PairingError::Unknown);
+        };
+        page.webauthn = Some(WebAuthnCredential {
+            credential_id_b64: credential_id_b64.to_string(),
+            public_key_spki_b64: public_key_spki_b64.to_string(),
+            sign_count,
+        });
+        Ok(())
+    }
+
     pub fn record_pin_proof_failure(&mut self, token: &str, origin: &str) -> bool {
         if !is_secret_shaped(token) {
             return false;
