@@ -32,9 +32,12 @@ function pageOrigin(): string | null {
   }
 }
 
-export const CLI_AUTHORIZE_LOAD_BLOCKED =
-  "Local CLI approval is blocked on this site. Open OpenSesame from your own deployment to check for CLI requests.";
-export const CLI_AUTHORIZE_LOAD_UNREADABLE = "Couldn't check for CLI requests.";
+import {
+  CLI_AUTHORIZE_LOAD_BLOCKED,
+  CLI_AUTHORIZE_LOAD_UNREADABLE,
+} from "./cli-authorize-messages.js";
+
+export { CLI_AUTHORIZE_LOAD_BLOCKED, CLI_AUTHORIZE_LOAD_UNREADABLE };
 
 const LOAD_BLOCKED = CLI_AUTHORIZE_LOAD_BLOCKED;
 const LOAD_UNREADABLE = CLI_AUTHORIZE_LOAD_UNREADABLE;
