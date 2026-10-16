@@ -1,90 +1,52 @@
 /**
  * deepsec agent backend: Grok Build CLI (subscription), headless via `grok -p`.
- * deepsec 2.3.6 has no native grok agent; this plugin registers `--agent grok`.
- *
- * Auth: `unset XAI_API_KEY` then `grok login --device-auth` (subscription).
- * Do not rely on XAI_API_KEY unless explicitly approved (per-token billing).
+ * Wave-2 investigate: shallow pass then automatic 150-turn deep retry on cap/timeout.
  */
-import { spawn } from "node:child_process";
 import type { DeepsecPlugin } from "deepsec/config";
 import {
   DEFAULT_GROK_MODEL,
-  type RunPromptParams,
   createHeadlessDeepsecAgent,
-  extractTextFromAgentStdout,
 } from "./deepsec-headless-agent-core.js";
+import type { InvestigateParams } from "./deepsec-headless-agent-types.js";
+import {
+  grokDeepMaxTurns,
+  grokShallowMaxTurns,
+  runGrokPromptWithMeta,
+} from "./grok-agent-prompt.js";
+import {
+  grokWave2Investigate,
+  logGrokDepthSummaryLine,
+} from "./grok-wave2-investigate.js";
 
-function grokEnv(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  env.XAI_API_KEY = undefined;
-  env.GROK_DEPLOYMENT_KEY = undefined;
-  return env;
-}
-
-function runGrokPrompt(params: RunPromptParams): Promise<string> {
-  return new Promise((resolve, reject) => {
-    if (params.signal?.aborted) {
-      reject(params.signal.reason ?? new Error("aborted"));
-      return;
-    }
-    const args = [
-      "-p",
-      params.prompt,
-      "-m",
-      params.model,
-      "--always-approve",
-      "--output-format",
-      "json",
-      "--max-turns",
-      String(params.maxTurns ?? 150),
-    ];
-    const child = spawn("grok", args, {
-      cwd: params.cwd,
-      env: grokEnv(),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stdout = "";
-    let stderr = "";
-    const onAbort = () => {
-      child.kill("SIGTERM");
-      reject(new Error("aborted"));
-    };
-    params.signal?.addEventListener("abort", onAbort, { once: true });
-    child.stdout.on("data", (chunk: Buffer) => {
-      stdout += chunk.toString("utf8");
-    });
-    child.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString("utf8");
-    });
-    child.on("error", (err) => {
-      params.signal?.removeEventListener("abort", onAbort);
-      reject(err);
-    });
-    child.on("close", (code) => {
-      params.signal?.removeEventListener("abort", onAbort);
-      if (code !== 0 && !stdout.trim()) {
-        reject(new Error(stderr.trim() || `grok exited ${code}`));
-        return;
-      }
-      try {
-        const merged =
-          stdout + (stderr.includes("Not signed in") ? `\n${stderr}` : "");
-        resolve(extractTextFromAgentStdout(merged, "Not signed in"));
-      } catch (e) {
-        reject(e);
-      }
-    });
-  });
-}
-
-const GrokAgent = createHeadlessDeepsecAgent({
+const HeadlessTemplate = createHeadlessDeepsecAgent({
   type: "grok",
   providerLabel: "Grok Build",
   defaultModel: DEFAULT_GROK_MODEL,
-  runPrompt: runGrokPrompt,
+  runPrompt: async (params) => {
+    const run = await runGrokPromptWithMeta({
+      ...params,
+      maxTurns: params.maxTurns ?? grokShallowMaxTurns(),
+    });
+    if (!run.text.trim()) {
+      throw new Error("grok produced empty output");
+    }
+    return run.text;
+  },
 });
+
+class GrokWave2Agent extends HeadlessTemplate {
+  override investigate(params: InvestigateParams) {
+    return grokWave2Investigate(params, {
+      type: "grok",
+      providerLabel: "Grok Build",
+      defaultModel: DEFAULT_GROK_MODEL,
+    });
+  }
+}
 
 export const grokAgentPlugin: DeepsecPlugin = {
   name: "opensesame-grok-build",
-  agents: [new GrokAgent()],
+  agents: [new GrokWave2Agent()],
 };
+
+export { grokShallowMaxTurns, grokDeepMaxTurns, logGrokDepthSummaryLine };
