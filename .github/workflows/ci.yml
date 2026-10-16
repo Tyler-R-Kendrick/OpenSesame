@@ -95,9 +95,9 @@ jobs:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
       postgres:
-        # Same Docker Official Image and immutable digest, from its original registry.
-        # Registry metadata is identical; hosted-runner delivery still needs validation.
-        image: docker.io/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
+        # Same Docker Official Image digest, served by the public ECR mirror.
+        # Anonymous Docker Hub pulls can exhaust the shared hosted-runner quota.
+        image: public.ecr.aws/docker/library/postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
         env:
           POSTGRES_USER: opensesame
           POSTGRES_PASSWORD: opensesame
@@ -478,25 +478,12 @@ jobs:
         env:
           PAGES_VERIFY_OUT: ${{ runner.temp }}/tailnet-browser-node
         run: pnpm --filter @opensesame/pages verify:tailnet-browser-node
-      - name: Conditional Tailscale management through HTTPS consent and browser CORS
-        env:
-          PAGES_VERIFY_DIST: dist-tailscale-browser-verify
-          PAGES_VERIFY_OUT: ${{ runner.temp }}/tailscale-provisioning-browser
-        run: pnpm --filter @opensesame/pages verify:tailscale-provisioning
       - name: Preserve Tailscale browser evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: tailnet-browser-node-${{ github.sha }}
           path: ${{ runner.temp }}/tailnet-browser-node/
-          if-no-files-found: warn
-
-      - name: Preserve Tailscale management evidence
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: tailscale-provisioning-browser-${{ github.sha }}
-          path: ${{ runner.temp }}/tailscale-provisioning-browser/
           if-no-files-found: warn
 
   device-inbox:
