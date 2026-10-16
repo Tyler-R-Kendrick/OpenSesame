@@ -25,7 +25,7 @@ function Form({
       saved={false}
       online
       failure=""
-      modes={[...preset.modes, "proton-pass"]}
+      modes={preset.modes}
       onChange={(key, value) =>
         setDraft((previous) => ({ ...previous, [key]: value }))
       }
@@ -39,7 +39,7 @@ function Form({
   );
 }
 
-it.each(["byo-secret-backend"])(
+it.each(["proton-pass", "byo-secret-backend"])(
   "%s composes actual native endpoint, scoped token and public version controls",
   async (providerId) => {
     const save = vi.fn<(draft: SecretBackendDraft) => void>();

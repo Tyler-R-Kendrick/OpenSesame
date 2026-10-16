@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { secretBackendUrl } from "./http.js";
 import { secretBackendPreset } from "./presets.js";
+import { protonConfiguration, splitProtonPat } from "./proton-pass-protocol.js";
 import { SecretBackendError } from "./types.js";
 
 const text = z.string().max(4096).default("");
@@ -74,6 +75,15 @@ function validateNativeOnePassword(draft: Draft): void {
       "configuration",
       "Enter a 1Password account origin, vault ID and service account token within the supported limits.",
     );
+}
+
+function validateNativeProton(draft: Draft, requireCredentials: boolean): void {
+  if (draft.mode !== "proton-pass") return;
+  protonConfiguration(draft);
+  if (requireCredentials || draft.token) {
+    const parsed = splitProtonPat(draft.token);
+    parsed.raw.fill(0);
+  }
 }
 
 function validateTargets(draft: Draft): void {
@@ -151,6 +161,7 @@ export function validateSecretBackendDraft(
   const draft = result.data;
   validateProtocol(draft);
   validateNativeOnePassword(draft);
+  validateNativeProton(draft, requireCredentials);
   validateTargets(draft);
   if (requireCredentials) requirePrivateCredentials(draft);
   protectCredentialFields(draft);
