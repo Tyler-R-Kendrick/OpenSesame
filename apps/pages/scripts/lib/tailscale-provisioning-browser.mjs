@@ -4,12 +4,31 @@ async function ready(page) {
   await page
     .getByRole("button", { name: "Authorize a device with Tailscale" })
     .waitFor();
-  await page.waitForFunction(
-    () =>
-      !document.querySelector(
-        'button[aria-label="Authorize a device with Tailscale"]',
-      )?.disabled,
-  );
+  await page
+    .waitForFunction(
+      () =>
+        !document.querySelector(
+          'button[aria-label="Authorize a device with Tailscale"]',
+        )?.disabled,
+    )
+    .catch(async (error) => {
+      const state = await page.evaluate(() => {
+        const button = document.querySelector(
+          'button[aria-label="Authorize a device with Tailscale"]',
+        );
+        return {
+          disabled: button?.disabled ?? null,
+          busy: [...document.querySelectorAll("[aria-busy]")].map(
+            (node) => node.getAttribute("aria-label"),
+          ),
+          text: document.body.innerText.slice(0, 2000),
+        };
+      });
+      throw new Error(
+        `Authorize never enabled: ${JSON.stringify(state)}`,
+        { cause: error },
+      );
+    });
 }
 async function consent(page, fixture, mode, cancel = false) {
   fixture.setNextConsent(mode);
