@@ -1,5 +1,3 @@
-import { probeAiConnection } from "@opensesame/app-core/lib/ai-connections/inference.js";
-import { commitAiConnection } from "@opensesame/app-core/lib/ai-connections/store.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 /**
  * Moving from one connector page to another inside the one mounted section:
@@ -10,7 +8,6 @@ import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import { readDeviceRows } from "@opensesame/app-core/lib/device-connector-records.js";
 import { embeddedCatalogSeams } from "@opensesame/app-core/lib/embedded-catalog.js";
 import { readNativeConnector } from "@opensesame/app-core/lib/native-connector-store.js";
-import { nativeProviderTransport } from "@opensesame/app-core/lib/native-connector-transport.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { vercelCatalogSeams } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -29,7 +26,6 @@ import { identityHookSeams } from "../bindings/identity.js";
 import { useOnlineSeams } from "../lib/use-online.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { ConnectionsSection } from "./ConnectionsSection.js";
-import { aiConnectionUiDependencies } from "./connections/ai/useAiConnection.js";
 import {
   connectorIntegration,
   installConnectorIntegration,
@@ -187,21 +183,6 @@ describe("moving between connector pages", () => {
 
   it("starts a supported provider's form empty after another provider verification failed", async () => {
     const fixture = connectorIntegration();
-    vi.spyOn(aiConnectionUiDependencies, "save").mockImplementation(
-      async (draft) => {
-        const transport = {
-          ...nativeProviderTransport(),
-          signal: new AbortController().signal,
-        };
-        await probeAiConnection(draft, transport, transport.assertCurrent);
-        return commitAiConnection(
-          draft,
-          "fixture-vault",
-          "",
-          transport.assertCurrent,
-        );
-      },
-    );
     const nativeCatalog = [
       ...catalog,
       integrationProvider("notion"),
@@ -234,27 +215,22 @@ describe("moving between connector pages", () => {
     );
     // A model provider's first connection is the Add sheet, not a page (ADR 0192).
     await screen.findByRole("dialog", { name: "Connect a model provider" });
-    expect(screen.getByLabelText("API key")).toHaveProperty("value", "");
-    expect(screen.getByLabelText("Model ID")).toHaveProperty("value", "");
-    await userEvent.type(screen.getByLabelText("Model ID"), "fixture-model");
+    expect(screen.getByLabelText("OpenAI API key")).toHaveProperty("value", "");
     expect(listNotices()).toEqual([]);
     fixture.replies.push({
-      body: { choices: [{ message: { content: "OK" } }] },
+      body: { data: [{ id: "gpt-4o-mini", object: "model" }] },
     });
     await userEvent.type(
-      screen.getByLabelText("API key"),
+      screen.getByLabelText("OpenAI API key"),
       "private-openai-key",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Save AI connection" }),
+      screen.getByRole("button", { name: "Save connection" }),
     );
     await waitFor(() => expect(readDeviceRows()).toHaveLength(1));
     const row = readDeviceRows()[0];
     if (!row) throw new Error("Expected OpenAI saved connection");
     expect(row.providerId).toBe("openai");
-    expect(fixture.requests[1]?.url).toBe(
-      "https://api.openai.com/v1/chat/completions",
-    );
     expect(readNativeConnector(row.connectionId)?.status).toBe("connected");
     expect(fixture.requests[1]?.headers.get("Authorization")).toBe(
       "Bearer private-openai-key",

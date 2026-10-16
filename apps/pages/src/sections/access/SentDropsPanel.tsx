@@ -5,10 +5,6 @@
 
 import { listReceipts } from "@opensesame/app-core/lib/device-receipts.js";
 import {
-  subscribeLocalIamChanges,
-  subscribeLocalIamChangesFromOtherTabs,
-} from "@opensesame/app-core/lib/local-iam-events.js";
-import {
   type OutboundDrop,
   type OutboundDropState,
   listOutboundDrops,
@@ -186,12 +182,6 @@ export function SentDropsPanel() {
   useEffect(() => {
     if (!approved) return;
     reload();
-    const here = subscribeLocalIamChanges(reload);
-    const there = subscribeLocalIamChangesFromOtherTabs(reload);
-    return () => {
-      here();
-      there();
-    };
   }, [approved, reload]);
 
   if (!approved) return null;
