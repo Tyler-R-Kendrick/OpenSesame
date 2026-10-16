@@ -118,7 +118,6 @@ export async function beginLinearConsent(harness, page, label, action) {
   const button = page.getByRole("button", { name: action, exact: true });
   const observation = observeConsent(harness, page, original);
   try {
-    await observation.status("status-before-click");
     // Bind the popup to this click — context-wide "page" events can catch a stray tab.
     const [popup] = await Promise.all([
       page.waitForEvent("popup", {

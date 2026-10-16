@@ -47,16 +47,24 @@ function validateRequest(
   maxLifetime = 10 * 60_000,
 ): void {
   nativeAuthState(request.state);
-  const url = new URL(request.authorizationUrl);
+  let url: URL;
+  try {
+    url = new URL(request.authorizationUrl);
+  } catch {
+    throw new Error("Invalid provider authorization URL");
+  }
   const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (
     (url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) ||
     url.username ||
-    url.password ||
-    request.expiresAt <= Date.now() ||
-    request.expiresAt > Date.now() + maxLifetime
+    url.password
   )
-    throw new Error("Invalid or expired provider authorization request");
+    throw new Error("Invalid provider authorization URL");
+  const now = Date.now();
+  if (request.expiresAt <= now)
+    throw new Error("Provider authorization request expired");
+  if (request.expiresAt > now + maxLifetime)
+    throw new Error("Provider authorization request exceeds allowed lifetime");
 }
 
 type PopupSession = {
