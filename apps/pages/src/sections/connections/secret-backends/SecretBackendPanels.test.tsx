@@ -252,6 +252,10 @@ it("retains failed settings for retry and confirms removing saved configuration"
 it("keeps a file and its password transient and clears the authenticated view on vault lock", async () => {
   const user = userEvent.setup();
   draw("proton-pass");
+  await user.selectOptions(
+    screen.getByLabelText("Connection method"),
+    "file-import",
+  );
   const file = new File(['{"vaults":{}}'], "proton.json", {
     type: "application/json",
   });

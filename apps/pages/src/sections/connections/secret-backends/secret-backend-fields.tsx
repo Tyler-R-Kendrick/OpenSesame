@@ -18,6 +18,20 @@ type Field = {
 const endpoint: Field = { key: "baseUrl", label: "API base URL" };
 const token: Field = { key: "token", label: "Access token", secret: true };
 const API_FIELDS = {
+  "proton-pass": [
+    {
+      key: "baseUrl",
+      label: "API base URL",
+      placeholder: "https://pass-api.proton.me/api",
+    },
+    { key: "token", label: "Personal access token", secret: true },
+    { key: "vaultId", label: "PAT-scoped share ID" },
+    {
+      key: "appVersion",
+      label: "Accepted application/version header",
+      placeholder: "accepted-client@version",
+    },
+  ],
   "onepassword-sdk": [
     {
       key: "baseUrl",

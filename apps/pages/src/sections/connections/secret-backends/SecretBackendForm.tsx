@@ -1,4 +1,7 @@
-import { secretBackendModeLabel } from "@opensesame/app-core/lib/secret-backends/presets.js";
+import {
+  PROTON_PASS_PUBLIC_APP_VERSION,
+  secretBackendModeLabel,
+} from "@opensesame/app-core/lib/secret-backends/presets.js";
 import type { SecretBackendMode } from "@opensesame/app-core/lib/secret-backends/types.js";
 import { type FormEvent, type ReactNode, useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
@@ -33,7 +36,12 @@ function ModeField({ draft, modes, busy, onChange }: SecretBackendFormProps) {
         id={id}
         value={draft.mode}
         disabled={busy}
-        onChange={(event) => onChange("mode", event.target.value)}
+        onChange={(event) => {
+          const mode = event.target.value;
+          if (mode === "proton-pass" && !draft.appVersion)
+            onChange("appVersion", PROTON_PASS_PUBLIC_APP_VERSION);
+          onChange("mode", mode);
+        }}
       >
         {modes.map((mode) => (
           <option key={mode} value={mode}>
