@@ -6,6 +6,7 @@ use tower::ServiceExt;
 
 use super::{ensure_body, pair_browser};
 use crate::cli_app_integration::now_unix;
+use crate::App;
 
 /// Persona D6: operator token → forged origin + random `root:` hex → fake PIN/passkey proofs.
 #[tokio::test]
@@ -113,17 +114,232 @@ async fn persona_attack_chain_is_refused() {
     }
 }
 
+fn pairing_confirm_signature_b64(
+    signing_key: &p256::ecdsa::SigningKey,
+    challenge: &[u8],
+    code: &str,
+    origin: &str,
+) -> String {
+    use base64::Engine as _;
+    use ecdsa::signature::Signer;
+    use opensesame_cli_app_integration::pairing_confirm_message;
+
+    let message = pairing_confirm_message(challenge, code, origin);
+    let signature: p256::ecdsa::Signature = signing_key.sign(&message);
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature.to_bytes())
+}
+
+async fn post_pairing_confirm_registration_code(
+    app: &axum::Router,
+    origin: &str,
+    code: &str,
+    device_spki: &str,
+    pairing_signature_b64: &str,
+    vault_session_root_digest: &str,
+) -> String {
+    let confirm = Request::builder()
+        .method("POST")
+        .uri("/v1/cli/app-integration/pairing/confirm")
+        .header("content-type", "application/json")
+        .header(header::ORIGIN, origin)
+        .body(Body::from(
+            serde_json::json!({
+                "code": code,
+                "devicePublicKeySpkiB64": device_spki,
+                "pairingSignatureB64": pairing_signature_b64,
+                "vaultSessionRootDigest": vault_session_root_digest,
+            })
+            .to_string(),
+        ))
+        .unwrap();
+    let response = app.clone().oneshot(confirm).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let confirm_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let confirm_json: serde_json::Value = serde_json::from_slice(&confirm_bytes).unwrap();
+    confirm_json["registrationCode"]
+        .as_str()
+        .expect("registration code")
+        .to_string()
+}
+
+async fn post_pairing_exchange_expect_forbidden(app: &axum::Router, origin: &str, code: &str) {
+    let exchange = Request::builder()
+        .method("POST")
+        .uri("/v1/cli/app-integration/pairing")
+        .header("content-type", "application/json")
+        .header(header::ORIGIN, origin)
+        .body(Body::from(serde_json::json!({ "code": code }).to_string()))
+        .unwrap();
+    let response = app.clone().oneshot(exchange).await.unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+fn armed_exchange_pin_approve_is_wrong_session(
+    state: &App,
+    origin: &str,
+    code: &str,
+    registration_code: &str,
+    signing_key: &p256::ecdsa::SigningKey,
+    now: u64,
+) {
+    use opensesame_cli_app_integration::mint_pin_human_proof;
+
+    let mut host = state.cli_app_integration.lock().unwrap();
+    host.pairings
+        .arm_registration(origin, registration_code, now)
+        .expect("operator arm");
+    let issued = host
+        .pairings
+        .exchange(code, origin, now)
+        .expect("attacker bearer");
+    let pin_proof = mint_pin_human_proof(
+        signing_key,
+        "clr_attacker",
+        "term-attacker",
+        "nonce-attacker",
+        "read",
+    );
+    let binding = host
+        .pairings
+        .binding_for(&issued.token, origin)
+        .expect("bind");
+    assert!(binding.webauthn.is_none());
+    let (status, _) = host.store.approve(
+        "clr_attacker",
+        "term-attacker",
+        "nonce-attacker",
+        &pin_proof,
+        &binding,
+    );
+    assert_eq!(status, "wrongSession");
+}
+
+fn second_pairing_still_requires_registration(
+    state: &App,
+    origin: &str,
+    device_spki: &str,
+    signing_key: &p256::ecdsa::SigningKey,
+    now: u64,
+) {
+    use opensesame_cli_app_integration::{
+        test_support::TEST_VAULT_SESSION_ROOT_DIGEST, PairingError,
+    };
+
+    let (follow_up_code, _) = state
+        .cli_app_integration
+        .lock()
+        .unwrap()
+        .pairings
+        .issue(origin, now)
+        .unwrap();
+    let follow_up_challenge = state
+        .cli_app_integration
+        .lock()
+        .unwrap()
+        .pairings
+        .pairing_challenge_for_code(&follow_up_code, now)
+        .expect("follow-up challenge");
+    let follow_up_signature_b64 =
+        pairing_confirm_signature_b64(signing_key, &follow_up_challenge, &follow_up_code, origin);
+    let mut host = state.cli_app_integration.lock().unwrap();
+    host.pairings
+        .confirm(
+            &follow_up_code,
+            origin,
+            device_spki,
+            &follow_up_signature_b64,
+            Some(TEST_VAULT_SESSION_ROOT_DIGEST),
+            now,
+        )
+        .expect("follow-up confirm");
+    assert!(matches!(
+        host.pairings.exchange(&follow_up_code, origin, now),
+        Err(PairingError::RegistrationRequired)
+    ));
+}
+
+async fn localhost_attacker_pin_respond_is_wrong_session(
+    app: &axum::Router,
+    state: &App,
+    signing_key: &p256::ecdsa::SigningKey,
+) {
+    use opensesame_cli_app_integration::mint_pin_human_proof;
+
+    let localhost = "http://localhost:5180";
+    let token = pair_browser(state, localhost);
+    let body = ensure_body("persona-r7-attacker");
+    let mut ensure_req = Request::builder()
+        .method("POST")
+        .uri("/v1/cli/app-integration/ensure")
+        .header("content-type", "application/json")
+        .body(Body::from(body))
+        .unwrap();
+    ensure_req
+        .extensions_mut()
+        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5252))));
+    let response = app.clone().oneshot(ensure_req).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let request_id = parsed["requestId"].as_str().expect("request id");
+    let pending = Request::builder()
+        .method("GET")
+        .uri("/v1/cli/app-integration/pending")
+        .header(header::ORIGIN, localhost)
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        .body(Body::empty())
+        .unwrap();
+    let response = app.clone().oneshot(pending).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let terminal_session_id = parsed["pending"][0]["terminalSessionId"]
+        .as_str()
+        .expect("terminal");
+    let nonce = parsed["pending"][0]["respondNonce"]
+        .as_str()
+        .expect("nonce");
+    let pin_proof =
+        mint_pin_human_proof(signing_key, request_id, terminal_session_id, nonce, "read");
+    let respond = Request::builder()
+        .method("POST")
+        .uri("/v1/cli/app-integration/respond")
+        .header("content-type", "application/json")
+        .header(header::ORIGIN, localhost)
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        .body(Body::from(
+            serde_json::json!({
+                "requestId": request_id,
+                "terminalSessionId": terminal_session_id,
+                "decision": "approve",
+                "respondNonce": nonce,
+                "humanProof": pin_proof,
+            })
+            .to_string(),
+        ))
+        .unwrap();
+    let response = app.clone().oneshot(respond).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(parsed["status"], "wrongSession");
+}
+
 /// Persona R7: operator-minted code → attacker device key confirm → exchange without arm →
 /// `oschip2:pin` signed by the same attacker key must not approve. Second pairing also requires arm.
 #[tokio::test]
 async fn persona_r7_pairing_self_approve_chain_refused() {
     use crate::test_fixtures::test_router;
-    use base64::Engine as _;
-    use ecdsa::signature::Signer;
     use opensesame_cli_app_integration::{
-        mint_pin_human_proof, mint_test_signing_key, pairing_confirm_message,
-        test_support::TEST_VAULT_SESSION_ROOT_DIGEST, verifying_key_spki_b64, PairingError,
+        mint_test_signing_key, test_support::TEST_VAULT_SESSION_ROOT_DIGEST, verifying_key_spki_b64,
     };
+
     let (app, state) = test_router("http://127.0.0.1:8787");
     let origin = "https://tyler-r-kendrick.github.io";
     let now = now_unix();
@@ -144,169 +360,26 @@ async fn persona_r7_pairing_self_approve_chain_refused() {
         .pairings
         .pairing_challenge_for_code(&code, now)
         .expect("challenge");
-    let message = pairing_confirm_message(&challenge, &code, origin);
-    let sig: p256::ecdsa::Signature = attacker.sign(&message);
-    let sig_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
+    let pairing_signature_b64 = pairing_confirm_signature_b64(&attacker, &challenge, &code, origin);
+    let registration_code = post_pairing_confirm_registration_code(
+        &app,
+        origin,
+        &code,
+        &attacker_spki,
+        &pairing_signature_b64,
+        TEST_VAULT_SESSION_ROOT_DIGEST,
+    )
+    .await;
 
-    let confirm = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/pairing/confirm")
-        .header("content-type", "application/json")
-        .header(header::ORIGIN, origin)
-        .body(Body::from(
-            serde_json::json!({
-                "code": code,
-                "devicePublicKeySpkiB64": attacker_spki,
-                "pairingSignatureB64": sig_b64,
-                "vaultSessionRootDigest": TEST_VAULT_SESSION_ROOT_DIGEST,
-            })
-            .to_string(),
-        ))
-        .unwrap();
-    let response = app.clone().oneshot(confirm).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let confirm_bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let confirm_json: serde_json::Value = serde_json::from_slice(&confirm_bytes).unwrap();
-    let registration_code = confirm_json["registrationCode"]
-        .as_str()
-        .expect("registration code");
-
-    let exchange = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/pairing")
-        .header("content-type", "application/json")
-        .header(header::ORIGIN, origin)
-        .body(Body::from(serde_json::json!({ "code": code }).to_string()))
-        .unwrap();
-    let response = app.clone().oneshot(exchange).await.unwrap();
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
-
-    {
-        let mut host = state.cli_app_integration.lock().unwrap();
-        host.pairings
-            .arm_registration(origin, registration_code, now)
-            .expect("operator arm");
-        let issued = host
-            .pairings
-            .exchange(&code, origin, now)
-            .expect("attacker bearer");
-        let pin_proof = mint_pin_human_proof(
-            &attacker,
-            "clr_attacker",
-            "term-attacker",
-            "nonce-attacker",
-            "read",
-        );
-        let binding = host
-            .pairings
-            .binding_for(&issued.token, origin)
-            .expect("bind");
-        assert!(binding.webauthn.is_none());
-        let (status, _) = host.store.approve(
-            "clr_attacker",
-            "term-attacker",
-            "nonce-attacker",
-            &pin_proof,
-            &binding,
-        );
-        assert_eq!(status, "wrongSession");
-    }
-
-    let (code2, _) = state
-        .cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .issue(origin, now)
-        .unwrap();
-    let challenge2 = state
-        .cli_app_integration
-        .lock()
-        .unwrap()
-        .pairings
-        .pairing_challenge_for_code(&code2, now)
-        .expect("challenge2");
-    let message2 = pairing_confirm_message(&challenge2, &code2, origin);
-    let sig2: p256::ecdsa::Signature = attacker.sign(&message2);
-    let sig2_b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig2.to_bytes());
-    {
-        let mut host = state.cli_app_integration.lock().unwrap();
-        host.pairings
-            .confirm(
-                &code2,
-                origin,
-                &attacker_spki,
-                &sig2_b64,
-                Some(TEST_VAULT_SESSION_ROOT_DIGEST),
-                now,
-            )
-            .expect("confirm2");
-        assert!(matches!(
-            host.pairings.exchange(&code2, origin, now),
-            Err(PairingError::RegistrationRequired)
-        ));
-    }
-
-    let token = pair_browser(&state, "http://localhost:5180");
-    let body = ensure_body("persona-r7-attacker");
-    let mut ensure_req = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/ensure")
-        .header("content-type", "application/json")
-        .body(Body::from(body))
-        .unwrap();
-    ensure_req
-        .extensions_mut()
-        .insert(ConnectInfo(SocketAddr::from(([127, 0, 0, 1], 5252))));
-    let response = app.clone().oneshot(ensure_req).await.unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    let request_id = parsed["requestId"].as_str().expect("request id");
-    let pending = Request::builder()
-        .method("GET")
-        .uri("/v1/cli/app-integration/pending")
-        .header(header::ORIGIN, "http://localhost:5180")
-        .header(header::AUTHORIZATION, format!("Bearer {token}"))
-        .body(Body::empty())
-        .unwrap();
-    let response = app.clone().oneshot(pending).await.unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    let terminal_session_id = parsed["pending"][0]["terminalSessionId"]
-        .as_str()
-        .expect("terminal");
-    let nonce = parsed["pending"][0]["respondNonce"]
-        .as_str()
-        .expect("nonce");
-    let pin_proof = mint_pin_human_proof(&attacker, request_id, terminal_session_id, nonce, "read");
-    let respond = Request::builder()
-        .method("POST")
-        .uri("/v1/cli/app-integration/respond")
-        .header("content-type", "application/json")
-        .header(header::ORIGIN, "http://localhost:5180")
-        .header(header::AUTHORIZATION, format!("Bearer {token}"))
-        .body(Body::from(
-            serde_json::json!({
-                "requestId": request_id,
-                "terminalSessionId": terminal_session_id,
-                "decision": "approve",
-                "respondNonce": nonce,
-                "humanProof": pin_proof,
-            })
-            .to_string(),
-        ))
-        .unwrap();
-    let response = app.clone().oneshot(respond).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let parsed: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    assert_eq!(parsed["status"], "wrongSession");
+    post_pairing_exchange_expect_forbidden(&app, origin, &code).await;
+    armed_exchange_pin_approve_is_wrong_session(
+        &state,
+        origin,
+        &code,
+        &registration_code,
+        &attacker,
+        now,
+    );
+    second_pairing_still_requires_registration(&state, origin, &attacker_spki, &attacker, now);
+    localhost_attacker_pin_respond_is_wrong_session(&app, &state, &attacker).await;
 }
