@@ -18,12 +18,6 @@ import {
 export const WEB_PUSH_ENROLMENT_PURPOSE =
   "the configured Identity API's push enrolment";
 
-/** The browser node's explicit connection and peer requests share their declared purpose. */
-export const TAILSCALE_BROWSER_NODE_PURPOSE =
-  "the Tailscale control server and encrypted relays for the browser node the person connects";
-export const TAILSCALE_BROWSER_PEER_PURPOSE =
-  "the tailnet service the person opens through their browser node";
-
 /**
  * What `networking.tailnet-devices` declares for the daemon it manages the
  * tailnet through; the client imports it so the two can never drift.
@@ -207,20 +201,10 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "networking.tailnet",
     "Tailnet networking",
-    "Connect this browser as its own Tailscale device, reach permitted tailnet services, and sync the vault through a paired drive.",
+    "Bind this installation to a Tailscale tailnet: the networking connectors, the tailnet a daemon is reached over, and syncing the vault through a drive on it.",
     {
       operationIds: ["vault.drive.sync", "plugins.pair", "plugins.unpair"],
       egress: [
-        {
-          class: "external-service",
-          purpose: TAILSCALE_BROWSER_NODE_PURPOSE,
-          automatic: false,
-        },
-        {
-          class: "peer-or-local-network",
-          purpose: TAILSCALE_BROWSER_PEER_PURPOSE,
-          automatic: false,
-        },
         {
           class: "peer-or-local-network",
           purpose: "a daemon reached over the tailnet a person configured",

@@ -142,7 +142,6 @@ describe("resetBrowser: only what the app owns", () => {
       "opensesame-history-backups",
       "opensesame-at-rest",
       "opensesame-password-history",
-      "opensesame-peer-trust",
     ]);
     expect([...databases.live]).toEqual(["their-db"]);
     expect([...caches.live]).toEqual([
