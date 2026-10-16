@@ -74,6 +74,30 @@ describe("claimEntry", () => {
     ).toEqual({ kind: "drop", token: TOKEN, key: "a2V5" });
   });
 
+  it("keeps a portable packet and marks a missing drop key for the opener", () => {
+    const portable = `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`;
+    expect(
+      claimEntry(
+        `https://pages.example/claim#token=${portable}&key=a2V5&pkt=ospd1.packet`,
+      ),
+    ).toEqual({
+      kind: "drop",
+      token: portable,
+      key: "a2V5",
+      pkt: "ospd1.packet",
+    });
+    expect(
+      claimEntry(
+        `https://pages.example/claim#token=${portable}&pkt=ospd1.packet`,
+      ),
+    ).toEqual({
+      kind: "drop",
+      token: portable,
+      key: "",
+      pkt: "ospd1.packet",
+    });
+  });
+
   it("refuses a query-string bearer and anything that is not a claim", () => {
     expect(claimEntry(`https://pages.example/claim?token=${TOKEN}`)).toEqual({
       kind: "leaked",

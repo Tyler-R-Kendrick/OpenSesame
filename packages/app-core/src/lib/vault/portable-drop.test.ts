@@ -1,0 +1,197 @@
+// @vitest-environment jsdom
+import {
+  PORTABLE_DROP_TOKEN_PREFIX as KIT_PREFIX,
+  isPortableDropToken as kitIsPortableDropToken,
+} from "@opensesame/ceremony-kit";
+import { overlapCast } from "@opensesame/os-domain";
+import { b64urlToBytes, bytesToB64url } from "@opensesame/vault-core";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { sealDrop } from "./drop.js";
+import { decodePortableDropPacket } from "./portable-drop-crypto.js";
+import {
+  PORTABLE_DROP_TOKEN_PREFIX,
+  buildPortableDropBundle,
+  isPortableDropToken,
+  openPortableDropBundle,
+  portableDropLink,
+  resetPortableDropAttemptsForTests,
+} from "./portable-drop.js";
+
+const TEXT = { kind: "text" as const, name: "Deploy token", text: "s3cr3t" };
+const CODE = "ABCD-EFGH";
+const CODE_KDF = "PBKDF2-SHA256";
+const CODE_KDF_ITERATIONS = 600_000;
+
+async function pbkdf2CodeDigest(
+  userCode: string,
+  salt: Uint8Array,
+): Promise<string> {
+  const material = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(userCode),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: overlapCast(salt),
+      iterations: CODE_KDF_ITERATIONS,
+    },
+    material,
+    256,
+  );
+  return bytesToB64url(new Uint8Array(bits));
+}
+
+async function bundle(ttlMs = 600_000) {
+  const { manifest } = await sealDrop(TEXT);
+  return {
+    manifest,
+    sealed: await buildPortableDropBundle(manifest, ttlMs, CODE),
+  };
+}
+
+function flipFirst(value: string): string {
+  return `${value.startsWith("A") ? "B" : "A"}${value.slice(1)}`;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+  resetPortableDropAttemptsForTests();
+});
+
+describe("portable drop bundles", () => {
+  it("round-trips a manifest only with the bearer and user code", async () => {
+    const { manifest, sealed } = await bundle();
+    expect(sealed.pkt).not.toContain(manifest.ciphertext);
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, CODE),
+    ).resolves.toEqual(manifest);
+  });
+
+  it("mints a 32-byte bearer secret and a fresh token every time", async () => {
+    const first = await bundle();
+    const second = await bundle();
+    expect(first.sealed.bearerToken).not.toBe(second.sealed.bearerToken);
+    expect(isPortableDropToken(first.sealed.bearerToken)).toBe(true);
+    expect(
+      first.sealed.bearerToken.startsWith(PORTABLE_DROP_TOKEN_PREFIX),
+    ).toBe(true);
+    const secret = first.sealed.bearerToken.split(".")[1] ?? "";
+    expect(b64urlToBytes(secret)).toHaveLength(32);
+    expect(isPortableDropToken("osc_clm_a.b")).toBe(false);
+    expect(isPortableDropToken("osc_pdrop_short.secret")).toBe(false);
+    expect(KIT_PREFIX).toBe(PORTABLE_DROP_TOKEN_PREFIX);
+    expect(kitIsPortableDropToken(first.sealed.bearerToken)).toBe(true);
+    expect(kitIsPortableDropToken("osc_clm_a.b")).toBe(
+      isPortableDropToken("osc_clm_a.b"),
+    );
+  });
+
+  it("puts the bearer, drop key and packet in the fragment only", () => {
+    const link = portableDropLink(
+      "https://pages.example/OpenSesame/claim",
+      `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
+      "drop-key_-",
+      "ospd1.packet",
+    );
+    const url = new URL(link);
+    expect(url.search).toBe("");
+    const params = new URLSearchParams(url.hash.slice(1));
+    expect(params.get("token")).toBe(
+      `osc_pdrop_${"A".repeat(22)}.${"B".repeat(43)}`,
+    );
+    expect(params.get("key")).toBe("drop-key_-");
+    expect(params.get("pkt")).toBe("ospd1.packet");
+  });
+
+  it("refuses a wrong code without spending later tries", async () => {
+    const { manifest, sealed } = await bundle();
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, "WRONG-CODE"),
+    ).rejects.toMatchObject({
+      code: "invalid_code",
+      attemptsLeft: 4,
+      message: "That code does not match this drop. 4 tries left.",
+    });
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, CODE),
+    ).resolves.toEqual(manifest);
+  });
+
+  it("locks this recipient out after the local drop attempt ceiling", async () => {
+    const { sealed } = await bundle();
+    for (const attemptsLeft of [4, 3, 2, 1]) {
+      await expect(
+        openPortableDropBundle(sealed.pkt, sealed.bearerToken, "WRONG-CODE"),
+      ).rejects.toMatchObject({ code: "invalid_code", attemptsLeft });
+    }
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, "WRONG-CODE"),
+    ).rejects.toMatchObject({
+      code: "locked_out",
+      message:
+        "Locked out. Too many wrong codes — ask the sender for a fresh drop.",
+    });
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, CODE),
+    ).rejects.toMatchObject({ code: "locked_out" });
+  });
+
+  it("checks expiry from the sealed timestamp", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
+    const { sealed } = await bundle(1_000);
+    clock.mockReturnValue(1_001_001);
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, CODE),
+    ).rejects.toMatchObject({ code: "expired" });
+  });
+
+  it("refuses another bearer as invalid_token", async () => {
+    const { sealed } = await bundle();
+    const other = await bundle();
+    await expect(
+      openPortableDropBundle(sealed.pkt, other.sealed.bearerToken, CODE),
+    ).rejects.toMatchObject({ code: "invalid_token" });
+    await expect(
+      openPortableDropBundle(sealed.pkt, "osc_pdrop_short.secret", CODE),
+    ).rejects.toMatchObject({ code: "invalid_token" });
+  });
+
+  it("seals the user code as PBKDF2-SHA256 with 600000 iterations of the trimmed code", async () => {
+    const { manifest } = await sealDrop(TEXT);
+    const sealed = await buildPortableDropBundle(
+      manifest,
+      600_000,
+      `  ${CODE}  `,
+    );
+    const decoded = await decodePortableDropPacket(
+      sealed.pkt,
+      sealed.bearerToken,
+    );
+    expect(decoded.claimId).toBe(sealed.claimId);
+    expect(decoded.codeKdf.algorithm).toBe(CODE_KDF);
+    expect(decoded.codeKdf.iterations).toBe(CODE_KDF_ITERATIONS);
+    expect(decoded.userCodeDigest).toBe(
+      await pbkdf2CodeDigest(CODE, decoded.codeSalt),
+    );
+    await expect(
+      openPortableDropBundle(sealed.pkt, sealed.bearerToken, ` ${CODE}`),
+    ).resolves.toEqual(manifest);
+  });
+
+  it("refuses an altered packet as tampered", async () => {
+    const { sealed } = await bundle();
+    const parts = sealed.pkt.split(".");
+    const ciphertext = parts.at(-1);
+    if (!ciphertext) throw new Error("expected packet ciphertext");
+    parts[parts.length - 1] = flipFirst(ciphertext);
+    await expect(
+      openPortableDropBundle(parts.join("."), sealed.bearerToken, CODE),
+    ).rejects.toMatchObject({ code: "tampered" });
+  });
+});

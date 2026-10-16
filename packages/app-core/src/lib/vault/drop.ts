@@ -35,6 +35,7 @@ import {
 } from "../claims/drop-open.js";
 import { dropSeams } from "./drop-transport.js";
 import { recordOutboundDrop } from "./outbound-drops.js";
+import { portableDropLink } from "./portable-drop.js";
 
 // Opening a drop is the recipient's side, always-on under
 // `identity.ceremonies` (ADR 0140 D2); re-exported for the sender's code.
@@ -68,6 +69,8 @@ export type DropSession = {
   /** Ceremonies claim URL the recipient opens; `dropLink` adds the fragment. */
   verifyUrl: string;
   expiresAt: string;
+  /** Sealed portable packet; absent on server-backed and legacy local claims. */
+  pkt?: string;
 };
 
 /* ------------------------------------------------------ claim transport */
@@ -150,6 +153,22 @@ export function dropLink(
   return `${verifyUrl}#token=${encodeURIComponent(bearerToken)}&key=${fragmentKey}`;
 }
 
+/** The link for a session just created. A portable packet adds its fragment. */
+function linkForCreatedSession(
+  session: DropSession,
+  fragmentKey: string,
+): string {
+  if (session.pkt === undefined) {
+    return dropLink(session.verifyUrl, session.bearerToken, fragmentKey);
+  }
+  return portableDropLink(
+    session.verifyUrl,
+    session.bearerToken,
+    fragmentKey,
+    session.pkt,
+  );
+}
+
 /* ------------------------------------------------------------- creation */
 
 export type CreatedDrop = {
@@ -191,7 +210,7 @@ export async function createDrop(input: {
   });
   return {
     record,
-    link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
+    link: linkForCreatedSession(session, fragmentKey),
     userCode: session.userCode,
   };
 }
@@ -226,7 +245,7 @@ export async function shareOnce(input: {
     sourceItemId: input.sourceItemId ?? null,
   });
   return {
-    link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
+    link: linkForCreatedSession(session, fragmentKey),
     userCode: session.userCode,
     expiresAt: session.expiresAt,
     claimId: session.claimId,
