@@ -162,12 +162,12 @@ pub(super) fn spawn_supervised(
     }
     child_command.envs(env);
     let handlers = signal::install()?;
-    let end = run_child(&mut child_command, session, secrets, stdout, stderr);
+    let run_end = run_child(&mut child_command, session, secrets, stdout, stderr);
     handlers.release(matches!(
-        end,
+        run_end,
         Ok(supervise::RunEnd::Signalled { .. } | supervise::RunEnd::Tripped { .. })
     ));
-    end
+    run_end
 }
 
 fn run_child(

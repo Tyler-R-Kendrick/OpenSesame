@@ -2,7 +2,12 @@
 //! spec line, and the fail-closed broker entry `run --agent-proxy`
 //! drives. Split from the session so each file stays reviewable.
 
-use super::*;
+use std::path::Path;
+
+use super::{
+    default_settings_path, notices_path, spawn, CredentialWire, LoginWire, PluginSettings,
+    RunSpecWire, SettingsError, SurrogateSession, Value, Zeroizing, PLUGIN_ID, RUN_TTL_SECS,
+};
 
 /// The plugin's binary, still hashing to its install pin.
 ///

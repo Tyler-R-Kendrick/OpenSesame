@@ -71,7 +71,7 @@ fn a_supervised_child_holds_the_surrogate_and_never_prints_it() {
     let secrets = super::mask_list(&["real-canary".into()], &env);
     let mut out: Vec<u8> = Vec::new();
     let mut err: Vec<u8> = Vec::new();
-    let end = super::spawn_supervised(
+    let run_end = super::spawn_supervised(
         &[
             "/bin/sh".into(),
             "-c".into(),
@@ -84,7 +84,7 @@ fn a_supervised_child_holds_the_surrogate_and_never_prints_it() {
         &mut err,
     )
     .expect("supervised child");
-    assert_eq!(end.exit_code(), Some(7));
+    assert_eq!(run_end.exit_code(), Some(7));
     assert_eq!(String::from_utf8(out).unwrap(), "env=[REDACTED]\n");
     assert_eq!(String::from_utf8(err).unwrap(), "err=[REDACTED]\n");
 }
