@@ -59,14 +59,54 @@ function useNativePreferences(
   return { name, setName, icon, setIcon, iconBusy, setIconBusy };
 }
 
-function useNativeForm({
-  descriptor,
-  controller,
-  view,
-  onChanged,
-  onFlash,
-}: Props) {
-  const available = descriptor.methods.filter((item) => item.available);
+type NativeFormSeed = {
+  setMethodId: (id: NativeMethodDescriptor["id"] | undefined) => void;
+  setValues: (values: ReturnType<typeof nativeInitialValues>) => void;
+  setScopes: (scopes: ReturnType<typeof nativeScopeDefaults>) => void;
+  setName: (name: string) => void;
+  setIcon: (icon: string) => void;
+};
+
+/**
+ * A saved revision that changes under the form (another tab, a verified
+ * action) re-seeds the fields, as remounting on revision once did. While an
+ * authorization is pending the form must not reset, or its Cancel sign-in
+ * would vanish; the reseed lands once busy clears.
+ */
+function useNativeRevisionSync(
+  descriptor: Props["descriptor"],
+  view: Props["view"],
+  frozen: boolean,
+  seed: NativeFormSeed,
+) {
+  const revisionKey = view
+    ? `${view.connectionId}/${view.revision}/${view.configuration.fingerprint}`
+    : null;
+  const syncedRevision = useRef(revisionKey);
+  useEffect(() => {
+    if (
+      !view ||
+      !revisionKey ||
+      syncedRevision.current === revisionKey ||
+      frozen
+    )
+      return;
+    syncedRevision.current = revisionKey;
+    const next = nativeInitialMethod(descriptor, view);
+    seed.setMethodId(next?.id);
+    seed.setValues(next ? nativeInitialValues(next, view) : {});
+    seed.setScopes(
+      next ? nativeScopeDefaults(next, view.configuration.requestedScopes) : {},
+    );
+    seed.setName(view.configuration.displayName);
+    seed.setIcon(view.configuration.icon ?? "");
+  }, [descriptor, view, revisionKey, frozen, seed]);
+}
+
+function useNativeFormState(
+  descriptor: Props["descriptor"],
+  view: Props["view"],
+) {
   const initial = nativeInitialMethod(descriptor, view);
   const [methodId, setMethodId] = useState(initial?.id);
   const [values, setValues] = useState(() =>
@@ -79,35 +119,41 @@ function useNativeForm({
   );
   const [busy, setBusy] = useState(false);
   const image = useNativePreferences(descriptor.name, view);
-  const { name, setName, setIcon, iconBusy } = image;
   const [failure, setFailure] = useState("");
-  // A saved revision that changes under the form (another tab, a verified
-  // action) re-seeds the fields, as remounting on revision once did. While an
-  // authorization is pending the form must not reset, or its Cancel sign-in
-  // would vanish; the reseed lands once busy clears.
-  const revisionKey = view
-    ? `${view.connectionId}/${view.revision}/${view.configuration.fingerprint}`
-    : null;
-  const syncedRevision = useRef(revisionKey);
-  useEffect(() => {
-    if (
-      !view ||
-      !revisionKey ||
-      syncedRevision.current === revisionKey ||
-      busy ||
-      iconBusy
-    )
-      return;
-    syncedRevision.current = revisionKey;
-    const next = nativeInitialMethod(descriptor, view);
-    setMethodId(next?.id);
-    setValues(next ? nativeInitialValues(next, view) : {});
-    setScopes(
-      next ? nativeScopeDefaults(next, view.configuration.requestedScopes) : {},
-    );
-    setName(view.configuration.displayName);
-    setIcon(view.configuration.icon ?? "");
-  }, [view, revisionKey, descriptor, busy, iconBusy, setName, setIcon]);
+  useNativeRevisionSync(descriptor, view, busy || image.iconBusy, {
+    setMethodId,
+    setValues,
+    setScopes,
+    setName: image.setName,
+    setIcon: image.setIcon,
+  });
+  return {
+    methodId,
+    setMethodId,
+    values,
+    setValues,
+    scopes,
+    setScopes,
+    busy,
+    setBusy,
+    image,
+    failure,
+    setFailure,
+  };
+}
+
+function useNativeForm({
+  descriptor,
+  controller,
+  view,
+  onChanged,
+  onFlash,
+}: Props) {
+  const available = descriptor.methods.filter((item) => item.available);
+  const state = useNativeFormState(descriptor, view);
+  const { methodId, setMethodId, values, setValues, scopes, setScopes } = state;
+  const { busy, setBusy, image, failure, setFailure } = state;
+  const { name } = image;
   const selectedMethod = available.find((item) => item.id === methodId);
   const method = selectedMethod
     ? nativeDraftMethod(descriptor.providerId, selectedMethod, view, values)
