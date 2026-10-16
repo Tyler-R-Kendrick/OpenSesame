@@ -29,6 +29,11 @@ pub(crate) fn policy() -> &'static Policy {
     POLICY.get_or_init(|| serde_json::from_str(SOURCE).expect("cli-app-integration.json"))
 }
 
+#[must_use]
+pub(crate) fn daemon_pin_probe_verb() -> &'static str {
+    policy().daemon_pin_probe_verb.as_str()
+}
+
 /// Random respond nonce for a pending approval row.
 pub(crate) fn respond_nonce() -> String {
     let mut raw = [0u8; 16];
