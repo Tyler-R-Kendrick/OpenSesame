@@ -3,7 +3,21 @@
 // own" walks through. Split from verify-static-origin.mjs like the other
 // contracts so the walk stays one screen per file.
 
+import { readFileSync } from "node:fs";
 import { loadInventory } from "./capability-compose-state.mjs";
+
+const CANONICAL_ICON = `data:image/svg+xml;base64,${readFileSync(
+  new URL("../../public/icon.svg", import.meta.url),
+).toString("base64")}`;
+
+/** Only the canonical inline tab icon is supported; install icons remain assets. */
+export function canonicalTabIcon(icons) {
+  return (
+    icons.length === 1 &&
+    icons[0].type === "image/svg+xml" &&
+    icons[0].href === CANONICAL_ICON
+  );
+}
 
 /** How many optional capabilities the catalog this build ships declares. */
 async function optionalCapabilityCount() {
@@ -21,7 +35,7 @@ async function count(page, role, name, exact = false) {
  * a file — and the guest road as the corner Skip. No sign-in: a device with
  * no vault has nothing to sign in to (ADR 0150 §1, ADR 0188).
  */
-export async function checkFrontDoor(page, check, text, base) {
+export async function checkFrontDoor(page, check, text) {
   check(
     (await page
       .getByRole("heading", { level: 1, name: "open-sesame", exact: true })
@@ -51,10 +65,16 @@ export async function checkFrontDoor(page, check, text, base) {
   ]) {
     check((await count(page, "button", name, true)) === 0, label);
   }
-  const icon = await page.evaluate(() =>
-    document.querySelector('link[rel="icon"]')?.getAttribute("href"),
+  const icons = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('link[rel~="icon"]'), (icon) => ({
+      href: icon.getAttribute("href"),
+      type: icon.getAttribute("type"),
+    })),
   );
-  check(icon === `${base}icon.svg`, `icon href is base-rooted (${icon})`);
+  check(
+    canonicalTabIcon(icons),
+    "exactly one tab icon embeds the canonical SVG with the correct MIME type",
+  );
 }
 
 /**
