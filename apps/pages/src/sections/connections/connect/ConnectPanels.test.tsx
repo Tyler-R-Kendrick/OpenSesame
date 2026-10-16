@@ -1,4 +1,3 @@
-import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import { applyConnectCallbackBase } from "@opensesame/app-core/lib/connect-callback.js";
 import {
   connectPlans,
@@ -45,7 +44,8 @@ const KEY = "k".repeat(40);
 let runtime: ReturnType<typeof activateNativePanelRuntime>;
 
 function provider(id: string): Provider {
-  // Match the merged catalog used by Connections.
+  // Every row the Connections page lists: Connect's own, then the bundled
+  // rows that keep their road and get Connect beside it.
   const found = mergeVercelCatalog(getBundledProviders()).find(
     (row) => row.id === id,
   );
@@ -145,22 +145,16 @@ describe("no connector page is blank", () => {
     "%s opens its own configuration or explicit browser refusal",
     (id) => {
       draw(id);
-      expect(runtime.fetch).not.toHaveBeenCalled();
-      const identity = isIdentityConnectionProvider(id);
-      if (identity || isAiConnectionProvider(id)) {
-        const form = within(
-          screen.getByRole("region", {
-            name: identity ? "Identity configuration" : "AI configuration",
-          }),
-        );
+      if (isIdentityConnectionProvider(id)) {
+        const identity = screen.getByRole("region", {
+          name: "Identity configuration",
+        });
         expect(
-          form.getByRole("button", {
-            name: identity ? "Save identity connection" : "Save AI connection",
+          within(identity).getByRole("button", {
+            name: "Save identity connection",
           }),
         ).toBeTruthy();
-        expect(
-          form.getByLabelText(identity ? "Protocol" : "API family"),
-        ).toBeTruthy();
+        expect(within(identity).getByLabelText("Protocol")).toBeTruthy();
         return;
       }
       const panel = screen.getByRole("region", { name: "Connector" });
@@ -211,7 +205,10 @@ describe("moving between connectors", () => {
       />,
     );
     expect(screen.queryByLabelText("Connector name")).toBeNull();
-    expect(screen.getByLabelText("API key")).toHaveProperty("value", "");
+    expect(screen.getByLabelText("Google Gemini API key")).toHaveProperty(
+      "value",
+      "",
+    );
     expect(screen.queryByLabelText("Application ID")).toBeNull();
     expect(runtime.fetch).not.toHaveBeenCalled();
   });

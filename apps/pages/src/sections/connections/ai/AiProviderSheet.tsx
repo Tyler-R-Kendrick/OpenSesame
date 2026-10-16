@@ -1,4 +1,3 @@
-import { isAiConnectionProvider } from "@opensesame/app-core/lib/ai-connections/presets.js";
 /**
  * Add a model provider (ADR 0192): a name, a key, a test that saves nothing,
  * and a save that proves the key first. It is the whole of connecting one — no
@@ -17,7 +16,6 @@ import { IconConnection, IconPlay } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { NativeInputFields } from "../connect/NativeConnectorFields.js";
 import { nativeFieldValues } from "../connect/native-connector-ui-values.js";
-import { AiConnectionPanels } from "./AiConnectionPanels.js";
 import type { AiSheetTarget } from "./ai-provider-sheet-target.js";
 import { verifyHost } from "./key-hosts.js";
 import { type KeyTest, useAiProviderForm } from "./use-ai-provider-form.js";
@@ -48,7 +46,7 @@ function TestRow({
   );
 }
 
-function LegacyAiProviderSheet({
+export function AiProviderSheet({
   target,
   onClose,
   onConnected,
@@ -131,49 +129,6 @@ function LegacyAiProviderSheet({
           ) : null}
         </CeremonyShell>
       </form>
-    </CeremonySheet>
-  );
-}
-
-export function AiProviderSheet(
-  props: Parameters<typeof LegacyAiProviderSheet>[0],
-) {
-  if (!isAiConnectionProvider(props.target.provider.id))
-    return <LegacyAiProviderSheet {...props} />;
-  return <SharedAiProviderSheet {...props} />;
-}
-
-function SharedAiProviderSheet(
-  props: Parameters<typeof LegacyAiProviderSheet>[0],
-) {
-  const fields = useRef<HTMLDivElement>(null);
-  const key = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (!window.matchMedia?.("(pointer: coarse)").matches)
-      key.current =
-        fields.current?.querySelector<HTMLElement>('input[type="password"]') ??
-        null;
-  }, []);
-  return (
-    <CeremonySheet
-      title="Connect a model provider"
-      mark={<IconConnection size={20} />}
-      onClose={props.onClose}
-      initialFocus={key}
-    >
-      <div ref={fields}>
-        <AiConnectionPanels
-          providerId={props.target.provider.id}
-          inSheet
-          onFlash={props.onFlash}
-          onChanged={() =>
-            props.onConnected({
-              tone: "ok",
-              text: "AI connection verified and saved in this vault.",
-            })
-          }
-        />
-      </div>
     </CeremonySheet>
   );
 }

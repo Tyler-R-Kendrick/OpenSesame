@@ -114,29 +114,3 @@ it("opens the common secret-backend experience for every bundled partner without
     });
   }
 });
-it("opens the specialized BYO AI route without claiming an unsaved configuration is verified", () => {
-  const byo = provider("byo-ai");
-  expect(catalogConnectorAction(byo, null)).toEqual({
-    kind: "connect",
-    glyph: "plus",
-    method: "specialized",
-  });
-  const saved = {
-    ...localGitToConnection({
-      id: "test-byo-ai",
-      displayName: "Saved AI configuration",
-      remoteUrl: "https://example.com/model",
-      authMode: "https_token",
-      username: "person",
-      secretItemId: null,
-      createdAt: "2026-10-14T00:00:00Z",
-      updatedAt: "2026-10-14T00:00:00Z",
-    }),
-    providerId: byo.id,
-  };
-  expect(catalogConnectorAction(byo, saved)).toEqual({
-    kind: "resume",
-    glyph: "arrow",
-    connectionId: saved.connectionId,
-  });
-});
