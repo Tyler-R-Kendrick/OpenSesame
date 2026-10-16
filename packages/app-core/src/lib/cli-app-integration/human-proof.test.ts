@@ -10,7 +10,7 @@ const TEST_SECRET = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 function isCliAppHumanProofValid(proof: string): boolean {
   const t = proof.trim();
   return (
-    /^oschip3:pin:([A-Za-z0-9_-]+)$/.test(t) || /^oschip3:passkey:(.+)$/.test(t)
+    /^oschip2:pin:([A-Za-z0-9_-]+)$/.test(t) || /^oschip2:passkey:(.+)$/.test(t)
   );
 }
 
@@ -20,7 +20,7 @@ describe("cli-app-integration human proof", () => {
     writeCliAppIntegrationBearer(TEST_SECRET);
   });
 
-  it("accepts only oschip3 pin or passkey payloads", () => {
+  it("accepts only oschip2 pin or passkey payloads", () => {
     expect(
       isCliAppHumanProofValid(
         formatCliAppHumanProofPin(
@@ -29,7 +29,7 @@ describe("cli-app-integration human proof", () => {
       ),
     ).toBe(true);
     expect(
-      isCliAppHumanProofValid('oschip3:passkey:{"credentialIdB64":"x"}'),
+      isCliAppHumanProofValid('oschip2:passkey:{"credentialIdB64":"x"}'),
     ).toBe(true);
     expect(isCliAppHumanProofValid("pending-ui-human-proof-placeholder")).toBe(
       false,

@@ -47,9 +47,6 @@ const pairingExchangeBodySchema = z.object({
   token: z.string(),
 });
 
-const CLI_APP_PAIRING_WEBAUTHN_PATH =
-  "/v1/cli/app-integration/pairing/webauthn";
-
 function isPairableOrigin(origin: string): boolean {
   let url: URL;
   try {
@@ -111,7 +108,6 @@ type PairingConfirmBody = Readonly<{
   code: string;
   devicePublicKeySpkiB64: string;
   pairingSignatureB64: string;
-  vaultSessionRootDigest: string;
 }>;
 
 type PairingExchangeBody = Readonly<{
@@ -161,14 +157,11 @@ export async function confirmCliAppPairingCode(
 ): Promise<CliAppPairingConfirmOutcome | null> {
   const base = daemonBase(parsed.url);
   if (!base) return null;
-  const {
-    pairingConfirmMessage,
-    ensureCliAppDeviceSigningKey,
-    readVaultSessionRootDigestForCliApp,
-  } = await import("./device-crypto.js");
+  const { pairingConfirmMessage, ensureCliAppDeviceSigningKey } = await import(
+    "./device-crypto.js"
+  );
   const device = await ensureCliAppDeviceSigningKey();
-  const vaultSessionRootDigest = await readVaultSessionRootDigestForCliApp();
-  if (!device || !vaultSessionRootDigest) return null;
+  if (!device) return null;
   const challenge = await fetchCliAppPairingChallenge(parsed);
   if (!challenge) return null;
   const message = pairingConfirmMessage(challenge, parsed.code, parsed.origin);
@@ -181,55 +174,12 @@ export async function confirmCliAppPairingCode(
       code: parsed.code,
       devicePublicKeySpkiB64: device.publicKeySpkiB64,
       pairingSignatureB64,
-      vaultSessionRootDigest,
     },
   );
   if (!res.ok) return null;
   const body = pairingConfirmBodySchema.safeParse(await res.json());
   if (!body.success) return null;
   return { registrationCode: body.data.registrationCode };
-}
-
-async function registerCliAppHumanProofCredential(
-  base: string,
-  origin: string,
-  token: string,
-): Promise<boolean> {
-  const {
-    ensureCliAppApprovalSigningKey,
-    readVaultSessionRootDigestForCliApp,
-    mintCliAppRegisterHumanProof,
-    b64urlEncode,
-  } = await import("./device-crypto.js");
-  const approval = await ensureCliAppApprovalSigningKey();
-  const vaultSessionRootDigest = await readVaultSessionRootDigestForCliApp();
-  if (!approval || !vaultSessionRootDigest) return false;
-  const humanProof = await mintCliAppRegisterHumanProof(
-    approval,
-    token,
-    origin,
-    vaultSessionRootDigest,
-  );
-  const credentialIdB64 = b64urlEncode(
-    new TextEncoder().encode(approval.publicKeySpkiB64),
-  );
-  const res = await fetch(`${base}${CLI_APP_PAIRING_WEBAUTHN_PATH}`, {
-    method: "POST",
-    credentials: "omit",
-    headers: {
-      "content-type": "application/json",
-      Origin: origin,
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      vaultSessionRootDigest,
-      humanProof,
-      credentialIdB64,
-      publicKeySpkiB64: approval.publicKeySpkiB64,
-      signCount: 1,
-    }),
-  });
-  return res.status === 204;
 }
 
 export async function exchangeCliAppPairingCode(
@@ -252,9 +202,6 @@ export async function exchangeCliAppPairingCode(
   }
   const token = body.data.token;
   writeCliAppIntegrationBearer(token);
-  if (!(await registerCliAppHumanProofCredential(base, parsed.origin, token))) {
-    return false;
-  }
   return true;
 }
 
