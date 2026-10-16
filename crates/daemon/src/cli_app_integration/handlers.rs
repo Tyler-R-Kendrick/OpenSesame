@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use axum::extract::connect_info::ConnectInfo;
 #[cfg(unix)]
 use axum::Extension;
@@ -88,16 +89,18 @@ pub(crate) async fn ensure(State(st): State<App>, request: Request<Body>) -> Res
     else {
         return uds_peer_required_response();
     };
-    let (status, request_id) = host.store.ensure(
-        &terminal_session_id,
-        &req.verb,
-        req.reference.as_deref(),
-        reuse,
-        "00",
-        peer_pid,
-        0,
-        true,
-    );
+    let (status, request_id) = host
+        .store
+        .ensure(opensesame_cli_app_integration::EnsureParams {
+            terminal_session_id: &terminal_session_id,
+            verb: &req.verb,
+            reference: req.reference.as_deref(),
+            reuse_approved_session: reuse,
+            argv_hash: "00",
+            peer_pid,
+            peer_start_time: 0,
+            approvable: true,
+        });
     Json(json!({
         "status": status,
         "requestId": request_id,

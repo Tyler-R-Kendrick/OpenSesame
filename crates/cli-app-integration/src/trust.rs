@@ -32,7 +32,7 @@ impl TrustStore {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            version: TRUST_STORE_VERSION,
+            version: MIN_PROTOCOL_VERSION,
             ark: None,
             daemon_pub_spki_b64: None,
             weak_tty_anchor: false,
@@ -46,7 +46,7 @@ impl TrustStore {
 
     #[must_use]
     pub fn epoch(&self) -> u64 {
-        self.ark.as_ref().map(|a| a.epoch).unwrap_or(0)
+        self.ark.as_ref().map_or(0, |a| a.epoch)
     }
 
     #[must_use]
@@ -100,7 +100,7 @@ impl TrustStore {
 
     /// Wipe legacy in-memory pairings when upgrading to the current trust format.
     pub fn migrate_from_legacy(&mut self, had_legacy_pairings: bool) {
-        if had_legacy_pairings && self.version < TRUST_STORE_VERSION {
+        if had_legacy_pairings && self.version < MIN_PROTOCOL_VERSION {
             self.version = TRUST_STORE_VERSION;
         }
     }
