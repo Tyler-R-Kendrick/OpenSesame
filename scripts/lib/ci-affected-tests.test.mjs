@@ -2,11 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  allScopeLanes,
   loadCrateNodes,
   loadPackageNodes,
   planCrates,
   planPackages,
   repoRootFromHere,
+  turboTestArgs,
 } from "./ci-affected-tests.mjs";
 
 const root = repoRootFromHere();
@@ -128,6 +130,29 @@ describe("affected crates", () => {
     expect(planCrates(ciOnly, crates).scope).toBe("none");
     expect(planCrates(["apps/pages/src/main.tsx"], crates).scope).toBe("none");
     expect(planCrates(["clippy.toml"], crates).scope).toBe("all");
+  });
+});
+
+describe("scope all", () => {
+  it("runs typecheck and the full suite in parallel lanes at concurrency 8", () => {
+    expect(turboTestArgs("all")).toEqual([
+      "exec",
+      "turbo",
+      "run",
+      "test",
+      "--concurrency=8",
+    ]);
+    expect(turboTestArgs("packages")).toEqual([
+      "exec",
+      "turbo",
+      "run",
+      "test",
+      "--concurrency=4",
+    ]);
+    expect(allScopeLanes()).toEqual([
+      [{ command: "pnpm", args: ["typecheck"] }],
+      [{ command: "pnpm", args: turboTestArgs("all") }],
+    ]);
   });
 });
 
