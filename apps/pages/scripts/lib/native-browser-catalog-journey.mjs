@@ -6,6 +6,7 @@ import {
   NATIVE_CANONICAL_PROVIDERS,
   NATIVE_SHARED_AI_PRESETS,
 } from "./native-browser-catalog-projection.mjs";
+import { waitForModelProviderSheetKeyField } from "./native-browser-catalog-sheet-contract.mjs";
 import { addCapabilities } from "./pages-journey.mjs";
 
 export async function nativeVisit(page, base, route) {
@@ -94,8 +95,9 @@ async function nativeSheetContract(page, row, sheet, { check, phone }) {
     (await dialog.count()) === 1,
     `${row.id}: a model provider's first connection opens the Add sheet`,
   );
+  await waitForModelProviderSheetKeyField(dialog);
   check(
-    await sheet
+    await dialog
       .locator('input[type="password"]')
       .evaluateAll(
         (inputs) =>
