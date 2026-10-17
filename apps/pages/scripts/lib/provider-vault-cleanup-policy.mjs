@@ -158,10 +158,24 @@ async function signInAgain({ page, provider, service, idp, grants }) {
     .getByLabel("Instance HTTPS origin", { exact: true })
     .fill(service.endpoint);
   const issuedBefore = grants.length;
+  const signIn = page.getByRole("button", {
+    name: `Sign in to ${provider.name}`,
+    exact: true,
+  });
+  await expect(signIn)
+    .toBeEnabled({ timeout: 10_000 })
+    .catch(async (error) => {
+      throw new Error(
+        `Re-sign-in control unavailable: count=${await signIn.count()} :: ${await page
+          .locator("body")
+          .innerText()
+          .then((text) => text.slice(0, 1600))}`,
+        { cause: error },
+      );
+    });
   const opened = page.context().waitForEvent("page");
-  await page
-    .getByRole("button", { name: `Sign in to ${provider.name}`, exact: true })
-    .click();
+  opened.catch(() => {});
+  await signIn.click();
   const popup = await opened.catch(async (error) => {
     throw new Error(
       `Re-sign-in window never opened: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page
