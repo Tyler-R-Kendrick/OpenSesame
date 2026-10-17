@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { areasForPaths, repoRootFromHere } from "./ci-changed-areas.mjs";
 import { driverReach, gatesForPath } from "./ci-gates.mjs";
+import { readString } from "./json-boundary.mjs";
 
 // The `yaml` package pnpm hoists privately, loaded the way
 // scripts/security/verified-backports.mjs loads it.
@@ -45,9 +46,10 @@ function job(name) {
 /** The script of every `run:` step of every job, as the YAML parser reads it. */
 function runScripts(text) {
   return Object.values(parse(text).jobs).flatMap((definition) =>
-    (definition.steps ?? []).flatMap((step) =>
-      typeof step.run === "string" ? [step.run] : [],
-    ),
+    (definition.steps ?? []).flatMap((step) => {
+      const script = readString(step.run);
+      return script === undefined ? [] : [script];
+    }),
   );
 }
 
