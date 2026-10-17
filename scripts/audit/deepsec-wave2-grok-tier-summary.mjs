@@ -4,6 +4,7 @@
  * Usage: node deepsec-wave2-grok-tier-summary.mjs <tier> <tierStartIso> [repoRoot] [marker]
  */
 import fs from "node:fs";
+import { isString } from "../lib/json-boundary.mjs";
 import {
   DEFAULT_MARKER,
   filesRootForRepo,
@@ -34,7 +35,7 @@ let filesInvestigated = 0;
 
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
-  if (typeof rec.filePath !== "string") continue;
+  if (!isString(rec.filePath)) continue;
   if (grokTierForPath(rec.filePath) !== tier) continue;
   const hist = rec.analysisHistory ?? [];
   for (const h of hist) {
@@ -50,7 +51,7 @@ for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
 const bySeverity = {};
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
-  if (typeof rec.filePath !== "string") continue;
+  if (!isString(rec.filePath)) continue;
   if (grokTierForPath(rec.filePath) !== tier) continue;
   for (const f of rec.findings ?? []) {
     const runId = f.producedByRunId;

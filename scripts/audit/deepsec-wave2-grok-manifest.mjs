@@ -8,6 +8,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isString } from "../lib/json-boundary.mjs";
 import {
   DEFAULT_MARKER,
   fileHasInvestigateWaveStrict,
@@ -34,7 +35,7 @@ const strictLast = process.env.DEEPSEC_GROK_MANIFEST_STRICT_LAST !== "0";
 const entries = [];
 for (const fp of walkJsonFiles(filesRootForRepo(repoRoot))) {
   const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
-  if (typeof rec.filePath !== "string") continue;
+  if (!isString(rec.filePath)) continue;
   const hist = rec.analysisHistory ?? [];
   const grokDone = hist.some((h) => isWaveProcessComplete(h, marker, "grok"));
   if (grokDone) continue;
