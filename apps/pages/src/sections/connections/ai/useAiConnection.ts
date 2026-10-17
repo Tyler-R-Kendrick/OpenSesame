@@ -1,3 +1,7 @@
+import {
+  aiConnectionBinding,
+  validateAiConnection,
+} from "@opensesame/app-core/lib/ai-connections/configuration.js";
 import { aiConnectionDraft } from "@opensesame/app-core/lib/ai-connections/presets.js";
 import {
   deleteAiConnection,
@@ -15,6 +19,44 @@ export const aiConnectionUiDependencies = {
   remove: deleteAiConnection,
 };
 
+function initialDraft(providerId: string, id?: string) {
+  return id
+    ? (readAiConnection(id) ?? aiConnectionDraft(providerId))
+    : aiConnectionDraft(providerId);
+}
+function changeDraft<Key extends keyof AiConnectionDraft>(
+  current: AiConnectionDraft,
+  field: Key,
+  value: AiConnectionDraft[Key],
+) {
+  const next = { ...current, [field]: value };
+  if (!["openai_chat", "openai_responses"].includes(next.family))
+    next.azure = undefined;
+  if (next.azure) {
+    next.authentication = "api-key";
+    if (next.azure.api === "dated-chat") next.family = "openai_chat";
+  }
+  if (
+    (current.azure || next.azure) &&
+    ["azure", "family", "baseUrl", "model"].includes(field)
+  )
+    next.apiKey = "";
+  return next;
+}
+function canRetainCredential(draft: AiConnectionDraft, id?: string): boolean {
+  if (!id) return false;
+  try {
+    const saved = readAiConnection(id);
+    return Boolean(
+      saved &&
+        aiConnectionBinding(validateAiConnection(draft, false)) ===
+          aiConnectionBinding(validateAiConnection(saved, false)),
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function useAiConnection(
   providerId: string,
   connectionId: string | undefined,
@@ -22,9 +64,7 @@ export function useAiConnection(
   onSaved?: () => void,
 ) {
   const [draft, setDraft] = useState(() =>
-    connectionId
-      ? (readAiConnection(connectionId) ?? aiConnectionDraft(providerId))
-      : aiConnectionDraft(providerId),
+    initialDraft(providerId, connectionId),
   );
   const [savedId, setSavedId] = useState(connectionId);
   const [busy, setBusy] = useState(false);
@@ -37,8 +77,11 @@ export function useAiConnection(
     },
     [],
   );
-  function onChange(field: keyof AiConnectionDraft, value: string) {
-    setDraft((current) => ({ ...current, [field]: value }));
+  function onChange<Key extends keyof AiConnectionDraft>(
+    field: Key,
+    value: AiConnectionDraft[Key],
+  ) {
+    setDraft((current) => changeDraft(current, field, value));
     setFailure("");
     setResult("");
   }
@@ -104,6 +147,7 @@ export function useAiConnection(
     draft,
     savedId,
     hasSavedCredentials: Boolean(savedId && readAiConnection(savedId)),
+    canRetainCredential: canRetainCredential(draft, savedId),
     busy,
     failure,
     result,
