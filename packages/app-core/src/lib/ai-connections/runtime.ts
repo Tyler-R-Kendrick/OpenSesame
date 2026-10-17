@@ -19,7 +19,11 @@ import {
   commitAiConnection,
 } from "./store.js";
 import { aiConnectionTransport } from "./transport.js";
-import { type AiConnectionDraft, AiConnectionError } from "./types.js";
+import {
+  type AiConnectionDraft,
+  AiConnectionError,
+  type AiConnectionTransport,
+} from "./types.js";
 import { aiVaultSeams } from "./vault-guard.js";
 
 async function reviewedDraft(
@@ -81,12 +85,26 @@ function savedGuard(id: string, revision: number, fingerprint: string) {
   };
 }
 
+function assertCurrentOperation(
+  guard: Awaited<ReturnType<typeof aiVaultSeams.capture>>,
+  transport: AiConnectionTransport,
+  unchanged: () => void,
+  runtime?: Pick<HostedModelRuntime, "signal" | "assertCurrent">,
+) {
+  guard.check();
+  unchanged();
+  transport.assertCurrent();
+  runtime?.assertCurrent();
+  transport.signal.throwIfAborted();
+}
+
 /** A real inference probe saves nothing and releases its vault session. */
 export async function testAiConnection(
   supplied: AiConnectionDraft,
   id?: string,
 ): Promise<string> {
   const guard = await aiVaultSeams.capture();
+  let completed = false;
   try {
     const port = aiConnectionTransport();
     const transport = {
@@ -101,15 +119,13 @@ export async function testAiConnection(
           previous.configuration.fingerprint,
         )
       : () => guard.check();
-    const check = () => {
-      guard.check();
-      unchanged();
-      transport.assertCurrent();
-    };
+    const check = () => assertCurrentOperation(guard, transport, unchanged);
     await probeAiConnection(draft, transport, check);
+    check();
+    completed = true;
     return "Model inference verified";
   } finally {
-    guard.close();
+    guard.close(completed);
   }
 }
 
@@ -119,6 +135,7 @@ export async function saveAiConnection(
   id?: string,
 ) {
   const guard = await aiVaultSeams.capture();
+  let completed = false;
   try {
     const port = aiConnectionTransport();
     const transport = {
@@ -137,11 +154,7 @@ export async function saveAiConnection(
           previous.configuration.fingerprint,
         )
       : () => guard.check();
-    const check = () => {
-      guard.check();
-      unchanged();
-      transport.assertCurrent();
-    };
+    const check = () => assertCurrentOperation(guard, transport, unchanged);
     await probeAiConnection(draft, transport, check);
     const capture = await stageVaultCredentials(
       {
@@ -170,9 +183,18 @@ export async function saveAiConnection(
       await discardVaultCredentials(oldCapture, guard.tomb, () =>
         guard.check(),
       ).catch(() => undefined);
+    const committed = savedGuard(
+      view.connectionId,
+      view.revision,
+      view.fingerprint,
+    );
+    assertVaultCredentials(capture, guard.tomb, () =>
+      assertCurrentOperation(guard, transport, committed),
+    );
+    completed = true;
     return view;
   } finally {
-    guard.close();
+    guard.close(completed);
   }
 }
 
@@ -184,6 +206,7 @@ export async function performSavedAiInference(
   onText?: (text: string) => void,
 ) {
   const guard = await aiVaultSeams.capture();
+  let completed = false;
   try {
     const port = aiConnectionTransport();
     const signals = [port.signal, guard.signal];
@@ -209,17 +232,22 @@ export async function performSavedAiInference(
       record.revision,
       record.configuration.fingerprint,
     );
-    const check = () => {
-      guard.check();
-      unchanged();
-      transport.assertCurrent();
-      runtime?.assertCurrent();
-    };
+    const check = () =>
+      assertCurrentOperation(guard, transport, unchanged, runtime);
     const draft = await resolvedAiConnection(record, guard.tomb);
     check();
-    return await inferAiConnection(draft, input, transport, check, onText);
+    const result = await inferAiConnection(
+      draft,
+      input,
+      transport,
+      check,
+      onText,
+    );
+    check();
+    completed = true;
+    return result;
   } finally {
-    guard.close();
+    guard.close(completed);
   }
 }
 
