@@ -81,3 +81,10 @@ node scripts/release/pages-release.mjs verify https://tyler-r-kendrick.github.io
 - Configuration follows [`.env.schema`](.env.schema). Never commit a live
   secret; development keys and peppers are generated outside git.
 - No `sudo`.
+
+## AI-assisted contributions
+
+This project is built with coding agents under human direction and review.
+Disclose significant AI-generated content in the pull request. When an agent
+makes a commit, name the tool and model in the commit message or in the pull
+request provenance.
