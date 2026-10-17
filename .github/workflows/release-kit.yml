@@ -14,6 +14,12 @@
 # Run by hand (Actions > Release kit > Run workflow) it is a dry run: it builds
 # the commit selected in "Use workflow from" under the label given as `tag` and
 # leaves the files as artifacts of the run. Nothing is attested or released.
+#
+# The first job checks the tag before any build minute is spent: a version the
+# workspace carries, a commit main already holds (scripts/release/tag-check.sh).
+# Only the owner may create a v* tag at all (ops/github/release-tags.json); the
+# `release` environment, if the owner has configured one, asks a reviewer before
+# `publish` runs.
 name: Release kit
 
 on:
@@ -39,8 +45,43 @@ env:
   CARGO_TERM_COLOR: never
 
 jobs:
+  # The cheapest job and the first: everything else needs it, so a tag that is
+  # not v<workspace version> or is not on main stops here and builds nothing.
+  tag:
+    name: tag check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      # The commit everything below builds, checks and releases. Not GITHUB_SHA:
+      # on a tag push that can be an annotated tag's object, which no commit
+      # comparison may use. tag-check.sh peels it.
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          # Every branch's history, so origin/main is here to compare with.
+          fetch-depth: 0
+      - name: The tag names the workspace version and a commit main holds
+        id: check
+        env:
+          EVENT: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = push ]; then
+            sha="$(scripts/release/tag-check.sh verify "$TAG" "$EVENT_SHA")"
+          else
+            # A dry run builds whatever commit was selected.
+            sha="$(scripts/release/tag-check.sh commit "$EVENT_SHA")"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
   bridge:
     name: env-spec bridge bundle
+    needs: tag
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -70,7 +111,7 @@ jobs:
 
   build:
     name: build ${{ matrix.target }}
-    needs: bridge
+    needs: [tag, bridge]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     permissions:
@@ -85,10 +126,14 @@ jobs:
           - { target: aarch64-unknown-linux-gnu, runner: ubuntu-24.04-arm }
     env:
       TARGET: ${{ matrix.target }}
+      VERIFIED_SHA: ${{ needs.tag.outputs.sha }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
+      - name: The checkout is the commit the tag check passed
+        # A tag moved after that check would otherwise be built from here.
+        run: '[ "$(git rev-parse HEAD)" = "$VERIFIED_SHA" ] || { echo "::error::checked out $(git rev-parse HEAD), not $VERIFIED_SHA"; exit 1; }'
       - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable (toolchain pinned below)
         with:
           toolchain: 1.88.0
@@ -103,8 +148,10 @@ jobs:
         # Each binary is copied out the moment it is built: the test build
         # writes the same file name in the target directory. No cache: a
         # release is built from the lockfile and nothing a previous run left.
-        # The checkout and cargo home are remapped so the binaries do not name
-        # this runner's paths.
+        # The checkout and cargo home are remapped, so panic messages and debug
+        # info do not name this runner's paths, except the compiled-in
+        # CARGO_MANIFEST_DIR of crates/env-spec: the compiler expands that
+        # before the remap sees it (ADR 0207).
         run: |
           set -euo pipefail
           rustc +1.88.0 -vV
@@ -119,7 +166,7 @@ jobs:
           cargo +1.88.0 build --locked --release -p opensesame-surrogate-proxy --features upstream-override --bin opensesame-surrogate-proxy
           cp target/release/opensesame-surrogate-proxy bins/opensesame-surrogate-proxy-TEST-upstream-override
           sha256sum bins/*
-      - name: The tag names the version the binary reports
+      - name: The binary reports the version the tag names
         if: github.event_name == 'push'
         run: |
           said="$(bins/opensesame --version)"
@@ -174,27 +221,10 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-    outputs:
-      # The commit the files were built from and the check below passed;
-      # publish releases only while the tag still names it.
-      verified-sha: ${{ steps.on-main.outputs.sha }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
-          # Every branch's history, so origin/main is here for the check below.
-          fetch-depth: 0
-      - name: The tag is on main
-        id: on-main
-        # A release is cut only from a commit main already holds; a tag pushed
-        # on any other commit stops here, before anything is attested or published.
-        if: github.event_name == 'push'
-        run: |
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::$TAG points at $GITHUB_SHA, which is not on main. Tag a commit that main already contains."
-            exit 1
-          fi
-          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: kit-*
@@ -220,9 +250,14 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # Signs a SLSA build-provenance statement for every file SHA256SUMS names,
-  # bound to this workflow, this commit and this run. Verify one with
-  # `gh attestation verify <file> --repo Tyler-R-Kendrick/OpenSesame`.
+  # Signs a SLSA build-provenance statement for every file SHA256SUMS names, and
+  # for SHA256SUMS itself, bound to this workflow, this commit and this run.
+  # Verify one with
+  #   gh attestation verify <file> --repo Tyler-R-Kendrick/OpenSesame \
+  #     --signer-workflow Tyler-R-Kendrick/OpenSesame/.github/workflows/release-kit.yml \
+  #     --source-ref refs/tags/<tag>
+  # The last two flags are what makes it this workflow run for this tag: with
+  # --repo alone any workflow of the repository that attests would pass.
   attest:
     name: build provenance
     if: github.event_name == 'push'
@@ -244,6 +279,10 @@ jobs:
       - uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-checksums: dist/SHA256SUMS
+      # The checksum file cannot list itself, so it is a subject of its own.
+      - uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: dist/SHA256SUMS
 
   # The only job that writes to the repository. It checks nothing out and builds
   # nothing: it hands GitHub the files the jobs above made and attested. The
@@ -256,9 +295,14 @@ jobs:
   publish:
     name: publish release
     if: github.event_name == 'push'
-    needs: [checksums, attest]
+    needs: [tag, checksums, attest]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # Settings > Environments > release: a required reviewer, and deployments
+    # limited to v* tags, make a release wait for the owner's approval
+    # (docs/operators/release-kit.md). Unconfigured, the name only labels the run.
+    environment:
+      name: release
     permissions:
       contents: write
     steps:
@@ -270,7 +314,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          VERIFIED_SHA: ${{ needs.checksums.outputs.verified-sha }}
+          VERIFIED_SHA: ${{ needs.tag.outputs.sha }}
         run: |
           set -euo pipefail
           (cd dist && sha256sum --check --strict SHA256SUMS)
@@ -303,8 +347,7 @@ jobs:
             echo "- \`opensesame-surrogate-proxy-TEST-upstream-override_${TAG}_<target>.tar.gz\`: the plugin's **test build**, which can be aimed at a stand-in upstream. For test lanes only; never give it a real token."
             echo "- \`opensesame-env-parse.mjs\`: the bridge on its own."
             echo
-            # shellcheck disable=SC2016 # the backticks are Markdown, not a command
-            echo 'Verify a download with `sha256sum --check --ignore-missing SHA256SUMS` and `gh attestation verify <file> --repo '"$GH_REPO"'`; see docs/operators/release-kit.md.'
+            echo "Verify a download with \`sha256sum --check --ignore-missing SHA256SUMS\` and \`gh attestation verify <file> --repo $GH_REPO --signer-workflow $GH_REPO/.github/workflows/release-kit.yml --source-ref refs/tags/$TAG\`; see docs/operators/release-kit.md."
           } > notes.md
           gh release create "$TAG" dist/* --draft --verify-tag --target "$VERIFIED_SHA" \
             --title "$TAG" --notes-file notes.md "${prerelease[@]}"

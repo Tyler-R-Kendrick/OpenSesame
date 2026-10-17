@@ -20,6 +20,7 @@ export { DRIVER_GATES } from "./ci-gate-drivers.mjs";
 import { liveJoinFixturePath } from "./ci-live-join.mjs";
 export { liveJoinFixturePath };
 import { relayJoinPath, relayProcessGate } from "./ci-relay-join.mjs";
+import { releaseKitPath } from "./ci-release-kit.mjs";
 export { relayJoinPath };
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
 export const SHARD_GATES = [
@@ -339,7 +340,7 @@ function gatesByPath(path, reach) {
   if (path === ".github/workflows/ci.yml") return everyGate();
   // The release kit builds binaries on a tag: no Pages gate can see it, and
   // ci-release-kit.test.mjs pins it (ADR 0207).
-  if (path === ".github/workflows/release-kit.yml") return gates();
+  if (releaseKitPath(path)) return gates();
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
   if (path === "spec/connectors/self-hosted-config.json")
     return gates("budgets");
