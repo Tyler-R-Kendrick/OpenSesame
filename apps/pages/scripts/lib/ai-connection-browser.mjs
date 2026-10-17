@@ -124,7 +124,7 @@ async function configure(page, fixture, entry, name, check, width) {
 
 async function chooseAndColdReload(
   page,
-  { base, fixture, entry, name, width, check },
+  { base, fixture, entry, name, width, check, beforeReload },
 ) {
   const form = fields(fixture, entry);
   await visit(page, base, "settings/features");
@@ -145,6 +145,7 @@ async function chooseAndColdReload(
     selected.startsWith("connection:"),
     `${width}: ${entry.providerId}/${entry.family} inference selection names the saved connection`,
   );
+  await beforeReload();
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPin(page);
   await visit(page, base, "settings/features");
@@ -242,6 +243,7 @@ export async function verifyAiConnections({
   fixture,
   width,
   check,
+  beforeReload,
 }) {
   await enableBackendConnections(page, base);
   await addCapabilities(page, ["On-device model"]);
@@ -250,7 +252,7 @@ export async function verifyAiConnections({
     const name = `AI ${entry.providerId} ${entry.family} ${width}`;
     await open(page, base, entry.providerId);
     await configure(page, fixture, entry, name, check, width);
-    const context = { base, fixture, entry, name, width, check };
+    const context = { base, fixture, entry, name, width, check, beforeReload };
     await chooseAndColdReload(page, context);
     await verifyToken(page, context);
     await infer(page, context);
@@ -264,8 +266,9 @@ export async function verifyAiConnections({
     `${width}: all six configurations across four inference protocols passed the fixture's independent request validation`,
   );
   await verifyAzureAiLifecycle(
-    { page, base, fixture, width, check },
+    { page, base, fixture, width, check, beforeReload },
     {
+      beforeReload,
       visit,
       open,
       configure,

@@ -86,7 +86,14 @@ async function runViewport(width) {
   try {
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await sealWithPin(page);
-    await verifyAiConnections({ page, base, fixture, width, check: h.check });
+    await verifyAiConnections({
+      page,
+      base,
+      fixture,
+      width,
+      check: h.check,
+      beforeReload: () => lifecycle.quiesce(context),
+    });
     await settingsComposition(page, width);
   } catch (error) {
     await page.screenshot({
