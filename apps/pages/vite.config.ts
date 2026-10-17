@@ -98,6 +98,18 @@ function bundleChunk(id: string): string | undefined {
   ) {
     return "noble-crypto";
   }
+  // P8-2 peer trust: handshake.ts, webcrypto.ts, and peers.ts are emitted
+  // into more than one lazy chunk (the live session graph and the sharing
+  // UI). One chunk keeps a single copy. The bootstrap entry already imports
+  // the shared b64 helper and the peer-trust database name; those stay put.
+  // Folding them in here would pull this chunk onto the first page.
+  if (
+    path.includes("/lib/peer-trust/handshake.ts") ||
+    path.includes("/lib/peer-trust/webcrypto.ts") ||
+    path.includes("/lib/peer-trust/peers.ts")
+  ) {
+    return "peer-trust";
+  }
   return undefined;
 }
 

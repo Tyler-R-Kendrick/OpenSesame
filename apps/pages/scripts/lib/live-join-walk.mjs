@@ -223,9 +223,35 @@ export async function joinerAsks(page, { link, code, name, routes = null }) {
   return copyFrom(page, copy);
 }
 
+const SAS_TEXT = /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/;
+
+function escapeName(name) {
+  return name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * The owner pastes a request by hand and lets the person in (an open
- * session lets them in by itself: `admit: false`); the reply code.
+ * The admit control for `name`: the SAS compare when the request carries a
+ * peer block, otherwise the legacy let-in key.
+ */
+export function admitControl(root, name) {
+  const escaped = escapeName(name);
+  return root.getByRole("button", {
+    name: new RegExp(`^(Yes, they match for ${escaped}|Let ${escaped} in)$`),
+  });
+}
+
+async function confirmSessionSas(panel) {
+  const text = (await panel.locator(".live-sas").first().innerText()).trim();
+  if (!SAS_TEXT.test(text)) {
+    throw new Error(`session SAS is not readable: ${text}`);
+  }
+}
+
+/**
+ * The owner pastes a request by hand and lets the person in. An open session
+ * still auto-admits a request with no peer block (`admit: false`). A request
+ * that shows a session SAS waits for "Yes, they match" either way. The reply
+ * code.
  */
 export async function ownerAdmitsByHand(
   page,
@@ -236,11 +262,28 @@ export async function ownerAdmitsByHand(
 ) {
   await panel.getByLabel("A request code", { exact: true }).fill(request);
   await panel.getByRole("button", { name: "Read the request" }).click();
-  if (admit)
-    await panel.getByRole("button", { name: `Let ${name} in` }).click();
+  const match = panel.getByRole("button", {
+    name: `Yes, they match for ${name}`,
+  });
+  const letIn = panel.getByRole("button", { name: `Let ${name} in` });
   const copy = panel.getByRole("button", {
     name: `Copy the reply code for ${name}`,
   });
+  if (admit) {
+    await match.or(letIn).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    } else {
+      await letIn.click();
+    }
+  } else {
+    await match.or(copy).first().waitFor({ timeout: 20_000 });
+    if (await match.isVisible()) {
+      await confirmSessionSas(panel);
+      await match.click();
+    }
+  }
   await copy.waitFor({ timeout: 20_000 });
   return copyFrom(page, copy);
 }
