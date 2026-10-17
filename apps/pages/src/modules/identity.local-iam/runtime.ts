@@ -124,6 +124,8 @@ export const capabilityRuntime: CapabilityRuntime = {
       path: "/identity",
       label: "Identity",
     });
+    // Pair CLI stays on the public origin. Local approval is blocked there
+    // and explained; the command only reaches a CLI on the person's own deployment.
     activation.register("command-path", {
       path: "/identity/authorize?cli=1",
       label: "Pair CLI",

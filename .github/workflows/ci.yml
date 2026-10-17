@@ -448,6 +448,13 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:fresh-vault-login
+      - name: CLI on the public site
+        # P8-5: Pair CLI on the shared origin, with no loopback pairing field.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:cli-public-site
 
   ai-connections-e2e:
     name: AI connections end to end

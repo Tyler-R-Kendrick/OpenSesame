@@ -16,7 +16,16 @@ export type WorkspaceRow = {
   to?: string;
   onOpen?: () => void;
   actions?: ReactNode;
+  /** False for an add-on that stays in the list and out of the count. */
+  counted?: boolean;
 };
+
+/** Rows that belong to the section count. An omitted flag counts. */
+export function countedWorkspaceRows(
+  rows: readonly WorkspaceRow[],
+): WorkspaceRow[] {
+  return rows.filter((row) => row.counted !== false);
+}
 
 export type RecordWorkspaceProps = {
   section: string;
@@ -78,7 +87,7 @@ export function RecordWorkspace(props: RecordWorkspaceProps) {
           ) : (
             <div className="buffer">
               <p className="buffer__line">
-                {rows.length} {title.toLowerCase()}
+                {countedWorkspaceRows(rows).length} {title.toLowerCase()}
               </p>
             </div>
           )}
