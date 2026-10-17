@@ -78,12 +78,12 @@ function useLinearForm(props: LinearFormProps) {
   const [state, setState] = useState<DraftState>(() =>
     linearState(held?.state ?? initialDraftState(plan, "oauth")),
   );
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<(() => boolean) | null>(null);
   const [iconBusy, setIconBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [savedId, setSavedId] = useState(connectorId);
   const problems = linearConnectorProblems(state, options, savedId);
-  const busy = saving || !!props.authorization?.current();
+  const busy = !!saving?.() || !!props.authorization?.current();
 
   async function configure(event: FormEvent) {
     event.preventDefault();
@@ -91,7 +91,7 @@ function useLinearForm(props: LinearFormProps) {
     const current = props.captureUiCurrent?.() ?? (() => true);
     if (!current()) return;
     const authorization = linearAuthorization(savedId, props.onAuthorization);
-    setSaving(true);
+    setSaving(() => current);
     setFailure(null);
     try {
       const connection = await configureLinearConnector(
@@ -126,7 +126,7 @@ function useLinearForm(props: LinearFormProps) {
       }
     } finally {
       authorization.finish();
-      if (current()) setSaving(false);
+      if (current()) setSaving(null);
     }
   }
   return {

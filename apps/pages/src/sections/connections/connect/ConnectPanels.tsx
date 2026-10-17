@@ -21,8 +21,8 @@ import { TailscalePanels } from "../tailscale/TailscalePanels.js";
 import { ConnectTransportPanel } from "./ConnectTransportPanel.js";
 import { ConnectorSettingsForm } from "./ConnectorSettingsForm.js";
 import { LinearConnectorForm } from "./LinearConnectorForm.js";
+import { LinearConnectorSummary } from "./LinearConnectorSummary.js";
 import { NativeConnectorPanels } from "./NativeConnectorPanels.js";
-import { SavedConnectorSummary } from "./SavedConnectorSummary.js";
 import { UserTokenPanel } from "./UserTokenPanel.js";
 import { useConnectTransport } from "./useConnectTransport.js";
 import { useNativeAuthorization } from "./useNativeAuthorization.js";
@@ -128,7 +128,10 @@ function LinearLocalPanels({
   onChanged,
 }: Props & { plan: ConnectPlan }) {
   const pending = useNativeAuthorization(plan.id, connection?.connectionId);
-  const local = isSelfHostedConnector(connection) ? connection : null;
+  const local =
+    connection?.providerId === "linear" && isSelfHostedConnector(connection)
+      ? connection
+      : null;
   const connectorId = local?.connectionId;
   return (
     <div className="cx-setup">
@@ -154,11 +157,13 @@ function LinearLocalPanels({
           <legend className="visually-hidden">
             Linear saved connection actions
           </legend>
-          <SavedConnectorSummary
+          <LinearConnectorSummary
             key={connectorId ?? "new"}
             connection={local}
             onFlash={onFlash}
             onChanged={onChanged}
+            onAuthorization={pending.onAuthorization}
+            captureUiCurrent={pending.captureUiCurrent}
           />
         </fieldset>
       ) : null}
