@@ -82,6 +82,8 @@ export class VirtualAuthenticator {
   private readonly credentials_: Stored[] = [];
   /** Set to make the next PRF evaluations unstable, as a broken key would. */
   unstablePrf = false;
+  /** Evaluations made while `unstablePrf` was set: no two outputs agree. */
+  private unstableEvaluations = 0;
 
   constructor(private readonly options: VirtualOptions) {}
 
@@ -180,8 +182,13 @@ export class VirtualAuthenticator {
 
   private evaluate(stored: Stored, input: Uint8Array): Uint8Array {
     const out = prfOutput(stored.credRandom, input);
-    if (this.unstablePrf)
-      out[0] = (out[0] ?? 0) ^ ((randomBytes(1)[0] ?? 0) | 1);
+    if (this.unstablePrf) {
+      // A random mask repeated one time in 128, and then a wrap and its check
+      // agreed and an unstable key went undetected. A counter never repeats.
+      this.unstableEvaluations += 1;
+      out[0] = (out[0] ?? 0) ^ (this.unstableEvaluations & 0xff);
+      out[1] = (out[1] ?? 0) ^ ((this.unstableEvaluations >> 8) & 0xff);
+    }
     return out;
   }
 
