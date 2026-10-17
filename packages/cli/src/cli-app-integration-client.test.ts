@@ -37,7 +37,7 @@ describe("cli app integration client (production)", () => {
     process.env.OPENSESAME_DAEMON_API = "http://127.0.0.1:1";
 
     const refusal = await humanRevealAppIntegrationRefusal({
-      verb: "read",
+      verb: "reveal",
       reveal: true,
       desktop: true,
       reference: "op://v/i/f",
@@ -55,7 +55,7 @@ describe("cli app integration client (production)", () => {
       ensureReveal: async () => "timedOut",
     };
     const refusal = await humanRevealAppIntegrationRefusal({
-      verb: "read",
+      verb: "reveal",
       reveal: true,
       desktop: true,
       reference: "op://v/i/f",

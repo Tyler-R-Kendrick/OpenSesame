@@ -12,7 +12,7 @@ const VERBS = new Set([
   "audit",
   "create",
   "password",
-  "read",
+  "reveal",
   "run",
   "env",
   "service-account",

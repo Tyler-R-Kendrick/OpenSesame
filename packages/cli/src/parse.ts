@@ -103,6 +103,12 @@ export function parseArgs(argv: string[]): ParsedCommand {
   const parity = parseParity(cmd, args, flags);
   if (parity) return parity;
 
+  if (cmd === "read") {
+    throw new Error(
+      "read is retired; use `reveal <op://reference|os://reference> --reveal --desktop` for human-only plaintext, or `run --env NAME=<ref>` to inject without revealing.",
+    );
+  }
+
   if (cmd === "help" || cmd === "--help" || cmd === "-h") {
     return { name: "help" };
   }
@@ -326,12 +332,11 @@ Commands:
   inventory | audit           Metadata and organization checks, never values
   create api-credential --title <title> --vault <vault> --stdin|--clipboard
   password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference|os://reference> [--reveal] [--desktop]
+  reveal <op://reference|os://reference> [--reveal] [--desktop]
                                Human-only plaintext stdout (TTY, no agent context)
   run [--env NAME=<ref>...] [--mount NAME=<ref>...] [--agent-proxy --paths NAME=/p --methods NAME=GET] -- <command...>
                                <ref>: op:// or os:// vault/item/field; --mount sets NAME to a private temp file holding the secret; --agent-proxy brokers os:// connections items (native CLI + plugin; this CLI fails closed)
   env write <file> <NAME=op://reference...>
-  env resolve <file> --output <file>|--in-place
   env run <file> -- <command...>
   service-account setup|connect|status|recover|forget
   request <https-url> --secret <op://reference> [--lease <id>]

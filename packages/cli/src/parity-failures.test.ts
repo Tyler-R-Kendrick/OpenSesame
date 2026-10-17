@@ -174,7 +174,7 @@ describe("2password CLI safety gauntlet", { timeout: 120_000 }, () => {
       '"verified": true',
     );
   });
-  it("piped env resolve never reaches a malformed secret batch and leaves output untouched", async () => {
+  it("retired env resolve never reaches a malformed secret batch and leaves output untouched", async () => {
     const { cli, env, directory, calls } = fixture;
     const template = join(directory, "input.env");
     const output = join(directory, "output.env");
@@ -190,9 +190,9 @@ describe("2password CLI safety gauntlet", { timeout: 120_000 }, () => {
       "--desktop",
       "--reveal",
     ]);
-    // A pipe is not a person at a terminal, so the provider never runs.
+    // env resolve is retired, so the provider never runs.
     expect(result.code).toBe(1);
-    expect(result.stderr).toMatch(/stdin and stdout/);
+    expect(result.stderr).toMatch(/env resolve is retired/);
     expect(result.stderr).not.toContain("malformed-secret-canary");
     expect(result.stdout).not.toContain("malformed-secret-canary");
     expect(await calls()).toEqual([]);
