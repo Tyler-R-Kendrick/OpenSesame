@@ -1,6 +1,10 @@
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 import { z } from "zod";
+import {
+  AzureOpenAiTargetSchema,
+  azureConnectionTarget,
+} from "./azure-protocol.js";
 import { aiConnectionFamilies, aiConnectionPreset } from "./presets.js";
 import { type AiConnectionDraft, AiConnectionError } from "./types.js";
 
@@ -26,6 +30,7 @@ export const AiConnectionDraftSchema = z
     tokenParameter: z
       .enum(["max_tokens", "max_completion_tokens"])
       .default("max_completion_tokens"),
+    azure: AzureOpenAiTargetSchema.optional(),
   })
   .strict();
 
@@ -80,6 +85,7 @@ export function validateAiConnection<Value>(
       "Choose a protocol supported by this provider.",
     );
   draft.baseUrl = aiConnectionBase(draft.baseUrl).href.replace(/\/$/, "");
+  azureConnectionTarget(draft);
   if (
     draft.family === "gemini_generate_content" &&
     !/^[A-Za-z0-9._-]+$/.test(draft.model)
@@ -113,14 +119,28 @@ export function validateAiConnection<Value>(
 }
 
 export function aiConnectionBinding(draft: AiConnectionDraft): string {
-  return JSON.stringify([
+  const legacy = [
     draft.providerId,
     draft.family,
     draft.baseUrl,
     draft.model,
     draft.authentication,
     draft.tokenParameter,
-  ]);
+  ];
+  const target = azureConnectionTarget(draft);
+  return JSON.stringify(
+    target
+      ? [
+          ...legacy,
+          [
+            "azure-openai",
+            target.api,
+            target.api === "dated-chat" ? target.apiVersion : null,
+            target.credential,
+          ],
+        ]
+      : legacy,
+  );
 }
 
 export function aiCredentialDigest(value: string): string {
