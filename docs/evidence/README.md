@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-16-s3-connected-removal/`](2026-10-16-s3-connected-removal/README.md) | S3 removal clears the Connected list |
+| [`2026-10-16-linear-saved-authorization/`](2026-10-16-linear-saved-authorization/README.md) | Saved Linear authorization shares the pending controls |
 | [`2026-10-16-linear-pending-cancel/`](2026-10-16-linear-pending-cancel/README.md) | Linear pending consent keeps Cancel available |
 | [`2026-10-15-tailscale-status/`](2026-10-15-tailscale-status/README.md) | Tailscale browser-node live status: actual browser evidence |
 | [`2026-10-15-tailscale-service-probe/`](2026-10-15-tailscale-service-probe/README.md) | Tailscale service-probe HTTP results |
