@@ -31,6 +31,7 @@ import {
   useSections,
 } from "./RailRows.js";
 import { SessionPrompt } from "./SessionPrompt.js";
+import { ShellUpdateMark } from "./ShellUpdateMark.js";
 import { Statusline } from "./Statusline.js";
 import { ToastStack } from "./ToastStack.js";
 import { Wordmark } from "./Wordmark.js";
@@ -118,6 +119,7 @@ function Shell({ children }: { children?: ReactNode }) {
       <aside className="rail">
         <div className="rail__brand">
           <Wordmark className="rail__wordmark" />
+          <ShellUpdateMark />
           <InstallMark />
         </div>
 

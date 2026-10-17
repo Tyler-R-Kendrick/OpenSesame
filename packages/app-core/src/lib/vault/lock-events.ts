@@ -9,7 +9,22 @@
  * cycle imports the singleton.
  */
 
+import { idleLockSeams } from "./idle-lock.js";
+
 const handlers = new Set<() => void>();
+
+/**
+ * Lock after a waiting release has had a chance to save. Synchronous when
+ * nothing asked to run first, so an ordinary idle lock stays what it was.
+ */
+export function lockAfterIdle(store: { lock: () => void }): void {
+  const pending = idleLockSeams.beforeLock();
+  if (pending) {
+    void pending.finally(() => store.lock());
+    return;
+  }
+  store.lock();
+}
 
 /** Run `handler` on every vault lock. Returns an unsubscribe. */
 export function onVaultLock(handler: () => void): () => void {

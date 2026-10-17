@@ -7,7 +7,15 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { workerStatus } from "./worker-controller.js";
+import { holdDirtyEdit, registerDraftSaver } from "../dirty-edit.js";
+import {
+  forceSessionReload,
+  noteShellLoaded,
+  reloadForStaleAsset,
+  resetWorkerController,
+  updateIsOwed,
+  workerStatus,
+} from "./worker-controller.js";
 import {
   CORE_URL,
   FakeContainer,
@@ -105,5 +113,78 @@ describe("a second tab, when another tab changes the variant", () => {
     info(container, "rel-1");
     env.elapse();
     expect(env.reloads).toBe(0);
+  });
+});
+
+describe("an unsaved edit", () => {
+  it("holds a new release until the edit is gone, then reloads once", async () => {
+    const release = holdDirtyEdit("item");
+    const container = await tabBooted(CORE_URL);
+    container.emit("controllerchange");
+    info(container, "rel-2");
+    expect(env.reloads).toBe(0);
+    expect(workerStatus().updateReady).toBe(true);
+    release();
+    expect(env.reloads).toBe(1);
+    expect(workerStatus().updateReady).toBe(false);
+  });
+
+  it("drops a timeout once the same release answers", async () => {
+    const release = holdDirtyEdit("item");
+    const container = await tabBooted(CORE_URL);
+    container.emit("controllerchange");
+    env.elapse();
+    expect(env.reloads).toBe(0);
+    expect(updateIsOwed()).toBe(true);
+    info(container, "rel-1");
+    expect(env.reloads).toBe(0);
+    expect(workerStatus().updateReady).toBe(false);
+    release();
+    expect(env.reloads).toBe(0);
+  });
+
+  it("still reloads when the page never learned its release", async () => {
+    holdDirtyEdit("item");
+    const container = new FakeContainer(null);
+    const { settled } = arm(container, store());
+    await settled();
+    container.emit("controllerchange");
+    expect(env.reloads).toBe(0);
+    expect(workerStatus().updateReady).toBe(true);
+    info(container, "rel-9");
+    expect(env.reloads).toBe(0);
+    expect(updateIsOwed()).toBe(true);
+  });
+
+  it("reloads on lock only when a release is waiting, and writes the draft first", async () => {
+    forceSessionReload("lock");
+    forceSessionReload("idle");
+    expect(env.reloads).toBe(0);
+    const order: string[] = [];
+    registerDraftSaver("item", async () => {
+      order.push("save");
+    });
+    holdDirtyEdit("item");
+    const container = await tabBooted(CORE_URL);
+    container.emit("controllerchange");
+    info(container, "rel-2");
+    forceSessionReload("lock");
+    expect(env.reloads).toBe(0);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual(["save"]);
+    expect(env.reloads).toBe(1);
+  });
+
+  it("reloads for a missing chunk even when no release is waiting, and only once", async () => {
+    expect(await reloadForStaleAsset()).toBe(true);
+    expect(env.reloads).toBe(1);
+    expect(await reloadForStaleAsset()).toBe(false);
+    expect(env.reloads).toBe(1);
+    // A new document starts with a fresh controller. The shell then clears
+    // the one-shot, so a later miss may reload again.
+    noteShellLoaded();
+    resetWorkerController();
+    expect(await reloadForStaleAsset()).toBe(true);
+    expect(env.reloads).toBe(2);
   });
 });
