@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { z } from "zod";
+import {
+  createAiFixtureProducer,
+  sendAiFixtureFrames,
+} from "./ai-fixture-producer.mjs";
 import { AI_EXCHANGE_HEADER } from "./ai-request-lifecycle.mjs";
 
 export const AI_FIXTURE_KEY = "ai-browser-fixture-key";
@@ -170,6 +174,7 @@ function cors(request, response, origins) {
   if (origin && origins.has(origin))
     response.setHeader("access-control-allow-origin", origin);
   response.setHeader("vary", "Origin");
+  response.setHeader("access-control-expose-headers", AI_EXCHANGE_HEADER);
   response.setHeader("access-control-allow-methods", "POST, OPTIONS");
   response.setHeader(
     "access-control-allow-headers",
@@ -177,23 +182,7 @@ function cors(request, response, origins) {
   );
 }
 
-function sendFrames(response, frames, timers, index = 0) {
-  if (response.destroyed) return;
-  const frame = frames[index];
-  response.write(
-    `data: ${frame === "[DONE]" ? frame : JSON.stringify(frame)}\n\n`,
-  );
-  if (index === frames.length - 1) {
-    response.end();
-    return;
-  }
-  const timer = setTimeout(() => {
-    timers.delete(timer);
-    sendFrames(response, frames, timers, index + 1);
-  }, 15);
-  timers.add(timer);
-}
-function deliver(response, family, text, stream, state, row) {
+function deliver(response, family, text, stream, state, row, producer) {
   const frames = streamFrames(family, text);
   const pending = state.pending;
   if (pending && pending.path === row.path && pending.stream === stream) {
@@ -207,7 +196,7 @@ function deliver(response, family, text, stream, state, row) {
       if (pending.released) return;
       pending.released = true;
       state.observer?.release(pending);
-      response.end(
+      producer.end(
         stream
           ? frames
               .slice(1)
@@ -229,11 +218,11 @@ function deliver(response, family, text, stream, state, row) {
         response.destroy();
       });
     response.flushHeaders();
-    if (stream) response.write(`data: ${JSON.stringify(frames[0])}\n\n`);
+    if (stream) producer.write(`data: ${JSON.stringify(frames[0])}\n\n`);
     return;
   }
-  if (stream) sendFrames(response, frames, state.timers);
-  else response.end(JSON.stringify(jsonReply(family, text)));
+  if (stream) sendAiFixtureFrames(producer, frames, state.timers);
+  else producer.end(JSON.stringify(jsonReply(family, text)));
 }
 function requestStatus(row, allowed, body, target) {
   if (!row.family || row.method !== "POST") return 404;
@@ -290,12 +279,14 @@ function accept(request, response, raw, state) {
   const text = target
     ? `Fixture Azure ${target.model} answer`
     : `Fixture ${family} answer`;
+  const producer = createAiFixtureProducer(response, row.correlation);
+  state.producers.push(producer.fact);
   response.writeHead(200, {
     "content-type": stream ? "text/event-stream" : "application/json",
     "cache-control": "no-store",
     [AI_EXCHANGE_HEADER]: row.correlation,
   });
-  deliver(response, family, text, stream, state, row);
+  deliver(response, family, text, stream, state, row, producer);
 }
 function fixtureHandler(state) {
   return (request, response) => {
@@ -328,6 +319,7 @@ export async function createAiConnectionHttpFixture({
 } = {}) {
   const requests = [];
   const preflights = [];
+  const producers = [];
   const errors = [];
   const bodies = new Map();
   const timers = new Set();
@@ -339,6 +331,7 @@ export async function createAiConnectionHttpFixture({
     origins,
     requests,
     preflights,
+    producers,
     errors,
     bodies,
     timers,
@@ -350,11 +343,15 @@ export async function createAiConnectionHttpFixture({
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);
   });
+  state.port = z
+    .object({ port: z.number().int().positive() })
+    .parse(server.address()).port;
   return {
-    origin: `http://127.0.0.1:${port}`,
-    baseUrl: `http://127.0.0.1:${port}/custom/v1`,
+    origin: `http://127.0.0.1:${state.port}`,
+    baseUrl: `http://127.0.0.1:${state.port}/custom/v1`,
     requests,
     preflights,
+    producers,
     errors,
     bodies,
     holdNext(path, stream) {
