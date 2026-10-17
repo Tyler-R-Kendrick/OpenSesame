@@ -307,6 +307,16 @@ export function IconAddSquare(props: IconProps) {
 
 export type { IconName };
 
+/** Power glyph for an explicit "turn off", never painted as a word. */
+export function IconPower(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 3v8" />
+      <path d="M7.2 6.4a7 7 0 1 0 9.6 0" />
+    </Svg>
+  );
+}
+
 /**
  * Icons by the string key a capability module names in its contributions
  * (`section.icon`). A module ships no SVG the core has to trust; the shell
