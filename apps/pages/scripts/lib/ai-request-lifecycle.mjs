@@ -17,6 +17,21 @@ function nativeRow(state, request) {
   if (!row) reject(state, "unknown-native-event");
   return row;
 }
+function requestLocation(request) {
+  try {
+    const url = new URL(request.url());
+    const http = url.protocol === "http:" || url.protocol === "https:";
+    return {
+      scheme: url.protocol.slice(0, 32),
+      origin: url.origin.slice(0, 512),
+      originTruncated: url.origin.length > 512,
+      pathname: http ? url.pathname.slice(0, 512) : null,
+      pathnameTruncated: http && url.pathname.length > 512,
+    };
+  } catch {
+    return { scheme: null, origin: null, pathname: null };
+  }
+}
 function observeRequest(state, context, label, request) {
   if (state.requests.has(request)) reject(state, "duplicate-native-request");
   state.requests.set(request, {
@@ -25,6 +40,12 @@ function observeRequest(state, context, label, request) {
     label,
     method: request.method(),
     resourceType: request.resourceType(),
+    ...requestLocation(request),
+    startedAt: Date.now(),
+    responseAt: null,
+    terminalAt: null,
+    status: null,
+    correlation: null,
     terminal: null,
     terminalSeq: null,
     hold: null,
@@ -40,11 +61,14 @@ function connect(state, hold, request) {
 }
 function observeResponse(state, response) {
   const request = response.request();
-  nativeRow(state, request);
+  const row = nativeRow(state, request);
+  row.responseAt = Date.now();
+  row.status = response.status();
   const correlation = response.headers()[AI_EXCHANGE_HEADER];
   if (!correlation) return;
   if (new URL(request.url()).origin !== state.fixtureOrigin)
     reject(state, "foreign-response-correlation");
+  row.correlation = correlation.slice(0, 128);
   const binding = state.correlations.get(correlation) ?? {
     request: null,
     hold: null,
@@ -58,6 +82,7 @@ function observeTerminal(state, request, terminal) {
   const row = nativeRow(state, request);
   if (row.terminal) reject(state, `duplicate-native-terminal:${row.id}`);
   row.terminal = terminal;
+  row.terminalAt = Date.now();
   row.terminalSeq = ++state.sequence;
   if (terminal === "failed" && !row.hold?.armedSeq)
     state.failures.add(`ordinary-native-failure:${row.id}`);
@@ -246,6 +271,16 @@ function snapshot(state) {
     context: row.label,
     method: row.method,
     resourceType: row.resourceType,
+    scheme: row.scheme,
+    origin: row.origin,
+    originTruncated: row.originTruncated,
+    pathname: row.pathname,
+    pathnameTruncated: row.pathnameTruncated,
+    startedAt: row.startedAt,
+    responseAt: row.responseAt,
+    terminalAt: row.terminalAt,
+    status: row.status,
+    correlation: row.correlation,
     terminal: row.terminal,
     disposition:
       row.hold && proven(row.hold) ? "proven-cancellation" : row.terminal,
@@ -270,7 +305,7 @@ function snapshot(state) {
       releaseSeq: hold.releaseSeq,
     })),
     qualification:
-      "Tracks every Request exposed by Playwright; server OPTIONS records do not imply native OPTIONS exposure. No credentials/body/URLs are exported here.",
+      "Tracks every Request exposed by Playwright; server OPTIONS records do not imply native OPTIONS exposure. Node timestamps are epoch milliseconds. Bounded scheme/origin and HTTP(S) pathname metadata excludes query, fragment, userinfo and non-HTTP payload/path. Only the owned fixture origin exports opaque exchange correlation (128 characters maximum). No credentials, body or other headers are exported.",
   };
 }
 /** Fixture calls reserve/bindHold/closed/release; UI intent calls arm via its exact hold. */
