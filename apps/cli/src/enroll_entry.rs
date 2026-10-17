@@ -5,6 +5,37 @@
 
 use std::process::{Command, Stdio};
 
+use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass};
+
+/// What a graphical prompt is handed besides `PATH` (the trusted entries) and
+/// the common set: the desktop session it draws on. Nothing else this process
+/// holds goes with it.
+#[cfg(any(target_os = "linux", test))]
+const DESKTOP: [Pass; 5] = [
+    Pass::Name("DISPLAY"),
+    Pass::Name("WAYLAND_DISPLAY"),
+    Pass::Name("XAUTHORITY"),
+    Pass::Name("XDG_RUNTIME_DIR"),
+    Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
+];
+
+/// What PowerShell needs on Windows beyond the common set: the profile folders.
+#[cfg(target_os = "windows")]
+const WINDOWS_PROFILE: [Pass; 2] = [Pass::Name("APPDATA"), Pass::Name("LOCALAPPDATA")];
+
+/// The prompt `program` on a trusted `PATH` entry, handed `extra`; `None` when
+/// there is none, which refuses enrollment like a missing prompt always has.
+fn prompt_in(program: &str, extra: &[Pass], lookup: &Lookup) -> Option<Command> {
+    let mut command = command_in(program, None, lookup).ok()?;
+    pass_in(&mut command, extra, lookup);
+    Some(command)
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
+fn prompt(program: &str, extra: &[Pass]) -> Option<Command> {
+    prompt_in(program, extra, &Lookup::capture())
+}
+
 /// Recorded on the daemon after a successful finish.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EnrollEntryMethod {
@@ -50,7 +81,10 @@ fn try_secure_prompt() -> bool {
 #[cfg(target_os = "macos")]
 fn macos_secure_prompt() -> bool {
     let script = r#"display dialog "Enroll the OpenSesame daemon CLI root trust key on this Mac?" buttons {"Cancel", "Enroll"} default button "Enroll" with title "OpenSesame" with icon caution"#;
-    let output = Command::new("osascript")
+    let Some(mut osascript) = prompt("osascript", &[]) else {
+        return false;
+    };
+    let output = osascript
         .args(["-e", script])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
@@ -85,7 +119,10 @@ fn linux_secure_prompt() -> bool {
 
 #[cfg(target_os = "linux")]
 fn systemd_ask_password() -> bool {
-    let output = Command::new("systemd-ask-password")
+    let Some(mut ask) = prompt("systemd-ask-password", &[]) else {
+        return false;
+    };
+    let output = ask
         .args([
             "--icon=dialog-password",
             "OpenSesame: enroll CLI root trust on this host? (press Enter to continue, Ctrl+C to cancel)",
@@ -105,7 +142,10 @@ fn zenity_question() -> bool {
     if std::env::var_os("DISPLAY").is_none() && std::env::var_os("WAYLAND_DISPLAY").is_none() {
         return false;
     }
-    let output = Command::new("zenity")
+    let Some(mut zenity) = prompt("zenity", &DESKTOP) else {
+        return false;
+    };
+    let output = zenity
         .args([
             "--question",
             "--title=OpenSesame",
@@ -135,7 +175,10 @@ $result = [System.Windows.Forms.MessageBox]::Show(
 )
 if ($result -eq [System.Windows.Forms.DialogResult]::OK) { exit 0 } else { exit 1 }
 ";
-    let output = Command::new("powershell.exe")
+    let Some(mut powershell) = prompt("powershell.exe", &WINDOWS_PROFILE) else {
+        return false;
+    };
+    let output = powershell
         .args(["-NoProfile", "-NonInteractive", "-Command", script])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -150,4 +193,31 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) { exit 0 } else { exit 
 #[cfg(not(target_os = "windows"))]
 fn windows_secure_prompt() -> bool {
     false
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use opensesame_trusted_exec::testkit::Fixture;
+
+    #[test]
+    fn a_prompt_is_the_trusted_one_and_is_handed_the_desktop_only() {
+        for program in ["zenity", "systemd-ask-password"] {
+            let fixture = Fixture::new(program);
+            let lookup = fixture.lookup(&[("DISPLAY", ":0"), ("GITHUB_TOKEN", "dummy-gh")]);
+            let mut prompt = prompt_in(program, &DESKTOP, &lookup).expect("trusted prompt");
+            assert!(prompt.arg("--question").status().unwrap().success());
+            let env = fixture.assert_clean();
+            assert_eq!(env["DISPLAY"], ":0", "{program}");
+            assert!(!env.contains_key("GITHUB_TOKEN"), "{program}");
+        }
+    }
+
+    #[test]
+    fn with_no_trusted_prompt_there_is_no_prompt() {
+        let fixture = Fixture::new("zenity");
+        std::fs::remove_file(fixture.trusted.join("zenity")).unwrap();
+        assert!(prompt_in("zenity", &DESKTOP, &fixture.lookup(&[])).is_none());
+        assert!(!fixture.planted_ran());
+    }
 }
