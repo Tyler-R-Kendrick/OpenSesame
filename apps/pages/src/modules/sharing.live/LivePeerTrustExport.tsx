@@ -92,7 +92,7 @@ export default function LivePeerTrustExport() {
           </>
         }
       >
-        <span className="frow__value frow__value--mono">
+        <span className="frow__value frow__value--mono live-sas">
           {ready.fingerprint}
         </span>
       </FieldRow>

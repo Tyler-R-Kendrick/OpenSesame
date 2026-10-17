@@ -51,6 +51,9 @@ export const DRIVER_GATES = {
   "verify-duress.mjs": null,
   // Same-machine direct join: two contexts, no ICE servers (journeys-2).
   "verify-live-local-pair.mjs": ["journeys"],
+  // Peer-trust peering: two contexts, SAS, verified join, crossed signal,
+  // changed key, duplicate names (journeys-2).
+  "verify-peer-trust-two-context.mjs": ["journeys"],
   // ADR 0181: the journeys shard runs the relay join walk.
   "verify-relay-join.mjs": ["journeys"],
   "verify-relay-join-live.mjs": ["journeys"],

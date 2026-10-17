@@ -424,6 +424,14 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:live-local-pair
+      - name: Peer-trust peering diagnostics
+        # Two contexts on the static dist: distinct SAS, a verified paste,
+        # a crossed signal refused, a changed key blocked, duplicate names marked.
+        if: matrix.shard == 'journeys-2'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:peer-trust-two-context
 
   ai-connections-e2e:
     name: AI connections end to end

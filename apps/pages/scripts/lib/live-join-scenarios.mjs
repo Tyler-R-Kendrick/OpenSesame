@@ -109,7 +109,9 @@ export async function direct(browser, owner) {
   );
   const reply = await ownerAdmitsByHand(owner.page, panel, request, JOINER);
   const joinerSas = (await joiner.page.locator(".live-sas").innerText()).trim();
-  const ownerSas = (await panel.locator(".live-sas").innerText()).trim();
+  const ownerSas = (
+    await panel.locator(".vault-row .live-sas").innerText()
+  ).trim();
   check(
     /^[0-9a-f]{4}(-[0-9a-f]{4}){3}$/.test(joinerSas) && joinerSas === ownerSas,
     "both sides show the same session SAS",

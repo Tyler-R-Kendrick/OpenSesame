@@ -55,6 +55,7 @@ const GATES = [
   "verify-experience-journeys.mjs",
   "verify:relay-join-live",
   "verify:live-local-pair",
+  "verify:peer-trust-two-context",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */
