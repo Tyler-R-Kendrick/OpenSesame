@@ -107,6 +107,7 @@ the others report on the terminal (`deepsec` keeps its state under
 | `pin-marketplace.mjs` | Re-pins the SHA-256 of every item type in [`.opensesame/marketplace.json`](../.opensesame/marketplace.json). |
 | `land-signed-stack.mjs` | Replays a local branch stack as GitHub-verified commits ([README](release/README.md)). |
 | `kit-archive.sh` | Release kit: packs the binaries and the bundled bridge into reproducible archives and writes `SHA256SUMS` ([docs/operators/release-kit.md](../docs/operators/release-kit.md)). |
+| `tag-check.sh` | Release kit: refuses a tag that is not the workspace version or not on `main`, and peels an annotated tag to its commit, before any build starts. |
 
 ## dev/
 

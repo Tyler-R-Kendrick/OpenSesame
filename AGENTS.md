@@ -1489,9 +1489,13 @@ CI lives in `.github/workflows/`:
   (`scripts/release/kit-archive.sh`), writes `SHA256SUMS`, attests build
   provenance and publishes a release that starts as a draft at the verified
   commit ([ADR 0207](docs/adr/0207-release-kit-binaries.md),
-  `docs/operators/release-kit.md`). Run by hand it is a dry run. An edit to it
-  runs the TypeScript suite, where `scripts/lib/ci-release-kit.test.mjs` pins
-  it, and no browser gate (`ci-gates.mjs`).
+  `docs/operators/release-kit.md`). Its first job (`scripts/release/tag-check.sh`)
+  refuses a tag that is not the workspace version or not on `main`, and every
+  other job needs it; who may push a `v*` tag is `ops/github/release-tags.json`,
+  applied with `ops/github/governance.mjs`. Run by hand it is a dry run. An edit
+  to it, or to the scripts it runs, runs the TypeScript suite, where
+  `scripts/lib/ci-release-kit.test.mjs` pins it, and no browser gate
+  (`ci-gates.mjs`).
 
 CI is the merge gate, not the whole story: the heavier suites
 (`pnpm verify`, integration/e2e, `pnpm audit:*`) stay local — git hooks

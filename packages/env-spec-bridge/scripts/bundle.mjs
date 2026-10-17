@@ -10,8 +10,10 @@
  * The same esbuild and parser give the same bytes: no minification, no source
  * map, no clock, and module paths in the output's comments are written as they
  * sit under this package's node_modules (symlinks kept, not resolved into the
- * package manager's store). `keepNames` matters: the bridge tells the parser's
- * classes apart by `constructor.name`.
+ * package manager's store). Which esbuild and parser those are is decided by
+ * pnpm-lock.yaml; the root pnpm.overrides rewrite esbuild's specifier, so this
+ * package's package.json does not pin it. `keepNames` matters: the bridge tells
+ * the parser's classes apart by `constructor.name`.
  */
 import { mkdirSync, realpathSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

@@ -6,7 +6,8 @@
   bridge, `OPENSESAME_NODE`), [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md)
   §7 (plugins installed with a sha256 pin)
 - **Implementation:** `.github/workflows/release-kit.yml`,
-  `scripts/release/kit-archive.sh`, `packages/env-spec-bridge/scripts/bundle.mjs`,
+  `scripts/release/kit-archive.sh`, `scripts/release/tag-check.sh`,
+  `ops/github/release-tags.json`, `packages/env-spec-bridge/scripts/bundle.mjs`,
   `crates/env-spec/src/node_bridge/script.rs`; operator guide
   [docs/operators/release-kit.md](../operators/release-kit.md). The workflow has
   not yet run on GitHub: what it builds is checked locally and by the tests
@@ -47,37 +48,61 @@ imports `@env-spec/parser`, so it needed a `node_modules` beside it.
 
    Run by hand the workflow is a dry run: the same builds, left as artifacts,
    nothing attested or released.
-2. **A lane trusts a digest, not a name.** Archives are reproducible from the
-   same commit and toolchain: entries sorted, every mtime the tagged commit's
-   time (`SOURCE_DATE_EPOCH`), owner and group 0, fixed modes, ustar headers,
-   `gzip -n`. Each file SHA256SUMS names gets a build-provenance attestation
-   (`actions/attest-build-provenance`), bound to this workflow, commit and run,
-   which `gh attestation verify` checks. A lane pins the archive's sha256 and
-   the plugin's own sha256 (the pin `opensesame plugins install` already
-   requires).
-3. **The release is published only for the commit that was built.** The tag
-   must name a commit `main` already holds; the release is created as a draft with every
-   file attached, at `--target` the verified commit; the tag is asked of the
-   API again just before the draft is published, and a tag that moved is not
-   released. Every action is pinned by SHA; jobs get no token by default, and
-   only the attest job (`id-token`, `attestations`) and the publish job
-   (`contents`) write. No secret beyond `GITHUB_TOKEN`.
+2. **A lane trusts a digest, not a name.** Packing is reproducible: the same
+   binaries and bridge give the same archive bytes (entries sorted, every mtime
+   the tagged commit's time (`SOURCE_DATE_EPOCH`), owner and group 0, fixed
+   modes, ustar headers, `gzip -n`). The binaries themselves are built with
+   `--locked` on a pinned toolchain and are not claimed to rebuild bit for bit
+   (linker, glibc and C dependencies come from the runner image). Each file
+   SHA256SUMS names, and SHA256SUMS itself, gets a build-provenance attestation
+   (`actions/attest-build-provenance`) bound to this workflow, commit and run.
+   A lane checks it with `gh attestation verify <file> --repo <owner/repo>
+   --signer-workflow <owner/repo>/.github/workflows/release-kit.yml
+   --source-ref refs/tags/<tag>`: `--repo` alone accepts any workflow of the
+   repository that attests, so a run of an edited copy on a branch would pass.
+   A lane pins the archive's sha256 and the plugin's own sha256 (the pin
+   `opensesame plugins install` already requires).
+3. **The release is published only for the commit that was built, and only
+   the owner can start one.** The first job (`scripts/release/tag-check.sh`)
+   requires the tag to be `v<workspace version>` (or with a `-suffix`) and to
+   name a commit `main` already holds, and every other job needs it, so a tag
+   that fails spends no build minute. The commit it prints is the peel of
+   `GITHUB_SHA`, because on a tag push that value can be an annotated tag's
+   object; nothing compares the raw value. The build asserts its checkout is
+   that commit; the release is created as a draft with every file attached, at
+   `--target` the verified commit; the tag is asked of the API again just
+   before the draft is published, and a tag that moved is not released. Every
+   action is pinned by SHA; jobs get no token by default, and only the attest
+   job (`id-token`, `attestations`) and the publish job (`contents`) write. No
+   secret beyond `GITHUB_TOKEN`. These checks live in the workflow file at the
+   tagged commit, which whoever pushes the tag controls, so two settings outside
+   it carry the trust (`ops/github/release-tags.json`, applied with
+   `ops/github/governance.mjs`): a ruleset that lets only a repository admin
+   create, move or delete a `v*` tag, and a `release` environment, which the
+   owner configures with a required reviewer and `v*`-only deployments. The
+   second is optional and `governance.mjs` does not manage it; the first is
+   verified by `governance.mjs --verify`.
 4. **The binary finds the bridge shipped beside it.** `crates/env-spec` looks
    for the script in this order: `OPENSESAME_ENV_PARSE`, used as named; then
    `opensesame-env-parse.mjs` in the directory of the running executable after
    symlinks; then the checkout's copy. The file beside the executable is held
    to the rule a `node` found on `PATH` is held to (ADR 0006): the directory it
-   is named in, and the one it resolves into, owned by root or the caller, not
-   writable by others and group-writable only by root's group or one of the
-   caller's; the file itself owned by root or the caller and not writable by
-   others. One that is there and fails is an error that says which file or
-   directory and why. It never falls through to the checkout's copy, so
-   whoever could plant it cannot choose the script by breaking it.
+   is named in, the one it resolves into and the file itself owned by root or
+   the caller, not writable by others and group-writable only by root's group
+   or one of the caller's. One that is there and fails is an error that says
+   which file or directory and why. It never falls through to the checkout's
+   copy, so whoever could plant it cannot choose the script by breaking it. With
+   nothing beside the executable, no override and no checkout copy (a release
+   binary run on its own), the error says where it looked.
 5. **The bridge ships as one file.** `packages/env-spec-bridge` bundles itself
-   and `@env-spec/parser` (no dependencies of its own) with esbuild, a pinned
-   devDependency, into one ES module that imports only `node:` builtins. Its
-   tests run the bundle and the unbundled bridge on the repository's schemas
-   and compare their output byte for byte, and bundle twice to the same bytes.
+   and `@env-spec/parser` (no dependencies of its own) with esbuild into one ES
+   module that imports only `node:` builtins. Which esbuild and parser build
+   it is decided by `pnpm-lock.yaml`, and the workflow installs with
+   `--frozen-lockfile`: the root `pnpm.overrides` rewrite esbuild's specifier
+   to `>=0.25.0`, so the version in the package's `package.json` is not what
+   pins it. Its tests run the bundle and the unbundled bridge on the
+   repository's schemas and compare their output byte for byte, and bundle
+   twice to the same bytes.
 6. **macOS and Windows are not in the kit yet.** `native-platform-validation.yml`
    builds `opensesame` on macOS and Windows, but no job builds or runs the
    surrogate-proxy plugin there, and the proxied run is Linux only
@@ -98,9 +123,24 @@ imports `@env-spec/parser`, so it needed a `node_modules` beside it.
   pins, not on the machine: module paths in its comments are written as they
   sit under the package's `node_modules`.
 - A release build still carries the checkout path it was built from in the
-  compiled-in fallback (`CARGO_MANIFEST_DIR`, `/home/runner/work/…`). It is
-  reached only when no bridge sits beside the binary and `OPENSESAME_ENV_PARSE`
-  is unset; a kit always ships the bridge. Removing that fallback from release
-  builds is left for a later change.
+  compiled-in fallback (`CARGO_MANIFEST_DIR`, `/home/runner/work/…`): the
+  build's `--remap-path-prefix` rewrites paths in debug info and panic
+  messages, not this string, which the compiler expands first. It is reached
+  only when no bridge sits beside the binary and `OPENSESAME_ENV_PARSE` is
+  unset, and only if a file exists there; a kit always ships the bridge.
+  Removing that fallback from release builds is left for a later change. The
+  fallback itself has no trust check, as before.
+- The check on the bridge is by path and bounded. It covers the file, the
+  directory it is named in and the one a symlink resolves into; it does not
+  look at the directories above them, which is also true of a `node` found on
+  `PATH`, and `node` opens the file by path a moment after the check, so
+  someone who can replace the whole kit directory from above can still win that
+  race. Closing it means opening the file once, checking the descriptor and
+  handing `node` the verified bytes, which is not done. On Windows the bridge
+  is checked only to be a regular file, because the kit is Linux only and no
+  Windows rule for it exists; running a kit there is unsupported.
+- The `node` file is now held to the group rule its directory already was: a
+  `node` that a group the caller is not in can write is passed over like one
+  anyone can write (before, only its directory had the group test).
 - The binaries are not signed beyond the provenance attestation, and the tag
   must already name the version the binary reports (`opensesame --version`).

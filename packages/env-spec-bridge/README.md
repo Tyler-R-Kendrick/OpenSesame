@@ -36,8 +36,9 @@ node packages/env-spec-bridge/scripts/bundle.mjs <out>
 ```
 
 `scripts/bundle.mjs` bundles the bridge and `@env-spec/parser` with esbuild
-(a pinned devDependency) into one ES module that imports only `node:`
-builtins: the `opensesame-env-parse.mjs` a
+(the version `pnpm-lock.yaml` records: the root `pnpm.overrides` rewrite
+esbuild's specifier, so `package.json` does not pin it) into one ES module that
+imports only `node:` builtins: the `opensesame-env-parse.mjs` a
 [release kit](../../docs/operators/release-kit.md) ships beside the
 `opensesame` binary, which runs it from there with no `node_modules`. No
 minification and no source map; `keepNames` keeps the parser's class names,
