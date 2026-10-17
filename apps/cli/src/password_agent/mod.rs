@@ -74,7 +74,7 @@ pub(crate) enum Command {
         #[arg(long, requires = "apply")]
         repair_imported_fields: bool,
     },
-    Read {
+    Reveal {
         reference: String,
     },
     Run {
@@ -248,11 +248,11 @@ pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Re
             apply,
             repair_imported_fields,
         )?,
-        Command::Read { reference } => {
+        Command::Reveal { reference } => {
             if reference.starts_with("os://") {
-                os_run::read(&reference, desktop, reveal)?;
+                os_run::reveal(&reference, desktop, reveal)?;
             } else {
-                consume::read(&reference, desktop, reveal)?;
+                consume::reveal(&reference, desktop, reveal)?;
             }
         }
         Command::Run { args, command } => {
@@ -269,9 +269,9 @@ pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Re
         }
         Command::Env { cmd } => {
             if os_run::template_has_os(&cmd) {
-                os_run::env(cmd, desktop, reveal)?;
+                os_run::env(cmd)?;
             } else {
-                consume::env(cmd, desktop, reveal)?;
+                consume::env(cmd)?;
             }
         }
         Command::InternalExec { command } => consume::internal_exec(&command)?,

@@ -83,7 +83,7 @@ describe("2password native CLI process gauntlet", { timeout: 30_000 }, () => {
       (await calls()).filter((call) => call.args.includes("edit")),
     ).toHaveLength(1);
   });
-  it("env write resolve and read deliberately materialize while run strips token and preserves child flags", async () => {
+  it("env write materializes, retired env resolve refuses, reveal materializes for a human, and run strips token and preserves child flags", async () => {
     const template = join(directory, "template.env");
     const target = join(directory, "resolved.env");
     expect((await cli(["env", "write", template, "API=op://v/i/f"])).code).toBe(
@@ -99,19 +99,16 @@ describe("2password native CLI process gauntlet", { timeout: 30_000 }, () => {
       "--reveal",
     ];
     const denied = await cli(resolveArgs);
-    expect(denied.code).toBe(1);
-    expect(denied.stderr).toContain(
-      "stdin and stdout must both be interactive terminals",
-    );
+    expect(denied.code).not.toBe(0);
+    expect(denied.stderr).toContain("unrecognized subcommand 'resolve'");
     await expect(stat(target)).rejects.toMatchObject({ code: "ENOENT" });
     expect(await calls()).toHaveLength(0);
-    await humanTerminal(resolveArgs);
-    expect(await readFile(target, "utf8")).toContain('API="private-canary"');
-    expect((await stat(target)).mode & 0o777).toBe(0o600);
+    await expect(humanTerminal(resolveArgs)).rejects.toThrow();
+    await expect(stat(target)).rejects.toMatchObject({ code: "ENOENT" });
     expect(
       (await readdir(directory)).some((name) => name.endsWith(".tmp")),
     ).toBe(false);
-    const readArgs = ["read", "op://v/i/f", "--desktop", "--reveal"];
+    const readArgs = ["reveal", "op://v/i/f", "--desktop", "--reveal"];
     const deniedRead = await cli(readArgs);
     expect(deniedRead.code).toBe(1);
     expect(deniedRead.stdout).toBe("");

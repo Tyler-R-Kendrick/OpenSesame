@@ -10,7 +10,7 @@ describe("cli app integration session store", () => {
       let now = 1_000_000;
       const store = new CliAppIntegrationStore(() => now);
       const terminalSessionId = caseRow.terminalSessionId;
-      const verb = "read";
+      const verb = "reveal";
       if (caseRow.action === "approve") {
         const pending = store.ensure(terminalSessionId, verb);
         expect(pending.status).toBe("pending");
@@ -53,7 +53,7 @@ describe("cli app integration session store", () => {
 
   it("refuses approve for a mismatched terminal session", () => {
     const store = new CliAppIntegrationStore();
-    const pending = store.ensure("term-x", "read");
+    const pending = store.ensure("term-x", "reveal");
     expect(store.approve(pending.requestId ?? "", "term-y").status).toBe(
       "wrongSession",
     );

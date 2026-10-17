@@ -57,19 +57,18 @@ describe("local password workflow adapter", () => {
       status: "ceremony_opened",
       location: "/vault/new/secret",
     });
-    for (const action of ["compare", "update", "read", "env-resolve"]) {
+    for (const action of ["compare", "update", "reveal"]) {
       expect(await tool.execute({ action, item: "itm_1" })).toEqual({
         status: "ceremony_opened",
         location: "/vault/itm_1",
       });
     }
-    expect(await tool.execute({ action: "read" })).toEqual({
+    expect(await tool.execute({ action: "reveal" })).toEqual({
       status: "ceremony_opened",
       location: "/vault",
     });
     expect(navigate.mock.calls).toEqual([
       ["/vault/new/secret"],
-      ["/vault/itm_1"],
       ["/vault/itm_1"],
       ["/vault/itm_1"],
       ["/vault/itm_1"],
@@ -82,13 +81,13 @@ describe("local password workflow adapter", () => {
       }),
     ).toThrow("action and an item id only");
     expect(() => tool.execute({ action: "unknown" })).toThrow("Unknown");
-    expect(navigate).toHaveBeenCalledTimes(6);
+    expect(navigate).toHaveBeenCalledTimes(5);
     vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
       ...state,
       status: "locked",
     });
     expect(() => tool.execute({ action: "read" })).toThrow("vault_locked");
-    expect(navigate).toHaveBeenCalledTimes(6);
+    expect(navigate).toHaveBeenCalledTimes(5);
   });
   it("inventory ordering and typed concealed references retain metadata without values through WebMCP", async () => {
     await loadPack("api-credential");

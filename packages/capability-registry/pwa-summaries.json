@@ -880,19 +880,11 @@
     }
   },
   {
-    "id": "password_provider.read",
-    "title": "Read a credential value on the human plane",
+    "id": "password_provider.reveal",
+    "title": "Reveal a credential value on the human plane",
     "plane": "client_local",
     "surfaces": {
       "pwa": "lib/vault/password-workflows.ts:resolveLocalReference"
-    }
-  },
-  {
-    "id": "password_provider.env_resolve",
-    "title": "Write a private file with resolved credential values",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/vault/password-workflows.ts:resolveLocalEnvTemplate"
     }
   },
   {

@@ -122,7 +122,7 @@ describe("createCliAppIntegrationPort with fake daemon", () => {
         "./cli-app-integration-client.js"
       );
       const decision = await createCliAppIntegrationPort().ensureReveal({
-        verb: "read",
+        verb: "reveal",
         terminalSessionId: "term-test",
       });
       expect(decision).toBe("unavailable");
@@ -147,7 +147,7 @@ describe("createCliAppIntegrationPort with fake daemon", () => {
         "./cli-app-integration-client.js"
       );
       const decision = await createCliAppIntegrationPort().ensureReveal({
-        verb: "read",
+        verb: "reveal",
         terminalSessionId: "term-test",
       });
       expect(decision).toBe("approve");
