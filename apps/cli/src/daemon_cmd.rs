@@ -232,6 +232,16 @@ async fn show_logs(base: &str, logfile: &str) {
     }
 }
 
+/// `kill -TERM pid`, with `kill` from a trusted `PATH` entry and the common
+/// environment only.
+#[cfg(unix)]
+fn terminate(pid: u32) -> bool {
+    opensesame_trusted_exec::command_on_path("kill").is_ok_and(|mut kill| {
+        let sent = kill.args(["-TERM", &pid.to_string()]).status();
+        sent.is_ok_and(|status| status.success())
+    })
+}
+
 fn stop_daemon(pidfile: &str) {
     match std::fs::read_to_string(pidfile) {
         Ok(raw) => {
@@ -241,14 +251,12 @@ fn stop_daemon(pidfile: &str) {
             } else {
                 #[cfg(unix)]
                 {
-                    let status = StdCommand::new("kill")
-                        .args(["-TERM", &pid.to_string()])
-                        .status();
+                    let stopped = terminate(pid);
                     let _ = std::fs::remove_file(pidfile);
                     println!(
                         "{}",
                         json!({
-                            "status": if status.map(|s| s.success()).unwrap_or(false) { "stopped" } else { "error" },
+                            "status": if stopped { "stopped" } else { "error" },
                             "pid": pid
                         })
                     );

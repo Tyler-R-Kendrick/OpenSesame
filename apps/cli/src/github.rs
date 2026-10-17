@@ -6,12 +6,43 @@
 //! `backup` push credential. Tokens are never persisted; they live for the
 //! one operation that asked for them.
 
+use std::process::Command;
+
 use anyhow::Context;
+use opensesame_trusted_exec::{command_in, pass_in, Lookup, Pass, CA_BUNDLE, PROXY};
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_API_BASE: &str = "https://api.github.com";
 const API_VERSION: &str = "2022-11-28";
 const USER_AGENT: &str = "opensesame-cli";
+
+/// The variable that names the exact `gh` to run.
+const GH_OVERRIDE: &str = "OPENSESAME_GH";
+
+/// What `gh` is given besides `PATH` (the trusted entries), the common set,
+/// the proxy and the CA bundle, each for one reason. The GitHub App key, the
+/// Host's keys and every other secret this process holds stay behind.
+const GH_ENV: [Pass; 7] = [
+    // The account and host the operator chose for gh.
+    Pass::Name("GH_TOKEN"),
+    Pass::Name("GITHUB_TOKEN"),
+    Pass::Name("GH_HOST"),
+    // Where gh keeps its login.
+    Pass::Name("GH_CONFIG_DIR"),
+    Pass::Name("XDG_CONFIG_HOME"),
+    // gh keeps its token in the system keyring, reached over the session bus.
+    Pass::Name("DBUS_SESSION_BUS_ADDRESS"),
+    Pass::Name("XDG_RUNTIME_DIR"),
+];
+
+/// `gh`, found by the trusted rule or `OPENSESAME_GH`, handed [`GH_ENV`].
+pub fn gh_in(lookup: &Lookup) -> anyhow::Result<Command> {
+    let mut command = command_in("gh", Some(GH_OVERRIDE), lookup)?;
+    for allow in [&GH_ENV[..], &PROXY, &CA_BUNDLE] {
+        pass_in(&mut command, allow, lookup);
+    }
+    Ok(command)
+}
 
 #[derive(Debug, Clone)]
 pub struct GitHubAppConfig {
@@ -178,7 +209,8 @@ pub async fn resolve_push_token() -> Option<String> {
             Err(error) => eprintln!("warning: GitHub App config incomplete: {error:#}"),
         }
     }
-    let output = std::process::Command::new("gh")
+    let output = gh_in(&Lookup::capture())
+        .ok()?
         .args(["auth", "token"])
         .output()
         .ok()?;
@@ -259,6 +291,53 @@ mod tests {
         }
         let err = GitHubAppConfig::resolve(None, None, None).unwrap_err();
         assert!(err.to_string().contains("GITHUB_APP_ID"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn gh_is_the_trusted_one_and_never_sees_the_app_key_or_the_hosts_secrets() {
+        use opensesame_trusted_exec::testkit::{Fixture, SECRET};
+        let fixture = Fixture::new("gh");
+        let lookup = fixture.lookup(&[
+            ("GH_HOST", "github.example.invalid"),
+            ("GH_CONFIG_DIR", "/home/dummy/.config/gh"),
+            ("HTTPS_PROXY", "http://proxy.invalid:3128"),
+            ("GITHUB_APP_PRIVATE_KEY_PATH", "/home/dummy/app.pem"),
+            ("GITHUB_APP_ID", "12345"),
+            ("OPENSESAME_GIT_TOKEN", SECRET),
+        ]);
+        let mut command = gh_in(&lookup).unwrap();
+        assert!(command.args(["auth", "token"]).status().unwrap().success());
+        let env = fixture.assert_clean();
+        for name in ["GH_HOST", "GH_CONFIG_DIR", "HTTPS_PROXY"] {
+            assert!(env.contains_key(name), "{name} missing: {env:?}");
+        }
+        for name in [
+            "GITHUB_APP_PRIVATE_KEY_PATH",
+            "GITHUB_APP_ID",
+            "OPENSESAME_GIT_TOKEN",
+        ] {
+            assert!(!env.contains_key(name), "{name} reached gh");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn opensesame_gh_names_the_exact_file() {
+        use opensesame_trusted_exec::testkit::Fixture;
+        let fixture = Fixture::new("gh");
+        let chosen = fixture.scratch("chosen").join("gh");
+        fixture.stub_recorder(&chosen);
+        let value = chosen.display().to_string();
+        let command = gh_in(&fixture.lookup(&[(GH_OVERRIDE, &value)])).unwrap();
+        assert_eq!(command.get_program(), chosen.as_os_str());
+        let err = gh_in(&fixture.lookup(&[(GH_OVERRIDE, "gh")]))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            err.contains("OPENSESAME_GH must be an absolute path"),
+            "{err}"
+        );
     }
 
     #[test]
