@@ -94,9 +94,11 @@ export async function beginLinearAuthorization(
     // This runs in the originating click, before durable writes or provider requests.
     reservation ??= reserveLinearAuthorizationWindow();
     browser = reservation.browser;
+    reservation.assertCurrent();
     const request = await prepareLinearAuthorization(id, actor);
     if (!request) return;
     state = request.pending.state;
+    reservation.assertCurrent();
     if (!browser?.authorize) {
       page().location.assign(request.url);
       return;
@@ -106,7 +108,11 @@ export async function beginLinearAuthorization(
       expiresAt: request.pending.createdAt + MAX_AGE,
       redirectUri: request.pending.redirectUri,
     });
-    await finishLinearAuthorization(linearPopupCallback(callback, state));
+    reservation.assertCurrent();
+    await finishLinearAuthorization(
+      linearPopupCallback(callback, state),
+      reservation.assertCurrent,
+    );
   } catch (error) {
     if (state && browser?.authorize)
       await clearLinearAuthorizationRequest(id, state);
@@ -232,10 +238,13 @@ async function finishLinearSetup(id: string, transaction: PendingLinear) {
 const completing = new Map<string, ReturnType<typeof finish>>();
 export function finishLinearAuthorization(
   search: string,
+  originalGuard?: () => void,
 ): ReturnType<typeof finish> {
   const held = completing.get(search);
   if (held) return held;
-  const guard = optionalNativeOAuthBrowserPort()?.captureAuthorizationGuard?.();
+  const guard =
+    originalGuard ??
+    optionalNativeOAuthBrowserPort()?.captureAuthorizationGuard?.();
   const result = finish(search, guard);
   completing.set(search, result);
   void result.finally(() => completing.delete(search)).catch(() => undefined);
