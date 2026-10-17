@@ -5,6 +5,7 @@ import {
   slashSuggestions,
   suggestionKey,
 } from "./slash.js";
+import { PAIR_CLI_COMMAND_PATH } from "./types.js";
 
 const SECTIONS: readonly SlashSection[] = [
   { path: "/vault", label: "Vault" },
@@ -100,6 +101,24 @@ describe("slashSuggestions", () => {
       label: "Join",
       run: true,
     });
+  });
+
+  it("offers Pair CLI for /pair, /cli, and /pair cli while that path is listed", () => {
+    const sections = slashSections([
+      { path: PAIR_CLI_COMMAND_PATH, label: "Pair CLI" },
+    ]);
+    const pair = {
+      id: `go:${PAIR_CLI_COMMAND_PATH}`,
+      insert: PAIR_CLI_COMMAND_PATH,
+      label: "Pair CLI",
+      run: true,
+    };
+    for (const typed of ["/pair", "/cli", "/pair cli"]) {
+      expect(slashSuggestions(typed, sections, [])).toEqual([pair]);
+    }
+    expect(slashSuggestions("pair", sections, [])).toEqual([]);
+    expect(slashSuggestions("cli", sections, [])).toEqual([]);
+    expect(slashSuggestions("/pair", slashSections([]), [])).toEqual([]);
   });
 });
 

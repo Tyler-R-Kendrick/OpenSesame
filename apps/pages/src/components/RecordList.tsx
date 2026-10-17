@@ -4,7 +4,10 @@ import { showKeymapHelp } from "../lib/keymap.js";
 import { CrumbTrail } from "./Crumbs.js";
 import { IconChevronLeft } from "./Icons.js";
 import { RecordRows } from "./RecordRows.js";
-import type { RecordWorkspaceProps } from "./RecordWorkspace.js";
+import {
+  type RecordWorkspaceProps,
+  countedWorkspaceRows,
+} from "./RecordWorkspace.js";
 import { UpLink } from "./UpLink.js";
 import type { useRecordWorkspace } from "./record-workspace-state.js";
 type Props = RecordWorkspaceProps & {
@@ -81,8 +84,8 @@ export function RecordList(props: Props) {
             {selected?.label ?? title}
           </span>
           <span className="vault__status-meta">
-            {shown.length}
-            {needle ? `/${rows.length}` : ""}
+            {countedWorkspaceRows(shown).length}
+            {needle ? `/${countedWorkspaceRows(rows).length}` : ""}
           </span>
         </div>
       </div>
