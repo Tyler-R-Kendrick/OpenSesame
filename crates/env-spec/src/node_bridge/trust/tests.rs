@@ -108,12 +108,30 @@ fn a_caller_that_is_root_trusts_root_and_itself_only() {
 }
 
 #[test]
-fn a_node_file_must_be_owned_by_root_or_the_caller_and_not_world_writable() {
+fn a_node_file_is_held_to_the_rule_its_directory_is() {
     let table = [
         ("root 0755", owner(0, 0, 0o755), None),
         ("root 0775", owner(0, 0, 0o775), None),
         ("user 0775 (umask 002)", owner(1000, 1000, 0o775), None),
         ("user 0700", owner(1000, 1000, 0o700), None),
+        (
+            "user:a supplementary group 0664",
+            owner(1000, 27, 0o664),
+            None,
+        ),
+        // A group the caller is not in can write it: not the caller's file.
+        (
+            "root:othergroup 0775",
+            owner(0, 5000, 0o775),
+            Some(Skip::GroupWritable(5000)),
+        ),
+        (
+            "user:othergroup 0664",
+            owner(1000, 5000, 0o664),
+            Some(Skip::GroupWritable(5000)),
+        ),
+        // The same group cannot write it: whose group it is does not matter.
+        ("root:othergroup 0755", owner(0, 5000, 0o755), None),
         (
             "root 0777",
             owner(0, 0, 0o777),

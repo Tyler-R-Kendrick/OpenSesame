@@ -43,6 +43,25 @@ fn owner_of(path: &Path) -> Owner {
     Owner::from(&std::fs::metadata(path).unwrap())
 }
 
+/// Hands `path` to a group nobody in the returned caller's groups is in (the
+/// caller is the current user with no supplementary group) and returns that
+/// caller and the group. A file made by root is in root's group, which is
+/// trusted, so it is moved to a stranger's; for anyone else its own group,
+/// which is not 0, is already one the caller no longer lists.
+pub(super) fn into_a_strangers_group(path: &Path) -> (Caller, u32) {
+    use std::os::unix::fs::MetadataExt;
+    let caller = Caller {
+        euid: Caller::current().euid,
+        groups: vec![],
+    };
+    let mut gid = std::fs::metadata(path).unwrap().gid();
+    if gid == 0 {
+        gid = 31337;
+        std::os::unix::fs::chown(path, None, Some(gid)).expect("root can hand over a file");
+    }
+    (caller, gid)
+}
+
 pub(super) fn joined(parts: &[&Path]) -> OsString {
     std::env::join_paths(parts).unwrap()
 }
@@ -197,6 +216,21 @@ fn a_node_anyone_can_write_is_passed_over_and_recorded() {
         assert_eq!(found.node, None);
         assert_eq!(found.rejected[0].1, Skip::OwnedBy(owner.uid));
     }
+}
+
+#[test]
+fn a_node_a_strangers_group_can_write_is_passed_over_and_recorded() {
+    let dir = dir(0o700);
+    let node = plant(dir.path(), 0o775);
+    let (caller, gid) = into_a_strangers_group(&node);
+    let mut on = host(OsStr::new(""), Platform::Unix, None);
+    on.caller = caller;
+    let found = find_node(&[dir.path().to_path_buf()], &on);
+    assert_eq!(found.node, None);
+    assert_eq!(found.rejected, [(node.clone(), Skip::GroupWritable(gid))]);
+    // Not writable by that group, it is the same file and it runs.
+    std::fs::set_permissions(&node, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(find_node(&[dir.path().to_path_buf()], &on).node, Some(node));
 }
 
 #[test]

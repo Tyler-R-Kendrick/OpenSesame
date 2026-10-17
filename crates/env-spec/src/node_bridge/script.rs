@@ -9,15 +9,23 @@
 //!    checkout below does not exist on a machine that downloaded the binary.
 //!    It is code that runs with the schema in hand, so it is held to the rule
 //!    a `node` found on `PATH` is held to (see `trust`): the directory it is
-//!    named in, and the one it resolves into, owned by root or the caller, not
-//!    writable by others and group-writable only by root's group or one of the
-//!    caller's; the file itself a regular file owned by root or the caller and
-//!    not writable by others. A file that is there and fails is an error that
-//!    says why. It never falls through to the next place: someone who could
-//!    plant it could otherwise choose which script runs by breaking it.
+//!    named in, the one it resolves into and the file itself owned by root or
+//!    the caller, not writable by others and group-writable only by root's
+//!    group or one of the caller's. A file that is there and fails is an error
+//!    that says why. It never falls through to the next place: someone who
+//!    could plant it could otherwise choose which script runs by breaking it.
 //! 3. The checkout this crate was built from,
 //!    `packages/env-spec-bridge/bin/opensesame-env-parse.mjs`: a build from
-//!    source, `cargo run` and the tests.
+//!    source, `cargo run` and the tests. A release binary carries the path it
+//!    was built from (`env!("CARGO_MANIFEST_DIR")`, which `--remap-path-prefix`
+//!    does not rewrite), so when no file is there, the error says where the
+//!    lookup went rather than handing `node` a path on someone else's machine.
+//!    This copy is not trust checked.
+//!
+//! The check is by path, and bounded: it does not look at the directories
+//! above the two it reads, as for a `node` on `PATH`, and `node` opens the file
+//! a moment after it was checked. On Windows only "is a regular file" is
+//! checked; a release kit is Linux only (ADR 0207).
 
 use std::path::{Path, PathBuf};
 
@@ -30,7 +38,9 @@ pub(crate) const OVERRIDE: &str = "OPENSESAME_ENV_PARSE";
 /// The bundled bridge's file name, beside the executable in a release kit.
 pub(crate) const BESIDE: &str = "opensesame-env-parse.mjs";
 
-/// The checkout's copy, where this crate was compiled.
+/// The checkout's copy, where this crate was compiled. The compiler expands
+/// `CARGO_MANIFEST_DIR` before any path remapping, so a release binary still
+/// carries the CI runner's path here.
 fn checkout() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../packages/env-spec-bridge/bin")
@@ -40,8 +50,8 @@ fn checkout() -> PathBuf {
 fn refuse(path: &Path, why: &str) -> EnvSpecError {
     EnvSpecError::BridgeScript(format!(
         "the env-spec bridge beside this executable is not run: \"{}\" {why}; it must be a \
-         regular file owned by root or you and not writable by others, in a directory only \
-         root, you or one of your groups can write (or set {OVERRIDE} to name the bridge)",
+         regular file, and it and its directory must be owned by root or you and writable \
+         only by root, you or one of your groups (or set {OVERRIDE} to name the bridge)",
         path.display()
     ))
 }
@@ -90,13 +100,34 @@ pub(crate) fn beside(exe: &Path, host: &Host) -> Result<Option<PathBuf>, EnvSpec
 
 /// The script for `host`, run from `exe` (the running executable, when known).
 pub(crate) fn script_for(host: &Host, exe: Option<&Path>) -> Result<PathBuf, EnvSpecError> {
+    resolve(host, exe, &checkout())
+}
+
+/// [`script_for`] with the checkout's copy named, so that a test can say where
+/// it is, or that it is not there.
+fn resolve(host: &Host, exe: Option<&Path>, checkout: &Path) -> Result<PathBuf, EnvSpecError> {
     if let Some(named) = host.var(OVERRIDE) {
         return Ok(PathBuf::from(named));
     }
     if let Some(found) = exe.map(|exe| beside(exe, host)).transpose()?.flatten() {
         return Ok(found);
     }
-    Ok(checkout())
+    if checkout.is_file() {
+        return Ok(checkout.to_path_buf());
+    }
+    let looked = exe.map_or_else(
+        || {
+            "the running executable could not be determined, so nothing was looked for beside it"
+                .to_owned()
+        },
+        |exe| format!("no {BESIDE} beside \"{}\"", exe.display()),
+    );
+    Err(EnvSpecError::BridgeScript(format!(
+        "no env-spec bridge to run: {looked}, {OVERRIDE} is not set, and the checkout copy \
+         \"{}\" is missing or not a file; put {BESIDE} beside the executable (a release kit has it) or \
+         set {OVERRIDE} to the bridge",
+        checkout.display()
+    )))
 }
 
 /// The script this process runs the bridge with.

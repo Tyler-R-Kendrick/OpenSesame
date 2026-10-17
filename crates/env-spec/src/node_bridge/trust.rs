@@ -2,12 +2,13 @@
 //!
 //! A `PATH` entry is trusted on Unix when its owner is root or the user running
 //! `opensesame`, others cannot write it, and, if its group can, that group is
-//! root's or one of the caller's own. That keeps a directory that only
+//! root's or one of the caller's own. The `node` file in it, and the bridge
+//! script a release kit ships, are held to the same rule. That keeps what only
 //! the caller (or root) can change, and still takes the layouts package managers
 //! and CI images really produce: `root:root 0775`, or `user:user 0775` under the
 //! user-private-group `umask 002` that `nvm`, `volta` and Homebrew inherit. It
-//! refuses what a planted `node` needs: a directory another user owns, anyone
-//! can write, or a group the caller is not in can write.
+//! refuses what a planted `node` needs: a directory or file another user owns,
+//! anyone can write, or a group the caller is not in can write.
 //!
 //! The decisions are pure functions of a stat result and the caller, so the
 //! table in `trust/tests.rs` pins them without needing other users on the host.
@@ -125,8 +126,10 @@ impl Caller {
 const OTHERS_WRITE: u32 = 0o002;
 const GROUP_WRITE: u32 = 0o020;
 
-/// Why a `PATH` directory with this owner is not searched, if it is not.
-pub(crate) fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
+/// Why something with this owner, mode and group may have been written by a
+/// stranger: not owned by root or the caller, writable by anyone, or writable
+/// by a group that is neither root's nor one of the caller's.
+fn written_by_strangers(owner: Owner, caller: &Caller) -> Option<Skip> {
     if !caller.trusts_owner(owner.uid) {
         Some(Skip::OwnedBy(owner.uid))
     } else if owner.mode & OTHERS_WRITE != 0 {
@@ -138,16 +141,16 @@ pub(crate) fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
     }
 }
 
-/// Why this `node` file (after symlinks) is not run, if it is not: owned by
-/// root or the caller, and not writable by everyone.
+/// Why a `PATH` directory with this owner is not searched, if it is not.
+pub(crate) fn directory(owner: Owner, caller: &Caller) -> Option<Skip> {
+    written_by_strangers(owner, caller)
+}
+
+/// Why this `node` file (after symlinks), or a bridge script, is not run, if
+/// it is not: the rule its directory is held to, since a file a stranger's
+/// group can write is as much theirs as a directory is.
 pub(crate) fn file(owner: Owner, caller: &Caller) -> Option<Skip> {
-    if !caller.trusts_owner(owner.uid) {
-        Some(Skip::OwnedBy(owner.uid))
-    } else if owner.mode & OTHERS_WRITE != 0 {
-        Some(Skip::WritableByOthers)
-    } else {
-        None
-    }
+    written_by_strangers(owner, caller)
 }
 
 /// `dir` is the current directory (both resolved when they can be).

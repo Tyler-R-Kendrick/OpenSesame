@@ -3,6 +3,7 @@ use super::*;
 use std::ffi::OsString;
 use std::os::unix::fs::{symlink, PermissionsExt};
 
+use super::super::tests::into_a_strangers_group;
 use super::super::trust::Caller;
 
 fn host(vars: &[(&str, &Path)]) -> Host {
@@ -167,4 +168,83 @@ fn the_executable_is_resolved_before_its_directory_is_read() {
     let link = bin.join("opensesame");
     symlink(&exe, &link).unwrap();
     assert_eq!(script_for(&host(&[]), Some(&link)).unwrap(), found);
+}
+
+#[test]
+fn a_bridge_a_strangers_group_can_write_is_refused_as_its_directory_would_be() {
+    let root = tempfile::tempdir().unwrap();
+    let exe = kit(root.path(), "kit", 0o755);
+    let file = bridge(exe.parent().unwrap(), 0o664);
+    let (caller, gid) = into_a_strangers_group(&file);
+    let mut on = host(&[]);
+    on.caller = caller;
+    let said = match script_for(&on, Some(&exe)) {
+        Err(e @ EnvSpecError::BridgeScript(_)) => e.to_string(),
+        other => panic!("not refused: {other:?}"),
+    };
+    assert!(
+        said.contains(&format!(
+            "\"{}\" group-writable by group {gid} which is not one of yours",
+            file.display()
+        )),
+        "{said}"
+    );
+    // The same file that the group cannot write is the one that runs.
+    chmod(&file, 0o644);
+    assert_eq!(script_for(&on, Some(&exe)).unwrap(), file);
+}
+
+fn lookup_error(exe: Option<&Path>, checkout: &Path) -> String {
+    match resolve(&host(&[]), exe, checkout) {
+        Err(e @ EnvSpecError::BridgeScript(_)) => e.to_string(),
+        other => panic!("not refused: {other:?}"),
+    }
+}
+
+#[test]
+fn with_nothing_beside_and_no_checkout_copy_the_error_says_where_it_looked() {
+    let root = tempfile::tempdir().unwrap();
+    let exe = kit(root.path(), "kit", 0o755);
+    let gone = root.path().join("not-a-checkout").join(BESIDE);
+    let said = lookup_error(Some(&exe), &gone);
+    for part in [
+        BESIDE,
+        OVERRIDE,
+        &exe.display().to_string(),
+        &gone.display().to_string(),
+    ] {
+        assert!(said.contains(part), "{part}: {said}");
+    }
+    // A directory of that name is no more a script than a missing file is.
+    std::fs::create_dir_all(&gone).unwrap();
+    assert!(lookup_error(Some(&exe), &gone).contains("missing or not a file"));
+}
+
+#[test]
+fn an_executable_that_cannot_be_found_is_said_not_silently_skipped() {
+    let root = tempfile::tempdir().unwrap();
+    let gone = root.path().join("not-a-checkout").join(BESIDE);
+    let said = lookup_error(None, &gone);
+    assert!(
+        said.contains("running executable could not be determined"),
+        "{said}"
+    );
+    assert!(said.contains(&gone.display().to_string()), "{said}");
+}
+
+#[test]
+fn the_checkouts_copy_runs_only_while_it_is_there_and_the_other_places_still_win() {
+    let root = tempfile::tempdir().unwrap();
+    let exe = kit(root.path(), "kit", 0o755);
+    let copy = root.path().join("checkout.mjs");
+    std::fs::write(&copy, "// stand-in\n").unwrap();
+    assert_eq!(resolve(&host(&[]), Some(&exe), &copy).unwrap(), copy);
+    assert_eq!(resolve(&host(&[]), None, &copy).unwrap(), copy);
+    // Neither a bridge beside the executable nor the operator's file needs it.
+    let gone = root.path().join("gone.mjs");
+    let found = bridge(exe.parent().unwrap(), 0o644);
+    assert_eq!(resolve(&host(&[]), Some(&exe), &gone).unwrap(), found);
+    let named = Path::new("/elsewhere/parse.mjs");
+    let chosen = resolve(&host(&[(OVERRIDE, named)]), None, &gone).unwrap();
+    assert_eq!(chosen, named);
 }

@@ -71,6 +71,11 @@ fn a_trusted_bridge_beside_the_running_binary_is_the_one_node_runs() {
     assert_eq!(run(&sandbox, &exe, &[]), "ok items=0");
     let beside = sandbox.path("kit").join(BRIDGE).canonicalize().unwrap();
     assert_eq!(script(&sandbox).as_deref(), Some(beside.to_str().unwrap()));
+    // The same environment as for any other script: the allowlist, nothing of
+    // the passphrase, the operator's variables or the loader's.
+    let seen = sandbox.recorded("node").expect("the operator's node ran");
+    assert_eq!(support::names(&seen), support::allowlisted(), "{seen}");
+    assert!(!seen.contains(support::PASSPHRASE), "{seen}");
 }
 
 #[test]

@@ -85,7 +85,8 @@ pub enum EnvSpecError {
     NodeOverride(String),
     /// An `opensesame-env-parse.mjs` beside the running executable that may not
     /// be run: says which file or directory and why. The checkout's copy is
-    /// not tried instead.
+    /// not tried instead. Also: no bridge to run at all (none beside the
+    /// executable, no override, no checkout copy), saying where it looked.
     #[error("{0}")]
     BridgeScript(String),
 }
@@ -106,8 +107,8 @@ pub enum EnvSpecError {
 /// # Errors
 ///
 /// Returns an error when validation or the underlying operation fails, when
-/// no trusted `node` exists, or when the bridge beside the executable may not
-/// be run.
+/// no trusted `node` exists, when the bridge beside the executable may not
+/// be run, or when there is no bridge to run.
 pub fn parse_schema_file(path: &Path) -> Result<EnvSpecDocument, EnvSpecError> {
     let bin = node_bridge::script()?;
     let out = node_command()?.arg(&bin).arg(path).output()?;

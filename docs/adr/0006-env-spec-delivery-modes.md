@@ -20,6 +20,14 @@ names the variable, not a fallback to `PATH`. The process that reads the schema
 may hold the store passphrase, and the bridge never receives it
 ([audit](../security/audits/2026-10-13-env-spec-bridge-environment.md)).
 
+Amended 2026-10-17: the `node` file found that way is held to the rule its
+directory is, group included (owned by root or the caller, not writable by
+others, group-writable only by root's group or one of the caller's own). Before,
+only its directory had the group test, so a `node` a stranger's group could
+write was run from a directory that group could not. The bridge script a release
+kit ships beside `opensesame` is held to the same rule
+([ADR 0207](0207-release-kit-binaries.md)).
+
 ## Context
 Varlock / `@env-spec` provide a durable, MIT-licensed developer config surface (`.env.schema`) with schema/value separation, shaped placeholders, and a credential-proxy preview. OpenSesame already centers agent authority on ConnectionRef + Intent (ADR 0005). Reinventing a custom env DSL would violate anti-NIH; cloning Varlock’s HTTPS MITM as the primary broker would inherit protocol limits and a weak same-UID security boundary.
 

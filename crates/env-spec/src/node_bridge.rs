@@ -16,8 +16,9 @@
 //!    put a `node` in are searched: owned by root or the caller, not writable
 //!    by others, and group-writable only by root's group or one of the
 //!    caller's own (see `trust`). On Windows: absolute, existing and not the
-//!    current directory. The `node` itself must be owned by root or the caller
-//!    and not world-writable. An empty entry or a relative one means the
+//!    current directory. The `node` itself (after symlinks) is held to the same
+//!    rule: owned by root or the caller, not writable by others, and
+//!    group-writable only by root's group or one of the caller's. An empty entry or a relative one means the
 //!    working directory to a shell, and a `node` planted there would run with
 //!    everything the process holds. When nothing is found the error says so
 //!    and why each entry was skipped; the inherited `PATH` is never a fallback.
