@@ -84,8 +84,14 @@ It does not take a world-writable directory; see Not fixed.
   `chmod -R 777 /usr/local/bin`). There the operator names the file with
   `OPENSESAME_NODE`, or puts a trusted Node (for example the one
   `actions/setup-node` installs) first on `PATH`. The CI Rust job sets
-  `OPENSESAME_NODE` to the runner's `node`, and the two tests that would
-  otherwise skip when no node can be resolved fail instead when `CI` is set.
+  `OPENSESAME_NODE` to the runner's `node` and, when the env-spec crate is
+  tested, installs the bridge's one dependency (`@env-spec/parser`, frozen
+  lockfile, no install scripts). With `CI` set, the tests that used to skip when
+  no node could be resolved, or when the parser was not installed, fail instead,
+  so the real-parser round trip cannot pass vacuously there. The
+  `dev_run_surrogates` tests name the machine's `node` through
+  `OPENSESAME_NODE` as well: a symlink to a world-writable `node` is refused like
+  the file itself.
 - `OPENSESAME_NODE` is trusted as named. Anyone who can set the environment of
   `opensesame` can already point it at any program through
   `OPENSESAME_ENV_PARSE`; the variable adds no new reach, and it replaces the

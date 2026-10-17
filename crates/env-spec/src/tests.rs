@@ -121,6 +121,15 @@ fn bridge_roundtrip_fixture() {
     let doc = match parse_schema_file(&path) {
         Ok(doc) => doc,
         Err(EnvSpecError::Bridge(msg)) if msg.contains("ERR_MODULE_NOT_FOUND") => {
+            // The same on CI: the Rust job installs the parser, so its absence
+            // there is a broken install step, not a reason to pass.
+            assert!(
+                std::env::var_os("CI").is_none(),
+                "CI has not installed the env-spec bridge's dependencies \
+                 (pnpm install --frozen-lockfile --ignore-scripts \
+                 --filter @opensesame/env-spec-bridge...), so \
+                 bridge_roundtrip_fixture would be vacuous: {msg}"
+            );
             eprintln!("skip bridge_roundtrip_fixture: env-spec-bridge deps not installed ({msg})");
             return;
         }

@@ -77,8 +77,11 @@ owner, group and mode combinations the trust rule decides.
 
 `bridge_roundtrip_fixture` parses
 [`tests/fixtures/demo.env.schema`](../../tests/fixtures/demo.env.schema)
-through the real bridge; it prints a skip line when `node` is missing or the
-bridge's dependencies are not installed.
+through the real bridge; locally it prints a skip line when no usable `node`
+resolves or the bridge's dependencies are not installed. With `CI` set either is
+a failure: the Rust job names its `node` with `OPENSESAME_NODE` and installs
+`@env-spec/parser` (`pnpm install --frozen-lockfile --ignore-scripts --filter
+"@opensesame/env-spec-bridge..."`), so the round trip runs there.
 
 ## Related
 
