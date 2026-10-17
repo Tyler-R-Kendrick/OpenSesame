@@ -4,9 +4,10 @@
 //! Discovery prefers documenting whether `age-plugin-yubikey` is resolvable
 //! and whether a dry-run list command can be attempted.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 
+use opensesame_trusted_exec::ResolveError;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -41,23 +42,30 @@ pub enum PivAgeError {
     Other(String),
 }
 
+/// The variable that names the exact `age-plugin-yubikey` to run.
+const PLUGIN_OVERRIDE: &str = "OPENSESAME_AGE_PLUGIN_YUBIKEY";
+
 /// Resolve `age-plugin-yubikey` without mutating device state.
 #[must_use]
 pub fn discover_piv_age() -> PivAgeDiscovery {
     let mut notes = Vec::new();
-    let plugin_path = resolve_age_plugin_yubikey();
-    let Some(path) = plugin_path.as_ref() else {
-        notes.push("age-plugin-yubikey not on PATH; install per plugin docs".into());
-        return PivAgeDiscovery {
-            plugin_path: None,
-            runtime: PivAgeRuntime::PluginMissing,
-            requires_hardware: true,
-            notes,
-        };
+    let mut command = match plugin_command() {
+        Ok(command) => command,
+        Err(why) => {
+            notes.push(why.to_string());
+            notes.push("install age-plugin-yubikey per its docs, or name it with OPENSESAME_AGE_PLUGIN_YUBIKEY".into());
+            return PivAgeDiscovery {
+                plugin_path: None,
+                runtime: PivAgeRuntime::PluginMissing,
+                requires_hardware: true,
+                notes,
+            };
+        }
     };
+    let path = PathBuf::from(command.get_program());
 
     // Dry-run oriented probe: `--help` only. Never `--generate`, never ykman.
-    let help = Command::new(path).arg("--help").output();
+    let help = command.arg("--help").output();
     match help {
         Ok(out) if out.status.success() => {
             notes.push("plugin binary responds to --help (dry-run)".into());
@@ -91,27 +99,13 @@ pub fn refuse_destructive_ykman(_args: &[&str]) -> Result<(), PivAgeError> {
     Err(PivAgeError::DestructiveRefused)
 }
 
-fn resolve_age_plugin_yubikey() -> Option<PathBuf> {
-    if let Ok(explicit) = std::env::var("OPENSESAME_AGE_PLUGIN_YUBIKEY") {
-        let path = PathBuf::from(explicit);
-        if path.is_absolute() && path.is_file() {
-            return Some(path);
-        }
-    }
-    which("age-plugin-yubikey")
-}
-
-fn which(bin: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
-        let candidate = dir.join(bin);
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-        // Windows-style .exe not required here; native Linux/macOS path.
-        let _ = Path::new(bin);
-    }
-    None
+/// `age-plugin-yubikey`: the file `OPENSESAME_AGE_PLUGIN_YUBIKEY` names, or
+/// the one on a trusted `PATH` entry (`opensesame-trusted-exec`). A value that
+/// cannot be used is an error, never a reason to search `PATH`. It is handed
+/// `PATH` (the trusted entries) and the common set only: `--help` needs no
+/// more, and the plugin reaches the card through pcscd's socket.
+fn plugin_command() -> Result<Command, ResolveError> {
+    opensesame_trusted_exec::command("age-plugin-yubikey", PLUGIN_OVERRIDE)
 }
 
 #[cfg(test)]

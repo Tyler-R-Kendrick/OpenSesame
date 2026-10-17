@@ -1,4 +1,4 @@
-//! The store's `git` and `gpg` are found by the trusted rule and handed only what it
+//! The store's `git`, `gpg`, SOPS and age plugin are found by the trusted rule and handed only what it
 //! needs, through the crate's public functions. These tests point this
 //! process's own environment at a planted `PATH`, so each holds `ENV`.
 #![cfg(unix)]
@@ -151,4 +151,74 @@ fn a_gpg_entry_is_opened_and_sealed_by_the_trusted_gpg_with_nothing_else() {
         Some("/home/dummy/.gnupg")
     );
     assert!(fixture.args().unwrap().contains(&"--encrypt".to_owned()));
+}
+
+#[test]
+fn opensesame_sops_bin_must_name_a_file_that_can_run_and_sops_sees_only_its_own() {
+    use opensesame_sealed_store::{resolve_sops_bin, sops_decrypt, SopsError, SopsFormat};
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = Fixture::new("sops");
+    let dir = fixture.scratch("sops");
+    let plain = dir.join("not-executable");
+    std::fs::write(&plain, "#!/bin/sh\n").unwrap();
+    std::fs::set_permissions(&plain, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let runnable = dir.join("sops");
+    fixture.stub_recorder_with(&runnable, "/bin/cat > /dev/null", "plain: text");
+    let refused = {
+        let value = plain.display().to_string();
+        let _env = enter(&fixture, &[("OPENSESAME_SOPS_BIN", &value)]);
+        resolve_sops_bin()
+    };
+    assert_eq!(refused, Err(SopsError::InvalidBinaryPath));
+    let opened = {
+        let value = runnable.display().to_string();
+        let _env = enter(&fixture, &[("OPENSESAME_SOPS_BIN", &value)]);
+        sops_decrypt(b"sops: {}", SopsFormat::Yaml)
+    };
+    let env = fixture.assert_clean();
+    assert_eq!(opened.unwrap(), b"plain: text");
+    let names: Vec<_> = env.keys().map(String::as_str).collect();
+    for name in &names {
+        assert!(
+            [
+                "LANG",
+                "LC_ALL",
+                "PATH",
+                "SOPS_AGE_KEY_FILE",
+                "PWD",
+                "SHLVL",
+                "_"
+            ]
+            .contains(name),
+            "{name} reached sops: {names:?}"
+        );
+    }
+}
+
+#[test]
+fn the_age_plugin_is_the_trusted_one_or_the_file_its_variable_names() {
+    use opensesame_sealed_store::{discover_piv_age, PivAgeRuntime};
+    let plugin = "age-plugin-yubikey";
+    let fixture = Fixture::new(plugin);
+    let found = {
+        let _env = enter(&fixture, &[]);
+        discover_piv_age()
+    };
+    let _ = fixture.assert_clean();
+    let trusted = fixture.trusted.join(plugin).display().to_string();
+    assert_eq!(found.plugin_path.as_deref(), Some(trusted.as_str()));
+    assert_eq!(fixture.args().unwrap(), ["--help"]);
+    // A value that cannot be used is said, and PATH is not searched instead.
+    std::fs::remove_file(&fixture.dump).unwrap();
+    let refused = {
+        let _env = enter(&fixture, &[("OPENSESAME_AGE_PLUGIN_YUBIKEY", plugin)]);
+        discover_piv_age()
+    };
+    assert_eq!(refused.runtime, PivAgeRuntime::PluginMissing);
+    assert!(
+        refused.notes[0].starts_with("OPENSESAME_AGE_PLUGIN_YUBIKEY must be an absolute path"),
+        "{:?}",
+        refused.notes
+    );
+    assert!(fixture.env().is_none() && !fixture.planted_ran());
 }
