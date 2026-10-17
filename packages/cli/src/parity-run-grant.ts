@@ -20,11 +20,7 @@ function runGrantReceipt(record: RunGrantRecord) {
   };
 }
 
-export function bindingFromRunArgs(args: string[]): {
-  binding: RunGrantBinding;
-  expiresIn: string;
-  uses: number;
-} {
+export function bindingFromRunArgs(args: string[]) {
   const expiresIn = option(args, "--expires-in") ?? "10m";
   const uses = Number(option(args, "--uses") ?? "1");
   const agentProxy = toggle(args, "--agent-proxy");
