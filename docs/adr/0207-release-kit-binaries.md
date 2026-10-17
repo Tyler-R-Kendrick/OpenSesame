@@ -62,26 +62,36 @@ imports `@env-spec/parser`, so it needed a `node_modules` beside it.
    repository that attests, so a run of an edited copy on a branch would pass.
    A lane pins the archive's sha256 and the plugin's own sha256 (the pin
    `opensesame plugins install` already requires).
-3. **The release is published only for the commit that was built, and only
-   the owner can start one.** The first job (`scripts/release/tag-check.sh`)
-   requires the tag to be `v<workspace version>` (or with a `-suffix`) and to
-   name a commit `main` already holds, and every other job needs it, so a tag
-   that fails spends no build minute. The commit it prints is the peel of
-   `GITHUB_SHA`, because on a tag push that value can be an annotated tag's
-   object; nothing compares the raw value. The build asserts its checkout is
-   that commit; the release is created as a draft with every file attached, at
-   `--target` the verified commit; the tag is asked of the API again just
-   before the draft is published, and a tag that moved is not released. Every
-   action is pinned by SHA; jobs get no token by default, and only the attest
-   job (`id-token`, `attestations`) and the publish job (`contents`) write. No
-   secret beyond `GITHUB_TOKEN`. These checks live in the workflow file at the
-   tagged commit, which whoever pushes the tag controls, so two settings outside
-   it carry the trust (`ops/github/release-tags.json`, applied with
-   `ops/github/governance.mjs`): a ruleset that lets only a repository admin
-   create, move or delete a `v*` tag, and a `release` environment, which the
-   owner configures with a required reviewer and `v*`-only deployments. The
-   second is optional and `governance.mjs` does not manage it; the first is
-   verified by `governance.mjs --verify`.
+3. **The release is published only for the commit that was built, and the
+   workflow file is not what keeps others from starting one.** The first job
+   (`scripts/release/tag-check.sh`) requires the tag to be `v<workspace
+   version>` (or with a `-suffix`) and to name a commit `main` already holds,
+   and every other job needs it, so a tag that fails spends no build minute.
+   The commit it prints is the peel of `GITHUB_SHA`, because on a tag push that
+   value can be an annotated tag's object; nothing compares the raw value. It
+   resolves only full object names and full refs (`refs/remotes/origin/main`),
+   since git reads a bare `origin/main` as a tag of that name first and the job
+   fetches every tag. The build asserts its checkout is that commit; the release
+   is created as a draft with every file attached, at `--target` the verified
+   commit, after `publish` has run `gh attestation verify` on every file and the
+   sums; the tag is asked of the API again just before the draft is published,
+   and a tag that moved is not released. Every action is pinned by SHA; jobs get
+   no token by default, and only the attest job (`id-token`, `attestations`) and
+   the publish job (`contents`, and `attestations: read` for that check) write
+   or read more than the repository. No secret beyond `GITHUB_TOKEN`.
+   All of this lives in the workflow file at the tagged commit, which whoever
+   pushes the tag controls: an edited copy can skip any of it. What stops that is
+   outside the file. Once the owner applies it (`ops/github/release-tags.json`,
+   with `ops/github/governance.mjs`, which `--verify` checks), only a repository
+   admin can create a `v*` tag, so a copy of the workflow cannot be started
+   from a tag by anyone else, and a branch-dispatched copy cannot create the
+   tag a release needs. And a consumer who verifies with `--signer-workflow` and
+   `--source-ref refs/tags/<tag>` rejects a run from a branch. The `release`
+   environment, with a required reviewer if the owner sets one, adds an approval
+   step before `publish`; it is not a boundary, because a copy of the workflow
+   can omit `environment:`. The repository's optional "Immutable releases"
+   setting stops a published release's assets and tag from being replaced
+   afterwards.
 4. **The binary finds the bridge shipped beside it.** `crates/env-spec` looks
    for the script in this order: `OPENSESAME_ENV_PARSE`, used as named; then
    `opensesame-env-parse.mjs` in the directory of the running executable after
@@ -91,9 +101,11 @@ imports `@env-spec/parser`, so it needed a `node_modules` beside it.
    the caller, not writable by others and group-writable only by root's group
    or one of the caller's. One that is there and fails is an error that says
    which file or directory and why. It never falls through to the checkout's
-   copy, so whoever could plant it cannot choose the script by breaking it. With
-   nothing beside the executable, no override and no checkout copy (a release
-   binary run on its own), the error says where it looked.
+   copy, so whoever could plant it cannot choose the script by breaking it. The
+   checkout's copy is held to the same rule, because a release binary carries
+   the path it was built from and a file that merely exists there is no reason
+   to run it. With nothing beside the executable, no override and no checkout
+   copy (a release binary run on its own), the error says where it looked.
 5. **The bridge ships as one file.** `packages/env-spec-bridge` bundles itself
    and `@env-spec/parser` (no dependencies of its own) with esbuild into one ES
    module that imports only `node:` builtins. Which esbuild and parser build
@@ -127,9 +139,11 @@ imports `@env-spec/parser`, so it needed a `node_modules` beside it.
   build's `--remap-path-prefix` rewrites paths in debug info and panic
   messages, not this string, which the compiler expands first. It is reached
   only when no bridge sits beside the binary and `OPENSESAME_ENV_PARSE` is
-  unset, and only if a file exists there; a kit always ships the bridge.
-  Removing that fallback from release builds is left for a later change. The
-  fallback itself has no trust check, as before.
+  unset, and it is held to the bridge's trust rule, so a local user who owns
+  `/home/runner/...` on someone else's host cannot choose the script by putting
+  a file there; a developer's own checkout passes. Compiling the fallback out of
+  release builds would also remove the path from the binary and is not needed
+  for safety.
 - The check on the bridge is by path and bounded. It covers the file, the
   directory it is named in and the one a symlink resolves into; it does not
   look at the directories above them, which is also true of a `node` found on
@@ -141,6 +155,12 @@ imports `@env-spec/parser`, so it needed a `node_modules` beside it.
   Windows rule for it exists; running a kit there is unsupported.
 - The `node` file is now held to the group rule its directory already was: a
   `node` that a group the caller is not in can write is passed over like one
-  anyone can write (before, only its directory had the group test).
+  anyone can write (before, only its directory had the group test). A `node`
+  reached through a link is also judged in the directory the link resolves
+  into, as the bridge is.
+- `publish` verifies the attestations itself before it creates the release,
+  and `kit-archive.sh sums` refuses to write `SHA256SUMS` unless the bridge on
+  its own is the one inside every kit; neither is needed for the artifact to be
+  the same one by construction, and both make that checked rather than assumed.
 - The binaries are not signed beyond the provenance attestation, and the tag
   must already name the version the binary reports (`opensesame --version`).

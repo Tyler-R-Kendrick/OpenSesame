@@ -17,9 +17,13 @@
 #
 # The first job checks the tag before any build minute is spent: a version the
 # workspace carries, a commit main already holds (scripts/release/tag-check.sh).
-# Only the owner may create a v* tag at all (ops/github/release-tags.json); the
-# `release` environment, if the owner has configured one, asks a reviewer before
-# `publish` runs.
+# That check lives in this file, which whoever pushes the tag controls. What
+# keeps a collaborator from running an edited copy is outside it: once the owner
+# has applied ops/github/release-tags.json, only an admin can create a v* tag,
+# and a consumer who verifies with --signer-workflow and --source-ref
+# refs/tags/<tag> rejects a run from a branch. The `release` environment, if the
+# owner has configured one, asks a reviewer before `publish` runs; that is an
+# approval step, not a boundary, since a copy of this file can omit it.
 name: Release kit
 
 on:
@@ -248,7 +252,9 @@ jobs:
           name: release-files
           path: dist/*
           if-no-files-found: error
-          retention-days: 7
+          # `publish` downloads this after the `release` environment's approval,
+          # which can wait up to 30 days.
+          retention-days: 35
 
   # Signs a SLSA build-provenance statement for every file SHA256SUMS names, and
   # for SHA256SUMS itself, bound to this workflow, this commit and this run.
@@ -305,6 +311,8 @@ jobs:
       name: release
     permissions:
       contents: write
+      # `gh attestation verify` below reads the attestations `attest` made.
+      attestations: read
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -318,6 +326,18 @@ jobs:
         run: |
           set -euo pipefail
           (cd dist && sha256sum --check --strict SHA256SUMS)
+          # What a downloader will run, run here first: every file and the sums
+          # carry an attestation from this workflow for this tag. Nothing is
+          # created if one does not.
+          verify_attestation() {
+            gh attestation verify "$1" --repo "$GH_REPO" \
+              --signer-workflow "$GH_REPO/.github/workflows/release-kit.yml" \
+              --source-ref "refs/tags/$TAG"
+          }
+          while read -r _ file; do
+            verify_attestation "dist/$file"
+          done < dist/SHA256SUMS
+          verify_attestation dist/SHA256SUMS
           # The commit the tag names now, through any annotated tag objects.
           tag_commit() {
             local obj type

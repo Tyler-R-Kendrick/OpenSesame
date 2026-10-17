@@ -10,11 +10,18 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { areasForPaths, repoRootFromHere } from "./ci-changed-areas.mjs";
 import { driverReach, gatesForPath } from "./ci-gates.mjs";
+
+// The `yaml` package pnpm hoists privately, loaded the way
+// scripts/security/verified-backports.mjs loads it.
+const { parse } = createRequire(
+  new URL("../../node_modules/.pnpm/node_modules/", import.meta.url),
+)("yaml");
 
 const root = repoRootFromHere();
 const workflow = ".github/workflows/release-kit.yml";
@@ -35,28 +42,13 @@ function job(name) {
   return next === -1 ? rest : rest.slice(0, next + 1);
 }
 
-/** The text of every `run:` step: a block scalar's lines, or the one-liner. */
-function runBlocks() {
-  const lines = yaml.split("\n");
-  const out = [];
-  for (let i = 0; i < lines.length; i++) {
-    const match = /^(\s*)(?:- )?run:\s*(.*)$/.exec(lines[i]);
-    if (!match) continue;
-    if (!/^[|>]/.test(match[2])) {
-      out.push(match[2]);
-      continue;
-    }
-    const body = [];
-    const indent = match[1].length;
-    for (i++; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.trim() !== "" && line.search(/\S/) <= indent) break;
-      body.push(line);
-    }
-    i--;
-    out.push(body.join("\n"));
-  }
-  return out;
+/** The script of every `run:` step of every job, as the YAML parser reads it. */
+function runScripts(text) {
+  return Object.values(parse(text).jobs).flatMap((definition) =>
+    (definition.steps ?? []).flatMap((step) =>
+      typeof step.run === "string" ? [step.run] : [],
+    ),
+  );
 }
 
 // The structural gate counts each describe callback as one function of at most
@@ -189,7 +181,9 @@ describe("release kit workflow", () => {
       expect(action).toMatch(/^[\w./-]+@[a-f0-9]{40}$/);
     }
     expect(yaml).not.toContain("pull_request_target");
-    for (const body of runBlocks()) expect(body).not.toContain("${{");
+    const scripts = runScripts(yaml);
+    expect(scripts.length).toBeGreaterThan(10);
+    for (const body of scripts) expect(body).not.toContain("${{");
   });
 
   it("builds nothing that names this runner's checkout, and says what it cannot remap", () => {
@@ -222,6 +216,46 @@ describe("release kit workflow", () => {
     ]) {
       expect(gatesForPath(path, driverReach(root)), path).toEqual(new Set());
     }
+  });
+});
+
+describe("release kit workflow", () => {
+  it("reads a run script whole, continuation lines of a quoted scalar included", () => {
+    const text = `jobs:\n  a:\n    steps:\n      - run: "echo one \\\n          ${expression("github.ref")}"\n`;
+    expect(runScripts(text).join("")).toContain(expression("github.ref"));
+  });
+
+  it("keeps the files for as long as the approval can wait", () => {
+    const kept = /name: release-files\n[\s\S]*?retention-days: (\d+)/.exec(
+      job("checksums"),
+    );
+    expect(Number(kept?.[1])).toBeGreaterThanOrEqual(30);
+  });
+
+  it("verifies every attestation before it creates the release", () => {
+    const publish = job("publish");
+    expect(publish).toContain("attestations: read");
+    expect(publish).toContain(
+      '--signer-workflow "$GH_REPO/.github/workflows/release-kit.yml"',
+    );
+    expect(publish).toContain('--source-ref "refs/tags/$TAG"');
+    const each = publish.indexOf('verify_attestation "dist/$file"');
+    const sums = publish.indexOf("verify_attestation dist/SHA256SUMS");
+    const create = publish.indexOf('gh release create "$TAG"');
+    expect(each).toBeGreaterThan(-1);
+    expect(sums).toBeGreaterThan(each);
+    expect(create).toBeGreaterThan(sums);
+  });
+
+  it("calls the environment an approval step and the ruleset what keeps others from tagging", () => {
+    const text = (value) => value.replace(/\s+/g, " ").replace(/# /g, "");
+    expect(text(yaml)).toContain("an approval step, not a boundary");
+    expect(text(guide)).toContain("an approval step, not a boundary");
+    expect(text(guide)).toContain("Immutable releases");
+    expect(text(guide)).not.toContain("cannot publish at all");
+    expect(text(yaml)).not.toContain(
+      "Only the owner may create a v* tag at all",
+    );
   });
 });
 

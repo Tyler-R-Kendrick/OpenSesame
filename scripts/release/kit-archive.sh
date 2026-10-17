@@ -21,7 +21,8 @@
 # write either archive unless the bytes agree with the names: the shipped plugin
 # and `opensesame` must not carry the override's variable
 # (crates/surrogate-proxy/tests/shipped_build.rs) and the test build must.
-# sums writes DIR/SHA256SUMS over the archives and opensesame-env-parse.mjs in DIR.
+# sums writes DIR/SHA256SUMS over the archives and opensesame-env-parse.mjs in DIR,
+# after checking that every kit archive holds exactly that bridge.
 #
 # The same inputs give the same bytes: members sorted by name, every mtime
 # SOURCE_DATE_EPOCH, owner and group 0 with no names, ustar headers (no pax
@@ -104,6 +105,14 @@ cmd_sums() {
   [ ${#kits[@]} -gt 0 ] || die "no opensesame-kit_*.tar.gz in $1"
   [ ${#tests[@]} -eq ${#kits[@]} ] || die "${#kits[@]} kit archive(s) but ${#tests[@]} test-build archive(s) in $1"
   [ -f opensesame-env-parse.mjs ] || die "no opensesame-env-parse.mjs in $1"
+  # The bridge on its own is the one in every kit: same bytes, checked, not assumed.
+  local want got kit
+  want=$(sha256sum < opensesame-env-parse.mjs | cut -d' ' -f1)
+  for kit in "${kits[@]}"; do
+    got=$(tar -xzOf "$kit" "${kit%.tar.gz}/opensesame-env-parse.mjs" | sha256sum | cut -d' ' -f1) ||
+      die "cannot read opensesame-env-parse.mjs from $kit"
+    [ "$got" = "$want" ] || die "$kit holds an opensesame-env-parse.mjs ($got) that is not the one on its own ($want)"
+  done
   local files=("${kits[@]}" "${tests[@]}" opensesame-env-parse.mjs)
   printf '%s\n' "${files[@]}" | LC_ALL=C sort | xargs -d '\n' sha256sum > SHA256SUMS
   sha256sum --check --quiet SHA256SUMS
