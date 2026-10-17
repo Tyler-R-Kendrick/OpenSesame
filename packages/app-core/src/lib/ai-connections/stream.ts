@@ -119,6 +119,7 @@ export async function readAiTextStream(
   let answer = "";
   let bytes = 0;
   let completed = false;
+  let drained = false;
   const abort = () => {
     void reader.cancel().catch(() => undefined);
   };
@@ -146,7 +147,10 @@ export async function readAiTextStream(
       const next = await reader.read();
       check();
       signal.throwIfAborted();
-      if (next.done) break;
+      if (next.done) {
+        drained = true;
+        break;
+      }
       bytes += next.value.byteLength;
       if (bytes > 4 * 1024 * 1024) throw malformed();
       pending = (
@@ -167,7 +171,9 @@ export async function readAiTextStream(
     return answer;
   } finally {
     signal.removeEventListener("abort", abort);
-    await reader.cancel().catch(() => undefined);
+    // A drained body is already complete; cancelling it can still abort the
+    // underlying request in some browsers, so retire it without cancellation.
+    if (!drained) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }

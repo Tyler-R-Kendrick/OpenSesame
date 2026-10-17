@@ -78,12 +78,16 @@ export async function readAiJson(
     );
   const chunks: Uint8Array[] = [];
   let length = 0;
+  let drained = false;
   try {
     for (;;) {
       check();
       const next = await reader.read();
       check();
-      if (next.done) break;
+      if (next.done) {
+        drained = true;
+        break;
+      }
       length += next.value.byteLength;
       if (length > 512 * 1024)
         throw new AiConnectionError(
@@ -108,7 +112,8 @@ export async function readAiJson(
       );
     }
   } finally {
-    await reader.cancel().catch(() => undefined);
+    // Retire a drained body without cancellation (see readAiTextStream).
+    if (!drained) await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }
