@@ -1,4 +1,5 @@
 /** Every rendered catalog row gets a real browser walk, including explicit refusals. */
+import { addCapabilities } from "./pages-journey.mjs";
 import { TOUCH_FLOOR } from "./mobile-contract.mjs";
 import { nativeAiFormContract } from "./native-browser-ai-form-contract.mjs";
 import {
@@ -7,7 +8,6 @@ import {
   NATIVE_SHARED_AI_PRESETS,
 } from "./native-browser-catalog-projection.mjs";
 import { waitForModelProviderSheetKeyField } from "./native-browser-catalog-sheet-contract.mjs";
-import { addCapabilities } from "./pages-journey.mjs";
 
 export async function nativeVisit(page, base, route) {
   await page.evaluate((href) => {
