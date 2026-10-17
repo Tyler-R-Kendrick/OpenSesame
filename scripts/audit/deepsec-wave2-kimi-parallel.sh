@@ -9,10 +9,11 @@ LOG="${DEEPSEC_KIMI_PARALLEL_LOG:-/tmp/deepsec-wave2-kimi-parallel.log}"
 export PATH="${HOME}/.local/bin:${PATH}"
 export DEEPSEC_THINKING="${DEEPSEC_THINKING:-medium}"
 export DEEPSEC_CONCURRENCY="${DEEPSEC_KIMI_PARALLEL_CONCURRENCY:-1}"
+export DEEPSEC_BATCH_SIZE="${DEEPSEC_KIMI_PARALLEL_BATCH_SIZE:-2}"
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY
 
 exec >>"$LOG" 2>&1
-echo "=== kimi-parallel start $(date -u +%Y-%m-%dT%H:%M:%SZ) wave=$WAVE concurrency=$DEEPSEC_CONCURRENCY ==="
+echo "=== kimi-parallel start $(date -u +%Y-%m-%dT%H:%M:%SZ) wave=$WAVE concurrency=$DEEPSEC_CONCURRENCY batch_size=$DEEPSEC_BATCH_SIZE ==="
 
 if ! "${ROOT}/scripts/audit/deepsec-kimi-quota-probe.sh"; then
   echo "=== kimi-parallel: quota limited — exit $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
