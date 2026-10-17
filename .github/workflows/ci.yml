@@ -90,7 +90,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A lockfile or manifest change runs every package (scope=all): 18 minutes
+    # on a push to main, over 28 on a slower runner. ci-full-run.test.mjs.
+    timeout-minutes: 45
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.

@@ -33,6 +33,15 @@ describe("the whole-repository run", () => {
     expect(on).toContain("workflow_dispatch:");
   });
 
+  it("gives the TypeScript job the time a whole-suite run takes on a slow runner", () => {
+    // A lockfile or manifest change plans every package (scope=all in
+    // ci-affected-tests.mjs). That step took 18 minutes on a push to main and
+    // over 28 on a pull request's runner, which a 30-minute job cut off.
+    const minutes =
+      /\n {2}typescript-tests:\n[\s\S]*?timeout-minutes: (\d+)/.exec(ci);
+    expect(Number(minutes?.[1])).toBeGreaterThanOrEqual(45);
+  });
+
   it("verifies pull-request signatures only on a pull request", () => {
     const step = ci
       .split("name: Verify merge-required commit signatures")[1]
