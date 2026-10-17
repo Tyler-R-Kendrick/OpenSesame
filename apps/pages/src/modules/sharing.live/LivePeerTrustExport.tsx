@@ -1,45 +1,54 @@
 /**
  * Owner-side peer trust signal for browser-only live peering (lazy chunk).
  */
+import { sasFromFingerprint } from "@opensesame/app-core/lib/peer-trust/sas.js";
 import { useEffect, useState } from "react";
 import {
   CopyButton,
   FieldRow,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
+import { IconEye, IconEyeOff } from "../../components/Icons.js";
+import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { ensureOwnerDtlsPin } from "./live-dtls-pin.js";
 
 type ExportReady =
   | Readonly<{
       signal: string;
-      sas: string;
+      fingerprint: string;
     }>
   | Readonly<{ failed: true }>;
 
 export default function LivePeerTrustExport() {
   const [ready, setReady] = useState<ExportReady | null>(null);
+  const [showQr, setShowQr] = useState(false);
   const signalCopy = useCopyFeedback();
-  const sasCopy = useCopyFeedback();
 
   useEffect(() => {
     let cancelled = false;
     const fail = () => {
       if (!cancelled) setReady({ failed: true });
     };
-    void import("@opensesame/app-core/lib/live/peer-trust-peering.js")
-      .then((peering) =>
-        peering
-          .exportLivePeerTrustSignal()
-          .then((result) => {
-            if (cancelled) return;
-            if (!result.ok) {
-              setReady({ failed: true });
-              return;
-            }
-            setReady({ signal: result.signal, sas: result.sas });
-          })
-          .catch(fail),
+    void ensureOwnerDtlsPin()
+      .then((ownerDtls) =>
+        import("@opensesame/app-core/lib/live/peer-trust-peering.js").then(
+          (peering) => peering.exportLivePeerTrustSignal({ ownerDtls }),
+        ),
       )
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.ok) {
+          setReady({ failed: true });
+          return;
+        }
+        const fingerprint = sasFromFingerprint(result.spkiFingerprint);
+        if (!fingerprint) {
+          setReady({ failed: true });
+          return;
+        }
+        setReady({ signal: result.signal, fingerprint });
+      })
       .catch(fail);
     return () => {
       cancelled = true;
@@ -55,39 +64,41 @@ export default function LivePeerTrustExport() {
       />
     );
   }
+  const qrLabel = showQr ? "Hide fingerprint QR" : "Show fingerprint QR";
 
   return (
     <>
       <FieldRow
-        label="Peer trust signal"
+        label="Fingerprint"
         actions={
-          <CopyButton
-            value={ready.signal}
-            label="peer trust signal"
-            fieldKey="live-peer-trust-signal"
-            copied={signalCopy.copied}
-            failed={signalCopy.failed}
-            onCopy={signalCopy.copy}
-          />
+          <>
+            <CopyButton
+              value={ready.signal}
+              label="peer trust signal"
+              fieldKey="live-peer-trust-signal"
+              copied={signalCopy.copied}
+              failed={signalCopy.failed}
+              onCopy={signalCopy.copy}
+            />
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={qrLabel}
+              title={qrLabel}
+              onClick={() => setShowQr((open) => !open)}
+            >
+              {showQr ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+            </button>
+          </>
         }
       >
-        <span className="frow__value frow__value--mono">…</span>
+        <span className="frow__value frow__value--mono">
+          {ready.fingerprint}
+        </span>
       </FieldRow>
-      <FieldRow
-        label="Short authentication string"
-        actions={
-          <CopyButton
-            value={ready.sas}
-            label="short authentication string"
-            fieldKey="live-peer-trust-sas"
-            copied={sasCopy.copied}
-            failed={sasCopy.failed}
-            onCopy={sasCopy.copy}
-          />
-        }
-      >
-        <span className="frow__value frow__value--mono">{ready.sas}</span>
-      </FieldRow>
+      {showQr ? (
+        <QrCode value={ready.signal} label="Peer trust signal" />
+      ) : null}
     </>
   );
 }
