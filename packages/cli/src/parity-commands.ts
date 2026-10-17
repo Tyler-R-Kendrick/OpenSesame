@@ -12,6 +12,7 @@ import {
   renderEnv,
 } from "@opensesame/app-core/lib/password-agent/index.js";
 import type { RequestPorts } from "@opensesame/app-core/lib/password-agent/request.js";
+import { describeRunGrant } from "@opensesame/app-core/lib/password-agent/run-grant.js";
 import * as service from "@opensesame/app-core/lib/password-agent/service-account.js";
 import type {
   PasswordAgentPort,
@@ -22,6 +23,7 @@ import { emitHumanValue, emitMetadata as print } from "./output.js";
 import type { readPrivateInput, writePrivateFile } from "./parity-node.js";
 import { exhausted, option, source, toggle } from "./parity-parse.js";
 import { runLease, runPrivateRequest } from "./parity-request.js";
+import { claimRunGrantForRun } from "./parity-run-grant.js";
 import { assertHumanReveal, emitRevealReceipt } from "./reveal-gate.js";
 export interface ParityContext {
   requestTransport?: Pick<RequestPorts, "addresses" | "send"> | undefined;
@@ -184,6 +186,7 @@ export async function runChild(ctx: ParityContext): Promise<number> {
         "--methods requires NAME=GET[,POST...].",
       ),
     );
+  const grant = option(args, "--grant");
   exhausted(args);
   if (agentProxy && mounts.length)
     throw new Error("--agent-proxy cannot be used with --mount.");
@@ -193,12 +196,19 @@ export async function runChild(ctx: ParityContext): Promise<number> {
     throw new Error(
       "run requires --env or --mount NAME=op://reference or NAME=os://reference.",
     );
-  await assertHumanReveal({
-    verb: "run",
-    reveal: true,
-    desktop: true,
-    appIntegration: ctx.appIntegration,
-  });
+  if (grant !== undefined) {
+    await claimRunGrantForRun(
+      grant,
+      describeRunGrant({ assignments, mounts, agentProxy, paths, methods }),
+    );
+  } else {
+    await assertHumanReveal({
+      verb: "run",
+      reveal: true,
+      desktop: true,
+      appIntegration: ctx.appIntegration,
+    });
+  }
   await emitRevealReceipt({ verb: "run" });
   if (agentProxy) return agent.runBrokered(assignments, child, paths, methods);
   return agent.run(assignments, child, mounts);

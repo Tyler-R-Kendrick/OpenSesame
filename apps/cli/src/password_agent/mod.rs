@@ -9,6 +9,7 @@ mod os_run;
 mod process_io;
 mod request;
 mod run_args;
+mod run_grant_cli;
 mod service;
 mod setup;
 use clap::{Args, Subcommand};
@@ -256,15 +257,22 @@ pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Re
             }
         }
         Command::Run { args, command } => {
+            let grant_approved = run_grant_cli::claim_grant(&args).await?;
             if args.agent_proxy {
-                os_broker::run_brokered(&args.env, &args.paths, &args.methods, &command)?;
+                os_broker::run_brokered(
+                    &args.env,
+                    &args.paths,
+                    &args.methods,
+                    &command,
+                    grant_approved,
+                )?;
             } else if !args.mount.is_empty()
                 || core::env::has_os_reference(&args.env)
                 || core::env::has_os_reference(&args.mount)
             {
-                os_run::run_assignments(&args.env, &args.mount, &command)?;
+                os_run::run_assignments(&args.env, &args.mount, &command, grant_approved)?;
             } else {
-                consume::run_assignments(&args.env, &command, desktop)?;
+                consume::run_assignments(&args.env, &command, grant_approved)?;
             }
         }
         Command::Env { cmd } => {
