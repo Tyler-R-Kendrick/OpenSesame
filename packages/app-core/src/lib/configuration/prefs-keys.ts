@@ -10,4 +10,7 @@ export const PREFS_SEMANTIC_PATH = "config/prefs";
 /** Authored YAML sidecar; comments live here, never in the JSON body. */
 export const PREFS_SOURCE_PATH = "config/prefs.source.yaml";
 
-export const PREFS_SYSTEM_FIELDS = ["prefsRevision"] as const;
+export const PREFS_SYSTEM_FIELDS = [
+  "prefsRevision",
+  "legacyIdentityNoticeSeen",
+] as const;
