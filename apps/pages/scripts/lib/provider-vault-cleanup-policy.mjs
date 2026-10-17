@@ -162,10 +162,21 @@ async function signInAgain({ page, provider, service, idp, grants }) {
   await page
     .getByRole("button", { name: `Sign in to ${provider.name}`, exact: true })
     .click();
-  const popup = await opened;
+  const popup = await opened.catch(async (error) => {
+    throw new Error(
+      `Re-sign-in window never opened: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))} :: ${await page.locator("body").innerText().then((text) => text.slice(0, 1200))}`,
+      { cause: error },
+    );
+  });
   await popup
     .getByRole("heading", { name: "Provider sign in", exact: true })
-    .waitFor();
+    .waitFor()
+    .catch(async (error) => {
+      throw new Error(
+        `Re-sign-in window closed before consent: ${await page.getByRole("img").evaluateAll((items) => items.map((item) => item.getAttribute("aria-label")).join("; "))}`,
+        { cause: error },
+      );
+    });
   await finishProvider(popup, idp);
   await expect(
     page.getByRole("img", { name: `${provider.name} connected`, exact: true }),
