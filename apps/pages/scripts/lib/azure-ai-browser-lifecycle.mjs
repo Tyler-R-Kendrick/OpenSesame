@@ -84,6 +84,7 @@ async function restoredMetadata(page, entry) {
 async function remoteSupport(context, api) {
   const { page, base } = context;
   await api.visit(page, base, "settings/features");
+  await api.beforeReload();
   await ensureModelsOff(page, { origin: new URL(page.url()).origin, base });
   await api.visit(page, base, "settings/features");
   await addCapabilities(page, ["Remote support model"]);
