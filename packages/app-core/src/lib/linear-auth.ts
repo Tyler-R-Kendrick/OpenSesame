@@ -90,14 +90,21 @@ export async function beginLinearAuthorization(
   let reservation = held;
   let browser = held?.browser ?? null;
   let state: string | null = null;
+  // Full-page navigation must keep the pending request for the callback.
+  let redirecting = false;
   try {
-    // This runs in the originating click, before durable writes or provider requests.
-    reservation ??= reserveLinearAuthorizationWindow();
-    browser = reservation.browser;
+    // A click-held window stays open across durable preparation. Fresh consent
+    // prepares first so a null or failed request never opens an about:blank
+    // popup that release() closes while waitForURL is still listening.
     const request = await prepareLinearAuthorization(id, actor);
     if (!request) return;
     state = request.pending.state;
+    if (!held) {
+      reservation = reserveLinearAuthorizationWindow();
+      browser = reservation.browser;
+    }
     if (!browser?.authorize) {
+      redirecting = true;
       page().location.assign(request.url);
       return;
     }
@@ -108,8 +115,9 @@ export async function beginLinearAuthorization(
     });
     await finishLinearAuthorization(linearPopupCallback(callback, state));
   } catch (error) {
-    if (state && browser?.authorize)
-      await clearLinearAuthorizationRequest(id, state);
+    // A blocked window.open throws after prepare stored state. Clear that
+    // attempt too; a full-page handoff keeps its pending request.
+    if (state && !redirecting) await clearLinearAuthorizationRequest(id, state);
     throw error;
   } finally {
     try {

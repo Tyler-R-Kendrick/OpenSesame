@@ -174,6 +174,10 @@ function handlePagesDevRequest(
 export default defineConfig({
   test: {
     // The relay's suites under `server/` are `node --test` (`test:relay`).
+    // Popup arming order is a Vitest suite
+    // (`linear-consent-popup-arming.test.mjs`), with the other `scripts/lib`
+    // contracts. Root `vitest run scripts/lib` discovers `**/scripts/lib/**`,
+    // so that file cannot stay on `node:test`.
     exclude: [...configDefaults.exclude, "server/**"],
     testTimeout: 20_000,
     hookTimeout: 20_000,
